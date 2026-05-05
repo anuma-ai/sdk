@@ -8,13 +8,14 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
-import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
-import type { EmbeddingOptions } from "../memoryEngine/types";
 import { applyMMR } from "../memory/mmr";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
+import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import type { EmbeddingOptions } from "../memoryEngine/types";
 import { scoreBM25 } from "./bm25";
+import { decomposeQuery } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -42,6 +43,26 @@ export interface MemoryVaultSearchOptions {
    * to the legacy cosine-only ranker (e.g. for benchmark A/B comparison).
    */
   useFusion?: boolean;
+  /**
+   * Run the cross-encoder reranker on the top-N V2 candidates. Default false.
+   * When true, switches to the async pipeline (rankFusedVaultMemoriesAsync).
+   */
+  rerank?: boolean;
+  /** Number of CE rerank candidates. Default 30. */
+  rerankTopN?: number;
+  /**
+   * LLM-based query decomposition for composite/abstract queries. When set,
+   * each query is classified + (if composite) decomposed into 3–5 facet
+   * sub-queries via gpt-5-mini, then ranked via {@link rankComposite}.
+   * Requires `decomposeOptions` (auth) when set to "llm".
+   */
+  decompose?: "off" | "llm";
+  /** Auth + endpoint for the decomposition LLM call. Required when decompose="llm". */
+  decomposeOptions?: {
+    apiKey: string;
+    baseUrl?: string;
+    model?: string;
+  };
 }
 
 /**
@@ -325,6 +346,44 @@ export function rankFusedVaultMemories(
 }
 
 /**
+ * Knowledge-graph retrieval lane (W5).
+ *
+ * Returns a ranked list of items by entity-overlap score, descending. Items
+ * with zero shared entities are dropped — graph is a *retrieval lane*, not
+ * a boost: it surfaces candidates that the cosine/BM25 lanes might miss,
+ * and contributes to final ordering through RRF fusion (in
+ * {@link rankFusedVaultMemoriesAsync} and {@link rankComposite}).
+ *
+ * Score formula: `tanh(0.5 × shared_entity_count)` — copied from Hindsight's
+ * `link_expansion_retrieval.py`. Count-based (not ratio): a memory sharing
+ * 3 entities scores higher than one sharing "1-of-1", which is what
+ * "tell me about Peter" actually wants. Saturates near 3+ entities so a
+ * memory tagged with every query entity doesn't blow out the rest.
+ *
+ * The returned list contains only items with overlap > 0; callers fuse it
+ * with V2/V2+CE rankings via RRF, so missing items contribute zero.
+ */
+export function rankByEntityOverlap(
+  queryEntities: Set<string>,
+  items: Array<{ id: string; content: string; entities: Set<string> }>
+): VaultSearchResult[] {
+  if (queryEntities.size === 0 || items.length === 0) return [];
+  const scored: VaultSearchResult[] = [];
+  for (const item of items) {
+    let shared = 0;
+    for (const e of queryEntities) if (item.entities.has(e)) shared++;
+    if (shared === 0) continue;
+    scored.push({
+      uniqueId: item.id,
+      content: item.content,
+      similarity: Math.tanh(0.5 * shared),
+    });
+  }
+  scored.sort((a, b) => b.similarity - a.similarity);
+  return scored;
+}
+
+/**
  * Async variant of {@link rankFusedVaultMemories} that adds an optional
  * cross-encoder rerank stage on top of the V2 pipeline. Mirrors Hindsight's
  * `budget: high` path where a CE refines the top-N candidates after the
@@ -375,15 +434,12 @@ export async function rankFusedVaultMemoriesAsync(
     /** How many candidates to feed MMR. Default 20. */
     mmrTopN?: number;
     /**
-     * W5 — knowledge-graph retrieval lane. Map of memoryId → count of
-     * entities shared with the query. Items with overlap > 0 receive a
-     * tanh-shaped boost; items absent from the map are unaffected.
+     * W5 — knowledge-graph retrieval lane. Pre-built ranking of memory IDs
+     * (descending by entity-overlap score). When provided, RRF-fuses with
+     * the V2 ranking *before* CE rerank — graph is a retrieval lane, not
+     * a boost. Build with {@link rankByEntityOverlap}.
      */
-    graphOverlap?: Map<string, number>;
-    /** Total entity count in the query (denominator for tanh normalization). */
-    totalQueryEntities?: number;
-    /** Graph-boost weight (α). Default 0.2 — same magnitude as recency. */
-    graphAlpha?: number;
+    entityRanking?: string[];
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -427,19 +483,41 @@ export async function rankFusedVaultMemoriesAsync(
     combined = v2Ranked;
   }
 
-  // W5 — apply graph-overlap boost. tanh(shared / total) saturates at 1
-  // for full overlap; missing items (no shared entities) get no change.
-  if (options?.graphOverlap && options.graphOverlap.size > 0) {
-    const total = Math.max(1, options.totalQueryEntities ?? 1);
-    const alpha = options.graphAlpha ?? 0.2;
-    const overlap = options.graphOverlap;
-    combined = combined.map((r) => {
-      const shared = overlap.get(r.uniqueId) ?? 0;
-      if (shared <= 0) return r;
-      const boost = 1 + alpha * Math.tanh(shared / total);
-      return { ...r, similarity: r.similarity * boost };
-    });
-    combined.sort((a, b) => b.similarity - a.similarity);
+  // W5 lane fusion — RRF the post-CE ranking with the entity-overlap
+  // ranking. Lane fusion runs *after* CE rerank so the CE's lexical/
+  // temporal signal isn't washed out by graph lift on superseded
+  // memories (graph alone would pull "Lives in Portland" above
+  // "Relocated to SF" on a "where now" query because both share user
+  // entities; CE-then-RRF preserves the temporal demotion).
+  //
+  // CE-ranked head is weighted 2× so graph remains a tiebreaker that
+  // surfaces candidates V2 missed entirely (e.g. zero-cosine items with
+  // shared entities — the hard_negatives win), without overruling the
+  // CE's lexical decisions on items it has already seen.
+  if (options?.entityRanking && options.entityRanking.length > 0) {
+    const headIds = combined.map((r) => r.uniqueId);
+    const fused = rrfFuse([headIds, headIds, options.entityRanking]);
+    const fusedHead = combined
+      .map((r) => ({ ...r, similarity: fused.get(r.uniqueId) ?? r.similarity }))
+      .sort((a, b) => b.similarity - a.similarity);
+    // Items in entityRanking but absent from the CE head re-enter the
+    // pipeline at the bottom of `combined` so they're available to RRF
+    // even if CE didn't see them. Their score is the graph-only RRF
+    // contribution.
+    const seen = new Set(combined.map((r) => r.uniqueId));
+    const itemById = new Map(items.map((i) => [i.id, i]));
+    for (const id of options.entityRanking) {
+      if (seen.has(id)) continue;
+      const it = itemById.get(id);
+      if (!it) continue;
+      fusedHead.push({
+        uniqueId: id,
+        content: it.content,
+        similarity: fused.get(id) ?? 0,
+      });
+    }
+    fusedHead.sort((a, b) => b.similarity - a.similarity);
+    combined = fusedHead;
   }
 
   if (options?.mmr) {
@@ -466,6 +544,145 @@ export async function rankFusedVaultMemoriesAsync(
   }
 
   return [...combined, ...tailSlice].slice(0, limit);
+}
+
+/**
+ * Composite ranker — sub-query decomposition + RRF fusion.
+ *
+ * For abstract/multi-faceted questions ("tell me about the user", "what is
+ * my tech stack"), the V2/V2+CE pipeline scores about equally against every
+ * personal fact since the query has no lexical or semantic anchor. The fix
+ * (LlamaIndex pattern, departing from Hindsight's "skip query rewriting"
+ * stance because their workload is factual): rewrite the *left side* —
+ * decompose into 3–5 concrete facets, run the existing fused ranker per
+ * facet, fuse the rank lists with RRF.
+ *
+ * The recency/proof-count/supersession signals are already applied inside
+ * each per-facet `rankFusedVaultMemories` call; RRF only fuses ranks, so
+ * those boosts shape the per-facet ordering before fusion.
+ *
+ * Optional rerank stage scores the top-N fused candidates against the
+ * *original* query (not the sub-queries) so a CE that sees "tell me about
+ * X" can weight thematic relevance back into the ordering — useful when
+ * sub-queries miss a facet the user actually cared about.
+ *
+ * @param subQueries  3–5 facet questions with pre-computed embeddings.
+ * @returns Ranked results. When `limit < items.length`, the tail is
+ *   appended in fused-score order so callers (e.g. the benchmark) can
+ *   probe IDs beyond K for margin analysis.
+ */
+export async function rankComposite(
+  originalQuery: string,
+  originalQueryEmbedding: number[],
+  subQueries: Array<{ query: string; embedding: number[] }>,
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    recencyAlpha?: number;
+    recency?: RecencyOptions;
+    rerank?: boolean;
+    rerankTopN?: number;
+    ceWeight?: number;
+    rrfK?: number;
+    /**
+     * Truncate each sub-query's ranked list before RRF. Default 10. The
+     * LlamaIndex sub-query pattern is to fuse *top hits per facet*, not
+     * full lists — long tails dilute the fusion signal because every
+     * memory ends up in every list.
+     */
+    perFacetTopN?: number;
+    /**
+     * W5 — pre-built entity-overlap ranking of memory IDs. Added as an
+     * additional RRF facet alongside the original query and sub-queries,
+     * so memories sharing entities with the question get lifted by graph
+     * convergence the same way they get lifted by sub-query convergence.
+     * Build with {@link rankByEntityOverlap}.
+     */
+    entityRanking?: string[];
+  }
+): Promise<VaultSearchResult[]> {
+  const limit = options?.limit ?? 5;
+  const perFacetTopN = options?.perFacetTopN ?? 10;
+  if (items.length === 0 || subQueries.length === 0) return [];
+
+  // Stage 1 — per-facet V2 ranking. Each sub-query contributes only its
+  // top-N (default 10) to RRF. The original query also contributes a
+  // ranking with extra weight (replicated facets) so that when a
+  // technically-specific query is mislabeled as composite, the original
+  // ranking dominates and rescues recall.
+  const originalRanked = rankFusedVaultMemories(originalQuery, originalQueryEmbedding, items, {
+    limit: perFacetTopN,
+    minSimilarity: options?.minSimilarity ?? 0,
+    ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+    ...(options?.recency && { recency: options.recency }),
+  }).map((r) => r.uniqueId);
+
+  const perFacetRankings: string[][] = [];
+  // Weight the original query 3x (triplicated facet) — empirically rescues
+  // mis-classified specific queries without diluting true composites,
+  // which still have 3–5 sub-query facets dominating the fusion.
+  perFacetRankings.push(originalRanked, originalRanked, originalRanked);
+
+  for (const sq of subQueries) {
+    const ranked = rankFusedVaultMemories(sq.query, sq.embedding, items, {
+      limit: perFacetTopN,
+      minSimilarity: options?.minSimilarity ?? 0,
+      ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+      ...(options?.recency && { recency: options.recency }),
+    });
+    perFacetRankings.push(ranked.map((r) => r.uniqueId));
+  }
+
+  // W5 — graph lane as one more facet (truncated to the same top-N so it
+  // doesn't dominate when the query has many shared entities).
+  if (options?.entityRanking && options.entityRanking.length > 0) {
+    perFacetRankings.push(options.entityRanking.slice(0, perFacetTopN));
+  }
+
+  // Stage 2 — RRF fusion across facet rankings.
+  const fused = rrfFuse(perFacetRankings, options?.rrfK);
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  let combined: VaultSearchResult[] = Array.from(fused.entries())
+    .map(([id, score]) => {
+      const item = itemById.get(id);
+      if (!item) return null;
+      return { uniqueId: id, content: item.content, similarity: score };
+    })
+    .filter((r): r is VaultSearchResult => r !== null);
+  combined.sort((a, b) => b.similarity - a.similarity);
+
+  // Bench parity: append items absent from any facet's top-N so the
+  // returned list covers all items (margin analysis needs any ID locatable).
+  const fusedIds = new Set(combined.map((r) => r.uniqueId));
+  for (const item of items) {
+    if (!fusedIds.has(item.id)) {
+      combined.push({ uniqueId: item.id, content: item.content, similarity: 0 });
+    }
+  }
+
+  // Stage 3 — optional CE rerank against the *original* query.
+  if (options?.rerank && combined.length > 0) {
+    const rerankTopN = options.rerankTopN ?? 30;
+    const ceWeight = options.ceWeight ?? 0.1;
+    const headSlice = combined.slice(0, rerankTopN);
+    const tailSlice = combined.slice(rerankTopN);
+
+    const reranked = await rerankPairs(
+      originalQuery,
+      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+    );
+    const ceById = new Map(reranked.map((r) => [r.id, r.score]));
+
+    const head = headSlice.map((r) => ({
+      ...r,
+      similarity: r.similarity * (1 + ceWeight * (ceById.get(r.uniqueId) ?? 0)),
+    }));
+    head.sort((a, b) => b.similarity - a.similarity);
+    combined = [...head, ...tailSlice];
+  }
+
+  return combined.slice(0, Math.max(limit, items.length));
 }
 
 /**
@@ -622,6 +839,52 @@ async function searchVaultMemoriesWithSize(
   }
 
   const useFusion = searchOptions?.useFusion ?? true;
+
+  // Composite path — LLM decomposes the query into sub-queries, embeds them,
+  // and runs the multi-facet RRF ranker. Falls through to V2/V2+CE on
+  // "specific" mode so single-fact queries don't pay the decomposition cost.
+  if (
+    useFusion &&
+    searchOptions?.decompose === "llm" &&
+    searchOptions.decomposeOptions
+  ) {
+    const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
+    if (decomp.mode === "composite") {
+      const subEmbeddings = await generateEmbeddings(decomp.subQueries, embeddingOptions);
+      const subQueries = decomp.subQueries.map((sq, i) => ({
+        query: sq,
+        embedding: subEmbeddings[i],
+      }));
+      const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
+        limit,
+        minSimilarity,
+        rerank: !!searchOptions.rerank,
+        ...(searchOptions.rerankTopN !== undefined && {
+          rerankTopN: searchOptions.rerankTopN,
+        }),
+      });
+      return { results: composite, vaultSize: memories.length };
+    }
+    // mode === "specific" — fall through to V2/V2+CE below.
+  }
+
+  if (useFusion && searchOptions?.rerank) {
+    const results = await rankFusedVaultMemoriesAsync(
+      query,
+      queryEmbedding,
+      embeddedItems,
+      {
+        limit,
+        minSimilarity,
+        rerank: true,
+        ...(searchOptions.rerankTopN !== undefined && {
+          rerankTopN: searchOptions.rerankTopN,
+        }),
+      }
+    );
+    return { results, vaultSize: memories.length };
+  }
+
   const ranker = useFusion ? rankFusedVaultMemories : rankVaultMemories;
   const results = ranker(query, queryEmbedding, embeddedItems, {
     limit,

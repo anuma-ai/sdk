@@ -10,8 +10,8 @@ import type { Class } from "@nozbe/watermelondb/types";
 
 import { AppFile } from "./appFiles/models";
 import { Conversation, ConversationSummary, Message } from "./chat/models";
-import { Media } from "./media/models";
 import { Entity, MemoryEntity } from "./entities/models";
+import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
 import { SavedTool } from "./savedTools/models";

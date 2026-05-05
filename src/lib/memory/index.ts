@@ -1,21 +1,21 @@
-export { recall } from "./recall.js";
-export { retain, type RetainContext } from "./retain.js";
 export {
-  extractFacts,
-  extractAndRetain,
   type AutoExtractMessage,
+  extractAndRetain,
   type ExtractedCandidate,
+  extractFacts,
   type ExtractFactsOptions,
   type FactType,
 } from "./autoExtract.js";
 export {
-  createAutoExtractor,
   type AutoExtractor,
+  createAutoExtractor,
   type CreateAutoExtractorOptions,
   type MemoryExtractedEvent,
   type TurnCompleteEvent,
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";
+export { recall } from "./recall.js";
+export { retain, type RetainContext } from "./retain.js";
 export type {
   Budget,
   MemoryKind,
@@ -33,12 +33,12 @@ export type {
 // W5 — entity graph ops (used by extractAndRetain on the write path
 // and by recall() on the read path).
 export {
-  upsertEntityOp,
-  getEntityByNameOp,
-  linkMemoryEntitiesOp,
-  getMemoriesByEntityNamesOp,
-  getEntitiesForMemoryOp,
   type EntityOperationsContext,
+  getEntitiesForMemoryOp,
+  getEntityByNameOp,
+  getMemoriesByEntityNamesOp,
+  linkMemoryEntitiesOp,
+  upsertEntityOp,
 } from "../db/entities/operations.js";
 export type {
   CreateEntityOptions,

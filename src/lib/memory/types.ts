@@ -10,8 +10,8 @@
 
 import type { StorageOperationsContext } from "../db/chat/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
-import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
+import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 
 export type MemoryKind = "fact" | "chunk";
 

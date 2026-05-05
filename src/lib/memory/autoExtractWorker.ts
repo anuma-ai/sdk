@@ -18,8 +18,8 @@
  */
 
 import {
-  extractAndRetain,
   type AutoExtractMessage,
+  extractAndRetain,
   type ExtractedCandidate,
   type ExtractFactsOptions,
 } from "./autoExtract.js";

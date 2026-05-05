@@ -22,7 +22,6 @@ import {
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
-
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.85;
