@@ -2,6 +2,7 @@
 
 | Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 2026-05-05 | memory-vault | oracle | kimi-k2p5 | 32.9% | 95/289 | 73.7% | 63.7% | [`61edeb5`](https://github.com/anuma-ai/sdk/commit/61edeb5bb1cd0c49bb6ec39761369e7b33376da7) | [link](https://github.com/anuma-ai/sdk/actions/runs/25358321738) |
 | 2026-05-05 | memory-vault | oracle | kimi-k2p5 | 23.9% | 69/289 | 67.1% | 60% | [`cf6d64c`](https://github.com/anuma-ai/sdk/commit/cf6d64c5202dc41831711d0cb96e8750d3e30e63) | [link](https://github.com/anuma-ai/sdk/actions/runs/25357924425) |
 | 2026-05-05 | memory-vault | oracle | kimi-k2p5 | 35.3% | 102/289 | 82.4% | 75.8% | [`7c6d47d`](https://github.com/anuma-ai/sdk/commit/7c6d47d8b2d870ec311fb2f19c928a04cbe0f988) | [link](https://github.com/anuma-ai/sdk/actions/runs/25357614369) |
 | 2026-05-05 | memory-vault | oracle | kimi-k2p5 | 20.4% | 59/289 | 65.7% | 54.9% | [`ebab649`](https://github.com/anuma-ai/sdk/commit/ebab6495cec793b00e690bd662c8978b782311d1) | [link](https://github.com/anuma-ai/sdk/actions/runs/25357314730) |
