@@ -408,17 +408,22 @@ WHAT TO EXTRACT — TWO SUBJECTS:
 
   Casual topics ARE extractable. Pet names, what they ate for breakfast, a friend's birthday, what time they went to bed, the route they took to work.
 
-(B) subject="assistant" — facts the ASSISTANT stated that the user is likely to ask back about.
+(B) subject="assistant" — facts the ASSISTANT stated that contain a SPECIFIC, RETRIEVABLE VALUE.
 
-  Capture facts the assistant computed, recommended, taught, or reported on the user's behalf. The user may return next week and ask "what did you tell me earlier about X?" or "how much was that going to be?" or "what's the time difference between A and B?"
+  ONLY extract assistant statements when the statement contains AT LEAST ONE of:
+  - a number, quantity, price, distance, or duration ("9 hours", "$340", "47 days", "twice a week")
+  - a specific named entity the assistant introduced (a place, business, product, person — "Le Bernardin", "Greenfield Park")
+  - a specific date or time the assistant gave the user
+  - a calculated/computed value (time differences, conversions, totals, "the difference is X")
 
-  Examples:
-  - The assistant told the user a calculated value ("Tokyo is 9 hours ahead of San Francisco") — extract: "Assistant told the user that Tokyo is 9 hours ahead of San Francisco."
-  - The assistant gave a recommendation ("try Le Bernardin in midtown") — extract: "Assistant recommended Le Bernardin in midtown for the user's anniversary dinner."
-  - The assistant provided a quote/price/quantity for the user's project — extract that quote with the context.
-  - The assistant scheduled or planned something with the user — extract.
+  These are the questions LongMemEval grades on: "how much was that going to be?", "what time difference did you tell me?", "what restaurant did you recommend?". Without a concrete value, the assistant statement is not gradeable and only adds retrieval noise.
 
-  Skip the assistant's filler ("happy to help", "let me know if you have questions"), generic encyclopedic facts the user didn't ask about, and content that just restates what the user said.
+  DO NOT extract:
+  - generic advice or recommendations without a named target ("you should drink more water", "consider a different approach")
+  - the assistant restating or summarizing what the user just said
+  - filler, encouragement, or hedged opinions ("that sounds great", "it depends")
+  - meta-commentary about the conversation ("happy to help", "let me know")
+  - educational facts the user did not ask about and did not anchor to a value
 
 WHAT NOT TO EXTRACT:
 
