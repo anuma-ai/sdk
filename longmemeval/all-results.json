@@ -289,5 +289,68 @@
       "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/25357314730",
       "runId": 25357314730
     }
+  },
+  {
+    "timestamp": "2026-05-05T04:25:31.449Z",
+    "datasetName": "longmemeval_s_memory-vault",
+    "strategy": "memory-vault",
+    "totalQuestions": 289,
+    "correctAnswers": 102,
+    "accuracy": 0.35294117647058826,
+    "byQuestionType": {
+      "single-session-user": {
+        "total": 70,
+        "correct": 44,
+        "accuracy": 0.6285714285714286
+      },
+      "single-session-assistant": {
+        "total": 56,
+        "correct": 7,
+        "accuracy": 0.125
+      },
+      "single-session-preference": {
+        "total": 30,
+        "correct": 17,
+        "accuracy": 0.5666666666666667
+      },
+      "multi-session": {
+        "total": 133,
+        "correct": 34,
+        "accuracy": 0.2556390977443609
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 0.8235294117647058,
+      "avgRecall": 0.7575547866205306
+    },
+    "latency": {
+      "p50": 74971.96635399999,
+      "p95": 136093.67148919997,
+      "p99": 180096.56845292007,
+      "mean": 78315.96005026641
+    },
+    "tokenUsage": {
+      "promptTokens": 1898756,
+      "completionTokens": 221817,
+      "totalTokens": 2120573,
+      "embeddingTokens": 0
+    },
+    "cost": {
+      "llmCost": 1.8047046,
+      "embeddingCost": 0,
+      "totalCost": 1.8047046,
+      "llmModel": "fireworks/accounts/fireworks/models/kimi-k2p5",
+      "embeddingModel": "qwen/qwen3-embedding-8b"
+    },
+    "meta": {
+      "commit": "7c6d47d8b2d870ec311fb2f19c928a04cbe0f988",
+      "commitShort": "7c6d47d",
+      "branch": "feat/recall-api",
+      "model": "fireworks/accounts/fireworks/models/kimi-k2p5",
+      "variant": "oracle",
+      "concurrency": 100,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/25357614369",
+      "runId": 25357614369
+    }
   }
 ]
