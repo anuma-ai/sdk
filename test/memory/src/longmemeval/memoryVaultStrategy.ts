@@ -17,6 +17,7 @@ import {
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
+import { rerankPairs } from "../../../../src/lib/memory/reranker.js";
 
 function cosineSim(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
@@ -287,14 +288,36 @@ export async function processEntryMemoryVault(
         ...embeddingOptions,
         cache: embeddingCache,
       });
-      const ranked = chunkEmbeddings
+      // Two-stage ranking: cosine narrows to top-14 candidates, then a
+      // cross-encoder reranks those by semantic relevance. Same pattern
+      // we use on the vault facts. Reranker model lazy-loads on first
+      // call (~25MB cached after that).
+      const cosineCandidates = chunkEmbeddings
         .map((emb, i) => ({
           sessionId: chunkSessionIds[i],
           text: chunkTexts[i],
           sim: cosineSim(queryEmbedding, emb),
         }))
         .sort((a, b) => b.sim - a.sim)
-        .slice(0, 7);
+        .slice(0, 14);
+
+      let ranked: typeof cosineCandidates;
+      try {
+        const reranked = await rerankPairs(
+          query,
+          cosineCandidates.map((c, i) => ({ id: String(i), content: c.text }))
+        );
+        // rerankPairs returns sorted-by-score; map back to our shape, keeping
+        // the original cosine sim for the displayed score (familiar to debug).
+        ranked = reranked.slice(0, 7).map(r => {
+          const orig = cosineCandidates[Number(r.id)];
+          return { ...orig, sim: r.score };
+        });
+      } catch {
+        // Reranker failure (model load, OOM) — fall back to pure cosine.
+        ranked = cosineCandidates.slice(0, 7);
+      }
+
       for (const r of ranked) retrievedChunkSessionIds.add(r.sessionId);
       const chunkBlock = ranked
         .map(
