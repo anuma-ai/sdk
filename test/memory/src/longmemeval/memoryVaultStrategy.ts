@@ -307,7 +307,13 @@ export async function processEntryMemoryVault(
 
     // Step 5: Two-step LLM flow
     const systemPrompt = `Today is ${entry.question_date}.
-You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
+You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.
+
+The memory_vault_search tool returns two kinds of evidence:
+- Numbered vault entries are extracted facts the user established earlier (their identity, preferences, durable plans). Trust these for "what is the user's X" questions.
+- Raw conversation excerpts (under "Raw conversation excerpts") are the actual past dialogue between the user and the assistant. Use these whenever the question asks what was said or recommended in a past turn — what the user mentioned, what the assistant told them, what calculation/value was given. The exact phrasing the user is asking about typically lives in the excerpts, not the facts.
+
+When both kinds disagree, the raw excerpts win because they're the verbatim source. Always check the excerpts before answering, especially for time differences, prices, recommendations, and specific numbers.`;
 
     // The SDK's ToolConfig uses "arguments" for the schema, but the OpenAI
     // Chat Completions API expects "parameters". Remap for the API call.
