@@ -138,6 +138,10 @@ export interface LongMemEvalOptions {
    *  today (searchTool.ts:1029); "fact-chunk" exercises the full recall()
    *  pipeline. Default "fact-chunk". */
   recallTypes?: "fact" | "fact-chunk";
+  /** Emission style when --strategy=recall. "rrf" (recall.ts default,
+   *  single ranked list) or "blocks" (vault-eval pattern, fact + chunk
+   *  sections). Default "rrf". */
+  recallEmit?: "rrf" | "blocks";
 }
 
 /** API configuration for LLM and embedding calls */
