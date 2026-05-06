@@ -729,6 +729,7 @@ export async function runLongMemEval(
               excerptMaxChars: options.excerptMaxChars,
               recallTypes: options.recallTypes,
               recallEmit: options.recallEmit,
+              recallLaneMode: options.recallLaneMode,
             }
           );
         } else {

@@ -33,11 +33,13 @@ import type {
   LongMemEvalEntry,
   LongMemEvalResult,
   RecallEmit,
+  RecallLaneMode,
   RecallTypes,
   TokenUsage,
 } from "./types.js";
 
 const DEFAULT_LIMIT = 14;
+const DEFAULT_CHUNK_LANE_LIMIT = 7;
 const DEFAULT_FACT_MIN_SCORE = 0.1;
 
 const TYPES_BY_FLAG: Record<RecallTypes, Array<"fact" | "chunk">> = {
@@ -64,6 +66,7 @@ export async function processEntryRecall(
     excerptMaxChars?: number;
     recallTypes?: RecallTypes;
     recallEmit?: RecallEmit;
+    recallLaneMode?: RecallLaneMode;
   }
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
@@ -197,35 +200,75 @@ export async function processEntryRecall(
     const budget = budgetFor(decomposeEnabled, rerankEnabled);
     const emit: RecallEmit = searchPipeline?.recallEmit ?? "blocks";
     const excerptMax = searchPipeline?.excerptMaxChars ?? 8000;
+    const laneMode: RecallLaneMode = searchPipeline?.recallLaneMode ?? "fused";
+    const wantsBothLanes = types.includes("fact") && types.includes("chunk");
+    const usePerLane = laneMode === "per-lane" && wantsBothLanes;
 
     const retrievedVaultIds = new Set<string>();
     const retrievedChunkConvIds = new Set<string>();
 
+    const recallCtx = {
+      vaultCtx,
+      storageCtx,
+      embeddingOptions,
+      vaultCache: embeddingCache,
+    };
+    const decomposeOpts = decomposeEnabled
+      ? { decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl } }
+      : {};
+
     const recallExecutor = async (args: Record<string, unknown>): Promise<string> => {
       const query = typeof args.query === "string" ? args.query : "";
       if (!query) return "(no query)";
-      const result = await recall(
-        query,
-        { vaultCtx, storageCtx, embeddingOptions, vaultCache: embeddingCache },
-        {
-          types,
-          limit: DEFAULT_LIMIT,
-          minScore: DEFAULT_FACT_MIN_SCORE,
-          budget,
-          ...(decomposeEnabled && {
-            decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
-          }),
-        }
-      );
 
-      for (const m of result.memories) {
+      // Per-lane: separate calls so chunks don't compete with facts for
+      // a shared limit. Each lane gets its own pool.
+      const factResults = types.includes("fact")
+        ? (
+            await recall(query, recallCtx, {
+              types: ["fact"],
+              limit: DEFAULT_LIMIT,
+              minScore: DEFAULT_FACT_MIN_SCORE,
+              budget,
+              ...decomposeOpts,
+            })
+          ).memories
+        : [];
+
+      const chunkResults = usePerLane
+        ? (
+            await recall(query, recallCtx, {
+              types: ["chunk"],
+              limit: DEFAULT_CHUNK_LANE_LIMIT,
+              budget,
+              ...decomposeOpts,
+            })
+          ).memories
+        : [];
+
+      // Fused path: single recall() call returns both kinds via RRF
+      const fused = !usePerLane
+        ? (
+            await recall(query, recallCtx, {
+              types,
+              limit: DEFAULT_LIMIT,
+              minScore: DEFAULT_FACT_MIN_SCORE,
+              budget,
+              ...decomposeOpts,
+            })
+          ).memories
+        : [];
+
+      const allMemories = usePerLane ? [...factResults, ...chunkResults] : fused;
+
+      for (const m of allMemories) {
         if (m.kind === "fact") retrievedVaultIds.add(m.id);
         if (m.kind === "chunk" && m.conversationId) retrievedChunkConvIds.add(m.conversationId);
       }
 
       if (emit === "blocks") {
-        const facts = result.memories.filter((m) => m.kind === "fact");
-        const chunks = result.memories.filter((m) => m.kind === "chunk");
+        const facts = (usePerLane ? factResults : fused.filter((m) => m.kind === "fact"));
+        const chunks = (usePerLane ? chunkResults : fused.filter((m) => m.kind === "chunk"));
         const factsBlock =
           facts.length === 0
             ? "(no fact memories matched)"
@@ -248,7 +291,7 @@ export async function processEntryRecall(
         return parts.join("\n\n");
       }
 
-      return result.memories
+      return allMemories
         .map((m, i) => {
           const tag = m.kind === "fact" ? "FACT" : "CHUNK";
           const body = m.kind === "chunk" ? m.content.slice(0, excerptMax) : m.content;
