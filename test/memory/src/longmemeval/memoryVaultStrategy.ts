@@ -68,7 +68,13 @@ export async function processEntryMemoryVault(
   api: ApiConfig,
   verbose: boolean,
   maxSessions?: number,
-  searchPipeline?: { rerank?: boolean; decompose?: "off" | "llm"; consolidate?: boolean }
+  searchPipeline?: {
+    rerank?: boolean;
+    decompose?: "off" | "llm";
+    consolidate?: boolean;
+    chunkSourceMaxChars?: number;
+    excerptMaxChars?: number;
+  }
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -234,6 +240,7 @@ export async function processEntryMemoryVault(
     // the actual user/assistant words when paraphrase distance trips the fact
     // index. Both rankings are surfaced to the answer LLM in one tool result.
     logProgress("Indexing session chunks...");
+    const chunkSourceMax = searchPipeline?.chunkSourceMaxChars ?? 6000;
     const chunkSessionIds: string[] = [];
     const chunkTexts: string[] = [];
     for (let i = 0; i < sessionIndices.length; i++) {
@@ -241,7 +248,7 @@ export async function processEntryMemoryVault(
       const text = entry.haystack_sessions[sIdx]
         .map((m) => `${m.role}: ${m.content}`)
         .join("\n")
-        .slice(0, 6000);
+        .slice(0, chunkSourceMax);
       chunkSessionIds.push(entry.haystack_session_ids[sIdx]);
       chunkTexts.push(text);
     }
@@ -296,10 +303,11 @@ export async function processEntryMemoryVault(
         .sort((a, b) => b.sim - a.sim)
         .slice(0, 7);
       for (const r of ranked) retrievedChunkSessionIds.add(r.sessionId);
+      const excerptMax = searchPipeline?.excerptMaxChars ?? 3500;
       const chunkBlock = ranked
         .map(
           (r, i) =>
-            `[excerpt ${i + 1}] (similarity: ${r.sim.toFixed(2)})\n${r.text.slice(0, 3500)}`
+            `[excerpt ${i + 1}] (similarity: ${r.sim.toFixed(2)})\n${r.text.slice(0, excerptMax)}`
         )
         .join("\n\n");
       return `${vaultStr}\n\n--- Raw conversation excerpts (${ranked.length}) ---\n\n${chunkBlock}`;
