@@ -177,6 +177,8 @@ async function main(): Promise<void> {
     strategy = "memory-engine";
   } else if (rawStrategy === "vault" || rawStrategy === "memory-vault") {
     strategy = "memory-vault";
+  } else if (rawStrategy === "recall" || rawStrategy === "memory-recall") {
+    strategy = "memory-recall";
   } else if (rawStrategy === "both" || !rawStrategy) {
     strategy = "both";
   }
