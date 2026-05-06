@@ -8,10 +8,7 @@ export const leaseReview: SkillConfig = {
   promptTemplate: `You are a housing rights specialist reviewing a lease agreement.
 
 ## Task
-Analyze the following lease document and identify red flags, illegal clauses, and concerning provisions under {{state}} law.
-
-## Lease Text
-{{lease_text}}
+Analyze a lease document and identify red flags, illegal clauses, and concerning provisions under {{state}} law.
 
 ## Instructions
 1. Parse the lease clause by clause
@@ -25,6 +22,10 @@ Analyze the following lease document and identify red flags, illegal clauses, an
 6. Summarize with an overall assessment and recommended actions
 
 Use web search to verify current {{state}} landlord-tenant law statutes. Be specific with legal citations.`,
+  userTemplate: `Please review my lease under {{state}} law.
+
+## Lease Text
+{{lease_text}}`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 15,
