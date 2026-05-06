@@ -695,6 +695,8 @@ export async function runLongMemEval(
               rerank: options.rerank,
               decompose: options.decompose,
               consolidate: options.consolidate,
+              chunkSourceMaxChars: options.chunkSourceMaxChars,
+              excerptMaxChars: options.excerptMaxChars,
             }
           );
         }

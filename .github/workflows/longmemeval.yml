@@ -79,6 +79,16 @@ on:
         options:
           - "true"
           - "false"
+      chunk_source:
+        description: "Vault: max chars per session when building chunk source (default 6000)"
+        required: false
+        type: string
+        default: ""
+      excerpt_cap:
+        description: "Vault: max chars per excerpt emitted to answer LLM (default 3500)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   resolve-strategies:
@@ -138,6 +148,12 @@ jobs:
           fi
           if [ "${{ matrix.strategy }}" = "vault" ]; then
             args="$args --rerank=${{ inputs.rerank }} --decompose=${{ inputs.decompose }} --consolidate=${{ inputs.consolidate }}"
+            if [ -n "${{ inputs.chunk_source }}" ]; then
+              args="$args --chunk-source=${{ inputs.chunk_source }}"
+            fi
+            if [ -n "${{ inputs.excerpt_cap }}" ]; then
+              args="$args --excerpt-cap=${{ inputs.excerpt_cap }}"
+            fi
           fi
           pnpm eval:longmemeval $args
 

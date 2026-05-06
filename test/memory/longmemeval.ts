@@ -57,6 +57,8 @@ const { values: args } = parseArgs({
     rerank: { type: "string" },
     decompose: { type: "string" },
     consolidate: { type: "string" },
+    "chunk-source": { type: "string" },
+    "excerpt-cap": { type: "string" },
   },
 });
 
@@ -199,6 +201,12 @@ async function main(): Promise<void> {
       decompose: args.decompose === "off" ? "off" : "llm",
     }),
     ...(args.consolidate !== undefined && { consolidate: args.consolidate !== "false" }),
+    ...(args["chunk-source"] !== undefined && {
+      chunkSourceMaxChars: parseInt(args["chunk-source"], 10),
+    }),
+    ...(args["excerpt-cap"] !== undefined && {
+      excerptMaxChars: parseInt(args["excerpt-cap"], 10),
+    }),
   };
 
   try {
