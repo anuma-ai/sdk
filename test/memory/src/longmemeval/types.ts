@@ -136,8 +136,9 @@ export interface LongMemEvalOptions {
   excerptMaxChars?: number;
   /** Lanes to query when --strategy=recall. "fact" matches the chat client
    *  today (searchTool.ts:1029); "fact-chunk" exercises the full recall()
-   *  pipeline. Default "fact-chunk". */
-  recallTypes?: "fact" | "fact-chunk";
+   *  pipeline; "chunk" is an ablation (chunks only, no facts).
+   *  Default "fact-chunk". */
+  recallTypes?: "fact" | "chunk" | "fact-chunk";
   /** Emission style when --strategy=recall. "rrf" (recall.ts default,
    *  single ranked list) or "blocks" (vault-eval pattern, fact + chunk
    *  sections). Default "rrf". */

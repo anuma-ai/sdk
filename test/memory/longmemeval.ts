@@ -212,9 +212,11 @@ async function main(): Promise<void> {
       excerptMaxChars: parseInt(args["excerpt-cap"], 10),
     }),
     ...(args["recall-types"] !== undefined && {
-      recallTypes: (args["recall-types"] === "fact" ? "fact" : "fact-chunk") as
-        | "fact"
-        | "fact-chunk",
+      recallTypes: (args["recall-types"] === "fact"
+        ? "fact"
+        : args["recall-types"] === "chunk"
+          ? "chunk"
+          : "fact-chunk") as "fact" | "chunk" | "fact-chunk",
     }),
     ...(args["recall-emit"] !== undefined && {
       recallEmit: (args["recall-emit"] === "blocks" ? "blocks" : "rrf") as "rrf" | "blocks",

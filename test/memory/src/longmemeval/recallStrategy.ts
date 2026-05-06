@@ -91,8 +91,9 @@ export async function processEntryRecall(
     chunkSourceMaxChars?: number;
     excerptMaxChars?: number;
     /** Which lanes to query — defaults to both ("fact-chunk"). "fact" matches
-     *  what the chat client's search tool calls today (searchTool.ts:1029). */
-    recallTypes?: "fact" | "fact-chunk";
+     *  what the chat client's search tool calls today (searchTool.ts:1029).
+     *  "chunk" is an ablation: vault-pipeline chunks only, no facts. */
+    recallTypes?: "fact" | "chunk" | "fact-chunk";
     /** Emission style — "rrf" (single ranked list, recall.ts default) or
      *  "blocks" (labeled fact-then-chunk sections, vault-eval pattern). */
     recallEmit?: "rrf" | "blocks";
@@ -240,28 +241,28 @@ export async function processEntryRecall(
       const query = typeof args.query === "string" ? args.query : "";
       if (!query) return "(no query)";
 
-      // Fact lane — bit-identical to recall.ts when budget=high.
-      const { results: factResults } = await searchVaultMemoriesWithSize(
-        query,
-        vaultCtx,
-        embeddingOptions,
-        embeddingCache,
-        {
-          limit: factPoolLimit,
-          minSimilarity: DEFAULT_FACT_MIN_SCORE,
-          useFusion: true,
-          rerank: rerankEnabled,
-          ...(decomposeMode === "llm" && {
-            decompose: "llm" as const,
-            decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
-          }),
-        }
-      );
+      // Fact lane — bit-identical to recall.ts when budget=high. Skipped
+      // entirely for the chunk-only ablation.
+      const useFacts = (searchPipeline?.recallTypes ?? "fact-chunk") !== "chunk";
+      const factResults = useFacts
+        ? (
+            await searchVaultMemoriesWithSize(query, vaultCtx, embeddingOptions, embeddingCache, {
+              limit: factPoolLimit,
+              minSimilarity: DEFAULT_FACT_MIN_SCORE,
+              useFusion: true,
+              rerank: rerankEnabled,
+              ...(decomposeMode === "llm" && {
+                decompose: "llm" as const,
+                decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+              }),
+            })
+          ).results
+        : [];
 
       // Chunk lane — in-memory cosine. Mirrors searchChunksOp's interface
       // (cosine + minSimilarity gate, conversationId filter omitted because
       // oracle haystacks already restrict to the relevant scope).
-      const useChunks = (searchPipeline?.recallTypes ?? "fact-chunk") === "fact-chunk";
+      const useChunks = (searchPipeline?.recallTypes ?? "fact-chunk") !== "fact";
       let chunkHits: ChunkHit[] = [];
       if (useChunks && chunkEmbeddings.length > 0) {
         const [qEmb] = await generateEmbeddings([query], {
