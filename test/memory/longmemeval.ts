@@ -32,7 +32,18 @@ import type {
   LongMemEvalStrategy,
   LongMemEvalSummary,
   LongMemEvalComparisonSummary,
+  RecallEmit,
+  RecallTypes,
 } from "./src/longmemeval/types.js";
+
+function parseRecallTypes(raw: string): RecallTypes {
+  if (raw === "fact" || raw === "chunk") return raw;
+  return "fact-chunk";
+}
+
+function parseRecallEmit(raw: string): RecallEmit {
+  return raw === "blocks" ? "blocks" : "rrf";
+}
 
 const { values: args } = parseArgs({
   options: {
@@ -212,14 +223,10 @@ async function main(): Promise<void> {
       excerptMaxChars: parseInt(args["excerpt-cap"], 10),
     }),
     ...(args["recall-types"] !== undefined && {
-      recallTypes: (args["recall-types"] === "fact"
-        ? "fact"
-        : args["recall-types"] === "chunk"
-          ? "chunk"
-          : "fact-chunk") as "fact" | "chunk" | "fact-chunk",
+      recallTypes: parseRecallTypes(args["recall-types"]),
     }),
     ...(args["recall-emit"] !== undefined && {
-      recallEmit: (args["recall-emit"] === "blocks" ? "blocks" : "rrf") as "rrf" | "blocks",
+      recallEmit: parseRecallEmit(args["recall-emit"]),
     }),
   };
 
