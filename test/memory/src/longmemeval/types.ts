@@ -60,14 +60,14 @@ export interface LongMemEvalResult {
   retrievalRecall: number;
   latencyMs: number;
   tokenUsage: TokenUsage;
-  strategy: "memory-engine" | "memory-vault";
+  strategy: "memory-engine" | "memory-vault" | "memory-recall";
   details?: Record<string, unknown>;
 }
 
 export interface LongMemEvalSummary {
   timestamp: string;
   datasetName: string;
-  strategy: "memory-engine" | "memory-vault";
+  strategy: "memory-engine" | "memory-vault" | "memory-recall";
   totalQuestions: number;
   correctAnswers: number;
   accuracy: number;
@@ -105,7 +105,11 @@ export interface LongMemEvalComparisonSummary {
   vault: LongMemEvalSummary;
 }
 
-export type LongMemEvalStrategy = "memory-engine" | "memory-vault" | "both";
+export type LongMemEvalStrategy =
+  | "memory-engine"
+  | "memory-vault"
+  | "memory-recall"
+  | "both";
 
 export interface LongMemEvalOptions {
   variant: "s" | "m";
