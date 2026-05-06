@@ -126,9 +126,9 @@ export interface LongMemEvalOptions {
   decompose?: "off" | "llm";
   /** Enable LLM-based consolidation pass at retain time. Default true. */
   consolidate?: boolean;
-  /** Max chars per session when building chunk source for the chunk lane. Default 6000. */
+  /** Max chars per session when building chunk source for the chunk lane. Default 12000. */
   chunkSourceMaxChars?: number;
-  /** Max chars per excerpt emitted to the answer LLM in the tool result. Default 3500. */
+  /** Max chars per excerpt emitted to the answer LLM in the tool result. Default 8000. */
   excerptMaxChars?: number;
 }
 
