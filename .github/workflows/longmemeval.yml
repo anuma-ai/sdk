@@ -91,13 +91,14 @@ on:
         type: string
         default: ""
       recall_types:
-        description: "Recall strategy: lanes to query (fact | fact-chunk, default fact-chunk)"
+        description: "Recall strategy: lanes to query (fact | chunk | fact-chunk, default fact-chunk)"
         required: false
         type: choice
         default: "fact-chunk"
         options:
           - "fact-chunk"
           - "fact"
+          - "chunk"
       recall_emit:
         description: "Recall strategy: emission style (rrf | blocks, default rrf)"
         required: false
