@@ -9,6 +9,12 @@ import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import type { PromptPreProcessor } from "./preProcessor";
+import type {
+  LlmEndEvent,
+  LlmStartEvent,
+  ToolEndEvent,
+  ToolStartEvent,
+} from "./receiptHooks";
 
 /**
  * Error thrown when the SSE connection receives a non-OK HTTP response.
@@ -110,6 +116,32 @@ import {
 } from "./useChat/utils";
 
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
+
+/**
+ * Generate a stable run id (UUID v4 if available, otherwise a random hex
+ * fallback). The id is threaded through every receipt-shaped hook so
+ * observers can group events by `runToolLoop` invocation.
+ */
+function generateRunId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  // Fallback for older runtimes — non-cryptographic but uniqueness is the
+  // only requirement here, not unpredictability.
+  const hex = "0123456789abcdef";
+  let out = "";
+  for (let i = 0; i < 32; i++) out += hex[Math.floor(Math.random() * 16)];
+  return `${out.slice(0, 8)}-${out.slice(8, 12)}-${out.slice(12, 16)}-${out.slice(16, 20)}-${out.slice(20)}`;
+}
+
+/** Fire-and-forget wrapper that swallows hook exceptions. */
+async function safeAwait(promise: unknown): Promise<void> {
+  try {
+    await promise;
+  } catch (err) {
+    // eslint-disable-next-line no-console -- deliberate observer fallback
+    console.warn("[runToolLoop] receipt hook threw:", err);
+  }
+}
 
 /** Extract the text of the most recent user message. Empty string if none. */
 function extractLastUserText(messages: LlmapiMessage[]): string {
@@ -262,6 +294,38 @@ export type RunToolLoopOptions = {
    * @default 2
    */
   maxConnectorCalls?: number;
+  /**
+   * Optional caller-supplied run id. When omitted, `runToolLoop` generates a
+   * fresh UUID. The same `runId` is threaded into every `onLlmStart`,
+   * `onLlmEnd`, `onToolStart`, and `onToolEnd` event so observers can group
+   * receipts by run.
+   */
+  runId?: string;
+  /**
+   * Fired immediately before each LLM streaming request begins (one per
+   * `stepIndex`). Round 0 is the initial request; rounds 1..N are
+   * continuation requests after tool execution. The hook receives a snapshot
+   * of the messages, tools, and request body the SDK is about to send.
+   */
+  onLlmStart?: (event: LlmStartEvent) => Promise<void> | void;
+  /**
+   * Fired after the LLM stream finishes. Always fires once per `onLlmStart`
+   * — even if the stream errored or aborted (in which case `error` is set).
+   */
+  onLlmEnd?: (event: LlmEndEvent) => Promise<void> | void;
+  /**
+   * Fired immediately before a tool executor runs. Unlike the existing
+   * `onToolCall`, this fires for **every** tool call (whether or not it has
+   * an executor; for executor-less calls only `onToolStart` fires, no
+   * `onToolEnd`).
+   */
+  onToolStart?: (event: ToolStartEvent) => Promise<void> | void;
+  /**
+   * Fired after a tool executor finishes — success, parse error, timeout,
+   * or exception. Always paired with the matching `onToolStart` for the
+   * same `toolCallId`.
+   */
+  onToolEnd?: (event: ToolEndEvent) => Promise<void> | void;
 };
 
 export type RunToolLoopResult =
@@ -403,7 +467,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     transport: makeStreamingRequest = defaultTransport,
     preProcessors,
     maxConnectorCalls = 2,
+    onLlmStart,
+    onLlmEnd,
+    onToolStart,
+    onToolEnd,
   } = options;
+  const runId = options.runId ?? generateRunId();
   // `messages` is mutable so pre-processors can inject context
   // (e.g. web search results) before the first LLM request.
   let messages = options.messages;
@@ -500,12 +569,27 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
     const accumulator = createStreamAccumulator(model || undefined);
 
+    if (onLlmStart) {
+      await safeAwait(
+        onLlmStart({
+          runId,
+          stepIndex: 0,
+          model,
+          messages,
+          tools: apiTools ?? [],
+          requestBody,
+        })
+      );
+    }
+
     const contentSmoother = new StreamSmoother((text) => {
       if (onData) onData(text);
     }, smoothing);
     const thinkingSmoother = new StreamSmoother((text) => {
       if (onThinking) onThinking(text);
     }, smoothing);
+
+    let initialStreamError: Error | null = null;
 
     try {
       for await (const chunk of sseResult.stream) {
@@ -533,9 +617,29 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
     } catch (streamErr) {
+      initialStreamError = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
       if (isAbortError(streamErr) || signal?.aborted) {
         contentSmoother.destroy();
         thinkingSmoother.destroy();
+        if (onLlmEnd) {
+          await safeAwait(
+            onLlmEnd({
+              runId,
+              stepIndex: 0,
+              content: accumulator.content,
+              toolCalls: [...accumulator.toolCalls.values()].map((tc) => ({
+                id: tc.id,
+                name: tc.name,
+                arguments: tc.arguments,
+              })),
+              usage: {
+                inputTokens: accumulator.usage.prompt_tokens,
+                outputTokens: accumulator.usage.completion_tokens,
+              },
+              error: "aborted",
+            })
+          );
+        }
         return {
           data: strategy.buildFinalResponse(accumulator),
           error: "Request aborted",
@@ -544,12 +648,50 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       }
       contentSmoother.destroy();
       thinkingSmoother.destroy();
+      if (onLlmEnd) {
+        await safeAwait(
+          onLlmEnd({
+            runId,
+            stepIndex: 0,
+            content: accumulator.content,
+            toolCalls: [...accumulator.toolCalls.values()].map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              arguments: tc.arguments,
+            })),
+            usage: {
+              inputTokens: accumulator.usage.prompt_tokens,
+              outputTokens: accumulator.usage.completion_tokens,
+            },
+            error: initialStreamError.message,
+          })
+        );
+      }
       throw streamErr;
     }
 
     if (signal?.aborted) {
       contentSmoother.destroy();
       thinkingSmoother.destroy();
+      if (onLlmEnd) {
+        await safeAwait(
+          onLlmEnd({
+            runId,
+            stepIndex: 0,
+            content: accumulator.content,
+            toolCalls: [...accumulator.toolCalls.values()].map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              arguments: tc.arguments,
+            })),
+            usage: {
+              inputTokens: accumulator.usage.prompt_tokens,
+              outputTokens: accumulator.usage.completion_tokens,
+            },
+            error: "aborted",
+          })
+        );
+      }
       return {
         data: strategy.buildFinalResponse(accumulator),
         error: "Request aborted",
@@ -560,12 +702,53 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (sseError !== null) {
       contentSmoother.destroy();
       thinkingSmoother.destroy();
+      if (onLlmEnd) {
+        await safeAwait(
+          onLlmEnd({
+            runId,
+            stepIndex: 0,
+            content: accumulator.content,
+            toolCalls: [...accumulator.toolCalls.values()].map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              arguments: tc.arguments,
+            })),
+            usage: {
+              inputTokens: accumulator.usage.prompt_tokens,
+              outputTokens: accumulator.usage.completion_tokens,
+            },
+            error: (sseError as Error).message,
+          })
+        );
+      }
       throw sseError as Error;
     }
 
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
 
     const response = strategy.buildFinalResponse(accumulator);
+
+    if (onLlmEnd) {
+      const toolCallsList = [...accumulator.toolCalls.values()].map((tc) => ({
+        id: tc.id,
+        name: tc.name,
+        arguments: tc.arguments,
+      }));
+      const finishReason = toolCallsList.length > 0 ? "tool_calls" : "stop";
+      await safeAwait(
+        onLlmEnd({
+          runId,
+          stepIndex: 0,
+          content: accumulator.content,
+          toolCalls: toolCallsList,
+          usage: {
+            inputTokens: accumulator.usage.prompt_tokens,
+            outputTokens: accumulator.usage.completion_tokens,
+          },
+          finishReason,
+        })
+      );
+    }
 
     // ── Multi-turn tool calling loop ──
     const executorMap = createToolExecutorMap(tools);
@@ -608,6 +791,29 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (executorConfig) {
           toolCallsToExecute.push(toolCall);
         } else {
+          // Tool without an executor — fire onToolStart anyway so observers
+          // (PromptSeal, tracing) capture the call. There's no executor and
+          // therefore no onToolEnd; consumers handle that asymmetry.
+          if (onToolStart) {
+            let parsedArgs: Record<string, unknown> | undefined;
+            try {
+              parsedArgs = toolCall.arguments
+                ? (JSON.parse(toolCall.arguments) as Record<string, unknown>)
+                : {};
+            } catch {
+              parsedArgs = undefined;
+            }
+            await safeAwait(
+              onToolStart({
+                runId,
+                stepIndex: toolIteration,
+                toolCallId: toolCall.id,
+                name: toolCall.name,
+                rawArguments: toolCall.arguments,
+                parsedArguments: parsedArgs,
+              })
+            );
+          }
           if (onToolCall) {
             onToolCall({
               id: toolCall.id,
@@ -693,10 +899,43 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             const reason = blockedByFailure
               ? `failed dependencies: ${failedDeps.join(", ")}`
               : "a dependency cycle";
+            const errorMsg = `Tool "${tc.name}" was not executed due to ${reason}`;
+            if (onToolStart) {
+              let parsedArgs: Record<string, unknown> | undefined;
+              try {
+                parsedArgs = tc.arguments
+                  ? (JSON.parse(tc.arguments) as Record<string, unknown>)
+                  : {};
+              } catch {
+                parsedArgs = undefined;
+              }
+              await safeAwait(
+                onToolStart({
+                  runId,
+                  stepIndex: toolIteration,
+                  toolCallId: tc.id,
+                  name: tc.name,
+                  rawArguments: tc.arguments,
+                  parsedArguments: parsedArgs,
+                })
+              );
+            }
+            if (onToolEnd) {
+              await safeAwait(
+                onToolEnd({
+                  runId,
+                  stepIndex: toolIteration,
+                  toolCallId: tc.id,
+                  name: tc.name,
+                  error: errorMsg,
+                  errorType: "execution",
+                })
+              );
+            }
             executionResults.push({
               id: tc.id,
               name: tc.name,
-              error: `Tool "${tc.name}" was not executed due to ${reason}`,
+              error: errorMsg,
               errorType: "execution",
             });
           }
@@ -713,11 +952,44 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 error: `No executor found for tool: ${toolCall.name}`,
               };
             }
+            if (onToolStart) {
+              let parsedArgs: Record<string, unknown> | undefined;
+              try {
+                parsedArgs = toolCall.arguments
+                  ? (JSON.parse(toolCall.arguments) as Record<string, unknown>)
+                  : {};
+              } catch {
+                parsedArgs = undefined;
+              }
+              await safeAwait(
+                onToolStart({
+                  runId,
+                  stepIndex: toolIteration,
+                  toolCallId: toolCall.id,
+                  name: toolCall.name,
+                  rawArguments: toolCall.arguments,
+                  parsedArguments: parsedArgs,
+                })
+              );
+            }
             const { result, error, errorType } = await executeToolCall(
               toolCall,
               executorConfig.executor,
               executorConfig.executorTimeout
             );
+            if (onToolEnd) {
+              await safeAwait(
+                onToolEnd({
+                  runId,
+                  stepIndex: toolIteration,
+                  toolCallId: toolCall.id,
+                  name: toolCall.name,
+                  result: error ? undefined : result,
+                  error,
+                  errorType,
+                })
+              );
+            }
             return { id: toolCall.id, name: toolCall.name, result, error, errorType };
           })
         );
@@ -945,12 +1217,27 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       currentAccumulator = createStreamAccumulator(model || undefined);
 
+      if (onLlmStart) {
+        await safeAwait(
+          onLlmStart({
+            runId,
+            stepIndex: toolIteration,
+            model,
+            messages: currentMessages,
+            tools: apiTools ?? [],
+            requestBody: continuationRequestBody,
+          })
+        );
+      }
+
       const contContentSmoother = new StreamSmoother((text) => {
         if (onData) onData(text);
       }, smoothing);
       const contThinkingSmoother = new StreamSmoother((text) => {
         if (onThinking) onThinking(text);
       }, smoothing);
+
+      let continuationStreamError: Error | null = null;
 
       try {
         for await (const chunk of continuationResult.stream) {
@@ -978,9 +1265,30 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           }
         }
       } catch (streamErr) {
+        continuationStreamError =
+          streamErr instanceof Error ? streamErr : new Error(String(streamErr));
         if (isAbortError(streamErr) || signal?.aborted) {
           contContentSmoother.destroy();
           contThinkingSmoother.destroy();
+          if (onLlmEnd) {
+            await safeAwait(
+              onLlmEnd({
+                runId,
+                stepIndex: toolIteration,
+                content: currentAccumulator.content,
+                toolCalls: [...currentAccumulator.toolCalls.values()].map((tc) => ({
+                  id: tc.id,
+                  name: tc.name,
+                  arguments: tc.arguments,
+                })),
+                usage: {
+                  inputTokens: currentAccumulator.usage.prompt_tokens,
+                  outputTokens: currentAccumulator.usage.completion_tokens,
+                },
+                error: "aborted",
+              })
+            );
+          }
           return {
             data: strategy.buildFinalResponse(currentAccumulator),
             error: "Request aborted",
@@ -989,12 +1297,50 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
+        if (onLlmEnd) {
+          await safeAwait(
+            onLlmEnd({
+              runId,
+              stepIndex: toolIteration,
+              content: currentAccumulator.content,
+              toolCalls: [...currentAccumulator.toolCalls.values()].map((tc) => ({
+                id: tc.id,
+                name: tc.name,
+                arguments: tc.arguments,
+              })),
+              usage: {
+                inputTokens: currentAccumulator.usage.prompt_tokens,
+                outputTokens: currentAccumulator.usage.completion_tokens,
+              },
+              error: continuationStreamError.message,
+            })
+          );
+        }
         throw streamErr;
       }
 
       if (signal?.aborted) {
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
+        if (onLlmEnd) {
+          await safeAwait(
+            onLlmEnd({
+              runId,
+              stepIndex: toolIteration,
+              content: currentAccumulator.content,
+              toolCalls: [...currentAccumulator.toolCalls.values()].map((tc) => ({
+                id: tc.id,
+                name: tc.name,
+                arguments: tc.arguments,
+              })),
+              usage: {
+                inputTokens: currentAccumulator.usage.prompt_tokens,
+                outputTokens: currentAccumulator.usage.completion_tokens,
+              },
+              error: "aborted",
+            })
+          );
+        }
         return {
           data: strategy.buildFinalResponse(currentAccumulator),
           error: "Request aborted",
@@ -1005,10 +1351,51 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (sseError !== null) {
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
+        if (onLlmEnd) {
+          await safeAwait(
+            onLlmEnd({
+              runId,
+              stepIndex: toolIteration,
+              content: currentAccumulator.content,
+              toolCalls: [...currentAccumulator.toolCalls.values()].map((tc) => ({
+                id: tc.id,
+                name: tc.name,
+                arguments: tc.arguments,
+              })),
+              usage: {
+                inputTokens: currentAccumulator.usage.prompt_tokens,
+                outputTokens: currentAccumulator.usage.completion_tokens,
+              },
+              error: (sseError as Error).message,
+            })
+          );
+        }
         throw sseError as Error;
       }
 
       await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
+
+      if (onLlmEnd) {
+        const toolCallsList = [...currentAccumulator.toolCalls.values()].map((tc) => ({
+          id: tc.id,
+          name: tc.name,
+          arguments: tc.arguments,
+        }));
+        const finishReason = toolCallsList.length > 0 ? "tool_calls" : "stop";
+        await safeAwait(
+          onLlmEnd({
+            runId,
+            stepIndex: toolIteration,
+            content: currentAccumulator.content,
+            toolCalls: toolCallsList,
+            usage: {
+              inputTokens: currentAccumulator.usage.prompt_tokens,
+              outputTokens: currentAccumulator.usage.completion_tokens,
+            },
+            finishReason,
+          })
+        );
+      }
     }
 
     // Append connector limit tip after all content has streamed

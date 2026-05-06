@@ -399,6 +399,14 @@ export type {
   StreamingTransportResult,
 } from "../lib/chat/toolLoop";
 export { runToolLoop } from "../lib/chat/toolLoop";
+export type {
+  LlmEndEvent,
+  LlmStartEvent,
+  LlmTokenUsage,
+  ReceiptHooks,
+  ToolEndEvent,
+  ToolStartEvent,
+} from "../lib/chat/receiptHooks";
 export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";

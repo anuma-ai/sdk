@@ -148,6 +148,53 @@ export default defineConfig([
       };
     },
   },
+  // PromptSeal framework — receipt SDK + verifier static files.
+  // Use this from any environment that has Web Crypto + IndexedDB (browser).
+  {
+    entry: ["src/promptseal/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/promptseal",
+    external: ["dexie", "viem", "@noble/ed25519", "react"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+    esbuildPlugins: [
+      {
+        name: "rewrite-client-import",
+        setup(build) {
+          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+            return { path: "@anuma/sdk", external: true };
+          });
+        },
+      },
+    ],
+  },
+  // PromptSeal hiring agent — tools, prompt, useHiringDemo hook.
+  {
+    entry: ["src/agents/promptseal/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/agents/promptseal",
+    external: ["dexie", "viem", "@noble/ed25519", "react"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+    esbuildPlugins: [
+      {
+        name: "rewrite-client-import",
+        setup(build) {
+          build.onResolve({ filter: /^\.\.\/\.\.\/client$/ }, () => {
+            return { path: "@anuma/sdk", external: true };
+          });
+        },
+      },
+    ],
+  },
   // Server entry - no React, no browser APIs
   // Use this for Node.js servers: import { ... } from "@anuma/sdk/server"
   {

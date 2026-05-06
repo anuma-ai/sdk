@@ -57,6 +57,14 @@
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
 export { ProviderStreamError } from "../lib/chat/toolLoop";
+export type {
+  LlmEndEvent,
+  LlmStartEvent,
+  LlmTokenUsage,
+  ReceiptHooks,
+  ToolEndEvent,
+  ToolStartEvent,
+} from "../lib/chat/receiptHooks";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 

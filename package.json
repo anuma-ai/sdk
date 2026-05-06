@@ -79,15 +79,29 @@
       "import": "./dist/utils/index.mjs",
       "require": "./dist/utils/index.cjs",
       "default": "./dist/utils/index.cjs"
+    },
+    "./promptseal": {
+      "types": "./dist/promptseal/index.d.ts",
+      "import": "./dist/promptseal/index.mjs",
+      "require": "./dist/promptseal/index.cjs",
+      "default": "./dist/promptseal/index.cjs"
+    },
+    "./agents/promptseal": {
+      "types": "./dist/agents/promptseal/index.d.ts",
+      "import": "./dist/agents/promptseal/index.mjs",
+      "require": "./dist/agents/promptseal/index.cjs",
+      "default": "./dist/agents/promptseal/index.cjs"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "dist/promptseal/verifier/**"
   ],
   "scripts": {
     "spec": "openapi-ts && node scripts/patch-generated-client.mjs",
     "test": "vitest run",
-    "build": "tsup",
+    "build:verifier": "node scripts/promptseal-copy-verifier.mjs",
+    "build": "tsup && pnpm build:verifier",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs && tsx scripts/generate-schema-docs.ts",
@@ -123,7 +137,9 @@
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
     "@anuma/portal": "1.0.0-next.20260410171436",
+    "@noble/ed25519": "^2.3.0",
     "ai": "5.0.93",
+    "dexie": "^4.4.2",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
     "jsonrepair": "^3.14.0",
@@ -133,7 +149,8 @@
     "marked": "^15.0.0",
     "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^6.0.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "viem": "^2.41.2"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
@@ -154,6 +171,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-simple-import-sort": "^12.1.1",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.0.11",
     "knip": "^5.85.0",
     "pg": "^8.20.0",
@@ -173,7 +191,8 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.0",
     "unist-util-visit": "^5.0.0",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.14",
+    "vitest-fetch-mock": "^0.3.0"
   },
   "peerDependencies": {
     "@huggingface/transformers": "^3.0.0",

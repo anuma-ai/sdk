@@ -1,0 +1,169 @@
+{
+  "secret_key_b64": "GxiEeItWzUZo4nxH7Ln6+ulO7fdlvqtk9vNZkm/sKKg=",
+  "public_key_b64": "1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+  "agent_id": "ts-port-agent",
+  "agent_erc8004_token_id": 633,
+  "receipts": [
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "llm_start",
+      "paired_event_hash": null,
+      "parent_hash": null,
+      "payload_excerpt": {
+        "model": "claude",
+        "messages_hash": "sha256:aa"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.000Z",
+      "event_hash": "sha256:74bea982809c9333690be19ddff139550612097e677cf761b729649ef1938037",
+      "signature": "ed25519:UHRJv9IFRN/cEBrbK0SboFsTjpbdHaRRgpm1TiUJvtJrhcbDrvBxzMXHMXkEMe0GP2JcU1sozezBDKTrjANzBg=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "llm_end",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:74bea982809c9333690be19ddff139550612097e677cf761b729649ef1938037",
+      "payload_excerpt": {
+        "output_hash": "sha256:bb"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.100Z",
+      "event_hash": "sha256:9f474e3055257bd729512baf858daac0b71dec707702bc5da197a3bcc94a4aff",
+      "signature": "ed25519:nfGqGiMPrf989iDaHkIl57Psr+s7CaqwV1BjJm4OGJyhaDqguYya2UHdkJLQvVeM7ALVW5aY3zkuNZIRfSfLBg=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "tool_start",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:9f474e3055257bd729512baf858daac0b71dec707702bc5da197a3bcc94a4aff",
+      "payload_excerpt": {
+        "tool_name": "resume_parse",
+        "args_hash": "sha256:cc"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.200Z",
+      "event_hash": "sha256:ba70c67034e7be813b23a2b8f47ebbcfda301a3c213c23441b88fd12622c9f33",
+      "signature": "ed25519:TowlH3Etfggx1inXbJN++AYfz5Jlg0lt1S9d0JIS3Go8GQ/GsopEYl8wISX/voyrYoX2bbIAR5r1pYUXNfjBCw=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "tool_end",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:ba70c67034e7be813b23a2b8f47ebbcfda301a3c213c23441b88fd12622c9f33",
+      "payload_excerpt": {
+        "tool_name": "resume_parse",
+        "output_hash": "sha256:dd"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.300Z",
+      "event_hash": "sha256:90ae231edfef15336a1b717ab28da7ce0371af81d22573cc573c10bbe8940afd",
+      "signature": "ed25519:vAboQF9juPG93Hcc8AHAqRWprwvttYl3Yb2vXE6Bngpwc0nUZ/MGRMmizpCxINzERrCbJhy2yW868Gswcn5EAA=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "tool_start",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:90ae231edfef15336a1b717ab28da7ce0371af81d22573cc573c10bbe8940afd",
+      "payload_excerpt": {
+        "tool_name": "score_candidate",
+        "args_hash": "sha256:ee"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.400Z",
+      "event_hash": "sha256:43484b51850a9e83abc8f4f501fd271426c62f7a26979c1e915bef9e24b1f090",
+      "signature": "ed25519:rG6oAdaJtK99Akym1h8XDwstr+8SVoIpqQeS0sSxLV3ytgoJV9x8LFkngJT2H+A4c2N8iDzOXrDe8J+aAw+FAw=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "tool_end",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:43484b51850a9e83abc8f4f501fd271426c62f7a26979c1e915bef9e24b1f090",
+      "payload_excerpt": {
+        "tool_name": "score_candidate",
+        "output_hash": "sha256:ff"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.500Z",
+      "event_hash": "sha256:474b8355a143ff62eaa45fae945b573b7b0790bbf9e40ac8a470b382992ccaab",
+      "signature": "ed25519:QDJQXdo32Q3Vwhq/Qx/Qu7ZgxPWDYxnp+etX8bNpawxGSuix4O9nZWmxNERKF42ggpxEgNwS2OiKnevnW+6YCw=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "tool_start",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:474b8355a143ff62eaa45fae945b573b7b0790bbf9e40ac8a470b382992ccaab",
+      "payload_excerpt": {
+        "tool_name": "decide",
+        "args_hash": "sha256:gg"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.600Z",
+      "event_hash": "sha256:2816d50774632cbaa5251676f482c64deed8074bb9f9b02870baa92d88952ac2",
+      "signature": "ed25519:GWe4SxeXgnIi4b+PMxNU1bka1Kz0qHP9dYgUnbCKd50vwJ8M0l56jKJOwo62UIiUEClTe4sbACHML9qp0xiBCQ=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "tool_end",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:2816d50774632cbaa5251676f482c64deed8074bb9f9b02870baa92d88952ac2",
+      "payload_excerpt": {
+        "tool_name": "decide",
+        "output_hash": "sha256:hh"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.700Z",
+      "event_hash": "sha256:ca58f1b8cea50a76149544618fa55bcb940b28878f0d9a6624029857342acdf3",
+      "signature": "ed25519:++OVnX5UXD3/Opq4k8ZOt8HbLb5UGmpBe7VCLgXk9W4SbiV2vL8OTxn9vkq+lfwk7WJX7p2QPZGJpV1v8HO9Bg=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "final_decision",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:ca58f1b8cea50a76149544618fa55bcb940b28878f0d9a6624029857342acdf3",
+      "payload_excerpt": {
+        "candidate_id": "res_001",
+        "decision": "hire",
+        "reasoning_hash": "sha256:ii"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.800Z",
+      "event_hash": "sha256:917b481ac14271b9ae1f6c28fa1a4c9c862c4dd7fd924a165bad8c314b5e7c87",
+      "signature": "ed25519:MwuunGnRlmaTC6UA4KQMyNGgCIoE1OXnkfy60wGYxOqjtiD8JwKZ2MO/uJdl961BGqSgzsQspP5adQg2Y3AzAA=="
+    },
+    {
+      "agent_erc8004_token_id": 633,
+      "agent_id": "ts-port-agent",
+      "event_type": "error",
+      "paired_event_hash": null,
+      "parent_hash": "sha256:917b481ac14271b9ae1f6c28fa1a4c9c862c4dd7fd924a165bad8c314b5e7c87",
+      "payload_excerpt": {
+        "stage": "tool",
+        "error_type": "timeout",
+        "message_hash": "sha256:jj"
+      },
+      "public_key": "ed25519:1tLEUON9QzaPq/L3c5pMH4F5D63OfujTfQPbVCbadNI=",
+      "schema_version": "0.1",
+      "timestamp": "2026-04-30T18:22:01.900Z",
+      "event_hash": "sha256:89ad59f05e9581efd223be343fd8d17014503a69f8d26150dea3912df9294e29",
+      "signature": "ed25519:gxytwEMWCt8mu1gq6o+b7bgA104S6lMcXl80cEs5yGzFrW3OQWQcJIL7SuxHuwoA1LPyfYBfPEKm0zfg3rDxDQ=="
+    }
+  ]
+}

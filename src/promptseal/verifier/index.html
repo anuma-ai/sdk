@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PromptSeal Verifier</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>PromptSeal <span class="muted">verifier</span></h1>
+    <p class="muted">
+      Paste a receipt + Merkle proof + anchor tx hash. Five steps, all
+      independently verifiable. Open dev tools to follow along.
+    </p>
+  </header>
+
+  <main>
+    <section class="inputs">
+      <label>
+        <span class="lbl">1 · Receipt JSON</span>
+        <textarea id="in-receipt" rows="14" spellcheck="false"
+          placeholder='{"agent_id":"hr-screener-v1", ... "signature":"ed25519:..."}'></textarea>
+      </label>
+
+      <label>
+        <span class="lbl">2 · Merkle proof (array of {side, sibling})</span>
+        <textarea id="in-proof" rows="6" spellcheck="false"
+          placeholder='[{"side":"R","sibling":"sha256:..."}, ...]'></textarea>
+      </label>
+
+      <label>
+        <span class="lbl">3 · Anchor tx hash (Base Sepolia)</span>
+        <input id="in-tx" type="text" spellcheck="false"
+          placeholder="0x...64 hex chars" />
+      </label>
+
+      <div class="actions">
+        <button id="btn-verify">Verify</button>
+        <button id="btn-clear" class="secondary">Clear</button>
+      </div>
+    </section>
+
+    <section id="out" class="result idle">
+      <div id="out-badge">Idle</div>
+      <p id="out-message" class="muted">Paste inputs above, click Verify.</p>
+      <pre id="out-details" hidden></pre>
+    </section>
+
+    <section class="hint">
+      <p class="muted small">
+        Source: <code>verifier/verify.js</code>. RPC: <code>https://sepolia.base.org</code>.
+        Five steps performed: (1) recompute event_hash from canonical body, (2)
+        verify Ed25519 signature, (3) walk Merkle proof to a root, (4) fetch
+        anchor tx from RPC, (5) compare proof-root vs on-chain root.
+      </p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { verifyAll } from "./verify.js";
+
+    const $ = (id) => document.getElementById(id);
+    const out = $("out");
+    const outBadge = $("out-badge");
+    const outMessage = $("out-message");
+    const outDetails = $("out-details");
+
+    // Prefill from URL fragment. We use location.hash, NOT location.search —
+    // receipts can be 1-3 KB and a future schema with embedded LLM messages
+    // could push past the ~8 KB practical query-string ceiling. The fragment
+    // never leaves the client and has no length limit beyond browser memory.
+    (function prefillFromHash() {
+      const fragment = (location.hash || "").slice(1);
+      if (!fragment) return;
+      const params = new URLSearchParams(fragment);
+      const r = params.get("receipt");
+      const p = params.get("proof");
+      const t = params.get("tx");
+      if (r) $("in-receipt").value = r;
+      if (p) $("in-proof").value = p;
+      if (t) $("in-tx").value = t;
+    })();
+
+    function setResultClass(cls) {
+      out.classList.remove("idle", "ok", "fail", "running");
+      out.classList.add(cls);
+    }
+
+    $("btn-clear").addEventListener("click", () => {
+      $("in-receipt").value = "";
+      $("in-proof").value = "";
+      $("in-tx").value = "";
+      setResultClass("idle");
+      outBadge.textContent = "Idle";
+      outMessage.textContent = "Paste inputs above, click Verify.";
+      outDetails.hidden = true;
+      outDetails.textContent = "";
+      console.clear();
+    });
+
+    $("btn-verify").addEventListener("click", async () => {
+      console.clear();
+      console.log("[verify] === Verify clicked ===");
+      setResultClass("running");
+      outBadge.textContent = "Verifying…";
+      outMessage.textContent = "Hashing, verifying signature, fetching on-chain anchor…";
+      outDetails.hidden = true;
+
+      const receiptText = $("in-receipt").value.trim();
+      const proofText = $("in-proof").value.trim();
+      const txHash = $("in-tx").value.trim();
+
+      let result;
+      try {
+        result = await verifyAll({ receiptText, proofText, txHash });
+      } catch (e) {
+        console.error("[verify] unexpected throw", e);
+        result = { ok: false, step: -1, message: `internal error: ${e.message}`, details: {} };
+      }
+
+      console.log("[verify] === Result ===", result);
+
+      if (result.ok) {
+        setResultClass("ok");
+        outBadge.textContent = "✓ VERIFIED";
+        outMessage.textContent = result.message;
+        outDetails.hidden = false;
+        outDetails.innerHTML =
+          `event_hash : ${result.details.event_hash}\n` +
+          `merkle_root: ${result.details.merkle_root}\n` +
+          `tx_hash    : ${result.details.tx_hash}\n` +
+          `<a href="${result.details.basescan_url}" target="_blank" rel="noopener">${result.details.basescan_url}</a>`;
+      } else {
+        setResultClass("fail");
+        const stepLabel = result.step === 0 ? "Bad input" : `Step ${result.step}`;
+        outBadge.textContent = "✗ TAMPERED / INVALID";
+        outMessage.textContent = `${stepLabel}: ${result.message}`;
+        if (Object.keys(result.details).length) {
+          outDetails.hidden = false;
+          outDetails.textContent = JSON.stringify(result.details, null, 2);
+        } else {
+          outDetails.hidden = true;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "res_001",
+    "name": "Alice Chen",
+    "yoe_react": 7,
+    "yoe_python": 5,
+    "education": "BS Computer Science, Stanford",
+    "highlights": "Led frontend team at unicorn fintech; OSS contributor (15k stars)",
+    "expected_decision": "hire"
+  },
+  {
+    "id": "res_002",
+    "name": "Bob Martinez",
+    "yoe_react": 0,
+    "yoe_python": 1,
+    "education": "Self-taught, bootcamp 2025",
+    "highlights": "1 personal project, no production experience",
+    "expected_decision": "reject"
+  },
+  {
+    "id": "res_003",
+    "name": "Carol Singh",
+    "yoe_react": 4,
+    "yoe_python": 6,
+    "education": "MS Data Science, MIT",
+    "highlights": "Senior ML engineer at FAANG; 3 published papers",
+    "expected_decision": "hire"
+  },
+  {
+    "id": "res_004",
+    "name": "David Kim",
+    "yoe_react": 2,
+    "yoe_python": 3,
+    "education": "BA English Literature, state school",
+    "highlights": "Career switcher; strong portfolio but no formal CS background",
+    "expected_decision": "ambiguous"
+  },
+  {
+    "id": "res_005",
+    "name": "Eva Petrov",
+    "yoe_react": 8,
+    "yoe_python": 2,
+    "education": "PhD Mathematics (incomplete)",
+    "highlights": "Frontend specialist; minimal backend; expects $250k",
+    "expected_decision": "ambiguous"
+  }
+]
