@@ -10,13 +10,6 @@ export const rentIncreaseChecker: SkillConfig = {
 ## Task
 Analyze a rent increase for legality and provide negotiation strategy.
 
-## Details
-- Location: {{city}}, {{state}}
-- Current rent: {{current_rent}}
-- Proposed new rent: {{proposed_rent}}
-- Lease type: {{lease_type}}
-- Notice received: {{notice_date}}
-
 ## Instructions
 1. Research {{city}}, {{state}} rent control laws and local ordinances
 2. Determine if the increase is within legal limits (if rent control applies)
@@ -28,6 +21,13 @@ Analyze a rent increase for legality and provide negotiation strategy.
 8. Include specific statute references and deadlines for tenant response
 
 Cite specific statute references and deadlines for tenant response.`,
+  userTemplate: `Please analyze this rent increase:
+
+- Location: {{city}}, {{state}}
+- Current rent: {{current_rent}}
+- Proposed new rent: {{proposed_rent}}
+- Lease type: {{lease_type}}
+- Notice received: {{notice_date}}`,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 1,
   requiredVariables: ["city", "state", "current_rent", "proposed_rent"],

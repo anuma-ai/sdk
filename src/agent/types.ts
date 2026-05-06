@@ -9,6 +9,13 @@ export interface SkillConfig {
   name: string;
   /** System prompt template with {{variable}} placeholders. */
   promptTemplate: string;
+  /**
+   * User-turn template, interpolated with the same {{variable}} placeholders
+   * as `promptTemplate`. Optional, but strongly recommended for skill-driven
+   * (non-freeform) flows so the model receives a proper user turn — most
+   * Anthropic models reject requests that contain only a system message.
+   */
+  userTemplate?: string;
   /** MCP tool names this skill requires. */
   requiredTools?: string[];
   /** Preferred model when the caller doesn't specify one. */

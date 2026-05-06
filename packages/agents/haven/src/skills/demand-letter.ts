@@ -8,16 +8,7 @@ export const demandLetter: SkillConfig = {
   promptTemplate: `You are a tenant rights attorney drafting a formal demand letter.
 
 ## Task
-Draft a demand letter for the following housing issue.
-
-## Details
-- Tenant name: {{tenant_name}}
-- Landlord/management: {{landlord_name}}
-- Property address: {{property_address}}
-- State: {{state}}
-- Issue: {{issue_description}}
-- Desired resolution: {{desired_resolution}}
-- Prior communication: {{prior_communication}}
+Draft a demand letter for a housing issue.
 
 ## Instructions
 1. Research {{state}} landlord-tenant law relevant to this issue
@@ -33,6 +24,15 @@ Draft a demand letter for the following housing issue.
 5. Add a brief legal analysis section explaining the tenant's rights
 
 Use web search to verify current {{state}} statutes and remedies.`,
+  userTemplate: `Please draft a demand letter for the following housing issue:
+
+- Tenant name: {{tenant_name}}
+- Landlord/management: {{landlord_name}}
+- Property address: {{property_address}}
+- State: {{state}}
+- Issue: {{issue_description}}
+- Desired resolution: {{desired_resolution}}
+- Prior communication: {{prior_communication}}`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 12,
