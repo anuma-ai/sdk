@@ -90,6 +90,9 @@ export async function processEntryRecall(
     consolidate?: boolean;
     chunkSourceMaxChars?: number;
     excerptMaxChars?: number;
+    /** Which lanes to query — defaults to both ("fact-chunk"). "fact" matches
+     *  what the chat client's search tool calls today (searchTool.ts:1029). */
+    recallTypes?: "fact" | "fact-chunk";
   }
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
@@ -255,8 +258,9 @@ export async function processEntryRecall(
       // Chunk lane — in-memory cosine. Mirrors searchChunksOp's interface
       // (cosine + minSimilarity gate, conversationId filter omitted because
       // oracle haystacks already restrict to the relevant scope).
+      const useChunks = (searchPipeline?.recallTypes ?? "fact-chunk") === "fact-chunk";
       let chunkHits: ChunkHit[] = [];
-      if (chunkEmbeddings.length > 0) {
+      if (useChunks && chunkEmbeddings.length > 0) {
         const [qEmb] = await generateEmbeddings([query], {
           ...embeddingOptions,
           cache: embeddingCache,

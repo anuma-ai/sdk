@@ -59,6 +59,7 @@ const { values: args } = parseArgs({
     consolidate: { type: "string" },
     "chunk-source": { type: "string" },
     "excerpt-cap": { type: "string" },
+    "recall-types": { type: "string" },
   },
 });
 
@@ -208,6 +209,11 @@ async function main(): Promise<void> {
     }),
     ...(args["excerpt-cap"] !== undefined && {
       excerptMaxChars: parseInt(args["excerpt-cap"], 10),
+    }),
+    ...(args["recall-types"] !== undefined && {
+      recallTypes: (args["recall-types"] === "fact" ? "fact" : "fact-chunk") as
+        | "fact"
+        | "fact-chunk",
     }),
   };
 
