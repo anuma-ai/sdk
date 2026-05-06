@@ -93,6 +93,9 @@ export async function processEntryRecall(
     /** Which lanes to query — defaults to both ("fact-chunk"). "fact" matches
      *  what the chat client's search tool calls today (searchTool.ts:1029). */
     recallTypes?: "fact" | "fact-chunk";
+    /** Emission style — "rrf" (single ranked list, recall.ts default) or
+     *  "blocks" (labeled fact-then-chunk sections, vault-eval pattern). */
+    recallEmit?: "rrf" | "blocks";
   }
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
@@ -281,8 +284,45 @@ export async function processEntryRecall(
       for (const f of factResults) retrievedVaultIds.add(f.uniqueId);
       for (const c of chunkHits) retrievedChunkSessionIds.add(c.sessionId);
 
-      // Fuse — same RRF as recall.ts. Single-lane case skips RRF and just
-      // sorts by raw similarity (matches recall.ts:129–141 behavior).
+      const emit = searchPipeline?.recallEmit ?? "rrf";
+
+      // Blocks emission — vault-eval style. Facts and chunks are kept in
+      // their own labeled sections, each sorted by raw similarity. The
+      // answer LLM gets two clearly delineated knowledge sources, which
+      // empirically beats RRF mixing on this benchmark.
+      if (emit === "blocks") {
+        const factsSorted = factResults
+          .slice()
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, limit);
+        const chunksSorted = chunkHits.slice().sort((a, b) => b.similarity - a.similarity).slice(0, 7);
+        const factsBlock =
+          factsSorted.length === 0
+            ? "(no fact memories matched)"
+            : factsSorted
+                .map(
+                  (r, i) =>
+                    `[${i + 1}] (id: ${r.uniqueId}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`
+                )
+                .join("\n\n");
+        const chunksBlock =
+          chunksSorted.length === 0
+            ? ""
+            : chunksSorted
+                .map(
+                  (c, i) =>
+                    `[excerpt ${i + 1}] (similarity: ${c.similarity.toFixed(2)})\n${c.text.slice(0, excerptMax)}`
+                )
+                .join("\n\n");
+        const parts = [`Found ${factsSorted.length} vault memories:\n\n${factsBlock}`];
+        if (chunksBlock) {
+          parts.push(`--- Raw conversation excerpts (${chunksSorted.length}) ---\n\n${chunksBlock}`);
+        }
+        return parts.join("\n\n");
+      }
+
+      // RRF emission — recall.ts default. Single ranked list of facts +
+      // chunks fused via reciprocal rank fusion (k=60).
       if (factResults.length === 0 || chunkHits.length === 0) {
         const merged: Array<{ kind: "fact" | "chunk"; id: string; content: string; score: number }> =
           [

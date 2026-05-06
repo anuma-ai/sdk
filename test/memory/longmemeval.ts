@@ -60,6 +60,7 @@ const { values: args } = parseArgs({
     "chunk-source": { type: "string" },
     "excerpt-cap": { type: "string" },
     "recall-types": { type: "string" },
+    "recall-emit": { type: "string" },
   },
 });
 
@@ -214,6 +215,9 @@ async function main(): Promise<void> {
       recallTypes: (args["recall-types"] === "fact" ? "fact" : "fact-chunk") as
         | "fact"
         | "fact-chunk",
+    }),
+    ...(args["recall-emit"] !== undefined && {
+      recallEmit: (args["recall-emit"] === "blocks" ? "blocks" : "rrf") as "rrf" | "blocks",
     }),
   };
 

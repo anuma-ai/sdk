@@ -98,6 +98,14 @@ on:
         options:
           - "fact-chunk"
           - "fact"
+      recall_emit:
+        description: "Recall strategy: emission style (rrf | blocks, default rrf)"
+        required: false
+        type: choice
+        default: "rrf"
+        options:
+          - "rrf"
+          - "blocks"
 
 jobs:
   resolve-strategies:
@@ -166,6 +174,9 @@ jobs:
           fi
           if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_types }}" ]; then
             args="$args --recall-types=${{ inputs.recall_types }}"
+          fi
+          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_emit }}" ]; then
+            args="$args --recall-emit=${{ inputs.recall_emit }}"
           fi
           pnpm eval:longmemeval $args
 
