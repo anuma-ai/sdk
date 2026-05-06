@@ -134,6 +134,10 @@ export interface LongMemEvalOptions {
   chunkSourceMaxChars?: number;
   /** Max chars per excerpt emitted to the answer LLM in the tool result. Default 8000. */
   excerptMaxChars?: number;
+  /** Lanes to query when --strategy=recall. "fact" matches the chat client
+   *  today (searchTool.ts:1029); "fact-chunk" exercises the full recall()
+   *  pipeline. Default "fact-chunk". */
+  recallTypes?: "fact" | "fact-chunk";
 }
 
 /** API configuration for LLM and embedding calls */

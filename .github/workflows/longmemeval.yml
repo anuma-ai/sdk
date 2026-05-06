@@ -90,6 +90,14 @@ on:
         required: false
         type: string
         default: ""
+      recall_types:
+        description: "Recall strategy: lanes to query (fact | fact-chunk, default fact-chunk)"
+        required: false
+        type: choice
+        default: "fact-chunk"
+        options:
+          - "fact-chunk"
+          - "fact"
 
 jobs:
   resolve-strategies:
@@ -155,6 +163,9 @@ jobs:
             if [ -n "${{ inputs.excerpt_cap }}" ]; then
               args="$args --excerpt-cap=${{ inputs.excerpt_cap }}"
             fi
+          fi
+          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_types }}" ]; then
+            args="$args --recall-types=${{ inputs.recall_types }}"
           fi
           pnpm eval:longmemeval $args
 
