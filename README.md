@@ -2,6 +2,7 @@
 
 | Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 2026-05-06 | memory-recall | oracle | kimi-k2p6 | 0% | 0/289 | 0% | 0% | [`3909611`](https://github.com/anuma-ai/sdk/commit/39096113ba0485165f3a53e1c0c871d899954f3b) | [link](https://github.com/anuma-ai/sdk/actions/runs/25462192496) |
 | 2026-05-06 | memory-recall | oracle | claude-sonnet-4-6 | 0% | 0/289 | 0% | 0% | [`3909611`](https://github.com/anuma-ai/sdk/commit/39096113ba0485165f3a53e1c0c871d899954f3b) | [link](https://github.com/anuma-ai/sdk/actions/runs/25461802313) |
 | 2026-05-06 | memory-recall | oracle | claude-sonnet-4-6 | 0% | 0/289 | 0% | 0% | [`3909611`](https://github.com/anuma-ai/sdk/commit/39096113ba0485165f3a53e1c0c871d899954f3b) | [link](https://github.com/anuma-ai/sdk/actions/runs/25461113934) |
 | 2026-05-06 | memory-recall | oracle | claude-sonnet-4-6 | 85.1% | 246/289 | 95.8% | 95.3% | [`6b4956a`](https://github.com/anuma-ai/sdk/commit/6b4956a6e584a569b5ed141ac16da73fe740a0c3) | [link](https://github.com/anuma-ai/sdk/actions/runs/25460493088) |
