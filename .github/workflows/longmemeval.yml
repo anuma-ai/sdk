@@ -80,12 +80,12 @@ on:
           - "true"
           - "false"
       chunk_source:
-        description: "Vault: max chars per session when building chunk source (default 6000)"
+        description: "Vault: max chars per session when building chunk source (default 12000)"
         required: false
         type: string
         default: ""
       excerpt_cap:
-        description: "Vault: max chars per excerpt emitted to answer LLM (default 3500)"
+        description: "Vault: max chars per excerpt emitted to answer LLM (default 8000)"
         required: false
         type: string
         default: ""

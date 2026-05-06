@@ -16,9 +16,10 @@ This file is the working tracker. Update checkboxes as work progresses; mirror b
 ## Acceptance criteria
 
 - [x] AC1 — Recall@5 ≥30% lift over cosine-only baseline
-      _**Locked headline (commit `1e4ef9c`): claude-sonnet-4-6 oracle 89.6%** (259/289); vs current main 73.0% → **+16.6pp / +48 correct** (run 25404765273)._
-      _Unified `recall()` API end-to-end via commit `0126d43` (87.5%); K=7 + excerpt-3500 + fact-14 push to **89.6%** (259/289) — multi-session 88.7% (+5q), single-session-assistant 76.8% (+2q)._
-      _Saturation reached: routing-prompt (-2q), CE-on-chunks (-3q), and fact-limit 14→18 (-9q) experiments each regressed and were reverted. 89.6% is the practical ceiling for the current pipeline shape on Claude Sonnet 4.6._
+      _**Locked headline (commit `9ecf160`): claude-sonnet-4-6 oracle 90.3%** (261/289); vs current main 73.0% → **+17.3pp / +50 correct** (run 25453897521)._
+      _Pipeline: unified `recall()` API (commit `0126d43`, 87.5%) → K=7 + excerpt-3500 + fact-14 (commit `1e4ef9c`, 89.6%) → chunk-source 6000→12000 + excerpt-cap 3500→8000 (commit `9ecf160`, **90.3%**). Diagnostic on the 76.8% single-session-assistant bucket showed B-truncation: assistant turns containing the answer routinely sat past the 3500-char excerpt window (Admon shift table truncated mid-word; Catalan singer answer literally "cut off before [the answer] was named"). Bumping the truncation caps lifted SSA to 87.5% (+10.7pp / +6q) at the cost of small dips on multi-session (-3q) and preference (-2q), within plausible variance on those bucket sizes._
+      _Two follow-up sweeps confirmed sweep #1 is the right operating point: sweep #2 (chunk-source unchanged at 6000, excerpt-cap=6000) hurt multi-session badly (-11q, source-side clipping) — 88.6%; sweep #3 (chunk-source=12000, excerpt-cap=5500) didn't recover MS — 89.3% — confirming the MS dip isn't context bloat._
+      _Saturation reached: routing-prompt (-2q), CE-on-chunks (-3q), and fact-limit 14→18 (-9q) experiments each regressed and were reverted. 90.3% is the practical ceiling for the current pipeline shape on Claude Sonnet 4.6._
       _kimi-k2p5 oracle: 75.4% (run 25403718559); vs March 11 baseline 70.9% → +4.5pp._
 - [ ] AC2 — ≥1 quality memory per 5 turns; <10% hallucination
 - [ ] AC3 — Memory Studio shows toast + breakdown + edit/delete (E2E)

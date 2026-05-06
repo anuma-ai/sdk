@@ -240,7 +240,7 @@ export async function processEntryMemoryVault(
     // the actual user/assistant words when paraphrase distance trips the fact
     // index. Both rankings are surfaced to the answer LLM in one tool result.
     logProgress("Indexing session chunks...");
-    const chunkSourceMax = searchPipeline?.chunkSourceMaxChars ?? 6000;
+    const chunkSourceMax = searchPipeline?.chunkSourceMaxChars ?? 12000;
     const chunkSessionIds: string[] = [];
     const chunkTexts: string[] = [];
     for (let i = 0; i < sessionIndices.length; i++) {
@@ -303,7 +303,7 @@ export async function processEntryMemoryVault(
         .sort((a, b) => b.sim - a.sim)
         .slice(0, 7);
       for (const r of ranked) retrievedChunkSessionIds.add(r.sessionId);
-      const excerptMax = searchPipeline?.excerptMaxChars ?? 3500;
+      const excerptMax = searchPipeline?.excerptMaxChars ?? 8000;
       const chunkBlock = ranked
         .map(
           (r, i) =>
