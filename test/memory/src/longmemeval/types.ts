@@ -143,10 +143,18 @@ export interface LongMemEvalOptions {
    *  single ranked list) or "blocks" (vault-eval pattern, fact + chunk
    *  sections). Default "rrf". */
   recallEmit?: RecallEmit;
+  /** Lane-call mode when --strategy=recall and types=fact-chunk.
+   *  "fused" = one recall(types=fact,chunk) call. "per-lane" = two
+   *  separate calls, no inter-lane slot competition. Default "fused". */
+  recallLaneMode?: RecallLaneMode;
 }
 
 export type RecallTypes = "fact" | "chunk" | "fact-chunk";
 export type RecallEmit = "rrf" | "blocks";
+/** "fused" runs one recall(types=[...]) call (RRF inside recall.ts).
+ *  "per-lane" runs recall once per lane (matches vault-eval behavior:
+ *  no inter-lane slot competition, each lane gets its own pool). */
+export type RecallLaneMode = "fused" | "per-lane";
 
 /** API configuration for LLM and embedding calls */
 export interface ApiConfig {

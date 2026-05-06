@@ -33,6 +33,7 @@ import type {
   LongMemEvalSummary,
   LongMemEvalComparisonSummary,
   RecallEmit,
+  RecallLaneMode,
   RecallTypes,
 } from "./src/longmemeval/types.js";
 
@@ -43,6 +44,10 @@ function parseRecallTypes(raw: string): RecallTypes {
 
 function parseRecallEmit(raw: string): RecallEmit {
   return raw === "blocks" ? "blocks" : "rrf";
+}
+
+function parseRecallLaneMode(raw: string): RecallLaneMode {
+  return raw === "per-lane" ? "per-lane" : "fused";
 }
 
 const { values: args } = parseArgs({
@@ -72,6 +77,7 @@ const { values: args } = parseArgs({
     "excerpt-cap": { type: "string" },
     "recall-types": { type: "string" },
     "recall-emit": { type: "string" },
+    "recall-lane-mode": { type: "string" },
   },
 });
 
@@ -227,6 +233,9 @@ async function main(): Promise<void> {
     }),
     ...(args["recall-emit"] !== undefined && {
       recallEmit: parseRecallEmit(args["recall-emit"]),
+    }),
+    ...(args["recall-lane-mode"] !== undefined && {
+      recallLaneMode: parseRecallLaneMode(args["recall-lane-mode"]),
     }),
   };
 

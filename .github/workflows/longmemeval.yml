@@ -107,6 +107,14 @@ on:
         options:
           - "rrf"
           - "blocks"
+      recall_lane_mode:
+        description: "Recall strategy: fused (one call) | per-lane (separate fact + chunk calls). Default fused."
+        required: false
+        type: choice
+        default: "fused"
+        options:
+          - "fused"
+          - "per-lane"
 
 jobs:
   resolve-strategies:
@@ -178,6 +186,9 @@ jobs:
           fi
           if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_emit }}" ]; then
             args="$args --recall-emit=${{ inputs.recall_emit }}"
+          fi
+          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_lane_mode }}" ]; then
+            args="$args --recall-lane-mode=${{ inputs.recall_lane_mode }}"
           fi
           pnpm eval:longmemeval $args
 
