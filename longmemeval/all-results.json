@@ -240,6 +240,69 @@
     }
   },
   {
+    "timestamp": "2026-05-06T20:06:28.188Z",
+    "datasetName": "longmemeval_s_memory-recall",
+    "strategy": "memory-recall",
+    "totalQuestions": 289,
+    "correctAnswers": 235,
+    "accuracy": 0.8131487889273357,
+    "byQuestionType": {
+      "single-session-user": {
+        "total": 70,
+        "correct": 68,
+        "accuracy": 0.9714285714285714
+      },
+      "single-session-assistant": {
+        "total": 56,
+        "correct": 22,
+        "accuracy": 0.39285714285714285
+      },
+      "single-session-preference": {
+        "total": 30,
+        "correct": 28,
+        "accuracy": 0.9333333333333333
+      },
+      "multi-session": {
+        "total": 133,
+        "correct": 117,
+        "accuracy": 0.8796992481203008
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 0.9688581314878892,
+      "avgRecall": 0.9679930795847751
+    },
+    "latency": {
+      "p50": 64301.68589700002,
+      "p95": 185812.32543619996,
+      "p99": 221059.5890848,
+      "mean": 78000.16263654326
+    },
+    "tokenUsage": {
+      "promptTokens": 2652402,
+      "completionTokens": 69230,
+      "totalTokens": 2721632,
+      "embeddingTokens": 0
+    },
+    "cost": {
+      "llmCost": 8.995656,
+      "embeddingCost": 0,
+      "totalCost": 8.995656,
+      "llmModel": "anthropic/claude-sonnet-4-6",
+      "embeddingModel": "fireworks/accounts/fireworks/models/qwen3-embedding-8b"
+    },
+    "meta": {
+      "commit": "ae46430ba9e7913f68e2439c7cac3e0bca2f6ca2",
+      "commitShort": "ae46430",
+      "branch": "feat/recall-api",
+      "model": "anthropic/claude-sonnet-4-6",
+      "variant": "oracle",
+      "concurrency": 100,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/25457959857",
+      "runId": 25457959857
+    }
+  },
+  {
     "timestamp": "2026-05-05T05:48:15.163Z",
     "datasetName": "longmemeval_s_memory-vault",
     "strategy": "memory-vault",
