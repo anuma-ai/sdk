@@ -7,9 +7,6 @@
  * createMemoryVaultSearchTool.
  */
 
-import type { Database } from "@nozbe/watermelondb";
-import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memoryVault/operations.js";
-import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
 import {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
@@ -17,6 +14,18 @@ import {
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
+import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";
+import {
+  callChatCompletion,
+  clearProgress,
+  createVaultContext,
+  evaluateAnswer,
+  extractMemoriesFromSession,
+  logProgress,
+  saveTranscript,
+  selectSessions,
+  setupDatabase,
+} from "./suite.js";
 
 function cosineSim(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
@@ -30,27 +39,6 @@ function cosineSim(a: number[], b: number[]): number {
   }
   const d = Math.sqrt(na) * Math.sqrt(nb);
   return d === 0 ? 0 : dot / d;
-}
-import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
-import {
-  setupDatabase,
-  selectSessions,
-  callChatCompletion,
-  evaluateAnswer,
-  extractMemoriesFromSession,
-  saveTranscript,
-  logProgress,
-  clearProgress,
-} from "./suite.js";
-
-function createVaultContext(db: Database): VaultMemoryOperationsContext {
-  return {
-    database: db,
-    vaultMemoryCollection: db.collections.get<VaultMemory>("memory_vault"),
-    walletAddress: undefined,
-    signMessage: undefined,
-    embeddedWalletSigner: undefined,
-  } as VaultMemoryOperationsContext;
 }
 
 /**

@@ -11,6 +11,12 @@ import { join } from "node:path";
 import { createWriteStream } from "node:fs";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
+import {
+  type StorageOperationsContext,
+} from "../../../../src/lib/db/chat/operations.js";
+import { Conversation, Message } from "../../../../src/lib/db/chat/models.js";
+import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memoryVault/operations.js";
+import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -116,6 +122,29 @@ export async function setupDatabase(): Promise<Database> {
     adapter,
     modelClasses: sdkModelClasses,
   });
+}
+
+// ── DB context constructors (shared by strategies) ──
+
+export function createVaultContext(db: Database): VaultMemoryOperationsContext {
+  return {
+    database: db,
+    vaultMemoryCollection: db.collections.get<VaultMemory>("memory_vault"),
+    walletAddress: undefined,
+    signMessage: undefined,
+    embeddedWalletSigner: undefined,
+  };
+}
+
+export function createStorageContext(db: Database): StorageOperationsContext {
+  return {
+    database: db,
+    messagesCollection: db.collections.get<Message>("history"),
+    conversationsCollection: db.collections.get<Conversation>("conversations"),
+    walletAddress: undefined,
+    signMessage: undefined,
+    embeddedWalletSigner: undefined,
+  };
 }
 
 // ── JSON extraction ──
