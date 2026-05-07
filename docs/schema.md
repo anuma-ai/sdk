@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v27**
+Current version: **v29**
 
 ```mermaid
 graph LR
@@ -19,6 +19,8 @@ graph LR
 - [modelPreferences](#modelPreferences)
 - [userPreferences](#userPreferences)
 - [memory_vault](#memory_vault)
+- [entity](#entity)
+- [memory_entity](#memory_entity)
 - [vault_folders](#vault_folders)
 - [conversation_summaries](#conversation_summaries)
 - [media](#media)
@@ -106,6 +108,26 @@ graph LR
 | `is_deleted` | boolean | ✓ |  |
 | `user_id` | string | ✓ | ✓ |
 | `embedding` | string |  | ✓ |
+| `source_chunk_ids` | string |  | ✓ |
+| `proof_count` | number |  | ✓ |
+| `source` | string |  | ✓ |
+
+## entity
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `canonical_name` | string | ✓ |  |
+| `kind` | string |  | ✓ |
+| `created_at` | number |  |  |
+| `updated_at` | number |  |  |
+
+## memory_entity
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `memory_id` | string | ✓ |  |
+| `entity_id` | string | ✓ |  |
+| `created_at` | number |  |  |
 
 ## vault_folders
 
@@ -180,6 +202,8 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v29 | Added `entity` table; Added `memory_entity` table |
+| v28 | Added `source_chunk_ids`, `proof_count`, `source` to `memory_vault` |
 | v27 | Added `tool_call_events` to `history` |
 | v26 | Added `app_files` table |
 | v25 | Added `saved_tools` table |

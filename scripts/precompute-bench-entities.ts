@@ -36,11 +36,7 @@ interface ChoicesResponse {
   choices?: Array<{ message?: { content?: string } }>;
 }
 
-async function extractBatch(
-  texts: string[],
-  apiKey: string,
-  baseUrl: string
-): Promise<string[][]> {
+async function extractBatch(texts: string[], apiKey: string, baseUrl: string): Promise<string[][]> {
   const userPrompt =
     "Extract entities for each text:\n" + texts.map((t, i) => `[${i}] ${t}`).join("\n");
 

@@ -81,8 +81,12 @@ async function main() {
   console.log(`Correct:  ${correct}/${total}`);
   console.log(`Accuracy: ${(accuracy * 100).toFixed(1)}%`);
   console.log();
-  console.log(`Avg Precision: ${precisions.length ? ((precisions.reduce((a, b) => a + b, 0) / precisions.length) * 100).toFixed(1) : "n/a"}%`);
-  console.log(`Avg Recall:    ${recalls.length ? ((recalls.reduce((a, b) => a + b, 0) / recalls.length) * 100).toFixed(1) : "n/a"}%`);
+  console.log(
+    `Avg Precision: ${precisions.length ? ((precisions.reduce((a, b) => a + b, 0) / precisions.length) * 100).toFixed(1) : "n/a"}%`
+  );
+  console.log(
+    `Avg Recall:    ${recalls.length ? ((recalls.reduce((a, b) => a + b, 0) / recalls.length) * 100).toFixed(1) : "n/a"}%`
+  );
   console.log();
   console.log(`By Question Type:`);
   for (const [qt, st] of [...byType.entries()].sort()) {

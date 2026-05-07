@@ -46,7 +46,12 @@ async function main() {
 
   const ks = [5, 10, 15, 20, 30];
   const recallSums = ks.map(() => 0);
-  const perQuery: Array<{ q: string; expected: string[]; missed: string[]; ranks: Record<string, number> }> = [];
+  const perQuery: Array<{
+    q: string;
+    expected: string[];
+    missed: string[];
+    ranks: Record<string, number>;
+  }> = [];
 
   for (let i = 0; i < composite.length; i++) {
     const q = composite[i];
@@ -75,12 +80,16 @@ async function main() {
 
   console.log("Composite recall ceiling (V2+CE rerank):");
   for (let i = 0; i < ks.length; i++) {
-    console.log(`  recall@${ks[i].toString().padStart(2)}  ${((recallSums[i] / composite.length) * 100).toFixed(1)}%`);
+    console.log(
+      `  recall@${ks[i].toString().padStart(2)}  ${((recallSums[i] / composite.length) * 100).toFixed(1)}%`
+    );
   }
   console.log();
   console.log("Per-query rank of each expected id (rank=1 means top-1, '—' means not in top-30):");
   for (const r of perQuery) {
-    const ranksStr = r.expected.map((id) => `${id}@${r.ranks[id] === -1 ? "—" : r.ranks[id]}`).join(", ");
+    const ranksStr = r.expected
+      .map((id) => `${id}@${r.ranks[id] === -1 ? "—" : r.ranks[id]}`)
+      .join(", ");
     console.log(`  "${r.q}"`);
     console.log(`    [${ranksStr}]`);
     if (r.missed.length > 0) {
