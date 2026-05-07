@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#14)
+Defined in: [src/lib/db/memoryVault/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#20)
 
 ***
 
@@ -46,7 +46,17 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#16)
+Defined in: [src/lib/db/memoryVault/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#22)
+
+***
+
+### proofCount
+
+> **proofCount**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#17)
+
+Times this fact has been re-observed (for ranking + UX badges).
 
 ***
 
@@ -57,6 +67,26 @@ Defined in: [src/lib/db/memoryVault/types.ts:16](https://github.com/anuma-ai/sdk
 Defined in: [src/lib/db/memoryVault/types.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#7)
 
 Scope for partitioning memories (e.g., "private", "shared")
+
+***
+
+### source
+
+> **source**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#19)
+
+How the memory was created: manual | auto-extracted | capsule.
+
+***
+
+### sourceChunkIds
+
+> **sourceChunkIds**: `string`\[] | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#15)
+
+JSON-stringified array of source message IDs this fact was extracted from.
 
 ***
 
@@ -74,7 +104,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#15)
+Defined in: [src/lib/db/memoryVault/types.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#21)
 
 ***
 
