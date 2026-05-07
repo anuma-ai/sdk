@@ -88,6 +88,11 @@ import {
 } from "../lib/memoryEngine";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
+  createRecallTool as createRecallToolBase,
+  type RecallToolCallbacks,
+  type RecallToolOptions,
+} from "../lib/memory";
+import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   createMemoryVaultTool as createMemoryVaultToolBase,
   createVaultEmbeddingCache,
@@ -660,6 +665,17 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @returns A ToolConfig that can be passed to sendMessage's clientTools
    */
   createMemoryVaultSearchTool: (searchOptions?: MemoryVaultSearchOptions) => ToolConfig;
+
+  /**
+   * Create the unified recall tool — a single chat-completion tool that
+   * searches both vault facts and conversation chunks via the recall()
+   * pipeline. Replaces the legacy pair (createMemoryVaultSearchTool +
+   * createMemoryEngineTool) for new consumers.
+   *
+   * @param toolOptions - Tool config (types, limit, budget, scopes…)
+   * @param callbacks - Optional retrieval callbacks for graph/inspector wiring
+   */
+  createRecallTool: (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks) => ToolConfig;
 
   /**
    * Search vault memories programmatically using semantic similarity.
@@ -1287,6 +1303,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       );
     },
     [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Create the unified recall tool. Routes through `recall()` so vault
+   * facts and conversation chunks are fused into a single ranked result
+   * — one tool exposed to the LLM instead of two.
+   */
+  const createRecallTool = useCallback(
+    (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for recall tool");
+      }
+      return createRecallToolBase(
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+        },
+        toolOptions,
+        callbacks
+      );
+    },
+    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel]
   );
 
   /**
@@ -2749,6 +2789,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryEngineTool,
     createMemoryVaultTool,
     createMemoryVaultSearchTool,
+    createRecallTool,
     searchVaultMemories: searchVaultMemoriesFn,
     vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
     getVaultMemories,
