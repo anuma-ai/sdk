@@ -299,6 +299,42 @@ export {
   type VaultSearchResult,
 } from "../lib/memoryVault";
 
+// ── Unified Memory API (recall / retain / reflect) ──
+
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  reflect,
+  retain,
+} from "../lib/memory";
+
 // ── Server Tools ──
 
 export type {

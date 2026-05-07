@@ -287,6 +287,24 @@ export {
   type VaultSaveOperation,
   type VaultSearchResult,
 } from "../lib/memoryVault";
+
+// Unified memory API types (the recall / retain / reflect surface lives in
+// @anuma/sdk/server; only the types are exported here for consumers that
+// need to type their event payloads or callbacks).
+export type {
+  Budget,
+  MemoryKind,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+} from "../lib/memory";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";
 
