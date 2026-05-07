@@ -15,6 +15,8 @@ import { type StorageOperationsContext } from "../../../../src/lib/db/chat/opera
 import { Conversation, Message } from "../../../../src/lib/db/chat/models.js";
 import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memoryVault/operations.js";
 import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
+import { Entity, MemoryEntity } from "../../../../src/lib/db/entities/models.js";
+import { type EntityOperationsContext } from "../../../../src/lib/db/entities/operations.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -57,6 +59,8 @@ export interface ExtractedMemory {
   kind: "state" | "event";
   occurredAt: string | null;
   confidence: number;
+  /** Named entities (people, places, things). Drives the W5 graph lane. */
+  entities: string[];
   embedding?: number[];
 }
 
@@ -132,6 +136,14 @@ export function createVaultContext(db: Database): VaultMemoryOperationsContext {
     walletAddress: undefined,
     signMessage: undefined,
     embeddedWalletSigner: undefined,
+  };
+}
+
+export function createEntityContext(db: Database): EntityOperationsContext {
+  return {
+    database: db,
+    entityCollection: db.collections.get<Entity>("entity"),
+    memoryEntityCollection: db.collections.get<MemoryEntity>("memory_entity"),
   };
 }
 
@@ -396,7 +408,8 @@ OUTPUT — strict JSON, no prose, no markdown:
       "content": "<self-contained natural-language sentence, 15–80 words, present-tense, third-person>",
       "kind": "state" | "event",
       "occurredAt": "<ISO date YYYY-MM-DD if kind is event, otherwise null>",
-      "confidence": 0.0-1.0
+      "confidence": 0.0-1.0,
+      "entities": ["<named entities mentioned: people, places, things, brands; skip generic nouns>"]
     }
   ]
 }
@@ -476,6 +489,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           kind?: string;
           occurredAt?: string | null;
           confidence?: number;
+          entities?: unknown;
         }>;
       };
 
@@ -487,6 +501,11 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           const occurredAt =
             kind === "event" && typeof item.occurredAt === "string" ? item.occurredAt : null;
           const confidence = typeof item.confidence === "number" ? item.confidence : 0.7;
+          // Defensive parse — older bench runs / models without graph-lane
+          // awareness may omit entities or return non-array shapes.
+          const entities = Array.isArray(item.entities)
+            ? item.entities.filter((e): e is string => typeof e === "string" && e.trim().length > 0)
+            : [];
           return {
             sessionIndex,
             sessionId,
@@ -494,6 +513,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
             kind,
             occurredAt,
             confidence,
+            entities,
           } satisfies ExtractedMemory;
         })
         .filter((m): m is ExtractedMemory => m !== null);
