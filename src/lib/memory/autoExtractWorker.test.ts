@@ -60,8 +60,20 @@ describe("createAutoExtractor", () => {
   it("fires onMemoryExtracted once per retained fact", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue({
       candidates: [
-        { content: "fact 1", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: [] },
-        { content: "fact 2", type: "other", confidence: 0.85, sourceMessageIds: ["m1"], entities: [] },
+        {
+          content: "fact 1",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+        {
+          content: "fact 2",
+          type: "other",
+          confidence: 0.85,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
       ],
       results: [
         { action: "create", memoryId: "id1", proofCount: 1 },

@@ -10,7 +10,7 @@ export interface StoredEntity {
 
 export interface CreateEntityOptions {
   canonicalName: string;
-  kind?: EntityKind | string;
+  kind?: EntityKind | (string & {});
 }
 
 export interface StoredMemoryEntity {

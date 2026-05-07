@@ -1,45 +1,31 @@
 {
   "Can the user eat peanuts?": {
     "mode": "specific",
-    "subQueries": [
-      "Can the user eat peanuts?"
-    ]
+    "subQueries": ["Can the user eat peanuts?"]
   },
   "Can the user help review a Go service?": {
     "mode": "specific",
-    "subQueries": [
-      "Can the user help review a Go service?"
-    ]
+    "subQueries": ["Can the user help review a Go service?"]
   },
   "Can the user safely eat lobster?": {
     "mode": "specific",
-    "subQueries": [
-      "Can the user safely eat lobster?"
-    ]
+    "subQueries": ["Can the user safely eat lobster?"]
   },
   "Describe the team's development workflow": {
     "mode": "specific",
-    "subQueries": [
-      "Describe the team's development workflow"
-    ]
+    "subQueries": ["Describe the team's development workflow"]
   },
   "Did the user recently move?": {
     "mode": "specific",
-    "subQueries": [
-      "Did the user recently move?"
-    ]
+    "subQueries": ["Did the user recently move?"]
   },
   "Does the user have any accessibility needs?": {
     "mode": "specific",
-    "subQueries": [
-      "Does the user have any accessibility needs?"
-    ]
+    "subQueries": ["Does the user have any accessibility needs?"]
   },
   "Does the user prefer writing long-form documentation?": {
     "mode": "specific",
-    "subQueries": [
-      "Does the user prefer writing long-form documentation?"
-    ]
+    "subQueries": ["Does the user prefer writing long-form documentation?"]
   },
   "Give me an overview of the user's development environment setup": {
     "mode": "composite",
@@ -53,105 +39,71 @@
   },
   "How are application errors captured and reported?": {
     "mode": "specific",
-    "subQueries": [
-      "How are application errors captured and reported?"
-    ]
+    "subQueries": ["How are application errors captured and reported?"]
   },
   "How are background tasks processed?": {
     "mode": "specific",
-    "subQueries": [
-      "How are background tasks processed?"
-    ]
+    "subQueries": ["How are background tasks processed?"]
   },
   "How are infrastructure resources provisioned?": {
     "mode": "specific",
-    "subQueries": [
-      "How are infrastructure resources provisioned?"
-    ]
+    "subQueries": ["How are infrastructure resources provisioned?"]
   },
   "How are logs collected and shipped?": {
     "mode": "specific",
-    "subQueries": [
-      "How are logs collected and shipped?"
-    ]
+    "subQueries": ["How are logs collected and shipped?"]
   },
   "How do external clients communicate with the API?": {
     "mode": "specific",
-    "subQueries": [
-      "How do external clients communicate with the API?"
-    ]
+    "subQueries": ["How do external clients communicate with the API?"]
   },
   "How does the team ensure code changes don't bypass review?": {
     "mode": "specific",
-    "subQueries": [
-      "How does the team ensure code changes don't bypass review?"
-    ]
+    "subQueries": ["How does the team ensure code changes don't bypass review?"]
   },
   "How does the team handle secret rotation?": {
     "mode": "specific",
-    "subQueries": [
-      "How does the team handle secret rotation?"
-    ]
+    "subQueries": ["How does the team handle secret rotation?"]
   },
   "How does the team handle security?": {
     "mode": "specific",
-    "subQueries": [
-      "How does the team handle security?"
-    ]
+    "subQueries": ["How does the team handle security?"]
   },
   "How does the team manage feature rollouts?": {
     "mode": "specific",
-    "subQueries": [
-      "How does the team manage feature rollouts?"
-    ]
+    "subQueries": ["How does the team manage feature rollouts?"]
   },
   "How does the team run browser tests?": {
     "mode": "specific",
-    "subQueries": [
-      "How does the team run browser tests?"
-    ]
+    "subQueries": ["How does the team run browser tests?"]
   },
   "How does the user feel about synchronous communication?": {
     "mode": "specific",
-    "subQueries": [
-      "How does the user feel about synchronous communication?"
-    ]
+    "subQueries": ["How does the user feel about synchronous communication?"]
   },
   "How is the API documented?": {
     "mode": "specific",
-    "subQueries": [
-      "How is the API documented?"
-    ]
+    "subQueries": ["How is the API documented?"]
   },
   "How many monthly active users does the product have?": {
     "mode": "specific",
-    "subQueries": [
-      "How many monthly active users does the product have?"
-    ]
+    "subQueries": ["How many monthly active users does the product have?"]
   },
   "How often does the team deploy?": {
     "mode": "specific",
-    "subQueries": [
-      "How often does the team deploy?"
-    ]
+    "subQueries": ["How often does the team deploy?"]
   },
   "Is the user a manager?": {
     "mode": "specific",
-    "subQueries": [
-      "Is the user a manager?"
-    ]
+    "subQueries": ["Is the user a manager?"]
   },
   "Is the user available during Tokyo business hours?": {
     "mode": "specific",
-    "subQueries": [
-      "Is the user available during Tokyo business hours?"
-    ]
+    "subQueries": ["Is the user available during Tokyo business hours?"]
   },
   "Should I schedule a meeting with the user at 3pm PT?": {
     "mode": "specific",
-    "subQueries": [
-      "Should I schedule a meeting with the user at 3pm PT?"
-    ]
+    "subQueries": ["Should I schedule a meeting with the user at 3pm PT?"]
   },
   "Summarize the user's communication preferences": {
     "mode": "composite",
@@ -185,117 +137,79 @@
   },
   "What CI/CD platform is used?": {
     "mode": "specific",
-    "subQueries": [
-      "What CI/CD platform is used?"
-    ]
+    "subQueries": ["What CI/CD platform is used?"]
   },
   "What E2E testing tool does the team use?": {
     "mode": "specific",
-    "subQueries": [
-      "What E2E testing tool does the team use?"
-    ]
+    "subQueries": ["What E2E testing tool does the team use?"]
   },
   "What ORM does the team use?": {
     "mode": "specific",
-    "subQueries": [
-      "What ORM does the team use?"
-    ]
+    "subQueries": ["What ORM does the team use?"]
   },
   "What are the user's hobbies and interests outside of work?": {
     "mode": "specific",
-    "subQueries": [
-      "What are the user's hobbies and interests outside of work?"
-    ]
+    "subQueries": ["What are the user's hobbies and interests outside of work?"]
   },
   "What beverage does the user prefer now?": {
     "mode": "specific",
-    "subQueries": [
-      "What beverage does the user prefer now?"
-    ]
+    "subQueries": ["What beverage does the user prefer now?"]
   },
   "What branching strategy does the team follow?": {
     "mode": "specific",
-    "subQueries": [
-      "What branching strategy does the team follow?"
-    ]
+    "subQueries": ["What branching strategy does the team follow?"]
   },
   "What caching layer is used for sessions?": {
     "mode": "specific",
-    "subQueries": [
-      "What caching layer is used for sessions?"
-    ]
+    "subQueries": ["What caching layer is used for sessions?"]
   },
   "What car does the user drive?": {
     "mode": "specific",
-    "subQueries": [
-      "What car does the user drive?"
-    ]
+    "subQueries": ["What car does the user drive?"]
   },
   "What city is the user based in now?": {
     "mode": "specific",
-    "subQueries": [
-      "What city is the user based in now?"
-    ]
+    "subQueries": ["What city is the user based in now?"]
   },
   "What commit message convention does the team follow?": {
     "mode": "specific",
-    "subQueries": [
-      "What commit message convention does the team follow?"
-    ]
+    "subQueries": ["What commit message convention does the team follow?"]
   },
   "What conferences has the user attended?": {
     "mode": "specific",
-    "subQueries": [
-      "What conferences has the user attended?"
-    ]
+    "subQueries": ["What conferences has the user attended?"]
   },
   "What containerization setup is used for local dev?": {
     "mode": "specific",
-    "subQueries": [
-      "What containerization setup is used for local dev?"
-    ]
+    "subQueries": ["What containerization setup is used for local dev?"]
   },
   "What data store is NOT used for real-time transactional queries?": {
     "mode": "specific",
-    "subQueries": [
-      "What data store is NOT used for real-time transactional queries?"
-    ]
+    "subQueries": ["What data store is NOT used for real-time transactional queries?"]
   },
   "What database connection pooling does the team use?": {
     "mode": "specific",
-    "subQueries": [
-      "What database connection pooling does the team use?"
-    ]
+    "subQueries": ["What database connection pooling does the team use?"]
   },
   "What database does the team use?": {
     "mode": "specific",
-    "subQueries": [
-      "What database does the team use?"
-    ]
+    "subQueries": ["What database does the team use?"]
   },
   "What database is used for analytics?": {
     "mode": "specific",
-    "subQueries": [
-      "What database is used for analytics?"
-    ]
+    "subQueries": ["What database is used for analytics?"]
   },
   "What database is used for real-time transactional queries?": {
     "mode": "specific",
-    "subQueries": [
-      "What database is used for real-time transactional queries?"
-    ]
+    "subQueries": ["What database is used for real-time transactional queries?"]
   },
   "What did the user use before switching to matcha?": {
     "mode": "specific",
-    "subQueries": [
-      "What did the user use before switching to matcha?"
-    ]
+    "subQueries": ["What did the user use before switching to matcha?"]
   },
   "What distributed computing topics interest the user?": {
     "mode": "specific",
-    "subQueries": [
-      "What distributed computing topics interest the user?"
-    ]
+    "subQueries": ["What distributed computing topics interest the user?"]
   },
   "What distributed systems knowledge does the user have?": {
     "mode": "composite",
@@ -309,27 +223,19 @@
   },
   "What does the user do for exercise?": {
     "mode": "specific",
-    "subQueries": [
-      "What does the user do for exercise?"
-    ]
+    "subQueries": ["What does the user do for exercise?"]
   },
   "What does the user do to give back to the community?": {
     "mode": "specific",
-    "subQueries": [
-      "What does the user do to give back to the community?"
-    ]
+    "subQueries": ["What does the user do to give back to the community?"]
   },
   "What does the user drink in the morning?": {
     "mode": "specific",
-    "subQueries": [
-      "What does the user drink in the morning?"
-    ]
+    "subQueries": ["What does the user drink in the morning?"]
   },
   "What does the user listen to while working?": {
     "mode": "specific",
-    "subQueries": [
-      "What does the user listen to while working?"
-    ]
+    "subQueries": ["What does the user listen to while working?"]
   },
   "What does the user's data pipeline look like?": {
     "mode": "composite",
@@ -363,15 +269,11 @@
   },
   "What foods should the user avoid?": {
     "mode": "specific",
-    "subQueries": [
-      "What foods should the user avoid?"
-    ]
+    "subQueries": ["What foods should the user avoid?"]
   },
   "What happens when someone gets paged?": {
     "mode": "specific",
-    "subQueries": [
-      "What happens when someone gets paged?"
-    ]
+    "subQueries": ["What happens when someone gets paged?"]
   },
   "What health-related things should I know about the user?": {
     "mode": "composite",
@@ -395,63 +297,43 @@
   },
   "What is Alex's compensation?": {
     "mode": "specific",
-    "subQueries": [
-      "What is Alex's compensation?"
-    ]
+    "subQueries": ["What is Alex's compensation?"]
   },
   "What is the API latency target?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the API latency target?"
-    ]
+    "subQueries": ["What is the API latency target?"]
   },
   "What is the current frontend state management approach?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the current frontend state management approach?"
-    ]
+    "subQueries": ["What is the current frontend state management approach?"]
   },
   "What is the data pipeline SLA?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the data pipeline SLA?"
-    ]
+    "subQueries": ["What is the data pipeline SLA?"]
   },
   "What is the data pipeline built with?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the data pipeline built with?"
-    ]
+    "subQueries": ["What is the data pipeline built with?"]
   },
   "What is the deployment cadence?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the deployment cadence?"
-    ]
+    "subQueries": ["What is the deployment cadence?"]
   },
   "What is the deployment region?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the deployment region?"
-    ]
+    "subQueries": ["What is the deployment region?"]
   },
   "What is the user's chess rating?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's chess rating?"
-    ]
+    "subQueries": ["What is the user's chess rating?"]
   },
   "What is the user's current job title?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's current job title?"
-    ]
+    "subQueries": ["What is the user's current job title?"]
   },
   "What is the user's current salary?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's current salary?"
-    ]
+    "subQueries": ["What is the user's current salary?"]
   },
   "What is the user's educational and career background?": {
     "mode": "composite",
@@ -464,33 +346,23 @@
   },
   "What is the user's food allergy, not intolerance?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's food allergy, not intolerance?"
-    ]
+    "subQueries": ["What is the user's food allergy, not intolerance?"]
   },
   "What is the user's food allergy?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's food allergy?"
-    ]
+    "subQueries": ["What is the user's food allergy?"]
   },
   "What is the user's name?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's name?"
-    ]
+    "subQueries": ["What is the user's name?"]
   },
   "What is the user's preferred formatting for documents?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's preferred formatting for documents?"
-    ]
+    "subQueries": ["What is the user's preferred formatting for documents?"]
   },
   "What is the user's side project?": {
     "mode": "specific",
-    "subQueries": [
-      "What is the user's side project?"
-    ]
+    "subQueries": ["What is the user's side project?"]
   },
   "What is the user's tech stack?": {
     "mode": "composite",
@@ -504,69 +376,47 @@
   },
   "What keyboard does the user use?": {
     "mode": "specific",
-    "subQueries": [
-      "What keyboard does the user use?"
-    ]
+    "subQueries": ["What keyboard does the user use?"]
   },
   "What language is the data pipeline written in?": {
     "mode": "specific",
-    "subQueries": [
-      "What language is the data pipeline written in?"
-    ]
+    "subQueries": ["What language is the data pipeline written in?"]
   },
   "What languages does the user speak?": {
     "mode": "specific",
-    "subQueries": [
-      "What languages does the user speak?"
-    ]
+    "subQueries": ["What languages does the user speak?"]
   },
   "What makes the user most productive?": {
     "mode": "specific",
-    "subQueries": [
-      "What makes the user most productive?"
-    ]
+    "subQueries": ["What makes the user most productive?"]
   },
   "What monitoring tools are used?": {
     "mode": "specific",
-    "subQueries": [
-      "What monitoring tools are used?"
-    ]
+    "subQueries": ["What monitoring tools are used?"]
   },
   "What musical instrument is the user learning?": {
     "mode": "specific",
-    "subQueries": [
-      "What musical instrument is the user learning?"
-    ]
+    "subQueries": ["What musical instrument is the user learning?"]
   },
   "What open source projects does the user maintain?": {
     "mode": "specific",
-    "subQueries": [
-      "What open source projects does the user maintain?"
-    ]
+    "subQueries": ["What open source projects does the user maintain?"]
   },
   "What pet does the user have?": {
     "mode": "specific",
-    "subQueries": [
-      "What pet does the user have?"
-    ]
+    "subQueries": ["What pet does the user have?"]
   },
   "What project management tool does the team use?": {
     "mode": "specific",
-    "subQueries": [
-      "What project management tool does the team use?"
-    ]
+    "subQueries": ["What project management tool does the team use?"]
   },
   "What queue system handles async jobs?": {
     "mode": "specific",
-    "subQueries": [
-      "What queue system handles async jobs?"
-    ]
+    "subQueries": ["What queue system handles async jobs?"]
   },
   "What rate limits apply to the API?": {
     "mode": "specific",
-    "subQueries": [
-      "What rate limits apply to the API?"
-    ]
+    "subQueries": ["What rate limits apply to the API?"]
   },
   "What side projects and open source work does the user do?": {
     "mode": "composite",
@@ -579,74 +429,50 @@
   },
   "What state management library does the frontend use?": {
     "mode": "specific",
-    "subQueries": [
-      "What state management library does the frontend use?"
-    ]
+    "subQueries": ["What state management library does the frontend use?"]
   },
   "What technology does the team explicitly NOT use?": {
     "mode": "specific",
-    "subQueries": [
-      "What technology does the team explicitly NOT use?"
-    ]
+    "subQueries": ["What technology does the team explicitly NOT use?"]
   },
   "What testing changes happened in 2025?": {
     "mode": "specific",
-    "subQueries": [
-      "What testing changes happened in 2025?"
-    ]
+    "subQueries": ["What testing changes happened in 2025?"]
   },
   "What testing framework is used for unit tests?": {
     "mode": "specific",
-    "subQueries": [
-      "What testing framework is used for unit tests?"
-    ]
+    "subQueries": ["What testing framework is used for unit tests?"]
   },
   "What text editor keybindings does the user prefer?": {
     "mode": "specific",
-    "subQueries": [
-      "What text editor keybindings does the user prefer?"
-    ]
+    "subQueries": ["What text editor keybindings does the user prefer?"]
   },
   "What tracing solution is the team evaluating?": {
     "mode": "specific",
-    "subQueries": [
-      "What tracing solution is the team evaluating?"
-    ]
+    "subQueries": ["What tracing solution is the team evaluating?"]
   },
   "What was the old state management before the migration?": {
     "mode": "specific",
-    "subQueries": [
-      "What was the old state management before the migration?"
-    ]
+    "subQueries": ["What was the old state management before the migration?"]
   },
   "When did the team switch to continuous deployment?": {
     "mode": "specific",
-    "subQueries": [
-      "When did the team switch to continuous deployment?"
-    ]
+    "subQueries": ["When did the team switch to continuous deployment?"]
   },
   "Where did the user go to college?": {
     "mode": "specific",
-    "subQueries": [
-      "Where did the user go to college?"
-    ]
+    "subQueries": ["Where did the user go to college?"]
   },
   "Where does the user currently live?": {
     "mode": "specific",
-    "subQueries": [
-      "Where does the user currently live?"
-    ]
+    "subQueries": ["Where does the user currently live?"]
   },
   "Where does the user hike?": {
     "mode": "specific",
-    "subQueries": [
-      "Where does the user hike?"
-    ]
+    "subQueries": ["Where does the user hike?"]
   },
   "Would the user prefer a video call or a Slack thread?": {
     "mode": "specific",
-    "subQueries": [
-      "Would the user prefer a video call or a Slack thread?"
-    ]
+    "subQueries": ["Would the user prefer a video call or a Slack thread?"]
   }
 }

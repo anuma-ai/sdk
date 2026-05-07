@@ -76,9 +76,7 @@ describe("decomposeQuery", () => {
 
   it("falls back when subQueries is missing or empty", async () => {
     const fetchFn = mockFetch({
-      choices: [
-        { message: { content: JSON.stringify({ mode: "composite", subQueries: [] }) } },
-      ],
+      choices: [{ message: { content: JSON.stringify({ mode: "composite", subQueries: [] }) } }],
     });
     const result = await decomposeQuery("q", { apiKey: "k", fetchFn });
     expect(result).toEqual({ mode: "specific", subQueries: ["q"] });

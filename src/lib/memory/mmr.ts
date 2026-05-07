@@ -45,11 +45,7 @@ export interface MMRItem {
  * still considered relevance-wise; if a selected item has no embedding,
  * it doesn't contribute to the diversity penalty for later picks.
  */
-export function applyMMR<T extends MMRItem>(
-  candidates: T[],
-  k: number,
-  lambda: number = 0.5
-): T[] {
+export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: number = 0.5): T[] {
   if (candidates.length === 0 || k <= 0) return [];
 
   const remaining = [...candidates];

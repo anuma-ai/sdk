@@ -22,7 +22,10 @@ function mockFetch(body: unknown, ok = true): typeof fetch {
   }) as unknown as typeof fetch;
 }
 
-const completionResponse = (text: string, usage = { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 }) => ({
+const completionResponse = (
+  text: string,
+  usage = { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 }
+) => ({
   choices: [{ message: { content: text } }],
   usage,
 });

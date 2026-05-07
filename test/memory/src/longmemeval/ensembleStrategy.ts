@@ -10,10 +10,7 @@
  * they don't capture the LLM's per-question routing.
  */
 
-import {
-  createConversationOp,
-  createMessageOp,
-} from "../../../../src/lib/db/chat/operations.js";
+import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
@@ -79,7 +76,11 @@ export async function processEntryEnsemble(
     embeddingTokens: 0,
   };
 
-  function addUsage(u?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+  function addUsage(u?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }) {
     if (!u) return;
     tokenUsage.promptTokens += u.prompt_tokens;
     tokenUsage.completionTokens += u.completion_tokens;
@@ -102,8 +103,7 @@ export async function processEntryEnsemble(
         entry.question_date
       );
       for (const mem of extracted) {
-        const dateSuffix =
-          mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
+        const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
         allMemories.push({ sessionId: mem.sessionId, content: `${mem.content}${dateSuffix}` });
       }
     }

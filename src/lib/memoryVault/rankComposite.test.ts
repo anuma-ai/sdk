@@ -23,9 +23,7 @@ describe("rankComposite", () => {
   });
 
   it("returns empty when no sub-queries", async () => {
-    const items = [
-      { id: "A", content: "x", embedding: emb({ 0: 1 }), updatedAt: NOW },
-    ];
+    const items = [{ id: "A", content: "x", embedding: emb({ 0: 1 }), updatedAt: NOW }];
     const result = await rankComposite("q", emb({ 0: 1 }), [], items);
     expect(result).toEqual([]);
   });

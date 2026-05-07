@@ -22,7 +22,6 @@ import {
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
-import { consolidateMemory, type ConsolidateOptions } from "./consolidate.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.85;
@@ -122,9 +121,10 @@ export async function retain(
     ...(options.scope !== undefined && { scope: options.scope }),
     ...(options.folderId !== undefined && { folderId: options.folderId }),
     embedding: JSON.stringify(embedding),
-    ...(options.sourceChunkIds && options.sourceChunkIds.length > 0 && {
-      sourceChunkIds: options.sourceChunkIds,
-    }),
+    ...(options.sourceChunkIds &&
+      options.sourceChunkIds.length > 0 && {
+        sourceChunkIds: options.sourceChunkIds,
+      }),
     proofCount: 1,
     source: options.source ?? "manual",
   });
@@ -160,8 +160,7 @@ async function tryConsolidate(
   const consolidateOptions = options.consolidateOptions;
   if (!consolidateOptions) return null;
 
-  const consolidateThreshold =
-    options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
+  const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
   const topK = options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K;
 
   const matches = await searchVaultMemories(

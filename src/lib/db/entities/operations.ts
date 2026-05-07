@@ -2,11 +2,7 @@ import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { Entity, MemoryEntity } from "./models";
-import type {
-  CreateEntityOptions,
-  StoredEntity,
-  StoredMemoryEntity,
-} from "./types";
+import type { CreateEntityOptions, StoredEntity, StoredMemoryEntity } from "./types";
 
 export interface EntityOperationsContext {
   database: Database;
@@ -47,9 +43,7 @@ export async function getEntityByNameOp(
 ): Promise<StoredEntity | null> {
   const normalized = normalizeName(name);
   if (!normalized) return null;
-  const matches = await ctx.entityCollection
-    .query(Q.where("canonical_name", normalized))
-    .fetch();
+  const matches = await ctx.entityCollection.query(Q.where("canonical_name", normalized)).fetch();
   const first = matches[0];
   return first ? entityToStored(first) : null;
 }
@@ -84,9 +78,7 @@ export async function linkMemoryEntitiesOp(
   memoryId: string,
   entityNames: string[]
 ): Promise<StoredEntity[]> {
-  const unique = Array.from(
-    new Set(entityNames.map(normalizeName).filter((n) => n.length > 0))
-  );
+  const unique = Array.from(new Set(entityNames.map(normalizeName).filter((n) => n.length > 0)));
   if (unique.length === 0) return [];
 
   // Resolve / create each entity.
@@ -127,9 +119,7 @@ export async function getMemoriesByEntityNamesOp(
   names: string[]
 ): Promise<Map<string, number>> {
   const overlap = new Map<string, number>();
-  const normalized = Array.from(
-    new Set(names.map(normalizeName).filter((n) => n.length > 0))
-  );
+  const normalized = Array.from(new Set(names.map(normalizeName).filter((n) => n.length > 0)));
   if (normalized.length === 0) return overlap;
 
   const entityRows = await ctx.entityCollection
@@ -157,15 +147,11 @@ export async function getEntitiesForMemoryOp(
   ctx: EntityOperationsContext,
   memoryId: string
 ): Promise<StoredEntity[]> {
-  const links = await ctx.memoryEntityCollection
-    .query(Q.where("memory_id", memoryId))
-    .fetch();
+  const links = await ctx.memoryEntityCollection.query(Q.where("memory_id", memoryId)).fetch();
   if (links.length === 0) return [];
 
   const entityIds = links.map((l) => String(l.entityId));
-  const entityRows = await ctx.entityCollection
-    .query(Q.where("id", Q.oneOf(entityIds)))
-    .fetch();
+  const entityRows = await ctx.entityCollection.query(Q.where("id", Q.oneOf(entityIds))).fetch();
   return entityRows.map(entityToStored);
 }
 
@@ -180,9 +166,7 @@ export interface EntityGraphNode {
   memoryIds: string[];
 }
 
-export async function listEntityGraphOp(
-  ctx: EntityOperationsContext
-): Promise<EntityGraphNode[]> {
+export async function listEntityGraphOp(ctx: EntityOperationsContext): Promise<EntityGraphNode[]> {
   const [entityRows, linkRows] = await Promise.all([
     ctx.entityCollection.query().fetch(),
     ctx.memoryEntityCollection.query().fetch(),

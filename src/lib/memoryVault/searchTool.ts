@@ -858,11 +858,7 @@ export async function searchVaultMemoriesWithSize(
   // Composite path — LLM decomposes the query into sub-queries, embeds them,
   // and runs the multi-facet RRF ranker. Falls through to V2/V2+CE on
   // "specific" mode so single-fact queries don't pay the decomposition cost.
-  if (
-    useFusion &&
-    searchOptions?.decompose === "llm" &&
-    searchOptions.decomposeOptions
-  ) {
+  if (useFusion && searchOptions?.decompose === "llm" && searchOptions.decomposeOptions) {
     const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
     if (decomp.mode === "composite") {
       const subEmbeddings = await generateEmbeddings(decomp.subQueries, embeddingOptions);
@@ -884,19 +880,14 @@ export async function searchVaultMemoriesWithSize(
   }
 
   if (useFusion && searchOptions?.rerank) {
-    const results = await rankFusedVaultMemoriesAsync(
-      query,
-      queryEmbedding,
-      embeddedItems,
-      {
-        limit,
-        minSimilarity,
-        rerank: true,
-        ...(searchOptions.rerankTopN !== undefined && {
-          rerankTopN: searchOptions.rerankTopN,
-        }),
-      }
-    );
+    const results = await rankFusedVaultMemoriesAsync(query, queryEmbedding, embeddedItems, {
+      limit,
+      minSimilarity,
+      rerank: true,
+      ...(searchOptions.rerankTopN !== undefined && {
+        rerankTopN: searchOptions.rerankTopN,
+      }),
+    });
     return { results, vaultSize: memories.length };
   }
 

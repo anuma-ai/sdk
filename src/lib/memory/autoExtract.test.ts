@@ -33,7 +33,10 @@ describe("extractFacts", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns [] for empty messages", async () => {
-    const result = await extractFacts([], { apiKey: "k", fetchFn: vi.fn() as unknown as typeof fetch });
+    const result = await extractFacts([], {
+      apiKey: "k",
+      fetchFn: vi.fn() as unknown as typeof fetch,
+    });
     expect(result).toEqual([]);
   });
 
@@ -322,7 +325,13 @@ describe("extractAndRetain", () => {
   it("does not call linkMemoryEntitiesOp when entityCtx is omitted", async () => {
     const candidates = {
       candidates: [
-        { content: "x", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: ["foo"] },
+        {
+          content: "x",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: ["foo"],
+        },
       ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "mem-2", proofCount: 1 });
@@ -359,8 +368,20 @@ describe("extractAndRetain", () => {
   it("entity-link failure doesn't kill the rest of the batch", async () => {
     const candidates = {
       candidates: [
-        { content: "fact 1", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: ["A"] },
-        { content: "fact 2", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: ["B"] },
+        {
+          content: "fact 1",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: ["A"],
+        },
+        {
+          content: "fact 2",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: ["B"],
+        },
       ],
     };
     vi.mocked(retain)

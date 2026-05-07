@@ -68,10 +68,7 @@ function sigmoid(x: number): number {
  *
  * For empty inputs: returns []. For a single candidate: returns it scored.
  */
-export async function rerankPairs(
-  query: string,
-  items: RerankerItem[]
-): Promise<RerankedItem[]> {
+export async function rerankPairs(query: string, items: RerankerItem[]): Promise<RerankedItem[]> {
   if (items.length === 0 || !query) return [];
 
   const { tokenizer, model } = await getModel();

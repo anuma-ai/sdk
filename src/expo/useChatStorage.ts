@@ -65,17 +65,17 @@ import {
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
 import {
+  createRecallTool as createRecallToolBase,
+  type RecallToolCallbacks,
+  type RecallToolOptions,
+} from "../lib/memory";
+import {
   createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
   type MemoryEngineSearchOptions,
 } from "../lib/memoryEngine";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
-import {
-  createRecallTool as createRecallToolBase,
-  type RecallToolCallbacks,
-  type RecallToolOptions,
-} from "../lib/memory";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   createVaultEmbeddingCache,
@@ -299,7 +299,10 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * searches both vault facts and conversation chunks via recall().
    * Replaces the legacy createMemoryEngineTool / vault search pair.
    */
-  createRecallTool: (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks) => ToolConfig;
+  createRecallTool: (
+    toolOptions?: RecallToolOptions,
+    callbacks?: RecallToolCallbacks
+  ) => ToolConfig;
 
   /** Get all vault memories for context injection. */
   getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
