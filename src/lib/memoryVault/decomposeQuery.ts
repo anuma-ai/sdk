@@ -64,7 +64,7 @@ export interface DecomposedQuery {
   subQueries: string[];
 }
 
-export interface DecomposeQueryOptions {
+interface DecomposeQueryOptions {
   apiKey: string;
   baseUrl?: string;
   model?: string;

@@ -36,21 +36,7 @@ export type {
   ScoreBreakdown,
 } from "./types.js";
 
-// W5 — entity graph ops (used by extractAndRetain on the write path
-// and by recall() on the read path).
-export {
-  type EntityGraphNode,
-  type EntityOperationsContext,
-  getEntitiesForMemoryOp,
-  getEntityByNameOp,
-  getMemoriesByEntityNamesOp,
-  linkMemoryEntitiesOp,
-  listEntityGraphOp,
-  upsertEntityOp,
-} from "../db/entities/operations.js";
-export type {
-  CreateEntityOptions,
-  EntityKind,
-  StoredEntity,
-  StoredMemoryEntity,
-} from "../db/entities/types.js";
+// W5 — entity-graph ops are consumed internally by extractAndRetain and
+// recall(); intentionally not re-exported here because none of the
+// SDK's public entry points (server/, react/, expo/) surface them yet.
+// Promote individual ops to those entry points when consumers need them.

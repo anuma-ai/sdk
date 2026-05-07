@@ -44,12 +44,12 @@ async function getModel(): Promise<ModelHandle> {
   return modelPromise;
 }
 
-export interface RerankerItem {
+interface RerankerItem {
   id: string;
   content: string;
 }
 
-export interface RerankedItem {
+interface RerankedItem {
   id: string;
   content: string;
   /** Cross-encoder score in [0, 1] (sigmoid of the model's logit). */
