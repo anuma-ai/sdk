@@ -823,3 +823,8 @@ export {
   sanitizeQuotes,
   shouldAnalyzeStyle,
 } from "./lib/persona";
+
+// Int8 embedding quantization helpers (RAM reduction for client embedding caches).
+// Pure utilities — no React, no DB, no platform deps.
+export type { QuantizedEmbedding } from "./lib/memoryEngine";
+export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memoryEngine";

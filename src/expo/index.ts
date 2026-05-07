@@ -200,13 +200,18 @@ export type {
   EmbeddingOptions as MemoryEngineEmbeddingOptions,
   MemoryEngineResult,
   MemoryEngineSearchOptions,
+  QuantizedEmbedding,
 } from "../lib/memoryEngine";
 export {
+  // Int8 embedding quantization helpers (RAM reduction for client caches)
+  cosineInt8,
   createMemoryEngineTool,
+  dequantizeEmbedding,
   embedAllMessages,
   embedMessage,
   generateEmbedding,
   generateEmbeddings,
+  quantizeEmbedding,
 } from "../lib/memoryEngine";
 
 // Notion OAuth primitives (platform-agnostic, no browser globals)

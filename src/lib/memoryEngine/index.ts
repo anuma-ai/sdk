@@ -44,5 +44,7 @@ export {
   generateEmbedding,
   generateEmbeddings,
 } from "./embeddings";
+export type { QuantizedEmbedding } from "./quantization";
+export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./quantization";
 export { createMemoryEngineTool } from "./tool";
 export type { EmbeddingOptions, MemoryEngineResult, MemoryEngineSearchOptions } from "./types";
