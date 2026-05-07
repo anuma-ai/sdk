@@ -14,9 +14,11 @@
 
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
+import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { extractQueryEntities } from "./queryEntities.js";
 import { rrfFuse } from "./rrf.js";
 import type {
   Budget,
@@ -80,6 +82,14 @@ export async function recall(
   const chunkResults: ChunkSearchResult[] = [];
   let vaultSize: number | undefined;
 
+  // W5 graph lane — when the recall context carries an entityCtx, extract
+  // candidate entities from the query and look up memories that share any
+  // of them. The result is a ranking of memory IDs by entity-overlap
+  // score, RRF-fused alongside cosine + BM25 inside the vault search. We
+  // build it once here so both the fact lane (below) and any other lane
+  // that wants entity overlap can consume it.
+  const entityRanking = await buildGraphLaneRanking(query, ctx);
+
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
     const { results, vaultSize: size } = await searchVaultMemoriesWithSize(
@@ -101,6 +111,7 @@ export async function recall(
         }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(entityRanking.length > 0 && { entityRanking }),
       }
     );
     factResults.push(...results);
@@ -181,6 +192,33 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     createdAt: new Date(0),
     updatedAt: new Date(0),
   };
+}
+
+/**
+ * W5 graph lane builder. Returns a ranking of memory IDs ordered by
+ * entity-overlap score (descending) — caller passes this through to
+ * the vault search as `entityRanking` for RRF fusion with cosine/BM25.
+ *
+ * Returns an empty array (not just empty ranking) when:
+ *  - `ctx.entityCtx` is not provided
+ *  - The query has no extractable entities (all-lowercase or stopwords)
+ *  - No stored memories share any of the query's entities
+ *
+ * The ranking is by raw shared-count, not the tanh score — we hand off
+ * just the order to RRF fusion. The tanh shaping happens inside
+ * `rankByEntityOverlap` for callers that want the score directly.
+ */
+async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise<string[]> {
+  if (!ctx.entityCtx) return [];
+  const queryEntities = extractQueryEntities(query);
+  if (queryEntities.length === 0) return [];
+  const memoryToEntities = await getMemoriesByEntityNamesOp(ctx.entityCtx, queryEntities);
+  if (memoryToEntities.size === 0) return [];
+  // Sort by shared-entity count descending. Ties broken arbitrarily by
+  // map insertion order — RRF rank-quantization makes fine ties moot.
+  return [...memoryToEntities.entries()]
+    .sort((a, b) => b[1].size - a[1].size)
+    .map(([memoryId]) => memoryId);
 }
 
 function toChunkMemory(r: ChunkSearchResult): RankedMemory {

@@ -65,6 +65,8 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
+import { Entity as EntityModel, MemoryEntity as MemoryEntityModel } from "../lib/db/entities/models";
+import type { EntityOperationsContext } from "../lib/db/entities/operations";
 import { VaultMemory } from "../lib/db/memoryVault/models";
 import {
   type FlushResult,
@@ -902,6 +904,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
 
+  // W5 graph lane — entity + memory_entity collections feed `recall()`'s
+  // graph lane (query entities → shared-entity memories → RRF fusion)
+  // and `linkMemoryEntitiesOp` on the write path so retain() can persist
+  // entity links when callers pass them through.
+  const entityCollection = useMemo(() => database.get<EntityModel>("entity"), [database]);
+  const memoryEntityCollection = useMemo(
+    () => database.get<MemoryEntityModel>("memory_entity"),
+    [database]
+  );
+  const entityCtx = useMemo<EntityOperationsContext>(
+    () => ({
+      database,
+      entityCollection,
+      memoryEntityCollection,
+    }),
+    [database, entityCollection, memoryEntityCollection]
+  );
+
   // ── Queue Management ──
 
   // Track queue status as React state so UI can react to changes
@@ -1324,12 +1344,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           storageCtx,
           embeddingOptions: { getToken, baseUrl, model: embeddingModel },
           vaultCache: vaultEmbeddingCacheRef.current,
+          // Graph lane fires when entityCtx is present and the query
+          // contains extractable entities. Empty memory_entity table
+          // (e.g. before any auto-extraction has linked entities) is a
+          // graceful no-op — recall falls through to fact + chunk lanes.
+          entityCtx,
         },
         toolOptions,
         callbacks
       );
     },
-    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel]
   );
 
   /**
