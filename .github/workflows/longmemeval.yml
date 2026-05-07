@@ -12,6 +12,7 @@ on:
           - engine
           - vault
           - recall
+          - ensemble
       variant:
         description: "Dataset variant"
         required: true

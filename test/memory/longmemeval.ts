@@ -198,6 +198,8 @@ async function main(): Promise<void> {
     strategy = "memory-vault";
   } else if (rawStrategy === "recall" || rawStrategy === "memory-recall") {
     strategy = "memory-recall";
+  } else if (rawStrategy === "ensemble" || rawStrategy === "memory-ensemble") {
+    strategy = "memory-ensemble";
   } else if (rawStrategy === "both" || !rawStrategy) {
     strategy = "both";
   }
