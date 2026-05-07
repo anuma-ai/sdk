@@ -65,14 +65,14 @@ For "create": content is the new memory verbatim (or a slight refinement).
 For "update": content is the merged richest-version, ≤80 words.
 For "noop": no content (existing memory is already correct).`;
 
-export interface ConsolidationCandidate {
+interface ConsolidationCandidate {
   id: string;
   content: string;
   /** Cosine similarity to the new fact — informational, the LLM does its own judgment. */
   similarity: number;
 }
 
-export interface ConsolidationResult {
+interface ConsolidationResult {
   action: "create" | "update" | "noop";
   /** Defined for update/noop. */
   targetId?: string;
@@ -80,7 +80,7 @@ export interface ConsolidationResult {
   content?: string;
 }
 
-export interface ConsolidateOptions {
+interface ConsolidateOptions {
   apiKey: string;
   baseUrl?: string;
   model?: string;

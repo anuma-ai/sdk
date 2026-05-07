@@ -158,7 +158,7 @@ function tokenize(text: string): string[] {
   return m.filter((t) => !STOPWORDS.has(t));
 }
 
-export interface BM25Item {
+interface BM25Item {
   id: string;
   content: string;
 }

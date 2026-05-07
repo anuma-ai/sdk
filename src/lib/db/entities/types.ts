@@ -13,9 +13,6 @@ export interface CreateEntityOptions {
   kind?: EntityKind | (string & {});
 }
 
-export interface StoredMemoryEntity {
-  uniqueId: string;
-  memoryId: string;
-  entityId: string;
-  createdAt: Date;
-}
+// StoredMemoryEntity (the converted shape of MemoryEntity rows) was
+// removed alongside the W5 graph-lane read helpers — reintroduce when
+// the read path needs it again.

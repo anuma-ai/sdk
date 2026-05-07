@@ -29,7 +29,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-export interface MMRItem {
+interface MMRItem {
   id: string;
   /** Pre-computed relevance score (e.g. fused or CE score). */
   score: number;
