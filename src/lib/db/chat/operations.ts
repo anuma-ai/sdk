@@ -794,7 +794,19 @@ export async function searchMessagesOp(
 
   const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
-  const matchPromises: Promise<StoredMessageWithSimilarity | null>[] = [];
+  // First pass: score every candidate by similarity. Decrypting just
+  // the vector field is unavoidable here since vectors are stored
+  // encrypted, but the previous implementation also fully-decrypted
+  // every above-threshold message (content, thinking, sources, chunks,
+  // thoughtProcess, toolCallEvents) BEFORE the top-K slice. For a
+  // search across thousands of messages where dozens clear the
+  // threshold but only `limit` survive top-K, that wasted N*K JSON
+  // decrypts and the corresponding plaintext allocations.
+  //
+  // The two-pass version below decrypts only the surviving K. The
+  // sort key, set of returned messages, and the externally-observable
+  // shape are identical to the eager version.
+  const candidates: { message: Message; similarity: number }[] = [];
 
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
@@ -806,18 +818,27 @@ export async function searchMessagesOp(
 
     const similarity = cosineSimilarity(queryVector, messageVector);
     if (similarity >= minSimilarity) {
-      matchPromises.push(
-        messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner).then(
-          (stored) => ({ ...stored, similarity })
-        )
-      );
+      candidates.push({ message, similarity });
     }
   }
 
-  const resolvedResults = await Promise.all(matchPromises);
-  const validResults = resolvedResults.filter((r): r is StoredMessageWithSimilarity => r !== null);
+  // Sort then slice — same comparator as before. Stable ordering on
+  // ties is preserved because `Array.prototype.sort` is stable in
+  // modern engines and `messages` was iterated in fetch order.
+  const topK = candidates.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 
-  return validResults.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  // Decrypt only the top-K survivors.
+  return Promise.all(
+    topK.map(async ({ message, similarity }) => {
+      const stored = await messageToStored(
+        message,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      return { ...stored, similarity };
+    })
+  );
 }
 
 /**
@@ -847,7 +868,22 @@ export async function searchChunksOp(
 
   const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
-  const chunkMatchPromises: Promise<ChunkSearchResult>[] = [];
+  // Same two-pass shape as searchMessagesOp: score everything first,
+  // then decrypt only the survivors of the top-K cut.
+  //
+  // Each candidate keeps a `chunkTextSource` describing how to compute
+  // the final `chunkText`:
+  //   - "chunk": text comes straight from the chunk record (already
+  //     plaintext on this code path because `readJsonField` decrypted
+  //     the whole `chunks` payload above).
+  //   - "message": fallback path uses the decrypted message content,
+  //     so we delay reading it until after the top-K slice.
+  type Candidate = {
+    message: Message;
+    similarity: number;
+    chunkTextSource: { kind: "chunk"; text: string } | { kind: "message" };
+  };
+  const candidates: Candidate[] = [];
 
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
@@ -864,14 +900,11 @@ export async function searchChunksOp(
 
         const similarity = cosineSimilarity(queryVector, chunk.vector);
         if (similarity >= minSimilarity) {
-          chunkMatchPromises.push(
-            messageToStored(
-              message,
-              ctx.walletAddress,
-              ctx.signMessage,
-              ctx.embeddedWalletSigner
-            ).then((stored) => ({ chunkText: chunk.text, message: stored, similarity }))
-          );
+          candidates.push({
+            message,
+            similarity,
+            chunkTextSource: { kind: "chunk", text: chunk.text },
+          });
         }
       }
     } else {
@@ -881,21 +914,27 @@ export async function searchChunksOp(
 
       const similarity = cosineSimilarity(queryVector, messageVector);
       if (similarity >= minSimilarity) {
-        chunkMatchPromises.push(
-          messageToStored(
-            message,
-            ctx.walletAddress,
-            ctx.signMessage,
-            ctx.embeddedWalletSigner
-          ).then((stored) => ({ chunkText: stored.content, message: stored, similarity }))
-        );
+        candidates.push({ message, similarity, chunkTextSource: { kind: "message" } });
       }
     }
   }
 
-  const results = await Promise.all(chunkMatchPromises);
+  const topK = candidates.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 
-  return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  // Decrypt only the surviving messages. Same `messageToStored` semantics
+  // as before, just hoisted to after the top-K cut.
+  return Promise.all(
+    topK.map(async ({ message, similarity, chunkTextSource }) => {
+      const stored = await messageToStored(
+        message,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      const chunkText = chunkTextSource.kind === "chunk" ? chunkTextSource.text : stored.content;
+      return { chunkText, message: stored, similarity };
+    })
+  );
 }
 
 async function _getMessagesWithEmbeddingsOp(
