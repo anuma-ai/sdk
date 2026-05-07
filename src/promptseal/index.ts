@@ -76,6 +76,8 @@ export {
   type CreatePromptSealHooksOptions,
 } from "./hooks";
 
+export { verifyEndToEnd, type VerifyEndToEndOptions, type VerifyResult } from "./verifyEndToEnd";
+
 export type {
   LlmEndEvent,
   LlmStartEvent,

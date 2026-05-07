@@ -29,6 +29,11 @@ type RunRow = {
   agentId: string;
   startedAt: string;
   endedAt: string | null;
+  /**
+   * Optional chat id supplied by the host app. Persisted (non-indexed) so the
+   * client can map `chatId → runId` later without an extra lookup table.
+   */
+  chatId?: string;
 };
 
 type ReceiptRow = Receipt & { id?: number; runId: string };
@@ -100,12 +105,13 @@ export class ReceiptChain {
     this.db = new PromptSealDb(dbName);
   }
 
-  async openRun(runId: string, agentId: string): Promise<void> {
+  async openRun(runId: string, agentId: string, chatId?: string): Promise<void> {
     await this.db.runs.put({
       runId,
       agentId,
       startedAt: nowIso(),
       endedAt: null,
+      ...(chatId !== undefined ? { chatId } : {}),
     });
   }
 
