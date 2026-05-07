@@ -12,6 +12,7 @@ import {
   type CreateConversationOptions,
   type CreateMessageOptions,
   generateConversationId,
+  type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
   type StoredConversation,
@@ -218,6 +219,75 @@ export async function getConversationsOp(
       conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     )
   );
+}
+
+/**
+ * Lazy projection of a Conversation: keeps the raw stored title under
+ * `encryptedTitle` instead of decrypting eagerly.
+ *
+ * Synchronous and pure — no encryption context needed and no DB write.
+ * This is the entire point: callers can hold thousands of these in a
+ * Zustand store without paying the per-row decrypt cost or holding
+ * plaintext titles in RAM.
+ */
+function conversationToLazyStored(conversation: Conversation): LazyStoredConversation {
+  return {
+    uniqueId: conversation.id,
+    conversationId: conversation.conversationId,
+    encryptedTitle: conversation.title,
+    projectId: conversation.projectId,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    isDeleted: conversation.isDeleted,
+  };
+}
+
+/**
+ * Lazy variant of {@link getConversationsOp}.
+ *
+ * Returns conversations with their raw stored title under
+ * `encryptedTitle` instead of a decrypted `title`. Callers should pair
+ * this with {@link decryptConversationTitle} (or the underlying
+ * `decryptField`) and decrypt only when a row is rendered.
+ *
+ * Behavior is identical to `getConversationsOp` except for the title
+ * projection — sort order, soft-delete filtering, and active-conversation
+ * scoping all match.
+ *
+ * Encryption context on `ctx` is intentionally ignored: this op never
+ * decrypts. That is also why the test for this op asserts call count
+ * for `decryptField` is exactly zero.
+ */
+export async function getConversationsLazyOp(
+  ctx: StorageOperationsContext
+): Promise<LazyStoredConversation[]> {
+  const results = await ctx.conversationsCollection
+    .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
+    .fetch();
+
+  return results.map(conversationToLazyStored);
+}
+
+/**
+ * Lazy variant of {@link getConversationsByProjectOp}.
+ *
+ * Same encrypted-title projection as {@link getConversationsLazyOp},
+ * filtered by project assignment. Pass `null` to retrieve conversations
+ * with no project.
+ */
+export async function getConversationsByProjectLazyOp(
+  ctx: StorageOperationsContext,
+  projectId: string | null
+): Promise<LazyStoredConversation[]> {
+  const results = await ctx.conversationsCollection
+    .query(
+      Q.where("project_id", projectId === null ? "" : projectId),
+      Q.where("is_deleted", false),
+      Q.sortBy("created_at", Q.desc)
+    )
+    .fetch();
+
+  return results.map(conversationToLazyStored);
 }
 
 export async function updateConversationTitleOp(

@@ -833,4 +833,5 @@ export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memory
 // Pair with the lazy ConversationMeta variant exported from
 // "@anuma/sdk/react" / "@anuma/sdk/expo" to defer per-row decrypt
 // until a conversation is actually rendered.
+export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
