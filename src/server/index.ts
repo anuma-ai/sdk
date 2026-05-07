@@ -315,6 +315,8 @@ export type {
   RecallContext,
   RecallOptions,
   RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
   ReflectOptions,
   ReflectResult,
   RetainAction,
@@ -328,6 +330,7 @@ export type {
 } from "../lib/memory";
 export {
   createAutoExtractor,
+  createRecallTool,
   extractAndRetain,
   extractFacts,
   recall,

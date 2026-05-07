@@ -288,9 +288,11 @@ export {
   type VaultSearchResult,
 } from "../lib/memoryVault";
 
-// Unified memory API types (the recall / retain / reflect surface lives in
-// @anuma/sdk/server; only the types are exported here for consumers that
-// need to type their event payloads or callbacks).
+// Unified memory API surface — the recall tool factory is exposed here so
+// React consumers can wire it directly via `createRecallTool` without
+// reaching into `@anuma/sdk/server`. The recall/retain/reflect runtime
+// (which depends on server-only modules) still lives in `@anuma/sdk/server`.
+export { createRecallTool } from "../lib/memory";
 export type {
   Budget,
   MemoryKind,
@@ -298,6 +300,8 @@ export type {
   RecallContext,
   RecallOptions,
   RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
   RetainAction,
   RetainContext,
   RetainOptions,
