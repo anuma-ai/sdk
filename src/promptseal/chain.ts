@@ -53,6 +53,12 @@ type AnchorRow = {
    * with anchor rows written before this field existed.
    */
   anchoredLeaves?: string[];
+  /**
+   * Result of `verifyEndToEnd` against the run's final_decision receipt,
+   * persisted so the shield's status survives reloads without a separate
+   * client-side store. Optional for back-compat with older anchor rows.
+   */
+  verifyResult?: { ok: boolean; step: number; message: string };
 };
 
 type TamperedBackupRow = {
@@ -184,6 +190,18 @@ export class ReceiptChain {
     return await this.db.anchors.get(runId);
   }
 
+  /**
+   * Persist the result of `verifyEndToEnd` onto the anchor row. Lets the
+   * client derive shield status from Dexie alone, surviving reloads without
+   * a parallel client-side store.
+   */
+  async setVerifyResult(
+    runId: string,
+    result: { ok: boolean; step: number; message: string }
+  ): Promise<void> {
+    await this.db.anchors.update(runId, { verifyResult: result });
+  }
+
   async listRunIds(): Promise<string[]> {
     const rows = await this.db.runs.orderBy("startedAt").toArray();
     return rows.map((r) => r.runId);
@@ -252,6 +270,28 @@ export class ReceiptChain {
   observe(runId: string): Observable<Receipt[]> {
     return liveQuery(async () => {
       return await this.getReceipts(runId);
+    });
+  }
+
+  /**
+   * Live-query observable resolving the most recent run row for *chatId*.
+   * Used by the shield to look up `runId` from a chat without keeping a
+   * parallel mapping in client state.
+   *
+   * `chatId` is non-indexed (added later, no schema bump), so this falls
+   * back to a `filter()` table scan. Run counts per browser are tiny
+   * (one per HR-screener invocation), so the linear scan is fine.
+   */
+  observeRunByChatId(
+    chatId: string
+  ): Observable<{ runId: string; agentId: string } | null> {
+    return liveQuery(async () => {
+      const matches = await this.db.runs
+        .filter((row) => row.chatId === chatId)
+        .sortBy("startedAt");
+      const row = matches.length > 0 ? matches[matches.length - 1] : undefined;
+      if (!row) return null;
+      return { runId: row.runId, agentId: row.agentId };
     });
   }
 
