@@ -17,6 +17,12 @@ export interface StoredVaultMemory {
   proofCount: number | null;
   /** How the memory was created: manual | auto-extracted | capsule. */
   source: string | null;
+  /** W6 temporal lane — Unix ms when the event occurred (point/start of range). */
+  eventTimeStart: number | null;
+  /** W6 temporal lane — Unix ms when the event ended (range only). */
+  eventTimeEnd: number | null;
+  /** W6 temporal lane — `point | range | ongoing | null`. */
+  eventTimeKind: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -36,6 +42,15 @@ export interface CreateVaultMemoryOptions {
   proofCount?: number;
   /** How the memory was created. Defaults to "manual" if omitted. */
   source?: string;
+  /** W6 temporal lane — when the event in this memory occurred. */
+  eventTime?: {
+    /** Unix ms timestamp of event start (or point). */
+    start: number | null;
+    /** Unix ms timestamp of event end (range only). */
+    end: number | null;
+    /** Kind: 'point' | 'range' | 'ongoing' | null (or omit). */
+    kind: "point" | "range" | "ongoing" | null;
+  };
 }
 
 export interface UpdateVaultMemoryOptions {

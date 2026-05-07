@@ -66,6 +66,9 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     sourceChunkIds,
     proofCount: memory.proofCount ?? null,
     source: memory.source ?? null,
+    eventTimeStart: memory.eventTimeStart ?? null,
+    eventTimeEnd: memory.eventTimeEnd ?? null,
+    eventTimeKind: memory.eventTimeKind ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -115,6 +118,11 @@ export async function createVaultMemoryOp(
       }
       record._setRaw("proof_count", opts.proofCount ?? 1);
       record._setRaw("source", opts.source ?? "manual");
+      if (opts.eventTime) {
+        record._setRaw("event_time_start", opts.eventTime.start ?? null);
+        record._setRaw("event_time_end", opts.eventTime.end ?? null);
+        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
     });
   });
 
