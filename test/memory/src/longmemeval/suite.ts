@@ -32,6 +32,7 @@ import { getCacheDirectory } from "./dataset.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { processEntryMemoryEngine } from "./memoryEngineStrategy.js";
 import { processEntryMemoryVault } from "./memoryVaultStrategy.js";
+import { processEntryEnsemble } from "./ensembleStrategy.js";
 import { processEntryRecall } from "./recallStrategy.js";
 
 declare const global: typeof globalThis;
@@ -564,7 +565,7 @@ function aggregateSummary(
   results: LongMemEvalResult[],
   latencies: number[],
   options: LongMemEvalOptions,
-  strategy: "memory-engine" | "memory-vault" | "memory-recall"
+  strategy: "memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"
 ): LongMemEvalSummary {
   const byQuestionType: LongMemEvalSummary["byQuestionType"] = {} as any;
   for (const type of [
@@ -657,10 +658,10 @@ export async function runLongMemEval(
 
   const strategy = options.strategy || "both";
   const llmModel = options.llmModel || api.llmModel;
-  const strategies: Array<"memory-engine" | "memory-vault" | "memory-recall"> =
+  const strategies: Array<"memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"> =
     strategy === "both"
       ? ["memory-engine", "memory-vault"]
-      : [strategy as "memory-engine" | "memory-vault" | "memory-recall"];
+      : [strategy as "memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"];
 
   const concurrency = options.concurrency ?? 1;
 
@@ -714,6 +715,18 @@ export async function runLongMemEval(
             options.verbose || false,
             options.maxSessions,
             embeddingCache
+          );
+        } else if (strat === "memory-ensemble") {
+          result = await processEntryEnsemble(
+            entry,
+            { ...api, llmModel },
+            options.verbose || false,
+            options.maxSessions,
+            {
+              rerank: options.rerank,
+              decompose: options.decompose,
+              consolidate: options.consolidate,
+            }
           );
         } else if (strat === "memory-recall") {
           result = await processEntryRecall(
