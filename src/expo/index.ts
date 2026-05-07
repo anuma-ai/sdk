@@ -135,8 +135,10 @@ export {
   chatStorageMigrations,
   /** @deprecated Use sdkSchema instead */
   chatStorageSchema,
+  clearLazyTitleCache,
   type CreateConversationOptions,
   type CreateMessageOptions,
+  decryptConversationTitle,
   type FileMetadata,
   generateConversationId,
   type SearchSource,

@@ -76,6 +76,32 @@ const cryptoKeyCache = new Map<string, CryptoKey>();
 const keyAvailableCallbacks = new Map<string, Set<() => void>>();
 
 /**
+ * Callbacks invoked synchronously inside `clearAllEncryptionState` so
+ * downstream caches keyed off the same wallet (e.g. lazy-decrypt LRUs)
+ * can drop their entries in lock-step with the core key-store wipe.
+ *
+ * Intentionally a flat Set rather than per-address — clearing all
+ * encryption state is a global teardown event, not per-wallet.
+ */
+const clearAllEncryptionStateCallbacks = new Set<() => void>();
+
+/**
+ * Register a callback fired on every {@link clearAllEncryptionState}.
+ * Useful for downstream caches that hold plaintext derived from
+ * encrypted SDK fields and must be wiped on session teardown.
+ *
+ * Listener errors are swallowed to keep teardown deterministic.
+ *
+ * @returns Unsubscribe function.
+ */
+export function onClearAllEncryptionState(callback: () => void): () => void {
+  clearAllEncryptionStateCallbacks.add(callback);
+  return () => {
+    clearAllEncryptionStateCallbacks.delete(callback);
+  };
+}
+
+/**
  * Register a callback that fires when an encryption key becomes available for an address.
  * If the key is already available, the callback fires immediately.
  * @returns Unsubscribe function
@@ -206,6 +232,17 @@ export function clearAllEncryptionState(): void {
   pendingKeyRequests.clear();
 
   clearAllKeyPairs();
+
+  // Fire downstream teardown listeners (e.g. lazy-decrypt LRUs).
+  // Listener errors are swallowed individually so a misbehaving
+  // listener can't leave the core key store half-cleared.
+  for (const cb of clearAllEncryptionStateCallbacks) {
+    try {
+      cb();
+    } catch {
+      /* ignore listener errors */
+    }
+  }
 }
 
 /**

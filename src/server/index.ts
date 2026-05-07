@@ -56,12 +56,14 @@ export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from ".
 // ── Chat (conversations + messages) ──
 
 export {
+  clearLazyTitleCache,
   clearMessagesOp,
   Conversation,
   ConversationSummary,
   createConversationOp,
   createMessageOp,
   createSummaryContext,
+  decryptConversationTitle,
   deleteConversationOp,
   deleteConversationSummaryOp,
   getAllFilesOp,

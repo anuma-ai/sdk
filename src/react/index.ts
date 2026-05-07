@@ -186,9 +186,11 @@ export {
   /** @deprecated Use sdkSchema instead */
   chatStorageSchema,
   type ChunkSearchResult,
+  clearLazyTitleCache,
   type ClientToolsFilterFn,
   type CreateConversationOptions,
   type CreateMessageOptions,
+  decryptConversationTitle,
   type FileMetadata,
   generateConversationId,
   getConversationsByProjectOp,

@@ -1,3 +1,4 @@
+export { clearLazyTitleCache, decryptConversationTitle } from "./lazyDecrypt";
 export { Conversation, ConversationSummary, Message } from "./models";
 export {
   clearMessagesOp,
