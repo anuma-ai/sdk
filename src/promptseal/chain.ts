@@ -24,7 +24,7 @@ export class ChainIntegrityError extends Error {
   }
 }
 
-type RunRow = {
+export type RunRow = {
   runId: string;
   agentId: string;
   startedAt: string;
@@ -292,6 +292,23 @@ export class ReceiptChain {
       const row = matches.length > 0 ? matches[matches.length - 1] : undefined;
       if (!row) return null;
       return { runId: row.runId, agentId: row.agentId };
+    });
+  }
+
+  /**
+   * Live-query observable of all runs for `chatId`, sorted by `startedAt` ASC.
+   * Used by the chat client to render one shield per assistant message when
+   * a chat has multiple sequential PromptSeal runs.
+   *
+   * `chatId` is non-indexed (same constraint as `observeRunByChatId`), so this
+   * does a `.toArray() + filter` table scan. Run counts per browser stay tiny.
+   */
+  observeRunsByChatId(chatId: string): Observable<RunRow[]> {
+    return liveQuery(async () => {
+      const all = await this.db.runs.toArray();
+      return all
+        .filter((r) => r.chatId === chatId)
+        .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
     });
   }
 

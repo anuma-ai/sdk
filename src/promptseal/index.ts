@@ -48,6 +48,7 @@ export {
   ChainIntegrityError,
   ReceiptChain,
   type ReceiptRecord,
+  type RunRow,
 } from "./chain";
 
 export {
