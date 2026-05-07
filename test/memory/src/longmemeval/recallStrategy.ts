@@ -6,6 +6,7 @@
  */
 
 import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
+import { linkMemoryEntitiesOp } from "../../../../src/lib/db/entities/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { recall } from "../../../../src/lib/memory/recall.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
@@ -16,6 +17,7 @@ import {
 import {
   callChatCompletion,
   clearProgress,
+  createEntityContext,
   createStorageContext,
   createVaultContext,
   evaluateAnswer,
@@ -84,6 +86,7 @@ export async function processEntryRecall(
   const database = await setupDatabase();
   const vaultCtx = createVaultContext(database);
   const storageCtx = createStorageContext(database);
+  const entityCtx = createEntityContext(database);
 
   const vaultToSession = new Map<string, string>();
   const convToSession = new Map<string, string>();
@@ -191,6 +194,16 @@ export async function processEntryRecall(
       if (!existingSession || answerSessionIdSet.has(mem.sessionId)) {
         vaultToSession.set(targetId, mem.sessionId);
       }
+      // W5 graph lane — link the extracted entities so memory_entity rows
+      // exist for recall's graph-lane lookup. Best-effort; failures don't
+      // block the bench because the fact + chunk lanes still answer.
+      if (mem.entities.length > 0) {
+        try {
+          await linkMemoryEntitiesOp(entityCtx, targetId, mem.entities);
+        } catch {
+          /* swallow — graph lane gracefully degrades */
+        }
+      }
     }
     await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
 
@@ -212,6 +225,11 @@ export async function processEntryRecall(
       storageCtx,
       embeddingOptions,
       vaultCache: embeddingCache,
+      // W5 graph lane — recall extracts query entities and looks up
+      // memories sharing them, RRF-fused with cosine + BM25. No-op when
+      // memory_entity is empty (e.g. older bench runs without entity
+      // extraction in the prompt).
+      entityCtx,
     };
     const decomposeOpts = decomposeEnabled
       ? { decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl } }
