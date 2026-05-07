@@ -40,6 +40,14 @@ type AnchorRow = {
   blockNumber: number | null;
   chainId: number;
   anchoredAt: string;
+  /**
+   * Ordered `event_hash` list (without the `sha256:` prefix) that was used
+   * to build the Merkle tree at anchor time. Persisted so verifier-URL
+   * generation can reproduce the exact same proofs even if more receipts
+   * are appended after the anchor lands. Optional for backward compat
+   * with anchor rows written before this field existed.
+   */
+  anchoredLeaves?: string[];
 };
 
 type TamperedBackupRow = {
@@ -152,7 +160,8 @@ export class ReceiptChain {
     merkleRoot: string,
     txHash: string,
     blockNumber: number | null,
-    chainId: number
+    chainId: number,
+    anchoredLeaves?: string[]
   ): Promise<void> {
     await this.db.anchors.put({
       runId,
@@ -161,6 +170,7 @@ export class ReceiptChain {
       blockNumber,
       chainId,
       anchoredAt: nowIso(),
+      anchoredLeaves,
     });
   }
 

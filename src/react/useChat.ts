@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
+import type { ReceiptHooks } from "../lib/chat/receiptHooks";
 import {
   type ApiResponse,
   type ApiType,
@@ -80,6 +81,13 @@ interface UseChatOptions extends BaseUseChatOptions {
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
+  /**
+   * Receipt-shaped lifecycle hooks forwarded to `runToolLoop`. Fires on every
+   * LLM and tool boundary inside the loop with a stable `runId`. Used by
+   * PromptSeal and other observers to mint per-event records without modifying
+   * the loop itself.
+   */
+  receiptHooks?: ReceiptHooks;
 }
 
 type UseChatResult = BaseUseChatResult & {
@@ -152,6 +160,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onStepFinish,
     apiType: defaultApiType = "auto",
     smoothing,
+    receiptHooks,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -293,6 +302,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onServerToolCall,
           onToolCallArgumentsDelta,
           onStepFinish,
+          onLlmStart: receiptHooks?.onLlmStart,
+          onLlmEnd: receiptHooks?.onLlmEnd,
+          onToolStart: receiptHooks?.onToolStart,
+          onToolEnd: receiptHooks?.onToolEnd,
         });
 
         return result;
@@ -321,6 +334,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onStepFinish,
       defaultApiType,
       smoothing,
+      receiptHooks,
     ]
   );
 

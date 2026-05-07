@@ -10,6 +10,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../client";
+import type { ReceiptHooks } from "../../chat/receiptHooks";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
@@ -384,6 +385,12 @@ export interface BaseUseChatStorageOptions {
    * Defaults to the hardcoded MCP_R2_DOMAIN from clientConfig.
    */
   mcpR2Domain?: string;
+  /**
+   * Receipt-shaped lifecycle hooks forwarded to the underlying `useChat`,
+   * which forwards them to `runToolLoop`. Used by PromptSeal and other
+   * observers to mint per-event records keyed by `runId`.
+   */
+  receiptHooks?: ReceiptHooks;
 }
 
 /**

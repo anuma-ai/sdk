@@ -231,7 +231,8 @@ export function useHiringDemo(opts: UseHiringDemoOptions): UseHiringDemoReturn {
     if (!runId) throw new Error("no active run");
     const rs = await chain.getReceipts(runId);
     if (rs.length === 0) throw new Error("no receipts to anchor");
-    const tree = await buildMerkle(rs.map((r) => r.event_hash));
+    const leaves = rs.map((r) => r.event_hash);
+    const tree = await buildMerkle(leaves);
     const result = await anchorRoot({
       rootHex: tree.root,
       rpcUrl,
@@ -243,7 +244,8 @@ export function useHiringDemo(opts: UseHiringDemoOptions): UseHiringDemoReturn {
       tree.root,
       result.txHash,
       result.blockNumber,
-      chainId
+      chainId,
+      leaves
     );
     setAnchorTx({
       txHash: result.txHash,
@@ -294,8 +296,14 @@ export function useHiringDemo(opts: UseHiringDemoOptions): UseHiringDemoReturn {
       const idx = records.findIndex((r) => r.storageId === storageId);
       if (idx === -1) throw new Error(`receipt with storageId ${storageId} not found`);
       const receipt = records[idx]!.receipt;
-      const proof = await inclusionProof(records.map((r) => r.receipt.event_hash), idx);
       const anchorRow = await chain.getAnchor(runId);
+      // Prefer the leaves snapshotted at anchor time so the proof reconstructs
+      // to the on-chain root even if more receipts have been appended since.
+      // Fall back to the live receipt list for runs that haven't been anchored
+      // yet, or for older anchor rows written before `anchoredLeaves` existed.
+      const leaves =
+        anchorRow?.anchoredLeaves ?? records.map((r) => r.receipt.event_hash);
+      const proof = await inclusionProof(leaves, idx);
       const params = new URLSearchParams();
       params.set("receipt", JSON.stringify(receipt));
       params.set("proof", JSON.stringify(proof));
