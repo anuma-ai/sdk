@@ -246,11 +246,13 @@ Demo wallet: `0x9718C1CF0C96dde2fb9D820d06785A976972DE2A`
 
 ## Related docs
 
-- `BRANCH_NOTES.md` (in both repos) — phase-by-phase changelog of what
-  landed in this branch
-- `/Users/tanmay/IdeaProjects/kingpinXD/promptseal/docs/ARCHITECTURE.md`
-  — original Python reference architecture (source of truth for the
-  receipt schema, canonical fields, signing semantics)
-- `/Users/tanmay/IdeaProjects/kingpinXD/promptseal/docs/CHAT_INTEGRATION.md`
-  — phase plan for the chat-integrated path (Phases 3, 4, 6 are done
-  on this branch; the leaves-snapshot fix from Phase 6 is now landed)
+All sibling files in `design/Promptseal/`:
+
+- `BRANCH_NOTES.md` — phase-by-phase changelog of what landed on this branch
+- `ARCHITECTURE.md` — Python reference architecture (source of truth
+  for the receipt schema, canonical fields, signing semantics)
+- `CHAT_INTEGRATION.md` — phase plan for the chat-integrated path
+  (Phases 3, 4, 6 are done on this branch; the leaves-snapshot fix from
+  Phase 6 is now landed)
+- `PLAN_SDK.md` — original implementation plan for the SDK side
+- `PLAN_CLIENT.md` — original implementation plan for the client side
