@@ -13,10 +13,7 @@
  * Spec: see `tasks/hackathon/auto-extraction-prompt.md`.
  */
 
-import {
-  type EntityOperationsContext,
-  linkMemoryEntitiesOp,
-} from "../db/entities/operations.js";
+import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainResult } from "./types.js";
 
@@ -204,11 +201,7 @@ export async function extractAndRetain(
       // a failure here doesn't roll back the retain.
       if (options.entityCtx && candidate.entities.length > 0) {
         try {
-          await linkMemoryEntitiesOp(
-            options.entityCtx,
-            result.memoryId,
-            candidate.entities
-          );
+          await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities);
         } catch {
           // Entity linking is auxiliary — don't kill the rest of the batch.
         }
@@ -257,9 +250,7 @@ function validateCandidates(parsed: unknown, validIds: Set<string>): ExtractedCa
         : "other";
 
     const sourceMessageIds = Array.isArray(obj.sourceMessageIds)
-      ? obj.sourceMessageIds.filter(
-          (s): s is string => typeof s === "string" && validIds.has(s)
-        )
+      ? obj.sourceMessageIds.filter((s): s is string => typeof s === "string" && validIds.has(s))
       : [];
     if (sourceMessageIds.length === 0) continue;
 

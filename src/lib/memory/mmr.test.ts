@@ -92,7 +92,7 @@ describe("applyMMR", () => {
     const items = [
       { id: "p1a", score: 0.85, embedding: emb({ 0: 1 }) },
       { id: "p1b", score: 0.83, embedding: emb({ 0: 0.99, 1: 0.14 }) },
-      { id: "p2a", score: 0.80, embedding: emb({ 1: 1 }) },
+      { id: "p2a", score: 0.8, embedding: emb({ 1: 1 }) },
       { id: "p2b", score: 0.78, embedding: emb({ 1: 0.99, 2: 0.14 }) },
       { id: "p3a", score: 0.75, embedding: emb({ 2: 1 }) },
       { id: "p3b", score: 0.73, embedding: emb({ 2: 0.99, 0: 0.14 }) },

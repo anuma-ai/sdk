@@ -77,6 +77,11 @@ import {
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
 import {
+  createRecallTool as createRecallToolBase,
+  type RecallToolCallbacks,
+  type RecallToolOptions,
+} from "../lib/memory";
+import {
   chunkText,
   createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_CHUNK_SIZE,
@@ -87,11 +92,6 @@ import {
   shouldChunkMessage,
 } from "../lib/memoryEngine";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
-import {
-  createRecallTool as createRecallToolBase,
-  type RecallToolCallbacks,
-  type RecallToolOptions,
-} from "../lib/memory";
 import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   createMemoryVaultTool as createMemoryVaultToolBase,
@@ -675,7 +675,10 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @param toolOptions - Tool config (types, limit, budget, scopes…)
    * @param callbacks - Optional retrieval callbacks for graph/inspector wiring
    */
-  createRecallTool: (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks) => ToolConfig;
+  createRecallTool: (
+    toolOptions?: RecallToolOptions,
+    callbacks?: RecallToolCallbacks
+  ) => ToolConfig;
 
   /**
    * Search vault memories programmatically using semantic similarity.

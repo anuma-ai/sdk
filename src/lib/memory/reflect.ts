@@ -18,8 +18,8 @@
  * so callers don't churn when those land.
  */
 
-import type { RecallContext, RecallOptions } from "./types.js";
 import { recall } from "./recall.js";
+import type { RecallContext, RecallOptions } from "./types.js";
 
 const DEFAULT_BASE_URL = "https://portal.anuma-dev.ai";
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
@@ -98,7 +98,7 @@ export async function reflect(
     decomposeOptions: options.decomposeOptions,
   });
 
-  const memoryIds = recalled.memories.map(m => m.id);
+  const memoryIds = recalled.memories.map((m) => m.id);
   const baseResult: ReflectResult = {
     text: "",
     basedOn: { memoryIds },
@@ -166,11 +166,7 @@ export async function reflect(
   return parseAnswer(body, baseResult, !!options.responseSchema);
 }
 
-function parseAnswer(
-  body: unknown,
-  base: ReflectResult,
-  parseSchema: boolean
-): ReflectResult {
+function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): ReflectResult {
   if (typeof body !== "object" || body === null) return base;
   const obj = body as Record<string, unknown>;
   const choices = obj.choices;

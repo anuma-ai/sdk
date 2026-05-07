@@ -80,9 +80,7 @@ if (RANKER_NAME !== "cosine" && RANKER_NAME !== "fused") {
   process.exit(1);
 }
 
-const RECENCY_ALPHA = args["recency-alpha"]
-  ? parseFloat(args["recency-alpha"])
-  : undefined;
+const RECENCY_ALPHA = args["recency-alpha"] ? parseFloat(args["recency-alpha"]) : undefined;
 const RERANK = !!args.rerank;
 const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
 const USE_MMR = !!args.mmr;
@@ -108,9 +106,33 @@ if (DECOMPOSE_MODE !== "off" && DECOMPOSE_MODE !== "llm") {
 // on composite/multi-fact queries without needing hand-annotated data.
 // ---------------------------------------------------------------------------
 const ENTITY_STOPWORDS = new Set([
-  "I", "He", "She", "They", "We", "It", "The", "This", "That", "There",
-  "How", "What", "When", "Where", "Why", "Who", "Which", "Tell", "Give",
-  "Describe", "Summarize", "Does", "Has", "Have", "Had", "User", "Users",
+  "I",
+  "He",
+  "She",
+  "They",
+  "We",
+  "It",
+  "The",
+  "This",
+  "That",
+  "There",
+  "How",
+  "What",
+  "When",
+  "Where",
+  "Why",
+  "Who",
+  "Which",
+  "Tell",
+  "Give",
+  "Describe",
+  "Summarize",
+  "Does",
+  "Has",
+  "Have",
+  "Had",
+  "User",
+  "Users",
 ]);
 
 function heuristicEntities(text: string): Set<string> {
@@ -445,9 +467,7 @@ async function main() {
       decompositions = JSON.parse(
         await readFile("test/memory/src/vault/decompositions.json", "utf-8")
       ) as Record<string, DecomposedQuery>;
-      const composite = Object.values(decompositions).filter(
-        (d) => d.mode === "composite"
-      ).length;
+      const composite = Object.values(decompositions).filter((d) => d.mode === "composite").length;
       console.log(
         `Loaded ${Object.keys(decompositions).length} decompositions (${composite} composite)`
       );
@@ -509,8 +529,7 @@ async function main() {
 
     // Retrieve all memories (no limit) so temporal margin analysis can find any ID
     let ranked;
-    const decomp =
-      DECOMPOSE_MODE === "llm" ? decompositions[query.query] : undefined;
+    const decomp = DECOMPOSE_MODE === "llm" ? decompositions[query.query] : undefined;
 
     // W5 — graph lane: pre-build the entity ranking once per query and
     // pass it into whichever ranker is in play (composite or V2+CE).
@@ -569,7 +588,8 @@ async function main() {
       ranked = ranker(query.query, queryEmbedding, embeddedItems, {
         limit: embeddedItems.length,
         minSimilarity: 0,
-        ...(RANKER_NAME === "fused" && RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+        ...(RANKER_NAME === "fused" &&
+          RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
       });
     }
 

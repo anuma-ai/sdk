@@ -292,7 +292,6 @@ export {
 // React consumers can wire it directly via `createRecallTool` without
 // reaching into `@anuma/sdk/server`. The recall/retain/reflect runtime
 // (which depends on server-only modules) still lives in `@anuma/sdk/server`.
-export { createRecallTool } from "../lib/memory";
 export type {
   Budget,
   MemoryKind,
@@ -309,6 +308,7 @@ export type {
   RetainSource,
   ScoreBreakdown,
 } from "../lib/memory";
+export { createRecallTool } from "../lib/memory";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";
 

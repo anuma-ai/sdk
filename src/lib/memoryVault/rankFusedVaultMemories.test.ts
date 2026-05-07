@@ -46,8 +46,18 @@ describe("rankFusedVaultMemories", () => {
     // Two items with identical embedding and identical content shape;
     // the newer one should rank higher because of recency.
     const items = [
-      { id: "old", content: "lives in portland", embedding: emb({ 0: 1 }), updatedAt: daysAgo(700) },
-      { id: "new", content: "lives in san francisco", embedding: emb({ 0: 1 }), updatedAt: daysAgo(30) },
+      {
+        id: "old",
+        content: "lives in portland",
+        embedding: emb({ 0: 1 }),
+        updatedAt: daysAgo(700),
+      },
+      {
+        id: "new",
+        content: "lives in san francisco",
+        embedding: emb({ 0: 1 }),
+        updatedAt: daysAgo(30),
+      },
     ];
     const results = rankFusedVaultMemories("where do I live", emb({ 0: 1 }), items, {
       limit: 5,

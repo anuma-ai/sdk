@@ -5,10 +5,7 @@
  * come back as `RankedMemory[]` with a `kind` discriminator.
  */
 
-import {
-  createConversationOp,
-  createMessageOp,
-} from "../../../../src/lib/db/chat/operations.js";
+import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { recall } from "../../../../src/lib/memory/recall.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
@@ -98,7 +95,11 @@ export async function processEntryRecall(
     embeddingTokens: 0,
   };
 
-  function addUsage(u?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+  function addUsage(u?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }) {
     if (!u) return;
     tokenUsage.promptTokens += u.prompt_tokens;
     tokenUsage.completionTokens += u.completion_tokens;
@@ -120,8 +121,7 @@ export async function processEntryRecall(
         entry.question_date
       );
       for (const mem of extracted) {
-        const dateSuffix =
-          mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
+        const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
         allMemories.push({ sessionId: mem.sessionId, content: `${mem.content}${dateSuffix}` });
       }
     }
@@ -267,8 +267,8 @@ export async function processEntryRecall(
       }
 
       if (emit === "blocks") {
-        const facts = (usePerLane ? factResults : fused.filter((m) => m.kind === "fact"));
-        const chunks = (usePerLane ? chunkResults : fused.filter((m) => m.kind === "chunk"));
+        const facts = usePerLane ? factResults : fused.filter((m) => m.kind === "fact");
+        const chunks = usePerLane ? chunkResults : fused.filter((m) => m.kind === "chunk");
         const factsBlock =
           facts.length === 0
             ? "(no fact memories matched)"
@@ -471,7 +471,11 @@ async function answerFromChunksOnly(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   storageCtx: ReturnType<typeof createStorageContext>,
-  embeddingOptions: { apiKey: string; baseUrl?: string; onUsage: (u: { promptTokens: number; totalTokens: number }) => void },
+  embeddingOptions: {
+    apiKey: string;
+    baseUrl?: string;
+    onUsage: (u: { promptTokens: number; totalTokens: number }) => void;
+  },
   tokenUsage: TokenUsage,
   startTime: number
 ): Promise<LongMemEvalResult> {

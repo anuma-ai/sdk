@@ -7,10 +7,7 @@
  * createMemoryEngineTool.
  */
 
-import {
-  createConversationOp,
-  createMessageOp,
-} from "../../../../src/lib/db/chat/operations.js";
+import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
 import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";

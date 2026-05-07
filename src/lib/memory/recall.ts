@@ -115,7 +115,7 @@ export async function recall(
       ...(options.conversationId && { conversationId: options.conversationId }),
     });
     chunkResults.push(
-      ...results.filter(r =>
+      ...results.filter((r) =>
         options.excludeConversationId
           ? r.message.conversationId !== options.excludeConversationId
           : true
@@ -141,8 +141,8 @@ export async function recall(
     };
   }
 
-  const factRanking = factResults.map(r => `fact:${r.uniqueId}`);
-  const chunkRanking = chunkResults.map(r => `chunk:${r.message.uniqueId}`);
+  const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
+  const chunkRanking = chunkResults.map((r) => `chunk:${r.message.uniqueId}`);
   const fused = rrfFuse([factRanking, chunkRanking]);
 
   const byId = new Map<string, RankedMemory>();

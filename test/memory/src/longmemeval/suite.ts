@@ -11,9 +11,7 @@ import { join } from "node:path";
 import { createWriteStream } from "node:fs";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
-import {
-  type StorageOperationsContext,
-} from "../../../../src/lib/db/chat/operations.js";
+import { type StorageOperationsContext } from "../../../../src/lib/db/chat/operations.js";
 import { Conversation, Message } from "../../../../src/lib/db/chat/models.js";
 import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memoryVault/operations.js";
 import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
@@ -486,9 +484,8 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           const content = (item.content ?? "").trim();
           if (!content) return null;
           const kind = item.kind === "event" ? "event" : "state";
-          const occurredAt = kind === "event" && typeof item.occurredAt === "string"
-            ? item.occurredAt
-            : null;
+          const occurredAt =
+            kind === "event" && typeof item.occurredAt === "string" ? item.occurredAt : null;
           const confidence = typeof item.confidence === "number" ? item.confidence : 0.7;
           return {
             sessionIndex,
@@ -509,7 +506,10 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
       }
     }
   }
-  console.warn(`Extraction failed (session ${sessionId}) after ${maxAttempts} attempts:`, lastError);
+  console.warn(
+    `Extraction failed (session ${sessionId}) after ${maxAttempts} attempts:`,
+    lastError
+  );
   return [];
 }
 

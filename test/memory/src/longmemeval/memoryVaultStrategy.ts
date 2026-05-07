@@ -109,9 +109,7 @@ export async function processEntryMemoryVault(
       );
 
       for (const mem of extracted) {
-        const dateSuffix = mem.kind === "event" && mem.occurredAt
-          ? ` [${mem.occurredAt}]`
-          : "";
+        const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
         allMemories.push({
           sessionId: mem.sessionId,
           content: `${mem.content}${dateSuffix}`,
