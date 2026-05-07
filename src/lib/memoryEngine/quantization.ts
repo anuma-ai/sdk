@@ -116,12 +116,7 @@ export function dequantizeEmbedding({ data, scale }: QuantizedEmbedding): Float3
  * @param b - Second quantized vector.
  * @param scaleB - Scale factor for `b`. Used only to detect zero vectors.
  */
-export function cosineInt8(
-  a: Int8Array,
-  scaleA: number,
-  b: Int8Array,
-  scaleB: number
-): number {
+export function cosineInt8(a: Int8Array, scaleA: number, b: Int8Array, scaleB: number): number {
   if (a.length !== b.length) return 0;
   if (scaleA === 0 || scaleB === 0) return 0;
 
