@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `27` = `27`
+> `const` **SDK\_SCHEMA\_VERSION**: `29` = `29`
 
-Defined in: [src/lib/db/schema.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#52)
+Defined in: [src/lib/db/schema.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#55)
 
 Current combined schema version for all SDK storage modules.
 
@@ -34,3 +34,5 @@ Version history:
 * v25: Added saved\_tools table for user-saved display apps exposed as LLM tools
 * v26: Added app\_files table for LLM-generated app source files (HTML/CSS/JS)
 * v27: Added tool\_call\_events column to history for reconstructing tool call history
+* v28: Added source\_chunk\_ids, proof\_count, source columns to memory\_vault for auto-extraction provenance and supersession tracking
+* v29: Added entity + memory\_entity tables for the W5 knowledge-graph retrieval lane

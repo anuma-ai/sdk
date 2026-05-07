@@ -190,6 +190,12 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 
 ***
 
+### createRecallTool
+
+Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
+
+***
+
 ### createVaultFolderOp
 
 Re-exports [createVaultFolderOp](../react/Internal/functions/createVaultFolderOp.md)
@@ -469,6 +475,18 @@ Re-exports [QueueManager](../react/Internal/classes/QueueManager.md)
 ### QueueStatus
 
 Re-exports [QueueStatus](../react/Internal/interfaces/QueueStatus.md)
+
+***
+
+### RecallToolCallbacks
+
+Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallbacks.md)
+
+***
+
+### RecallToolOptions
+
+Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md)
 
 ***
 
