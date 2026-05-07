@@ -51,8 +51,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v27: Added tool_call_events column to history for reconstructing tool call history
  * - v28: Added source_chunk_ids, proof_count, source columns to memory_vault for auto-extraction provenance and supersession tracking
  * - v29: Added entity + memory_entity tables for the W5 knowledge-graph retrieval lane
+ * - v30: Added event_time_start, event_time_end, event_time_kind columns to memory_vault for the W6 temporal retrieval lane
  */
-export const SDK_SCHEMA_VERSION = 29;
+export const SDK_SCHEMA_VERSION = 30;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -180,6 +181,12 @@ export const sdkSchema = appSchema({
         { name: "source_chunk_ids", type: "string", isOptional: true },
         { name: "proof_count", type: "number", isOptional: true },
         { name: "source", type: "string", isOptional: true },
+        // W6 temporal lane — when the event in this memory occurred. point
+        // (event_time_start set, end null), range (both set), ongoing
+        // (start set, end null + kind='ongoing'), or none (both null).
+        { name: "event_time_start", type: "number", isOptional: true, isIndexed: true },
+        { name: "event_time_end", type: "number", isOptional: true },
+        { name: "event_time_kind", type: "string", isOptional: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -710,6 +717,24 @@ export const sdkMigrations = schemaMigrations({
             { name: "memory_id", type: "string", isIndexed: true },
             { name: "entity_id", type: "string", isIndexed: true },
             { name: "created_at", type: "number" },
+          ],
+        }),
+      ],
+    },
+    // v29 -> v30: Added event_time_start, event_time_end, event_time_kind
+    // columns to memory_vault for the W6 temporal retrieval lane. Auto-
+    // extraction emits resolved event times; the ranker uses them to filter
+    // and boost memories whose event-time overlaps the query's resolved time
+    // window, RRF-fused alongside semantic + BM25 + graph.
+    {
+      toVersion: 30,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "event_time_start", type: "number", isOptional: true, isIndexed: true },
+            { name: "event_time_end", type: "number", isOptional: true },
+            { name: "event_time_kind", type: "string", isOptional: true },
           ],
         }),
       ],
