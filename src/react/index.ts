@@ -288,12 +288,23 @@ export {
   type VaultSearchResult,
 } from "../lib/memoryVault";
 
-// Unified memory API surface — the recall tool factory is exposed here so
-// React consumers can wire it directly via `createRecallTool` without
-// reaching into `@anuma/sdk/server`. The recall/retain/reflect runtime
-// (which depends on server-only modules) still lives in `@anuma/sdk/server`.
+// Unified memory API surface — recall + retain + auto-extraction are all
+// re-exported from the React entry so chat clients can wire the full
+// pipeline (recall, retain, auto-extraction worker, entity linking)
+// without reaching into `@anuma/sdk/server`. Earlier versions of this
+// barrel only exposed types because the runtime was thought to depend
+// on server-only modules; an audit showed every memory module's imports
+// are cross-platform (db ops, embeddings via fetch, RRF), so the gate
+// was lifted to unblock the chat client's auto-extraction migration.
 export type {
+  AutoExtractMessage,
+  AutoExtractor,
   Budget,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
   MemoryKind,
   RankedMemory,
   RecallContext,
@@ -301,14 +312,39 @@ export type {
   RecallResult,
   RecallToolCallbacks,
   RecallToolOptions,
+  ReflectOptions,
+  ReflectResult,
   RetainAction,
   RetainContext,
   RetainOptions,
   RetainResult,
   RetainSource,
   ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
 } from "../lib/memory";
-export { createRecallTool } from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  reflect,
+  retain,
+} from "../lib/memory";
+
+// Entity / memory_entity tables — the W5 graph-lane storage that
+// auto-extraction writes to and the recall graph lane reads from.
+export {
+  type CreateEntityOptions,
+  Entity as EntityModel,
+  type EntityKind,
+  type EntityOperationsContext,
+  getMemoriesByEntityNamesOp,
+  linkMemoryEntitiesOp,
+  MemoryEntity as MemoryEntityModel,
+  type StoredEntity,
+} from "../lib/db/entities";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";
 

@@ -100,9 +100,49 @@ export async function linkMemoryEntitiesOp(
   return entities;
 }
 
-// W5 graph-lane read helpers (getMemoriesByEntityNamesOp,
-// getEntitiesForMemoryOp, listEntityGraphOp) and the memoryEntityToStored
-// converter were removed because nothing in the SDK or its consumers
-// calls them yet. Reintroduce when the W5 read path is wired into recall()
-// or the Memory Graph UI; the table schema and write path
-// (linkMemoryEntitiesOp + upsertEntityOp) stay in place to support that.
+/**
+ * W5 graph-lane read: given a set of entity names (e.g. extracted from
+ * a query), return the set of memory IDs linked to *any* of them, with
+ * a per-memory count of how many of the queried entities they match.
+ *
+ * Caller passes the result to `rankByEntityOverlap` to score each
+ * memory via `tanh(0.5 × shared_entity_count)` — this op only does the
+ * cheap "find candidate memories" step and leaves scoring to the
+ * ranker so callers can attach their own kind-weights or alternative
+ * scoring strategies later.
+ *
+ * Names are normalized (lowercased, trimmed). Empty input returns an
+ * empty map. Names that don't exist as entities contribute nothing.
+ */
+export async function getMemoriesByEntityNamesOp(
+  ctx: EntityOperationsContext,
+  entityNames: readonly string[]
+): Promise<Map<string, Set<string>>> {
+  const unique = Array.from(new Set(entityNames.map(normalizeName).filter((n) => n.length > 0)));
+  if (unique.length === 0) return new Map();
+
+  const entityRows = await ctx.entityCollection
+    .query(Q.where("canonical_name", Q.oneOf(unique)))
+    .fetch();
+  if (entityRows.length === 0) return new Map();
+
+  const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
+  const links = await ctx.memoryEntityCollection
+    .query(Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id))))
+    .fetch();
+
+  // memoryId → Set<entity name> the memory matched.
+  const out = new Map<string, Set<string>>();
+  for (const link of links) {
+    const memoryId = String(link.memoryId);
+    const entityName = entityIdToName.get(String(link.entityId));
+    if (!entityName) continue;
+    let bucket = out.get(memoryId);
+    if (!bucket) {
+      bucket = new Set();
+      out.set(memoryId, bucket);
+    }
+    bucket.add(entityName);
+  }
+  return out;
+}

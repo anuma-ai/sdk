@@ -63,6 +63,13 @@ export interface MemoryVaultSearchOptions {
     baseUrl?: string;
     model?: string;
   };
+  /**
+   * W5 graph lane — pre-built ranking of memory IDs by entity-overlap
+   * score with the query. RRF-fused alongside cosine + BM25. Build via
+   * {@link rankByEntityOverlap} or pass-through from `recall()` when
+   * `RecallContext.entityCtx` is available.
+   */
+  entityRanking?: string[];
 }
 
 /**
@@ -308,6 +315,14 @@ export function rankFusedVaultMemories(
      */
     recencyAlpha?: number;
     recency?: RecencyOptions;
+    /**
+     * W5 graph lane — pre-built ranking of memory IDs by entity-overlap
+     * score. RRF-fused with the cosine+BM25 head when present. Items in
+     * `entityRanking` but absent from base cosine/BM25 admit at the
+     * tail with their RRF-only contribution (graph is a retrieval lane,
+     * not a boost). Build via {@link rankByEntityOverlap}.
+     */
+    entityRanking?: string[];
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
@@ -346,7 +361,7 @@ export function rankFusedVaultMemories(
   // Stage 3 — recency + proof-count boosts on the union.
   // proof_count: re-observed facts get a small log-curve lift (Hindsight α=0.1).
   // Items with no proof_count (legacy / unset) treated as 1 → log(2)≈0.69 → boost ~7%.
-  const combined = [...baseRanked, ...admitted].map((r) => {
+  let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => {
     const item = itemById.get(r.uniqueId);
     const recency = recencyMultiplier(item?.updatedAt, options?.recency);
     const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
@@ -354,6 +369,28 @@ export function rankFusedVaultMemories(
     const proofBoost = 1 + 0.1 * Math.log(1 + proofCount) - 0.1 * Math.log(2);
     return { ...r, similarity: r.similarity * recencyBoost * proofBoost };
   });
+
+  // Stage 4 — W5 graph lane fusion. RRF the boosted cosine+BM25 head with
+  // the entity-overlap ranking. Same logic as the async/CE path: graph
+  // remains a retrieval lane (admits zero-cosine candidates with shared
+  // entities) without overruling cosine on items it has already seen.
+  // Cosine head weighted 2× via duplication so graph is a tiebreaker.
+  if (options?.entityRanking && options.entityRanking.length > 0) {
+    combined.sort((a, b) => b.similarity - a.similarity);
+    const headIds = combined.map((r) => r.uniqueId);
+    const fused = rrfFuse([headIds, headIds, options.entityRanking]);
+    combined = combined.map((r) => ({
+      ...r,
+      similarity: fused.get(r.uniqueId) ?? r.similarity,
+    }));
+    const seen = new Set(combined.map((r) => r.uniqueId));
+    for (const id of options.entityRanking) {
+      if (seen.has(id)) continue;
+      const it = itemById.get(id);
+      if (!it) continue;
+      combined.push({ uniqueId: id, content: it.content, similarity: fused.get(id) ?? 0 });
+    }
+  }
 
   return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 }
@@ -887,12 +924,21 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions.rerankTopN !== undefined && {
         rerankTopN: searchOptions.rerankTopN,
       }),
+      ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
     });
     return { results, vaultSize: memories.length };
   }
 
-  const ranker = useFusion ? rankFusedVaultMemories : rankVaultMemories;
-  const results = ranker(query, queryEmbedding, embeddedItems, {
+  if (useFusion) {
+    const results = rankFusedVaultMemories(query, queryEmbedding, embeddedItems, {
+      limit,
+      minSimilarity,
+      ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
+    });
+    return { results, vaultSize: memories.length };
+  }
+
+  const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
     limit,
     minSimilarity,
   });

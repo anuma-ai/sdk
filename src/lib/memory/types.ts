@@ -9,6 +9,7 @@
  */
 
 import type { StorageOperationsContext } from "../db/chat/operations.js";
+import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
@@ -102,6 +103,13 @@ export interface RecallContext {
   embeddingOptions: EmbeddingOptions;
   /** Vault embedding LRU cache. */
   vaultCache?: VaultEmbeddingCache;
+  /**
+   * Optional — when provided, recall extracts entities from the query
+   * and adds a graph lane to the RRF fusion (memories sharing entities
+   * with the query rank higher). Build via `entityCollection` +
+   * `memoryEntityCollection` from your DatabaseManager.
+   */
+  entityCtx?: EntityOperationsContext;
 }
 
 export interface RecallResult {
