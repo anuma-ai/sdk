@@ -29,7 +29,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
-export interface TemporalWindow {
+interface TemporalWindow {
   /** Inclusive start of the window in Unix ms. */
   start: number;
   /** Exclusive end of the window in Unix ms. */
@@ -44,15 +44,7 @@ const RELATIVE_DAY: Record<string, number> = {
   tomorrow: 1,
 };
 
-const DOW_NAMES = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-];
+const DOW_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 const MONTH_NAMES = [
   "january",
@@ -98,7 +90,10 @@ function startOfNextMonth(ts: number): number {
  * when the query has no temporal phrasing — caller's temporal lane
  * silently no-ops and the fact + chunk + graph lanes carry the query.
  */
-export function parseQueryTimeWindow(query: string, now: number = Date.now()): TemporalWindow | null {
+export function parseQueryTimeWindow(
+  query: string,
+  now: number = Date.now()
+): TemporalWindow | null {
   if (!query) return null;
   const q = query.toLowerCase();
 
@@ -169,7 +164,8 @@ export function parseQueryTimeWindow(query: string, now: number = Date.now()): T
   }
 
   // ── 5. Day-of-week with optional "next" / "last" ────────────────────
-  const dowMatch = /\b(next|last|this)?\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/.exec(q);
+  const dowMatch =
+    /\b(next|last|this)?\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/.exec(q);
   if (dowMatch) {
     const modifier = dowMatch[1] ?? "this";
     const targetDow = DOW_NAMES.indexOf(dowMatch[2]!);
@@ -206,9 +202,9 @@ export function parseQueryTimeWindow(query: string, now: number = Date.now()): T
   }
 
   // ── 7. Month-only — "in May", "in May 2026" ─────────────────────────
-  const monthOnlyMatch = new RegExp(
-    `\\bin\\s+(${MONTH_NAMES.join("|")})(?:\\s+(\\d{4}))?\\b`
-  ).exec(q);
+  const monthOnlyMatch = new RegExp(`\\bin\\s+(${MONTH_NAMES.join("|")})(?:\\s+(\\d{4}))?\\b`).exec(
+    q
+  );
   if (monthOnlyMatch) {
     const monthIdx = MONTH_NAMES.indexOf(monthOnlyMatch[1]!);
     const yearStr = monthOnlyMatch[2];
