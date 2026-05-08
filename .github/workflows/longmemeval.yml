@@ -116,6 +116,14 @@ on:
         options:
           - "fused"
           - "per-lane"
+      include_unsupported:
+        description: "Include temporal-reasoning + knowledge-update categories (skipped by default). Required to measure W6 temporal lane impact."
+        required: false
+        type: choice
+        default: "false"
+        options:
+          - "false"
+          - "true"
 
 jobs:
   resolve-strategies:
@@ -190,6 +198,9 @@ jobs:
           fi
           if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_lane_mode }}" ]; then
             args="$args --recall-lane-mode=${{ inputs.recall_lane_mode }}"
+          fi
+          if [ "${{ inputs.include_unsupported }}" = "true" ]; then
+            args="$args --include-unsupported"
           fi
           pnpm eval:longmemeval $args
 
