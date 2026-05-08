@@ -807,13 +807,15 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     name: "app-generation",
     members: ["create_file", "patch_file", "delete_file", "read_file", "list_files", "display_app"],
     anchors: ["create_file", "patch_file"],
-    anchorMinSimilarity: 0.55,
+    // Match the client-tool floor (0.53). If create_file is even a weak
+    // match, activating the full toolkit is right — recall over precision.
+    anchorMinSimilarity: 0.54,
   },
   {
     name: "slides",
     members: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
     anchors: ["plan_deck", "patch_slides"],
-    anchorMinSimilarity: 0.58,
+    anchorMinSimilarity: 0.54,
   },
   {
     name: "github",
@@ -882,18 +884,17 @@ export function applyToolSets(
 }
 
 /**
- * Apply tool sets with all-or-nothing membership semantics:
+ * Additively expand tool sets: when any anchor of a set scores at or above
+ * its `anchorMinSimilarity`, all set members are added to the result.
+ * Original matches are preserved; multiple sets can expand independently.
  *
- * - When any anchor of a set scores at or above its `anchorMinSimilarity`,
- *   the set "activates" and all its members are added to the result.
- * - When a set does NOT activate, any of its members that were individually
- *   matched are removed from the result. A lone set member without its set
- *   firing is almost always a false-positive match (e.g. patch_slides 0.54
- *   on "extract text from PDF") and shipping it alone, without the rest of
- *   the toolkit, would just confuse the model.
- *
- * Original (non-set-member) matches are preserved. Multiple sets can
- * activate independently.
+ * Members of sets that *don't* activate are kept if they were individually
+ * matched. We deliberately don't strip orphans: the cost of a single
+ * borderline tool slipping into the request is cheap (a few extra bytes,
+ * no behavioral impact) but stripping legitimate matches like
+ * `create_file 0.55` on prompts where `patch_file` doesn't also clear the
+ * anchor threshold would silently break app-creation flows. Recall over
+ * precision.
  *
  * Use this for server-side toolkit suites where the LLM needs the full
  * call chain (e.g. fal_list_models → fal_model_schema → fal_queue_submit →
@@ -907,8 +908,7 @@ export function applyToolSets(
  * @param availableNames - All tool names available for selection
  * @param scores - Map of tool name → similarity score
  * @param toolSets - Tool sets to evaluate
- * @returns Set including original matches plus members of any activated set,
- *   minus orphaned members of sets that did not activate.
+ * @returns Set including original matches plus members of any activated set
  */
 export function expandToolSetsAdditive(
   matchedNames: Set<string>,
@@ -920,18 +920,10 @@ export function expandToolSetsAdditive(
   for (const ts of toolSets) {
     const minSim = ts.anchorMinSimilarity ?? 0.6;
     const triggered = ts.anchors.some((a) => (scores.get(a) ?? 0) >= minSim);
-
-    if (triggered) {
-      for (const member of ts.members) {
-        if (availableNames.has(member)) {
-          result.add(member);
-        }
-      }
-    } else {
-      // Drop any individually-matched set members — a single slide tool
-      // alongside no slide-set activation just confuses the model.
-      for (const member of ts.members) {
-        result.delete(member);
+    if (!triggered) continue;
+    for (const member of ts.members) {
+      if (availableNames.has(member)) {
+        result.add(member);
       }
     }
   }
