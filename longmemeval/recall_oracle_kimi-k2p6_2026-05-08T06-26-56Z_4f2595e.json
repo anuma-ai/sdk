@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-05-08T06:26:54.005Z",
+  "datasetName": "longmemeval_s_memory-recall",
+  "strategy": "memory-recall",
+  "totalQuestions": 500,
+  "correctAnswers": 346,
+  "accuracy": 0.692,
+  "byQuestionType": {
+    "single-session-user": {
+      "total": 70,
+      "correct": 70,
+      "accuracy": 1
+    },
+    "single-session-assistant": {
+      "total": 56,
+      "correct": 37,
+      "accuracy": 0.6607142857142857
+    },
+    "single-session-preference": {
+      "total": 30,
+      "correct": 22,
+      "accuracy": 0.7333333333333333
+    },
+    "temporal-reasoning": {
+      "total": 133,
+      "correct": 57,
+      "accuracy": 0.42857142857142855
+    },
+    "knowledge-update": {
+      "total": 78,
+      "correct": 60,
+      "accuracy": 0.7692307692307693
+    },
+    "multi-session": {
+      "total": 133,
+      "correct": 100,
+      "accuracy": 0.7518796992481203
+    }
+  },
+  "retrieval": {
+    "avgPrecision": 0.958,
+    "avgRecall": 0.9547333333333333
+  },
+  "latency": {
+    "p50": 206375.30782149988,
+    "p95": 488702.9796527494,
+    "p99": 759677.1353201595,
+    "mean": 234757.91000179405
+  },
+  "tokenUsage": {
+    "promptTokens": 3255272,
+    "completionTokens": 610265,
+    "totalTokens": 8637851,
+    "embeddingTokens": 4772314
+  },
+  "cost": null,
+  "meta": {
+    "commit": "4f2595e5c3846073b7c09b79fbd025477cd28443",
+    "commitShort": "4f2595e",
+    "branch": "feat/recall-api",
+    "model": "fireworks/accounts/fireworks/models/kimi-k2p6",
+    "variant": "oracle",
+    "concurrency": 30,
+    "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/25538282114",
+    "runId": 25538282114
+  }
+}
