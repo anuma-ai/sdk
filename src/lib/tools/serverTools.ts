@@ -814,6 +814,12 @@ const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["plan_deck", "patch_slides"],
     anchorMinSimilarity: 0.55,
   },
+  {
+    name: "github",
+    members: ["github_get_authenticated_user", "github_api"],
+    anchors: ["github_api"],
+    anchorMinSimilarity: 0.55,
+  },
 ];
 
 /**

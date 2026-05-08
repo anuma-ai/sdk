@@ -352,14 +352,14 @@ const cases: ToolSelectionCase[] = [
 
   // ── GitHub ───────────────────────────────────────────────────────────
   {
-    label: "GitHub PR query includes github tools",
+    label: "GitHub PR query includes full github set",
     prompt: "List the open pull requests in my repository",
-    clientMustInclude: ["github_api"],
+    clientMustInclude: ["github_api", "github_get_authenticated_user"],
   },
   {
-    label: "GitHub issues includes github tools",
+    label: "GitHub issues includes full github set",
     prompt: "Show me the latest issues on the repo",
-    clientMustInclude: ["github_api"],
+    clientMustInclude: ["github_api", "github_get_authenticated_user"],
   },
 
   // ── Slide decks ──────────────────────────────────────────────────────
