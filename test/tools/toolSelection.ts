@@ -341,7 +341,7 @@ const cases: ToolSelectionCase[] = [
     label: "image generation includes image tools",
     prompt: "Generate an image of a sunset over the ocean",
     serverMustInclude: ["AnumaImageMCP-generate_cloud_image"],
-    serverMustExclude: ["AnumaAudioMCP-anuma_audio_music", "OpenMeteoMCP-weather_forecast"],
+    serverMustExclude: ["AnumaMediaMCP-anuma_create_music", "OpenMeteoMCP-weather_forecast"],
   },
   {
     label: "image editing includes edit tool",
@@ -353,40 +353,40 @@ const cases: ToolSelectionCase[] = [
   {
     label: "video generation includes video tools",
     prompt: "Create a video of a cat playing piano",
-    serverMustInclude: ["AnumaVideoMCP-generate_video"],
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_video"],
   },
 
   // ── Server-side: Audio ───────────────────────────────────────────────
   {
     label: "music generation includes audio tool",
     prompt: "Generate some relaxing jazz music",
-    serverMustInclude: ["AnumaAudioMCP-anuma_audio_music"],
-    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "TwelveDataMCP-get_price"],
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_music"],
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaTwelveDataMCP-get_price"],
   },
   {
     label: "sound effects includes sfx tool",
     prompt: "Create a sound effect of thunder and lightning",
-    serverMustInclude: ["AnumaAudioMCP-anuma_audio_sfx"],
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_sfx"],
   },
 
   // ── Server-side: Web search ──────────────────────────────────────────
   {
     label: "web search includes search tools",
     prompt: "Search the web for recent news about AI regulation",
-    serverMustInclude: ["JinaMCP-search_web"],
-    serverMustExclude: ["AnumaImageMCP-generate_cloud_image", "AnumaAudioMCP-anuma_audio_music"],
+    serverMustInclude: ["AnumaJinaMCP-search_web"],
+    serverMustExclude: ["AnumaImageMCP-generate_cloud_image", "AnumaMediaMCP-anuma_create_music"],
   },
   {
     label: "URL reading includes read_url tool",
     prompt: "Read the content of https://example.com/article",
-    serverMustInclude: ["JinaMCP-read_url"],
+    serverMustInclude: ["AnumaJinaMCP-read_url"],
   },
 
   // ── Server-side: Finance / Crypto ────────────────────────────────────
   {
     label: "crypto price includes price tool",
     prompt: "What's the current price of Bitcoin?",
-    serverMustInclude: ["TwelveDataMCP-get_price"],
+    serverMustInclude: ["AnumaTwelveDataMCP-get_price"],
     serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaImageMCP-generate_cloud_image"],
   },
   {
@@ -397,7 +397,7 @@ const cases: ToolSelectionCase[] = [
   {
     label: "exchange rate includes exchange rate tool",
     prompt: "What's the exchange rate between USD and EUR?",
-    serverMustInclude: ["TwelveDataMCP-get_exchange_rate"],
+    serverMustInclude: ["AnumaTwelveDataMCP-get_exchange_rate"],
   },
 
   // ── Server-side: ZetaChain ───────────────────────────────────────────
@@ -412,19 +412,12 @@ const cases: ToolSelectionCase[] = [
   {
     label: "PDF extraction includes PDF tool",
     prompt: "Extract the text from this PDF document",
-    serverMustInclude: ["JinaMCP-extract_pdf"],
+    serverMustInclude: ["AnumaJinaMCP-extract_pdf"],
   },
   {
     label: "OCR includes vision tool",
     prompt: "Extract text from this screenshot image",
-    serverMustInclude: ["VisionMCP-extract_text"],
-  },
-
-  // ── Server-side: Voiceover ───────────────────────────────────────────
-  {
-    label: "voiceover includes voiceover tool",
-    prompt: "Generate a voiceover narration for this text",
-    serverMustInclude: ["AnumaVideoMCP-generate_voiceover"],
+    serverMustInclude: ["AnumaVisionMCP-anuma_analyze_image"],
   },
 
   // ── Noise exclusions on client-focused prompts ───────────────────────
@@ -432,10 +425,7 @@ const cases: ToolSelectionCase[] = [
     label: "chart request: no irrelevant server tools",
     prompt: "Show me a bar chart of monthly sales data",
     clientMustInclude: ["display_chart"],
-    serverMustExclude: [
-      "AnumaAudioMCP-anuma_audio_music",
-      "AnumaVideoMCP-generate_video_from_image",
-    ],
+    serverMustExclude: ["AnumaMediaMCP-anuma_create_music", "AnumaMediaMCP-anuma_create_video"],
   },
   {
     label: "booking form: no irrelevant server tools",
