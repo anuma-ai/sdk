@@ -261,33 +261,24 @@ export function scoreEventTimeOverlap(
 }
 
 export interface TemporalProximityOptions {
-  /** Distance at which the boost decays to half. Default 30 days. */
+  /** Distance at which the boost decays to half. Default 7 days. */
   halfLifeMs?: number;
-  /** Coefficient on the boost. Final multiplier = 1 + alpha × proximity. Default 0.15. */
+  /** Coefficient on the boost. Final multiplier = 1 + alpha × proximity. Default 0.3. */
   alpha?: number;
 }
 
 /**
- * Multiplicative boost for memories whose event-time is *close to but
- * outside* the query window. Returns 1.0 (neutral) when:
+ * Multiplicative boost based on how close a memory's event-time is to the
+ * query window. Returns 1.0 (neutral) when:
  *  - the query has no temporal phrase (`window === null`)
  *  - the memory has no event-time (`memoryStart === null`)
- *  - the memory is *inside* the window (`distance === 0`)
  *
- * The third case is the key fix from the v1 boost. The temporal *lane*
- * already RRF-ranks every in-window memory; applying a multiplicative
- * lift on top of that double-counts the signal — a temporal-reasoning
- * sweep at α=0.3, halfLife=7d regressed the category by 3pp because
- * in-window memories were getting boosted in the cosine head AND ranked
- * by the temporal lane, drowning out cross-window evidence the question
- * actually needed. Restricting the boost to *out-of-window* memories
- * (those the lane drops entirely) lets it act as a softer floor without
- * fighting the lane's signal.
- *
- * For out-of-window memories, returns `1 + alpha × 0.5^(distance/halfLife)`,
- * decaying exponentially toward 1.0 as distance grows. Defaults softened
- * (α=0.15, halfLife=30d) after the v1 sweep showed the original was too
- * aggressive.
+ * Otherwise returns `1 + alpha × 0.5^(distance/halfLife)`, peaking at
+ * `1 + alpha` when the memory falls inside the window and decaying
+ * exponentially as distance grows. The temporal lane already provides a
+ * binary in/out signal via RRF; this boost gives the cosine + BM25 + graph
+ * lanes a smooth tiebreaker so a memory two days outside "next week" still
+ * outranks one a year off, even if both are dropped by the temporal lane.
  *
  * Mirrors Hindsight's post-fusion temporal-proximity multiplier (cf.
  * benchmarks docs §"Recency, temporal proximity, proof count").
@@ -300,24 +291,28 @@ export function temporalProximityMultiplier(
   options?: TemporalProximityOptions
 ): number {
   if (window === null || memoryStart === null) return 1.0;
-  const halfLife = options?.halfLifeMs ?? 30 * DAY_MS;
-  const alpha = options?.alpha ?? 0.15;
+  const halfLife = options?.halfLifeMs ?? WEEK_MS;
+  const alpha = options?.alpha ?? 0.3;
 
   let distance: number;
   if (memoryKind === "range" && memoryEnd !== null) {
     if (memoryStart < window.end && memoryEnd > window.start) {
-      return 1.0; // in-window: lane handles it, no double-count.
+      distance = 0;
+    } else if (memoryEnd <= window.start) {
+      distance = window.start - memoryEnd;
+    } else {
+      distance = memoryStart - window.end;
     }
-    distance = memoryEnd <= window.start ? window.start - memoryEnd : memoryStart - window.end;
   } else if (memoryKind === "ongoing") {
-    if (memoryStart < window.end) return 1.0;
-    distance = memoryStart - window.end;
+    distance = memoryStart < window.end ? 0 : memoryStart - window.end;
   } else {
     if (memoryStart >= window.start && memoryStart < window.end) {
-      return 1.0;
+      distance = 0;
+    } else if (memoryStart < window.start) {
+      distance = window.start - memoryStart;
+    } else {
+      distance = memoryStart - window.end + 1;
     }
-    distance =
-      memoryStart < window.start ? window.start - memoryStart : memoryStart - window.end + 1;
   }
 
   const proximity = Math.pow(0.5, distance / halfLife);

@@ -19,9 +19,9 @@ describe("temporalProximityMultiplier", () => {
     expect(temporalProximityMultiplier(null, null, null, window)).toBe(1.0);
   });
 
-  it("returns 1.0 (neutral) for a point memory inside the window — temporal lane handles it", () => {
+  it("peaks at 1 + alpha for a point memory inside the window", () => {
     const t = new Date("2026-05-14T00:00:00Z").getTime();
-    expect(temporalProximityMultiplier(t, null, "point", window, { alpha: 0.3 })).toBe(1.0);
+    expect(temporalProximityMultiplier(t, null, "point", window, { alpha: 0.3 })).toBeCloseTo(1.3);
   });
 
   it("decays smoothly for a point memory outside the window", () => {
@@ -36,25 +36,22 @@ describe("temporalProximityMultiplier", () => {
 
   it("approaches 1.0 for a memory far outside the window", () => {
     const t = new Date("2027-05-14T00:00:00Z").getTime(); // a full year out
-    const m = temporalProximityMultiplier(t, null, "point", window, { alpha: 0.15 });
+    const m = temporalProximityMultiplier(t, null, "point", window, { alpha: 0.3 });
     expect(m).toBeCloseTo(1.0, 3);
   });
 
-  it("returns 1.0 (neutral) for range memories with full overlap — lane handles it", () => {
+  it("treats range memories with full overlap as in-window", () => {
     const start = new Date("2026-05-12T00:00:00Z").getTime();
     const end = new Date("2026-05-15T00:00:00Z").getTime();
-    expect(temporalProximityMultiplier(start, end, "range", window, { alpha: 0.3 })).toBe(1.0);
+    expect(temporalProximityMultiplier(start, end, "range", window, { alpha: 0.3 })).toBeCloseTo(
+      1.3
+    );
   });
 
-  it("returns 1.0 (neutral) for ongoing memories that started before window end — lane handles it", () => {
+  it("treats ongoing memories that started before window end as in-window", () => {
     const start = new Date("2024-01-01T00:00:00Z").getTime();
-    expect(temporalProximityMultiplier(start, null, "ongoing", window, { alpha: 0.3 })).toBe(1.0);
-  });
-
-  it("uses softer defaults (alpha=0.15, halfLife=30d) — boost <= 1.15 at distance=0", () => {
-    const justOutside = window.end + DAY;
-    const m = temporalProximityMultiplier(justOutside, null, "point", window);
-    expect(m).toBeGreaterThan(1.0);
-    expect(m).toBeLessThanOrEqual(1.15);
+    expect(temporalProximityMultiplier(start, null, "ongoing", window, { alpha: 0.3 })).toBeCloseTo(
+      1.3
+    );
   });
 });
