@@ -234,6 +234,16 @@ export async function createVaultMemoriesBatchOp(
         if (optionsArray[i].embedding !== undefined) {
           record._setRaw("embedding", optionsArray[i].embedding);
         }
+        if (opts.sourceChunkIds !== undefined) {
+          record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+        }
+        record._setRaw("proof_count", opts.proofCount ?? 1);
+        record._setRaw("source", opts.source ?? "manual");
+        if (opts.eventTime) {
+          record._setRaw("event_time_start", opts.eventTime.start ?? null);
+          record._setRaw("event_time_end", opts.eventTime.end ?? null);
+          record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+        }
       })
     );
     await ctx.database.batch(...prepared);
