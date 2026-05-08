@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#20)
+Defined in: [src/lib/db/memoryVault/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#26)
 
 ***
 
@@ -29,6 +29,36 @@ Defined in: [src/lib/db/memoryVault/types.ts:20](https://github.com/anuma-ai/sdk
 Defined in: [src/lib/db/memoryVault/types.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#13)
 
 JSON-stringified embedding vector, null if not yet computed
+
+***
+
+### eventTimeEnd
+
+> **eventTimeEnd**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#23)
+
+W6 temporal lane — Unix ms when the event ended (range only).
+
+***
+
+### eventTimeKind
+
+> **eventTimeKind**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#25)
+
+W6 temporal lane — `point | range | ongoing | null`.
+
+***
+
+### eventTimeStart
+
+> **eventTimeStart**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#21)
+
+W6 temporal lane — Unix ms when the event occurred (point/start of range).
 
 ***
 
@@ -46,7 +76,7 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#22)
+Defined in: [src/lib/db/memoryVault/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#28)
 
 ***
 
@@ -104,7 +134,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#21)
+Defined in: [src/lib/db/memoryVault/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#27)
 
 ***
 

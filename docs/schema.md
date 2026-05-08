@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v29**
+Current version: **v30**
 
 ```mermaid
 graph LR
@@ -111,6 +111,9 @@ graph LR
 | `source_chunk_ids` | string |  | ✓ |
 | `proof_count` | number |  | ✓ |
 | `source` | string |  | ✓ |
+| `event_time_start` | number | ✓ | ✓ |
+| `event_time_end` | number |  | ✓ |
+| `event_time_kind` | string |  | ✓ |
 
 ## entity
 
@@ -202,6 +205,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v30 | Added `event_time_start`, `event_time_end`, `event_time_kind` to `memory_vault` |
 | v29 | Added `entity` table; Added `memory_entity` table |
 | v28 | Added `source_chunk_ids`, `proof_count`, `source` to `memory_vault` |
 | v27 | Added `tool_call_events` to `history` |
