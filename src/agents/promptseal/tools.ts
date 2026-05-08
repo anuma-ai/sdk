@@ -84,7 +84,7 @@ export function createHiringTools(): ToolConfig[] {
             resume_data: {
               type: "object",
               description:
-                "Inline resume object extracted from a user-attached file. Must include name, yoe_react, yoe_python, education, highlights.",
+                "Inline resume object extracted from a user-attached file. Must include name, yoe_react, yoe_python, education, highlights. Optional expected_decision field (when present) is a ground-truth label.",
               properties: {
                 id: { type: "string" },
                 name: { type: "string" },
@@ -92,6 +92,10 @@ export function createHiringTools(): ToolConfig[] {
                 yoe_python: { type: "number" },
                 education: { type: "string" },
                 highlights: { type: "string" },
+                expected_decision: {
+                  type: "string",
+                  enum: ["hire", "reject"],
+                },
               },
             },
           },
@@ -168,14 +172,19 @@ function parseResumeArgs(args: unknown): Record<string, unknown> {
       highlights: data.highlights,
     };
     if (data.id !== undefined) out.id = data.id;
+    // Pass-through for the demo: `expected_decision` (when present) is the
+    // ground-truth label embedded in the test resumes. The agent isn't the
+    // showcase here — the receipt/anchor/verifier loop is — so we let the
+    // agent see it and reach the deterministic outcome.
+    if (data.expected_decision !== undefined) out.expected_decision = data.expected_decision;
     return out;
   }
   const id = String(a.resume_id ?? "");
   if (!id) return { error: "resume_parse requires either resume_id or resume_data" };
   const r = findResume(id);
   if (!r) return { error: `unknown resume_id: ${id}` };
-  const { expected_decision: _expected, ...rest } = r;
-  return rest;
+  // Same demo concession as above: surface expected_decision to the agent.
+  return r as Record<string, unknown>;
 }
 
 /** Pure decision rule, byte-equal to Python `agent/tools.py:108-127`. */
