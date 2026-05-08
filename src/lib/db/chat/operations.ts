@@ -942,8 +942,14 @@ export async function searchChunksOp(
     )
   );
 
+  // Shallow-clone the StoredMessage per result so two chunks from the
+  // same parent message don't share a top-level object reference.
+  // Without this clone, a caller mutating `result.message.foo` on one
+  // chunk would silently mutate every sibling chunk's `.message` too —
+  // the prior shape called `messageToStored` independently per chunk
+  // and returned distinct objects, so we preserve that contract.
   return topK.map(({ message, similarity, chunkTextSource }) => {
-    const stored = storedById.get(message.id)!;
+    const stored = { ...storedById.get(message.id)! };
     const chunkText = chunkTextSource.kind === "chunk" ? chunkTextSource.text : stored.content;
     return { chunkText, message: stored, similarity };
   });
