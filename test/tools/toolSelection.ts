@@ -513,10 +513,7 @@ const cases: ToolSelectionCase[] = [
     label: "chart request: no irrelevant server tools",
     prompt: "Show me a bar chart of monthly sales data",
     clientMustInclude: ["display_chart"],
-    serverMustExclude: [
-      "AnumaMediaMCP-anuma_create_music",
-      "AnumaMediaMCP-anuma_create_video",
-    ],
+    serverMustExclude: ["AnumaMediaMCP-anuma_create_music", "AnumaMediaMCP-anuma_create_video"],
   },
   {
     label: "booking form: no irrelevant server tools",

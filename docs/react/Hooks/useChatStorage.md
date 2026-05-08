@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:794](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#794)
+Defined in: [src/react/useChatStorage.ts:806](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#806)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -255,6 +255,25 @@ flushed to encrypted storage once the key becomes available.
 ```ts
 true
 ```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.extraToolSets?`
+
+</td>
+<td>
+
+`ToolSet`\[]
+
+</td>
+<td>
+
+Additional tool sets to apply on top of the built-in ones (app-generation,
+slides, github). When any anchor tool in a custom set is selected by
+semantic matching, all members of that set are included automatically.
 
 </td>
 </tr>

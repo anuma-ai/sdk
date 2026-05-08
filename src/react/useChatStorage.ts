@@ -235,7 +235,8 @@ async function autoFilterClientTools(
   const availableNames = new Set(filterCandidates.map(getToolName));
 
   // Apply tool sets: if an anchor tool was matched, pull in the full set
-  const toolSets = extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
+  const toolSets =
+    extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
   const finalNames = applyToolSets(matchedNames, availableNames, scores, toolSets);
 
   const filtered = filterCandidates.filter((t) => {
