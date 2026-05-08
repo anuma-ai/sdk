@@ -807,12 +807,13 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     name: "app-generation",
     members: ["create_file", "patch_file", "delete_file", "read_file", "list_files", "display_app"],
     anchors: ["create_file", "patch_file"],
+    anchorMinSimilarity: 0.55,
   },
   {
     name: "slides",
     members: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
     anchors: ["plan_deck", "patch_slides"],
-    anchorMinSimilarity: 0.55,
+    anchorMinSimilarity: 0.58,
   },
   {
     name: "github",

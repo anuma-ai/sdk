@@ -194,17 +194,9 @@ export class MapFileStorage implements AppFileStorage {
 
 export const CREATE_FILE_SCHEMA = {
   name: "create_file",
-  description: `Creates or overwrites files in the app project. ALWAYS use this tool when the user asks to create any visual, interactive app, demo, diagram, game, simulation, UI mockup, dashboard, tracker, or data visualization. NEVER output code as text. A live preview appears automatically.
+  description: `Create or overwrite files in the in-chat React app project — used when the user asks to build an interactive app, game, dashboard, calculator, or other code-based demo. Pair with display_app to render the preview after writing.
 
-Supports two modes:
-- Single file: pass "path" and "content".
-- Batch (preferred): pass "files" array with {path, content} objects to write all files in one call.
-
-WORKFLOW: Call create_file once with all files (package.json, App.js, styles, etc.), then call display_app.
-
-App.js must be a default export React component. Do NOT create index.js or index.html — these are auto-generated. Use standard import statements for all libraries. NEVER use CDN script tags — instead list dependencies in package.json. Example package.json: {"dependencies": {"chart.js": "^4.4.0", "react-chartjs-2": "^5.2.0"}}
-
-DESIGN: Visually polished apps with modern aesthetics, generous whitespace, readable typography, cohesive colors, and responsive layouts.`,
+Pass a "files" array of {path, content} objects to write multiple files in one call (preferred), or a single "path" and "content" to write one file.`,
   arguments: {
     type: "object",
     properties: {
@@ -226,9 +218,9 @@ DESIGN: Visually polished apps with modern aesthetics, generous whitespace, read
 
 export const PATCH_FILE_SCHEMA = {
   name: "patch_file",
-  description: `Modify, update, or edit an existing file in the app project using targeted find-and-replace patches. Use this instead of create_file when making small changes to an app — color tweaks, text edits, styling updates, adding a few lines, fixing bugs, or updating components. The file must already exist.
+  description: `Edit, modify, or update an existing file in the app project via find-and-replace. Use this instead of create_file when changing a few lines of an existing app — small edits, fixes, or component updates.
 
-Pass a "patches" array where each item has "find" (exact string to locate) and "replace" (replacement string). Patches are applied in order. The find string must match exactly — include enough surrounding context (2-3 lines) to be unique.`,
+Pass a "patches" array of {find, replace} objects. The "find" string must match exactly — include 2-3 lines of surrounding context to be unique.`,
   arguments: {
     type: "object",
     properties: {

@@ -296,7 +296,9 @@ export const READ_SLIDES_SCHEMA = {
 
 export const PATCH_SLIDES_SCHEMA = {
   name: "patch_slides",
-  description: `Apply targeted operations to an existing slide deck. The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
+  description: `Edit, modify, update, or rewrite an existing slide deck or presentation — use when the user asks to change, fix, or update slides in their deck, or to add a slide to a deck that already exists.
+
+Apply targeted operations to an existing slide deck. The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
 
 Operations:
 - update_element: modify properties of an element within a slide
@@ -375,7 +377,9 @@ Operations:
 
 export const PLAN_DECK_SCHEMA = {
   name: "plan_deck",
-  description: `Initialize a new slide deck. Call this FIRST — once — to set up the theme, title, slide count, and layout pool. You pick:
+  description: `Create a new slide deck or presentation — use when the user asks to make, build, generate, or start a new slide deck, slideshow, PowerPoint, or Keynote presentation.
+
+Call this FIRST — once — to set up the theme, title, slide count, and layout pool. You pick:
   - title: presentation title (shown above the deck in the UI)
   - fontPreset: one of the font-preset keys
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
