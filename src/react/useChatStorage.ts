@@ -113,12 +113,14 @@ import {
 } from "../lib/storage";
 import {
   applyToolSets,
+  BUILT_IN_TOOL_SETS,
   filterServerTools,
   findMatchingTools,
   getServerTools,
   mergeTools,
   type ServerTool,
   shouldRefreshTools,
+  type ToolSet,
 } from "../lib/tools";
 import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
@@ -159,7 +161,8 @@ async function autoFilterClientTools(
   clientTools: LlmapiChatCompletionTool[],
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
-  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string }
+  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
+  extraToolSets: ToolSet[] = []
 ): Promise<LlmapiChatCompletionTool[]> {
   // Memory tools are always included — only filter connector tools (Notion, Google)
   const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
@@ -232,7 +235,8 @@ async function autoFilterClientTools(
   const availableNames = new Set(filterCandidates.map(getToolName));
 
   // Apply tool sets: if an anchor tool was matched, pull in the full set
-  const finalNames = applyToolSets(matchedNames, availableNames, scores);
+  const toolSets = extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
+  const finalNames = applyToolSets(matchedNames, availableNames, scores, toolSets);
 
   const filtered = filterCandidates.filter((t) => {
     const name = getToolName(t);
@@ -515,6 +519,13 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * @default true
    */
   autoFlushOnKeyAvailable?: boolean;
+
+  /**
+   * Additional tool sets to apply on top of the built-in ones (app-generation,
+   * slides, github). When any anchor tool in a custom set is selected by
+   * semantic matching, all members of that set are included automatically.
+   */
+  extraToolSets?: ToolSet[];
 }
 
 /**
@@ -812,6 +823,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getWalletAddress,
     enableQueue = true,
     autoFlushOnKeyAvailable = true,
+    extraToolSets,
     fileProcessors,
     fileProcessingOptions,
     serverTools: serverToolsConfig,
@@ -1878,7 +1890,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             clientTools,
             skipStorageEmbeddings,
             clientToolEmbeddingsCacheRef.current,
-            { getToken, baseUrl, model: embeddingModel }
+            { getToken, baseUrl, model: embeddingModel },
+            extraToolSets
           );
         }
 
@@ -2304,7 +2317,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientTools,
           userMessageEmbeddings ?? null,
           clientToolEmbeddingsCacheRef.current,
-          { getToken, baseUrl, model: embeddingModel }
+          { getToken, baseUrl, model: embeddingModel },
+          extraToolSets
         );
       }
 

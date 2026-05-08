@@ -802,7 +802,7 @@ export interface ToolSet {
 }
 
 /** Built-in tool sets. Consumers can extend this with their own. */
-const BUILT_IN_TOOL_SETS: ToolSet[] = [
+export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   {
     name: "app-generation",
     members: ["create_file", "patch_file", "delete_file", "read_file", "list_files", "display_app"],

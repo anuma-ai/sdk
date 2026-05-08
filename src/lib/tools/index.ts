@@ -6,6 +6,7 @@
 
 export {
   applyToolSets,
+  BUILT_IN_TOOL_SETS,
   type CachedServerTools,
   clearServerToolsCache,
   // Constants
