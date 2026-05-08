@@ -182,12 +182,25 @@ export async function processEntryRecall(
     const consolidateEnabled = searchPipeline?.consolidate ?? true;
 
     for (const mem of allMemories) {
+      // W6 temporal lane — propagate the bench's `kind: 'event' | 'state'`
+      // + `occurredAt` (YYYY-MM-DD) into retain's `eventTime` shape so
+      // memory_vault.event_time_* columns get populated. The recall path
+      // then has a non-empty memory_vault to query for time-windowed
+      // results. State memories have no temporal anchor and stay null.
+      let eventTime: { kind: "point"; start: number; end: null } | undefined;
+      if (mem.kind === "event" && mem.occurredAt) {
+        const ms = Date.parse(mem.occurredAt);
+        if (Number.isFinite(ms)) {
+          eventTime = { kind: "point", start: ms, end: null };
+        }
+      }
       const result = await retain(mem.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: [mem.sessionId],
         ...(consolidateEnabled && {
           consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
         }),
+        ...(eventTime && { eventTime }),
       });
       const targetId = result.memoryId;
       const existingSession = vaultToSession.get(targetId);
