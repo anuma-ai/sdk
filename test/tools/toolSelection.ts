@@ -159,7 +159,7 @@ async function selectTools(prompt: string) {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
-    relevanceRatio: 0.85,
+    relevanceRatio: 0.9,
   });
 
   // Apply tool sets: if an anchor tool matched, pull in the full set

@@ -225,7 +225,13 @@ async function autoFilterClientTools(
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
-    relevanceRatio: 0.85,
+    // 0.90 (instead of the global 0.85 default): when there's a clear top
+    // match (e.g. create_file at 0.66), borderline matches at 0.55-0.59
+    // shouldn't cling on. With additive set expansion this matters extra:
+    // a borderline anchor (patch_slides 0.58, github_api 0.58) would
+    // otherwise activate a whole second tool set on prompts where the user
+    // clearly meant something else.
+    relevanceRatio: 0.9,
   });
 
   if (matches.length === 0) {
