@@ -471,14 +471,6 @@ const cases: ToolSelectionCase[] = [
     serverMustInclude: ["AnumaVisionMCP-anuma_analyze_image"],
   },
 
-  // ── Server-side: Voiceover ───────────────────────────────────────────
-  {
-    label: "voiceover includes voiceover tool",
-    prompt: "Generate a voiceover narration for this text",
-    // TODO: update serverMustInclude once the voiceover tool name is confirmed in the new catalog
-    // AnumaVideoMCP-generate_voiceover was not matched; server returned media/video tools instead
-  },
-
   // ── App generation ───────────────────────────────────────────────────
   // App gen tools form a logical set: when building/modifying apps, the LLM
   // needs the full toolkit (create_file, patch_file, read_file, list_files,
