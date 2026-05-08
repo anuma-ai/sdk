@@ -2,6 +2,7 @@
 
 | Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 2026-05-08 | memory-recall | oracle | kimi-k2p6 | 71.8% | 359/500 | 94.4% | 93.9% | [`5af4cf9`](https://github.com/anuma-ai/sdk/commit/5af4cf920e3318172157fca4393805f950686f3b) | [link](https://github.com/anuma-ai/sdk/actions/runs/25536479653) |
 | 2026-05-08 | memory-ensemble | oracle | kimi-k2p6 | 90.3% | 261/289 | 99.3% | 99% | [`5fd682d`](https://github.com/anuma-ai/sdk/commit/5fd682d427bae5a334d439a9a2055e3a57a3456e) | [link](https://github.com/anuma-ai/sdk/actions/runs/25535517915) |
 | 2026-05-08 | memory-vault | oracle | kimi-k2p6 | 64.4% | 186/289 | 92.4% | 92.1% | [`ac1d8e6`](https://github.com/anuma-ai/sdk/commit/ac1d8e6143484a61b7170ba4b77b5835f1dd4dd9) | [link](https://github.com/anuma-ai/sdk/actions/runs/25535187798) |
 | 2026-05-08 | memory-engine | oracle | kimi-k2p6 | 90.7% | 262/289 | 99% | 98.3% | [`ac1d8e6`](https://github.com/anuma-ai/sdk/commit/ac1d8e6143484a61b7170ba4b77b5835f1dd4dd9) | [link](https://github.com/anuma-ai/sdk/actions/runs/25535187798) |
