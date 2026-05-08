@@ -129,6 +129,78 @@ export async function createVaultMemoryOp(
   return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+/**
+ * W6 temporal lane read — fetch memories whose event-time overlaps the
+ * given window. "Overlap" means:
+ *   - point/ongoing: event_time_start ∈ [windowStart, windowEnd)
+ *   - range:         memory range ∩ window non-empty
+ *
+ * Returns a thin shape with just the fields needed for the temporal
+ * ranker — uniqueId, eventTimeStart, eventTimeEnd, eventTimeKind. Caller
+ * scores overlap via {@link scoreEventTimeOverlap} and folds into RRF.
+ *
+ * Uses the indexed `event_time_start` column for the cheap point/ongoing
+ * filter; range overlap is then post-filtered in JS (rare; range
+ * memories are < 5% of typical vaults).
+ */
+export async function getMemoriesByEventTimeOp(
+  ctx: VaultMemoryOperationsContext,
+  windowStart: number,
+  windowEnd: number
+): Promise<
+  Array<{
+    uniqueId: string;
+    eventTimeStart: number;
+    eventTimeEnd: number | null;
+    eventTimeKind: string | null;
+  }>
+> {
+  // Fast path: any memory whose event_time_start is in [start, end) is a
+  // candidate. Range memories starting BEFORE the window may still
+  // overlap (range ends inside window) — pull those by start <= windowEnd
+  // and filter in JS.
+  const records = await ctx.vaultMemoryCollection
+    .query(
+      Q.where("is_deleted", false),
+      Q.where("event_time_start", Q.notEq(null)),
+      Q.where("event_time_start", Q.lte(windowEnd))
+    )
+    .fetch();
+
+  const out: Array<{
+    uniqueId: string;
+    eventTimeStart: number;
+    eventTimeEnd: number | null;
+    eventTimeKind: string | null;
+  }> = [];
+  for (const r of records) {
+    const start = r.eventTimeStart;
+    if (start === null) continue;
+    const end = r.eventTimeEnd ?? null;
+    const kind = r.eventTimeKind ?? null;
+    // Point/ongoing: only keep if start is inside window.
+    if (kind !== "range") {
+      if (kind === "ongoing") {
+        // Ongoing memories: start before windowEnd is a hit.
+        if (start < windowEnd) {
+          out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
+        }
+      } else {
+        if (start >= windowStart && start < windowEnd) {
+          out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
+        }
+      }
+      continue;
+    }
+    // Range: overlap if [start, end] ∩ [windowStart, windowEnd) is non-empty.
+    const memEnd = end ?? start;
+    if (memEnd >= windowStart && start < windowEnd) {
+      out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
+    }
+  }
+  return out;
+}
+
 export async function createVaultMemoriesBatchOp(
   ctx: VaultMemoryOperationsContext,
   optionsArray: CreateVaultMemoryOptions[]
