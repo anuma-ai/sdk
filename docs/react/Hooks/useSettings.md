@@ -2,12 +2,15 @@
 
 > **useSettings**(`options`: `object`): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 
-Defined in: [src/react/useSettings.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#110)
+Defined in: [src/react/useSettings.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#116)
 
 A React hook for managing user settings with automatic persistence using WatermelonDB.
 
-This hook provides methods to get, set, and delete user preferences,
-with automatic loading and migration when a wallet address is provided.
+Multiple components calling this hook with the same `(database, walletAddress)`
+share a single underlying fetch and observe subscription — without this
+deduplication, every consumer would pay an extra worker-bridge round-trip
+per mount and trigger WatermelonDB's "raw object sent over the bridge"
+warning. See `userSettingsStore.ts` for the pool implementation.
 
 The hook supports both the legacy `modelPreference` API (deprecated) and
 the new unified `userPreference` API that stores profile data, model preferences,

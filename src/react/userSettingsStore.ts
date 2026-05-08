@@ -30,7 +30,7 @@ import {
  * stable snapshot consumed via `useSyncExternalStore`.
  */
 
-export interface SettingsSnapshot {
+interface SettingsSnapshot {
   modelPreference: StoredModelPreference | null;
   userPreference: StoredUserPreference | null;
   isLoading: boolean;
