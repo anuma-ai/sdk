@@ -1003,6 +1003,56 @@ export function createServerToolsFilter(
   };
 }
 
+// ── Default server-tools filter ─────────────────────────────────────────────
+
+/**
+ * Default exclusions baked into `defaultServerToolsFilter`.
+ *
+ * - `VisionMCP-analyze_image`: modern frontier models have native vision via
+ *   image content blocks; routing through a server-side vision tool just adds
+ *   a hop.
+ * - `OpenMeteoMCP-weather_forecast` + `OpenMeteoMCP-geocoding`: redundant when
+ *   the consumer registers `createWeatherTool` (the client-side display tool
+ *   handles geocoding internally and renders a card inline). Including the
+ *   server-side equivalents causes the model to prefer raw data over the card.
+ *   Consumers who don't register `createWeatherTool` should instead build
+ *   their own filter via `createServerToolsFilter`.
+ */
+export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
+  "VisionMCP-analyze_image",
+  "OpenMeteoMCP-weather_forecast",
+  "OpenMeteoMCP-geocoding",
+];
+
+/** Default match options for the server-tools filter (limit 5, minSim 0.5). */
+export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
+  limit: 5,
+  minSimilarity: 0.5,
+};
+
+/**
+ * Pre-configured server-tools filter ready to drop into `useChatStorage`'s
+ * `serverTools` option. Pure semantic matching against the user prompt with
+ * the default exclusion list applied.
+ *
+ * @example
+ * ```ts
+ * import { defaultServerToolsFilter, useChatStorage } from "@anuma/sdk/react";
+ *
+ * useChatStorage({
+ *   ...,
+ *   serverTools: defaultServerToolsFilter,
+ * });
+ * ```
+ *
+ * If you need to customize (extra excludes, different limits, opt into
+ * tool-set expansion), call `createServerToolsFilter` directly.
+ */
+export const defaultServerToolsFilter = createServerToolsFilter({
+  excludeTools: DEFAULT_EXCLUDED_SERVER_TOOLS,
+  matchOptions: DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+});
+
 /**
  * Options for selectServerSideTools
  */

@@ -13,6 +13,9 @@ export {
   type CreateServerToolsFilterOptions,
   // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,

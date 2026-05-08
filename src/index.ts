@@ -776,6 +776,9 @@ export {
 export {
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
   expandToolSetsAdditive,
   selectServerSideTools,
   type SelectServerSideToolsOptions,
