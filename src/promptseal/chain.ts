@@ -274,6 +274,19 @@ export class ReceiptChain {
   }
 
   /**
+   * Live-query observable of the anchor row for *runId*. Fires whenever the
+   * row is created or its `verifyResult` is updated. `observe()` only reads
+   * the `receipts` table so it can't catch anchor-table writes; consumers
+   * that need to react to `recordAnchor` / `setVerifyResult` should
+   * subscribe to this instead (or alongside `observe()`).
+   */
+  observeAnchor(runId: string): Observable<AnchorRow | undefined> {
+    return liveQuery(async () => {
+      return await this.db.anchors.get(runId);
+    });
+  }
+
+  /**
    * Live-query observable resolving the most recent run row for *chatId*.
    * Used by the shield to look up `runId` from a chat without keeping a
    * parallel mapping in client state.
