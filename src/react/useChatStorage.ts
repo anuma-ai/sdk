@@ -112,8 +112,8 @@ import {
   readEncryptedFile,
 } from "../lib/storage";
 import {
-  applyToolSets,
   BUILT_IN_TOOL_SETS,
+  expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
   getServerTools,
@@ -135,7 +135,7 @@ const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 // is just a safety cap to avoid pathological cases.
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.52;
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -237,10 +237,14 @@ async function autoFilterClientTools(
   const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
   const availableNames = new Set(filterCandidates.map(getToolName));
 
-  // Apply tool sets: if an anchor tool was matched, pull in the full set
+  // Apply tool sets additively: if an anchor matches, add set members alongside
+  // the original matches rather than dropping non-set tools below a threshold.
+  // Recall over precision — a few extra tool defs in the request are cheap;
+  // missing a tool the model needs (e.g. display_chart for a dashboard prompt)
+  // is what we can't afford.
   const toolSets =
     extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
-  const finalNames = applyToolSets(matchedNames, availableNames, scores, toolSets);
+  const finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, toolSets);
 
   const filtered = filterCandidates.filter((t) => {
     const name = getToolName(t);
