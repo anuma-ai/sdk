@@ -136,6 +136,12 @@ Re-exports [clearAllEncryptionKeys](../react/Internal/functions/clearAllEncrypti
 
 ***
 
+### clearAllEncryptionState
+
+Re-exports [clearAllEncryptionState](../react/Internal/functions/clearAllEncryptionState.md)
+
+***
+
 ### clearEncryptionKey
 
 Re-exports [clearEncryptionKey](../react/Internal/functions/clearEncryptionKey.md)

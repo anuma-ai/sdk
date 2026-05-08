@@ -128,7 +128,7 @@ Re-chunk messages that have whole-message embeddings but no chunks
 </td>
 <td>
 
-(`"assistant"` | `"user"`)\[]
+(`"user"` | `"assistant"`)\[]
 
 </td>
 <td>

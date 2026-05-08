@@ -56,6 +56,7 @@
  * @module react
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export { ProviderStreamError } from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
@@ -88,6 +89,7 @@ export type {
 } from "./useEncryption";
 export {
   clearAllEncryptionKeys,
+  clearAllEncryptionState,
   clearAllKeyPairs,
   clearEncryptionKey,
   clearKeyPair,
@@ -150,6 +152,17 @@ export {
   resolveFilePlaceholders,
   writeEncryptedFile,
 } from "../lib/storage";
+
+// ChatStorageAdapter seam (see issue #458). Experimental: the interface
+// exists so early consumers can depend on it, but existing hooks still
+// consume WatermelonDB directly.
+export type {
+  ChatStorageAdapter,
+  ChatStorageObservable,
+  ConversationQueryOptions,
+  WatermelonChatStorageAdapterOptions,
+} from "../lib/storage";
+export { WatermelonChatStorageAdapter } from "../lib/storage";
 
 // Consolidated SDK schema exports (recommended)
 export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";

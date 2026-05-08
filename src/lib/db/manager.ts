@@ -232,9 +232,10 @@ export class DatabaseManager {
    * Reset the current database (useful for logout or testing).
    */
   async resetDatabase(): Promise<void> {
-    if (this.database) {
-      await this.database.write(async () => {
-        await this.database!.unsafeResetDatabase();
+    const db = this.database;
+    if (db) {
+      await db.write(async () => {
+        await db.unsafeResetDatabase();
       });
       this.database = null;
       this.currentWalletAddress = undefined;

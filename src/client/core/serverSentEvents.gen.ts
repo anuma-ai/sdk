@@ -227,7 +227,13 @@ export const createSseClient = <TData = unknown>({
               });
 
               if (dataLines.length) {
-                yield data as any;
+                // The SSE generator yields the parsed event payload. The actual
+                // shape is dictated by the caller via TData; we assert the
+                // declared yield type here instead of using `any` so that shape
+                // drift surfaces at the call site rather than vanishing.
+                yield data as TData extends Record<string, unknown>
+                  ? TData[keyof TData]
+                  : TData;
               }
             }
           }

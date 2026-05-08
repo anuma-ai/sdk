@@ -107,6 +107,7 @@ export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
 export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 export {
   clearAllEncryptionKeys,
+  clearAllEncryptionState,
   clearEncryptionKey,
   hasEncryptionKey,
   onKeyAvailable,

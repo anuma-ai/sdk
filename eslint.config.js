@@ -14,6 +14,7 @@ export default tseslint.config(
       "coverage/**",
       "scripts/**",
       "patches/**",
+      "packages/**",
       "test/**",
       "**/*.test.ts",
       "**/*.test.tsx",
@@ -80,6 +81,15 @@ export default tseslint.config(
     },
     settings: {
       react: { version: "detect" },
+    },
+  },
+  {
+    // Disallow non-null assertions in paths that historically used them
+    // to hide invariants. Prefer an explicit guard that names the invariant
+    // or an optional-chain fallback so failures surface with a clear message.
+    files: ["src/lib/db/manager.ts", "src/lib/chat/useChat/utils.ts"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "error",
     },
   }
 );

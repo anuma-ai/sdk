@@ -2,6 +2,11 @@
  * Storage utilities for the SDK.
  */
 
+export type {
+  ChatStorageAdapter,
+  ChatStorageObservable,
+  ConversationQueryOptions,
+} from "./ChatStorageAdapter";
 export {
   // MCP image URL extraction
   extractMCPImageUrls,
@@ -28,3 +33,5 @@ export {
   isR2UrlExpired,
   R2_DEFAULT_TTL_MS,
 } from "./r2Expiry";
+export type { WatermelonChatStorageAdapterOptions } from "./WatermelonChatStorageAdapter";
+export { WatermelonChatStorageAdapter } from "./WatermelonChatStorageAdapter";
