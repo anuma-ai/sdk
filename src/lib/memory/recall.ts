@@ -15,10 +15,12 @@
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
+import { getMemoriesByEventTimeOp } from "../db/memoryVault/operations.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import { extractQueryEntities } from "./queryEntities.js";
+import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
 import { rrfFuse } from "./rrf.js";
 import type {
   Budget,
@@ -90,6 +92,15 @@ export async function recall(
   // that wants entity overlap can consume it.
   const entityRanking = await buildGraphLaneRanking(query, ctx);
 
+  // W6 temporal lane — when the query has a temporal phrase ("next week",
+  // "what's coming up this month"), resolve to an absolute window and
+  // look up memories whose event_time overlaps. Returns a ranking
+  // RRF-fused alongside the other lanes.
+  const temporalRanking =
+    types.includes("fact") && ctx.vaultCtx
+      ? await buildTemporalLaneRanking(query, ctx.vaultCtx)
+      : [];
+
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
     const { results, vaultSize: size } = await searchVaultMemoriesWithSize(
@@ -112,6 +123,7 @@ export async function recall(
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(entityRanking.length > 0 && { entityRanking }),
+        ...(temporalRanking.length > 0 && { temporalRanking }),
       }
     );
     factResults.push(...results);
@@ -219,6 +231,34 @@ async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise
   return [...memoryToEntities.entries()]
     .sort((a, b) => b[1].size - a[1].size)
     .map(([memoryId]) => memoryId);
+}
+
+/**
+ * W6 temporal lane builder. Returns a ranking of memory IDs ordered by
+ * event-time overlap score with the resolved query window. Empty array
+ * (lane no-op) when:
+ *  - The query has no temporal phrase ({@link parseQueryTimeWindow} returns null)
+ *  - No memories have event-time overlapping the window
+ *
+ * The ranking goes through `searchVaultMemoriesWithSize` as
+ * `temporalRanking` and gets RRF-fused with cosine + BM25 + entityRanking.
+ */
+async function buildTemporalLaneRanking(
+  query: string,
+  vaultCtx: NonNullable<RecallContext["vaultCtx"]>
+): Promise<string[]> {
+  const window = parseQueryTimeWindow(query);
+  if (!window) return [];
+  const candidates = await getMemoriesByEventTimeOp(vaultCtx, window.start, window.end);
+  if (candidates.length === 0) return [];
+  return candidates
+    .map((c) => ({
+      id: c.uniqueId,
+      score: scoreEventTimeOverlap(c.eventTimeStart, c.eventTimeEnd, c.eventTimeKind, window),
+    }))
+    .filter((c) => c.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((c) => c.id);
 }
 
 function toChunkMemory(r: ChunkSearchResult): RankedMemory {

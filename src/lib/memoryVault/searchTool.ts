@@ -70,6 +70,14 @@ export interface MemoryVaultSearchOptions {
    * `RecallContext.entityCtx` is available.
    */
   entityRanking?: string[];
+  /**
+   * W6 temporal lane — pre-built ranking of memory IDs whose event-time
+   * overlaps the resolved query window, ordered by overlap score
+   * (descending). RRF-fused alongside cosine + BM25 + graph. Build via
+   * `getMemoriesByEventTimeOp` + `scoreEventTimeOverlap`, or
+   * pass-through from `recall()` when the query has a temporal phrase.
+   */
+  temporalRanking?: string[];
 }
 
 /**
@@ -323,6 +331,12 @@ export function rankFusedVaultMemories(
      * not a boost). Build via {@link rankByEntityOverlap}.
      */
     entityRanking?: string[];
+    /**
+     * W6 temporal lane — pre-built ranking of memory IDs whose event-time
+     * overlaps the resolved query window. Same lane semantics as
+     * entityRanking: tail-admission for items absent from the cosine head.
+     */
+    temporalRanking?: string[];
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
@@ -374,21 +388,32 @@ export function rankFusedVaultMemories(
   // the entity-overlap ranking. Same logic as the async/CE path: graph
   // remains a retrieval lane (admits zero-cosine candidates with shared
   // entities) without overruling cosine on items it has already seen.
-  // Cosine head weighted 2× via duplication so graph is a tiebreaker.
+  // Cosine head weighted 2× via duplication so each side lane is a
+  // tiebreaker, not an overrule.
+  const sideLanes: string[][] = [];
   if (options?.entityRanking && options.entityRanking.length > 0) {
+    sideLanes.push(options.entityRanking);
+  }
+  if (options?.temporalRanking && options.temporalRanking.length > 0) {
+    sideLanes.push(options.temporalRanking);
+  }
+  if (sideLanes.length > 0) {
     combined.sort((a, b) => b.similarity - a.similarity);
     const headIds = combined.map((r) => r.uniqueId);
-    const fused = rrfFuse([headIds, headIds, options.entityRanking]);
+    const fused = rrfFuse([headIds, headIds, ...sideLanes]);
     combined = combined.map((r) => ({
       ...r,
       similarity: fused.get(r.uniqueId) ?? r.similarity,
     }));
     const seen = new Set(combined.map((r) => r.uniqueId));
-    for (const id of options.entityRanking) {
-      if (seen.has(id)) continue;
-      const it = itemById.get(id);
-      if (!it) continue;
-      combined.push({ uniqueId: id, content: it.content, similarity: fused.get(id) ?? 0 });
+    for (const lane of sideLanes) {
+      for (const id of lane) {
+        if (seen.has(id)) continue;
+        const it = itemById.get(id);
+        if (!it) continue;
+        combined.push({ uniqueId: id, content: it.content, similarity: fused.get(id) ?? 0 });
+        seen.add(id);
+      }
     }
   }
 
@@ -490,6 +515,12 @@ export async function rankFusedVaultMemoriesAsync(
      * a boost. Build with {@link rankByEntityOverlap}.
      */
     entityRanking?: string[];
+    /**
+     * W6 — temporal retrieval lane. Pre-built ranking of memory IDs whose
+     * event-time overlaps the resolved query window, descending by overlap
+     * score. Same lane semantics as `entityRanking`.
+     */
+    temporalRanking?: string[];
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -544,27 +575,31 @@ export async function rankFusedVaultMemoriesAsync(
   // surfaces candidates V2 missed entirely (e.g. zero-cosine items with
   // shared entities — the hard_negatives win), without overruling the
   // CE's lexical decisions on items it has already seen.
+  const sideLanesAsync: string[][] = [];
   if (options?.entityRanking && options.entityRanking.length > 0) {
+    sideLanesAsync.push(options.entityRanking);
+  }
+  if (options?.temporalRanking && options.temporalRanking.length > 0) {
+    sideLanesAsync.push(options.temporalRanking);
+  }
+  if (sideLanesAsync.length > 0) {
     const headIds = combined.map((r) => r.uniqueId);
-    const fused = rrfFuse([headIds, headIds, options.entityRanking]);
+    const fused = rrfFuse([headIds, headIds, ...sideLanesAsync]);
     const fusedHead = combined
       .map((r) => ({ ...r, similarity: fused.get(r.uniqueId) ?? r.similarity }))
       .sort((a, b) => b.similarity - a.similarity);
-    // Items in entityRanking but absent from the CE head re-enter the
-    // pipeline at the bottom of `combined` so they're available to RRF
-    // even if CE didn't see them. Their score is the graph-only RRF
-    // contribution.
+    // Items in side lanes but absent from the CE head re-enter the pipeline
+    // at the bottom so they're available to RRF even if CE didn't see them.
     const seen = new Set(combined.map((r) => r.uniqueId));
     const itemById = new Map(items.map((i) => [i.id, i]));
-    for (const id of options.entityRanking) {
-      if (seen.has(id)) continue;
-      const it = itemById.get(id);
-      if (!it) continue;
-      fusedHead.push({
-        uniqueId: id,
-        content: it.content,
-        similarity: fused.get(id) ?? 0,
-      });
+    for (const lane of sideLanesAsync) {
+      for (const id of lane) {
+        if (seen.has(id)) continue;
+        const it = itemById.get(id);
+        if (!it) continue;
+        fusedHead.push({ uniqueId: id, content: it.content, similarity: fused.get(id) ?? 0 });
+        seen.add(id);
+      }
     }
     fusedHead.sort((a, b) => b.similarity - a.similarity);
     combined = fusedHead;
@@ -925,6 +960,7 @@ export async function searchVaultMemoriesWithSize(
         rerankTopN: searchOptions.rerankTopN,
       }),
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
+      ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
     return { results, vaultSize: memories.length };
   }
@@ -934,6 +970,7 @@ export async function searchVaultMemoriesWithSize(
       limit,
       minSimilarity,
       ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
+      ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
     return { results, vaultSize: memories.length };
   }
