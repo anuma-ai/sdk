@@ -9,8 +9,11 @@ export {
   BUILT_IN_TOOL_SETS,
   type CachedServerTools,
   clearServerToolsCache,
+  createServerToolsFilter,
+  type CreateServerToolsFilterOptions,
   // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
+  expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
   // Functions

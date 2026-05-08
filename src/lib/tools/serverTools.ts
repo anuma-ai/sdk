@@ -881,6 +881,116 @@ export function applyToolSets(
 }
 
 /**
+ * Additively expand tool sets: when any anchor of a set scores at or above
+ * its `anchorMinSimilarity`, all set members are added to the result.
+ * Original matches are preserved; multiple sets can expand independently.
+ *
+ * Use this for server-side toolkit suites where the LLM needs the full call
+ * chain (e.g. fal_list_models → fal_model_schema → fal_queue_submit →
+ * fal_queue_status → fal_queue_result). Differs from `applyToolSets`,
+ * which replaces non-set matches when a set activates.
+ *
+ * To express "any member triggers the set" (not specific anchors), pass
+ * `anchors: members` when defining the ToolSet.
+ *
+ * @param matchedNames - Names selected by semantic matching
+ * @param availableNames - All tool names available for selection
+ * @param scores - Map of tool name → similarity score
+ * @param toolSets - Tool sets to evaluate
+ * @returns Set including original matches plus members of any activated set
+ */
+export function expandToolSetsAdditive(
+  matchedNames: Set<string>,
+  availableNames: Set<string>,
+  scores: Map<string, number>,
+  toolSets: ToolSet[]
+): Set<string> {
+  const result = new Set(matchedNames);
+  for (const ts of toolSets) {
+    const minSim = ts.anchorMinSimilarity ?? 0.6;
+    let triggered = false;
+    for (const anchor of ts.anchors) {
+      if ((scores.get(anchor) ?? 0) >= minSim) {
+        triggered = true;
+        break;
+      }
+    }
+    if (!triggered) continue;
+    for (const member of ts.members) {
+      if (availableNames.has(member)) {
+        result.add(member);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Options for createServerToolsFilter.
+ */
+export interface CreateServerToolsFilterOptions {
+  /**
+   * Tool sets to expand additively. When any anchor scores at or above the
+   * set's `anchorMinSimilarity`, all members are included alongside the
+   * original semantic matches.
+   */
+  toolSets?: ToolSet[];
+  /** Tool names to always drop from results, even when they match. */
+  excludeTools?: Iterable<string>;
+  /** Options forwarded to `findMatchingTools`. */
+  matchOptions?: ToolMatchOptions;
+}
+
+/**
+ * Build a server-tools filter function for use with `useChatStorage`'s
+ * `serverTools` option. Composes `findMatchingTools`, `expandToolSetsAdditive`,
+ * and an exclude-list into a single (embeddings, tools) → string[] callback.
+ *
+ * @example
+ * ```ts
+ * import { createServerToolsFilter } from "@anuma/sdk/tools";
+ *
+ * const serverTools = createServerToolsFilter({
+ *   toolSets: [
+ *     {
+ *       name: "fal",
+ *       members: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
+ *       anchors: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
+ *       anchorMinSimilarity: 0.7,
+ *     },
+ *   ],
+ *   excludeTools: ["AnumaFalMCP-fal_billing"],
+ *   matchOptions: { limit: 5, minSimilarity: 0.5 },
+ * });
+ * ```
+ */
+export function createServerToolsFilter(
+  options: CreateServerToolsFilterOptions = {}
+): (embeddings: number[] | number[][], tools: ServerTool[]) => string[] {
+  const exclude = new Set(options.excludeTools ?? []);
+  const sets = options.toolSets ?? [];
+  const matchOpts = options.matchOptions;
+
+  return (embeddings, tools) => {
+    const matches = findMatchingTools(embeddings, tools, matchOpts);
+    if (matches.length === 0) return [];
+
+    const matchedNames = new Set(matches.map((m) => m.tool.name));
+    let finalNames: Set<string>;
+    if (sets.length > 0) {
+      const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
+      const availableNames = new Set(tools.map((t) => t.name));
+      finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, sets);
+    } else {
+      finalNames = matchedNames;
+    }
+
+    for (const name of exclude) finalNames.delete(name);
+    return [...finalNames];
+  };
+}
+
+/**
  * Options for selectServerSideTools
  */
 export interface SelectServerSideToolsOptions {

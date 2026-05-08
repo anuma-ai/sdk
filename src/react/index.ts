@@ -466,16 +466,20 @@ export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dro
 export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";
 export type {
   CachedServerTools,
+  CreateServerToolsFilterOptions,
   ParsedServerToolsResponse,
   ServerTool,
   ServerToolsOptions,
   ServerToolsResponse,
   ToolMatchOptions,
   ToolMatchResult,
+  ToolSet,
 } from "../lib/tools";
 export {
   clearServerToolsCache,
+  createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
+  expandToolSetsAdditive,
   findMatchingTools,
   getCachedServerTools,
   getServerTools,
