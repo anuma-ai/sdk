@@ -9,6 +9,7 @@ import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { applyMMR } from "../memory/mmr";
+import { temporalProximityMultiplier } from "../memory/queryTemporal";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
@@ -78,6 +79,16 @@ export interface MemoryVaultSearchOptions {
    * pass-through from `recall()` when the query has a temporal phrase.
    */
   temporalRanking?: string[];
+  /**
+   * Resolved query time window (Unix ms) — when supplied, every candidate
+   * with an event_time gets a multiplicative proximity boost peaking
+   * inside the window and decaying exponentially outside. Independent of
+   * `temporalRanking`: that is a retrieval lane (binary in/out + RRF rank);
+   * this is a post-V2 boost on cosine/BM25/graph candidates so memories
+   * close to but outside the window still win tiebreaks against those
+   * far away.
+   */
+  temporalWindow?: import("../memory/queryTemporal.js").TemporalWindow | null;
 }
 
 /**
@@ -108,6 +119,12 @@ interface EmbeddedItem {
   updatedAt?: Date;
   /** Number of times this fact has been re-observed (W4 — auto-merge). */
   proofCount?: number | null;
+  /** Real-world event start (W6) — used for temporal-proximity boost. */
+  eventTimeStart?: number | null;
+  /** Real-world event end (W6, range kind) — used for temporal-proximity boost. */
+  eventTimeEnd?: number | null;
+  /** Event-time kind: "point" | "range" | "ongoing" (W6). */
+  eventTimeKind?: string | null;
 }
 
 /**
@@ -337,11 +354,18 @@ export function rankFusedVaultMemories(
      * entityRanking: tail-admission for items absent from the cosine head.
      */
     temporalRanking?: string[];
+    /**
+     * Resolved query time window — applies a multiplicative proximity boost
+     * to candidates whose `eventTimeStart` is near the window. See
+     * {@link MemoryVaultSearchOptions.temporalWindow} for shape and rationale.
+     */
+    temporalWindow?: import("../memory/queryTemporal.js").TemporalWindow | null;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
   const recencyAlpha = options?.recencyAlpha ?? 1.0;
+  const temporalWindow = options?.temporalWindow ?? null;
 
   if (items.length === 0) return [];
 
@@ -372,16 +396,28 @@ export function rankFusedVaultMemories(
     });
   }
 
-  // Stage 3 — recency + proof-count boosts on the union.
+  // Stage 3 — recency + proof-count + temporal-proximity boosts on the union.
   // proof_count: re-observed facts get a small log-curve lift (Hindsight α=0.1).
   // Items with no proof_count (legacy / unset) treated as 1 → log(2)≈0.69 → boost ~7%.
+  // temporal-proximity: when the query parsed a time window, memories with
+  // event_time near the window get a smooth boost — neutral (1.0) when no
+  // window or no event_time. See {@link temporalProximityMultiplier}.
   let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => {
     const item = itemById.get(r.uniqueId);
     const recency = recencyMultiplier(item?.updatedAt, options?.recency);
     const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
     const proofCount = Math.max(1, item?.proofCount ?? 1);
     const proofBoost = 1 + 0.1 * Math.log(1 + proofCount) - 0.1 * Math.log(2);
-    return { ...r, similarity: r.similarity * recencyBoost * proofBoost };
+    const proximityBoost = temporalProximityMultiplier(
+      item?.eventTimeStart ?? null,
+      item?.eventTimeEnd ?? null,
+      item?.eventTimeKind ?? null,
+      temporalWindow
+    );
+    return {
+      ...r,
+      similarity: r.similarity * recencyBoost * proofBoost * proximityBoost,
+    };
   });
 
   // Stage 4 — W5 graph lane fusion. RRF the boosted cosine+BM25 head with
@@ -521,6 +557,8 @@ export async function rankFusedVaultMemoriesAsync(
      * score. Same lane semantics as `entityRanking`.
      */
     temporalRanking?: string[];
+    /** See {@link MemoryVaultSearchOptions.temporalWindow}. */
+    temporalWindow?: import("../memory/queryTemporal.js").TemporalWindow | null;
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -529,6 +567,7 @@ export async function rankFusedVaultMemoriesAsync(
     minSimilarity: options?.minSimilarity,
     recencyAlpha: options?.recencyAlpha,
     recency: options?.recency,
+    ...(options?.temporalWindow !== undefined && { temporalWindow: options.temporalWindow }),
   });
 
   if (v2Ranked.length === 0) return [];
@@ -921,7 +960,16 @@ export async function searchVaultMemoriesWithSize(
   for (const m of memories) {
     const embedding = cache.get(m.content);
     if (embedding) {
-      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding, updatedAt: m.updatedAt });
+      embeddedItems.push({
+        id: m.uniqueId,
+        content: m.content,
+        embedding,
+        updatedAt: m.updatedAt,
+        proofCount: m.proofCount ?? null,
+        eventTimeStart: m.eventTimeStart ?? null,
+        eventTimeEnd: m.eventTimeEnd ?? null,
+        eventTimeKind: m.eventTimeKind ?? null,
+      });
     }
   }
 
@@ -961,6 +1009,9 @@ export async function searchVaultMemoriesWithSize(
       }),
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+      ...(searchOptions.temporalWindow !== undefined && {
+        temporalWindow: searchOptions.temporalWindow,
+      }),
     });
     return { results, vaultSize: memories.length };
   }
@@ -971,6 +1022,9 @@ export async function searchVaultMemoriesWithSize(
       minSimilarity,
       ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+      ...(searchOptions?.temporalWindow !== undefined && {
+        temporalWindow: searchOptions.temporalWindow,
+      }),
     });
     return { results, vaultSize: memories.length };
   }

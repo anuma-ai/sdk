@@ -259,3 +259,62 @@ export function scoreEventTimeOverlap(
   const memorySpan = Math.max(1, end - memoryStart);
   return overlap / memorySpan;
 }
+
+export interface TemporalProximityOptions {
+  /** Distance at which the boost decays to half. Default 7 days. */
+  halfLifeMs?: number;
+  /** Coefficient on the boost. Final multiplier = 1 + alpha × proximity. Default 0.3. */
+  alpha?: number;
+}
+
+/**
+ * Multiplicative boost based on how close a memory's event-time is to the
+ * query window. Returns 1.0 (neutral) when:
+ *  - the query has no temporal phrase (`window === null`)
+ *  - the memory has no event-time (`memoryStart === null`)
+ *
+ * Otherwise returns `1 + alpha × 0.5^(distance/halfLife)`, peaking at
+ * `1 + alpha` when the memory falls inside the window and decaying
+ * exponentially as distance grows. The temporal lane already provides a
+ * binary in/out signal via RRF; this boost gives the cosine + BM25 + graph
+ * lanes a smooth tiebreaker so a memory two days outside "next week" still
+ * outranks one a year off, even if both are dropped by the temporal lane.
+ *
+ * Mirrors Hindsight's post-fusion temporal-proximity multiplier (cf.
+ * benchmarks docs §"Recency, temporal proximity, proof count").
+ */
+export function temporalProximityMultiplier(
+  memoryStart: number | null,
+  memoryEnd: number | null,
+  memoryKind: string | null,
+  window: TemporalWindow | null,
+  options?: TemporalProximityOptions
+): number {
+  if (window === null || memoryStart === null) return 1.0;
+  const halfLife = options?.halfLifeMs ?? WEEK_MS;
+  const alpha = options?.alpha ?? 0.3;
+
+  let distance: number;
+  if (memoryKind === "range" && memoryEnd !== null) {
+    if (memoryStart < window.end && memoryEnd > window.start) {
+      distance = 0;
+    } else if (memoryEnd <= window.start) {
+      distance = window.start - memoryEnd;
+    } else {
+      distance = memoryStart - window.end;
+    }
+  } else if (memoryKind === "ongoing") {
+    distance = memoryStart < window.end ? 0 : memoryStart - window.end;
+  } else {
+    if (memoryStart >= window.start && memoryStart < window.end) {
+      distance = 0;
+    } else if (memoryStart < window.start) {
+      distance = window.start - memoryStart;
+    } else {
+      distance = memoryStart - window.end + 1;
+    }
+  }
+
+  const proximity = Math.pow(0.5, distance / halfLife);
+  return 1 + alpha * proximity;
+}
