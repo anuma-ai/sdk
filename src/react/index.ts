@@ -186,12 +186,17 @@ export {
   /** @deprecated Use sdkSchema instead */
   chatStorageSchema,
   type ChunkSearchResult,
+  clearLazyTitleCache,
   type ClientToolsFilterFn,
   type CreateConversationOptions,
   type CreateMessageOptions,
+  decryptConversationTitle,
   type FileMetadata,
   generateConversationId,
+  getConversationsByProjectLazyOp,
   getConversationsByProjectOp,
+  getConversationsLazyOp,
+  type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
   searchChunksOp,
@@ -443,6 +448,7 @@ export type {
   EmbeddingOptions as MemoryEngineEmbeddingOptions,
   MemoryEngineResult,
   MemoryEngineSearchOptions,
+  QuantizedEmbedding,
   TextChunk,
 } from "../lib/memoryEngine";
 export {
@@ -450,14 +456,18 @@ export {
   // Chunking functions for sub-message semantic search
   chunkAndEmbedMessage,
   chunkText,
+  // Int8 embedding quantization helpers (RAM reduction for client caches)
+  cosineInt8,
   createMemoryEngineTool,
   DEFAULT_CHUNK_OVERLAP,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CHUNK_SIZE,
+  dequantizeEmbedding,
   embedAllMessages,
   embedMessage,
   generateEmbedding,
   generateEmbeddings,
+  quantizeEmbedding,
   shouldChunkMessage,
 } from "../lib/memoryEngine";
 

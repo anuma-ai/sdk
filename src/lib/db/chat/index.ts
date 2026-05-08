@@ -1,3 +1,4 @@
+export { clearLazyTitleCache, decryptConversationTitle } from "./lazyDecrypt";
 export { Conversation, ConversationSummary, Message } from "./models";
 export {
   clearMessagesOp,
@@ -6,7 +7,9 @@ export {
   deleteConversationOp,
   getAllFilesOp,
   getConversationOp,
+  getConversationsByProjectLazyOp,
   getConversationsByProjectOp,
+  getConversationsLazyOp,
   getConversationsOp,
   getMessagesOp,
   makeSyntheticStoredConversation,
@@ -45,6 +48,7 @@ export {
   type FileMetadata,
   finalizeThoughtProcess,
   generateConversationId,
+  type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
   type SearchSource,
