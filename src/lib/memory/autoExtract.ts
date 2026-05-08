@@ -59,6 +59,12 @@ For each durable fact, output:
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
 - entities: named entities mentioned (people, places, things). Optional. Skip generic nouns.
+- eventTime: when the event in this fact occurs/occurred. Resolve relative phrases against the conversation date you can infer from context. Output one of:
+    - { "kind": "point", "start": "YYYY-MM-DD" }     for a single date ("met Sara on March 14, 2026")
+    - { "kind": "range", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }  for a span ("Japan trip May 4–15, 2026")
+    - { "kind": "ongoing", "start": "YYYY-MM-DD" }   for a status that started on a date and continues ("works at Linear since January 2024")
+    - null   for facts with no temporal anchor ("favorite color is blue", "speaks Spanish")
+  Always use absolute YYYY-MM-DD; never write "yesterday" / "last week" / "next month".
 
 If a fact UPDATES a prior state ("I moved to SF in November"), still emit it - the resolver decides what to do.
 
@@ -79,6 +85,16 @@ export interface ExtractedCandidate {
   confidence: number;
   sourceMessageIds: string[];
   entities: string[];
+  /** W6 temporal lane — when the event in this fact occurred. Resolved
+   *  to absolute timestamps by the LLM; null when the fact has no
+   *  temporal anchor. */
+  eventTime: {
+    kind: "point" | "range" | "ongoing";
+    /** Unix ms timestamp of the event start (or point). */
+    start: number;
+    /** Unix ms timestamp of the event end. Only set when kind='range'. */
+    end: number | null;
+  } | null;
 }
 
 export interface ExtractFactsOptions {
@@ -194,6 +210,7 @@ export async function extractAndRetain(
         sourceChunkIds: candidate.sourceMessageIds,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
       });
       results.push(result);
 
@@ -258,7 +275,38 @@ function validateCandidates(parsed: unknown, validIds: Set<string>): ExtractedCa
       ? obj.entities.filter((s): s is string => typeof s === "string")
       : [];
 
-    out.push({ content, type, confidence, sourceMessageIds, entities });
+    const eventTime = parseEventTime(obj.eventTime);
+
+    out.push({ content, type, confidence, sourceMessageIds, entities, eventTime });
   }
   return out;
+}
+
+/**
+ * Parse the LLM's `eventTime` shape into Unix-ms timestamps. Accepts
+ * { kind, start, end? } where start/end are YYYY-MM-DD strings (most
+ * compliant LLMs), or epoch numbers (defensive fallback). Returns null
+ * for malformed shapes — temporal lane just no-ops on those memories.
+ */
+function parseEventTime(raw: unknown): ExtractedCandidate["eventTime"] {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const kindRaw = obj.kind;
+  if (kindRaw !== "point" && kindRaw !== "range" && kindRaw !== "ongoing") return null;
+  const start = parseEventDate(obj.start);
+  if (start === null) return null;
+  const end = kindRaw === "range" ? parseEventDate(obj.end) : null;
+  if (kindRaw === "range" && end === null) return null;
+  return { kind: kindRaw, start, end };
+}
+
+function parseEventDate(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  // YYYY-MM-DD or full ISO. Date.parse handles both; reject on NaN.
+  const ms = Date.parse(trimmed);
+  return Number.isFinite(ms) ? ms : null;
 }

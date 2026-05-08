@@ -127,6 +127,14 @@ export async function retain(
       }),
     proofCount: 1,
     source: options.source ?? "manual",
+    ...(options.eventTime !== undefined &&
+      options.eventTime !== null && {
+        eventTime: {
+          start: options.eventTime.start,
+          end: options.eventTime.end,
+          kind: options.eventTime.kind,
+        },
+      }),
   });
 
   return {
