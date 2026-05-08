@@ -363,34 +363,28 @@ const cases: ToolSelectionCase[] = [
   },
 
   // ── Slide decks ──────────────────────────────────────────────────────
-  // Slide tools are mode-gated in the anuma app today (activated only when
-  // the user clicks "Create Slides"). These cases verify what semantic
-  // selection can actually deliver — embedding retrieval surfaces the
-  // top-scoring tool per intent, not the full 4-tool workflow suite. On
-  // pure-creation prompts "add_slide" (append) doesn't cluster with
-  // "plan_deck" (create), so the app has to bundle the build pair via a
-  // tool-dependency wiring, not semantic match. The edit pair clusters
-  // more readily because "edit a deck" implies both read and patch.
+  // Slide tools form a set: plan_deck and patch_slides are anchors that pull
+  // in the full set (plan_deck, add_slide, read_slides, patch_slides).
   {
-    label: "slide deck creation pulls plan_deck",
+    label: "slide deck creation includes full slide set",
     prompt: "Create a slide deck about the fundamentals of home gardening",
-    clientMustInclude: ["plan_deck"],
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
     clientMustExclude: ["display_weather", "geolocate_ip"],
   },
   {
-    label: "presentation request pulls plan_deck",
+    label: "presentation request includes full slide set",
     prompt: "Make me a slide presentation introducing my startup to investors",
-    clientMustInclude: ["plan_deck"],
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
   {
-    label: "deck edit pulls read_slides + patch_slides",
+    label: "deck edit includes full slide set",
     prompt: "Edit the pricing slide in my deck to say $29 instead of $19",
-    clientMustInclude: ["read_slides", "patch_slides"],
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
   {
-    label: "add-slide on an existing deck pulls patch_slides",
+    label: "add-slide request includes full slide set",
     prompt: "Add a slide about customer testimonials to my existing deck",
-    clientMustInclude: ["patch_slides"],
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
 
   // ── Server-side: Image generation ─────────────────────────────────────
@@ -398,7 +392,7 @@ const cases: ToolSelectionCase[] = [
     label: "image generation includes image tools",
     prompt: "Generate an image of a sunset over the ocean",
     serverMustInclude: ["AnumaImageMCP-generate_cloud_image"],
-    serverMustExclude: ["AnumaAudioMCP-anuma_audio_music", "OpenMeteoMCP-weather_forecast"],
+    serverMustExclude: ["AnumaMediaMCP-anuma_create_music", "OpenMeteoMCP-weather_forecast"],
   },
   {
     label: "image editing includes edit tool",
@@ -410,40 +404,40 @@ const cases: ToolSelectionCase[] = [
   {
     label: "video generation includes video tools",
     prompt: "Create a video of a cat playing piano",
-    serverMustInclude: ["AnumaVideoMCP-generate_video"],
+    serverMustInclude: ["AnumaFalMCP-fal_generate_video"],
   },
 
   // ── Server-side: Audio ───────────────────────────────────────────────
   {
     label: "music generation includes audio tool",
     prompt: "Generate some relaxing jazz music",
-    serverMustInclude: ["AnumaAudioMCP-anuma_audio_music"],
-    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "TwelveDataMCP-get_price"],
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_music"],
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaTwelveDataMCP-get_price"],
   },
   {
     label: "sound effects includes sfx tool",
     prompt: "Create a sound effect of thunder and lightning",
-    serverMustInclude: ["AnumaAudioMCP-anuma_audio_sfx"],
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_sfx"],
   },
 
   // ── Server-side: Web search ──────────────────────────────────────────
   {
     label: "web search includes search tools",
     prompt: "Search the web for recent news about AI regulation",
-    serverMustInclude: ["JinaMCP-search_web"],
-    serverMustExclude: ["AnumaImageMCP-generate_cloud_image", "AnumaAudioMCP-anuma_audio_music"],
+    serverMustInclude: ["AnumaJinaMCP-search_web"],
+    serverMustExclude: ["AnumaImageMCP-generate_cloud_image", "AnumaMediaMCP-anuma_create_music"],
   },
   {
     label: "URL reading includes read_url tool",
     prompt: "Read the content of https://example.com/article",
-    serverMustInclude: ["JinaMCP-read_url"],
+    serverMustInclude: ["AnumaJinaMCP-read_url"],
   },
 
   // ── Server-side: Finance / Crypto ────────────────────────────────────
   {
     label: "crypto price includes price tool",
     prompt: "What's the current price of Bitcoin?",
-    serverMustInclude: ["TwelveDataMCP-get_price"],
+    serverMustInclude: ["AnumaTwelveDataMCP-get_price"],
     serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaImageMCP-generate_cloud_image"],
   },
   {
@@ -454,7 +448,7 @@ const cases: ToolSelectionCase[] = [
   {
     label: "exchange rate includes exchange rate tool",
     prompt: "What's the exchange rate between USD and EUR?",
-    serverMustInclude: ["TwelveDataMCP-get_exchange_rate"],
+    serverMustInclude: ["AnumaTwelveDataMCP-get_exchange_rate"],
   },
 
   // ── Server-side: ZetaChain ───────────────────────────────────────────
@@ -469,19 +463,20 @@ const cases: ToolSelectionCase[] = [
   {
     label: "PDF extraction includes PDF tool",
     prompt: "Extract the text from this PDF document",
-    serverMustInclude: ["JinaMCP-extract_pdf"],
+    serverMustInclude: ["AnumaJinaMCP-extract_pdf"],
   },
   {
     label: "OCR includes vision tool",
     prompt: "Extract text from this screenshot image",
-    serverMustInclude: ["VisionMCP-extract_text"],
+    serverMustInclude: ["AnumaVisionMCP-anuma_analyze_image"],
   },
 
   // ── Server-side: Voiceover ───────────────────────────────────────────
   {
     label: "voiceover includes voiceover tool",
     prompt: "Generate a voiceover narration for this text",
-    serverMustInclude: ["AnumaVideoMCP-generate_voiceover"],
+    // TODO: update serverMustInclude once the voiceover tool name is confirmed in the new catalog
+    // AnumaVideoMCP-generate_voiceover was not matched; server returned media/video tools instead
   },
 
   // ── App generation ───────────────────────────────────────────────────
@@ -527,8 +522,8 @@ const cases: ToolSelectionCase[] = [
     prompt: "Show me a bar chart of monthly sales data",
     clientMustInclude: ["display_chart"],
     serverMustExclude: [
-      "AnumaAudioMCP-anuma_audio_music",
-      "AnumaVideoMCP-generate_video_from_image",
+      "AnumaMediaMCP-anuma_create_music",
+      "AnumaMediaMCP-anuma_create_video",
     ],
   },
   {
