@@ -1,6 +1,6 @@
 # RankedMemory
 
-Defined in: [src/lib/memory/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#41)
+Defined in: [src/lib/memory/types.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#42)
 
 A ranked memory returned by `recall()`. Shape is uniform across kinds —
 `kind` discriminates, kind-specific metadata is optional.
@@ -11,7 +11,7 @@ A ranked memory returned by `recall()`. Shape is uniform across kinds —
 
 > **content**: `string`
 
-Defined in: [src/lib/memory/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#44)
+Defined in: [src/lib/memory/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#45)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [src/lib/memory/types.ts:44](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/types.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#55)
+Defined in: [src/lib/memory/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#56)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [src/lib/memory/types.ts:55](https://github.com/anuma-ai/sdk/blob/ma
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/memory/types.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#59)
+Defined in: [src/lib/memory/types.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#60)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [src/lib/memory/types.ts:59](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/types.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#52)
+Defined in: [src/lib/memory/types.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#53)
 
 ***
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/memory/types.ts:52](https://github.com/anuma-ai/sdk/blob/ma
 
 > **id**: `string`
 
-Defined in: [src/lib/memory/types.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#42)
+Defined in: [src/lib/memory/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#43)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [src/lib/memory/types.ts:42](https://github.com/anuma-ai/sdk/blob/ma
 
 > **kind**: [`MemoryKind`](../type-aliases/MemoryKind.md)
 
-Defined in: [src/lib/memory/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#43)
+Defined in: [src/lib/memory/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#44)
 
 ***
 
@@ -59,7 +59,7 @@ Defined in: [src/lib/memory/types.ts:43](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **messageId**: `string`
 
-Defined in: [src/lib/memory/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#56)
+Defined in: [src/lib/memory/types.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#57)
 
 ***
 
@@ -67,7 +67,7 @@ Defined in: [src/lib/memory/types.ts:56](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **proofCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#50)
+Defined in: [src/lib/memory/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#51)
 
 ***
 
@@ -75,7 +75,7 @@ Defined in: [src/lib/memory/types.ts:50](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **role**: `"user"` | `"assistant"`
 
-Defined in: [src/lib/memory/types.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#57)
+Defined in: [src/lib/memory/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#58)
 
 ***
 
@@ -83,7 +83,7 @@ Defined in: [src/lib/memory/types.ts:57](https://github.com/anuma-ai/sdk/blob/ma
 
 > **score**: `number`
 
-Defined in: [src/lib/memory/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#45)
+Defined in: [src/lib/memory/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#46)
 
 ***
 
@@ -91,7 +91,7 @@ Defined in: [src/lib/memory/types.ts:45](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **scoreBreakdown**: [`ScoreBreakdown`](ScoreBreakdown.md)
 
-Defined in: [src/lib/memory/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#46)
+Defined in: [src/lib/memory/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#47)
 
 ***
 
@@ -99,7 +99,7 @@ Defined in: [src/lib/memory/types.ts:46](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **source**: `string`
 
-Defined in: [src/lib/memory/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#51)
+Defined in: [src/lib/memory/types.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#52)
 
 ***
 
@@ -107,7 +107,7 @@ Defined in: [src/lib/memory/types.ts:51](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **sourceChunkIds**: `string`\[]
 
-Defined in: [src/lib/memory/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#49)
+Defined in: [src/lib/memory/types.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#50)
 
 ***
 
@@ -115,4 +115,4 @@ Defined in: [src/lib/memory/types.ts:49](https://github.com/anuma-ai/sdk/blob/ma
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/memory/types.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#60)
+Defined in: [src/lib/memory/types.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#61)

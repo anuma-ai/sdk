@@ -1,6 +1,6 @@
 # ScoreBreakdown
 
-Defined in: [src/lib/memory/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#28)
+Defined in: [src/lib/memory/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#29)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:28](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **bm25**: `number`
 
-Defined in: [src/lib/memory/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#30)
+Defined in: [src/lib/memory/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#31)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/types.ts:30](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **cosine**: `number`
 
-Defined in: [src/lib/memory/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#29)
+Defined in: [src/lib/memory/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#30)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/types.ts:29](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **recency**: `number`
 
-Defined in: [src/lib/memory/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#31)
+Defined in: [src/lib/memory/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#32)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/types.ts:31](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **rerank**: `number`
 
-Defined in: [src/lib/memory/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#32)
+Defined in: [src/lib/memory/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#33)
 
 ***
 
@@ -40,6 +40,6 @@ Defined in: [src/lib/memory/types.ts:32](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **rrfRank**: `number`
 
-Defined in: [src/lib/memory/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#34)
+Defined in: [src/lib/memory/types.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#35)
 
 Final RRF rank (1-indexed) before any boost.
