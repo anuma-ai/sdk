@@ -169,8 +169,11 @@ async function autoFilterClientTools(
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
-  // Skip if no embeddings or too few filterable tools
-  if (!promptEmbeddings || filterCandidates.length <= MAX_CLIENT_TOOLS_AFTER_FILTER) {
+  // Skip only if we have nothing to match against. The prior count gate
+  // (skip when filterCandidates <= MAX_CLIENT_TOOLS_AFTER_FILTER) defeated
+  // filtering on small catalogs, where dropping irrelevant tools still
+  // matters. MAX_CLIENT_TOOLS_AFTER_FILTER remains the result-size cap below.
+  if (!promptEmbeddings || filterCandidates.length === 0) {
     return clientTools;
   }
 
