@@ -342,8 +342,8 @@ export {
 // auto-extraction writes to and the recall graph lane reads from.
 export {
   type CreateEntityOptions,
-  Entity as EntityModel,
   type EntityKind,
+  Entity as EntityModel,
   type EntityOperationsContext,
   getMemoriesByEntityNamesOp,
   linkMemoryEntitiesOp,

@@ -140,8 +140,8 @@ export function parseQueryTimeWindow(
   // ── 4. Numeric offset: "in N days", "N days ago", "N weeks from now" ─
   const inMatch = /\bin\s+(\d+)\s+(day|days|week|weeks|month|months)\b/.exec(q);
   if (inMatch) {
-    const n = parseInt(inMatch[1]!, 10);
-    const unit = inMatch[2]!;
+    const n = parseInt(inMatch[1], 10);
+    const unit = inMatch[2];
     const delta = unit.startsWith("day")
       ? n * DAY_MS
       : unit.startsWith("week")
@@ -152,8 +152,8 @@ export function parseQueryTimeWindow(
   }
   const agoMatch = /\b(\d+)\s+(day|days|week|weeks|month|months)\s+ago\b/.exec(q);
   if (agoMatch) {
-    const n = parseInt(agoMatch[1]!, 10);
-    const unit = agoMatch[2]!;
+    const n = parseInt(agoMatch[1], 10);
+    const unit = agoMatch[2];
     const delta = unit.startsWith("day")
       ? n * DAY_MS
       : unit.startsWith("week")
@@ -168,7 +168,7 @@ export function parseQueryTimeWindow(
     /\b(next|last|this)?\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/.exec(q);
   if (dowMatch) {
     const modifier = dowMatch[1] ?? "this";
-    const targetDow = DOW_NAMES.indexOf(dowMatch[2]!);
+    const targetDow = DOW_NAMES.indexOf(dowMatch[2]);
     const todayStart = startOfDay(now);
     const todayDow = new Date(todayStart).getDay();
     let delta = targetDow - todayDow;
@@ -193,8 +193,8 @@ export function parseQueryTimeWindow(
     `\\b(${MONTH_NAMES.join("|")})\\s+(\\d{1,2})(?:\\s*,?\\s*(\\d{4}))?\\b`
   ).exec(q);
   if (monthDayMatch) {
-    const monthIdx = MONTH_NAMES.indexOf(monthDayMatch[1]!);
-    const day = parseInt(monthDayMatch[2]!, 10);
+    const monthIdx = MONTH_NAMES.indexOf(monthDayMatch[1]);
+    const day = parseInt(monthDayMatch[2], 10);
     const yearStr = monthDayMatch[3];
     const year = yearStr ? parseInt(yearStr, 10) : new Date(now).getFullYear();
     const start = new Date(year, monthIdx, day).getTime();
@@ -206,7 +206,7 @@ export function parseQueryTimeWindow(
     q
   );
   if (monthOnlyMatch) {
-    const monthIdx = MONTH_NAMES.indexOf(monthOnlyMatch[1]!);
+    const monthIdx = MONTH_NAMES.indexOf(monthOnlyMatch[1]);
     const yearStr = monthOnlyMatch[2];
     const year = yearStr ? parseInt(yearStr, 10) : new Date(now).getFullYear();
     const start = new Date(year, monthIdx, 1).getTime();

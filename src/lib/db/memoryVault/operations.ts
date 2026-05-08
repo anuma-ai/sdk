@@ -183,11 +183,21 @@ export async function getMemoriesByEventTimeOp(
       if (kind === "ongoing") {
         // Ongoing memories: start before windowEnd is a hit.
         if (start < windowEnd) {
-          out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
+          out.push({
+            uniqueId: r.id,
+            eventTimeStart: start,
+            eventTimeEnd: end,
+            eventTimeKind: kind,
+          });
         }
       } else {
         if (start >= windowStart && start < windowEnd) {
-          out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
+          out.push({
+            uniqueId: r.id,
+            eventTimeStart: start,
+            eventTimeEnd: end,
+            eventTimeKind: kind,
+          });
         }
       }
       continue;

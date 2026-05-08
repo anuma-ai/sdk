@@ -49,6 +49,11 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import {
+  Entity as EntityModel,
+  MemoryEntity as MemoryEntityModel,
+} from "../lib/db/entities/models";
+import type { EntityOperationsContext } from "../lib/db/entities/operations";
+import {
   createMediaBatchOp,
   deleteMediaByConversationOp,
   getMediaByIdsOp,
@@ -65,8 +70,6 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
-import { Entity as EntityModel, MemoryEntity as MemoryEntityModel } from "../lib/db/entities/models";
-import type { EntityOperationsContext } from "../lib/db/entities/operations";
 import { VaultMemory } from "../lib/db/memoryVault/models";
 import {
   type FlushResult,
