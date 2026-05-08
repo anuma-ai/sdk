@@ -24,113 +24,86 @@ import {
   type ServerTool,
 } from "../../src/lib/tools/serverTools.js";
 import { generateEmbedding, generateEmbeddings } from "../../src/lib/memoryEngine/embeddings.js";
+import type { ToolConfig } from "../../src/lib/chat/useChat/types.js";
+import {
+  createChartTool,
+  createChoiceTool,
+  createFormTool,
+  createGitHubTools,
+  createPhoneCallOfferTool,
+  createWeatherTool,
+  CREATE_FILE_SCHEMA,
+  DELETE_FILE_SCHEMA,
+  DISPLAY_APP_SCHEMA,
+  LIST_FILES_SCHEMA,
+  PATCH_FILE_SCHEMA,
+  READ_FILE_SCHEMA,
+} from "../../src/tools/index.js";
+import { createIpGeolocationTool } from "../../src/tools/ipGeolocation.js";
+import { createTimezoneTool } from "../../src/tools/timezone.js";
+import {
+  ADD_SLIDE_SCHEMA,
+  PATCH_SLIDES_SCHEMA,
+  PLAN_DECK_SCHEMA,
+  READ_SLIDES_SCHEMA,
+} from "../../src/tools/slides/index.js";
 import { config } from "./setup.js";
 
 const { portalKey: apiKey, baseUrl } = config;
 
 // ── Client tool definitions ──────────────────────────────────────────────────
-// Mirrors the tool names and descriptions from src/tools/*.ts.
+// Pulls names + descriptions directly from the source schemas / factory
+// functions. Hard-coded copies drift from production over time and let
+// description-quality regressions slip past the integration tests.
+
+/** Extract { name, description } from a ToolConfig (factory result) or schema. */
+function toMeta(source: {
+  name?: string;
+  description?: string;
+  function?: { name?: string; description?: string };
+}): { name: string; description: string } {
+  const name = source.function?.name ?? source.name;
+  const description = source.function?.description ?? source.description;
+  if (!name || !description) {
+    throw new Error(
+      `Tool source missing name or description: ${JSON.stringify(source).slice(0, 200)}`
+    );
+  }
+  return { name, description };
+}
+
+// Factory tools need stubbed dependencies; we only read description metadata.
+const stubUIOptions = { getContext: () => null };
+const stubGitHubGetToken = () => null;
+const stubGitHubRequestAccess = async () => "";
+const githubTools: ToolConfig[] = createGitHubTools(stubGitHubGetToken, stubGitHubRequestAccess);
 
 const CLIENT_TOOLS: { name: string; description: string }[] = [
-  {
-    name: "display_weather",
-    description:
-      "Display a weather forecast card showing temperature, conditions, and a 7-day forecast for a city or location. Only call this when the user explicitly asks about weather, temperature, rain, snow, or climate conditions. Do NOT repeat the card's data in text — just add a brief comment.",
-  },
-  {
-    name: "display_chart",
-    description:
-      "Render data visualization charts when the user explicitly requests a bar chart, line chart, area chart, or pie chart of their data. Accepts an array of data points and renders the chart inline in the conversation.",
-  },
-  {
-    name: "prompt_user_choice",
-    description:
-      "Show a clickable choice menu when the user needs to pick between specific options. Examples: choosing a restaurant, selecting a travel destination, picking a category or plan. Only use when the user is deciding between concrete alternatives. Do NOT use for search, media generation, or information lookups.",
-  },
-  {
-    name: "prompt_user_form",
-    description:
-      "Show an interactive form to collect structured input from the user. Use when you need 2+ pieces of information like trip details (destination, dates, budget), booking info, or settings. Supports text, textarea, select, toggle, date, and slider fields. Only use when the user needs to provide structured data — not for search, media, or general questions.",
-  },
-  {
-    name: "display_phone_call_offer",
-    description:
-      "Render a phone call offer for a single business when you know their phone number and a call would help confirm reservation availability or product availability.",
-  },
-  {
-    name: "geolocate_ip",
-    description:
-      "Look up the geographic location of an IP address. Returns country, city, ISP, coordinates, and timezone.",
-  },
-  {
-    name: "get_current_time",
-    description:
-      "Get the current date and time for a given IANA timezone (e.g. America/New_York, Europe/London).",
-  },
-  {
-    name: "github_get_authenticated_user",
-    description:
-      "Get the authenticated GitHub user's profile including username and organizations. Call this first to discover the user's identity before making other GitHub API calls.",
-  },
-  {
-    name: "github_api",
-    description:
-      'Make an authenticated request to the GitHub REST API (https://api.github.com). You can call any endpoint documented at https://docs.github.com/en/rest. Examples: List PRs: GET /repos/{owner}/{repo}/pulls?state=open, Get file: GET /repos/{owner}/{repo}/contents/{path}, Create issue: POST /repos/{owner}/{repo}/issues with body {"title": "...", "body": "..."}, Search repos: GET /search/repositories?q={query}. IMPORTANT: For write operations (POST, PUT, PATCH, DELETE), always confirm with the user before executing. This includes creating issues, opening PRs, merging, committing files, and submitting reviews.',
-  },
+  // UI interaction tools (factory-created)
+  toMeta(createWeatherTool(stubUIOptions)),
+  toMeta(createChartTool(stubUIOptions)),
+  toMeta(createChoiceTool(stubUIOptions)),
+  toMeta(createFormTool(stubUIOptions)),
+  toMeta(createPhoneCallOfferTool(stubUIOptions)),
+  toMeta(createIpGeolocationTool()),
+  toMeta(createTimezoneTool()),
 
-  // ── App generation tools ──────────────────────────────────────────────
-  {
-    name: "create_file",
-    description:
-      'Creates or overwrites files in the app project. ALWAYS use this tool when the user asks to create any visual, interactive app, demo, diagram, game, simulation, UI mockup, dashboard, tracker, or data visualization. NEVER output code as text. A live preview appears automatically.\n\nSupports two modes:\n- Single file: pass "path" and "content".\n- Batch (preferred): pass "files" array with {path, content} objects to write all files in one call.\n\nWORKFLOW: Call create_file once with all files (package.json, App.js, styles, etc.), then call display_app.\n\nApp.js must be a default export React component. Do NOT create index.js or index.html — these are auto-generated. Use standard import statements for all libraries. NEVER use CDN script tags — instead list dependencies in package.json.',
-  },
-  {
-    name: "patch_file",
-    description:
-      'Modify, update, or edit an existing file in the app project using targeted find-and-replace patches. Use this instead of create_file when making small changes to an app — color tweaks, text edits, styling updates, adding a few lines, fixing bugs, or updating components. The file must already exist.\n\nPass a "patches" array where each item has "find" (exact string to locate) and "replace" (replacement string). Patches are applied in order.',
-  },
-  {
-    name: "delete_file",
-    description: "Deletes a file from the app project.",
-  },
-  {
-    name: "read_file",
-    description:
-      "Reads the content of a file from the app project. Use this to inspect existing files before making changes.",
-  },
-  {
-    name: "list_files",
-    description:
-      "Lists all files in the app project. Returns file paths and sizes. Use this to understand the current project structure.",
-  },
-  {
-    name: "display_app",
-    description:
-      "Renders the app preview. Called automatically when files are created — you usually do not need to call this manually.",
-  },
+  // GitHub tools (factory-created)
+  ...githubTools.map(toMeta),
 
-  // Slide deck tools — wired via createSlideTools. plan_deck + add_slide
-  // drive new-deck creation; read_slides + patch_slides drive edits.
-  {
-    name: "plan_deck",
-    description:
-      "Create a new slide deck, presentation, PowerPoint, Keynote, or slide show. Sets up the deck theme, title, slide count, and layout palette. Only call this when the user asks to make, build, generate, create, or start a new slide deck or presentation.",
-  },
-  {
-    name: "add_slide",
-    description:
-      "Append a slide to a slide deck or presentation that is being built. Each call adds one slide with its layout and elements. Call repeatedly after plan_deck to assemble the slide deck one slide at a time.",
-  },
-  {
-    name: "read_slides",
-    description:
-      "Read the contents of the current slide deck or presentation. Use this to view, see, check, or inspect the existing slides before editing a slide deck. Pair with patch_slides when the user asks to edit, modify, or update an existing deck.",
-  },
-  {
-    name: "patch_slides",
-    description:
-      "Edit, modify, update, or change an existing slide deck or presentation. Change slide text, add or remove slides, update the deck theme, or reorder slides. Use when the user asks to edit, update, fix, change, rewrite, or add a slide to their slide deck.",
-  },
+  // App generation tools (schema constants — used directly by createAppGenerationTools)
+  toMeta(CREATE_FILE_SCHEMA),
+  toMeta(PATCH_FILE_SCHEMA),
+  toMeta(DELETE_FILE_SCHEMA),
+  toMeta(READ_FILE_SCHEMA),
+  toMeta(LIST_FILES_SCHEMA),
+  toMeta(DISPLAY_APP_SCHEMA),
+
+  // Slide tools (schema constants — used directly by createSlideTools)
+  toMeta(PLAN_DECK_SCHEMA),
+  toMeta(ADD_SLIDE_SCHEMA),
+  toMeta(READ_SLIDES_SCHEMA),
+  toMeta(PATCH_SLIDES_SCHEMA),
 ];
 
 // Match the constants from useChatStorage.ts
