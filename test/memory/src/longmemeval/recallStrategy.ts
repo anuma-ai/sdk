@@ -110,7 +110,13 @@ export async function processEntryRecall(
   }
 
   try {
-    const allMemories: Array<{ sessionId: string; content: string }> = [];
+    const allMemories: Array<{
+      sessionId: string;
+      content: string;
+      kind: "state" | "event";
+      occurredAt: string | null;
+      entities: string[];
+    }> = [];
     for (let i = 0; i < sessionIndices.length; i++) {
       const sIdx = sessionIndices[i];
       const session = entry.haystack_sessions[sIdx];
@@ -125,7 +131,13 @@ export async function processEntryRecall(
       );
       for (const mem of extracted) {
         const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
-        allMemories.push({ sessionId: mem.sessionId, content: `${mem.content}${dateSuffix}` });
+        allMemories.push({
+          sessionId: mem.sessionId,
+          content: `${mem.content}${dateSuffix}`,
+          kind: mem.kind,
+          occurredAt: mem.occurredAt ?? null,
+          entities: mem.entities ?? [],
+        });
       }
     }
     clearProgress();
