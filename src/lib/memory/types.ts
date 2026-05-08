@@ -155,6 +155,17 @@ export interface RetainOptions {
   consolidateThreshold?: number;
   /** Top-K consolidation candidates to feed the LLM. Default: 5. */
   consolidateTopK?: number;
+  /**
+   * W6 temporal lane — when the event in this fact occurred. Persisted to
+   * memory_vault.event_time_* columns; recall's temporal lane filters
+   * and boosts memories whose event-time overlaps the query window.
+   * Auto-extraction emits this; manual writes can omit it.
+   */
+  eventTime?: {
+    kind: "point" | "range" | "ongoing";
+    start: number;
+    end: number | null;
+  } | null;
 }
 
 export interface RetainResult {
