@@ -93,12 +93,17 @@ export async function recall(
   const entityRanking = await buildGraphLaneRanking(query, ctx);
 
   // W6 temporal lane — when the query has a temporal phrase ("next week",
-  // "what's coming up this month"), resolve to an absolute window and
-  // look up memories whose event_time overlaps. Returns a ranking
-  // RRF-fused alongside the other lanes.
+  // "what's coming up this month"), resolve to an absolute window once.
+  // The window drives two things: (1) the temporal *retrieval lane*
+  // (binary in-window IDs RRF-fused with cosine + BM25 + graph), and
+  // (2) a post-V2 *proximity boost* on candidates already returned by
+  // other lanes whose event_time falls near the window. Hindsight applies
+  // both signals; we now mirror that.
+  const temporalWindow =
+    types.includes("fact") && ctx.vaultCtx ? parseQueryTimeWindow(query) : null;
   const temporalRanking =
-    types.includes("fact") && ctx.vaultCtx
-      ? await buildTemporalLaneRanking(query, ctx.vaultCtx)
+    temporalWindow && ctx.vaultCtx
+      ? await buildTemporalLaneRankingWithWindow(temporalWindow, ctx.vaultCtx)
       : [];
 
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
@@ -124,6 +129,7 @@ export async function recall(
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),
+        ...(temporalWindow && { temporalWindow }),
       }
     );
     factResults.push(...results);
@@ -243,12 +249,10 @@ async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise
  * The ranking goes through `searchVaultMemoriesWithSize` as
  * `temporalRanking` and gets RRF-fused with cosine + BM25 + entityRanking.
  */
-async function buildTemporalLaneRanking(
-  query: string,
+async function buildTemporalLaneRankingWithWindow(
+  window: import("./queryTemporal.js").TemporalWindow,
   vaultCtx: NonNullable<RecallContext["vaultCtx"]>
 ): Promise<string[]> {
-  const window = parseQueryTimeWindow(query);
-  if (!window) return [];
   const candidates = await getMemoriesByEventTimeOp(vaultCtx, window.start, window.end);
   if (candidates.length === 0) return [];
   return candidates
