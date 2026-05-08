@@ -404,7 +404,7 @@ const cases: ToolSelectionCase[] = [
   {
     label: "video generation includes video tools",
     prompt: "Create a video of a cat playing piano",
-    serverMustInclude: ["AnumaFalMCP-fal_generate_video"],
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_video"],
   },
 
   // ── Server-side: Audio ───────────────────────────────────────────────
