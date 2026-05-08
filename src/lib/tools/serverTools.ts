@@ -782,7 +782,7 @@ export function findMatchingTools(
  * included and non-set tools are excluded (unless they pass independently
  * at a higher threshold).
  */
-interface ToolSet {
+export interface ToolSet {
   /** Human-readable name for logging/debugging */
   name: string;
   /** All tool names in the set */

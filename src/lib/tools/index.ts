@@ -27,4 +27,5 @@ export {
   shouldRefreshTools,
   type ToolMatchOptions,
   type ToolMatchResult,
+  type ToolSet,
 } from "./serverTools";
