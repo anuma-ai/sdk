@@ -1,6 +1,6 @@
 {
   "name": "@anuma/sdk",
-  "version": "1.0.0",
+  "version": "1.0.0-next.20260508215801",
   "description": "",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
