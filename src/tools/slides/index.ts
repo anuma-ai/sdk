@@ -296,9 +296,9 @@ export const READ_SLIDES_SCHEMA = {
 
 export const PATCH_SLIDES_SCHEMA = {
   name: "patch_slides",
-  description: `Edit, modify, update, or rewrite an existing slide deck or presentation — use when the user asks to change, fix, or update slides in their deck, or to add a slide to a deck that already exists.
+  description: `Apply patch operations to an existing slide deck — change a slide's text, swap a layout, update the theme, or add and remove slides. Pair with read_slides when the user wants to change something in their deck.
 
-Apply targeted operations to an existing slide deck. The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
+The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
 
 Operations:
 - update_element: modify properties of an element within a slide

@@ -882,14 +882,23 @@ export function applyToolSets(
 }
 
 /**
- * Additively expand tool sets: when any anchor of a set scores at or above
- * its `anchorMinSimilarity`, all set members are added to the result.
- * Original matches are preserved; multiple sets can expand independently.
+ * Apply tool sets with all-or-nothing membership semantics:
  *
- * Use this for server-side toolkit suites where the LLM needs the full call
- * chain (e.g. fal_list_models → fal_model_schema → fal_queue_submit →
- * fal_queue_status → fal_queue_result). Differs from `applyToolSets`,
- * which replaces non-set matches when a set activates.
+ * - When any anchor of a set scores at or above its `anchorMinSimilarity`,
+ *   the set "activates" and all its members are added to the result.
+ * - When a set does NOT activate, any of its members that were individually
+ *   matched are removed from the result. A lone set member without its set
+ *   firing is almost always a false-positive match (e.g. patch_slides 0.54
+ *   on "extract text from PDF") and shipping it alone, without the rest of
+ *   the toolkit, would just confuse the model.
+ *
+ * Original (non-set-member) matches are preserved. Multiple sets can
+ * activate independently.
+ *
+ * Use this for server-side toolkit suites where the LLM needs the full
+ * call chain (e.g. fal_list_models → fal_model_schema → fal_queue_submit →
+ * fal_queue_status → fal_queue_result). Differs from `applyToolSets`, which
+ * replaces non-set matches when a set activates.
  *
  * To express "any member triggers the set" (not specific anchors), pass
  * `anchors: members` when defining the ToolSet.
@@ -898,7 +907,8 @@ export function applyToolSets(
  * @param availableNames - All tool names available for selection
  * @param scores - Map of tool name → similarity score
  * @param toolSets - Tool sets to evaluate
- * @returns Set including original matches plus members of any activated set
+ * @returns Set including original matches plus members of any activated set,
+ *   minus orphaned members of sets that did not activate.
  */
 export function expandToolSetsAdditive(
   matchedNames: Set<string>,
@@ -909,17 +919,19 @@ export function expandToolSetsAdditive(
   const result = new Set(matchedNames);
   for (const ts of toolSets) {
     const minSim = ts.anchorMinSimilarity ?? 0.6;
-    let triggered = false;
-    for (const anchor of ts.anchors) {
-      if ((scores.get(anchor) ?? 0) >= minSim) {
-        triggered = true;
-        break;
+    const triggered = ts.anchors.some((a) => (scores.get(a) ?? 0) >= minSim);
+
+    if (triggered) {
+      for (const member of ts.members) {
+        if (availableNames.has(member)) {
+          result.add(member);
+        }
       }
-    }
-    if (!triggered) continue;
-    for (const member of ts.members) {
-      if (availableNames.has(member)) {
-        result.add(member);
+    } else {
+      // Drop any individually-matched set members — a single slide tool
+      // alongside no slide-set activation just confuses the model.
+      for (const member of ts.members) {
+        result.delete(member);
       }
     }
   }
