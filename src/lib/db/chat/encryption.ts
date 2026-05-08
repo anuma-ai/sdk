@@ -114,10 +114,17 @@ export async function encryptMessageFields(
  * fallback rather than being treated as parsed values.
  */
 async function decryptMaybeJsonField<T>(
-  value: T | string | undefined,
+  value: T | string | null | undefined,
   address: string
 ): Promise<T | undefined> {
-  if (value === undefined || value === null) return undefined;
+  // Preserve `null` vs `undefined` distinction at runtime. WatermelonDB
+  // optional JSON columns can surface `null` and callers may do strict
+  // `=== null` guards, so we MUST NOT collapse one into the other. The
+  // return type stays `T | undefined` to match the existing StoredMessage
+  // shape — `null` is passed through unmodified, same as the original
+  // ternary behavior (`message.vector ? decrypt : message.vector`).
+  if (value === undefined) return undefined;
+  if (value === null) return value as unknown as undefined;
   if (typeof value === "string") {
     if (isEncrypted(value)) {
       return await decryptJsonField<T>(value, address);

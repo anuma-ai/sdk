@@ -162,4 +162,20 @@ describe("decryptConversationTitle", () => {
     clearAllEncryptionKeys();
     expect(_peekLazyTitleCacheSize()).toBe(0);
   });
+
+  it("does not repopulate cache when teardown runs mid-decrypt (session epoch guard)", async () => {
+    await requestEncryptionKey(testAddress, mockSignMessage);
+    const encrypted = await encryptField("RaceCondition", testAddress, mockSignMessage);
+
+    // Kick off a decrypt and, before awaiting it, simulate a session
+    // teardown (clearLazyTitleCache bumps the session epoch). When the
+    // promise resolves, the cache must remain empty — otherwise an
+    // in-flight decrypt could leak old-session plaintext into the
+    // just-cleared LRU.
+    const inFlight = decryptConversationTitle(encrypted, testAddress);
+    clearLazyTitleCache();
+    await inFlight;
+
+    expect(_peekLazyTitleCacheSize()).toBe(0);
+  });
 });

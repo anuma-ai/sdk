@@ -921,20 +921,32 @@ export async function searchChunksOp(
 
   const topK = candidates.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 
-  // Decrypt only the surviving messages. Same `messageToStored` semantics
-  // as before, just hoisted to after the top-K cut.
-  return Promise.all(
-    topK.map(async ({ message, similarity, chunkTextSource }) => {
-      const stored = await messageToStored(
-        message,
-        ctx.walletAddress,
-        ctx.signMessage,
-        ctx.embeddedWalletSigner
-      );
-      const chunkText = chunkTextSource.kind === "chunk" ? chunkTextSource.text : stored.content;
-      return { chunkText, message: stored, similarity };
-    })
+  // Decrypt only the surviving messages, and dedupe by message id so a
+  // message whose multiple chunks survive top-K is decrypted exactly
+  // once instead of once per surviving chunk. This collapses the
+  // worst-case N×messageToStored fan-out the prior shape had.
+  const uniqueMessages = new Map<string, Message>();
+  for (const c of topK) uniqueMessages.set(c.message.id, c.message);
+
+  const storedById = new Map<string, StoredMessage>(
+    await Promise.all(
+      Array.from(uniqueMessages, async ([id, m]) => {
+        const stored = await messageToStored(
+          m,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        );
+        return [id, stored] as const;
+      })
+    )
   );
+
+  return topK.map(({ message, similarity, chunkTextSource }) => {
+    const stored = storedById.get(message.id)!;
+    const chunkText = chunkTextSource.kind === "chunk" ? chunkTextSource.text : stored.content;
+    return { chunkText, message: stored, similarity };
+  });
 }
 
 async function _getMessagesWithEmbeddingsOp(

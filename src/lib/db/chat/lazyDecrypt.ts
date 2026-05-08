@@ -59,6 +59,16 @@ const titleCache = new Map<string, string>();
  */
 const pendingDecrypts = new Map<string, Promise<string>>();
 
+/**
+ * Session epoch — bumped on every `clearLazyTitleCache()`. An in-flight
+ * decrypt that started before a teardown captures the pre-teardown
+ * value; if the epoch has advanced when the promise resolves, the
+ * write to `titleCache` is skipped. Without this guard a decrypt that
+ * already obtained the `CryptoKey` from the previous session can
+ * silently re-populate the just-cleared LRU with old-session plaintext.
+ */
+let sessionEpoch = 0;
+
 function buildCacheKey(address: string, encryptedTitle: string): string {
   return `${address}:${encryptedTitle}`;
 }
@@ -90,6 +100,9 @@ function insertWithEviction(key: string, value: string): void {
 export function clearLazyTitleCache(): void {
   titleCache.clear();
   pendingDecrypts.clear();
+  // Invalidate any in-flight decrypt that captured the pre-teardown epoch
+  // so it can't write to the just-cleared cache when it resolves.
+  sessionEpoch += 1;
 }
 
 // Subscribe at module load so we never miss a teardown. The handle is
@@ -165,6 +178,13 @@ export async function decryptConversationTitle(
   const inFlight = pendingDecrypts.get(cacheKey);
   if (inFlight) return inFlight;
 
+  // Snapshot the session epoch at the moment we kick off this decrypt.
+  // If `clearLazyTitleCache()` runs while the decrypt is in flight,
+  // the captured epoch will be stale by the time the promise resolves
+  // and we skip the cache write to avoid leaking old-session plaintext
+  // into the just-cleared LRU.
+  const epochAtStart = sessionEpoch;
+
   const promise = (async () => {
     const plaintext = await decryptField(encryptedTitle, address);
     // `decryptField` returns the input unchanged on decrypt failure
@@ -173,7 +193,9 @@ export async function decryptConversationTitle(
     if (isEncrypted(plaintext)) {
       throw new Error("decryptConversationTitle: decryption failed (returned ciphertext)");
     }
-    insertWithEviction(cacheKey, plaintext);
+    if (sessionEpoch === epochAtStart) {
+      insertWithEviction(cacheKey, plaintext);
+    }
     return plaintext;
   })();
 
