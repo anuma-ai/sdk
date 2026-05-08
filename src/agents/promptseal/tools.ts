@@ -72,26 +72,32 @@ export function createHiringTools(): ToolConfig[] {
       type: "function",
       function: {
         name: "resume_parse",
-        description: "Look up a candidate resume by id.",
+        description:
+          "Get the candidate's resume data. Pass either `resume_id` (a registered demo id like 'res_001') OR `resume_data` (an object the user attached as a file).",
         parameters: {
           type: "object",
-          required: ["resume_id"],
           properties: {
             resume_id: {
               type: "string",
-              description: "Resume id (e.g. 'res_001').",
+              description: "Registered demo resume id (e.g. 'res_001').",
+            },
+            resume_data: {
+              type: "object",
+              description:
+                "Inline resume object extracted from a user-attached file. Must include name, yoe_react, yoe_python, education, highlights.",
+              properties: {
+                id: { type: "string" },
+                name: { type: "string" },
+                yoe_react: { type: "number" },
+                yoe_python: { type: "number" },
+                education: { type: "string" },
+                highlights: { type: "string" },
+              },
             },
           },
         },
       },
-      executor: (args) => {
-        const id = String((args as { resume_id?: unknown }).resume_id ?? "");
-        const r = findResume(id);
-        if (!r) return { error: `unknown resume_id: ${id}` };
-        // Strip ground-truth before returning to the LLM.
-        const { expected_decision: _, ...rest } = r;
-        return rest;
-      },
+      executor: (args) => parseResumeArgs(args),
     },
     {
       type: "function",
@@ -133,6 +139,43 @@ export function createHiringTools(): ToolConfig[] {
       executor: (args) => decideRule(args as DecideInput),
     },
   ];
+}
+
+/**
+ * Resolve a `resume_parse` call. Two modes:
+ *   1. `resume_id` — look up a demo resume by id (existing flow)
+ *   2. `resume_data` — accept an inline object the LLM extracted from a
+ *      user-attached file (new flow)
+ *
+ * Returns the canonical resume fields, stripped of any ground-truth metadata
+ * so the LLM can't peek at the expected decision.
+ */
+function parseResumeArgs(args: unknown): Record<string, unknown> {
+  const a = args as { resume_id?: unknown; resume_data?: unknown };
+  if (a.resume_data && typeof a.resume_data === "object") {
+    const data = a.resume_data as Record<string, unknown>;
+    const required = ["name", "yoe_react", "yoe_python", "education", "highlights"] as const;
+    for (const k of required) {
+      if (data[k] === undefined) {
+        return { error: `resume_data is missing field: ${k}` };
+      }
+    }
+    const out: Record<string, unknown> = {
+      name: data.name,
+      yoe_react: data.yoe_react,
+      yoe_python: data.yoe_python,
+      education: data.education,
+      highlights: data.highlights,
+    };
+    if (data.id !== undefined) out.id = data.id;
+    return out;
+  }
+  const id = String(a.resume_id ?? "");
+  if (!id) return { error: "resume_parse requires either resume_id or resume_data" };
+  const r = findResume(id);
+  if (!r) return { error: `unknown resume_id: ${id}` };
+  const { expected_decision: _expected, ...rest } = r;
+  return rest;
 }
 
 /** Pure decision rule, byte-equal to Python `agent/tools.py:108-127`. */
