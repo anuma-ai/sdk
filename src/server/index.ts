@@ -310,13 +310,22 @@ export type {
   ToolMatchOptions,
   ToolMatchResult,
 } from "../lib/tools";
+export type {
+  SelectServerToolsForPromptOptions,
+  ServerToolsFilterFunction,
+} from "../lib/tools";
 export {
   clearServerToolsCache,
+  createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
   findMatchingTools,
   getCachedServerTools,
   getServerTools,
   getToolsChecksum,
+  selectServerToolsForPrompt,
   shouldRefreshTools,
 } from "../lib/tools";
 

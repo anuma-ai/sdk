@@ -27,7 +27,10 @@ export {
   type ParsedServerToolsResponse,
   selectServerSideTools,
   type SelectServerSideToolsOptions,
+  selectServerToolsForPrompt,
+  type SelectServerToolsForPromptOptions,
   type ServerTool,
+  type ServerToolsFilterFunction,
   type ServerToolsOptions,
   // Types
   type ServerToolsResponse,

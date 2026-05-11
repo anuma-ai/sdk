@@ -1072,6 +1072,107 @@ export const defaultServerToolsFilter = createServerToolsFilter({
 });
 
 /**
+ * Type for a server-tools filter — a function that takes prompt embeddings
+ * and the full server tool catalog and returns the names of tools to keep.
+ * Matches `useChatStorage`'s `serverTools` callback signature.
+ */
+export type ServerToolsFilterFunction = (
+  embeddings: number[] | number[][],
+  tools: ServerTool[]
+) => string[];
+
+/**
+ * Options for `selectServerToolsForPrompt`.
+ */
+export interface SelectServerToolsForPromptOptions {
+  /** User prompt to match tools against. */
+  prompt: string;
+  /**
+   * Filter to apply: either a function (called with the prompt embedding +
+   * full catalog) or a static list of tool names. Same shape `useChatStorage`
+   * accepts on its `serverTools` option. Pass `defaultServerToolsFilter` to
+   * mirror the default chat-flow selection.
+   */
+  serverToolsFilter?: string[] | ServerToolsFilterFunction;
+  /** Function that resolves an auth token (Bearer). */
+  getToken: () => Promise<string | null>;
+  /** Base URL for the API. */
+  baseUrl?: string;
+  /** Embedding model override. Falls back to the SDK default. */
+  embeddingModel?: string;
+  /** Cache expiration in ms for the server-tools catalog fetch. */
+  cacheExpirationMs?: number;
+}
+
+/**
+ * Select server-side tools for a prompt using the same path
+ * `useChatStorage` runs internally. Use this anywhere outside the chat
+ * hook — background-task workers, server scripts, debug tools — that needs
+ * the same selection the chat flow would produce.
+ *
+ * Mirrors the responses-API branch of `sendMessage`: fetch catalog with
+ * caching, optionally embed the prompt (only when the filter is a function),
+ * apply the filter, return matching `ServerTool[]` (with embeddings and
+ * descriptions intact for downstream serialization).
+ *
+ * Returns `[]` on any of: undefined/empty filter, empty prompt for a
+ * function filter, failed catalog fetch, or failed embedding.
+ *
+ * @example
+ * ```ts
+ * import { defaultServerToolsFilter, selectServerToolsForPrompt } from "@anuma/sdk/server";
+ *
+ * const tools = await selectServerToolsForPrompt({
+ *   prompt: "Generate a slide deck about AI",
+ *   serverToolsFilter: defaultServerToolsFilter,
+ *   getToken: async () => identityToken,
+ *   baseUrl: process.env.API_URL,
+ * });
+ * ```
+ */
+export async function selectServerToolsForPrompt(
+  options: SelectServerToolsForPromptOptions
+): Promise<ServerTool[]> {
+  const {
+    prompt,
+    serverToolsFilter,
+    getToken,
+    baseUrl,
+    embeddingModel,
+    cacheExpirationMs,
+  } = options;
+
+  if (serverToolsFilter === undefined) return [];
+  if (Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0) return [];
+
+  let allServerTools: ServerTool[];
+  try {
+    allServerTools = await getServerTools({ baseUrl, cacheExpirationMs, getToken });
+  } catch {
+    return [];
+  }
+  if (allServerTools.length === 0) return [];
+
+  if (typeof serverToolsFilter === "function") {
+    if (!prompt.trim()) return [];
+    let promptEmbedding: number[];
+    try {
+      promptEmbedding = await generateEmbedding(prompt, {
+        getToken,
+        baseUrl,
+        model: embeddingModel,
+      });
+    } catch {
+      return [];
+    }
+    const names = serverToolsFilter(promptEmbedding, allServerTools);
+    return filterServerTools(allServerTools, names);
+  }
+
+  return filterServerTools(allServerTools, serverToolsFilter);
+}
+
+/**
  * Options for selectServerSideTools
  */
 export interface SelectServerSideToolsOptions {
