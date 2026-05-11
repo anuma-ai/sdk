@@ -1009,7 +1009,13 @@ export function createServerToolsFilter(
     const matchedNames = new Set(matches.map((m) => m.tool.name));
     let finalNames: Set<string>;
     if (sets.length > 0) {
-      const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
+      const scoreMatches = findMatchingTools(embeddings, tools, {
+        ...matchOpts,
+        limit: tools.length,
+        filterAmbiguous: false,
+        relevanceRatio: 0,
+      });
+      const scores = new Map(scoreMatches.map((m) => [m.tool.name, m.similarity]));
       const availableNames = new Set(tools.map((t) => t.name));
       finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, sets);
     } else {

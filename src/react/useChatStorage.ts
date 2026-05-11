@@ -237,7 +237,15 @@ async function autoFilterClientTools(
   });
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
-  const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
+  const scoreMatches =
+    matches.length > 0
+      ? findMatchingTools(promptEmbeddings, pseudoServerTools, {
+          limit: pseudoServerTools.length,
+          minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+          relevanceRatio: 0,
+        })
+      : [];
+  const scores = new Map(scoreMatches.map((m) => [m.tool.name, m.similarity]));
   const availableNames = new Set(filterCandidates.map(getToolName));
 
   // Apply tool sets additively: if an anchor matches OR a set is marked

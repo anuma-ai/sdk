@@ -167,7 +167,15 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   // Apply tool sets: if an anchor tool matched OR a set is marked active,
   // pull in the full set
   const matchedNames = new Set(clientMatches.map((m) => m.tool.name));
-  const scores = new Map(clientMatches.map((m) => [m.tool.name, m.similarity]));
+  const scoreMatches =
+    clientMatches.length > 0
+      ? findMatchingTools(promptEmbedding, clientPseudoTools, {
+          limit: clientPseudoTools.length,
+          minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+          relevanceRatio: 0,
+        })
+      : [];
+  const scores = new Map(scoreMatches.map((m) => [m.tool.name, m.similarity]));
   const availableNames = new Set(CLIENT_TOOLS.map((t) => t.name));
   const activeSetNames = activeToolSets.length > 0 ? new Set(activeToolSets) : undefined;
   const finalClientNames = expandToolSetsAdditive(
