@@ -1026,9 +1026,9 @@ export function createServerToolsFilter(
 /**
  * Default exclusions baked into `defaultServerToolsFilter`.
  *
- * - `VisionMCP-analyze_image`: modern frontier models have native vision via
- *   image content blocks; routing through a server-side vision tool just adds
- *   a hop.
+ * - `AnumaVisionMCP-anuma_analyze_image`: modern frontier models have native
+ *   vision via image content blocks; routing through a server-side vision
+ *   tool just adds a hop.
  * - `OpenMeteoMCP-weather_forecast` + `OpenMeteoMCP-geocoding`: redundant when
  *   the consumer registers `createWeatherTool` (the client-side display tool
  *   handles geocoding internally and renders a card inline). Including the
@@ -1037,7 +1037,7 @@ export function createServerToolsFilter(
  *   their own filter via `createServerToolsFilter`.
  */
 export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
-  "VisionMCP-analyze_image",
+  "AnumaVisionMCP-anuma_analyze_image",
   "OpenMeteoMCP-weather_forecast",
   "OpenMeteoMCP-geocoding",
 ];

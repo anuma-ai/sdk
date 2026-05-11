@@ -18,6 +18,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { table, getBorderCharacters } from "table";
 import {
   BUILT_IN_TOOL_SETS,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
   expandToolSetsAdditive,
   findMatchingTools,
   getServerTools,
@@ -112,9 +114,6 @@ const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
 
 // Server tool matching uses selectServerSideTools defaults
-const SERVER_TOOLS_LIMIT = 5;
-const SERVER_TOOLS_MIN_SIMILARITY = 0.3;
-
 // ── Shared state ─────────────────────────────────────────────────────────────
 
 const embeddingOptions = { apiKey, baseUrl };
@@ -144,13 +143,16 @@ function buildClientPseudoServerTools(): ServerTool[] {
 async function selectTools(prompt: string, activeToolSets: string[] = []) {
   const promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
 
-  // Server tool filtering (same as selectServerSideTools)
-  const serverMatches = findMatchingTools(promptEmbedding, allServerTools, {
-    limit: SERVER_TOOLS_LIMIT,
-    minSimilarity: SERVER_TOOLS_MIN_SIMILARITY,
-    filterAmbiguous: true,
-    relevanceRatio: 0.85,
-  });
+  // Server tool filtering — mirror what `defaultServerToolsFilter` does in
+  // production: same match options, same exclusion list. Earlier this test
+  // used a stricter relevanceRatio (0.85) which prod doesn't apply, so the
+  // test was measuring a different selection than consumers actually run.
+  const excluded = new Set<string>(DEFAULT_EXCLUDED_SERVER_TOOLS);
+  const serverMatches = findMatchingTools(
+    promptEmbedding,
+    allServerTools,
+    DEFAULT_SERVER_TOOLS_MATCH_OPTIONS
+  ).filter((m) => !excluded.has(m.tool.name));
   const filteredServerTools = serverMatches.map((m) => m.tool);
 
   // Client tool filtering (same as autoFilterClientTools)
@@ -516,9 +518,13 @@ const cases: ToolSelectionCase[] = [
     serverMustInclude: ["AnumaJinaMCP-extract_pdf"],
   },
   {
-    label: "OCR includes vision tool",
+    // Vision is intentionally excluded by `defaultServerToolsFilter` —
+    // modern models read image content blocks directly, so routing through
+    // a server-side vision tool is a wasteful hop. The test asserts the
+    // exclusion holds even on a prompt that would otherwise match.
+    label: "OCR screenshot prompt does not include vision tool (excluded by default)",
     prompt: "Extract text from this screenshot image",
-    serverMustInclude: ["AnumaVisionMCP-anuma_analyze_image"],
+    serverMustExclude: ["AnumaVisionMCP-anuma_analyze_image"],
   },
 
   // ── App generation ───────────────────────────────────────────────────
