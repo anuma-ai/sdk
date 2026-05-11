@@ -923,6 +923,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [database, walletAddress, signMessage, embeddedWalletSigner]
   );
 
+  // `sendMessage` is a useCallback with explicit deps that intentionally
+  // omits config values. `activeToolSets` is dynamic per-conversation state
+  // — the consumer updates it when artifact-creating tool calls land in
+  // history. Read it via a ref so closures inside sendMessage always see
+  // the latest value without forcing a callback rebuild.
+  const activeToolSetsRef = useRef<string[] | undefined>(activeToolSets);
+  activeToolSetsRef.current = activeToolSets;
+
   // Memory vault operations context
   const vaultMemoryCollection = useMemo(
     () => database.get<VaultMemory>("memory_vault"),
@@ -1929,7 +1937,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             clientToolEmbeddingsCacheRef.current,
             { getToken, baseUrl, model: embeddingModel },
             extraToolSets,
-            activeToolSets
+            activeToolSetsRef.current
           );
         }
 
@@ -2357,7 +2365,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientToolEmbeddingsCacheRef.current,
           { getToken, baseUrl, model: embeddingModel },
           extraToolSets,
-          activeToolSets
+          activeToolSetsRef.current
         );
       }
 
