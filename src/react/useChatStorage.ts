@@ -652,6 +652,10 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * Additional tool sets to apply on top of the built-in ones (app-generation,
    * slides, github). When any anchor tool in a custom set is selected by
    * semantic matching, all members of that set are included automatically.
+   *
+   * Treated as static config — set once at hook setup. Changing it across
+   * renders does not affect in-flight `sendMessage` calls; use
+   * `activeToolSets` for dynamic, conversation-state-driven overrides.
    */
   extraToolSets?: ToolSet[];
 
@@ -662,6 +666,9 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * — e.g., pass `["slides"]` when the conversation already contains a slide
    * deck artifact, so short follow-up prompts ("add a thank you slide",
    * "make it bigger") still get the full slide toolkit.
+   *
+   * Read via a ref so updates are visible to in-flight `sendMessage` calls
+   * without rebuilding the callback.
    *
    * Names must match a set's `name` from `BUILT_IN_TOOL_SETS` or
    * `extraToolSets`. Unknown names are ignored.
