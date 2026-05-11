@@ -328,7 +328,7 @@ export async function previewToolSelection(options: {
 
   const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
 
-  let promptEmbedding: number[] | null = null;
+  let promptEmbedding: number[];
   try {
     promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
   } catch {

@@ -682,13 +682,8 @@ describe("client tool selection (full pipeline)", () => {
 
   for (const tc of cases) {
     it(tc.label, async () => {
-      const {
-        serverMatches,
-        clientMatches,
-        allToolNames,
-        anchorActivatedSets,
-        stickyActiveSets,
-      } = await selectTools(tc.prompt, tc.activeToolSets);
+      const { serverMatches, clientMatches, allToolNames, anchorActivatedSets, stickyActiveSets } =
+        await selectTools(tc.prompt, tc.activeToolSets);
 
       const triggeredLine = formatSetLine("sets triggered by prompt", anchorActivatedSets);
       const stickyLine = formatSetLine("sets sticky from history", stickyActiveSets);

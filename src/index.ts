@@ -774,6 +774,7 @@ export {
   putApiV1AgentsByIdPreference,
 } from "./client";
 export {
+  applyToolSets,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
