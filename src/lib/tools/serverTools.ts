@@ -860,27 +860,30 @@ export function applyToolSets(
   toolSets: ToolSet[] = BUILT_IN_TOOL_SETS,
   independentThreshold: number = 0.65
 ): Set<string> {
-  // Check if any tool set is triggered (anchor must meet its min similarity)
-  let activatedSet: ToolSet | null = null;
+  // Collect every tool set whose anchor cleared its similarity floor.
+  // Multiple sets can activate on the same prompt (e.g. an app-gen anchor
+  // and a slides anchor both clearing 0.53) — expanding only the first
+  // would silently drop the others' members.
+  const activatedSets: ToolSet[] = [];
   for (const ts of toolSets) {
     const minSim = ts.anchorMinSimilarity ?? 0.6;
-    for (const anchor of ts.anchors) {
-      const anchorScore = scores.get(anchor) ?? 0;
-      if (matchedNames.has(anchor) && anchorScore >= minSim) {
-        activatedSet = ts;
-        break;
-      }
-    }
-    if (activatedSet) break;
+    const triggered = ts.anchors.some(
+      (anchor) => matchedNames.has(anchor) && (scores.get(anchor) ?? 0) >= minSim
+    );
+    if (triggered) activatedSets.push(ts);
   }
 
-  if (!activatedSet) return matchedNames;
+  if (activatedSets.length === 0) return matchedNames;
 
-  const setMembers = new Set(activatedSet.members);
+  const setMembers = new Set<string>();
+  for (const ts of activatedSets) {
+    for (const member of ts.members) setMembers.add(member);
+  }
+
   const result = new Set<string>();
 
   // Include all set members that are available
-  for (const member of activatedSet.members) {
+  for (const member of setMembers) {
     if (availableNames.has(member)) {
       result.add(member);
     }
