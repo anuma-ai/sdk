@@ -119,6 +119,7 @@ import {
   findMatchingTools,
   getServerTools,
   mergeTools,
+  scoreTools,
   type ServerTool,
   shouldRefreshTools,
   type ToolSet,
@@ -237,7 +238,11 @@ async function autoFilterClientTools(
   });
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
-  const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
+  // Build the score map from raw similarities (no relevance / limit /
+  // ambiguity cuts) so anchor activation in expandToolSetsAdditive sees
+  // anchors that scored above anchorMinSimilarity even when a dominant
+  // non-anchor pushed them below the 0.9 relevance cutoff above.
+  const scores = scoreTools(promptEmbeddings, pseudoServerTools);
   const availableNames = new Set(filterCandidates.map(getToolName));
 
   // Apply tool sets additively: if an anchor matches OR a set is marked

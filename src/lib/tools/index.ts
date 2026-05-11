@@ -27,6 +27,7 @@ export {
   type ParsedServerToolsResponse,
   selectServerSideTools,
   type SelectServerSideToolsOptions,
+  scoreTools,
   selectServerToolsForPrompt,
   type SelectServerToolsForPromptOptions,
   type ServerTool,

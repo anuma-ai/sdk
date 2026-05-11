@@ -772,6 +772,43 @@ export function findMatchingTools(
   return sorted;
 }
 
+/**
+ * Compute the raw max similarity for every tool with a valid embedding,
+ * without any filtering (no `minSimilarity`, no `relevanceRatio`, no
+ * ambiguity check, no limit). Use this when you need true per-tool scores
+ * — e.g., to drive `expandToolSetsAdditive`'s anchor activation without
+ * letting `findMatchingTools`' relevance cutoff silently drop sub-threshold
+ * anchors that should still trigger their set.
+ */
+export function scoreTools(
+  promptEmbeddings: number[] | number[][],
+  tools: ServerTool[]
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  if (!promptEmbeddings || (promptEmbeddings as unknown[]).length === 0) return scores;
+  if (!tools || tools.length === 0) return scores;
+
+  const embeddings: number[][] = Array.isArray(promptEmbeddings[0])
+    ? (promptEmbeddings as number[][])
+    : [promptEmbeddings as number[]];
+
+  for (const tool of tools) {
+    if (!tool.embedding || tool.embedding.length === 0) continue;
+    let maxSimilarity = -Infinity;
+    try {
+      for (const embedding of embeddings) {
+        const similarity = cosineSimilarity(embedding, tool.embedding);
+        if (similarity > maxSimilarity) maxSimilarity = similarity;
+      }
+    } catch {
+      continue;
+    }
+    if (maxSimilarity > -Infinity) scores.set(tool.name, maxSimilarity);
+  }
+
+  return scores;
+}
+
 // ---------------------------------------------------------------------------
 // Tool sets — groups of tools that must be included/excluded together
 // ---------------------------------------------------------------------------
