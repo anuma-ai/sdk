@@ -178,6 +178,19 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     activeSetNames
   );
 
+  // Anchor-only expansion (no `activeSetNames`) — used for the summary
+  // table's "triggered by prompt" column so we can distinguish sets
+  // activated by anchor scoring from sets carried in by conversation state.
+  const anchorOnlyNames = expandToolSetsAdditive(
+    matchedNames,
+    availableNames,
+    scores,
+    BUILT_IN_TOOL_SETS
+  );
+  const anchorActivatedSets = BUILT_IN_TOOL_SETS.filter((s) =>
+    s.members.every((m) => anchorOnlyNames.has(m))
+  ).map((s) => s.name);
+
   // Build client tool configs from the final set (including set-expanded tools)
   const filteredClientToolConfigs = CLIENT_TOOLS.filter((t) => finalClientNames.has(t.name)).map(
     (t) => ({
@@ -215,6 +228,8 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     clientMatches: prunedClientMatches,
     allToolNames,
     merged,
+    anchorActivatedSets,
+    stickyActiveSets: [...activeToolSets],
   };
 }
 
@@ -613,11 +628,6 @@ type ResultRow = {
 
 const summaryRows: ResultRow[] = [];
 
-function stripPrefix(name: string): string {
-  const idx = name.indexOf("-");
-  return idx >= 0 ? name.slice(idx + 1) : name;
-}
-
 function formatToolLine(
   label: string,
   matches: { tool: { name: string }; similarity: number }[]
@@ -625,9 +635,14 @@ function formatToolLine(
   if (matches.length === 0) return "";
   const lines = matches.map((m) => {
     const score = m.similarity === 0 ? "set" : m.similarity.toFixed(2);
-    return `  ${stripPrefix(m.tool.name)} (${score})`;
+    return `  ${m.tool.name} (${score})`;
   });
   return `[${label}]\n${lines.join("\n")}`;
+}
+
+function formatSetLine(label: string, sets: string[]): string {
+  if (sets.length === 0) return "";
+  return `[${label}]\n${sets.map((s) => `  ${s}`).join("\n")}`;
 }
 
 function printSummary() {
@@ -639,7 +654,7 @@ function printSummary() {
     "\n" +
       table(rows, {
         border: getBorderCharacters("norc"),
-        columns: { 0: { width: 40, wrapWord: true }, 1: { width: 50 } },
+        columns: { 0: { width: 40, wrapWord: true }, 1: { width: 60 } },
         drawHorizontalLine: () => true,
       })
   );
@@ -667,14 +682,21 @@ describe("client tool selection (full pipeline)", () => {
 
   for (const tc of cases) {
     it(tc.label, async () => {
-      const { serverMatches, clientMatches, allToolNames } = await selectTools(
-        tc.prompt,
-        tc.activeToolSets
-      );
+      const {
+        serverMatches,
+        clientMatches,
+        allToolNames,
+        anchorActivatedSets,
+        stickyActiveSets,
+      } = await selectTools(tc.prompt, tc.activeToolSets);
 
+      const triggeredLine = formatSetLine("sets triggered by prompt", anchorActivatedSets);
+      const stickyLine = formatSetLine("sets sticky from history", stickyActiveSets);
       const clientLine = formatToolLine("client", clientMatches);
       const serverLine = formatToolLine("server", serverMatches);
-      const toolsCell = [clientLine, serverLine].filter(Boolean).join("\n");
+      const toolsCell = [triggeredLine, stickyLine, clientLine, serverLine]
+        .filter(Boolean)
+        .join("\n");
       summaryRows.push({ prompt: tc.prompt, tools: toolsCell });
 
       const clientNames = clientMatches.map((m) => m.tool.name);
