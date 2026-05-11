@@ -809,13 +809,17 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["create_file", "patch_file"],
     // Match the client-tool floor (0.53). If create_file is even a weak
     // match, activating the full toolkit is right — recall over precision.
-    anchorMinSimilarity: 0.54,
+    anchorMinSimilarity: 0.53,
   },
   {
     name: "slides",
     members: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
     anchors: ["plan_deck", "patch_slides"],
-    anchorMinSimilarity: 0.54,
+    // Match the client-tool floor (0.53). Short colloquial prompts like
+    // "make me a powerpoint about X" score plan_deck around 0.535 — above
+    // the global floor but inside any anchor gap. plan_deck and patch_slides
+    // are specific enough names that 0.53 won't false-positive in practice.
+    anchorMinSimilarity: 0.53,
   },
   {
     name: "github",

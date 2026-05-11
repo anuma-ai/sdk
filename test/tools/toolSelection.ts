@@ -365,6 +365,36 @@ const cases: ToolSelectionCase[] = [
     prompt: "Add a slide about customer testimonials to my existing deck",
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
+  {
+    label: "powerpoint phrasing includes full slide set",
+    prompt: "Make me a powerpoint about the Roman Empire",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    label: "Keynote phrasing includes full slide set",
+    prompt: "Create a Keynote about machine learning",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    label: "pitch deck phrasing includes full slide set",
+    prompt: "Build me a pitch deck for an AI startup",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    label: "casual slides-for phrasing includes full slide set",
+    prompt: "I need slides for tomorrow's all-hands meeting",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    label: "short presentation prompt includes full slide set",
+    prompt: "Make a presentation about the solar system",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    label: "short slide-edit prompt includes full slide set",
+    prompt: "Change the title of my first slide to 'Welcome'",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
 
   // ── Server-side: Image generation ─────────────────────────────────────
   {

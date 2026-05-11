@@ -194,9 +194,7 @@ export class MapFileStorage implements AppFileStorage {
 
 export const CREATE_FILE_SCHEMA = {
   name: "create_file",
-  description: `Create or overwrite files in the in-chat React app project — used when the user asks to build an interactive app, game, dashboard, calculator, or other code-based demo. Pair with display_app to render the preview after writing.
-
-Pass a "files" array of {path, content} objects to write multiple files in one call (preferred), or a single "path" and "content" to write one file.`,
+  description: `Build a new app — a calculator, a game, a todo list, a form, a dashboard, a chart, a simulation, or another interactive demo. Writes files into the in-chat app project; pair with display_app to render the preview.`,
   arguments: {
     type: "object",
     properties: {
