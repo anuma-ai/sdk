@@ -1133,14 +1133,8 @@ export interface SelectServerToolsForPromptOptions {
 export async function selectServerToolsForPrompt(
   options: SelectServerToolsForPromptOptions
 ): Promise<ServerTool[]> {
-  const {
-    prompt,
-    serverToolsFilter,
-    getToken,
-    baseUrl,
-    embeddingModel,
-    cacheExpirationMs,
-  } = options;
+  const { prompt, serverToolsFilter, getToken, baseUrl, embeddingModel, cacheExpirationMs } =
+    options;
 
   if (serverToolsFilter === undefined) return [];
   if (Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0) return [];

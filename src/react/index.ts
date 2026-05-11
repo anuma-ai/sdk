@@ -475,10 +475,7 @@ export type {
   ToolMatchResult,
   ToolSet,
 } from "../lib/tools";
-export type {
-  SelectServerToolsForPromptOptions,
-  ServerToolsFilterFunction,
-} from "../lib/tools";
+export type { SelectServerToolsForPromptOptions, ServerToolsFilterFunction } from "../lib/tools";
 export {
   BUILT_IN_TOOL_SETS,
   clearServerToolsCache,

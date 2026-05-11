@@ -310,10 +310,7 @@ export type {
   ToolMatchOptions,
   ToolMatchResult,
 } from "../lib/tools";
-export type {
-  SelectServerToolsForPromptOptions,
-  ServerToolsFilterFunction,
-} from "../lib/tools";
+export type { SelectServerToolsForPromptOptions, ServerToolsFilterFunction } from "../lib/tools";
 export {
   clearServerToolsCache,
   createServerToolsFilter,
