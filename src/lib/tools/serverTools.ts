@@ -778,9 +778,20 @@ export function findMatchingTools(
 
 /**
  * A tool set defines a group of tools that work together. When any "anchor"
- * tool in the set is selected by semantic matching, the entire set is
- * included and non-set tools are excluded (unless they pass independently
- * at a higher threshold).
+ * tool in the set is matched semantically (with a score at or above
+ * `anchorMinSimilarity`), the set is activated and all of its members are
+ * pulled into the selection.
+ *
+ * Two activation strategies consume this interface:
+ * - `expandToolSetsAdditive` (used by `useChatStorage` and
+ *   `createServerToolsFilter`) keeps all original matches and adds the
+ *   set's members on top — non-set tools are never dropped.
+ * - `applyToolSets` is exclusive: it keeps only set members plus non-set
+ *   tools that scored above `independentThreshold`.
+ *
+ * Pick `expandToolSetsAdditive` when you want recall over precision
+ * (typical), and `applyToolSets` when you specifically want non-set
+ * matches stripped on activation.
  */
 export interface ToolSet {
   /** Human-readable name for logging/debugging */
@@ -840,7 +851,7 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
  * @param availableNames - All tool names available for selection
  * @param scores - Map of tool name → similarity score (from semantic matching)
  * @param toolSets - Tool sets to apply (defaults to BUILT_IN_TOOL_SETS)
- * @param independentThreshold - Non-set tools scoring above this survive (default: 0.70)
+ * @param independentThreshold - Non-set tools scoring above this survive (default: 0.65)
  */
 export function applyToolSets(
   matchedNames: Set<string>,
