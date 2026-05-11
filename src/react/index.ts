@@ -135,7 +135,7 @@ export type {
   UseChatStorageOptions,
   UseChatStorageResult,
 } from "./useChatStorage";
-export { useChatStorage } from "./useChatStorage";
+export { previewToolSelection, useChatStorage } from "./useChatStorage";
 
 // OPFS encrypted storage utilities
 export {

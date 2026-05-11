@@ -39,6 +39,7 @@ import {
   Message,
   type MessageChunk,
   type SearchSource,
+  type ServerToolsFilterFn,
   type StorageOperationsContext,
   type StoredConversation,
   type StoredFileWithContext,
@@ -266,6 +267,110 @@ async function autoFilterClientTools(
     return name && finalNames.has(name);
   });
   return [...alwaysInclude, ...filtered];
+}
+
+/**
+ * Preview which tools `useChatStorage` will include for a given prompt,
+ * without making the actual chat request.
+ *
+ * Runs the exact same client + server tool selection pipeline that
+ * `useChatStorage`'s `sendMessage` runs internally — same embedding,
+ * same `autoFilterClientTools` call, same server-tools branch — so the
+ * returned names are guaranteed to match what a real request would
+ * include for that prompt + config.
+ *
+ * Intended for debug UIs ("show me what the model will see for this
+ * prompt"). Pass the same `clientTools`, `serverToolsFilter`,
+ * `extraToolSets`, and `activeToolSets` you pass to `useChatStorage`
+ * so the result is faithful.
+ *
+ * Caveats:
+ * - For server tools, this only mirrors the dynamic `findMatchingTools`
+ *   path (the one used for the responses API in `sendMessage`). If your
+ *   serverToolsFilter is a function, it's invoked directly with the
+ *   prompt embedding.
+ * - Embedding generation hits the same `/embeddings` endpoint as the
+ *   real request; pass a shared `clientToolEmbeddingsCache` if you call
+ *   this repeatedly to avoid re-embedding tool descriptions.
+ */
+export async function previewToolSelection(options: {
+  prompt: string;
+  clientTools?: LlmapiChatCompletionTool[];
+  serverToolsFilter?: string[] | ServerToolsFilterFn;
+  serverToolsConfig?: { cacheExpirationMs?: number };
+  getToken: () => Promise<string | null>;
+  baseUrl?: string;
+  embeddingModel?: string;
+  extraToolSets?: ToolSet[];
+  activeToolSets?: string[];
+  /** Optional cache of tool-description embeddings, shared across calls. */
+  clientToolEmbeddingsCache?: Map<string, number[]>;
+}): Promise<{
+  clientToolNames: string[];
+  serverToolNames: string[];
+}> {
+  const {
+    prompt,
+    clientTools = [],
+    serverToolsFilter,
+    serverToolsConfig,
+    getToken,
+    baseUrl,
+    embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
+    extraToolSets,
+    activeToolSets,
+    clientToolEmbeddingsCache,
+  } = options;
+
+  if (!prompt.trim()) {
+    return { clientToolNames: [], serverToolNames: [] };
+  }
+
+  const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+
+  let promptEmbedding: number[] | null = null;
+  try {
+    promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
+  } catch {
+    return { clientToolNames: [], serverToolNames: [] };
+  }
+
+  // Client tools — identical call path to sendMessage
+  const cache = clientToolEmbeddingsCache ?? new Map<string, number[]>();
+  const filteredClientTools = await autoFilterClientTools(
+    clientTools,
+    promptEmbedding,
+    cache,
+    embeddingOptions,
+    extraToolSets ?? [],
+    activeToolSets ?? []
+  );
+  const clientToolNames = filteredClientTools.map(getToolName).filter(Boolean);
+
+  // Server tools — mirror the responses-API branch in sendMessage
+  let serverToolNames: string[] = [];
+  if (
+    serverToolsFilter !== undefined &&
+    !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
+  ) {
+    try {
+      const allServerTools = await getServerTools({
+        baseUrl,
+        cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+        getToken,
+      });
+      if (typeof serverToolsFilter === "function") {
+        serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
+      } else {
+        const allow = new Set(serverToolsFilter);
+        serverToolNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
+      }
+    } catch {
+      // Server tools optional; leave empty on fetch failure.
+    }
+  }
+
+  return { clientToolNames, serverToolNames };
 }
 
 /**
