@@ -476,6 +476,7 @@ export type {
   ToolSet,
 } from "../lib/tools";
 export {
+  BUILT_IN_TOOL_SETS,
   clearServerToolsCache,
   createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,

@@ -912,18 +912,26 @@ export function applyToolSets(
  * @param availableNames - All tool names available for selection
  * @param scores - Map of tool name → similarity score
  * @param toolSets - Tool sets to evaluate
+ * @param activeSetNames - Set names that should expand unconditionally,
+ *   bypassing the anchor-similarity check. Use this when conversation state
+ *   implies a set should be present regardless of how the current prompt is
+ *   phrased (e.g., a slide deck artifact already exists in the conversation).
  * @returns Set including original matches plus members of any activated set
  */
 export function expandToolSetsAdditive(
   matchedNames: Set<string>,
   availableNames: Set<string>,
   scores: Map<string, number>,
-  toolSets: ToolSet[]
+  toolSets: ToolSet[],
+  activeSetNames?: ReadonlySet<string>
 ): Set<string> {
   const result = new Set(matchedNames);
   for (const ts of toolSets) {
-    const minSim = ts.anchorMinSimilarity ?? 0.6;
-    const triggered = ts.anchors.some((a) => (scores.get(a) ?? 0) >= minSim);
+    let triggered = activeSetNames?.has(ts.name) ?? false;
+    if (!triggered) {
+      const minSim = ts.anchorMinSimilarity ?? 0.6;
+      triggered = ts.anchors.some((a) => (scores.get(a) ?? 0) >= minSim);
+    }
     if (!triggered) continue;
     for (const member of ts.members) {
       if (availableNames.has(member)) {

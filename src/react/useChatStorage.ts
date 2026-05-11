@@ -162,7 +162,8 @@ async function autoFilterClientTools(
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
   embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
-  extraToolSets: ToolSet[] = []
+  extraToolSets: ToolSet[] = [],
+  activeToolSets: string[] = []
 ): Promise<LlmapiChatCompletionTool[]> {
   // Memory tools are always included — only filter connector tools (Notion, Google)
   const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
@@ -234,23 +235,31 @@ async function autoFilterClientTools(
     relevanceRatio: 0.9,
   });
 
-  if (matches.length === 0) {
-    // No matches above threshold — return only always-included tools (e.g. memory)
-    return alwaysInclude;
-  }
-
   const matchedNames = new Set(matches.map((m) => m.tool.name));
   const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
   const availableNames = new Set(filterCandidates.map(getToolName));
 
-  // Apply tool sets additively: if an anchor matches, add set members alongside
-  // the original matches rather than dropping non-set tools below a threshold.
+  // Apply tool sets additively: if an anchor matches OR a set is marked
+  // active by the consumer, add set members alongside the original matches.
   // Recall over precision — a few extra tool defs in the request are cheap;
   // missing a tool the model needs (e.g. display_chart for a dashboard prompt)
   // is what we can't afford.
   const toolSets =
     extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
-  const finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, toolSets);
+  const activeSetNames = activeToolSets.length > 0 ? new Set(activeToolSets) : undefined;
+  const finalNames = expandToolSetsAdditive(
+    matchedNames,
+    availableNames,
+    scores,
+    toolSets,
+    activeSetNames
+  );
+
+  // If nothing semantically matched AND no active sets pulled anything in,
+  // return only always-included tools (e.g. memory).
+  if (finalNames.size === 0) {
+    return alwaysInclude;
+  }
 
   const filtered = filterCandidates.filter((t) => {
     const name = getToolName(t);
@@ -540,6 +549,19 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * semantic matching, all members of that set are included automatically.
    */
   extraToolSets?: ToolSet[];
+
+  /**
+   * Tool set names that should expand unconditionally for this request,
+   * bypassing the anchor-similarity check. Use when conversation state
+   * implies a set should be present regardless of how the prompt is phrased
+   * — e.g., pass `["slides"]` when the conversation already contains a slide
+   * deck artifact, so short follow-up prompts ("add a thank you slide",
+   * "make it bigger") still get the full slide toolkit.
+   *
+   * Names must match a set's `name` from `BUILT_IN_TOOL_SETS` or
+   * `extraToolSets`. Unknown names are ignored.
+   */
+  activeToolSets?: string[];
 }
 
 /**
@@ -838,6 +860,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     enableQueue = true,
     autoFlushOnKeyAvailable = true,
     extraToolSets,
+    activeToolSets,
     fileProcessors,
     fileProcessingOptions,
     serverTools: serverToolsConfig,
@@ -1905,7 +1928,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             skipStorageEmbeddings,
             clientToolEmbeddingsCacheRef.current,
             { getToken, baseUrl, model: embeddingModel },
-            extraToolSets
+            extraToolSets,
+            activeToolSets
           );
         }
 
@@ -2332,7 +2356,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMessageEmbeddings ?? null,
           clientToolEmbeddingsCacheRef.current,
           { getToken, baseUrl, model: embeddingModel },
-          extraToolSets
+          extraToolSets,
+          activeToolSets
         );
       }
 

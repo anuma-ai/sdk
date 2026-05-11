@@ -141,7 +141,7 @@ function buildClientPseudoServerTools(): ServerTool[] {
  * 3. Filter client tools by semantic match (like autoFilterClientTools)
  * 4. Merge both sets (like mergeTools)
  */
-async function selectTools(prompt: string) {
+async function selectTools(prompt: string, activeToolSets: string[] = []) {
   const promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
 
   // Server tool filtering (same as selectServerSideTools)
@@ -162,15 +162,18 @@ async function selectTools(prompt: string) {
     relevanceRatio: 0.9,
   });
 
-  // Apply tool sets: if an anchor tool matched, pull in the full set
+  // Apply tool sets: if an anchor tool matched OR a set is marked active,
+  // pull in the full set
   const matchedNames = new Set(clientMatches.map((m) => m.tool.name));
   const scores = new Map(clientMatches.map((m) => [m.tool.name, m.similarity]));
   const availableNames = new Set(CLIENT_TOOLS.map((t) => t.name));
+  const activeSetNames = activeToolSets.length > 0 ? new Set(activeToolSets) : undefined;
   const finalClientNames = expandToolSetsAdditive(
     matchedNames,
     availableNames,
     scores,
-    BUILT_IN_TOOL_SETS
+    BUILT_IN_TOOL_SETS,
+    activeSetNames
   );
 
   // Build client tool configs from the final set (including set-expanded tools)
@@ -230,6 +233,12 @@ interface ToolSelectionCase {
   serverMustExclude?: string[];
   /** Expect no server tools to survive filtering */
   expectNoServerTools?: boolean;
+  /**
+   * Tool set names to mark unconditionally active for this case. Simulates
+   * conversation state (e.g. a slide deck artifact already exists, so the
+   * consumer passes `activeToolSets: ["slides"]`).
+   */
+  activeToolSets?: string[];
 }
 
 const cases: ToolSelectionCase[] = [
@@ -393,6 +402,38 @@ const cases: ToolSelectionCase[] = [
   {
     label: "short slide-edit prompt includes full slide set",
     prompt: "Change the title of my first slide to 'Welcome'",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    // Regression: dominant non-anchor (add_slide) was suppressing the
+    // anchor (patch_slides) via the 0.9 relevance ratio, so the set never
+    // expanded and only add_slide reached the model.
+    label: "add-final-slide prompt still expands full slide set",
+    prompt: "Add a final 'thank you' slide to my deck",
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    // Terse follow-up in a conversation that already has a deck artifact.
+    // The consumer signals "slides" as active so the full set survives even
+    // though only add_slide would match semantically.
+    label: "terse add-thanks-slide with active slides set expands full set",
+    prompt: "add a thank you slide",
+    activeToolSets: ["slides"],
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    label: "terse add-final-slide with active slides set expands full set",
+    prompt: "add a final slide",
+    activeToolSets: ["slides"],
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    // Sanity check: even completely off-topic prompts get the slide set
+    // when the consumer marks it active (mirrors continuing a deck
+    // conversation with an unrelated question).
+    label: "off-topic prompt with active slides set still gets slide tools",
+    prompt: "what's the weather in Paris?",
+    activeToolSets: ["slides"],
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
   },
 
@@ -620,7 +661,10 @@ describe("client tool selection (full pipeline)", () => {
 
   for (const tc of cases) {
     it(tc.label, async () => {
-      const { serverMatches, clientMatches, allToolNames } = await selectTools(tc.prompt);
+      const { serverMatches, clientMatches, allToolNames } = await selectTools(
+        tc.prompt,
+        tc.activeToolSets
+      );
 
       const clientLine = formatToolLine("client", clientMatches);
       const serverLine = formatToolLine("server", serverMatches);
