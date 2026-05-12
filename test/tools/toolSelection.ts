@@ -24,6 +24,7 @@ import {
   findMatchingTools,
   getServerTools,
   mergeTools,
+  scoreTools,
   type ServerTool,
 } from "../../src/lib/tools/serverTools.js";
 import { generateEmbedding, generateEmbeddings } from "../../src/lib/memoryEngine/embeddings.js";
@@ -167,7 +168,10 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   // Apply tool sets: if an anchor tool matched OR a set is marked active,
   // pull in the full set
   const matchedNames = new Set(clientMatches.map((m) => m.tool.name));
-  const scores = new Map(clientMatches.map((m) => [m.tool.name, m.similarity]));
+  // Score against the raw catalog so anchors dropped by the 0.9
+  // relevanceRatio above can still activate their set — mirrors
+  // useChatStorage.autoFilterClientTools.
+  const scores = scoreTools(promptEmbedding, clientPseudoTools);
   const availableNames = new Set(CLIENT_TOOLS.map((t) => t.name));
   const activeSetNames = activeToolSets.length > 0 ? new Set(activeToolSets) : undefined;
   const finalClientNames = expandToolSetsAdditive(
