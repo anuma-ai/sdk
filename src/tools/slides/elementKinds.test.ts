@@ -3,67 +3,77 @@ import { describe, expect, it } from "vitest";
 import { ELEMENT_KINDS, renderElementKinds } from "./elementKinds";
 
 describe("ELEMENT_KINDS", () => {
-  it("covers every SlideElement discriminant", () => {
-    const names = ELEMENT_KINDS.map((k) => k.name).sort();
-    expect(names).toEqual(["icon", "image", "shape", "text"]);
+  it("covers every JSX element tag", () => {
+    const tags = ELEMENT_KINDS.map((k) => k.tag).sort();
+    expect(tags).toEqual(["Circle", "Group", "Icon", "Image", "Line", "Rect", "Text"]);
   });
 
-  it("every spec leads with a literal `kind` value", () => {
-    for (const spec of ELEMENT_KINDS) {
-      const first = spec.fields[0];
-      expect(first, spec.name).toBeDefined();
-      expect(first!.name).toBe("kind");
-      expect("value" in first!).toBe(true);
-      expect((first as { value: string }).value).toBe(`"${spec.name}"`);
-    }
-  });
-
-  it("every spec includes the common geometry fields", () => {
+  it("every spec includes the common geometry attrs", () => {
     const geom = ["id", "x", "y", "w", "h"];
     for (const spec of ELEMENT_KINDS) {
-      const names = spec.fields.map((f) => f.name);
+      const names = spec.attrs.map((a) => a.name);
       for (const g of geom) {
-        expect(names, spec.name).toContain(g);
+        // Group allows x/y/w/h to be optional but they must still appear.
+        expect(names, spec.tag).toContain(g);
       }
     }
   });
 
-  it("field names are unique within each spec", () => {
+  it("attr names are unique within each spec", () => {
     for (const spec of ELEMENT_KINDS) {
-      const names = spec.fields.map((f) => f.name);
-      expect(new Set(names).size, spec.name).toBe(names.length);
+      const names = spec.attrs.map((a) => a.name);
+      expect(new Set(names).size, spec.tag).toBe(names.length);
     }
+  });
+
+  it("only Text and Group have body content", () => {
+    const withBody = ELEMENT_KINDS.filter((k) => k.body !== undefined).map((k) => k.tag);
+    expect(new Set(withBody)).toEqual(new Set(["Text", "Group"]));
   });
 });
 
 describe("renderElementKinds", () => {
-  it("emits one opening line per kind", () => {
+  it("emits an opening <Anuma.Tag …> per kind", () => {
     const prose = renderElementKinds();
     for (const spec of ELEMENT_KINDS) {
-      expect(prose).toContain(`${spec.name}: {`);
+      expect(prose).toContain(`<Anuma.${spec.tag} `);
     }
   });
 
-  it("marks optional fields with `?`", () => {
+  it("marks optional attrs with `?`", () => {
     const prose = renderElementKinds();
-    expect(prose).toContain("align?");
-    expect(prose).toContain("fontFamily?");
+    expect(prose).toContain("style?");
+    expect(prose).toContain("rotation?");
     expect(prose).toContain("cornerRadius?");
   });
 
-  it("inlines enum values for fields that have them", () => {
+  it("inlines enum values for attrs that have them", () => {
     const prose = renderElementKinds();
-    expect(prose).toContain(`fontRole: "heading"|"body"`);
-    expect(prose).toContain(`shape: "rect"|"circle"|"line"`);
+    expect(prose).toContain(`fontRole={"heading"|"body"}`);
+    expect(prose).toContain(`layout?={"absolute"|"row"|"column"}`);
+  });
+
+  it("renders self-closing syntax for leaf tags and body-text for Text", () => {
+    const prose = renderElementKinds();
+    expect(prose).toContain("<Anuma.Image");
+    expect(prose).toContain("/>");
+    expect(prose).toContain("<Anuma.Text ");
+    expect(prose).toContain("</Anuma.Text>");
+  });
+
+  it("documents the style keys for tags that accept style", () => {
+    const prose = renderElementKinds();
+    expect(prose).toContain("style keys: fontSize, fontWeight, color");
+    expect(prose).toContain("style keys: color, fontSize"); // Icon
   });
 
   it("emits notes under their owning kind", () => {
     const prose = renderElementKinds();
-    const textIdx = prose.indexOf("text: {");
-    const shapeIdx = prose.indexOf("shape: {");
-    const noteIdx = prose.indexOf("fontFamily is optional");
+    const textIdx = prose.indexOf("<Anuma.Text ");
+    const imageIdx = prose.indexOf("<Anuma.Image ");
+    const typographyNoteIdx = prose.indexOf("All typography lives inside style");
     expect(textIdx).toBeGreaterThanOrEqual(0);
-    expect(noteIdx).toBeGreaterThan(textIdx);
-    expect(noteIdx).toBeLessThan(shapeIdx);
+    expect(typographyNoteIdx).toBeGreaterThan(textIdx);
+    expect(typographyNoteIdx).toBeLessThan(imageIdx);
   });
 });

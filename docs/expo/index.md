@@ -148,9 +148,21 @@ Re-exports [clearEncryptionKey](../react/Internal/functions/clearEncryptionKey.m
 
 ***
 
+### clearLazyTitleCache
+
+Re-exports [clearLazyTitleCache](../react/Internal/functions/clearLazyTitleCache.md)
+
+***
+
 ### clearServerToolsCache
 
 Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsCache.md)
+
+***
+
+### cosineInt8
+
+Re-exports [cosineInt8](../react/Internal/functions/cosineInt8.md)
 
 ***
 
@@ -226,6 +238,12 @@ Re-exports [DatabaseManagerOptions](../react/Internal/interfaces/DatabaseManager
 
 ***
 
+### decryptConversationTitle
+
+Re-exports [decryptConversationTitle](../react/Internal/functions/decryptConversationTitle.md)
+
+***
+
 ### DEFAULT\_CACHE\_EXPIRATION\_MS
 
 Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
@@ -247,6 +265,12 @@ Re-exports [deleteVaultFolderOp](../react/Internal/functions/deleteVaultFolderOp
 ### deleteVaultMemoryOp
 
 Re-exports [deleteVaultMemoryOp](../react/Internal/functions/deleteVaultMemoryOp.md)
+
+***
+
+### dequantizeEmbedding
+
+Re-exports [dequantizeEmbedding](../react/Internal/functions/dequantizeEmbedding.md)
 
 ***
 
@@ -328,6 +352,18 @@ Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerToo
 
 ***
 
+### getConversationsByProjectLazyOp
+
+Re-exports [getConversationsByProjectLazyOp](../react/Internal/functions/getConversationsByProjectLazyOp.md)
+
+***
+
+### getConversationsLazyOp
+
+Re-exports [getConversationsLazyOp](../react/Internal/functions/getConversationsLazyOp.md)
+
+***
+
 ### getServerTools
 
 Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
@@ -355,6 +391,12 @@ Re-exports [getVaultMemoryOp](../react/Internal/functions/getVaultMemoryOp.md)
 ### hasEncryptionKey
 
 Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
+
+***
+
+### LazyStoredConversation
+
+Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
 
 ***
 
@@ -397,6 +439,18 @@ Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
 ### PlatformStorage
 
 Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
+
+***
+
+### QuantizedEmbedding
+
+Re-exports [QuantizedEmbedding](../react/Internal/interfaces/QuantizedEmbedding.md)
+
+***
+
+### quantizeEmbedding
+
+Re-exports [quantizeEmbedding](../react/Internal/functions/quantizeEmbedding.md)
 
 ***
 

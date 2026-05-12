@@ -124,6 +124,22 @@ export default defineConfig([
       };
     },
   },
+  // Design — pointer-driven gesture system for AnumaNode trees.
+  // The foundation for any visual editor on the SDK runtime
+  // (slide editor, app-mockup designer, etc.). React-only; same
+  // external pattern as src/react.
+  {
+    entry: ["src/design/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/design",
+    external: ["react"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
   // OpenAPI spec — re-exported so clients can import it from the SDK
   {
     entry: ["src/api/spec.ts"],

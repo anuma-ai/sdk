@@ -186,12 +186,17 @@ export {
   /** @deprecated Use sdkSchema instead */
   chatStorageSchema,
   type ChunkSearchResult,
+  clearLazyTitleCache,
   type ClientToolsFilterFn,
   type CreateConversationOptions,
   type CreateMessageOptions,
+  decryptConversationTitle,
   type FileMetadata,
   generateConversationId,
+  getConversationsByProjectLazyOp,
   getConversationsByProjectOp,
+  getConversationsLazyOp,
+  type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
   searchChunksOp,
@@ -443,6 +448,7 @@ export type {
   EmbeddingOptions as MemoryEngineEmbeddingOptions,
   MemoryEngineResult,
   MemoryEngineSearchOptions,
+  QuantizedEmbedding,
   TextChunk,
 } from "../lib/memoryEngine";
 export {
@@ -450,14 +456,18 @@ export {
   // Chunking functions for sub-message semantic search
   chunkAndEmbedMessage,
   chunkText,
+  // Int8 embedding quantization helpers (RAM reduction for client caches)
+  cosineInt8,
   createMemoryEngineTool,
   DEFAULT_CHUNK_OVERLAP,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CHUNK_SIZE,
+  dequantizeEmbedding,
   embedAllMessages,
   embedMessage,
   generateEmbedding,
   generateEmbeddings,
+  quantizeEmbedding,
   shouldChunkMessage,
 } from "../lib/memoryEngine";
 
@@ -638,3 +648,56 @@ export {
 
 // GitHub Tools (repo access: search, read, issues, PRs, reviews, commits)
 export { createGitHubTools } from "../tools/github";
+
+// Anuma JSX runtime — React components that render <Anuma.*> primitives
+// and parsed AnumaNode trees. Pair with AnumaThemeProvider.
+export type {
+  AnumaShadowIsolationProviderProps,
+  AnumaTheme,
+  AnumaThemeProviderProps,
+  CircleProps,
+  DeckProps,
+  GroupProps,
+  IconProps,
+  ImageProps,
+  LineProps,
+  RectProps,
+  ScreenProps,
+  SlideProps,
+  TextProps,
+} from "./anumaRuntime";
+export {
+  Anuma,
+  AnumaShadowIsolationProvider,
+  AnumaThemeProvider,
+  renderAnumaJsx,
+  renderAnumaTree,
+  resolveThemeColor,
+  useAnumaTheme,
+} from "./anumaRuntime";
+
+// Re-export the AST types and tree helpers so consumers of the React
+// runtime can read/walk decks without a parallel import from /tools.
+export type { AnumaChild, AnumaNode, AttrValue, KnownTag, ThemeAttr } from "../tools/slides";
+export {
+  AnumaJsxError,
+  findById,
+  findParentOfId,
+  getId,
+  getNumberAttr,
+  getStringAttr,
+  insertAfterId,
+  insertChild,
+  isAnumaTag,
+  isHtmlTag,
+  parseJsx,
+  removeById,
+  replaceById,
+  serializeJsx,
+  SLIDE_CANVAS_HEIGHT,
+  SLIDE_CANVAS_WIDTH,
+  SLIDES_FILE_PATH,
+  THEME_ATTRS,
+  updateAttrs,
+  walk,
+} from "../tools/slides";

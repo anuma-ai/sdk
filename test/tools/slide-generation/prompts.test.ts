@@ -2,7 +2,7 @@
  * Visual-quality tests for slide generation.
  *
  * Each test runs a real user-style prompt end-to-end and dumps the resulting
- * slides.json to `.output/` for manual visual review. Assertions cover only
+ * slides.jsx to `.output/` for manual visual review. Assertions cover only
  * structural invariants and constraints stated in the prompt — the actual
  * "does it look good" judgment is left to the reviewer reading the dumped
  * deck (or feeding it into the slide renderer).
@@ -18,13 +18,19 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildSlideSystemPrompt } from "../../../src/tools/slides/index.js";
+import {
+  buildSlideSystemPrompt,
+  SLIDE_CANVAS_HEIGHT,
+  SLIDE_CANVAS_WIDTH,
+} from "../../../src/tools/slides/index.js";
 import {
   config,
   createFileStore,
   dumpFiles,
+  elementsOf,
   getDeck,
   printResult,
+  slidesOf,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
@@ -102,33 +108,40 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
     expect(result.error).toBeNull();
 
     const deck = getDeck(store);
+    const slides = slidesOf(deck);
 
     // Prompt asks for ≥10 slides. Most models land at 7–9 — coming up short is
     // a prompt-following miss but not a structural failure, so the floor is
     // set at 7 and the actual count is logged below for review.
-    expect(deck.slides.length).toBeGreaterThanOrEqual(7);
+    expect(slides.length).toBeGreaterThanOrEqual(7);
 
     // "No images" constraint: there should be zero image elements
-    const imageCount = deck.slides.reduce(
-      (n, s) => n + s.elements.filter((e) => e.kind === "image").length,
+    const imageCount = slides.reduce(
+      (n, s) => n + elementsOf(s).filter((e) => e.tag === "Image").length,
       0
     );
     expect(imageCount).toBe(0);
 
-    // Coordinate validity — elements should stay within the canvas
-    for (const slide of deck.slides) {
-      for (const el of slide.elements) {
-        expect(el.x).toBeGreaterThanOrEqual(0);
-        expect(el.x + el.w).toBeLessThanOrEqual(100);
-        expect(el.y).toBeGreaterThanOrEqual(0);
-        expect(el.y + el.h).toBeLessThanOrEqual(100);
+    // Coordinate validity — elements should stay within the 960×540 pixel canvas
+    for (const slide of slides) {
+      for (const el of elementsOf(slide)) {
+        const x = typeof el.attrs.x === "number" ? el.attrs.x : 0;
+        const y = typeof el.attrs.y === "number" ? el.attrs.y : 0;
+        const w = typeof el.attrs.w === "number" ? el.attrs.w : 0;
+        const h = typeof el.attrs.h === "number" ? el.attrs.h : 0;
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x + w).toBeLessThanOrEqual(SLIDE_CANVAS_WIDTH);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y + h).toBeLessThanOrEqual(SLIDE_CANVAS_HEIGHT);
       }
     }
 
     // Content should mention the topics the prompt called out
-    const allText = deck.slides
+    const allText = slides
       .flatMap((s) =>
-        s.elements.filter((e) => e.kind === "text").map((e) => (e as { text: string }).text)
+        elementsOf(s)
+          .filter((e) => e.tag === "Text")
+          .map((e) => e.children.filter((c): c is string => typeof c === "string").join(""))
       )
       .join(" ")
       .toLowerCase();
@@ -137,11 +150,11 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
     expect(allText).toMatch(/pest|insect|bug/);
     expect(allText).toMatch(/plant|climate/);
 
-    // Log element-kind mix so the reviewer can spot text-only decks vs varied ones
-    const kindCounts: Record<string, number> = {};
-    for (const slide of deck.slides) {
-      for (const el of slide.elements) kindCounts[el.kind] = (kindCounts[el.kind] ?? 0) + 1;
+    // Log element-tag mix so the reviewer can spot text-only decks vs varied ones
+    const tagCounts: Record<string, number> = {};
+    for (const slide of slides) {
+      for (const el of elementsOf(slide)) tagCounts[el.tag] = (tagCounts[el.tag] ?? 0) + 1;
     }
-    console.log(`  Slides: ${deck.slides.length}, element kinds: ${JSON.stringify(kindCounts)}`);
+    console.log(`  Slides: ${slides.length}, element tags: ${JSON.stringify(tagCounts)}`);
   });
 });

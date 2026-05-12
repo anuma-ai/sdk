@@ -164,6 +164,30 @@ export interface StoredConversation {
   isDeleted: boolean;
 }
 
+/**
+ * Lazy variant of {@link StoredConversation}.
+ *
+ * Identical to `StoredConversation` except `title` is replaced with
+ * `encryptedTitle` — the raw value as persisted in WatermelonDB. The
+ * caller is responsible for decrypting the title when (and only when)
+ * the row is actually rendered, typically via `decryptConversationTitle`
+ * inside an IntersectionObserver callback or a virtualized list.
+ *
+ * For users with thousands of conversations this means plaintext titles
+ * for the off-screen rows never enter client RAM.
+ *
+ * The string in `encryptedTitle` may also be plaintext (legacy/unencrypted
+ * conversations); `decryptConversationTitle` handles both transparently.
+ */
+export interface LazyStoredConversation extends Omit<StoredConversation, "title"> {
+  /**
+   * Raw stored title — either ciphertext (`enc:v3:...`) or plaintext for
+   * legacy rows. Pass to `decryptConversationTitle(encryptedTitle, address)`
+   * when the row needs to be rendered.
+   */
+  encryptedTitle: string;
+}
+
 export interface StoredMessageWithSimilarity extends StoredMessage {
   similarity: number;
 }

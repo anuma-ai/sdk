@@ -2,7 +2,7 @@
  * Shared setup for slide-generation tool e2e tests.
  *
  * Extends the base test/tools/setup.ts with slide-generation-specific
- * utilities: in-memory file store for slides.json plus any images, and
+ * utilities: in-memory file store for slides.jsx plus any images, and
  * output dumping of the resulting deck JSON to disk for inspection.
  *
  * Environment:
@@ -17,7 +17,8 @@ import path from "node:path";
 
 import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
 import type { StepFinishEvent } from "../../../src/lib/chat/toolLoop.js";
-import type { SlideDeck } from "../../../src/tools/slides/index.js";
+import type { AnumaNode } from "../../../src/tools/slides/index.js";
+import { parseJsx, SLIDES_FILE_PATH, walk } from "../../../src/tools/slides/index.js";
 import { renderDeckToHtml } from "./renderHtml.js";
 
 export { config, extractText, printResult, wrapTool, type ToolCallLog } from "../setup.js";
@@ -104,31 +105,44 @@ export function snapshot(store: FileStore): Map<string, string> {
 // Deck helpers
 // ---------------------------------------------------------------------------
 
-/** Parse slides.json from the store. Throws if missing or invalid. */
-export function getDeck(store: FileStore): SlideDeck {
-  const raw = store.get("slides.json");
-  if (!raw) throw new Error("slides.json not found in store");
-  return JSON.parse(raw) as SlideDeck;
+/** Parse slides.jsx from the store as an Anuma AST. Throws if missing/invalid. */
+export function getDeck(store: FileStore): AnumaNode {
+  const raw = store.get(SLIDES_FILE_PATH);
+  if (!raw) throw new Error(`${SLIDES_FILE_PATH} not found in store`);
+  return parseJsx(raw);
 }
 
 /** Return the deck or null if not present / unparseable. */
-export function tryGetDeck(store: FileStore): SlideDeck | null {
-  const raw = store.get("slides.json");
+export function tryGetDeck(store: FileStore): AnumaNode | null {
+  const raw = store.get(SLIDES_FILE_PATH);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as SlideDeck;
+    return parseJsx(raw);
   } catch {
     return null;
   }
 }
 
-/** Extract all text element contents from a deck (for content-based assertions). */
-export function allSlideText(deck: SlideDeck): string {
-  return deck.slides
-    .flatMap((s) =>
-      s.elements.filter((e) => e.kind === "text").map((e) => (e as { text: string }).text)
-    )
-    .join("\n");
+/** Return the direct Slide children of a Deck AnumaNode. */
+export function slidesOf(deck: AnumaNode): AnumaNode[] {
+  return deck.children.filter((c): c is AnumaNode => typeof c !== "string" && c.tag === "Slide");
+}
+
+/** Element children of a Slide AnumaNode (or any container). */
+export function elementsOf(node: AnumaNode): AnumaNode[] {
+  return node.children.filter((c): c is AnumaNode => typeof c !== "string");
+}
+
+/** Extract all Text element body strings from a deck (for content-based assertions). */
+export function allSlideText(deck: AnumaNode): string {
+  const out: string[] = [];
+  walk(deck, (node) => {
+    if (node.tag === "Text") {
+      const body = node.children.filter((c): c is string => typeof c === "string").join("");
+      if (body) out.push(body);
+    }
+  });
+  return out.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +152,7 @@ export function allSlideText(deck: SlideDeck): string {
 const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
 /**
- * Write all files from the store to disk for inspection. If slides.json is
+ * Write all files from the store to disk for inspection. If slides.jsx is
  * present and parses as a SlideDeck, also emits a self-contained `index.html`
  * you can open in a browser to visually step through the deck, and refreshes
  * the top-level .output/index.html that links to every dumped deck.

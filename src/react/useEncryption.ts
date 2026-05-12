@@ -13,11 +13,31 @@ export type EncryptionKeyVersion = "v2" | "v3";
 
 /**
  * Stores both legacy and current encryption keys for migration support.
+ *
+ * SECURITY NOTE — FLAGGED FOR HUMAN REVIEW.
+ * These are RAW HEX KEY MATERIAL, not non-extractable `CryptoKey` objects.
+ * Both `legacy` and `current` are 32-byte AES-GCM keys serialized as hex
+ * strings, derived from a wallet signature via SHA-256 / HKDF
+ * (`deriveKeyFromSignature` / `deriveKeyFromSignatureV3`).
+ *
+ * The non-extractable `CryptoKey` is materialized in `cryptoKeyCache`
+ * lazily via `getEncryptionKey`, but the raw hex remains in
+ * `encryptionKeyStore` for the entire session — both forms exist in RAM
+ * simultaneously. Anything with closure access to the module-level
+ * `encryptionKeyStore` (e.g. a `console.log` of the Map, a debugger
+ * snapshot, an XSS payload that reaches into the same realm before the
+ * Map is cleared) can read the raw key.
+ *
+ * The architecturally-correct version derives the bytes inside
+ * `crypto.subtle` (e.g. by deriving directly into a non-extractable
+ * `CryptoKey`) and never holds the raw bytes in JS memory. That change
+ * has migration / dual-key / cache-invalidation implications and is
+ * left to a follow-up security review.
  */
 interface StoredKeys {
-  /** SHA-256 derived key (for reading enc:v2: data) */
+  /** SHA-256 derived key (for reading enc:v2: data) — raw hex, see SECURITY NOTE */
   legacy: string;
-  /** HKDF derived key (for new encryption, reading enc:v3: data) */
+  /** HKDF derived key (for new encryption, reading enc:v3: data) — raw hex, see SECURITY NOTE */
   current: string;
 }
 
@@ -26,6 +46,9 @@ interface StoredKeys {
  * Keys are stored per wallet address and only persist for the session.
  * This is more secure than localStorage as keys are not persisted to disk
  * and are not accessible to XSS attacks after page reload.
+ *
+ * See SECURITY NOTE on `StoredKeys` — the values are raw hex bytes, not
+ * non-extractable `CryptoKey`s. Hardening this is a tracked follow-up.
  */
 const encryptionKeyStore = new Map<string, StoredKeys>();
 const pendingKeyRequests = new Map<string, Promise<void>>();
@@ -51,6 +74,32 @@ const cryptoKeyCache = new Map<string, CryptoKey>();
  * Used by the queue system to auto-flush operations once keys are ready.
  */
 const keyAvailableCallbacks = new Map<string, Set<() => void>>();
+
+/**
+ * Callbacks invoked synchronously inside `clearAllEncryptionState` so
+ * downstream caches keyed off the same wallet (e.g. lazy-decrypt LRUs)
+ * can drop their entries in lock-step with the core key-store wipe.
+ *
+ * Intentionally a flat Set rather than per-address — clearing all
+ * encryption state is a global teardown event, not per-wallet.
+ */
+const clearAllEncryptionStateCallbacks = new Set<() => void>();
+
+/**
+ * Register a callback fired on every {@link clearAllEncryptionState}.
+ * Useful for downstream caches that hold plaintext derived from
+ * encrypted SDK fields and must be wiped on session teardown.
+ *
+ * Listener errors are swallowed to keep teardown deterministic.
+ *
+ * @returns Unsubscribe function.
+ */
+export function onClearAllEncryptionState(callback: () => void): () => void {
+  clearAllEncryptionStateCallbacks.add(callback);
+  return () => {
+    clearAllEncryptionStateCallbacks.delete(callback);
+  };
+}
 
 /**
  * Register a callback that fires when an encryption key becomes available for an address.
@@ -183,6 +232,17 @@ export function clearAllEncryptionState(): void {
   pendingKeyRequests.clear();
 
   clearAllKeyPairs();
+
+  // Fire downstream teardown listeners (e.g. lazy-decrypt LRUs).
+  // Listener errors are swallowed individually so a misbehaving
+  // listener can't leave the core key store half-cleared.
+  for (const cb of clearAllEncryptionStateCallbacks) {
+    try {
+      cb();
+    } catch {
+      /* ignore listener errors */
+    }
+  }
 }
 
 /**
@@ -217,6 +277,17 @@ function bytesToHex(bytes: Uint8Array): string {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
+/**
+ * Shared TextEncoder/Decoder.
+ *
+ * Allocating a fresh codec per encrypt/decrypt call shows up in
+ * per-row decrypt CPU profiles for chats with thousands of messages.
+ * Both objects are stateless and safe to share across all callers in
+ * the module.
+ */
+const SHARED_TEXT_ENCODER = new TextEncoder();
+const SHARED_TEXT_DECODER = new TextDecoder();
 
 /**
  * Validates a wallet address format
@@ -266,7 +337,7 @@ async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
       name: "HKDF",
       hash: "SHA-256",
       salt: new Uint8Array(32), // Zero salt (HKDF spec: uses hash-length zero buffer)
-      info: new TextEncoder().encode("anuma-sdk-aes-gcm-v3"),
+      info: SHARED_TEXT_ENCODER.encode("anuma-sdk-aes-gcm-v3"),
     },
     hkdfKey,
     256
@@ -322,8 +393,8 @@ async function deriveKeyPairFromSignature(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: new TextEncoder().encode(address.toLowerCase()), // Wallet address as salt
-      info: new TextEncoder().encode("ECDH-P256-KeyPair"), // Context info
+      salt: SHARED_TEXT_ENCODER.encode(address.toLowerCase()), // Wallet address as salt
+      info: SHARED_TEXT_ENCODER.encode("ECDH-P256-KeyPair"), // Context info
     },
     hkdfKey,
     256 // 32 bytes = 256 bits
@@ -577,9 +648,15 @@ export async function decryptDataBytes(
   // Convert hex to bytes
   const combined = hexToBytes(encryptedHex);
 
-  // Extract IV (first 12 bytes) and encrypted data (rest)
-  const iv = combined.slice(0, 12);
-  const encryptedData = combined.slice(12);
+  // Extract IV (first 12 bytes) and encrypted data (rest).
+  // `subarray` returns views (no copy); `slice` would copy each call.
+  // Cast to `Uint8Array<ArrayBuffer>` because `subarray` widens to
+  // `ArrayBufferLike` in current TS lib (theoretically a
+  // SharedArrayBuffer), but the backing buffer is always a plain
+  // ArrayBuffer — `combined` came from `hexToBytes`, which allocates
+  // a fresh `new Uint8Array(n)`.
+  const iv = combined.subarray(0, 12) as Uint8Array<ArrayBuffer>;
+  const encryptedData = combined.subarray(12) as Uint8Array<ArrayBuffer>;
 
   // Decrypt the data
   const decryptedData = await crypto.subtle.decrypt(
@@ -616,7 +693,7 @@ export async function encryptDataWithKey(
 ): Promise<string> {
   // Convert plaintext to Uint8Array if it's a string
   const plaintextBytes =
-    typeof plaintext === "string" ? new TextEncoder().encode(plaintext) : plaintext;
+    typeof plaintext === "string" ? SHARED_TEXT_ENCODER.encode(plaintext) : plaintext;
 
   // Generate a random 12-byte IV (initialization vector)
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -654,9 +731,16 @@ export async function decryptDataWithKey(encryptedHex: string, key: CryptoKey): 
   // Convert hex to bytes
   const combined = hexToBytes(encryptedHex);
 
-  // Extract IV (first 12 bytes) and encrypted data (rest)
-  const iv = combined.slice(0, 12);
-  const encryptedData = combined.slice(12);
+  // Extract IV (first 12 bytes) and encrypted data (rest).
+  // `subarray` returns a view onto the same buffer — no copy. The
+  // previous `slice` allocated two fresh Uint8Arrays per decrypt,
+  // doubling RAM during a hot per-row decrypt loop.
+  // Cast to `Uint8Array<ArrayBuffer>`: `subarray` widens to
+  // `ArrayBufferLike` in current TS lib (theoretically a
+  // SharedArrayBuffer), but the backing buffer is always a plain
+  // ArrayBuffer here — `combined` came from `hexToBytes`.
+  const iv = combined.subarray(0, 12) as Uint8Array<ArrayBuffer>;
+  const encryptedData = combined.subarray(12) as Uint8Array<ArrayBuffer>;
 
   // Decrypt the data
   const decryptedData = await crypto.subtle.decrypt(
@@ -668,8 +752,8 @@ export async function decryptDataWithKey(encryptedHex: string, key: CryptoKey): 
     encryptedData
   );
 
-  // Convert decrypted bytes to string
-  return new TextDecoder().decode(decryptedData);
+  // Convert decrypted bytes to string using shared decoder.
+  return SHARED_TEXT_DECODER.decode(decryptedData);
 }
 
 /**
@@ -913,7 +997,7 @@ async function persistKeyPair(address: string, startEpoch: number): Promise<void
 
     // Encrypt the keypair data using AES-GCM
     const key = await getEncryptionKey(address);
-    const plaintextBytes = new TextEncoder().encode(JSON.stringify(keyPairData));
+    const plaintextBytes = SHARED_TEXT_ENCODER.encode(JSON.stringify(keyPairData));
 
     // Generate a random IV for encryption
     const iv = cryptoApi.getRandomValues(new Uint8Array(12));
@@ -979,10 +1063,13 @@ async function loadPersistedKeyPair(address: string): Promise<CryptoKeyPair | nu
       return null;
     }
 
-    // Try to decrypt the keypair data with current key first, then fall back to legacy
+    // Try to decrypt the keypair data with current key first, then fall back to legacy.
+    // `subarray` returns views into the same buffer; no extra copies.
+    // Cast: see `decryptDataWithKey` for the rationale on
+    // `Uint8Array<ArrayBuffer>` here.
     const combined = hexToBytes(encryptedHex);
-    const iv = combined.slice(0, 12);
-    const encryptedData = combined.slice(12);
+    const iv = combined.subarray(0, 12) as Uint8Array<ArrayBuffer>;
+    const encryptedData = combined.subarray(12) as Uint8Array<ArrayBuffer>;
 
     let decryptedData: ArrayBuffer;
     try {
@@ -999,7 +1086,7 @@ async function loadPersistedKeyPair(address: string): Promise<CryptoKeyPair | nu
     }
 
     // Parse the JSON structure
-    const decryptedJson = new TextDecoder().decode(decryptedData);
+    const decryptedJson = SHARED_TEXT_DECODER.decode(decryptedData);
     const keyPairData = JSON.parse(decryptedJson) as {
       privateKey: JsonWebKey;
       publicKey: JsonWebKey;
