@@ -1046,7 +1046,10 @@ export function createServerToolsFilter(
     const matchedNames = new Set(matches.map((m) => m.tool.name));
     let finalNames: Set<string>;
     if (sets.length > 0) {
-      const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
+      // Score from the raw catalog (not from `matches`) so anchors dropped
+      // by `findMatchingTools`' limit / relevanceRatio / ambiguity cuts can
+      // still activate their set when they cleared `anchorMinSimilarity`.
+      const scores = scoreTools(embeddings, tools);
       const availableNames = new Set(tools.map((t) => t.name));
       finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, sets);
     } else {
