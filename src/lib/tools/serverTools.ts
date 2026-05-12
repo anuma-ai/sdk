@@ -1091,7 +1091,7 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
 /**
  * Pre-configured server-tools filter ready to drop into `useChatStorage`'s
  * `serverTools` option. Pure semantic matching against the user prompt with
- * the default exclusion list applied.
+ * built-in tool-set expansion and the default exclusion list applied.
  *
  * @example
  * ```ts
@@ -1103,10 +1103,11 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
  * });
  * ```
  *
- * If you need to customize (extra excludes, different limits, opt into
- * tool-set expansion), call `createServerToolsFilter` directly.
+ * If you need to customize (extra excludes, different limits, custom tool
+ * sets), call `createServerToolsFilter` directly.
  */
 export const defaultServerToolsFilter = createServerToolsFilter({
+  toolSets: BUILT_IN_TOOL_SETS,
   excludeTools: DEFAULT_EXCLUDED_SERVER_TOOLS,
   matchOptions: DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
 });
