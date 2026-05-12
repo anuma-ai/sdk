@@ -10,15 +10,23 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildSlideSystemPrompt, type SlideDeck } from "../../../src/tools/slides/index.js";
+import {
+  type AnumaNode,
+  buildSlideSystemPrompt,
+  getId,
+  SLIDE_CANVAS_HEIGHT,
+  SLIDE_CANVAS_WIDTH,
+} from "../../../src/tools/slides/index.js";
 import {
   allSlideText,
   config,
   createFileStore,
   dumpFiles,
+  elementsOf,
   extractText,
   getDeck,
   printResult,
+  slidesOf,
   timedToolLoop,
   tryGetDeck,
   type ToolCallLog,
@@ -42,10 +50,10 @@ function makeMessages(userText: string, systemPrompt?: string): Message[] {
   return msgs;
 }
 
-function isDeckShape(deck: unknown): deck is SlideDeck {
+function isDeckShape(deck: unknown): deck is AnumaNode {
   if (!deck || typeof deck !== "object") return false;
-  const d = deck as { version?: unknown; slides?: unknown; theme?: unknown };
-  return d.version === 2 && Array.isArray(d.slides) && typeof d.theme === "object";
+  const d = deck as { tag?: unknown; attrs?: unknown; children?: unknown };
+  return d.tag === "Deck" && typeof d.attrs === "object" && Array.isArray(d.children);
 }
 
 describe("slide-generation", () => {
@@ -78,24 +86,26 @@ describe("slide-generation", () => {
     expect(planCalls.length).toBe(1);
     expect(addCalls.length).toBeGreaterThanOrEqual(2);
 
-    // slides.json should exist and be a valid SlideDeck
-    expect(store.has("slides.json")).toBe(true);
+    // slides.jsx should exist and be a valid SlideDeck
+    expect(store.has("slides.jsx")).toBe(true);
     const deck = getDeck(store);
     expect(isDeckShape(deck)).toBe(true);
-    expect(deck.slides.length).toBeGreaterThanOrEqual(2);
+    const slides = slidesOf(deck);
+    expect(slides.length).toBeGreaterThanOrEqual(2);
 
     // Every slide should have at least one element with a unique id
     const ids = new Set<string>();
-    for (const slide of deck.slides) {
-      expect(slide.id).toBeTruthy();
-      expect(Array.isArray(slide.elements)).toBe(true);
-      expect(slide.elements.length).toBeGreaterThan(0);
-      ids.add(slide.id);
-      for (const el of slide.elements) {
-        expect(el.id).toBeTruthy();
+    for (const slide of slides) {
+      const slideId = getId(slide);
+      expect(slideId).toBeTruthy();
+      const els = elementsOf(slide);
+      expect(els.length).toBeGreaterThan(0);
+      ids.add(slideId!);
+      for (const el of els) {
+        expect(getId(el)).toBeTruthy();
       }
     }
-    expect(ids.size).toBe(deck.slides.length);
+    expect(ids.size).toBe(slides.length);
 
     // Content should relate to the requested topic
     const text = allSlideText(deck).toLowerCase();
@@ -127,8 +137,8 @@ describe("slide-generation", () => {
     expect(genResult.error).toBeNull();
 
     const initialDeck = getDeck(store);
-    const initialSlideCount = initialDeck.slides.length;
-    const initialJson = store.get("slides.json")!;
+    const initialSlideCount = slidesOf(initialDeck).length;
+    const initialJsx = store.get("slides.jsx")!;
     const initialFocusFlowCount = (allSlideText(initialDeck).match(/FocusFlow/gi) ?? []).length;
     const callsAfterGen = log.length;
 
@@ -181,13 +191,13 @@ describe("slide-generation", () => {
     expect(patchCalls.length).toBeGreaterThanOrEqual(1);
     expect(reinitCalls.length).toBe(0);
 
-    // slides.json should have changed and still be valid
-    expect(store.get("slides.json")).not.toBe(initialJson);
+    // slides.jsx should have changed and still be valid
+    expect(store.get("slides.jsx")).not.toBe(initialJsx);
     const updatedDeck = getDeck(store);
     expect(isDeckShape(updatedDeck)).toBe(true);
 
     // Slide count should be preserved (we only renamed, not restructured)
-    expect(updatedDeck.slides.length).toBe(initialSlideCount);
+    expect(slidesOf(updatedDeck).length).toBe(initialSlideCount);
 
     // Text should now contain "Momentum" and have fewer "FocusFlow" references
     // than before. We don't require every occurrence to be replaced — LLMs
@@ -222,8 +232,9 @@ describe("slide-generation", () => {
     dumpFiles(store, "renewable-gen");
 
     const initialDeck = getDeck(store);
-    const initialSlideCount = initialDeck.slides.length;
-    const initialElementCount = initialDeck.slides.reduce((n, s) => n + s.elements.length, 0);
+    const initialSlides = slidesOf(initialDeck);
+    const initialSlideCount = initialSlides.length;
+    const initialElementCount = initialSlides.reduce((n, s) => n + elementsOf(s).length, 0);
     const callsAfterGen = log.length;
 
     // Step 2: Request a minor tweak
@@ -273,12 +284,14 @@ describe("slide-generation", () => {
 
     const updatedDeck = getDeck(store);
     // Structure should be preserved
-    expect(updatedDeck.slides.length).toBe(initialSlideCount);
-    const updatedElementCount = updatedDeck.slides.reduce((n, s) => n + s.elements.length, 0);
+    const updatedSlides = slidesOf(updatedDeck);
+    expect(updatedSlides.length).toBe(initialSlideCount);
+    const updatedElementCount = updatedSlides.reduce((n, s) => n + elementsOf(s).length, 0);
     expect(updatedElementCount).toBe(initialElementCount);
 
     // Accent should match the requested color (case-insensitive)
-    expect(updatedDeck.theme.colors.accent.toLowerCase()).toBe("#10b981");
+    const accent = updatedDeck.attrs.accent;
+    expect(typeof accent === "string" ? accent.toLowerCase() : accent).toBe("#10b981");
   });
 
   it("varies layouts across a multi-slide deck", async () => {
@@ -305,30 +318,35 @@ describe("slide-generation", () => {
     expect(result.error).toBeNull();
 
     const deck = getDeck(store);
-    expect(deck.slides.length).toBeGreaterThanOrEqual(4);
+    const slides = slidesOf(deck);
+    expect(slides.length).toBeGreaterThanOrEqual(4);
 
-    // Collect the set of element "kind"s per slide to measure variety
-    const elementKinds = new Set<string>();
-    for (const slide of deck.slides) {
-      for (const el of slide.elements) elementKinds.add(el.kind);
+    // Collect the set of element tags per slide to measure variety
+    const elementTags = new Set<string>();
+    for (const slide of slides) {
+      for (const el of elementsOf(slide)) elementTags.add(el.tag);
     }
-    console.log(`  Element kinds used: ${[...elementKinds].join(", ")}`);
+    console.log(`  Element tags used: ${[...elementTags].join(", ")}`);
     // A polished deck should mix text with at least one shape or icon
-    expect(elementKinds.has("text")).toBe(true);
-    expect(elementKinds.size).toBeGreaterThanOrEqual(2);
+    expect(elementTags.has("Text")).toBe(true);
+    expect(elementTags.size).toBeGreaterThanOrEqual(2);
 
-    // All element coordinates should be valid percentages (0..100)
-    for (const slide of deck.slides) {
-      for (const el of slide.elements) {
-        expect(el.x).toBeGreaterThanOrEqual(0);
-        expect(el.x).toBeLessThanOrEqual(100);
-        expect(el.y).toBeGreaterThanOrEqual(0);
-        expect(el.y).toBeLessThanOrEqual(100);
-        // Line shapes legitimately have h=0 or w=0 (rendered as borders).
-        expect(el.w).toBeGreaterThanOrEqual(0);
-        expect(el.w).toBeLessThanOrEqual(100);
-        expect(el.h).toBeGreaterThanOrEqual(0);
-        expect(el.h).toBeLessThanOrEqual(100);
+    // All element coordinates should be within the 960×540 canvas.
+    for (const slide of slides) {
+      for (const el of elementsOf(slide)) {
+        const x = typeof el.attrs.x === "number" ? el.attrs.x : 0;
+        const y = typeof el.attrs.y === "number" ? el.attrs.y : 0;
+        const w = typeof el.attrs.w === "number" ? el.attrs.w : 0;
+        const h = typeof el.attrs.h === "number" ? el.attrs.h : 0;
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(SLIDE_CANVAS_WIDTH);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThanOrEqual(SLIDE_CANVAS_HEIGHT);
+        // Lines legitimately have h=0 or w=0 (rendered as borders).
+        expect(w).toBeGreaterThanOrEqual(0);
+        expect(w).toBeLessThanOrEqual(SLIDE_CANVAS_WIDTH);
+        expect(h).toBeGreaterThanOrEqual(0);
+        expect(h).toBeLessThanOrEqual(SLIDE_CANVAS_HEIGHT);
       }
     }
   });
@@ -354,7 +372,7 @@ describe("slide-generation", () => {
 
     const initial = tryGetDeck(store);
     expect(initial).not.toBeNull();
-    const initialCount = initial!.slides.length;
+    const initialCount = slidesOf(initial!).length;
     const callsAfterGen = log.length;
 
     // Step 2: Add a new slide at the end
@@ -393,13 +411,14 @@ describe("slide-generation", () => {
     expect(patchCalls.length).toBeGreaterThanOrEqual(1);
 
     const updated = getDeck(store);
-    expect(updated.slides.length).toBe(initialCount + 1);
+    const updatedSlides = slidesOf(updated);
+    expect(updatedSlides.length).toBe(initialCount + 1);
 
     // The new slide should have content related to donations / call to action
-    const lastSlide = updated.slides[updated.slides.length - 1]!;
-    const lastText = lastSlide.elements
-      .filter((e) => e.kind === "text")
-      .map((e) => (e as { text: string }).text)
+    const lastSlide = updatedSlides[updatedSlides.length - 1]!;
+    const lastText = elementsOf(lastSlide)
+      .filter((e) => e.tag === "Text")
+      .map((e) => e.children.filter((c): c is string => typeof c === "string").join(""))
       .join(" ")
       .toLowerCase();
     expect(lastText).toMatch(/donat|support|join|action|help|give/);

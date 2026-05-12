@@ -553,15 +553,15 @@ describe("useChat multi-turn tool loop", () => {
       },
     };
 
-    const displayApp: ToolConfig = {
+    const notifyUser: ToolConfig = {
       type: "function",
       function: {
-        name: "display_app",
-        description: "Display the app",
+        name: "notify_user",
+        description: "Notify the user",
         arguments: { type: "object", properties: {} },
       },
       executor: async () => {
-        executionOrder.push("display_app");
+        executionOrder.push("notify_user");
         return "app displayed";
       },
       dependsOn: ["create_file"],
@@ -578,7 +578,7 @@ describe("useChat multi-turn tool loop", () => {
         item: {
           id: "fc-1",
           type: "function_call",
-          name: "display_app",
+          name: "notify_user",
           call_id: "call-1",
           arguments: "",
         },
@@ -619,13 +619,13 @@ describe("useChat multi-turn tool loop", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "Build app" }] }],
         model: "test-model",
-        tools: [createFile, displayApp],
+        tools: [createFile, notifyUser],
       });
     });
 
-    // display_app depends on create_file, so create_file must run first
-    // even though display_app appeared first in the stream
-    expect(executionOrder).toEqual(["create_file", "display_app"]);
+    // notify_user depends on create_file, so create_file must run first
+    // even though notify_user appeared first in the stream
+    expect(executionOrder).toEqual(["create_file", "notify_user"]);
   });
 
   it("executes multi-level dependency chains in correct order (A → B → C)", async () => {
@@ -831,15 +831,15 @@ describe("useChat multi-turn tool loop", () => {
       },
     };
 
-    const displayApp: ToolConfig = {
+    const notifyUser: ToolConfig = {
       type: "function",
       function: {
-        name: "display_app",
-        description: "Display the app",
+        name: "notify_user",
+        description: "Notify the user",
         arguments: { type: "object", properties: {} },
       },
       executor: async () => {
-        executionOrder.push("display_app");
+        executionOrder.push("notify_user");
         return "displayed";
       },
       dependsOn: ["create_file"],
@@ -866,7 +866,7 @@ describe("useChat multi-turn tool loop", () => {
         item: {
           id: "fc-2",
           type: "function_call",
-          name: "display_app",
+          name: "notify_user",
           call_id: "call-2",
           arguments: "",
         },
@@ -888,11 +888,11 @@ describe("useChat multi-turn tool loop", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "Build app" }] }],
         model: "test-model",
-        tools: [createFile, displayApp],
+        tools: [createFile, notifyUser],
       });
     });
 
-    // display_app should NOT have executed since create_file failed
+    // notify_user should NOT have executed since create_file failed
     expect(executionOrder).toEqual(["create_file"]);
 
     // Both tools should have results sent to the model
@@ -900,7 +900,7 @@ describe("useChat multi-turn tool loop", () => {
     const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
 
-    // display_app should get a failed dependency error (not executed)
+    // notify_user should get a failed dependency error (not executed)
     const displayResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
     expect(displayResult?.content[0].text).toContain("failed dependencies: create_file");
   });
@@ -922,15 +922,15 @@ describe("useChat multi-turn tool loop", () => {
       },
     };
 
-    const displayApp: ToolConfig = {
+    const notifyUser: ToolConfig = {
       type: "function",
       function: {
-        name: "display_app",
-        description: "Display the app",
+        name: "notify_user",
+        description: "Notify the user",
         arguments: { type: "object", properties: {} },
       },
       executor: async () => {
-        executionOrder.push("display_app");
+        executionOrder.push("notify_user");
         return "displayed";
       },
       dependsOn: ["create_file"],
@@ -957,7 +957,7 @@ describe("useChat multi-turn tool loop", () => {
         item: {
           id: "fc-2",
           type: "function_call",
-          name: "display_app",
+          name: "notify_user",
           call_id: "call-2",
           arguments: "",
         },
@@ -979,11 +979,11 @@ describe("useChat multi-turn tool loop", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "Build app" }] }],
         model: "test-model",
-        tools: [createFile, displayApp],
+        tools: [createFile, notifyUser],
       });
     });
 
-    // display_app should NOT have executed since create_file returned an error object
+    // notify_user should NOT have executed since create_file returned an error object
     expect(executionOrder).toEqual(["create_file"]);
   });
 
@@ -1276,15 +1276,15 @@ describe("useChat multi-turn tool loop", () => {
       removeAfterExecution: true,
     };
 
-    const displayApp: ToolConfig = {
+    const notifyUser: ToolConfig = {
       type: "function",
       function: {
-        name: "display_app",
-        description: "Display the app",
+        name: "notify_user",
+        description: "Notify the user",
         arguments: { type: "object", properties: {} },
       },
       executor: async () => {
-        executionOrder.push("display_app");
+        executionOrder.push("notify_user");
         return "displayed";
       },
       dependsOn: ["create_file"],
@@ -1311,7 +1311,7 @@ describe("useChat multi-turn tool loop", () => {
         item: {
           id: "fc-2",
           type: "function_call",
-          name: "display_app",
+          name: "notify_user",
           call_id: "call-2",
           arguments: "",
         },
@@ -1333,26 +1333,26 @@ describe("useChat multi-turn tool loop", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "Build" }] }],
         model: "test-model",
-        tools: [createFile, displayApp],
+        tools: [createFile, notifyUser],
       });
     });
 
     // Both should execute in correct order
-    expect(executionOrder).toEqual(["create_file", "display_app"]);
+    expect(executionOrder).toEqual(["create_file", "notify_user"]);
 
-    // create_file should be removed from continuation, display_app kept
+    // create_file should be removed from continuation, notify_user kept
     const continuationBody = getRequestBody(1);
     const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).not.toContain("create_file");
-    expect(toolNames).toContain("display_app");
+    expect(toolNames).toContain("notify_user");
   });
 
   it("does not send dependsOn to the API in the tool definition payload", async () => {
     const toolWithDeps: ToolConfig = {
       type: "function",
       function: {
-        name: "display_app",
-        description: "Display the app",
+        name: "notify_user",
+        description: "Notify the user",
         arguments: { type: "object", properties: {} },
       },
       executor: async () => "displayed",

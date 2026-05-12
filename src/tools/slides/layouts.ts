@@ -1,21 +1,91 @@
 /**
  * Catalog of slide layout templates used by `buildSlideSystemPrompt` in
- * `./index.ts`. Each template has typed `elements` (real `SlideElement[]`
- * with concrete coordinates) plus optional free-form `notes` that don't
- * map to elements (e.g. "set slide.background to a dark hex").
- *
- * The prompt builder walks this array and emits prose lines the LLM copies
- * into its own element arrays. Storage format is unchanged — the LLM still
- * writes raw elements that the chat-app editor can manipulate directly.
- *
- * Why typed data and not strings:
- *   - TypeScript catches coordinate typos and invalid field values.
- *   - A unit test can assert every template is a valid SlideElement[].
- *   - Other consumers (editor UI, thumbnail renderer, validation) can read
- *     the same catalog without re-parsing prose.
+ * `./index.ts`. Templates hold typed element data in the legacy canvas-percent
+ * coordinate system — at render time it's converted to pixel-based JSX for
+ * the LLM prompt. The LLM then emits pixel-based JSX directly (matching the
+ * unified slide + app-mockup vocabulary); this file stays in percent form
+ * because most of the existing 3k lines of template data was hand-tuned
+ * against that grid.
  */
 
-import type { SlideElement } from "./index";
+// ---------------------------------------------------------------------------
+// Local layout-element types (formerly the external SlideElement union;
+// dropped from the public API as part of the AST migration — layouts keep
+// their own shape since it's strictly a build-time DSL for LLM prompts).
+// ---------------------------------------------------------------------------
+
+interface BaseEl {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation?: number;
+}
+
+interface TextLayoutEl extends BaseEl {
+  kind: "text";
+  text: string;
+  fontSize: number;
+  fontRole: "heading" | "body";
+  fontWeight: number;
+  color: string;
+  align?: "left" | "center" | "right";
+  lineHeight?: number;
+  letterSpacing?: number;
+  fontStyle?: "italic" | "normal";
+  textTransform?: "uppercase" | "none";
+  fontFamily?: string;
+  /**
+   * Optional override for the auto-derived max-character budget
+   * shown to the LLM in the layout recipe. Use only when the
+   * geometry-based estimate is too generous (e.g. an editorial
+   * title where you want short copy regardless of box width).
+   */
+  maxChars?: number;
+}
+
+interface ImageLayoutEl extends BaseEl {
+  kind: "image";
+  src: string;
+  cornerRadius?: number;
+}
+
+interface ShapeLayoutEl extends BaseEl {
+  kind: "shape";
+  shape: "rect" | "circle" | "line";
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  cornerRadius?: number;
+}
+
+interface IconLayoutEl extends BaseEl {
+  kind: "icon";
+  name: string;
+  color: string;
+  fontSize: number;
+}
+
+type LayoutEl = TextLayoutEl | ImageLayoutEl | ShapeLayoutEl | IconLayoutEl;
+
+/** Backwards-name alias so existing helpers keep their old return type. */
+type SlideElement = LayoutEl;
+
+// ---------------------------------------------------------------------------
+// Canvas dimensions — percentages in this file convert to pixels at emit time.
+// ---------------------------------------------------------------------------
+
+const CANVAS_W = 960;
+const CANVAS_H = 540;
+const pxX = (pct: number) => round2(pct * (CANVAS_W / 100));
+const pxY = (pct: number) => round2(pct * (CANVAS_H / 100));
+const pxFontSize = (pct: number) => round2(pct * (CANVAS_W / 100));
+const pxW = pxX;
+const pxH = pxY;
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface LayoutTemplate {
   /**
@@ -80,7 +150,7 @@ function eyebrow(
   };
 }
 
-/** Horizontal hairline rule — 1px line spanning the content area. */
+/** Horizontal hairline rule — 1px line spanning the full content area (x=6..94). */
 function hrule(id: string, y: number, strokeWidth = 1): SlideElement {
   return {
     id,
@@ -88,6 +158,25 @@ function hrule(id: string, y: number, strokeWidth = 1): SlideElement {
     x: 6,
     y,
     w: 88,
+    h: 0,
+    shape: "line",
+    stroke: "border",
+    strokeWidth,
+  };
+}
+
+/**
+ * Horizontal hairline rule spanning a single column. Use this when a layout
+ * has two columns of content and the rules should only separate rows within
+ * one column (not slice across the other).
+ */
+function hruleCol(id: string, x: number, y: number, w: number, strokeWidth = 1): SlideElement {
+  return {
+    id,
+    kind: "shape",
+    x,
+    y,
+    w,
     h: 0,
     shape: "line",
     stroke: "border",
@@ -744,7 +833,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         align: "left",
         lineHeight: 1.55,
       },
-      hrule("spec_rule_top", 32, 1),
+      hruleCol("spec_rule_top", 52, 32, 42, 1),
       {
         id: "r1_key",
         kind: "text",
@@ -774,7 +863,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         letterSpacing: 0.08,
         textTransform: "uppercase",
       },
-      hrule("spec_rule_1", 41, 1),
+      hruleCol("spec_rule_1", 52, 41, 42, 1),
       {
         id: "r2_key",
         kind: "text",
@@ -804,7 +893,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         letterSpacing: 0.08,
         textTransform: "uppercase",
       },
-      hrule("spec_rule_2", 50, 1),
+      hruleCol("spec_rule_2", 52, 50, 42, 1),
       {
         id: "r3_key",
         kind: "text",
@@ -834,7 +923,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         letterSpacing: 0.08,
         textTransform: "uppercase",
       },
-      hrule("spec_rule_3", 59, 1),
+      hruleCol("spec_rule_3", 52, 59, 42, 1),
       {
         id: "r4_key",
         kind: "text",
@@ -864,7 +953,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         letterSpacing: 0.08,
         textTransform: "uppercase",
       },
-      hrule("spec_rule_4", 68, 1),
+      hruleCol("spec_rule_4", 52, 68, 42, 1),
       {
         id: "r5_key",
         kind: "text",
@@ -894,7 +983,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         letterSpacing: 0.08,
         textTransform: "uppercase",
       },
-      hrule("spec_rule_5", 77, 1),
+      hruleCol("spec_rule_5", 52, 77, 42, 1),
       {
         id: "r6_key",
         kind: "text",
@@ -924,7 +1013,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         letterSpacing: 0.08,
         textTransform: "uppercase",
       },
-      hrule("spec_rule_bottom", 86, 1),
+      hruleCol("spec_rule_bottom", 52, 86, 42, 1),
     ],
   },
 
@@ -3194,31 +3283,14 @@ export const SHARED_HEADER_ELEMENTS: SlideElement[] = [
 const SHARED_HEADER_NOTE =
   "Content below the header starts at y ≥ 30. Skip this pattern on cover and chapter-break slides only.";
 
-/** Render the shared header pattern as prompt prose. */
+/** Render the shared header pattern as JSX prompt prose. */
 export function renderSharedHeader(): string {
-  return [
-    ...SHARED_HEADER_ELEMENTS.map((el) => renderElementLine(el)),
-    `  ${SHARED_HEADER_NOTE}`,
-  ].join("\n");
+  return [elementsToJsx(SHARED_HEADER_ELEMENTS), `  ${SHARED_HEADER_NOTE}`].join("\n");
 }
 
 // ---------------------------------------------------------------------------
 // Prompt rendering
 // ---------------------------------------------------------------------------
-
-/**
- * Render a single element as a recipe line the LLM can copy. Uses the
- * element's id as the prefix and a compact inline key/value body — the
- * same format the original prompt used.
- */
-function renderElementLine(el: SlideElement): string {
-  const { id, ...rest } = el;
-  const parts = Object.entries(rest).map(([k, v]) => {
-    if (typeof v === "string") return `${k}: ${JSON.stringify(v)}`;
-    return `${k}: ${v}`;
-  });
-  return `  ${id}: { ${parts.join(", ")} }`;
-}
 
 /** Render the full `LAYOUT_TEMPLATES` array to the prose block the prompt embeds. */
 export function renderLayoutTemplates(): string {
@@ -3259,6 +3331,27 @@ export function renderLayoutRecipes(names: string[]): string {
   return renderLayoutRecipesImpl(templates);
 }
 
+/**
+ * Estimate how many characters a text slot can hold before its content
+ * overflows the box at the chosen font size. Used to populate the
+ * "Text budgets" hint in each layout recipe so the LLM sizes its copy
+ * to fit the slot.
+ *
+ * Heuristic: avg sans-serif glyph width ≈ 0.55em → chars-per-line is
+ * width / (0.55 * fontSize); lines-per-box is height / (fontSize *
+ * lineHeight). Multiply to get the total. Slightly conservative (real
+ * text wraps at word boundaries, so the bound is a soft target).
+ */
+function estimateMaxChars(el: TextLayoutEl): number {
+  const lineHeight = el.lineHeight ?? 1.3;
+  const pxWidth = el.w * (CANVAS_W / 100);
+  const pxHeight = el.h * (CANVAS_H / 100);
+  const pxFontSize = el.fontSize * (CANVAS_W / 100);
+  const charsPerLine = Math.max(1, Math.floor(pxWidth / (0.55 * pxFontSize)));
+  const lines = Math.max(1, Math.floor(pxHeight / (pxFontSize * lineHeight)));
+  return charsPerLine * lines;
+}
+
 function renderLayoutRecipesImpl(templates: LayoutTemplate[]): string {
   return templates
     .map((template) => {
@@ -3266,10 +3359,130 @@ function renderLayoutRecipesImpl(templates: LayoutTemplate[]): string {
       if (template.notes) {
         for (const note of template.notes) lines.push(`  ${note}`);
       }
-      for (const el of template.elements) {
-        lines.push(renderElementLine(el));
+      const budgets = template.elements
+        .filter((el): el is TextLayoutEl => el.kind === "text")
+        .map((el) => `${el.id}≤${el.maxChars ?? estimateMaxChars(el)}`)
+        .join(", ");
+      if (budgets) {
+        lines.push(`  Text budgets (max chars per slot, soft target): ${budgets}.`);
       }
+      lines.push(elementsToJsx(template.elements));
       return lines.join("\n");
     })
     .join("\n\n");
+}
+
+// ---------------------------------------------------------------------------
+// LayoutEl -> JSX string (with percent -> pixel conversion)
+// ---------------------------------------------------------------------------
+
+/** Render a list of layout elements as JSX fragments, one per block. */
+function elementsToJsx(elements: LayoutEl[]): string {
+  return elements.map((el) => emitElementJsx(el)).join("\n");
+}
+
+function emitElementJsx(el: LayoutEl): string {
+  switch (el.kind) {
+    case "text":
+      return emitText(el);
+    case "image":
+      return emitImage(el);
+    case "shape":
+      return emitShape(el);
+    case "icon":
+      return emitIcon(el);
+  }
+}
+
+function emitText(el: TextLayoutEl): string {
+  const attrs: string[] = [
+    attr("id", el.id),
+    numAttr("x", pxX(el.x)),
+    numAttr("y", pxY(el.y)),
+    numAttr("w", pxW(el.w)),
+    numAttr("h", pxH(el.h)),
+  ];
+  if (el.rotation !== undefined) attrs.push(numAttr("rotation", el.rotation));
+  attrs.push(attr("fontRole", el.fontRole));
+  const style: Array<[string, string | number]> = [
+    ["fontSize", pxFontSize(el.fontSize)],
+    ["fontWeight", el.fontWeight],
+    ["color", el.color],
+  ];
+  if (el.align !== undefined) style.push(["textAlign", el.align]);
+  if (el.lineHeight !== undefined) style.push(["lineHeight", el.lineHeight]);
+  if (el.letterSpacing !== undefined) style.push(["letterSpacing", el.letterSpacing]);
+  if (el.fontStyle !== undefined) style.push(["fontStyle", el.fontStyle]);
+  if (el.textTransform !== undefined) style.push(["textTransform", el.textTransform]);
+  if (el.fontFamily !== undefined) style.push(["fontFamily", el.fontFamily]);
+  attrs.push(styleAttr(style));
+  const body = renderTextBody(el.text);
+  return `<Anuma.Text ${attrs.join(" ")}>${body}</Anuma.Text>`;
+}
+
+function emitImage(el: ImageLayoutEl): string {
+  const attrs = commonAttrs(el);
+  attrs.push(attr("src", el.src));
+  if (el.cornerRadius !== undefined) {
+    attrs.push(styleAttr([["borderRadius", el.cornerRadius]]));
+  }
+  return `<Anuma.Image ${attrs.join(" ")} />`;
+}
+
+function emitShape(el: ShapeLayoutEl): string {
+  const tag = el.shape === "rect" ? "Rect" : el.shape === "circle" ? "Circle" : "Line";
+  const attrs = commonAttrs(el);
+  if (el.fill !== undefined) attrs.push(attr("fill", el.fill));
+  if (el.stroke !== undefined) attrs.push(attr("stroke", el.stroke));
+  if (el.strokeWidth !== undefined) attrs.push(numAttr("strokeWidth", el.strokeWidth));
+  if (el.cornerRadius !== undefined) attrs.push(numAttr("cornerRadius", el.cornerRadius));
+  return `<Anuma.${tag} ${attrs.join(" ")} />`;
+}
+
+function emitIcon(el: IconLayoutEl): string {
+  const attrs = commonAttrs(el);
+  attrs.push(attr("name", el.name));
+  attrs.push(
+    styleAttr([
+      ["color", el.color],
+      ["fontSize", pxFontSize(el.fontSize)],
+    ])
+  );
+  return `<Anuma.Icon ${attrs.join(" ")} />`;
+}
+
+function styleAttr(entries: Array<[string, string | number]>): string {
+  const parts = entries.map(([k, v]) => {
+    if (typeof v === "string") return `${k}: ${JSON.stringify(v)}`;
+    return `${k}: ${v}`;
+  });
+  return `style={{ ${parts.join(", ")} }}`;
+}
+
+function commonAttrs(el: BaseEl): string[] {
+  const out = [
+    attr("id", el.id),
+    numAttr("x", pxX(el.x)),
+    numAttr("y", pxY(el.y)),
+    numAttr("w", pxW(el.w)),
+    numAttr("h", pxH(el.h)),
+  ];
+  if (el.rotation !== undefined) out.push(numAttr("rotation", el.rotation));
+  return out;
+}
+
+function attr(name: string, value: string): string {
+  return `${name}=${JSON.stringify(value)}`;
+}
+
+function numAttr(name: string, value: number): string {
+  return `${name}={${value}}`;
+}
+
+function renderTextBody(text: string): string {
+  if (text === "") return "";
+  if (/[<>{}&]/.test(text) || /\n/.test(text) || /^\s|\s$/.test(text)) {
+    return `{${JSON.stringify(text)}}`;
+  }
+  return text;
 }

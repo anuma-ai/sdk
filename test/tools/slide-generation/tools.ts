@@ -2,7 +2,7 @@
  * Slide deck tools backed by an in-memory file store for testing.
  *
  * Uses only createSlideTools — the two-step plan_slides → create_slides
- * flow writes slides.json directly via the storage adapter, so no
+ * flow writes slides.jsx directly via the storage adapter, so no
  * createAppGenerationTools (create_file) dependency is needed.
  */
 
