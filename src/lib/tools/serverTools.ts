@@ -853,11 +853,15 @@ export interface ToolSet {
 export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   {
     name: "app-generation",
-    members: ["create_file", "patch_file", "delete_file", "read_file", "list_files", "display_app"],
+    members: ["create_file", "patch_file", "delete_file", "read_file", "list_files"],
     anchors: ["create_file", "patch_file"],
-    // Match the client-tool floor (0.53). If create_file is even a weak
-    // match, activating the full toolkit is right — recall over precision.
-    anchorMinSimilarity: 0.53,
+    // Set above the global filter floor (0.53). The floor says "this tool
+    // might be relevant"; anchoring says "this is an app-building
+    // workflow". Equating them lets any tool that barely clears the filter
+    // pull in the full toolkit, amplifying false positives 5x. Legitimate
+    // app prompts score 0.57+ on create_file; chitchat false positives sit
+    // right at 0.53. 0.55 separates them with margin on both sides.
+    anchorMinSimilarity: 0.55,
   },
   {
     name: "slides",

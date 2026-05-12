@@ -38,7 +38,6 @@ import {
   createWeatherTool,
   CREATE_FILE_SCHEMA,
   DELETE_FILE_SCHEMA,
-  DISPLAY_APP_SCHEMA,
   LIST_FILES_SCHEMA,
   PATCH_FILE_SCHEMA,
   READ_FILE_SCHEMA,
@@ -101,7 +100,6 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
   toMeta(DELETE_FILE_SCHEMA),
   toMeta(READ_FILE_SCHEMA),
   toMeta(LIST_FILES_SCHEMA),
-  toMeta(DISPLAY_APP_SCHEMA),
 
   // Slide tools (schema constants — used directly by createSlideTools)
   toMeta(PLAN_DECK_SCHEMA),
@@ -549,13 +547,13 @@ const cases: ToolSelectionCase[] = [
   // ── App generation ───────────────────────────────────────────────────
   // App gen tools form a logical set: when building/modifying apps, the LLM
   // needs the full toolkit (create_file, patch_file, read_file, list_files,
-  // delete_file, display_app). Semantic matching alone picks create_file but
-  // misses the supporting tools. These tests document what SHOULD happen
-  // once tool sets are implemented.
+  // delete_file). Semantic matching alone picks create_file but misses the
+  // supporting tools. These tests document what SHOULD happen once tool
+  // sets are implemented.
   {
     label: "build app includes all app gen tools",
     prompt: "Build me a todo list app",
-    clientMustInclude: ["create_file", "patch_file", "display_app"],
+    clientMustInclude: ["create_file", "patch_file"],
     // display_weather, github_api, prompt_user_choice score 0.55-0.65 on
     // "todo list app" — borderline leaks we tolerate (recall over precision).
     clientMustExclude: ["display_chart"],
@@ -563,13 +561,13 @@ const cases: ToolSelectionCase[] = [
   {
     label: "create game includes app gen tools",
     prompt: "Create a snake game",
-    clientMustInclude: ["create_file", "patch_file", "display_app"],
+    clientMustInclude: ["create_file", "patch_file"],
     clientMustExclude: ["display_weather", "github_api"],
   },
   {
     label: "dashboard app includes app gen tools",
     prompt: "Make a dashboard that shows sales metrics with charts",
-    clientMustInclude: ["create_file", "patch_file", "display_app", "display_chart"],
+    clientMustInclude: ["create_file", "patch_file", "display_chart"],
     clientMustExclude: ["display_weather", "github_api"],
   },
   {
@@ -581,7 +579,7 @@ const cases: ToolSelectionCase[] = [
   {
     label: "build calculator includes app gen tools",
     prompt: "Create a calculator app with basic arithmetic operations",
-    clientMustInclude: ["create_file", "patch_file", "display_app"],
+    clientMustInclude: ["create_file", "patch_file"],
     clientMustExclude: ["display_weather", "github_api"],
   },
 
