@@ -34,9 +34,11 @@ export type ElementRole =
   | "eyebrow" // small mono uppercase label above a heading
   | "body" // running prose paragraph
   | "bullets" // multi-line bulleted body
-  | "stat-value" // big featured number ("62", "95%", "+240")
+  | "stat-value" // big featured number ("62", "95%", "+240") — slide-hero scale
+  | "stat-value-small" // medium stat in a bottom-row context ("$9.50", "2.4×")
   | "stat-label" // small caption under a stat
-  | "quote" // pull-quote text
+  | "quote" // pull-quote text — one line of a multi-line quote (regular)
+  | "quote-accent" // pull-quote text — the italic accent line
   | "attribution" // quote attribution ("— Mei Han")
   | "card-surface" // filled rectangle that defines a card's ground
   | "card-eyebrow" // mono uppercase label / number inside a card ("01")
@@ -292,6 +294,14 @@ export const EDITORIAL_WARM: DesignSystem = {
       lineHeight: 1.0,
       align: "left",
     },
+    "stat-value-small": {
+      fontFamily: "heading",
+      fontSize: 3.5,
+      fontWeight: 500,
+      color: "textPrimary",
+      lineHeight: 1.0,
+      align: "left",
+    },
     "stat-label": {
       fontFamily: MONO,
       fontSize: 1.1,
@@ -303,10 +313,19 @@ export const EDITORIAL_WARM: DesignSystem = {
     },
     quote: {
       fontFamily: "heading",
-      fontSize: 4.5,
+      fontSize: 3.8,
       fontWeight: 400,
       fontStyle: "normal",
       color: "textPrimary",
+      lineHeight: 1.2,
+      align: "left",
+    },
+    "quote-accent": {
+      fontFamily: "heading",
+      fontSize: 3.8,
+      fontWeight: 400,
+      fontStyle: "italic",
+      color: "accent",
       lineHeight: 1.2,
       align: "left",
     },
@@ -413,8 +432,10 @@ export const EDITORIAL_WARM: DesignSystem = {
         body: { color: "border" },
         bullets: { color: "border" },
         "stat-value": { color: "slideBg" },
+        "stat-value-small": { color: "slideBg" },
         "stat-label": { color: "border" },
         quote: { color: "slideBg" },
+        "quote-accent": { color: "#D8A673" },
         attribution: { color: "slideBg" },
         "card-title": { color: "slideBg" },
         "card-body": { color: "border" },
@@ -437,8 +458,10 @@ export const EDITORIAL_WARM: DesignSystem = {
         body: { color: "#3C2A1F" },
         bullets: { color: "#3C2A1F" },
         "stat-value": { color: "#1F1A14" },
+        "stat-value-small": { color: "#1F1A14" },
         "stat-label": { color: "#5C2812" },
         quote: { color: "#1F1A14" },
+        "quote-accent": { color: "#1F1A14" },
         attribution: { color: "#1F1A14" },
         "card-title": { color: "#1F1A14" },
         "card-body": { color: "#3C2A1F" },
@@ -530,6 +553,15 @@ export const TECHNO_BOLD: DesignSystem = {
       letterSpacing: -0.03,
       align: "left",
     },
+    "stat-value-small": {
+      fontFamily: SANS,
+      fontSize: 3.4,
+      fontWeight: 700,
+      color: "#0A0A0A",
+      lineHeight: 1.0,
+      letterSpacing: -0.02,
+      align: "left",
+    },
     "stat-label": {
       fontFamily: MONO,
       fontSize: 1.0,
@@ -541,9 +573,20 @@ export const TECHNO_BOLD: DesignSystem = {
     },
     quote: {
       fontFamily: SANS,
-      fontSize: 4.0,
+      fontSize: 3.4,
       fontWeight: 600,
       color: "#0A0A0A",
+      lineHeight: 1.2,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "quote-accent": {
+      // Techno-bold: accent is color-only (vivid blue), not italic.
+      fontFamily: SANS,
+      fontSize: 3.4,
+      fontWeight: 600,
+      fontStyle: "normal",
+      color: "#3B82F6",
       lineHeight: 1.2,
       letterSpacing: -0.02,
       align: "left",
@@ -625,8 +668,10 @@ export const TECHNO_BOLD: DesignSystem = {
         body: { color: "#A1A1AA" },
         bullets: { color: "#A1A1AA" },
         "stat-value": { color: "#FAFAFA" },
+        "stat-value-small": { color: "#FAFAFA" },
         "stat-label": { color: "#A1A1AA" },
         quote: { color: "#FAFAFA" },
+        "quote-accent": { color: "#60A5FA" },
         attribution: { color: "#FAFAFA" },
         "card-eyebrow": { color: "#60A5FA" },
         "card-title": { color: "#FAFAFA" },
@@ -648,8 +693,10 @@ export const TECHNO_BOLD: DesignSystem = {
         body: { color: "#DBEAFE" },
         bullets: { color: "#DBEAFE" },
         "stat-value": { color: "#FAFAFA" },
+        "stat-value-small": { color: "#FAFAFA" },
         "stat-label": { color: "#DBEAFE" },
         quote: { color: "#FAFAFA" },
+        "quote-accent": { color: "#FAFAFA" },
         attribution: { color: "#FAFAFA" },
         "card-eyebrow": { color: "#FAFAFA" },
         "card-title": { color: "#FAFAFA" },
@@ -870,9 +917,9 @@ export const MARKETING_GRID: LayoutComposition = {
       id: "hero_1",
       role: "hero",
       x: 6,
-      y: 18,
+      y: 16,
       w: 82,
-      h: 12,
+      h: 14,
       fit: "single-line",
       defaultText: "Marketing & tech,",
     },
@@ -880,9 +927,9 @@ export const MARKETING_GRID: LayoutComposition = {
       id: "hero_2",
       role: "hero-accent",
       x: 6,
-      y: 30,
+      y: 31,
       w: 82,
-      h: 12,
+      h: 14,
       fit: "single-line",
       defaultText: "quietly in the back.",
     },
@@ -927,6 +974,435 @@ export const MARKETING_GRID: LayoutComposition = {
       "04 · OPERATOR SUPPORT",
       "Regional ops manager, 24/7 hotline, quarterly P&L review, semi-annual compliance audit."
     ),
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// FOUNDER_QUOTE_PORTRAIT — light slide; image left, multi-line pull-quote
+// right with one italic-accent line, attribution + role beneath, mono caption
+// under the image. Exercises the `quote` / `quote-accent` roles in parallel
+// to the hero / hero-accent pattern.
+// ---------------------------------------------------------------------------
+
+export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
+  name: "founder-quote-portrait",
+  description:
+    "Light slide: portrait image on the left half, founder pull-quote on the right with a single italic-accent line in the middle, attribution + role beneath. Mono caption under the image.",
+  elements: [
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 22,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ 01 / BRAND STORY",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 5,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "03 / 28",
+    },
+    // Image — left portrait, contained with cream margin around it.
+    { id: "image", role: "image", x: 6, y: 14, w: 38, h: 70 },
+    {
+      id: "image_caption",
+      role: "stat-label",
+      x: 6,
+      y: 86,
+      w: 38,
+      h: 3,
+      fit: "single-line",
+      defaultText: "MEI HAN · FOUNDER & CEO · PORTLAND STUDIO, 2024",
+    },
+    // Right column — eyebrow, multi-line quote, attribution
+    {
+      id: "eyebrow",
+      role: "eyebrow",
+      x: 50,
+      y: 14,
+      w: 44,
+      h: 3,
+      fit: "single-line",
+      defaultText: "A LETTER FROM THE FOUNDER",
+    },
+    // Four-line quote: lines 1, 2, 4 regular; line 3 is the italic accent.
+    // Each line gets its own slot — same pattern as the hero.
+    {
+      id: "quote_1",
+      role: "quote",
+      x: 50,
+      y: 20,
+      w: 44,
+      h: 9,
+      fit: "single-line",
+      defaultText: "“We don’t sell a brand.",
+    },
+    {
+      id: "quote_2",
+      role: "quote",
+      x: 50,
+      y: 29,
+      w: 44,
+      h: 9,
+      fit: "single-line",
+      defaultText: "We sell a kitchen",
+    },
+    {
+      id: "quote_3",
+      role: "quote-accent",
+      x: 50,
+      y: 38,
+      w: 44,
+      h: 9,
+      fit: "single-line",
+      defaultText: "that behaves the same",
+    },
+    {
+      id: "quote_4",
+      role: "quote",
+      x: 50,
+      y: 47,
+      w: 44,
+      h: 9,
+      fit: "single-line",
+      defaultText: "at 7am and 10pm.”",
+    },
+    {
+      id: "body",
+      role: "body",
+      x: 50,
+      y: 58,
+      w: 44,
+      h: 18,
+      fit: "multi-line",
+      defaultText:
+        "My grandmother ran a tea stall in Hangzhou for 34 years. Every cup cost the same and tasted the same. We scale that promise.",
+    },
+    {
+      id: "attribution",
+      role: "attribution",
+      x: 50,
+      y: 83,
+      w: 44,
+      h: 4,
+      fit: "single-line",
+      defaultText: "— Mei Han",
+    },
+    {
+      id: "attribution_role",
+      role: "stat-label",
+      x: 50,
+      y: 88,
+      w: 44,
+      h: 3,
+      fit: "single-line",
+      defaultText: "FOUNDER & CHIEF EXECUTIVE OFFICER",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// SURFACE_PAIR — light slide with a two-line hero on top, and two side-by-
+// side panels below: one default-surface, one dark-surface. Each panel has
+// its own eyebrow, big stat, and body. Exercises element-level surface
+// swap at panel scale (not just card scale).
+// ---------------------------------------------------------------------------
+
+function panel(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  surface: SurfaceState,
+  eyebrow: string,
+  stat: string,
+  body: string
+): CompositionElement[] {
+  const px = 2;
+  return [
+    { id: `${id}_surface`, role: "card-surface", surface, x, y, w, h },
+    {
+      id: `${id}_eyebrow`,
+      role: "card-eyebrow",
+      surface,
+      x: x + px,
+      y: y + 2,
+      w: w - 2 * px,
+      h: 3,
+      fit: "single-line",
+      defaultText: eyebrow,
+    },
+    {
+      id: `${id}_stat`,
+      role: "stat-value",
+      surface,
+      x: x + px,
+      y: y + 7,
+      w: w - 2 * px,
+      h: 19,
+      fit: "single-line",
+      defaultText: stat,
+    },
+    {
+      id: `${id}_body`,
+      role: "card-body",
+      surface,
+      x: x + px,
+      y: y + 29,
+      w: w - 2 * px,
+      h: h - 31,
+      fit: "multi-line",
+      defaultText: body,
+    },
+  ];
+}
+
+export const SURFACE_PAIR: LayoutComposition = {
+  name: "surface-pair",
+  description:
+    "Light slide with a 2-line hero and two side-by-side panels: a default-ground panel and a dark-ground panel. Used for revenue/cost contrasts, our-stat vs market-stat, before/after — anywhere two halves need equal weight but opposite tone.",
+  elements: [
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 22,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ 04 / UNIT ECONOMICS",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 5,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "12 / 28",
+    },
+    {
+      id: "hero_1",
+      role: "hero",
+      x: 6,
+      y: 16,
+      w: 82,
+      h: 14,
+      fit: "single-line",
+      defaultText: "Where revenue comes,",
+    },
+    {
+      id: "hero_2",
+      role: "hero-accent",
+      x: 6,
+      y: 31,
+      w: 82,
+      h: 14,
+      fit: "single-line",
+      defaultText: "and where it goes.",
+    },
+    ...panel(
+      "panel_l",
+      6,
+      50,
+      42,
+      44,
+      "default",
+      "REVENUE BUILD",
+      "$1.18M",
+      "Annual, mature studio store. 348 avg daily covers at $9.50 ticket across 358 trading days."
+    ),
+    ...panel(
+      "panel_r",
+      52,
+      50,
+      42,
+      44,
+      "dark",
+      "OPEX SHARE",
+      "19.4%",
+      "Store-level EBITDA after food (28%), labor (24%), rent (10%), royalties, and utilities."
+    ),
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// STAT_ROW_BOTTOM — image-left + hero-right cover variant, with a row of
+// four stats anchored to the bottom-right. Used for "audience profile" /
+// "what walks in" / "by the numbers" slides where one big visual carries
+// the slide and the numbers are supporting evidence.
+// ---------------------------------------------------------------------------
+
+export const STAT_ROW_BOTTOM: LayoutComposition = {
+  name: "stat-row-bottom",
+  description:
+    "Light slide: contained image on the left half, eyebrow + 2-line hero + 4-stat row on the right. Hairline divider above the stat row separates narrative from numbers.",
+  elements: [
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 22,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ 03 / POSITIONING",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 5,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "09 / 28",
+    },
+    // Image — contained on the left half.
+    { id: "image", role: "image", x: 6, y: 14, w: 38, h: 80 },
+    // Right column: eyebrow + 3-line hero (third line is the accent)
+    {
+      id: "eyebrow",
+      role: "eyebrow",
+      x: 50,
+      y: 16,
+      w: 44,
+      h: 3,
+      fit: "single-line",
+      defaultText: "WHO WALKS IN",
+    },
+    {
+      id: "hero_1",
+      role: "hero",
+      x: 50,
+      y: 21,
+      w: 44,
+      h: 14,
+      fit: "single-line",
+      defaultText: "A guest who",
+    },
+    {
+      id: "hero_2",
+      role: "hero",
+      x: 50,
+      y: 34,
+      w: 44,
+      h: 14,
+      fit: "single-line",
+      defaultText: "visits us",
+    },
+    {
+      id: "hero_3",
+      role: "hero-accent",
+      x: 50,
+      y: 47,
+      w: 44,
+      h: 14,
+      fit: "single-line",
+      defaultText: "2.4× a week.",
+    },
+    {
+      id: "body",
+      role: "body",
+      x: 50,
+      y: 60,
+      w: 44,
+      h: 12,
+      fit: "multi-line",
+      defaultText:
+        "Daypart mix: 18% breakfast, 32% lunch, 26% snack, 24% dinner — the flattest curve in QSR.",
+    },
+    // Hairline divider + 4-stat row at bottom-right, using stat-value-small.
+    { id: "stat_rule", role: "divider", x: 50, y: 76, w: 44, h: 0 },
+    {
+      id: "stat_1_value",
+      role: "stat-value-small",
+      x: 50,
+      y: 80,
+      w: 11,
+      h: 8,
+      fit: "single-line",
+      defaultText: "$9.50",
+    },
+    {
+      id: "stat_1_label",
+      role: "stat-label",
+      x: 50,
+      y: 90,
+      w: 11,
+      h: 3,
+      fit: "single-line",
+      defaultText: "AVG TICKET",
+    },
+    {
+      id: "stat_2_value",
+      role: "stat-value-small",
+      x: 61,
+      y: 80,
+      w: 11,
+      h: 8,
+      fit: "single-line",
+      defaultText: "2.4×",
+    },
+    {
+      id: "stat_2_label",
+      role: "stat-label",
+      x: 61,
+      y: 90,
+      w: 11,
+      h: 3,
+      fit: "single-line",
+      defaultText: "VISITS / WK",
+    },
+    {
+      id: "stat_3_value",
+      role: "stat-value-small",
+      x: 72,
+      y: 80,
+      w: 11,
+      h: 8,
+      fit: "single-line",
+      defaultText: "61%",
+    },
+    {
+      id: "stat_3_label",
+      role: "stat-label",
+      x: 72,
+      y: 90,
+      w: 11,
+      h: 3,
+      fit: "single-line",
+      defaultText: "LOYALTY SHARE",
+    },
+    {
+      id: "stat_4_value",
+      role: "stat-value-small",
+      x: 83,
+      y: 80,
+      w: 11,
+      h: 8,
+      fit: "single-line",
+      defaultText: "7–10p",
+    },
+    {
+      id: "stat_4_label",
+      role: "stat-label",
+      x: 83,
+      y: 90,
+      w: 11,
+      h: 3,
+      fit: "single-line",
+      defaultText: "OPERATING",
+    },
   ],
 };
 
@@ -1112,6 +1588,16 @@ export interface SlotBudget {
   maxLines: number;
   /** charsPerLine × maxLines — total content budget for multi-line slots. */
   total: number;
+  /** Visible line height in pixels (font size × line-height). Used for max-lines. */
+  linePx: number;
+  /**
+   * Minimum box height in pixels needed to render one line without clipping
+   * glyph descenders (g, p, y, j, q). Real fonts extend ~15% below baseline
+   * even when line-height is 1.0, so this is `fontSize × max(lineHeight, 1.15)`.
+   */
+  safeLinePx: number;
+  /** Box height in pixels — must be ≥ safeLinePx to fit a single line cleanly. */
+  boxHeightPx: number;
 }
 
 // Width-per-character expressed as a fraction of fontSize. Numbers are
@@ -1164,8 +1650,19 @@ export function estimateSlotBudget(
   const charsPerLine = Math.max(1, Math.floor(boxWidthPx / (fontSizePx * factor)));
   const lineHeight = style.lineHeight ?? 1.2;
   const linePx = fontSizePx * lineHeight;
+  // Descender allowance: even at lineHeight 1.0, real fonts extend ~15%
+  // below baseline. Box must accommodate at least this much to avoid
+  // clipping glyphs like g/p/y/j/q.
+  const safeLinePx = fontSizePx * Math.max(lineHeight, 1.15);
   const maxLines = Math.max(1, Math.floor(boxHeightPx / linePx));
-  return { charsPerLine, maxLines, total: charsPerLine * maxLines };
+  return {
+    charsPerLine,
+    maxLines,
+    total: charsPerLine * maxLines,
+    linePx,
+    safeLinePx,
+    boxHeightPx,
+  };
 }
 
 const STATIC_ROLES: ReadonlySet<ElementRole> = new Set([
@@ -1246,6 +1743,20 @@ export function validateComposition(
     const budget = estimateSlotBudget(el, style, fontPreset);
     const fit: FitMode = el.fit ?? "multi-line";
     const text = el.defaultText.trim();
+    // Vertical-fit check: must accommodate one full line including
+    // descender room (~15% below baseline). `safeLinePx` already includes
+    // that, so this catches both tight-lineHeight and tight-box cases.
+    if (budget.boxHeightPx < budget.safeLinePx) {
+      issues.push({
+        id: el.id,
+        role: el.role,
+        text,
+        budget,
+        fit,
+        issue: `box too short for descenders: h=${Math.round(budget.boxHeightPx)}px < ${Math.round(budget.safeLinePx)}px needed (line ${Math.round(budget.linePx)}px + descender room)`,
+      });
+      continue;
+    }
     if (fit === "single-line" && text.length > budget.charsPerLine) {
       issues.push({
         id: el.id,

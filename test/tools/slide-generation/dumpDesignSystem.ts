@@ -2,10 +2,10 @@
  * Compile the design-system proposal sketch and dump the result to HTML
  * for visual review.
  *
- * Renders the SAME composition (cover-split-portrait) through TWO design
- * systems (editorial-warm and techno-bold) as two slides in one deck.
- * The point: same layout, different visual identity, zero changes to
- * the composition. Arrow-key through to flip between them.
+ * Renders every (composition × design system) pair in one deck so you can
+ * arrow-key through and see how each composition looks across visual
+ * identities. Validation results print to the terminal: budget per slot
+ * and any default content that exceeds it.
  *
  * Wired against the PROPOSAL surface (src/tools/slides/designSystem.ts).
  * Does not touch the live tool flow.
@@ -23,12 +23,16 @@ import path from "node:path";
 import {
   COVER_SPLIT_PORTRAIT,
   EDITORIAL_WARM,
+  FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
+  STAT_ROW_BOTTOM,
+  SURFACE_PAIR,
   TECHNO_BOLD,
   compile,
   describeComposition,
   validateComposition,
   type DesignSystem,
+  type LayoutComposition,
 } from "../../../src/tools/slides/designSystem.js";
 import { FONT_PRESETS, parseJsx } from "../../../src/tools/slides/index.js";
 import { PALETTES } from "../../../src/tools/slides/palettes.js";
@@ -39,35 +43,32 @@ const OUT_DIR = path.resolve(__dirname, ".output", "design-system");
 // The deck wrapper supplies one fontPreset and one palette. editorial-warm
 // reads heading/body fonts from the preset; techno-bold uses literal font
 // strings and literal hex colors, so it ignores the preset and palette
-// entirely. That lets us put both systems in the same deck without one
-// disrupting the other.
+// entirely. That lets us put every system into one deck without conflict.
 const palette = PALETTES.find((p) => p.name === "warm editorial")!;
 const fontPreset = FONT_PRESETS[palette.fontPreset] ?? FONT_PRESETS.default!;
 
-const slideCoverEditorial = compile(
+const compositions: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
-  EDITORIAL_WARM,
-  fontPreset,
-  "cover--editorial-warm"
-);
-const slideCoverTechno = compile(
-  COVER_SPLIT_PORTRAIT,
-  TECHNO_BOLD,
-  fontPreset,
-  "cover--techno-bold"
-);
-const slideGridEditorial = compile(
   MARKETING_GRID,
-  EDITORIAL_WARM,
-  fontPreset,
-  "grid--editorial-warm"
-);
-const slideGridTechno = compile(
-  MARKETING_GRID,
-  TECHNO_BOLD,
-  fontPreset,
-  "grid--techno-bold"
-);
+  FOUNDER_QUOTE_PORTRAIT,
+  SURFACE_PAIR,
+  STAT_ROW_BOTTOM,
+];
+
+const systems: Array<{ name: string; system: DesignSystem }> = [
+  { name: "editorial-warm", system: EDITORIAL_WARM },
+  { name: "techno-bold", system: TECHNO_BOLD },
+];
+
+// Build one deck with every (composition × system) pair, grouped by
+// composition so two adjacent slides are the same layout in different
+// visual identities — easy to flip between.
+const slides: string[] = [];
+for (const composition of compositions) {
+  for (const { name, system } of systems) {
+    slides.push(compile(composition, system, fontPreset, `${composition.name}--${name}`));
+  }
+}
 
 const deckAttrs = [
   `fontPreset="${palette.fontPreset}"`,
@@ -77,10 +78,7 @@ const deckAttrs = [
 const deckJsx = `<Anuma.Deck
   ${deckAttrs}
 >
-${slideCoverEditorial}
-${slideCoverTechno}
-${slideGridEditorial}
-${slideGridTechno}
+${slides.join("\n")}
 </Anuma.Deck>`;
 
 const deck = parseJsx(deckJsx);
@@ -88,7 +86,7 @@ const deck = parseJsx(deckJsx);
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const html = renderDeckToHtml(
   deck,
-  `Same composition × two design systems`
+  `${compositions.length} compositions × ${systems.length} design systems`
 );
 const outPath = path.join(OUT_DIR, "index.html");
 fs.writeFileSync(outPath, html, "utf-8");
@@ -97,7 +95,7 @@ fs.writeFileSync(outPath, html, "utf-8");
 // composition × design system pair. Option 3 from the content-overflow
 // discussion — the constraints are surfaced to the prompt boundary.
 function reportPair(
-  composition: typeof COVER_SPLIT_PORTRAIT,
+  composition: LayoutComposition,
   label: string,
   system: DesignSystem
 ): void {
@@ -115,11 +113,12 @@ function reportPair(
   }
 }
 
-reportPair(COVER_SPLIT_PORTRAIT, "editorial-warm", EDITORIAL_WARM);
-reportPair(COVER_SPLIT_PORTRAIT, "techno-bold", TECHNO_BOLD);
-reportPair(MARKETING_GRID, "editorial-warm", EDITORIAL_WARM);
-reportPair(MARKETING_GRID, "techno-bold", TECHNO_BOLD);
+for (const composition of compositions) {
+  for (const { name, system } of systems) {
+    reportPair(composition, name, system);
+  }
+}
 
 console.log(
-  `\nCompiled 2 compositions × 2 design systems → ${path.relative(process.cwd(), outPath)}`
+  `\nCompiled ${compositions.length} compositions × ${systems.length} design systems = ${slides.length} slides → ${path.relative(process.cwd(), outPath)}`
 );
