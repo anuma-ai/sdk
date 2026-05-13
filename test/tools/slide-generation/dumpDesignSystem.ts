@@ -27,6 +27,7 @@ import {
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
   MULTI_STAT_ASYMMETRIC,
+  PEER_COMPARISON_TABLE,
   STAT_ROW_BOTTOM,
   SURFACE_PAIR,
   TECHNO_BOLD,
@@ -57,6 +58,7 @@ const compositions: LayoutComposition[] = [
   SURFACE_PAIR,
   STAT_ROW_BOTTOM,
   MULTI_STAT_ASYMMETRIC,
+  PEER_COMPARISON_TABLE,
 ];
 
 const systems: Array<{ name: string; system: DesignSystem }> = [

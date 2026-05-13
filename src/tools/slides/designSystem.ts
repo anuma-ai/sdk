@@ -1258,6 +1258,141 @@ function statCardMid(
   ];
 }
 
+/**
+ * Build a data-table composition fragment: a card-surface highlight for
+ * any column that opts in (`highlight: true`), a header row with optional
+ * sub-labels, body rows with hairline dividers between them, and per-cell
+ * Text elements with appropriate surface state.
+ *
+ * Columns share equal width across the table's `w`. The first column is
+ * the row-label column (typically left-aligned text); other columns are
+ * value columns (typically center-aligned). Headers and cells use `card-`
+ * roles so styling propagates from the active design system.
+ */
+function table(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  options: {
+    headers: Array<{ label: string; sublabel?: string; highlight?: boolean }>;
+    rows: Array<{ label: string; values: string[] }>;
+  }
+): CompositionElement[] {
+  const elements: CompositionElement[] = [];
+  const colCount = options.headers.length;
+  const rowCount = options.rows.length;
+  const colWidth = w / colCount;
+  const headerHeight = 9; // % canvas height
+  const rowHeight = (h - headerHeight) / rowCount;
+  // Tight padding — table cells lose less vertical space to padding so
+  // card-body's line height + descender room fits inside `rowHeight`.
+  const cellPadX = 0.5;
+  const cellPadY = 0.25;
+
+  // Highlighted-column surface: a single rect spanning the entire column
+  // height. Cells in this column declare surface: "dark" so their text
+  // resolves against the dark ground.
+  const highlightIdx = options.headers.findIndex((header) => header.highlight);
+  if (highlightIdx >= 0) {
+    elements.push({
+      id: `${id}_highlight`,
+      role: "card-surface",
+      surface: "dark",
+      x: x + highlightIdx * colWidth,
+      y,
+      w: colWidth,
+      h,
+    });
+  }
+
+  // Header row — column labels with optional sub-labels
+  options.headers.forEach((header, i) => {
+    const cellX = x + i * colWidth + cellPadX;
+    const cellW = colWidth - 2 * cellPadX;
+    const surface: SurfaceState = i === highlightIdx ? "dark" : "default";
+    elements.push({
+      id: `${id}_h${i}_label`,
+      role: "card-eyebrow",
+      surface,
+      x: cellX,
+      y: y + 1,
+      w: cellW,
+      h: 3,
+      fit: "single-line",
+      align: i === 0 ? "left" : "center",
+      defaultText: header.label,
+    });
+    if (header.sublabel) {
+      elements.push({
+        id: `${id}_h${i}_sub`,
+        role: "stat-label",
+        surface,
+        x: cellX,
+        y: y + 4.5,
+        w: cellW,
+        h: 3,
+        fit: "single-line",
+        align: i === 0 ? "left" : "center",
+        defaultText: header.sublabel,
+      });
+    }
+  });
+
+  // Body rows — each with a hairline above (skipping the very first which
+  // sits flush against the header) and a row label + N value cells.
+  options.rows.forEach((row, rowIdx) => {
+    const rowY = y + headerHeight + rowIdx * rowHeight;
+
+    // Hairline divider above the row.
+    elements.push({
+      id: `${id}_r${rowIdx}_rule`,
+      role: "divider",
+      x,
+      y: rowY,
+      w,
+      h: 0,
+    });
+
+    // Row label (column 0).
+    elements.push({
+      id: `${id}_r${rowIdx}_label`,
+      role: "card-body",
+      surface: 0 === highlightIdx ? "dark" : "default",
+      x: x + cellPadX,
+      y: rowY + cellPadY,
+      w: colWidth - 2 * cellPadX,
+      h: rowHeight - 2 * cellPadY,
+      fit: "single-line",
+      align: "left",
+      defaultText: row.label,
+    });
+
+    // Value cells (columns 1..N).
+    row.values.forEach((value, valueIdx) => {
+      const cellColIdx = valueIdx + 1;
+      if (cellColIdx >= colCount) return; // gracefully ignore extras
+      const cellX = x + cellColIdx * colWidth + cellPadX;
+      const surface: SurfaceState = cellColIdx === highlightIdx ? "dark" : "default";
+      elements.push({
+        id: `${id}_r${rowIdx}_c${cellColIdx}`,
+        role: "card-body",
+        surface,
+        x: cellX,
+        y: rowY + cellPadY,
+        w: colWidth - 2 * cellPadX,
+        h: rowHeight - 2 * cellPadY,
+        fit: "single-line",
+        align: "center",
+        defaultText: value,
+      });
+    });
+  });
+
+  return elements;
+}
+
 export const SURFACE_PAIR: LayoutComposition = {
   name: "surface-pair",
   description:
@@ -1795,6 +1930,98 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
 };
 
 // ---------------------------------------------------------------------------
+// PEER_COMPARISON_TABLE — light slide with a 2-line hero (inline italic
+// accent) and a data table comparing OUR terms to N peer composites. The
+// "us" column is highlighted (dark surface running the full column
+// height); peer columns sit on the default surface. For franchise-policy
+// / pricing / spec-sheet slides where the message is "here's how we
+// compare line-by-line."
+// ---------------------------------------------------------------------------
+
+export const PEER_COMPARISON_TABLE: LayoutComposition = {
+  name: "peer-comparison-table",
+  description:
+    "Light slide: 2-line hero with inline italic accent + a data table comparing our terms to N peer composites. The 'us' column is highlighted as a dark-surface stripe running the full table height. Use for pricing, terms, or spec comparisons.",
+  elements: [
+    // Chrome
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 4,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ 06 / FRANCHISE POLICY",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 4,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "19 / 28",
+    },
+    // 2-line hero with inline italic accent
+    {
+      id: "hero_1",
+      role: "hero",
+      x: 6,
+      y: 12,
+      w: 88,
+      h: 14,
+      fit: "single-line",
+      defaultText: "How our terms compare",
+    },
+    {
+      id: "hero_2",
+      role: "hero",
+      x: 6,
+      y: 26,
+      w: 88,
+      h: 14,
+      fit: "single-line",
+      defaultText: "to *illustrative peers*.",
+    },
+    // The table — 6 columns × 6 rows, "us" column highlighted.
+    ...table("terms", 6, 46, 88, 46, {
+      headers: [
+        { label: "FRANCHISE TERM" },
+        { label: "EMBER & LEAF", sublabel: "Studio · 50 m²", highlight: true },
+        { label: "PEER · A", sublabel: "Modern tea, U.S." },
+        { label: "PEER · B", sublabel: "Asian QSR, U.S." },
+        { label: "PEER · C", sublabel: "Premium coffee" },
+        { label: "PEER · D", sublabel: "Comfort food, CN" },
+      ],
+      rows: [
+        { label: "Initial fee", values: ["$35,000", "$45,000", "$50,000", "$40,000", "$30,000"] },
+        { label: "Royalty", values: ["6.0%", "7.0%", "6.5%", "7.5%", "5.5%"] },
+        { label: "Brand fund", values: ["2.0%", "3.0%", "2.5%", "2.0%", "2.5%"] },
+        { label: "Term", values: ["10 yr", "10 yr", "10 yr", "10 yr", "3 yr"] },
+        {
+          label: "Territory",
+          values: ["800 m + ROFR", "1.0 mi hard", "Discretionary", "0.5 mi hard", "None"],
+        },
+        { label: "Training (days)", values: ["21", "14", "10", "12", "7"] },
+      ],
+    }),
+    // Footer disclaimer
+    {
+      id: "footer",
+      role: "footer",
+      x: 6,
+      y: 94,
+      w: 88,
+      h: 3,
+      fit: "single-line",
+      defaultText: "PEER COLUMNS ARE ILLUSTRATIVE COMPOSITES · NOT LEGAL ADVICE",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // compile — composition × design system → renderable JSX
 // ---------------------------------------------------------------------------
 
@@ -2192,6 +2419,9 @@ export function validateComposition(
     const budget = estimateSlotBudget(el, style, fontPreset);
     const fit: FitMode = el.fit ?? "multi-line";
     const text = el.defaultText.trim();
+    // Strip inline-accent `*marker*` syntax before counting — the markers
+    // are parsed out at render time and don't occupy visible space.
+    const visibleText = text.replace(/\*([^*]+)\*/g, "$1");
     // Vertical-fit check: must accommodate one full line including
     // descender room (~15% below baseline). `safeLinePx` already includes
     // that, so this catches both tight-lineHeight and tight-box cases.
@@ -2206,23 +2436,23 @@ export function validateComposition(
       });
       continue;
     }
-    if (fit === "single-line" && text.length > budget.charsPerLine) {
+    if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
       issues.push({
         id: el.id,
         role: el.role,
         text,
         budget,
         fit,
-        issue: `single-line: ${text.length} chars exceeds ${budget.charsPerLine}-char budget`,
+        issue: `single-line: ${visibleText.length} chars exceeds ${budget.charsPerLine}-char budget`,
       });
-    } else if (fit === "multi-line" && text.length > budget.total) {
+    } else if (fit === "multi-line" && visibleText.length > budget.total) {
       issues.push({
         id: el.id,
         role: el.role,
         text,
         budget,
         fit,
-        issue: `multi-line: ${text.length} chars exceeds ${budget.total}-char budget (${budget.maxLines}×${budget.charsPerLine})`,
+        issue: `multi-line: ${visibleText.length} chars exceeds ${budget.total}-char budget (${budget.maxLines}×${budget.charsPerLine})`,
       });
     }
   }
