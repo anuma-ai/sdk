@@ -9,6 +9,47 @@ import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import type { PromptPreProcessor } from "./preProcessor";
+import type {
+  ModelCallEndEvent,
+  ModelCallStartEvent,
+  RunHooks,
+  ToolUseEndEvent,
+  ToolUseStartEvent,
+} from "./runHooks";
+
+/** Fire-and-forget hook invocation. Observer errors are swallowed so a buggy hook can't crash the loop. */
+async function safeAwait<T>(p: T | Promise<T> | undefined): Promise<void> {
+  if (!p) return;
+  try {
+    await p;
+  } catch {
+    /* observer error, swallow */
+  }
+}
+
+/** Generate a run ID. Uses crypto.randomUUID when available, falls back to a random hex string. */
+function generateRunId(): string {
+  const c = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  if (typeof c?.randomUUID === "function") return c.randomUUID();
+  return (
+    Math.random().toString(16).slice(2).padStart(12, "0") +
+    Math.random().toString(16).slice(2).padStart(12, "0")
+  );
+}
+
+/** Try to JSON.parse tool arguments. Returns undefined if not valid JSON. */
+function tryParseToolArgs(raw: string): Record<string, unknown> | undefined {
+  if (!raw) return undefined;
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      return v as Record<string, unknown>;
+    }
+  } catch {
+    /* not JSON, ignore */
+  }
+  return undefined;
+}
 
 /**
  * Error thrown when the SSE connection receives a non-OK HTTP response.
@@ -262,6 +303,12 @@ export type RunToolLoopOptions = {
    * @default 2
    */
   maxConnectorCalls?: number;
+  /**
+   * Lifecycle hooks for observability (telemetry, tracing, UI surfaces).
+   * All hooks are optional and fire-and-forget — errors thrown by a hook
+   * are swallowed so observers can't crash the loop. See `RunHooks`.
+   */
+  hooks?: RunHooks;
 };
 
 export type RunToolLoopResult =
@@ -403,7 +450,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     transport: makeStreamingRequest = defaultTransport,
     preProcessors,
     maxConnectorCalls = 2,
+    hooks,
   } = options;
+  const runId = generateRunId();
   // `messages` is mutable so pre-processors can inject context
   // (e.g. web search results) before the first LLM request.
   let messages = options.messages;
@@ -433,6 +482,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   if (signal?.aborted) {
     return { data: null, error: "Request aborted" };
   }
+
+  await safeAwait(
+    hooks?.onRunStart?.({
+      runId,
+      model,
+      messages,
+      tools: tools ?? [],
+    })
+  );
 
   // Run pre-processors if any are provided. Each receives the shared
   // embedding and may return messages to enrich the conversation.
@@ -471,6 +529,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
     let apiTools = toolsToApiFormat(tools, resolved);
     let toolChoice = toolChoiceArg;
+    let stepIndex = 0;
 
     const requestBody = strategy.buildRequestBody({
       messages,
@@ -486,6 +545,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       conversationId,
     });
 
+    await safeAwait(
+      hooks?.beforeModelCall?.({
+        runId,
+        stepIndex,
+        model,
+        messages,
+        tools: apiTools ?? [],
+        requestBody,
+      })
+    );
+
     const sseResult = makeStreamingRequest({
       baseUrl,
       endpoint: strategy.endpoint,
@@ -499,6 +569,56 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     });
 
     const accumulator = createStreamAccumulator(model || undefined);
+    // afterModelCall must pair with each beforeModelCall — fire exactly once
+    // per LLM round, on success/abort/error. Tracked here to keep exits symmetric.
+    let afterModelCallFired = false;
+    const fireAfterModelCall = async (payload: Omit<ModelCallEndEvent, "runId" | "stepIndex">) => {
+      if (afterModelCallFired) return;
+      afterModelCallFired = true;
+      await safeAwait(
+        hooks?.afterModelCall?.({
+          runId,
+          stepIndex,
+          ...payload,
+        })
+      );
+    };
+    const extractFinishReason = (resp: unknown): string | undefined => {
+      if (!resp || typeof resp !== "object") return undefined;
+      // Completions API: choices[0].finish_reason
+      const choices = (resp as { choices?: Array<{ finish_reason?: string | null }> }).choices;
+      if (Array.isArray(choices) && choices[0]?.finish_reason) {
+        return choices[0].finish_reason ?? undefined;
+      }
+      // Responses API: status field on the response
+      const status = (resp as { status?: string }).status;
+      return typeof status === "string" ? status : undefined;
+    };
+    const buildModelCallEndPayload = (
+      acc: ReturnType<typeof createStreamAccumulator>,
+      extra: { error?: string } = {}
+    ): Omit<ModelCallEndEvent, "runId" | "stepIndex"> => {
+      let finishReason: string | undefined;
+      try {
+        finishReason = extractFinishReason(strategy.buildFinalResponse(acc));
+      } catch {
+        /* best-effort — never fail the loop because of hook payload assembly */
+      }
+      return {
+        content: acc.content,
+        toolCalls: [...acc.toolCalls.values()].map((tc) => ({
+          id: tc.id,
+          name: tc.name,
+          arguments: tc.arguments,
+        })),
+        usage: {
+          inputTokens: acc.usage.prompt_tokens,
+          outputTokens: acc.usage.completion_tokens,
+        },
+        finishReason,
+        ...extra,
+      };
+    };
 
     const contentSmoother = new StreamSmoother((text) => {
       if (onData) onData(text);
@@ -536,6 +656,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (isAbortError(streamErr) || signal?.aborted) {
         contentSmoother.destroy();
         thinkingSmoother.destroy();
+        await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
         return {
           data: strategy.buildFinalResponse(accumulator),
           error: "Request aborted",
@@ -544,12 +665,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       }
       contentSmoother.destroy();
       thinkingSmoother.destroy();
+      const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+      await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: msg }));
       throw streamErr;
     }
 
     if (signal?.aborted) {
       contentSmoother.destroy();
       thinkingSmoother.destroy();
+      await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
       return {
         data: strategy.buildFinalResponse(accumulator),
         error: "Request aborted",
@@ -560,10 +684,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (sseError !== null) {
       contentSmoother.destroy();
       thinkingSmoother.destroy();
-      throw sseError as Error;
+      const err = sseError as Error;
+      await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: err.message }));
+      throw err;
     }
 
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
+    await fireAfterModelCall(buildModelCallEndPayload(accumulator));
 
     const response = strategy.buildFinalResponse(accumulator);
 
@@ -601,9 +728,28 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
-      // Execute tools that have an executor; emit onToolCall for the rest
+      // Execute tools that have an executor; emit onToolCall for the rest.
+      // Both branches fire `beforeToolUse` (it's observe-only and fires for
+      // every tool the model invoked — executor-backed or server-side).
+      // Note: `afterToolUse` is asymmetric — it only fires for tools that
+      // actually run via an executor below. Server-side tools without an
+      // executor get a `beforeToolUse` but never an `afterToolUse`.
+      // TODO(follow-up PR): support returning { args?, abort?: { reason } }
+      // from beforeToolUse so observers can mutate args or short-circuit
+      // the call. Today this is observe-only.
       for (const toolCall of currentAccumulator.toolCalls.values()) {
         const executorConfig = executorMap.get(toolCall.name);
+
+        await safeAwait(
+          hooks?.beforeToolUse?.({
+            runId,
+            stepIndex,
+            toolCallId: toolCall.id,
+            name: toolCall.name,
+            rawArguments: toolCall.arguments,
+            parsedArguments: tryParseToolArgs(toolCall.arguments),
+          } satisfies ToolUseStartEvent)
+        );
 
         if (executorConfig) {
           toolCallsToExecute.push(toolCall);
@@ -693,12 +839,23 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             const reason = blockedByFailure
               ? `failed dependencies: ${failedDeps.join(", ")}`
               : "a dependency cycle";
+            const errorMsg = `Tool "${tc.name}" was not executed due to ${reason}`;
             executionResults.push({
               id: tc.id,
               name: tc.name,
-              error: `Tool "${tc.name}" was not executed due to ${reason}`,
+              error: errorMsg,
               errorType: "execution",
             });
+            await safeAwait(
+              hooks?.afterToolUse?.({
+                runId,
+                stepIndex,
+                toolCallId: tc.id,
+                name: tc.name,
+                error: errorMsg,
+                errorType: "execution",
+              } satisfies ToolUseEndEvent)
+            );
           }
           break;
         }
@@ -717,6 +874,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               toolCall,
               executorConfig.executor,
               executorConfig.executorTimeout
+            );
+            await safeAwait(
+              hooks?.afterToolUse?.({
+                runId,
+                stepIndex,
+                toolCallId: toolCall.id,
+                name: toolCall.name,
+                result,
+                error,
+                errorType,
+              } satisfies ToolUseEndEvent)
             );
             return { id: toolCall.id, name: toolCall.name, result, error, errorType };
           })
@@ -875,6 +1043,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (continueResults.length === 0) {
         const skipResponse = strategy.buildFinalResponse(currentAccumulator);
         if (onFinish) onFinish(skipResponse);
+        await safeAwait(
+          hooks?.onRunEnd?.({
+            runId,
+            finalContent: currentAccumulator.content,
+            totalSteps: stepIndex + 1,
+          })
+        );
         return {
           data: skipResponse,
           error: null,
@@ -931,6 +1106,19 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         conversationId,
       });
 
+      stepIndex++;
+      afterModelCallFired = false;
+      await safeAwait(
+        hooks?.beforeModelCall?.({
+          runId,
+          stepIndex,
+          model,
+          messages: currentMessages,
+          tools: apiTools ?? [],
+          requestBody: continuationRequestBody,
+        } satisfies ModelCallStartEvent)
+      );
+
       const continuationResult = makeStreamingRequest({
         baseUrl,
         endpoint: strategy.endpoint,
@@ -981,6 +1169,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (isAbortError(streamErr) || signal?.aborted) {
           contContentSmoother.destroy();
           contThinkingSmoother.destroy();
+          await fireAfterModelCall(
+            buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
+          );
           return {
             data: strategy.buildFinalResponse(currentAccumulator),
             error: "Request aborted",
@@ -989,12 +1180,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
+        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator, { error: msg }));
         throw streamErr;
       }
 
       if (signal?.aborted) {
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
+        await fireAfterModelCall(
+          buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
+        );
         return {
           data: strategy.buildFinalResponse(currentAccumulator),
           error: "Request aborted",
@@ -1005,10 +1201,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (sseError !== null) {
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
-        throw sseError as Error;
+        const err = sseError as Error;
+        await fireAfterModelCall(
+          buildModelCallEndPayload(currentAccumulator, { error: err.message })
+        );
+        throw err;
       }
 
       await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
+      await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator));
     }
 
     // Append connector limit tip after all content has streamed
@@ -1023,6 +1224,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (toolIteration > 0) {
       const finalResponse = strategy.buildFinalResponse(currentAccumulator);
       if (onFinish) onFinish(finalResponse);
+      await safeAwait(
+        hooks?.onRunEnd?.({
+          runId,
+          finalContent: currentAccumulator.content,
+          totalSteps: stepIndex + 1,
+        })
+      );
       return {
         data: finalResponse,
         error: null,
@@ -1032,6 +1240,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     }
 
     if (onFinish) onFinish(response);
+    await safeAwait(
+      hooks?.onRunEnd?.({
+        runId,
+        finalContent: accumulator.content,
+        totalSteps: stepIndex + 1,
+      })
+    );
     return {
       data: response,
       error: null,
@@ -1045,6 +1260,19 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
     const errorObj = err instanceof Error ? err : new Error(errorMsg);
     if (onError) onError(errorObj);
+    // onRunError and onRunEnd are mutually exclusive — they live in
+    // separate try/catch branches, so only one fires per run.
+    // Stage is "model" because every throwing path in this loop is either
+    // inside or immediately after an LLM stream consumption (provider error,
+    // SSE error, stream exception). Tool execution failures surface as
+    // structured `{ error, errorType }` results, not thrown exceptions.
+    await safeAwait(
+      hooks?.onRunError?.({
+        runId,
+        error: errorMsg,
+        stage: "model",
+      })
+    );
     const statusCode =
       err instanceof Error && "statusCode" in err
         ? (err as { statusCode: number }).statusCode

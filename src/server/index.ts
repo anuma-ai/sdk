@@ -395,6 +395,17 @@ export {
   createPricePreProcessor,
 } from "../lib/chat/priceClassifier";
 export type {
+  LlmTokenUsage,
+  ModelCallEndEvent,
+  ModelCallStartEvent,
+  RunEndEvent,
+  RunErrorEvent,
+  RunHooks,
+  RunStartEvent,
+  ToolUseEndEvent,
+  ToolUseStartEvent,
+} from "../lib/chat/runHooks";
+export type {
   AutoExecutedToolResult,
   RunToolLoopOptions,
   RunToolLoopResult,
