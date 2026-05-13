@@ -116,12 +116,12 @@ describe("parseJsx", () => {
     );
   });
 
-  it("rejects nested elements inside Text", () => {
+  it("rejects nested non-inline elements inside Text", () => {
     expect(() =>
       parseJsx(
         `<Anuma.Text id="t" x={0} y={0} w={10} h={10}><Anuma.Rect id="r" x={0} y={0} w={1} h={1} /></Anuma.Text>`
       )
-    ).toThrow(/cannot contain nested elements/);
+    ).toThrow(/can only contain text and inline/);
   });
 
   it("parses numeric, string, and negative attr values", () => {
@@ -208,6 +208,22 @@ describe("serializeJsx", () => {
     const deck = deckNode();
     const s = serializeJsx(deck);
     expect(s.split("\n").length).toBeGreaterThan(1);
+  });
+
+  it("preserves inline Anuma.Span children inside Anuma.Text on round-trip", () => {
+    const source = `<Anuma.Text id="hero" x={0} y={0} w={500} h={75} fontRole="heading" style={{ fontSize: 57 }}>Why <Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span></Anuma.Text>`;
+    const node = parseJsx(source);
+    const s = serializeJsx(node);
+    // The Span must survive serialization (this is the bug).
+    expect(s).toContain(`<Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span>`);
+    // The trailing space before the Span must be preserved (as raw text or
+    // wrapped {"Why "} — both parse back identically).
+    expect(s).toMatch(/(>Why |\{"Why "\})/);
+    // Round-trip preserves the parsed children.
+    const reparsed = parseJsx(s);
+    expect(reparsed.children).toHaveLength(2);
+    expect(reparsed.children[0]).toBe("Why ");
+    expect(typeof reparsed.children[1] === "object" && (reparsed.children[1] as { tag: string }).tag).toBe("Span");
   });
 
   it("emits object-valued attrs as style={{ key: value, ... }}", () => {

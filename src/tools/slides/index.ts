@@ -65,6 +65,13 @@ import {
   renderSharedHeader,
 } from "./layouts";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
+import {
+  listCompositionDescriptions,
+  listCompositionLayoutNames,
+  listDesignSystemNames,
+  renderCompositionLayoutRecipe,
+  resolveCompositionLayout,
+} from "./designSystem";
 
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag } from "./jsx";
 export {
@@ -644,7 +651,9 @@ export function createSlideTools({
           if (typeof raw !== "string" || !raw) continue;
           if (seenLayouts.has(raw)) continue;
           seenLayouts.add(raw);
-          if (!getLayoutByName(raw)) {
+          // A layout name is valid if it's either in the legacy catalog
+          // or registered as a composition × design-system pair.
+          if (!getLayoutByName(raw) && !resolveCompositionLayout(raw)) {
             badLayouts.push(raw);
             continue;
           }
@@ -742,7 +751,25 @@ ${renderSharedHeader()}
 
 LAYOUT RECIPES — JSX recipes for the ${plannedLayouts.length} layout(s) you named in plan_deck. Each add_slide call must pick one of these; copy the element geometry and substitute your text:
 
-${renderLayoutRecipes(plannedLayouts)}
+${(() => {
+  // Split planned layouts into legacy templates (rendered via
+  // renderLayoutRecipes) and composition×design-system pairs (rendered
+  // via renderCompositionLayoutRecipe). Each set produces its own block
+  // of recipes; concatenate.
+  const legacy: string[] = [];
+  const compositionLayouts: string[] = [];
+  for (const name of plannedLayouts) {
+    if (resolveCompositionLayout(name)) compositionLayouts.push(name);
+    else legacy.push(name);
+  }
+  const blocks: string[] = [];
+  if (legacy.length > 0) blocks.push(renderLayoutRecipes(legacy));
+  for (const name of compositionLayouts) {
+    const recipe = renderCompositionLayoutRecipe(name, FONT_PRESETS[fontPreset]!);
+    if (recipe) blocks.push(recipe);
+  }
+  return blocks.join("\n\n");
+})()}
 
 FONT LIBRARY — the theme already applies the fontPreset pairing (${fontPreset}) to every <Anuma.Text> element by default. Override per-element by setting fontFamily on <Anuma.Text> to any name from this library — reach for a display face on a hero title, or an accent script for a single signature word. Do NOT use accent fonts for body copy. Names validated on write; typos are rejected with a hint.
 
@@ -775,9 +802,9 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         if (!layout) {
           return { error: "layout is required (short kebab-case name from LAYOUT CATALOG)" };
         }
-        if (!getLayoutByName(layout)) {
+        if (!getLayoutByName(layout) && !resolveCompositionLayout(layout)) {
           return {
-            error: `Unknown layout '${layout}'. Use the short kebab-case name from LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').`,
+            error: `Unknown layout '${layout}'. Use the short kebab-case name from LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered') or a design-system layout (e.g. 'cover-split-portrait--editorial-warm').`,
           };
         }
         const priorState = deckStateByConv.get(conversationId);
@@ -1296,7 +1323,28 @@ LAYOUT MODES — containers (Deck, Slide, Group) default to absolute positioning
 
 Never output code as text. Always use tools. Keep text responses to one or two sentences.
 
-LAYOUT CATALOG — each entry is "short-name — description". Match content shape to a description and pick the matching name. Default away from grids: when the content fits prose, bullets, a comparison, or a timeline, reach for one of those before falling back to a grid of cells.
+LAYOUT CATALOG — pick layouts from one of two families. Default to COMPOSITION LAYOUTS (richer typography, role-tagged slots, fully styled recipes); only reach for a LEGACY LAYOUT when no composition matches the slide's intent.
+
+COMPOSITION LAYOUTS — formed by combining a composition (the content shape) with a design system (the visual identity). The layout name you pass to plan_deck and add_slide MUST be the compound form "<composition>--<system>". Bare composition names like "cover-split-portrait" without a system suffix are REJECTED. Across the whole deck pick ONE design system and apply it to every composition (don't mix "--${listDesignSystemNames().join('" and "--')}" in the same deck).
+
+Available compositions (pick by content shape):
+${listCompositionDescriptions()
+  .map((c) => `- ${c.name} — ${c.description}`)
+  .join("\n")}
+
+Available design systems (pick ONE for the whole deck):
+${listDesignSystemNames()
+  .map((n) => `- ${n}`)
+  .join("\n")}
+
+Form layout names by joining with "--". The full set of valid compound names:
+${listCompositionLayoutNames()
+  .map((n) => `- ${n}`)
+  .join("\n")}
+
+Composition recipes are fully styled — copy verbatim and substitute slot text only.
+
+LEGACY LAYOUTS — older single-style templates. Use these only as a fallback when no composition fits. Each entry is "short-name — description".
 
 ${renderLayoutCatalog()}
 

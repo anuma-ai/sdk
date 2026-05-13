@@ -621,18 +621,13 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
  * to a single space.
  */
 function normalizeJsxText(raw: string): string {
-  const lines = raw.split("\n").map((line) => line.replace(/\s+$/g, ""));
-  const trimmed: string[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (lines.length === 1) {
-      trimmed.push(line);
-      continue;
-    }
-    const cleaned = line.replace(/^\s+/, "");
-    if (cleaned !== "") trimmed.push(cleaned);
-  }
-  return trimmed.join(" ");
+  // Single-line text: preserve exactly. Trailing whitespace can be meaningful
+  // when followed by an inline sibling (e.g. "Why " before <Anuma.Span>).
+  if (!raw.includes("\n")) return raw;
+  // Multi-line text: trim per-line whitespace, drop blank lines, join with a
+  // single space (standard JSX whitespace collapsing for formatted content).
+  const lines = raw.split("\n").map((line) => line.trim()).filter((line) => line !== "");
+  return lines.join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -665,13 +660,29 @@ function writeNode(
 
   // Text body?
   if (TEXT_BODY_TAGS.has(node.tag)) {
-    const body = node.children.filter((c): c is string => typeof c === "string").join("");
-    if (body === "") {
+    // Mixed content (e.g. <Anuma.Text>a <Anuma.Span>b</Anuma.Span></Anuma.Text>):
+    // serialize each child inline, preserving source order. Strings render as
+    // raw JSX text (or {"..."} when unsafe); inline element children render
+    // as single-line <Tag attrs>body</Tag>.
+    const rendered = MIXED_CONTENT_TAGS.has(node.tag)
+      ? node.children
+          .map((c) =>
+            typeof c === "string"
+              ? isSafeJsxText(c)
+                ? c
+                : `{${JSON.stringify(c)}}`
+              : serializeInline(c)
+          )
+          .join("")
+      : (() => {
+          const body = node.children.filter((c): c is string => typeof c === "string").join("");
+          return isSafeJsxText(body) ? body : `{${JSON.stringify(body)}}`;
+        })();
+    if (rendered === "") {
       lines.push(`${pad}${openTag(node, indent, depth, true, maxLineWidth)}`);
       return;
     }
     const head = openTag(node, indent, depth, false, maxLineWidth);
-    const rendered = isSafeJsxText(body) ? body : `{${JSON.stringify(body)}}`;
     const line = `${pad}${head}${rendered}</${tagName(node.tag)}>`;
     // If the head was multi-line (contained a newline), we still splice the
     // body onto the final line — acceptable since text-body tags generally
@@ -700,6 +711,23 @@ function writeNode(
     writeNode(lines, child, indent, depth + 1, maxLineWidth);
   }
   lines.push(`${pad}</${tagName(node.tag)}>`);
+}
+
+/**
+ * Single-line serialization for an inline child of a MIXED_CONTENT_TAGS
+ * parent (e.g. Anuma.Span inside Anuma.Text). Attrs go on one line; the
+ * body is the joined string children — inline children of inline tags are
+ * not supported.
+ */
+function serializeInline(node: AnumaNode): string {
+  const tag = tagName(node.tag);
+  const attrEntries = Object.entries(node.attrs);
+  const attrPart =
+    attrEntries.length === 0 ? "" : " " + attrEntries.map(([k, v]) => formatAttr(k, v)).join(" ");
+  const body = node.children.filter((c): c is string => typeof c === "string").join("");
+  if (body === "") return `<${tag}${attrPart} />`;
+  const rendered = isSafeJsxText(body) ? body : `{${JSON.stringify(body)}}`;
+  return `<${tag}${attrPart}>${rendered}</${tag}>`;
 }
 
 function openTag(

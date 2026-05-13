@@ -2458,3 +2458,100 @@ export function validateComposition(
   }
   return issues;
 }
+
+// ---------------------------------------------------------------------------
+// Live-tools registry — bridges this proposal module into the live
+// `plan_deck` / `add_slide` tools. Each composition × design system pair
+// is registered under a compound name (e.g. "cover-split-portrait--
+// editorial-warm"). The live tool flow treats these like additional
+// layout names alongside the legacy 30-template catalog.
+// ---------------------------------------------------------------------------
+
+const ALL_COMPOSITIONS: LayoutComposition[] = [
+  COVER_SPLIT_PORTRAIT,
+  BRAND_STORY_SPLIT,
+  FOUNDER_QUOTE_PORTRAIT,
+  MARKETING_GRID,
+  SURFACE_PAIR,
+  STAT_ROW_BOTTOM,
+  MULTI_STAT_ASYMMETRIC,
+  PEER_COMPARISON_TABLE,
+];
+
+const ALL_SYSTEMS: Array<{ name: string; system: DesignSystem }> = [
+  { name: "editorial-warm", system: EDITORIAL_WARM },
+  { name: "techno-bold", system: TECHNO_BOLD },
+];
+
+/**
+ * Every compound `composition--system` name registered with the live
+ * tools. Used by plan_deck's catalog and by add_slide's validation.
+ */
+export function listCompositionLayoutNames(): string[] {
+  const names: string[] = [];
+  for (const composition of ALL_COMPOSITIONS) {
+    for (const { name } of ALL_SYSTEMS) {
+      names.push(`${composition.name}--${name}`);
+    }
+  }
+  return names;
+}
+
+/**
+ * The names of every registered design system. Used by the system prompt
+ * to describe the `--<system>` suffix shared across composition layouts.
+ */
+export function listDesignSystemNames(): string[] {
+  return ALL_SYSTEMS.map((s) => s.name);
+}
+
+/**
+ * One entry per composition (not per compound name). The model picks a
+ * composition by content shape from this catalog, then appends one of
+ * the registered design-system suffixes to form the final layout name.
+ * Avoids emitting the description N times across N systems.
+ */
+export function listCompositionDescriptions(): Array<{ name: string; description: string }> {
+  return ALL_COMPOSITIONS.map((c) => ({ name: c.name, description: c.description }));
+}
+
+/**
+ * Resolve a compound `composition--system` layout name to its parts, or
+ * null when the name doesn't match any registered pair.
+ */
+export function resolveCompositionLayout(
+  name: string
+): { composition: LayoutComposition; system: DesignSystem; systemName: string } | null {
+  for (const composition of ALL_COMPOSITIONS) {
+    for (const entry of ALL_SYSTEMS) {
+      if (name === `${composition.name}--${entry.name}`) {
+        return { composition, system: entry.system, systemName: entry.name };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Render a compound layout's recipe as a JSX string with placeholder
+ * content. The model is expected to copy this verbatim and substitute
+ * its own text in each slot. The recipe is the compile() output run
+ * through the chosen design system, so it already has correct
+ * coordinates, colors, fonts — the model only changes text content.
+ */
+export function renderCompositionLayoutRecipe(
+  name: string,
+  fontPreset: { heading: string; body: string }
+): string | null {
+  const resolved = resolveCompositionLayout(name);
+  if (!resolved) return null;
+  const slideJsx = compile(resolved.composition, resolved.system, fontPreset);
+  const slots = describeComposition(resolved.composition, resolved.system, fontPreset);
+  return `${name} — ${resolved.composition.description}
+
+${slots}
+
+Recipe (copy this slide JSX; substitute text content per slot — do not change x/y/w/h/style):
+
+${slideJsx}`;
+}
