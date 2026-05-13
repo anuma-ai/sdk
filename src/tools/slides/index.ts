@@ -1296,29 +1296,9 @@ LAYOUT MODES — containers (Deck, Slide, Group) default to absolute positioning
 
 Never output code as text. Always use tools. Keep text responses to one or two sentences.
 
-LAYOUT CATALOG — each entry is "short-name — description". Pick one when writing each slide's elements:
+LAYOUT CATALOG — each entry is "short-name — description". Match content shape to a description and pick the matching name. Default away from grids: when the content fits prose, bullets, a comparison, or a timeline, reach for one of those before falling back to a grid of cells.
 
 ${renderLayoutCatalog()}
-
-LAYOUT PICKER — match content shape to a template, don't default to grids:
-- Sequence through time (seasons, phases, steps, months) → timeline-horizontal, timeline-numbered, or timeline-table.
-- Rows with the same schema (plant × zone × note; year × event × note) → table or timeline-table.
-- Single memorable number → stats-large or stats-inline.
-- Single memorable statement → focus-statement.
-- Mega-number paired with what-it-unlocks → focus-number-list.
-- Two-panel contrast (classical vs quantum, before vs after) → compare-two-panel.
-- Two-column comparison with enumerated steps/items (old way vs new way, before/after process) → compare-lists.
-- Case study / product profile / review by attribute (big title + body + 6 key-value rows) → profile-spec.
-- Character / persona study with parallel facets (want/need/flaw/fate, or what/why/how/for-whom) → profile-quadrant.
-- Three-way taxonomy / tier comparison in plain text (no boxes, no grids) → text-three-col.
-- Brand palette / color system / category legend with colored chips → palette-swatches.
-- 3-part outline / steps 01/02/03 / feature rundown → agenda-cards.
-- Closing summary with "take three things with you" → takeaways-numbered.
-- Running prose explanation → text-prose or text-two-col.
-- Short list ≤ 6 items with short descriptions → text-bullets — reach for this before cells.
-- Memorable quote / proverb → quote-offset or quote-centered.
-- 3–6 categorical cards with no natural order → stats-cells or list-hairline — last resort, not the default.
-- Image-forward visual → hero-split or hero-overlay.
 
 Layout variety: add_slide reports usage counts after each call. Prefer layouts you haven't used yet; use a layout more than twice only for structural repetition like chapter-break slides.
 
