@@ -32,6 +32,6 @@ Use web search to confirm current pricing or competing services when the answer 
   requiredTools: FINANCE_REQUIRED_TOOLS,
   preferredModel: FINANCE_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: ["statement_text"],
+  requiredVariables: [],
   contextSuffix: FINANCE_MEMORY_SUFFIX,
 };

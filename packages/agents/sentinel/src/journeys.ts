@@ -90,7 +90,7 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         helper:
           "Use this if you do not have a PDF handy, or add extra context alongside the uploaded file.",
         type: "textarea",
-        required: true,
+        required: false,
       },
       {
         key: "focus_vendors",
@@ -192,7 +192,7 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         helper:
           "If you upload the notice, this can stay blank unless you want to highlight specific lines.",
         type: "textarea",
-        required: true,
+        required: false,
       },
       {
         key: "collector_name",
@@ -206,9 +206,9 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         key: "state",
         label: "Your state",
         placeholder: "Select your state",
-        helper: "Optional, but state context helps Sentinel tailor the response strategy.",
+        helper: "Required for the statute of limitations check and state-specific debt rules.",
         type: "select",
-        required: false,
+        required: true,
         options: US_STATES,
       },
     ],

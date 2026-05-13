@@ -56,7 +56,7 @@ describe("SENTINEL_SKILL_JOURNEYS", () => {
 
   it("required fields match the source data", () => {
     const sc = SENTINEL_SKILL_JOURNEYS["finance.subscription-checker"];
-    expect(sc.fields.find((f) => f.key === "statement_text")?.required).toBe(true);
+    expect(sc.fields.find((f) => f.key === "statement_text")?.required).toBe(false);
     expect(sc.fields.find((f) => f.key === "focus_vendors")?.required).toBe(false);
 
     const ca = SENTINEL_SKILL_JOURNEYS["finance.chargeback-assistant"];
@@ -65,9 +65,9 @@ describe("SENTINEL_SKILL_JOURNEYS", () => {
     expect(ca.fields.find((f) => f.key === "charge_amount")?.required).toBe(false);
 
     const cr = SENTINEL_SKILL_JOURNEYS["finance.collection-response"];
-    expect(cr.fields.find((f) => f.key === "collection_notice")?.required).toBe(true);
+    expect(cr.fields.find((f) => f.key === "collection_notice")?.required).toBe(false);
     expect(cr.fields.find((f) => f.key === "collector_name")?.required).toBe(false);
-    expect(cr.fields.find((f) => f.key === "state")?.required).toBe(false);
+    expect(cr.fields.find((f) => f.key === "state")?.required).toBe(true);
   });
 
   it("state field has 51 options in every skill that has one", () => {

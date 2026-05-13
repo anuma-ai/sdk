@@ -27,9 +27,9 @@ describe("Sentinel skills", () => {
     ]);
   });
 
-  it("subscription-checker requires statement_text", () => {
+  it("subscription-checker has no required variables (file may replace text)", () => {
     const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.subscription-checker")!;
-    expect(skill.requiredVariables).toEqual(["statement_text"]);
+    expect(skill.requiredVariables).toEqual([]);
   });
 
   it("chargeback-assistant requires charge_details", () => {
@@ -37,9 +37,9 @@ describe("Sentinel skills", () => {
     expect(skill.requiredVariables).toEqual(["charge_details"]);
   });
 
-  it("collection-response requires collection_notice", () => {
+  it("collection-response requires state (statute of limitations is state-specific)", () => {
     const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.collection-response")!;
-    expect(skill.requiredVariables).toEqual(["collection_notice"]);
+    expect(skill.requiredVariables).toEqual(["state"]);
   });
 
   it("all skills use anthropic/claude-sonnet-4-6 as preferredModel", () => {

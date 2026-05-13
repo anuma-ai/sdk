@@ -32,6 +32,6 @@ Use web search to confirm the current {{state}} statute of limitations and any s
   requiredTools: FINANCE_REQUIRED_TOOLS,
   preferredModel: FINANCE_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: ["collection_notice"],
+  requiredVariables: ["state"],
   contextSuffix: FINANCE_MEMORY_SUFFIX,
 };

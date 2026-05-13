@@ -5,10 +5,10 @@ import { FINANCE_MEMORY_SUFFIX, FINANCE_PREFERRED_MODEL, FINANCE_REQUIRED_TOOLS 
 export const chargebackAssistant: SkillConfig = {
   id: "finance.chargeback-assistant",
   name: "Chargeback & Dispute Letter Drafter",
-  promptTemplate: `You are a chargeback dispute strategist helping a consumer recover money from {{merchant_name}}.
+  promptTemplate: `You are a chargeback dispute strategist helping a consumer recover money from a merchant.
 
 ## Task
-Build a chargeback case for a {{charge_amount}} charge and draft a dispute letter the user can send to their bank or card issuer.
+Build a chargeback case for the disputed charge and draft a dispute letter the user can send to their bank or card issuer.
 
 ## Instructions
 1. Read the charge details and identify the most appropriate chargeback reason code (e.g., services not rendered, unauthorized charge, defective merchandise, duplicate processing).
