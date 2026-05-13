@@ -111,6 +111,27 @@ import {
 
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
+const REQUEST_PROBE_ENCODER = new TextEncoder();
+
+function measureRequest(
+  round: number,
+  body: Record<string, unknown>,
+  messages: LlmapiMessage[],
+  tools: LlmapiChatCompletionTool[] | undefined
+): RequestEvent {
+  const bodyBytes = REQUEST_PROBE_ENCODER.encode(JSON.stringify(body)).length;
+  const messagesBytes = REQUEST_PROBE_ENCODER.encode(JSON.stringify(messages)).length;
+  const toolsBytes = tools?.length ? REQUEST_PROBE_ENCODER.encode(JSON.stringify(tools)).length : 0;
+  return {
+    round,
+    messageCount: messages.length,
+    toolCount: tools?.length ?? 0,
+    bodyBytes,
+    messagesBytes,
+    toolsBytes,
+  };
+}
+
 /** Extract the text of the most recent user message. Empty string if none. */
 function extractLastUserText(messages: LlmapiMessage[]): string {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
@@ -150,6 +171,30 @@ function getToolName(tool: Record<string, unknown>): string | undefined {
 export type AutoExecutedToolResult = {
   name: string;
   result: unknown;
+};
+
+/**
+ * Information emitted immediately before each LLM request is dispatched.
+ *
+ * Useful for measuring tool-loop cost: how many round-trips a flow takes,
+ * how much of the request body is the (often-redundant) tool catalog, and
+ * how the message history grows across continuation rounds. Emitting is
+ * gated on the caller providing `onRequest`, so the serialization cost is
+ * opt-in.
+ */
+export type RequestEvent = {
+  /** 0 for the initial request; 1+ for each continuation request following a tool round. */
+  round: number;
+  /** Number of messages in the request body. */
+  messageCount: number;
+  /** Number of tool schemas in the request body. */
+  toolCount: number;
+  /** UTF-8 byte length of the full serialized request body. */
+  bodyBytes: number;
+  /** UTF-8 byte length of the serialized messages array. */
+  messagesBytes: number;
+  /** UTF-8 byte length of the serialized tools array (0 when no tools). */
+  toolsBytes: number;
 };
 
 /** Information emitted after each tool execution round completes. */
@@ -232,6 +277,13 @@ export type RunToolLoopOptions = {
    * Receives the round index, model content, tool calls, results, and usage.
    */
   onStepFinish?: (event: StepFinishEvent) => void;
+  /**
+   * Called immediately before each LLM request is dispatched, with payload
+   * size metrics. Round 0 is the initial request; round 1+ are continuation
+   * requests after a tool round. Enabling this incurs an extra JSON.stringify
+   * pass over the request body.
+   */
+  onRequest?: (event: RequestEvent) => void;
   /**
    * Called with partial tool call arguments as they stream in.
    * Use for live preview of artifacts (HTML, slides) being generated.
@@ -400,6 +452,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onServerToolCall,
     onToolCallArgumentsDelta,
     onStepFinish,
+    onRequest,
     transport: makeStreamingRequest = defaultTransport,
     preProcessors,
     maxConnectorCalls = 2,
@@ -485,6 +538,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       imageModel,
       conversationId,
     });
+
+    if (onRequest) onRequest(measureRequest(0, requestBody, messages, apiTools));
 
     const sseResult = makeStreamingRequest({
       baseUrl,
@@ -930,6 +985,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         imageModel,
         conversationId,
       });
+
+      if (onRequest)
+        onRequest(
+          measureRequest(toolIteration, continuationRequestBody, currentMessages, apiTools)
+        );
 
       const continuationResult = makeStreamingRequest({
         baseUrl,
