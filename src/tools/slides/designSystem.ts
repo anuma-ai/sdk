@@ -38,6 +38,10 @@ export type ElementRole =
   | "stat-label" // small caption under a stat
   | "quote" // pull-quote text
   | "attribution" // quote attribution ("— Mei Han")
+  | "card-surface" // filled rectangle that defines a card's ground
+  | "card-eyebrow" // mono uppercase label / number inside a card ("01")
+  | "card-title" // serif heading inside a card
+  | "card-body" // body paragraph inside a card
   | "chrome-left" // top-left page chrome (brand + section)
   | "chrome-right" // top-right page chrome (page counter)
   | "footer" // bottom footer line
@@ -77,9 +81,41 @@ export interface RoleStyle {
 }
 
 /**
+ * A surface state — controls both the fill color of `card-surface`
+ * elements and which style overrides apply to text/shape elements that
+ * sit on that surface.
+ *
+ * - "default": base styles, no overrides. Slide-level light ground.
+ * - "dark": dark ground (warm-brown, near-black, etc.) with cream text.
+ * - "accent": brand-accent ground (terracotta, vivid blue) with text
+ *   tuned for contrast against it.
+ *
+ * Surfaces work at two levels:
+ *   1. Slide-level (composition.surface): the whole slide ground.
+ *   2. Element-level (element.surface): a card, panel, or callout
+ *      *inside* a slide whose ground differs from the slide's.
+ * Element-level overrides take precedence. Text styling resolves
+ * against the nearest enclosing surface state declared on the element.
+ */
+export type SurfaceState = "default" | "dark" | "accent";
+
+/**
+ * The treatment a design system applies for one non-default surface
+ * state. Carries both the fill color used by `card-surface` elements
+ * and the per-role style overrides that apply to text/shape elements
+ * resolved against that surface.
+ */
+export interface SurfaceTreatment {
+  /** Fill color used for slide ground or card-surface elements. */
+  background: string;
+  /** Per-role style overrides applied when an element is on this surface. */
+  overrides: Partial<Record<ElementRole, Partial<RoleStyle>>>;
+}
+
+/**
  * A named, self-contained visual identity. Maps every role to a concrete
- * style and declares dark-mode overrides per role. New design system =
- * one file edit, no changes to layouts.
+ * style and declares surface overrides per non-default state. New design
+ * system = one file edit, no changes to layouts.
  *
  * The italic-accent "signature move" is handled at the *composition*
  * level: a hero phrase is broken into multiple positioned elements,
@@ -92,20 +128,14 @@ export interface DesignSystem {
   name: string;
   /** One-line "use this when ..." hint for the model. */
   useFor: string;
-  /** The role → style map. Must cover every role used by any composition. */
+  /** The role → style map for the default (light) surface. */
   styles: Record<ElementRole, RoleStyle>;
   /**
-   * Per-role style overrides applied when a composition has
-   * `darkBackground: true`. Typically swaps text colors so they read on
-   * dark and re-tints the accent. Roles not listed inherit base styles.
+   * Per-surface-state treatments. Each entry declares a background color
+   * plus per-role overrides applied to elements sitting on that surface.
+   * Roles not listed inherit base styles.
    */
-  dark?: Partial<Record<ElementRole, Partial<RoleStyle>>>;
-  /**
-   * The slide background color used when a composition opts into dark
-   * mode. Each system declares its own (e.g. warm-brown vs near-black)
-   * so the composition stays design-system-agnostic.
-   */
-  darkBackground?: string;
+  surfaces?: Partial<Record<Exclude<SurfaceState, "default">, SurfaceTreatment>>;
   /**
    * Optional composition hints. The model can read these to bias layout
    * choices for this system (e.g. prefer asymmetric over centered).
@@ -156,6 +186,15 @@ export interface CompositionElement {
    * NOT wrap.
    */
   fit?: FitMode;
+  /**
+   * Surface state for THIS element. Defaults to the slide's
+   * `composition.surface` (or "default" if unset). Set explicitly when
+   * the element sits on a different ground than the slide — e.g. a
+   * dark card on a light slide, or an accent-filled callout. For
+   * `card-surface` elements, this drives the fill color; for text/shape
+   * elements, this drives which surface-overrides resolve the style.
+   */
+  surface?: SurfaceState;
   defaultText?: string;
   /** For "image" role: optional placeholder src. */
   defaultSrc?: string;
@@ -166,16 +205,16 @@ export interface LayoutComposition {
   description: string;
   elements: CompositionElement[];
   /**
-   * If true, the slide is rendered with a dark warm background and the
-   * design system's `dark` overrides are applied. Use for cover slides,
-   * chapter breaks, and statement slides where dark grounds carry
-   * emotional weight.
+   * The slide's ground surface. "default" is the design system's light
+   * mode; "dark" applies the system's dark surface treatment to the
+   * whole slide; "accent" uses the brand-accent surface. Defaults to
+   * "default" when omitted.
    */
-  darkBackground?: boolean;
+  surface?: SurfaceState;
   /**
-   * Optional explicit slide background hex (overrides palette/default).
-   * Honored regardless of `darkBackground` — useful for accent-tinted
-   * backgrounds (e.g. a fully terracotta cover).
+   * Optional explicit slide background hex (overrides system default).
+   * Honored regardless of `surface` — useful for one-off tinted
+   * backgrounds that aren't part of the design system's surface set.
    */
   backgroundColor?: string;
 }
@@ -306,8 +345,39 @@ export const EDITORIAL_WARM: DesignSystem = {
       letterSpacing: 0.1,
       align: "left",
     },
+    // Card roles — used inside `card-surface` groups.
+    "card-eyebrow": {
+      fontFamily: MONO,
+      fontSize: 1.0,
+      fontWeight: 500,
+      color: "accent",
+      textTransform: "uppercase",
+      letterSpacing: 0.14,
+      align: "left",
+    },
+    "card-title": {
+      fontFamily: "heading",
+      fontSize: 2.0,
+      fontWeight: 600,
+      color: "textPrimary",
+      lineHeight: 1.25,
+      align: "left",
+    },
+    "card-body": {
+      fontFamily: "body",
+      fontSize: 1.5,
+      fontWeight: 400,
+      color: "textSecondary",
+      lineHeight: 1.55,
+      align: "left",
+    },
     // Shape roles — fontFamily etc are unused but typed slots; the
     // compiler only reads `color` for fill/stroke.
+    "card-surface": {
+      fontFamily: "body",
+      fontSize: 0,
+      color: "slideBg",
+    },
     divider: {
       fontFamily: "body",
       fontSize: 0,
@@ -324,36 +394,59 @@ export const EDITORIAL_WARM: DesignSystem = {
       color: "card",
     },
   },
-  // When a composition has darkBackground: true, swap the text colors so
-  // they read on dark warm-brown. The accent stays the same (it's already
-  // tuned to work on both grounds). Roles not listed here inherit their
-  // base style. We re-purpose existing palette tokens rather than adding
-  // new ones: `slideBg` (cream) becomes our on-dark "textPrimary" color
-  // and `border` (muted cream) becomes our on-dark "textMuted". This is
-  // a deliberate token re-use — fine for the proposal; a real migration
-  // would add explicit on-dark tokens to the palette.
-  dark: {
-    hero: { color: "slideBg" },
-    // Accent on dark warm-brown reads better as a warm tan/gold than as
-    // the palette's olive-green accent. Literal hex passes through the
-    // renderer (anything starting with "#" or "rgb" bypasses the token
-    // resolver), so we override without touching the palette.
-    "hero-accent": { color: "#D8A673" },
-    // Eyebrows are amber/mustard on dark — same palette family as the
-    // brand mark but distinct from the hero-accent tan.
-    eyebrow: { color: "#C99A4D" },
-    subtitle: { color: "border" },
-    body: { color: "border" },
-    bullets: { color: "border" },
-    "stat-value": { color: "slideBg" },
-    "stat-label": { color: "border" },
-    quote: { color: "slideBg" },
-    attribution: { color: "slideBg" },
-    "chrome-left": { color: "#D8763F" },
-    "chrome-right": { color: "border" },
-    footer: { color: "border" },
+  // Per-surface treatments. Each declares both the fill color used for
+  // slide ground / card-surface fills and the per-role overrides applied
+  // to text elements resolved against that surface. We re-purpose
+  // existing palette tokens where possible (`slideBg` becomes on-dark
+  // text, `border` becomes on-dark muted), with literal hex for accent
+  // colors that aren't in the palette.
+  surfaces: {
+    dark: {
+      background: "#231A0F",
+      overrides: {
+        hero: { color: "slideBg" },
+        // Accent on dark warm-brown reads better as a warm tan/gold than
+        // the palette's olive-green accent.
+        "hero-accent": { color: "#D8A673" },
+        eyebrow: { color: "#C99A4D" },
+        subtitle: { color: "border" },
+        body: { color: "border" },
+        bullets: { color: "border" },
+        "stat-value": { color: "slideBg" },
+        "stat-label": { color: "border" },
+        quote: { color: "slideBg" },
+        attribution: { color: "slideBg" },
+        "card-title": { color: "slideBg" },
+        "card-body": { color: "border" },
+        "card-eyebrow": { color: "#C99A4D" },
+        "chrome-left": { color: "#D8763F" },
+        "chrome-right": { color: "border" },
+        footer: { color: "border" },
+      },
+    },
+    accent: {
+      // Saturated terracotta ground from the source decks.
+      background: "#B85A2E",
+      overrides: {
+        // Text on the terracotta accent stays warm-dark — the punch
+        // comes from the ground, not from the type.
+        hero: { color: "#1F1A14" },
+        "hero-accent": { color: "#1F1A14" },
+        eyebrow: { color: "#5C2812" },
+        subtitle: { color: "#3C2A1F" },
+        body: { color: "#3C2A1F" },
+        bullets: { color: "#3C2A1F" },
+        "stat-value": { color: "#1F1A14" },
+        "stat-label": { color: "#5C2812" },
+        quote: { color: "#1F1A14" },
+        attribution: { color: "#1F1A14" },
+        "card-title": { color: "#1F1A14" },
+        "card-body": { color: "#3C2A1F" },
+        "card-eyebrow": { color: "#5C2812" },
+        footer: { color: "#5C2812" },
+      },
+    },
   },
-  darkBackground: "#231A0F",
 };
 
 // ---------------------------------------------------------------------------
@@ -489,29 +582,82 @@ export const TECHNO_BOLD: DesignSystem = {
       letterSpacing: 0.1,
       align: "left",
     },
+    "card-eyebrow": {
+      fontFamily: MONO,
+      fontSize: 1.0,
+      fontWeight: 500,
+      color: "#3B82F6",
+      textTransform: "uppercase",
+      letterSpacing: 0.16,
+      align: "left",
+    },
+    "card-title": {
+      fontFamily: SANS,
+      fontSize: 2.0,
+      fontWeight: 700,
+      color: "#0A0A0A",
+      lineHeight: 1.2,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "card-body": {
+      fontFamily: SANS,
+      fontSize: 1.4,
+      fontWeight: 400,
+      color: "#52525B",
+      lineHeight: 1.5,
+      align: "left",
+    },
+    "card-surface": { fontFamily: SANS, fontSize: 0, color: "#FAFAFA" },
     divider: { fontFamily: SANS, fontSize: 0, color: "#E4E4E7" },
     "accent-bar": { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
     image: { fontFamily: SANS, fontSize: 0, color: "#0A0A0A" },
   },
-  // Dark mode: invert near-black ↔ near-white, brighten the accent so
-  // it stays vivid against pure black.
-  dark: {
-    hero: { color: "#FAFAFA" },
-    "hero-accent": { color: "#60A5FA" },
-    subtitle: { color: "#A1A1AA" },
-    eyebrow: { color: "#60A5FA" },
-    body: { color: "#A1A1AA" },
-    bullets: { color: "#A1A1AA" },
-    "stat-value": { color: "#FAFAFA" },
-    "stat-label": { color: "#A1A1AA" },
-    quote: { color: "#FAFAFA" },
-    attribution: { color: "#FAFAFA" },
-    "chrome-left": { color: "#FAFAFA" },
-    "chrome-right": { color: "#A1A1AA" },
-    footer: { color: "#71717A" },
-    divider: { color: "#27272A" },
+  // Per-surface treatments — same shape as editorial-warm.
+  surfaces: {
+    dark: {
+      background: "#0A0A0A",
+      overrides: {
+        hero: { color: "#FAFAFA" },
+        "hero-accent": { color: "#60A5FA" },
+        subtitle: { color: "#A1A1AA" },
+        eyebrow: { color: "#60A5FA" },
+        body: { color: "#A1A1AA" },
+        bullets: { color: "#A1A1AA" },
+        "stat-value": { color: "#FAFAFA" },
+        "stat-label": { color: "#A1A1AA" },
+        quote: { color: "#FAFAFA" },
+        attribution: { color: "#FAFAFA" },
+        "card-eyebrow": { color: "#60A5FA" },
+        "card-title": { color: "#FAFAFA" },
+        "card-body": { color: "#A1A1AA" },
+        "chrome-left": { color: "#FAFAFA" },
+        "chrome-right": { color: "#A1A1AA" },
+        footer: { color: "#71717A" },
+        divider: { color: "#27272A" },
+      },
+    },
+    accent: {
+      // Saturated brand blue. Text reads as light cream for contrast.
+      background: "#3B82F6",
+      overrides: {
+        hero: { color: "#FAFAFA" },
+        "hero-accent": { color: "#FAFAFA" },
+        subtitle: { color: "#DBEAFE" },
+        eyebrow: { color: "#FAFAFA" },
+        body: { color: "#DBEAFE" },
+        bullets: { color: "#DBEAFE" },
+        "stat-value": { color: "#FAFAFA" },
+        "stat-label": { color: "#DBEAFE" },
+        quote: { color: "#FAFAFA" },
+        attribution: { color: "#FAFAFA" },
+        "card-eyebrow": { color: "#FAFAFA" },
+        "card-title": { color: "#FAFAFA" },
+        "card-body": { color: "#DBEAFE" },
+        footer: { color: "#DBEAFE" },
+      },
+    },
   },
-  darkBackground: "#0A0A0A",
 };
 
 // ---------------------------------------------------------------------------
@@ -522,7 +668,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
   name: "cover-split-portrait",
   description:
     "Dark warm cover: text panel on the left half, full-bleed image on the right. The hero is three positioned lines — regular / italic-accent / regular — each occupying its own emotional moment. Brand chrome top, hairline footer bottom.",
-  darkBackground: true,
+  surface: "dark",
   elements: [
     // Left-panel text columns share a 6% right margin to the image edge:
     // content extends to x = 46, image starts at x = 52, leaving a 6% gap.
@@ -642,6 +788,149 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
 };
 
 // ---------------------------------------------------------------------------
+// MARKETING_GRID — a 2×2 card grid where each card declares its own surface
+// state independently. Exercises the multi-state surface flag: two cards
+// stay on the default ground, one card is dark, one is accent. Same
+// composition, same design system, different surface mix per card.
+// ---------------------------------------------------------------------------
+
+/**
+ * Helper to build the three elements of one card: surface rect, eyebrow,
+ * and title. All three share the same `surface` state so text inside
+ * the card resolves against the card's ground, not the slide's.
+ */
+function card(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  surface: SurfaceState,
+  eyebrow: string,
+  title: string
+): CompositionElement[] {
+  // Inner padding for text inside the card: 5% of canvas width.
+  const px = 2;
+  return [
+    { id: `${id}_surface`, role: "card-surface", surface, x, y, w, h },
+    {
+      id: `${id}_eyebrow`,
+      role: "card-eyebrow",
+      surface,
+      x: x + px,
+      y: y + 2,
+      w: w - 2 * px,
+      h: 3,
+      fit: "single-line",
+      defaultText: eyebrow,
+    },
+    {
+      id: `${id}_title`,
+      role: "card-title",
+      surface,
+      x: x + px,
+      y: y + 6,
+      w: w - 2 * px,
+      h: h - 8,
+      fit: "multi-line",
+      defaultText: title,
+    },
+  ];
+}
+
+export const MARKETING_GRID: LayoutComposition = {
+  name: "marketing-grid",
+  description:
+    "Light slide with a 2-line hero on top and a 2×2 card grid below. Each card declares its own surface state (default / dark / accent), so a single grid can mix neutral, dark-emphasized, and brand-accent cards without changing the composition.",
+  elements: [
+    // Chrome row
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ 08 / OPERATIONS",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 5,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "23 / 28",
+    },
+    // Two-line hero — text tuned to fit techno-bold's narrower per-line
+    // budget (sans-bold is ~28% wider per character than serif).
+    {
+      id: "hero_1",
+      role: "hero",
+      x: 6,
+      y: 18,
+      w: 82,
+      h: 12,
+      fit: "single-line",
+      defaultText: "Marketing & tech,",
+    },
+    {
+      id: "hero_2",
+      role: "hero-accent",
+      x: 6,
+      y: 30,
+      w: 82,
+      h: 12,
+      fit: "single-line",
+      defaultText: "quietly in the back.",
+    },
+    // 2×2 card grid — each card declares its own surface state.
+    ...card(
+      "card_1",
+      6,
+      52,
+      42,
+      22,
+      "default",
+      "01 · BRAND FUND",
+      "National creative + paid social + influencer cohort. We produce, you translate."
+    ),
+    ...card(
+      "card_2",
+      52,
+      52,
+      42,
+      22,
+      "default",
+      "02 · TECH STACK",
+      "EMBER POS + KDS + inventory + loyalty app + financial dashboard. One log-in, no per-seat fees."
+    ),
+    ...card(
+      "card_3",
+      6,
+      76,
+      42,
+      22,
+      "dark",
+      "03 · LAUNCH PACKAGE",
+      "$8,000 grand-opening kit: geo-targeted ads, sample drops, KOL/KOC seeding, day-1 PR notes."
+    ),
+    ...card(
+      "card_4",
+      52,
+      76,
+      42,
+      22,
+      "accent",
+      "04 · OPERATOR SUPPORT",
+      "Regional ops manager, 24/7 hotline, quarterly P&L review, semi-annual compliance audit."
+    ),
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // compile — composition × design system → renderable JSX
 // ---------------------------------------------------------------------------
 
@@ -672,12 +961,32 @@ function escapeText(s: string): string {
 }
 
 /**
- * Merge a dark-mode partial override onto a base RoleStyle. Returns the
- * base unchanged when no override exists.
+ * Resolve the effective style for an element given the design system,
+ * element role, and the surface state that element sits on. For the
+ * default surface, returns base styles unchanged. For non-default
+ * surfaces, merges that surface's per-role override over the base.
  */
-function applyDark(base: RoleStyle, override?: Partial<RoleStyle>): RoleStyle {
-  if (!override) return base;
-  return { ...base, ...override };
+function resolveStyle(
+  system: DesignSystem,
+  role: ElementRole,
+  state: SurfaceState
+): RoleStyle {
+  const base = system.styles[role];
+  if (!base) throw new Error(`Design system "${system.name}" missing style for role "${role}"`);
+  if (state === "default") return base;
+  const treatment = system.surfaces?.[state];
+  const override = treatment?.overrides[role];
+  return override ? { ...base, ...override } : base;
+}
+
+/**
+ * The fill color for the slide ground, or for a card-surface element,
+ * under the given surface state. Returns null for "default" so the
+ * caller can decide whether to omit the bg attribute entirely.
+ */
+function surfaceBackground(system: DesignSystem, state: SurfaceState): string | null {
+  if (state === "default") return null;
+  return system.surfaces?.[state]?.background ?? "#1a1a1a";
 }
 
 function styleObject(s: RoleStyle, fontPreset: { heading: string; body: string }): string {
@@ -715,18 +1024,28 @@ function emitAccentBar(el: CompositionElement, s: RoleStyle): string {
   return `<Anuma.Rect id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" cornerRadius={0.2} />`;
 }
 
-function emitImage(el: CompositionElement, system: DesignSystem, dark: boolean): string {
-  // Generate a placeholder that matches the slide ground: in dark mode
-  // use the system's dark bg; otherwise a neutral light gray. This keeps
-  // the image area visually coherent with the design system while we
-  // wait for a real image-generation pipeline.
-  const bgHex = dark ? (system.darkBackground ?? "#1a1a1a") : "#E5E5E5";
-  const fgHex = dark ? "#3F3F3F" : "#9E9E9E";
+function emitImage(el: CompositionElement, system: DesignSystem, state: SurfaceState): string {
+  // Placeholder color tracks the surface state so the image area stays
+  // visually coherent with the slide ground until we have real image
+  // generation.
+  const isLight = state === "default";
+  const bgHex = isLight ? "#E5E5E5" : (surfaceBackground(system, state) ?? "#1a1a1a");
+  const fgHex = isLight ? "#9E9E9E" : "#3F3F3F";
   const stripHash = (s: string) => s.replace(/^#/, "");
   const src =
     el.defaultSrc ??
     `https://placehold.co/1200x1200/${stripHash(bgHex)}/${stripHash(fgHex)}?text=Photography`;
   return `<Anuma.Image id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} src="${escapeText(src)}" />`;
+}
+
+function emitCardSurface(el: CompositionElement, system: DesignSystem, state: SurfaceState): string {
+  // For default state, use the role's base color (typically the cream
+  // `slideBg`/`#FAFAFA`); for dark/accent, pull the surface's bg color.
+  const fill =
+    state === "default"
+      ? system.styles["card-surface"].color
+      : (surfaceBackground(system, state) ?? "#1a1a1a");
+  return `<Anuma.Rect id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${fill}" cornerRadius={0.3} />`;
 }
 
 /**
@@ -740,13 +1059,12 @@ export function compile(
   fontPreset: { heading: string; body: string },
   slideId?: string
 ): string {
-  const dark = composition.darkBackground === true;
+  const slideState: SurfaceState = composition.surface ?? "default";
   const lines: string[] = [];
   for (const el of composition.elements) {
-    const base = system.styles[el.role];
-    if (!base)
-      throw new Error(`Design system "${system.name}" missing style for role "${el.role}"`);
-    const s = dark ? applyDark(base, system.dark?.[el.role]) : base;
+    // Element-level surface overrides the slide-level surface.
+    const elState: SurfaceState = el.surface ?? slideState;
+    const s = resolveStyle(system, el.role, elState);
     switch (el.role) {
       case "divider":
         lines.push(emitDivider(el, s));
@@ -754,22 +1072,22 @@ export function compile(
       case "accent-bar":
         lines.push(emitAccentBar(el, s));
         break;
+      case "card-surface":
+        lines.push(emitCardSurface(el, system, elState));
+        break;
       case "image":
-        lines.push(emitImage(el, system, dark));
+        lines.push(emitImage(el, system, elState));
         break;
       default:
         lines.push(emitText(el, s, fontPreset));
     }
   }
   // Per-slide background precedence:
-  //   1. composition.backgroundColor — explicit override (rare).
-  //   2. system.darkBackground — design system's dark mode color.
-  //   3. Fall back to a generic dark default if dark but unspecified.
-  const bg = composition.backgroundColor
-    ? composition.backgroundColor
-    : dark
-      ? (system.darkBackground ?? "#0A0A0A")
-      : null;
+  //   1. composition.backgroundColor — explicit override.
+  //   2. The design system's surface background for the slide's state.
+  //   3. No bg attribute (renderer uses deck-level slideBg).
+  const bg =
+    composition.backgroundColor ?? surfaceBackground(system, slideState);
   const bgAttr = bg ? ` background="${bg}"` : "";
   const id = slideId ?? composition.name;
   return `<Anuma.Slide id="${id}"${bgAttr}>\n${lines.join("\n")}\n</Anuma.Slide>`;
@@ -850,7 +1168,12 @@ export function estimateSlotBudget(
   return { charsPerLine, maxLines, total: charsPerLine * maxLines };
 }
 
-const STATIC_ROLES: ReadonlySet<ElementRole> = new Set(["divider", "accent-bar", "image"]);
+const STATIC_ROLES: ReadonlySet<ElementRole> = new Set([
+  "divider",
+  "accent-bar",
+  "image",
+  "card-surface",
+]);
 
 /**
  * Produce a prompt-friendly recipe describing every slot's role, fit
@@ -867,7 +1190,7 @@ export function describeComposition(
   const out: string[] = [
     `Composition: ${composition.name}`,
     `Design system: ${system.name}`,
-    `Slide ground: ${composition.darkBackground ? "dark" : "light"}`,
+    `Slide surface: ${composition.surface ?? "default"}`,
     "",
     composition.description,
     "",

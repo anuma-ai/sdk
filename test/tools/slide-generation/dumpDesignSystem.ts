@@ -23,6 +23,7 @@ import path from "node:path";
 import {
   COVER_SPLIT_PORTRAIT,
   EDITORIAL_WARM,
+  MARKETING_GRID,
   TECHNO_BOLD,
   compile,
   describeComposition,
@@ -43,17 +44,29 @@ const OUT_DIR = path.resolve(__dirname, ".output", "design-system");
 const palette = PALETTES.find((p) => p.name === "warm editorial")!;
 const fontPreset = FONT_PRESETS[palette.fontPreset] ?? FONT_PRESETS.default!;
 
-const slideEditorial = compile(
+const slideCoverEditorial = compile(
   COVER_SPLIT_PORTRAIT,
   EDITORIAL_WARM,
   fontPreset,
   "cover--editorial-warm"
 );
-const slideTechno = compile(
+const slideCoverTechno = compile(
   COVER_SPLIT_PORTRAIT,
   TECHNO_BOLD,
   fontPreset,
   "cover--techno-bold"
+);
+const slideGridEditorial = compile(
+  MARKETING_GRID,
+  EDITORIAL_WARM,
+  fontPreset,
+  "grid--editorial-warm"
+);
+const slideGridTechno = compile(
+  MARKETING_GRID,
+  TECHNO_BOLD,
+  fontPreset,
+  "grid--techno-bold"
 );
 
 const deckAttrs = [
@@ -64,8 +77,10 @@ const deckAttrs = [
 const deckJsx = `<Anuma.Deck
   ${deckAttrs}
 >
-${slideEditorial}
-${slideTechno}
+${slideCoverEditorial}
+${slideCoverTechno}
+${slideGridEditorial}
+${slideGridTechno}
 </Anuma.Deck>`;
 
 const deck = parseJsx(deckJsx);
@@ -78,13 +93,17 @@ const html = renderDeckToHtml(
 const outPath = path.join(OUT_DIR, "index.html");
 fs.writeFileSync(outPath, html, "utf-8");
 
-// Print the LLM-facing slot-budget recipe and any validation issues for
-// each design system. This is what the model would see when asked to
-// fill the composition — option 3 from the content-overflow discussion.
-function reportSystem(label: string, system: DesignSystem): void {
-  console.log(`\n══════════ ${label} ══════════`);
-  console.log(describeComposition(COVER_SPLIT_PORTRAIT, system, fontPreset));
-  const issues = validateComposition(COVER_SPLIT_PORTRAIT, system, fontPreset);
+// Print the LLM-facing slot-budget recipe and validation issues for each
+// composition × design system pair. Option 3 from the content-overflow
+// discussion — the constraints are surfaced to the prompt boundary.
+function reportPair(
+  composition: typeof COVER_SPLIT_PORTRAIT,
+  label: string,
+  system: DesignSystem
+): void {
+  console.log(`\n══════════ ${composition.name} × ${label} ══════════`);
+  console.log(describeComposition(composition, system, fontPreset));
+  const issues = validateComposition(composition, system, fontPreset);
   if (issues.length === 0) {
     console.log(`\n  ✓ All default content fits.`);
   } else {
@@ -96,9 +115,11 @@ function reportSystem(label: string, system: DesignSystem): void {
   }
 }
 
-reportSystem("editorial-warm", EDITORIAL_WARM);
-reportSystem("techno-bold", TECHNO_BOLD);
+reportPair(COVER_SPLIT_PORTRAIT, "editorial-warm", EDITORIAL_WARM);
+reportPair(COVER_SPLIT_PORTRAIT, "techno-bold", TECHNO_BOLD);
+reportPair(MARKETING_GRID, "editorial-warm", EDITORIAL_WARM);
+reportPair(MARKETING_GRID, "techno-bold", TECHNO_BOLD);
 
 console.log(
-  `\nCompiled cover-split-portrait through editorial-warm + techno-bold → ${path.relative(process.cwd(), outPath)}`
+  `\nCompiled 2 compositions × 2 design systems → ${path.relative(process.cwd(), outPath)}`
 );
