@@ -21,10 +21,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+  BRAND_STORY_SPLIT,
   COVER_SPLIT_PORTRAIT,
   EDITORIAL_WARM,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
+  MULTI_STAT_ASYMMETRIC,
   STAT_ROW_BOTTOM,
   SURFACE_PAIR,
   TECHNO_BOLD,
@@ -49,10 +51,12 @@ const fontPreset = FONT_PRESETS[palette.fontPreset] ?? FONT_PRESETS.default!;
 
 const compositions: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
-  MARKETING_GRID,
+  BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
+  MARKETING_GRID,
   SURFACE_PAIR,
   STAT_ROW_BOTTOM,
+  MULTI_STAT_ASYMMETRIC,
 ];
 
 const systems: Array<{ name: string; system: DesignSystem }> = [

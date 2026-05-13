@@ -106,6 +106,7 @@ const ANUMA_TAGS = [
   "Screen",
   "Group",
   "Text",
+  "Span",
   "Image",
   "Rect",
   "Circle",
@@ -242,9 +243,25 @@ const FORBIDDEN_HTML_TAGS = new Set<string>([
   "portal",
 ]);
 
+/**
+ * Tags that support MIXED content — text interleaved with inline elements
+ * (currently just <Anuma.Span>). Used for inline-styled spans inside text.
+ * Distinct from TEXT_BODY_TAGS (text-only) because mixed-content tags
+ * preserve children in source order including nested AnumaNodes.
+ */
+const MIXED_CONTENT_TAGS = new Set<string>(["Text"]);
+
+/**
+ * Tags allowed as inline children inside MIXED_CONTENT_TAGS. Anuma.Span
+ * is currently the only one — it's a text-only leaf that carries inline
+ * style overrides like fontStyle and color.
+ */
+const INLINE_CONTENT_TAGS = new Set<string>(["Span"]);
+
 /** Tags whose body is raw text (JSX children are the displayed string). */
 const TEXT_BODY_TAGS = new Set<string>([
   "Text",
+  "Span",
   "h1",
   "h2",
   "h3",
@@ -518,8 +535,9 @@ function readObjectExpr(
 }
 
 function readChildren(el: JSXElement, tag: string): AnumaChild[] {
-  const textParts: string[] = [];
-  const elements: AnumaNode[] = [];
+  // Track ALL children in source order for mixed-content tags. Other
+  // tags can derive flat textParts/elements from this ordered list.
+  const ordered: AnumaChild[] = [];
   let sawNonText = false;
   let sawText = false;
 
@@ -528,18 +546,18 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
       if (child.value.trim() === "" && /\n/.test(child.value)) continue;
       const normalized = normalizeJsxText(child.value);
       if (normalized === "") continue;
-      textParts.push(normalized);
+      ordered.push(normalized);
       sawText = true;
     } else if (child.type === "JSXExpressionContainer") {
       const expr = child.expression;
       if (expr.type === "JSXEmptyExpression") continue;
       if (expr.type === "StringLiteral") {
-        textParts.push(expr.value);
+        ordered.push(expr.value);
         sawText = true;
         continue;
       }
       if (expr.type === "NumericLiteral") {
-        textParts.push(String(expr.value));
+        ordered.push(String(expr.value));
         sawText = true;
         continue;
       }
@@ -548,7 +566,7 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
         locOf(child)
       );
     } else if (child.type === "JSXElement") {
-      elements.push(parseElement(child));
+      ordered.push(parseElement(child));
       sawNonText = true;
     } else if (child.type === "JSXFragment") {
       throw new AnumaJsxError(`<${tagName(tag)}> cannot contain JSX fragments`, locOf(child));
@@ -562,11 +580,29 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
     return [];
   }
 
+  // Mixed text + inline elements (e.g. <Anuma.Text> with <Anuma.Span>
+  // children). Preserve source order; validate that any element children
+  // are inline-allowed inside this tag.
+  if (MIXED_CONTENT_TAGS.has(tag)) {
+    for (const c of ordered) {
+      if (typeof c !== "string" && !INLINE_CONTENT_TAGS.has(c.tag)) {
+        throw new AnumaJsxError(
+          `<${tagName(tag)}> can only contain text and inline ${[...INLINE_CONTENT_TAGS]
+            .map((t) => `<${NAMESPACE}.${t}>`)
+            .join(", ")}`,
+          locOf(el)
+        );
+      }
+    }
+    return ordered;
+  }
+
   if (TEXT_BODY_TAGS.has(tag)) {
     if (sawNonText) {
       throw new AnumaJsxError(`<${tagName(tag)}> cannot contain nested elements`, locOf(el));
     }
-    return textParts.length > 0 ? [textParts.join("")] : [];
+    const textChildren = ordered.filter((c): c is string => typeof c === "string");
+    return textChildren.length > 0 ? [textChildren.join("")] : [];
   }
 
   // Container tag — element children only.
@@ -576,7 +612,7 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
       locOf(el)
     );
   }
-  return elements;
+  return ordered.filter((c): c is AnumaNode => typeof c !== "string");
 }
 
 /**

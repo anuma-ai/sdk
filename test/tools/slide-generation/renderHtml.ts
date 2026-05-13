@@ -149,8 +149,33 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
         typeof style.fontFamily === "string"
           ? `font-family:'${style.fontFamily}',system-ui,sans-serif;`
           : "";
-      const body = node.children.filter((c): c is string => typeof c === "string").join("");
-      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${letterSpacing}${family}">${esc(body)}</div>`;
+      // Walk children: strings render as plain text, Anuma.Span children
+      // render as inline <span> with their own style overrides. Spans
+      // flow naturally within the parent text div — no separate boxes,
+      // no overflow:hidden clipping per span, no per-glyph alignment math.
+      const inner = node.children
+        .map((c) => {
+          if (typeof c === "string") return esc(c);
+          if (c.tag === "Span") {
+            const sStyle = styleObject(c);
+            const parts: string[] = [];
+            if (typeof sStyle.color === "string") parts.push(`color:${resolve(sStyle.color)}`);
+            if (sStyle.fontStyle === "italic") parts.push("font-style:italic");
+            if (typeof sStyle.fontWeight === "number")
+              parts.push(`font-weight:${sStyle.fontWeight}`);
+            if (typeof sStyle.fontFamily === "string")
+              parts.push(`font-family:'${sStyle.fontFamily}',system-ui,sans-serif`);
+            if (typeof sStyle.letterSpacing === "number")
+              parts.push(`letter-spacing:${sStyle.letterSpacing}em`);
+            const spanText = c.children
+              .filter((cc): cc is string => typeof cc === "string")
+              .join("");
+            return `<span style="${parts.join(";")}">${esc(spanText)}</span>`;
+          }
+          return "";
+        })
+        .join("");
+      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${letterSpacing}${family}">${inner}</div>`;
     }
     case "Rect": {
       const fill = node.attrs.fill ? resolve(node.attrs.fill) : "transparent";

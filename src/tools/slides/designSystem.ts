@@ -35,7 +35,8 @@ export type ElementRole =
   | "body" // running prose paragraph
   | "bullets" // multi-line bulleted body
   | "stat-value" // big featured number ("62", "95%", "+240") — slide-hero scale
-  | "stat-value-small" // medium stat in a bottom-row context ("$9.50", "2.4×")
+  | "stat-value-mid" // medium stat for cards ("30,000+", "5,000+") — between hero and row
+  | "stat-value-small" // small stat in a bottom-row context ("$9.50", "2.4×")
   | "stat-label" // small caption under a stat
   | "quote" // pull-quote text — one line of a multi-line quote (regular)
   | "quote-accent" // pull-quote text — the italic accent line
@@ -197,6 +198,15 @@ export interface CompositionElement {
    * elements, this drives which surface-overrides resolve the style.
    */
   surface?: SurfaceState;
+  /**
+   * Optional per-element alignment override. Roles define default
+   * alignment ("left" for most), but compositions sometimes need a
+   * specific slot to right-align (e.g. an inline-italic-accent prefix
+   * that needs to abut the next slot) or center-align (e.g. a featured
+   * stat on a stats-only slide). Position is a composition concern, not
+   * a design-system concern, so this lives at the element level.
+   */
+  align?: "left" | "center" | "right";
   defaultText?: string;
   /** For "image" role: optional placeholder src. */
   defaultSrc?: string;
@@ -249,7 +259,11 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontSize: 6.0,
       fontWeight: 400,
       fontStyle: "italic",
-      color: "accent",
+      // Editorial-warm uses two distinct accents: terracotta for hero
+      // italic + chrome (warmer, more emotive), olive green for body
+      // eyebrows (cooler, more structural). The palette's `accent` token
+      // is the green; we override hero-accent to the terracotta literal.
+      color: "#B85A2E",
       lineHeight: 1.0,
       align: "left",
     },
@@ -290,6 +304,14 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontFamily: "heading",
       fontSize: 8.0,
       fontWeight: 400,
+      color: "textPrimary",
+      lineHeight: 1.0,
+      align: "left",
+    },
+    "stat-value-mid": {
+      fontFamily: "heading",
+      fontSize: 5.5,
+      fontWeight: 500,
       color: "textPrimary",
       lineHeight: 1.0,
       align: "left",
@@ -341,7 +363,10 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontFamily: MONO,
       fontSize: 1.15,
       fontWeight: 500,
-      color: "accent",
+      // Chrome shares the terracotta accent with hero-accent (warmer
+      // brand color), not the palette's olive green which is used only
+      // for body eyebrows and other structural-accent moments.
+      color: "#B85A2E",
       textTransform: "uppercase",
       letterSpacing: 0.18,
       align: "left",
@@ -432,6 +457,7 @@ export const EDITORIAL_WARM: DesignSystem = {
         body: { color: "border" },
         bullets: { color: "border" },
         "stat-value": { color: "slideBg" },
+        "stat-value-mid": { color: "slideBg" },
         "stat-value-small": { color: "slideBg" },
         "stat-label": { color: "border" },
         quote: { color: "slideBg" },
@@ -458,6 +484,7 @@ export const EDITORIAL_WARM: DesignSystem = {
         body: { color: "#3C2A1F" },
         bullets: { color: "#3C2A1F" },
         "stat-value": { color: "#1F1A14" },
+        "stat-value-mid": { color: "#1F1A14" },
         "stat-value-small": { color: "#1F1A14" },
         "stat-label": { color: "#5C2812" },
         quote: { color: "#1F1A14" },
@@ -551,6 +578,15 @@ export const TECHNO_BOLD: DesignSystem = {
       color: "#0A0A0A",
       lineHeight: 1.0,
       letterSpacing: -0.03,
+      align: "left",
+    },
+    "stat-value-mid": {
+      fontFamily: SANS,
+      fontSize: 5.0,
+      fontWeight: 700,
+      color: "#0A0A0A",
+      lineHeight: 1.0,
+      letterSpacing: -0.02,
       align: "left",
     },
     "stat-value-small": {
@@ -668,6 +704,7 @@ export const TECHNO_BOLD: DesignSystem = {
         body: { color: "#A1A1AA" },
         bullets: { color: "#A1A1AA" },
         "stat-value": { color: "#FAFAFA" },
+        "stat-value-mid": { color: "#FAFAFA" },
         "stat-value-small": { color: "#FAFAFA" },
         "stat-label": { color: "#A1A1AA" },
         quote: { color: "#FAFAFA" },
@@ -693,6 +730,7 @@ export const TECHNO_BOLD: DesignSystem = {
         body: { color: "#DBEAFE" },
         bullets: { color: "#DBEAFE" },
         "stat-value": { color: "#FAFAFA" },
+        "stat-value-mid": { color: "#FAFAFA" },
         "stat-value-small": { color: "#FAFAFA" },
         "stat-label": { color: "#DBEAFE" },
         quote: { color: "#FAFAFA" },
@@ -1165,6 +1203,61 @@ function panel(
   ];
 }
 
+/**
+ * Like `panel()` but uses `stat-value-mid` (5–5.5%) instead of `stat-value`
+ * (8–9%). For card-sized panels where the stat needs to be impactful but
+ * shorter strings like "30,000+" must still fit a ~28%-wide card.
+ */
+function statCardMid(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  surface: SurfaceState,
+  eyebrow: string,
+  stat: string,
+  body: string
+): CompositionElement[] {
+  const px = 2;
+  return [
+    { id: `${id}_surface`, role: "card-surface", surface, x, y, w, h },
+    {
+      id: `${id}_eyebrow`,
+      role: "card-eyebrow",
+      surface,
+      x: x + px,
+      y: y + 2,
+      w: w - 2 * px,
+      h: 3,
+      fit: "single-line",
+      defaultText: eyebrow,
+    },
+    {
+      id: `${id}_stat`,
+      role: "stat-value-mid",
+      surface,
+      x: x + px,
+      y: y + 7,
+      w: w - 2 * px,
+      h: 13,
+      fit: "single-line",
+      defaultText: stat,
+    },
+    {
+      id: `${id}_body`,
+      role: "card-body",
+      surface,
+      x: x + px,
+      y: y + 22,
+      w: w - 2 * px,
+      h: h - 24,
+      fit: "multi-line",
+      defaultText: body,
+    },
+  ];
+}
+
 export const SURFACE_PAIR: LayoutComposition = {
   name: "surface-pair",
   description:
@@ -1407,6 +1500,301 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
 };
 
 // ---------------------------------------------------------------------------
+// BRAND_STORY_SPLIT — image right, narrative left. Eyebrow + 3-line hero
+// (last line italic-accent) + body paragraph + hairline + 3-stat row at
+// the bottom. Modeled on the "From a single 10-seat counter to 62 stores"
+// pattern. For brand-story, company-history, founder-narrative slides
+// where one image carries the tone and a stat row anchors the bottom.
+// ---------------------------------------------------------------------------
+
+export const BRAND_STORY_SPLIT: LayoutComposition = {
+  name: "brand-story-split",
+  description:
+    "Light slide: image on the right, narrative on the left. Eyebrow + 3-line hero (last line is italic-accent) + body paragraph + hairline + 3-stat row at the bottom. For brand-story / founder-narrative slides where one image carries the tone.",
+  elements: [
+    // Chrome row
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ 01 / BRAND STORY",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 5,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "02 / 28",
+    },
+    // Left column: eyebrow + 3-line hero
+    {
+      id: "eyebrow",
+      role: "eyebrow",
+      x: 6,
+      y: 18,
+      w: 42,
+      h: 3,
+      fit: "single-line",
+      defaultText: "FOUNDED 2017 · PORTLAND, OR",
+    },
+    {
+      id: "hero_1",
+      role: "hero",
+      x: 6,
+      y: 22,
+      w: 44,
+      h: 14,
+      fit: "single-line",
+      defaultText: "From a stall",
+    },
+    {
+      id: "hero_2",
+      role: "hero",
+      x: 6,
+      y: 36,
+      w: 44,
+      h: 14,
+      fit: "single-line",
+      defaultText: "to 62 stores",
+    },
+    {
+      id: "hero_3",
+      role: "hero-accent",
+      x: 6,
+      y: 50,
+      w: 44,
+      h: 14,
+      fit: "single-line",
+      defaultText: "in 9 years.",
+    },
+    // Body paragraph
+    {
+      id: "body",
+      role: "body",
+      x: 6,
+      y: 66,
+      w: 44,
+      h: 16,
+      fit: "multi-line",
+      defaultText:
+        "EMBER & LEAF began in a converted firehouse. Nine years later, 14 corporate and 48 franchise locations.",
+    },
+    // Hairline + 3-stat row at bottom
+    { id: "stat_rule", role: "divider", x: 6, y: 84, w: 44, h: 0 },
+    {
+      id: "stat_1_value",
+      role: "stat-value-small",
+      x: 6,
+      y: 86,
+      w: 14,
+      h: 8,
+      fit: "single-line",
+      defaultText: "62",
+    },
+    {
+      id: "stat_1_label",
+      role: "stat-label",
+      x: 6,
+      y: 95,
+      w: 14,
+      h: 3,
+      fit: "single-line",
+      defaultText: "TOTAL STORES",
+    },
+    {
+      id: "stat_2_value",
+      role: "stat-value-small",
+      x: 21,
+      y: 86,
+      w: 14,
+      h: 8,
+      fit: "single-line",
+      defaultText: "9",
+    },
+    {
+      id: "stat_2_label",
+      role: "stat-label",
+      x: 21,
+      y: 95,
+      w: 14,
+      h: 3,
+      fit: "single-line",
+      defaultText: "CITIES",
+    },
+    {
+      id: "stat_3_value",
+      role: "stat-value-small",
+      x: 36,
+      y: 86,
+      w: 14,
+      h: 8,
+      fit: "single-line",
+      defaultText: "94%",
+    },
+    {
+      id: "stat_3_label",
+      role: "stat-label",
+      x: 36,
+      y: 95,
+      w: 14,
+      h: 3,
+      fit: "single-line",
+      defaultText: "RENEWAL RATE",
+    },
+    // Image on the right
+    { id: "image", role: "image", x: 52, y: 18, w: 42, h: 76 },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// MULTI_STAT_ASYMMETRIC — light slide; hero + body on the left, one big
+// anchor-stat panel (dark) on the right, 3 mixed-fill stat cards across
+// the bottom. For market-context / why-this-matters slides combining a
+// narrative thesis, an anchor metric, and supporting evidence.
+// ---------------------------------------------------------------------------
+
+export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
+  name: "multi-stat-asymmetric",
+  description:
+    "Light slide: hero + body on the left, anchor-stat panel (dark) on the right, 3 supporting stat cards across the bottom — two on the default surface, one on the accent surface for emphasis. For 'why this matters / how big the market is' slides.",
+  elements: [
+    // Chrome
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 4,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ 02 / MARKET",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 4,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "05 / 28",
+    },
+    // Hero — two regular lines, second line uses `*marker*` inline-accent
+    // markup so "now." renders as an italic-accent <Anuma.Span> inside the
+    // parent <Anuma.Text>. No box-clipping, no per-glyph alignment math
+    // — the renderer handles the flow naturally as one text run.
+    {
+      id: "hero_1",
+      role: "hero",
+      x: 6,
+      y: 10,
+      w: 52,
+      h: 14,
+      fit: "single-line",
+      defaultText: "Why franchise.",
+    },
+    {
+      id: "hero_2",
+      role: "hero",
+      x: 6,
+      y: 24,
+      w: 52,
+      h: 14,
+      fit: "single-line",
+      defaultText: "Why *now.*",
+    },
+    // Multi-line body left, BELOW the hero. Wraps to ~2-3 lines.
+    {
+      id: "body",
+      role: "body",
+      x: 6,
+      y: 42,
+      w: 44,
+      h: 16,
+      fit: "multi-line",
+      defaultText:
+        "Restaurant franchising remains the dominant chain-expansion model. The largest QSR brand runs 95% through franchisees.",
+    },
+    // Anchor stat panel (dark) — same y as body, on the right. No body
+    // text in the panel (just eyebrow + big stat) so it fits a tight
+    // vertical band without crowding the bottom card row.
+    {
+      id: "anchor_surface",
+      role: "card-surface",
+      surface: "dark",
+      x: 52,
+      y: 42,
+      w: 42,
+      h: 22,
+    },
+    {
+      id: "anchor_eyebrow",
+      role: "card-eyebrow",
+      surface: "dark",
+      x: 54,
+      y: 44,
+      w: 38,
+      h: 3,
+      fit: "single-line",
+      defaultText: "MCDONALD'S CORP · 2024",
+    },
+    {
+      id: "anchor_stat",
+      role: "stat-value-mid",
+      surface: "dark",
+      x: 54,
+      y: 48,
+      w: 38,
+      h: 14,
+      fit: "single-line",
+      defaultText: "95%",
+    },
+    // Bottom stat-card row: default / default / accent. h=30 leaves room
+    // for stat-value-mid (h=13) + one line of card-body.
+    ...statCardMid(
+      "card_1",
+      6,
+      66,
+      28,
+      30,
+      "default",
+      "MIXUE · 2025",
+      "30,000+",
+      "1997 start in Zhengzhou."
+    ),
+    ...statCardMid(
+      "card_2",
+      36,
+      66,
+      28,
+      30,
+      "default",
+      "CHAGEE · 2024",
+      "5,000+",
+      "in under a decade."
+    ),
+    ...statCardMid(
+      "card_3",
+      66,
+      66,
+      28,
+      30,
+      "accent",
+      "EMBER · TARGET 2030",
+      "+240",
+      "across U.S. and China."
+    ),
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // compile — composition × design system → renderable JSX
 // ---------------------------------------------------------------------------
 
@@ -1480,15 +1868,76 @@ function styleObject(s: RoleStyle, fontPreset: { heading: string; body: string }
   return `{{ ${props.join(", ")} }}`;
 }
 
+/**
+ * Map a role to its companion "accent" role, used for inline-italic-accent
+ * spans within text. Returns null when the role has no accent companion.
+ * The accent role's `fontStyle` and `color` are the values that get
+ * applied to inline `<Anuma.Span>` children — everything else (fontSize,
+ * fontFamily, fontWeight, letterSpacing) inherits from the parent Text.
+ */
+function accentRoleFor(role: ElementRole): ElementRole | null {
+  if (role === "hero") return "hero-accent";
+  if (role === "quote") return "quote-accent";
+  return null;
+}
+
+/**
+ * Build the inner JSX of a Text element from text that may contain
+ * `*marker*` inline accents. Each `*...*` segment becomes an
+ * `<Anuma.Span>` styled with the parent role's accent companion. Plain
+ * text segments are escaped and emitted as-is. Returns the concatenated
+ * inner JSX string.
+ *
+ * Example: `"Why *now.*"` with parent role `hero` →
+ *   `Why <Anuma.Span style={{fontStyle: "italic", color: "..."}}>now.</Anuma.Span>`
+ */
+function renderInlineAccents(
+  text: string,
+  parentRole: ElementRole,
+  system: DesignSystem,
+  state: SurfaceState
+): string {
+  const accentRole = accentRoleFor(parentRole);
+  if (!accentRole || !text.includes("*")) {
+    return escapeText(text);
+  }
+  const accentStyle = resolveStyle(system, accentRole, state);
+  // Build inline span attrs — only the bits that differ from the
+  // parent: fontStyle and color. fontSize / family / weight inherit.
+  const spanProps: string[] = [];
+  if (accentStyle.fontStyle) spanProps.push(`fontStyle: "${accentStyle.fontStyle}"`);
+  if (accentStyle.color) spanProps.push(`color: "${accentStyle.color}"`);
+  const spanStyle = `{{ ${spanProps.join(", ")} }}`;
+  const parts: string[] = [];
+  let lastIndex = 0;
+  const re = /\*([^*]+)\*/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(escapeText(text.slice(lastIndex, match.index)));
+    }
+    parts.push(`<Anuma.Span style=${spanStyle}>${escapeText(match[1]!)}</Anuma.Span>`);
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(escapeText(text.slice(lastIndex)));
+  }
+  return parts.join("");
+}
+
 function emitText(
   el: CompositionElement,
   s: RoleStyle,
-  fontPreset: { heading: string; body: string }
+  fontPreset: { heading: string; body: string },
+  system: DesignSystem,
+  state: SurfaceState
 ): string {
   const text = el.defaultText ?? "";
   const fontRole = s.fontFamily === "heading" ? "heading" : "body";
-  const style = styleObject(s, fontPreset);
-  const body = escapeText(text);
+  // Element-level align overrides the role's default alignment.
+  const resolved = el.align ? { ...s, align: el.align } : s;
+  const style = styleObject(resolved, fontPreset);
+  const body = renderInlineAccents(text, el.role, system, state);
   return `<Anuma.Text id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fontRole="${fontRole}" style=${style}>${body}</Anuma.Text>`;
 }
 
@@ -1555,7 +2004,7 @@ export function compile(
         lines.push(emitImage(el, system, elState));
         break;
       default:
-        lines.push(emitText(el, s, fontPreset));
+        lines.push(emitText(el, s, fontPreset, system, elState));
     }
   }
   // Per-slide background precedence:
