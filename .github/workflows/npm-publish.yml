@@ -47,9 +47,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Build agents
-        run: pnpm --filter "./packages/agents/*" run build
-
       - name: Publish agents
         run: pnpm --filter "./packages/agents/*" publish --access public --tag next --no-git-checks
         env:
