@@ -338,11 +338,11 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
 
 export const ADD_SLIDE_SCHEMA = {
   name: "add_slide",
-  description: `Append ONE slide to the deck as a <Anuma.Slide> JSX fragment. Call this repeatedly after plan_deck, once per slide, in order, until you've added slideCount slides. The deck re-renders inline after each add_slide so the viewer updates in-place.
+  description: `Append ONE slide to the deck as a <Anuma.Slide> JSX fragment. Call this once per slide after plan_deck, in order, until you've added slideCount slides. The deck re-renders inline after each add_slide so the viewer updates in-place.
 
-The response reports: (a) how many slides remain to reach the planned slideCount, (b) which layouts you've used so far and how many times — use this to diversify your layout choices.
+The response reports: (a) how many slides remain to reach the planned slideCount, (b) which layouts you've used so far and how many times.
 
-IMPORTANT: Call add_slide ONE AT A TIME (sequentially, one call per assistant turn). Do NOT emit multiple add_slide tool calls in parallel in a single turn — they will be serialized but the ordering feedback is easier to reason about when you wait for each result before the next call.
+BATCHING: Prefer to emit ALL add_slide calls in a single assistant turn (as parallel tool calls) once plan_deck has returned. The deck plan already tells you the layouts and slideCount, so you can design every slide up-front and call add_slide N times in one turn. This cuts the number of LLM round-trips from N+1 to 2. Parallel calls don't see each other's per-call layout-usage feedback inside the same turn — that's fine because the layout subset is fixed at plan_deck time. Only fall back to serial calls if you genuinely need to react to each result before designing the next slide.
 
 Example slideJsx:
   <Anuma.Slide id="cover">
@@ -1243,11 +1243,13 @@ export function buildSlideSystemPrompt(): string {
 
   return `You are a presentation design assistant. You produce polished slide decks as React-compatible JSX with positioned <Anuma.*> elements.
 
-WORKFLOW (initialize then add slides one at a time):
+WORKFLOW (initialize then add all slides at once):
 1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–19) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the JSX recipes for ONLY the layouts you named, plus the SHARED HEADER, element-tag schemas, coordinate-system notes, and palette hex values.
-2. APPEND — call add_slide N times with { layout: "<name>", slideJsx: "<Anuma.Slide id=\\"...\\">…children…</Anuma.Slide>" }. layout MUST be one of the names you passed to plan_deck; using anything else is rejected. Each response reports (a) how many slides remain and (b) which layouts you've used so far. Use that feedback to keep layouts varied within your planned subset.
+2. APPEND — in your next assistant turn, emit all N add_slide calls in parallel (one per slide) with { layout: "<name>", slideJsx: "<Anuma.Slide id=\\"...\\">…children…</Anuma.Slide>" }. Design every slide up-front from the plan_deck recipes and dispatch them together — this cuts round-trips from N+1 to 2. layout MUST be one of the names you passed to plan_deck; using anything else is rejected.
 
 For edits to an existing deck: read_slides (returns the deck as <Anuma.Deck> JSX) → patch_slides (replace_element / insert_element / remove_element / replace_slide / insert_slide / remove_slide / update_theme). No plan_deck needed for edits.
+
+RESPONSE STYLE — after the tool calls complete, keep your closing message to ONE short sentence ("Done." or "Renamed across 5 slides." is ideal). The deck re-renders inline so the user already sees the changes; do NOT recap which slides changed, list operations, or summarize the deck contents in prose. Long post-tool summaries are the single biggest source of latency in this flow — keep them out.
 
 JSX VOCABULARY — two families of tags, mix freely:
 
