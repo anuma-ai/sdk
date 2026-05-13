@@ -336,7 +336,6 @@ export function renderDeckToHtml(deck: AnumaNode, title?: string): string {
   const bg = colors.background ?? "#000";
   const slideBg = colors.slideBg ?? "#111";
   const textPrimary = colors.textPrimary ?? "#fff";
-  const textMuted = colors.textMuted ?? "#999";
 
   const fontPreset = typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
   const preset = FONT_PRESETS[fontPreset] ?? FONT_PRESETS.default!;
@@ -386,11 +385,11 @@ h1,h2,h3,h4{font-family:'${preset.heading}',system-ui,sans-serif}
 .slide.exit{opacity:0;transform:translateX(-40px) scale(var(--scale,1))}
 .nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;
   background:rgba(0,0,0,.55);backdrop-filter:blur(12px);padding:8px 16px;border-radius:999px;z-index:10}
-.nav button{background:none;border:none;color:${textPrimary};font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
+.nav button{background:none;border:none;color:#ffffff;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
 .nav button:hover{background:rgba(255,255,255,.12)}
 .nav button:disabled{opacity:.3;cursor:default}
 .nav button:disabled:hover{background:none}
-.nav .counter{font-size:13px;color:${textMuted};min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
+.nav .counter{font-size:13px;color:rgba(255,255,255,.7);min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
 img{display:block}
 </style>
 </head>
