@@ -2459,6 +2459,82 @@ export function validateComposition(
   return issues;
 }
 
+/**
+ * Validate the model-supplied content in a parsed slide against the
+ * composition's slot budgets. Returns one SlotIssue per slot whose actual
+ * text would overflow at render time. The slide must already be parsed —
+ * we walk its top-level Text children, match by `attrs.id` to composition
+ * slot ids, and count visible characters (joining inline span children
+ * into one string).
+ *
+ * Slot ids must match exactly; `add_slide` dedupes ids when merging into
+ * the deck, but the slide passed here is fresh and pre-dedupe.
+ */
+export function validateSlotContent(
+  composition: LayoutComposition,
+  system: DesignSystem,
+  fontPreset: { heading: string; body: string },
+  slide: { children: Array<{ tag?: string; attrs?: Record<string, unknown>; children?: unknown[] } | string> }
+): SlotIssue[] {
+  const issues: SlotIssue[] = [];
+  const textsBySlotId = new Map<string, string>();
+  for (const child of slide.children) {
+    if (typeof child === "string") continue;
+    if (child.tag !== "Text") continue;
+    const id = typeof child.attrs?.id === "string" ? child.attrs.id : null;
+    if (!id) continue;
+    textsBySlotId.set(id, joinTextChildren(child.children ?? []));
+  }
+  for (const el of composition.elements) {
+    if (STATIC_ROLES.has(el.role)) continue;
+    const style = system.styles[el.role];
+    if (!style) continue;
+    const actual = textsBySlotId.get(el.id);
+    if (actual === undefined) continue;
+    const budget = estimateSlotBudget(el, style, fontPreset);
+    const fit: FitMode = el.fit ?? "multi-line";
+    const visibleText = actual.replace(/\*([^*]+)\*/g, "$1").trim();
+    if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
+      issues.push({
+        id: el.id,
+        role: el.role,
+        text: actual,
+        budget,
+        fit,
+        issue: `single-line: ${visibleText.length} chars exceeds ${budget.charsPerLine}-char budget`,
+      });
+    } else if (fit === "multi-line" && visibleText.length > budget.total) {
+      issues.push({
+        id: el.id,
+        role: el.role,
+        text: actual,
+        budget,
+        fit,
+        issue: `multi-line: ${visibleText.length} chars exceeds ${budget.total}-char budget (${budget.maxLines}×${budget.charsPerLine})`,
+      });
+    }
+  }
+  return issues;
+}
+
+/** Concatenate string children and inline element bodies into one string. */
+function joinTextChildren(children: unknown[]): string {
+  const parts: string[] = [];
+  for (const c of children) {
+    if (typeof c === "string") {
+      parts.push(c);
+    } else if (
+      c &&
+      typeof c === "object" &&
+      "children" in c &&
+      Array.isArray((c as { children: unknown[] }).children)
+    ) {
+      parts.push(joinTextChildren((c as { children: unknown[] }).children));
+    }
+  }
+  return parts.join("");
+}
+
 // ---------------------------------------------------------------------------
 // Live-tools registry — bridges this proposal module into the live
 // `plan_deck` / `add_slide` tools. Each composition × design system pair

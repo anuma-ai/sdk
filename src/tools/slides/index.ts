@@ -71,6 +71,7 @@ import {
   listDesignSystemNames,
   renderCompositionLayoutRecipe,
   resolveCompositionLayout,
+  validateSlotContent,
 } from "./designSystem";
 
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag } from "./jsx";
@@ -570,6 +571,8 @@ export function createSlideTools({
      * guessing at geometry.
      */
     plannedLayouts: string[];
+    /** plan_deck's fontPreset — required to compute composition slot budgets. */
+    fontPreset: string;
     layoutUsage: Record<string, number>;
   }
   const deckStateByConv = new Map<string, DeckState>();
@@ -727,6 +730,7 @@ export function createSlideTools({
           title,
           slideCount,
           plannedLayouts,
+          fontPreset,
           layoutUsage: {},
         });
 
@@ -830,6 +834,31 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         }
         const fontError = validateFontFamilies(slide);
         if (fontError) return { error: fontError };
+
+        // Composition slot-budget check: when this is a design-system
+        // layout, reject content that overflows the slot's char budget so
+        // the model retries tighter copy instead of silently clipping at
+        // render time (e.g. a single-line hero box filling with a 2-line
+        // string and losing the second line under overflow:hidden).
+        const compositionResolved = resolveCompositionLayout(layout);
+        if (compositionResolved) {
+          const presetName = deckStateByConv.get(requireConversationId())?.fontPreset ?? "default";
+          const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
+          const slotIssues = validateSlotContent(
+            compositionResolved.composition,
+            compositionResolved.system,
+            fontPreset,
+            slide
+          );
+          if (slotIssues.length > 0) {
+            const list = slotIssues
+              .map((i) => `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`)
+              .join("\n");
+            return {
+              error: `Content overflows the layout's slot budget — shorten the copy in these slots and resubmit add_slide for this slide:\n${list}\nSingle-line slots must fit on one line. Multi-line slots have a total-char ceiling (charsPerLine × maxLines).`,
+            };
+          }
+        }
 
         // Serialize the read-modify-write so parallel add_slide tool calls
         // in a single assistant turn don't race on slides.jsx.
