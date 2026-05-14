@@ -117,6 +117,12 @@ export const FONT_LIBRARY: FontSpec[] = [
     feel: "geometric slab serif — retro, sturdy",
     weights: "400;700",
   },
+  {
+    name: "Source Serif 4",
+    category: "serif-body",
+    feel: "institutional Adobe serif — corporate reports, white papers, formal documents",
+    weights: "400;500;600;700",
+  },
 
   // ── SANS BODY (and general-purpose headings) ───────────────────────────
   {

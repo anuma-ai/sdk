@@ -897,22 +897,24 @@ export const TECHNO_BOLD: DesignSystem = {
 
 // ---------------------------------------------------------------------------
 // CORPORATE_MODERN — restrained institutional system for enterprise SaaS,
-// financial services, consulting, board decks. Sans-serif throughout
-// (IBM Plex Sans + IBM Plex Mono), neutral slate palette with a deep
-// blue accent. The "signature move" is COLOR-based emphasis on the
-// hero-accent line (saturated slate-blue) — no italic, because corporate
-// decks read slant as informal. Generous letter-spacing on chrome,
-// modest weights (regular body, semibold display), and tight line-heights
-// on display copy keep the deck businesslike rather than editorial.
+// financial services, consulting, board decks. Serif-based (Source Serif
+// 4 + IBM Plex Mono) for a "white paper / annual report" register that's
+// visibly distinct from EDITORIAL_WARM's warm Playfair prospectus feel
+// and from TECHNO_BOLD's geometric sans. True neutral grays (Tailwind
+// zinc palette — no blue tint anywhere). The "signature move" is
+// emphasis through WEIGHT only on the hero-accent line — no italic, no
+// color shift — because corporate decks read slant as informal and read
+// color accents as marketing. Generous letter-spacing on chrome,
+// modest weights overall.
 // ---------------------------------------------------------------------------
 
-const PLEX = "IBM Plex Sans";
+const CORPORATE_SERIF = "Source Serif 4";
 const PLEX_MONO = "IBM Plex Mono";
 
 export const CORPORATE_MODERN: DesignSystem = {
   name: "corporate-modern",
   useFor:
-    "enterprise B2B, financial services, professional services, board decks — restrained institutional voice with clean sans typography.",
+    "enterprise B2B, financial services, professional services, board decks — restrained institutional voice with serif body and mono chrome (white-paper register).",
   defaultBackground: "#FFFFFF",
   composition: {
     preferAsymmetric: false,
@@ -923,7 +925,7 @@ export const CORPORATE_MODERN: DesignSystem = {
     // editorial-warm). Tight letter-spacing. Reads as structured, not
     // bombastic.
     hero: {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 6.0,
       fontWeight: 600,
       color: "#18181B",
@@ -931,11 +933,11 @@ export const CORPORATE_MODERN: DesignSystem = {
       letterSpacing: -0.02,
       align: "left",
     },
-    // Hero-accent: emphasis through WEIGHT only — same slate-900 as
+    // Hero-accent: emphasis through WEIGHT only — same zinc-900 as
     // hero, but bolder (700 vs 600). The corporate restraint move:
     // contrast through density, not color.
     "hero-accent": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 6.0,
       fontWeight: 700,
       color: "#18181B",
@@ -944,7 +946,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     subtitle: {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 2.0,
       fontWeight: 500,
       color: "#52525B",
@@ -961,7 +963,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     body: {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 1.6,
       fontWeight: 400,
       color: "#3F3F46",
@@ -969,7 +971,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     bullets: {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 1.6,
       fontWeight: 400,
       color: "#3F3F46",
@@ -979,7 +981,7 @@ export const CORPORATE_MODERN: DesignSystem = {
     // Display stats — semibold (not extra-bold). Letter-spacing
     // tightened slightly for cohesion with hero.
     "stat-display": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 14,
       fontWeight: 600,
       color: "#18181B",
@@ -988,7 +990,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     "stat-value": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 8.5,
       fontWeight: 600,
       color: "#18181B",
@@ -997,7 +999,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     "stat-value-mid": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 5.5,
       fontWeight: 600,
       color: "#18181B",
@@ -1006,7 +1008,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     "stat-value-small": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 3.5,
       fontWeight: 600,
       color: "#18181B",
@@ -1023,7 +1025,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     quote: {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 3.5,
       fontWeight: 500,
       color: "#18181B",
@@ -1031,7 +1033,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     "quote-accent": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 3.5,
       fontWeight: 500,
       color: "#3F3F46",
@@ -1039,7 +1041,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     attribution: {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 1.4,
       fontWeight: 500,
       color: "#18181B",
@@ -1055,7 +1057,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     "card-title": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 2.0,
       fontWeight: 600,
       color: "#18181B",
@@ -1063,7 +1065,7 @@ export const CORPORATE_MODERN: DesignSystem = {
       align: "left",
     },
     "card-body": {
-      fontFamily: PLEX,
+      fontFamily: CORPORATE_SERIF,
       fontSize: 1.45,
       fontWeight: 400,
       color: "#52525B",
@@ -1097,17 +1099,17 @@ export const CORPORATE_MODERN: DesignSystem = {
       letterSpacing: 0.1,
       align: "left",
     },
-    // Shape roles — fontSize ignored; only color matters. Mid-slate
+    // Shape roles — fontSize ignored; only color matters. Mid-zinc
     // for decorative accents — readable on white, doesn't compete with
     // text. Pure-gray accent is the corporate identity move.
-    "card-surface": { fontFamily: PLEX, fontSize: 0, color: "#FAFAFA" },
-    divider: { fontFamily: PLEX, fontSize: 0, color: "#E4E4E7" },
-    "accent-bar": { fontFamily: PLEX, fontSize: 0, color: "#52525B" },
-    marker: { fontFamily: PLEX, fontSize: 0, color: "#52525B" },
-    image: { fontFamily: PLEX, fontSize: 0, color: "#F4F4F5" },
+    "card-surface": { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#FAFAFA" },
+    divider: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#E4E4E7" },
+    "accent-bar": { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#52525B" },
+    marker: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#52525B" },
+    image: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#F4F4F5" },
   },
-  // Surface treatments — corporate dark goes slate-900; accent surface
-  // is slate-800 (a deep neutral, not a brand-color block). Emphasis
+  // Surface treatments — corporate dark goes zinc-900; accent surface
+  // is zinc-800 (a deep neutral, not a brand-color block). Emphasis
   // stays monochrome on both.
   surfaces: {
     dark: {
