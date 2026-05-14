@@ -30,8 +30,10 @@ import {
   HEADLINE_NUMBER,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
+  MINIMAL_SWISS,
   MULTI_STAT_ASYMMETRIC,
   PEER_COMPARISON_TABLE,
+  PLAYFUL_CREATIVE,
   PROBLEM_EVIDENCE,
   STAT_ROW_BOTTOM,
   SURFACE_PAIR,
@@ -74,6 +76,8 @@ const systems: Array<{ name: string; system: DesignSystem }> = [
   { name: "editorial-warm", system: EDITORIAL_WARM },
   { name: "techno-bold", system: TECHNO_BOLD },
   { name: "corporate-modern", system: CORPORATE_MODERN },
+  { name: "playful-creative", system: PLAYFUL_CREATIVE },
+  { name: "minimal-swiss", system: MINIMAL_SWISS },
 ];
 
 // Build one deck with every (composition × system) pair, grouped by

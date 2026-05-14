@@ -182,8 +182,8 @@ export const FONT_LIBRARY: FontSpec[] = [
   {
     name: "Nunito",
     category: "sans-body",
-    feel: "rounded friendly sans — softer, approachable",
-    weights: "400;600;700",
+    feel: "rounded friendly sans — softer, approachable; pairs well with script accents",
+    weights: "400;500;600;700",
   },
   {
     name: "Ubuntu",
@@ -206,8 +206,8 @@ export const FONT_LIBRARY: FontSpec[] = [
   {
     name: "Work Sans",
     category: "sans-body",
-    feel: "slightly industrial sans — clean editorial",
-    weights: "400;500;600;700",
+    feel: "slightly industrial sans — clean editorial; full weight range for Swiss/Bauhaus contrast",
+    weights: "300;400;500;600;700;800",
   },
   {
     name: "Rubik",

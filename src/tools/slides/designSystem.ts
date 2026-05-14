@@ -1169,6 +1169,549 @@ export const CORPORATE_MODERN: DesignSystem = {
 };
 
 // ---------------------------------------------------------------------------
+// PLAYFUL_CREATIVE — cozy/friendly register for family, lifestyle,
+// classroom, cookbook, parenting, kid-product, and any deck that wants
+// to feel warm and human rather than corporate or austere. The whole
+// system is one rounded humanist sans (Nunito) — soft terminals, gentle
+// counters, no display flourish. Emphasis is a single warm-orange
+// accent on hero-accent + chrome. No poster weights, no italic, no
+// display switch: cozy is the absence of those moves. Peach card
+// surfaces and a butter-cream slide background reinforce the warm
+// register. Distinct from MINIMAL_SWISS (austere/poster) by every
+// axis — softer font, softer weights, softer warm palette — and from
+// the other systems by being the only one that actively avoids
+// emphasis tricks.
+// ---------------------------------------------------------------------------
+
+const COZY_SANS = "Nunito";
+const COZY_ACCENT = "#EA580C"; // orange-600, warm friendly
+const COZY_TEXT = "#1C1917"; // stone-900, warm dark
+const COZY_BODY = "#57534E"; // stone-600, warm gray for body
+const COZY_MUTED = "#78716C"; // stone-500, warm muted
+
+export const PLAYFUL_CREATIVE: DesignSystem = {
+  name: "playful-creative",
+  useFor:
+    "family, classroom, cookbook, lifestyle, parenting, kid-product, and any informal/cozy deck — single rounded humanist sans with a warm-orange accent; soft and friendly, never austere.",
+  defaultBackground: "#FFFBEB",
+  composition: {
+    preferAsymmetric: false,
+    preferDarkVariants: false,
+  },
+  styles: {
+    // Hero: Nunito Bold (700). Heavy enough to read at a distance,
+    // soft enough not to shout. No extreme weights — cozy is gentle.
+    hero: {
+      fontFamily: COZY_SANS,
+      fontSize: 6.0,
+      fontWeight: 700,
+      color: COZY_TEXT,
+      lineHeight: 1.1,
+      letterSpacing: -0.015,
+      align: "left",
+    },
+    // Hero-accent: same Nunito, same weight, warm-orange. Single
+    // color-only emphasis at matched weight. The accent shouldn't
+    // dominate — it sits inside the friendly headline as a warm spot.
+    "hero-accent": {
+      fontFamily: COZY_SANS,
+      fontSize: 6.0,
+      fontWeight: 700,
+      color: COZY_ACCENT,
+      lineHeight: 1.1,
+      letterSpacing: -0.015,
+      align: "left",
+    },
+    subtitle: {
+      fontFamily: COZY_SANS,
+      fontSize: 2.0,
+      fontWeight: 500,
+      color: COZY_BODY,
+      lineHeight: 1.45,
+      align: "left",
+    },
+    eyebrow: {
+      fontFamily: COZY_SANS,
+      fontSize: 1.1,
+      fontWeight: 600,
+      color: COZY_ACCENT,
+      textTransform: "uppercase",
+      letterSpacing: 0.14,
+      align: "left",
+    },
+    body: {
+      fontFamily: COZY_SANS,
+      fontSize: 1.6,
+      fontWeight: 400,
+      color: COZY_BODY,
+      lineHeight: 1.65,
+      align: "left",
+    },
+    bullets: {
+      fontFamily: COZY_SANS,
+      fontSize: 1.6,
+      fontWeight: 400,
+      color: COZY_BODY,
+      lineHeight: 1.7,
+      align: "left",
+    },
+    "stat-display": {
+      fontFamily: COZY_SANS,
+      fontSize: 14,
+      fontWeight: 700,
+      color: COZY_TEXT,
+      lineHeight: 1.0,
+      letterSpacing: -0.025,
+      align: "left",
+    },
+    "stat-value": {
+      fontFamily: COZY_SANS,
+      fontSize: 8.5,
+      fontWeight: 700,
+      color: COZY_TEXT,
+      lineHeight: 1.0,
+      letterSpacing: -0.025,
+      align: "left",
+    },
+    "stat-value-mid": {
+      fontFamily: COZY_SANS,
+      fontSize: 5.0,
+      fontWeight: 700,
+      color: COZY_TEXT,
+      lineHeight: 1.0,
+      letterSpacing: -0.015,
+      align: "left",
+    },
+    "stat-value-small": {
+      fontFamily: COZY_SANS,
+      fontSize: 3.4,
+      fontWeight: 700,
+      color: COZY_TEXT,
+      lineHeight: 1.0,
+      align: "left",
+    },
+    "stat-label": {
+      fontFamily: COZY_SANS,
+      fontSize: 1.05,
+      fontWeight: 600,
+      color: COZY_MUTED,
+      textTransform: "uppercase",
+      letterSpacing: 0.14,
+      align: "left",
+    },
+    quote: {
+      fontFamily: COZY_SANS,
+      fontSize: 3.4,
+      fontWeight: 600,
+      color: COZY_TEXT,
+      lineHeight: 1.35,
+      align: "left",
+    },
+    "quote-accent": {
+      fontFamily: COZY_SANS,
+      fontSize: 3.4,
+      fontWeight: 600,
+      color: COZY_ACCENT,
+      lineHeight: 1.35,
+      align: "left",
+    },
+    attribution: {
+      fontFamily: COZY_SANS,
+      fontSize: 1.4,
+      fontWeight: 600,
+      color: COZY_TEXT,
+      align: "left",
+    },
+    "card-eyebrow": {
+      fontFamily: COZY_SANS,
+      fontSize: 1.0,
+      fontWeight: 600,
+      color: COZY_ACCENT,
+      textTransform: "uppercase",
+      letterSpacing: 0.14,
+      align: "left",
+    },
+    "card-title": {
+      fontFamily: COZY_SANS,
+      fontSize: 2.0,
+      fontWeight: 700,
+      color: COZY_TEXT,
+      lineHeight: 1.25,
+      align: "left",
+    },
+    "card-body": {
+      fontFamily: COZY_SANS,
+      fontSize: 1.45,
+      fontWeight: 400,
+      color: COZY_BODY,
+      lineHeight: 1.6,
+      align: "left",
+    },
+    "chrome-left": {
+      fontFamily: COZY_SANS,
+      fontSize: 1.1,
+      fontWeight: 600,
+      color: COZY_TEXT,
+      textTransform: "uppercase",
+      letterSpacing: 0.14,
+      align: "left",
+    },
+    "chrome-right": {
+      fontFamily: COZY_SANS,
+      fontSize: 1.05,
+      fontWeight: 600,
+      color: COZY_MUTED,
+      textTransform: "uppercase",
+      letterSpacing: 0.14,
+      align: "right",
+    },
+    footer: {
+      fontFamily: COZY_SANS,
+      fontSize: 0.85,
+      fontWeight: 600,
+      color: COZY_MUTED,
+      textTransform: "uppercase",
+      letterSpacing: 0.12,
+      align: "left",
+    },
+    // Shape roles — soft peach card surface (orange-100) for the cozy
+    // tactile feel. Marker and accent-bar pick up the warm-orange
+    // accent so decorative shapes carry the same identity as type.
+    "card-surface": { fontFamily: COZY_SANS, fontSize: 0, color: "#FFEDD5" },
+    divider: { fontFamily: COZY_SANS, fontSize: 0, color: "#E7E5E4" },
+    "accent-bar": { fontFamily: COZY_SANS, fontSize: 0, color: COZY_ACCENT },
+    marker: { fontFamily: COZY_SANS, fontSize: 0, color: COZY_ACCENT },
+    image: { fontFamily: COZY_SANS, fontSize: 0, color: "#FFEDD5" },
+  },
+  surfaces: {
+    dark: {
+      // Warm-dark stone (not pure black) — cozy doesn't go austere.
+      background: "#292524",
+      overrides: {
+        hero: { color: "#FAFAF9" },
+        "hero-accent": { color: "#FB923C" },
+        subtitle: { color: "#D6D3D1" },
+        eyebrow: { color: "#FB923C" },
+        body: { color: "#D6D3D1" },
+        bullets: { color: "#D6D3D1" },
+        "stat-display": { color: "#FAFAF9" },
+        "stat-value": { color: "#FAFAF9" },
+        "stat-value-mid": { color: "#FAFAF9" },
+        "stat-value-small": { color: "#FAFAF9" },
+        "stat-label": { color: "#D6D3D1" },
+        quote: { color: "#FAFAF9" },
+        "quote-accent": { color: "#FB923C" },
+        attribution: { color: "#FAFAF9" },
+        "card-eyebrow": { color: "#FB923C" },
+        "card-title": { color: "#FAFAF9" },
+        "card-body": { color: "#D6D3D1" },
+        "chrome-left": { color: "#FAFAF9" },
+        "chrome-right": { color: "#A8A29E" },
+        footer: { color: "#A8A29E" },
+        divider: { color: "#44403C" },
+      },
+    },
+    accent: {
+      // Warm-orange block for brand-color moments. Text reads cream.
+      background: COZY_ACCENT,
+      overrides: {
+        hero: { color: "#FFFBEB" },
+        "hero-accent": { color: "#FFFBEB" },
+        subtitle: { color: "#FFEDD5" },
+        eyebrow: { color: "#FFFBEB" },
+        body: { color: "#FFEDD5" },
+        bullets: { color: "#FFEDD5" },
+        "stat-display": { color: "#FFFBEB" },
+        "stat-value": { color: "#FFFBEB" },
+        "stat-value-mid": { color: "#FFFBEB" },
+        "stat-value-small": { color: "#FFFBEB" },
+        "stat-label": { color: "#FFEDD5" },
+        quote: { color: "#FFFBEB" },
+        "quote-accent": { color: "#FFFBEB" },
+        attribution: { color: "#FFFBEB" },
+        "card-eyebrow": { color: "#FFFBEB" },
+        "card-title": { color: "#FFFBEB" },
+        "card-body": { color: "#FFEDD5" },
+        footer: { color: "#FFEDD5" },
+      },
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// MINIMAL_SWISS — International Style / Müller-Brockmann register for
+// design-conscious decks: research showcases, design portfolios, museum/
+// gallery, architecture firms, premium-magazine partnerships. The
+// signature move is the classic Swiss-poster treatment: the WHOLE hero
+// is heavy (Work Sans 900) and ONE word reads in saturated red — color
+// emphasis at matched weight, where techno uses color at matched weight
+// in *blue*, corporate uses weight-only, editorial uses italic, and
+// playful uses script. Pure-white slide, pure-black text. No mono
+// chrome (Work Sans throughout) — the system reads as a single
+// typographic voice, not a stack of registers.
+// ---------------------------------------------------------------------------
+
+const SWISS_SANS = "Work Sans";
+
+export const MINIMAL_SWISS: DesignSystem = {
+  name: "minimal-swiss",
+  useFor:
+    "design portfolios, architecture, museum/gallery, research showcases, premium editorial — International Style discipline: one neutral sans, extreme weight contrast, single red accent.",
+  defaultBackground: "#FFFFFF",
+  composition: {
+    preferAsymmetric: false,
+    preferDarkVariants: false,
+  },
+  styles: {
+    // Hero: Work Sans BLACK (900). The whole title reads as one
+    // poster-weight block — no whisper-shout contrast. Emphasis lives
+    // in color, not weight.
+    hero: {
+      fontFamily: SWISS_SANS,
+      fontSize: 6.0,
+      fontWeight: 900,
+      color: "#0A0A0A",
+      lineHeight: 1.05,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    // Hero-accent: same family, same size, same heavy weight, swiss
+    // red. The iconic "one red word in a black headline" move.
+    "hero-accent": {
+      fontFamily: SWISS_SANS,
+      fontSize: 6.0,
+      fontWeight: 900,
+      color: "#DC2626",
+      lineHeight: 1.05,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    subtitle: {
+      fontFamily: SWISS_SANS,
+      fontSize: 2.0,
+      fontWeight: 400,
+      color: "#404040",
+      lineHeight: 1.35,
+      align: "left",
+    },
+    eyebrow: {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.1,
+      fontWeight: 500,
+      color: "#DC2626",
+      textTransform: "uppercase",
+      letterSpacing: 0.18,
+      align: "left",
+    },
+    body: {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.6,
+      fontWeight: 400,
+      color: "#404040",
+      lineHeight: 1.6,
+      align: "left",
+    },
+    bullets: {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.6,
+      fontWeight: 400,
+      color: "#404040",
+      lineHeight: 1.65,
+      align: "left",
+    },
+    // Display stats: pure black, weight 900. The headline numbers are
+    // the swiss-poster moment — uncompromising weight.
+    "stat-display": {
+      fontFamily: SWISS_SANS,
+      fontSize: 14,
+      fontWeight: 900,
+      color: "#0A0A0A",
+      lineHeight: 1.0,
+      letterSpacing: -0.04,
+      align: "left",
+    },
+    "stat-value": {
+      fontFamily: SWISS_SANS,
+      fontSize: 9.0,
+      fontWeight: 900,
+      color: "#0A0A0A",
+      lineHeight: 1.0,
+      letterSpacing: -0.03,
+      align: "left",
+    },
+    "stat-value-mid": {
+      fontFamily: SWISS_SANS,
+      fontSize: 5.0,
+      fontWeight: 900,
+      color: "#0A0A0A",
+      lineHeight: 1.0,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "stat-value-small": {
+      fontFamily: SWISS_SANS,
+      fontSize: 3.4,
+      fontWeight: 900,
+      color: "#0A0A0A",
+      lineHeight: 1.0,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "stat-label": {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.05,
+      fontWeight: 500,
+      color: "#737373",
+      textTransform: "uppercase",
+      letterSpacing: 0.16,
+      align: "left",
+    },
+    quote: {
+      fontFamily: SWISS_SANS,
+      fontSize: 3.4,
+      fontWeight: 700,
+      color: "#0A0A0A",
+      lineHeight: 1.3,
+      align: "left",
+    },
+    // Quote-accent: matched weight, swiss red — same color-emphasis
+    // move as hero/hero-accent.
+    "quote-accent": {
+      fontFamily: SWISS_SANS,
+      fontSize: 3.4,
+      fontWeight: 700,
+      color: "#DC2626",
+      lineHeight: 1.3,
+      align: "left",
+    },
+    attribution: {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.4,
+      fontWeight: 500,
+      color: "#0A0A0A",
+      align: "left",
+    },
+    "card-eyebrow": {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.0,
+      fontWeight: 500,
+      color: "#DC2626",
+      textTransform: "uppercase",
+      letterSpacing: 0.16,
+      align: "left",
+    },
+    "card-title": {
+      fontFamily: SWISS_SANS,
+      fontSize: 2.0,
+      fontWeight: 700,
+      color: "#0A0A0A",
+      lineHeight: 1.2,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "card-body": {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.45,
+      fontWeight: 400,
+      color: "#404040",
+      lineHeight: 1.55,
+      align: "left",
+    },
+    "chrome-left": {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.1,
+      fontWeight: 500,
+      color: "#0A0A0A",
+      textTransform: "uppercase",
+      letterSpacing: 0.18,
+      align: "left",
+    },
+    "chrome-right": {
+      fontFamily: SWISS_SANS,
+      fontSize: 1.05,
+      fontWeight: 500,
+      color: "#737373",
+      textTransform: "uppercase",
+      letterSpacing: 0.18,
+      align: "right",
+    },
+    footer: {
+      fontFamily: SWISS_SANS,
+      fontSize: 0.85,
+      fontWeight: 500,
+      color: "#737373",
+      textTransform: "uppercase",
+      letterSpacing: 0.14,
+      align: "left",
+    },
+    // Shape roles — Swiss red on functional accents (markers, bars).
+    // Card surfaces are a thin gray (no warm tint).
+    "card-surface": { fontFamily: SWISS_SANS, fontSize: 0, color: "#F5F5F5" },
+    divider: { fontFamily: SWISS_SANS, fontSize: 0, color: "#E5E5E5" },
+    "accent-bar": { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
+    marker: { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
+    image: { fontFamily: SWISS_SANS, fontSize: 0, color: "#F5F5F5" },
+  },
+  // Surfaces — dark inverts to pure black; accent goes saturated red
+  // for poster moments (manifesto slides, statement covers).
+  surfaces: {
+    dark: {
+      background: "#0A0A0A",
+      overrides: {
+        hero: { color: "#FAFAFA" },
+        // Accent stays red — lighter shade (red-400) for legibility
+        // on the black surface.
+        "hero-accent": { color: "#F87171" },
+        subtitle: { color: "#A3A3A3" },
+        eyebrow: { color: "#F87171" },
+        body: { color: "#A3A3A3" },
+        bullets: { color: "#A3A3A3" },
+        "stat-display": { color: "#FAFAFA" },
+        "stat-value": { color: "#FAFAFA" },
+        "stat-value-mid": { color: "#FAFAFA" },
+        "stat-value-small": { color: "#FAFAFA" },
+        "stat-label": { color: "#A3A3A3" },
+        quote: { color: "#FAFAFA" },
+        "quote-accent": { color: "#F87171" },
+        attribution: { color: "#FAFAFA" },
+        "card-eyebrow": { color: "#F87171" },
+        "card-title": { color: "#FAFAFA" },
+        "card-body": { color: "#A3A3A3" },
+        "chrome-left": { color: "#FAFAFA" },
+        "chrome-right": { color: "#A3A3A3" },
+        footer: { color: "#737373" },
+        divider: { color: "#262626" },
+      },
+    },
+    accent: {
+      // Pure swiss red block. Text becomes off-white; the red-on-red
+      // accent collapses, so accent line goes cream like the hero.
+      background: "#DC2626",
+      overrides: {
+        hero: { color: "#FAFAFA" },
+        "hero-accent": { color: "#FAFAFA" },
+        subtitle: { color: "#FECACA" },
+        eyebrow: { color: "#FAFAFA" },
+        body: { color: "#FECACA" },
+        bullets: { color: "#FECACA" },
+        "stat-display": { color: "#FAFAFA" },
+        "stat-value": { color: "#FAFAFA" },
+        "stat-value-mid": { color: "#FAFAFA" },
+        "stat-value-small": { color: "#FAFAFA" },
+        "stat-label": { color: "#FECACA" },
+        quote: { color: "#FAFAFA" },
+        "quote-accent": { color: "#FAFAFA" },
+        attribution: { color: "#FAFAFA" },
+        "card-eyebrow": { color: "#FAFAFA" },
+        "card-title": { color: "#FAFAFA" },
+        "card-body": { color: "#FECACA" },
+        footer: { color: "#FECACA" },
+      },
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Example composition — cover slide with text-left / image-right split
 // ---------------------------------------------------------------------------
 
