@@ -822,7 +822,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       id: "hero_2",
       role: "hero-accent",
       x: 6,
-      y: 51,
+      y: 52,
       w: 40,
       h: 14,
       fit: "single-line",
@@ -832,7 +832,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       id: "hero_3",
       role: "hero",
       x: 6,
-      y: 64,
+      y: 66,
       w: 40,
       h: 14,
       fit: "single-line",
@@ -881,6 +881,169 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       y: 0,
       w: 48,
       h: 100,
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// COVER_STATEMENT — image-less cover for decks that lead with a punchy
+// statement (dev tools, infra, B2B SaaS). Two-line hero spans the full
+// width, body sits under it at ~60% width, and a 4-column footer rail
+// surfaces the deck's headline facts ("RAISING / STAGE / BENCHMARK / DECK")
+// at a glance. Sibling to cover-split-portrait — pick whichever fits the
+// brand: image-led narrative vs text-led declaration.
+// ---------------------------------------------------------------------------
+
+export const COVER_STATEMENT: LayoutComposition = {
+  name: "cover-statement",
+  description:
+    "Dark text-only cover for statement-led decks (dev tools, B2B, infra). Two-line hero across the full canvas — regular line + accent line — followed by a 60%-wide body description and a four-column footer rail that surfaces the deck's headline facts. No image slot.",
+  surface: "dark",
+  elements: [
+    // Top chrome — brand on the left, deck meta on the right.
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "◆ FORGE / AI",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 64,
+      y: 5,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      align: "right",
+      defaultText: "SERIES A · CONFIDENTIAL · Q1 2026",
+    },
+    // Hero — two stacked lines, full width. Box height is fontSize × ~1.2
+    // (just enough to clear descenders) so the two lines read as one
+    // tight typographic unit rather than two paragraphs.
+    {
+      id: "hero_1",
+      role: "hero",
+      x: 6,
+      y: 36,
+      w: 88,
+      h: 14,
+      fit: "single-line",
+      defaultText: "Ship code,",
+    },
+    {
+      id: "hero_2",
+      role: "hero-accent",
+      x: 6,
+      y: 50,
+      w: 88,
+      h: 14,
+      fit: "single-line",
+      defaultText: "not tickets.",
+    },
+    // Body — under the hero, ~60% width so the line breaks land naturally
+    // around 60-65 chars per line. Box height ≈ 3 lines at body size.
+    {
+      id: "body",
+      role: "body",
+      x: 6,
+      y: 70,
+      w: 60,
+      h: 16,
+      fit: "multi-line",
+      defaultText:
+        "Forge AI builds autonomous software engineers that work in your repo, your CI, and your reviewer queue — closing tickets end-to-end with a human in control of merge.",
+    },
+    // Footer rail — four column key/value pairs running across the bottom.
+    // Columns 1-3 are left-aligned; the fourth (deck counter) hugs the
+    // right edge. Labels use stat-label (mono caps, muted). Values use
+    // stat-value-small (medium weight, ~33px display); the value box
+    // height needs ≥ 7% of canvas height to clear descender allowance.
+    {
+      id: "stat_1_label",
+      role: "stat-label",
+      x: 6,
+      y: 88,
+      w: 20,
+      h: 2.5,
+      fit: "single-line",
+      defaultText: "RAISING",
+    },
+    {
+      id: "stat_1_value",
+      role: "card-title",
+      x: 6,
+      y: 91,
+      w: 20,
+      h: 8,
+      fit: "single-line",
+      defaultText: "$40M Series A",
+    },
+    {
+      id: "stat_2_label",
+      role: "stat-label",
+      x: 28,
+      y: 88,
+      w: 24,
+      h: 2.5,
+      fit: "single-line",
+      defaultText: "STAGE",
+    },
+    {
+      id: "stat_2_value",
+      role: "card-title",
+      x: 28,
+      y: 91,
+      w: 24,
+      h: 8,
+      fit: "single-line",
+      defaultText: "$4.2M ARR · live",
+    },
+    {
+      id: "stat_3_label",
+      role: "stat-label",
+      x: 54,
+      y: 88,
+      w: 28,
+      h: 2.5,
+      fit: "single-line",
+      defaultText: "BENCHMARK STATUS",
+    },
+    {
+      id: "stat_3_value",
+      role: "card-title",
+      x: 54,
+      y: 91,
+      w: 28,
+      h: 8,
+      fit: "single-line",
+      defaultText: "SWE-bench: top-3",
+    },
+    {
+      id: "stat_4_label",
+      role: "stat-label",
+      x: 84,
+      y: 88,
+      w: 10,
+      h: 2.5,
+      fit: "single-line",
+      align: "right",
+      defaultText: "DECK",
+    },
+    {
+      id: "stat_4_value",
+      role: "card-title",
+      x: 84,
+      y: 91,
+      w: 10,
+      h: 8,
+      fit: "single-line",
+      align: "right",
+      defaultText: "01 / 16",
     },
   ],
 };
@@ -978,7 +1141,7 @@ export const MARKETING_GRID: LayoutComposition = {
       id: "hero_2",
       role: "hero-accent",
       x: 6,
-      y: 31,
+      y: 30,
       w: 82,
       h: 14,
       fit: "single-line",
@@ -1445,7 +1608,7 @@ export const SURFACE_PAIR: LayoutComposition = {
       id: "hero_2",
       role: "hero-accent",
       x: 6,
-      y: 31,
+      y: 30,
       w: 82,
       h: 14,
       fit: "single-line",
@@ -1535,7 +1698,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       id: "hero_2",
       role: "hero",
       x: 50,
-      y: 34,
+      y: 35,
       w: 44,
       h: 14,
       fit: "single-line",
@@ -1545,7 +1708,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       id: "hero_3",
       role: "hero-accent",
       x: 50,
-      y: 47,
+      y: 49,
       w: 44,
       h: 14,
       fit: "single-line",
@@ -1566,7 +1729,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
     { id: "stat_rule", role: "divider", x: 50, y: 76, w: 44, h: 0 },
     {
       id: "stat_1_value",
-      role: "stat-value-small",
+      role: "card-title",
       x: 50,
       y: 80,
       w: 11,
@@ -1586,7 +1749,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
     },
     {
       id: "stat_2_value",
-      role: "stat-value-small",
+      role: "card-title",
       x: 61,
       y: 80,
       w: 11,
@@ -1606,7 +1769,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
     },
     {
       id: "stat_3_value",
-      role: "stat-value-small",
+      role: "card-title",
       x: 72,
       y: 80,
       w: 11,
@@ -1626,7 +1789,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
     },
     {
       id: "stat_4_value",
-      role: "stat-value-small",
+      role: "card-title",
       x: 83,
       y: 80,
       w: 11,
@@ -1738,7 +1901,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
     { id: "stat_rule", role: "divider", x: 6, y: 84, w: 44, h: 0 },
     {
       id: "stat_1_value",
-      role: "stat-value-small",
+      role: "card-title",
       x: 6,
       y: 86,
       w: 14,
@@ -1758,7 +1921,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
     },
     {
       id: "stat_2_value",
-      role: "stat-value-small",
+      role: "card-title",
       x: 21,
       y: 86,
       w: 14,
@@ -1778,7 +1941,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
     },
     {
       id: "stat_3_value",
-      role: "stat-value-small",
+      role: "card-title",
       x: 36,
       y: 86,
       w: 14,
@@ -2576,6 +2739,7 @@ function joinTextChildren(children: unknown[]): string {
 
 const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
+  COVER_STATEMENT,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,

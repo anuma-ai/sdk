@@ -23,6 +23,7 @@ import path from "node:path";
 import {
   BRAND_STORY_SPLIT,
   COVER_SPLIT_PORTRAIT,
+  COVER_STATEMENT,
   EDITORIAL_WARM,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
@@ -52,6 +53,7 @@ const fontPreset = FONT_PRESETS[palette.fontPreset] ?? FONT_PRESETS.default!;
 
 const compositions: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
+  COVER_STATEMENT,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
@@ -90,10 +92,86 @@ ${slides.join("\n")}
 const deck = parseJsx(deckJsx);
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-const html = renderDeckToHtml(
+// skipNav: true → we'll inject our own filter-aware nav below. The shared
+// renderer's default nav captures `.slide` into a static NodeList at load
+// time, which makes filtering by design system impossible to retrofit.
+const baseHtml = renderDeckToHtml(
   deck,
-  `${compositions.length} compositions × ${systems.length} design systems`
+  `${compositions.length} compositions × ${systems.length} design systems`,
+  { skipNav: true }
 );
+
+const systemOptions = systems
+  .map((s) => `<option value="${s.name}">${s.name}</option>`)
+  .join("");
+const filterAndNav = `
+<div id="system-filter" style="position:fixed;top:16px;left:16px;z-index:11;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(12px);color:#fff;
+  padding:8px 12px;border-radius:999px;font-family:system-ui,sans-serif;font-size:13px;display:flex;gap:8px;align-items:center">
+  <label for="system-select">design system</label>
+  <select id="system-select" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2);
+    border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit;cursor:pointer">
+    <option value="__all__">all</option>
+    ${systemOptions}
+  </select>
+</div>
+<div class="nav">
+  <button id="prev" aria-label="Previous">←</button>
+  <span class="counter" id="counter">1 / 1</span>
+  <button id="next" aria-label="Next">→</button>
+</div>
+<script>
+(function(){
+  var select=document.getElementById('system-select');
+  var allSlides=Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var counter=document.getElementById('counter');
+  var prev=document.getElementById('prev');
+  var next=document.getElementById('next');
+  var visible=allSlides.slice();
+  var cur=0;
+  function filterBySystem(){
+    var sys=select.value;
+    visible=allSlides.filter(function(s){
+      if(sys==='__all__')return true;
+      var id=s.getAttribute('data-slide-id')||'';
+      return id.endsWith('--'+sys);
+    });
+    allSlides.forEach(function(s){
+      s.style.display='none';
+      s.classList.remove('active','exit');
+    });
+    visible.forEach(function(s,i){
+      s.style.display='';
+      if(i===0)s.classList.add('active');
+    });
+    cur=0;
+    counter.textContent='1 / '+visible.length;
+    prev.disabled=true;
+    next.disabled=visible.length<=1;
+  }
+  function show(idx){
+    if(idx<0||idx>=visible.length||idx===cur)return;
+    visible[cur].classList.remove('active');
+    visible[cur].classList.add('exit');
+    visible[idx].classList.remove('exit');
+    visible[idx].classList.add('active');
+    cur=idx;
+    counter.textContent=(cur+1)+' / '+visible.length;
+    prev.disabled=cur===0;
+    next.disabled=cur===visible.length-1;
+  }
+  select.addEventListener('change',filterBySystem);
+  prev.addEventListener('click',function(){show(cur-1);});
+  next.addEventListener('click',function(){show(cur+1);});
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowLeft')show(cur-1);
+    else if(e.key==='ArrowRight')show(cur+1);
+  });
+  filterBySystem();
+})();
+</script>
+`;
+const html = baseHtml.replace("</body>", filterAndNav + "</body>");
 const outPath = path.join(OUT_DIR, "index.html");
 fs.writeFileSync(outPath, html, "utf-8");
 

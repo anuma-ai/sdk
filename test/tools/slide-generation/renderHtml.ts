@@ -355,8 +355,23 @@ const NEEDS_PX = new Set([
   "columnGap",
 ]);
 
+export interface RenderDeckOptions {
+  /**
+   * Suppress the default nav UI (prev/next buttons, counter, keydown
+   * handlers). The caller is then responsible for emitting its own nav
+   * markup + script — useful when the deck needs extra controls like a
+   * design-system filter, but the default nav's hard-coded `slides`
+   * NodeList would conflict with a filtered view.
+   */
+  skipNav?: boolean;
+}
+
 /** Render an Anuma deck to a self-contained HTML page with arrow-key navigation. */
-export function renderDeckToHtml(deck: AnumaNode, title?: string): string {
+export function renderDeckToHtml(
+  deck: AnumaNode,
+  title?: string,
+  options: RenderDeckOptions = {}
+): string {
   const colors = themeColors(deck);
   const bg = colors.background ?? "#000";
   const slideBg = colors.slideBg ?? "#111";
@@ -385,7 +400,9 @@ export function renderDeckToHtml(deck: AnumaNode, title?: string): string {
         .filter((c): c is AnumaNode => typeof c !== "string")
         .map((c) => renderNode(c, colors, myIsFlex))
         .join("\n");
-      return `<div class="slide" data-index="${i}" style="${slideBgOverride}${containerStyle}">${kids}</div>`;
+      const slideId = typeof slide.attrs.id === "string" ? slide.attrs.id : "";
+      const idAttr = slideId ? ` data-slide-id="${esc(slideId)}"` : "";
+      return `<div class="slide" data-index="${i}"${idAttr} style="${slideBgOverride}${containerStyle}">${kids}</div>`;
     })
     .join("\n");
 
@@ -422,7 +439,22 @@ img{display:block}
 <div class="viewport">
 ${slidesHtml}
 </div>
-<div class="nav">
+${
+  options.skipNav
+    ? `<script>
+(function(){
+  // Caller will provide its own nav; we still need fit-to-viewport sizing.
+  var W=${SLIDE_CANVAS_WIDTH},H=${SLIDE_CANVAS_HEIGHT};
+  function fitScale(){
+    var vw=window.innerWidth,vh=window.innerHeight;
+    var scale=Math.min(vw/W,vh/H);
+    document.documentElement.style.setProperty('--scale',scale);
+  }
+  fitScale();
+  window.addEventListener('resize',fitScale);
+})();
+</script>`
+    : `<div class="nav">
   <button id="prev" aria-label="Previous">←</button>
   <span class="counter" id="counter">1 / ${slides.length}</span>
   <button id="next" aria-label="Next">→</button>
@@ -459,7 +491,8 @@ ${slidesHtml}
   fitScale();
   window.addEventListener('resize',fitScale);
 })();
-</script>
+</script>`
+}
 </body>
 </html>`;
 }
