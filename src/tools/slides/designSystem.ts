@@ -221,10 +221,118 @@ export interface CompositionElement {
   defaultSrc?: string;
 }
 
+/**
+ * A sub-element inside a FlexRegion item template. Unlike CompositionElement
+ * it doesn't have absolute x/y — its position is determined by the parent
+ * Group's flex flow. Its `w` and `h` are still meaningful for sizing
+ * (used by validators and the Anuma renderer for fixed-dimension children)
+ * but the renderer lays them out via the parent's `layout` direction.
+ *
+ * Slot ids carry an `${index}` placeholder; compile() interpolates the
+ * 1-based item index at emit time (`agenda_${index}_title` → `agenda_1_title`,
+ * `agenda_2_title`, ...).
+ */
+export interface RelativeElement {
+  /** Slot id pattern. `${index}` is replaced with the 1-based item index. */
+  id: string;
+  role: ElementRole;
+  /** Width in canvas-percent. Ignored when the parent flex axis assigns it. */
+  w?: number;
+  /** Height in canvas-percent. Ignored when the parent flex axis assigns it. */
+  h?: number;
+  /** Optional flex grow factor for sizing within the parent group. */
+  grow?: number;
+  fit?: FitMode;
+  surface?: SurfaceState;
+  align?: "left" | "center" | "right";
+  defaultText?: string;
+}
+
+/**
+ * Default content for ONE item inside a FlexRegion. The map keys match
+ * the RelativeElement ids in the region's template (without the index
+ * suffix). The compiler uses these to fill placeholder content per item
+ * when the catalog dumps render the recipe.
+ */
+export type FlexItemDefault = Record<string, string>;
+
+/**
+ * A repeating flex region inside a composition. The region's own frame
+ * is fixed (x/y/w/h), but it hosts a variable number of items rendered
+ * as an `<Anuma.Group layout="row" | "column">`. Each item is one
+ * realisation of the `item` template — same role pattern, sequential
+ * slot ids (`agenda_1_title`, `agenda_2_title`, …). Use this for agendas,
+ * bullet lists, dynamic card grids, timeline rows.
+ */
+export interface FlexRegion {
+  /** Discriminator — separates flex regions from absolute elements. */
+  kind: "flex-region";
+  /** Prefix for slot ids inside this region (e.g. "agenda_"). */
+  idPrefix: string;
+  /** Container frame on the slide canvas. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Flex direction. "column" stacks items vertically; "row" lays them horizontally. */
+  layout: "row" | "column";
+  /** Spacing between items in canvas-percent. */
+  gap?: number;
+  /** Inner padding around the item track in canvas-percent. */
+  padding?: number;
+  justify?: "start" | "center" | "end" | "space-between";
+  align?: "start" | "center" | "end" | "stretch" | "baseline";
+  /** Surface state for items inside the region (defaults to slide's surface). */
+  surface?: SurfaceState;
+  /**
+   * Internal layout direction inside each item. Defaults to "row" — an
+   * agenda row lays its sub-elements left-to-right (number / title /
+   * description / duration).
+   */
+  itemLayout?: "row" | "column";
+  /** Gap between sub-elements within one item, in canvas-percent. */
+  itemGap?: number;
+  /** justify-content within each item. */
+  itemJustify?: "start" | "center" | "end" | "space-between";
+  /**
+   * align-items within each item. "baseline" aligns text by typographic
+   * baseline — useful when sub-elements have different font sizes (e.g.
+   * a small mono number next to a serif title in an agenda row).
+   */
+  itemAlign?: "start" | "center" | "end" | "stretch" | "baseline";
+  /**
+   * Emit a hairline divider after every item. Renders as a flex sibling
+   * `<Anuma.Line>` between consecutive items (and after the last). Uses
+   * the design system's `divider` role color. Useful for agendas and
+   * table-of-contents patterns where each row needs visual separation.
+   */
+  separator?: boolean;
+  /**
+   * The template item — a list of RelativeElements describing the
+   * sub-elements of ONE item. compile() emits N copies with sequential
+   * slot ids.
+   */
+  item: RelativeElement[];
+  /**
+   * Default item content for the catalog dump. compile() emits one
+   * Anuma.Group child per entry, populating each child's template
+   * elements with the entry's text by RelativeElement id.
+   */
+  defaultItems: FlexItemDefault[];
+}
+
+/** Union — a composition's elements field can hold either kind. */
+export type CompositionChild = CompositionElement | FlexRegion;
+
+/** Type guard for FlexRegion vs CompositionElement. */
+export function isFlexRegion(c: CompositionChild): c is FlexRegion {
+  return (c as FlexRegion).kind === "flex-region";
+}
+
 export interface LayoutComposition {
   name: string;
   description: string;
-  elements: CompositionElement[];
+  elements: CompositionChild[];
   /**
    * The slide's ground surface. "default" is the design system's light
    * mode; "dark" applies the system's dark surface treatment to the
@@ -1370,6 +1478,192 @@ export const HEADLINE_NUMBER: LayoutComposition = {
       h: 3,
       fit: "single-line",
       defaultText: "FORGE AI · SERIES A · 14 / 16",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// AGENDA — variable-row agenda / table of contents using the FlexRegion
+// primitive. The model supplies N items (typically 3–8); each item is a
+// row of [number, title, description, duration]. Demonstrates the
+// composition system's flex-region capability: the row count adapts to
+// content instead of being baked into the geometry.
+// ---------------------------------------------------------------------------
+
+export const AGENDA: LayoutComposition = {
+  name: "agenda",
+  description:
+    "Light slide with a hero title and a variable-row agenda block. Each agenda item is a horizontal row carrying a sequence number, a title, a short description, and a duration. The flex region lets the model add or remove items by passing more or fewer entries — typical decks have 4–8 rows.",
+  elements: [
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "PROJECT MERIDIAN · SC-04",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 70,
+      y: 5,
+      w: 24,
+      h: 3,
+      fit: "single-line",
+      defaultText: "02 / 12",
+    },
+    // Eyebrow above the hero — small accent label.
+    {
+      id: "eyebrow",
+      role: "eyebrow",
+      x: 6,
+      y: 18,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "TODAY'S SESSION",
+    },
+    // Hero — single word ("Agenda.") on this archetype.
+    {
+      id: "hero",
+      role: "hero",
+      x: 6,
+      y: 22,
+      w: 40,
+      h: 14,
+      fit: "single-line",
+      defaultText: "Agenda.",
+    },
+    // Body — 1-line description under the hero. Body role matches the
+    // descriptive copy in every other composition (only HEADLINE_NUMBER
+    // uses subtitle, which is a sibling-display archetype).
+    {
+      id: "body",
+      role: "body",
+      x: 6,
+      y: 38,
+      w: 70,
+      h: 8,
+      fit: "multi-line",
+      defaultText: "30 mins presented · 15 mins Q&A.",
+    },
+    // Hairline separating the header block from the agenda rows.
+    { id: "rows_rule", role: "divider", x: 6, y: 50, w: 88, h: 0 },
+    // Variable-row agenda — the flex region. Each item is a horizontal
+    // row of [number, title, description, duration]. Add or remove items
+    // by passing more/fewer entries to defaultItems (or, at fill time, by
+    // the model adding more `agenda_<index>_<slot>` slot ids).
+    {
+      kind: "flex-region",
+      idPrefix: "agenda",
+      x: 6,
+      y: 52,
+      w: 88,
+      h: 42,
+      layout: "column",
+      // gap=0.75 — enough breathing room around each separator line
+      // without the serif theme (taller line-metrics) pushing the
+      // last row into the footer. Multiplied across 11 interleaved
+      // flex children, so total inter-row spacing ≈ 11 × 4px.
+      gap: 0.75,
+      // Pack items at the top of the region rather than letting them
+      // distribute across the full height — without this, each item
+      // grows to ~region.h/N and overflows the region's bottom when N
+      // is high enough.
+      justify: "start",
+      align: "stretch",
+      // Hairline divider between every row, plus one after the last
+      // row to close the table. Matches the editorial-agenda pattern.
+      separator: true,
+      itemLayout: "row",
+      itemGap: 2,
+      // Baseline alignment so the small mono number sits on the same
+      // typographic line as the serif title, not centred on the row.
+      itemAlign: "baseline",
+      // Rels intentionally have no `h` — letting content lineHeight
+      // drive each item's natural height. With baseline alignment, fixed
+      // heights on sub-elements inflate the row (baseline shifts push
+      // content down by the larger font's metrics + the box's bottom
+      // padding), which made the agenda overflow into the footer.
+      item: [
+        {
+          id: "number",
+          role: "stat-label",
+          w: 4,
+          fit: "single-line",
+        },
+        {
+          id: "title",
+          role: "card-title",
+          w: 38,
+          fit: "single-line",
+        },
+        {
+          id: "description",
+          role: "body",
+          w: 30,
+          fit: "single-line",
+        },
+        {
+          id: "duration",
+          role: "stat-label",
+          w: 8,
+          fit: "single-line",
+          align: "right",
+        },
+      ],
+      defaultItems: [
+        {
+          number: "01",
+          title: "Action tracker from SC-03",
+          description: "Status of seven open actions",
+          duration: "3 MIN",
+        },
+        {
+          number: "02",
+          title: "Programme burndown & health",
+          description: "Heatmap by week × workstream",
+          duration: "6 MIN",
+        },
+        {
+          number: "03",
+          title: "Three findings & what they mean",
+          description: "Pricing leakage · S&OP · spans",
+          duration: "9 MIN",
+        },
+        {
+          number: "04",
+          title: "Decision — pricing override",
+          description: "Sponsor sign-off today",
+          duration: "6 MIN",
+        },
+        {
+          number: "05",
+          title: "Risk register & escalation",
+          description: "Two risks moving to sponsor",
+          duration: "4 MIN",
+        },
+        {
+          number: "06",
+          title: "Next four weeks & SC-05 prep",
+          description: "Closing prep · pre-read T-48h",
+          duration: "2 MIN",
+        },
+      ],
+    },
+    // Footer chrome at the bottom-left.
+    {
+      id: "footer",
+      role: "footer",
+      x: 6,
+      y: 96,
+      w: 60,
+      h: 3,
+      fit: "single-line",
+      defaultText: "METHOD ANCHOR · PMBOK V7 · STEERCO",
     },
   ],
 };
@@ -2695,6 +2989,114 @@ function emitImage(el: CompositionElement, system: DesignSystem, state: SurfaceS
   return `<Anuma.Image id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} src="${escapeText(src)}" />`;
 }
 
+/**
+ * Build an `<Anuma.Group>` for a flex region plus one inner Group per
+ * item. The compiler walks `region.defaultItems` and, for each entry,
+ * realises `region.item` (the template) into concrete sub-elements with
+ * sequential slot ids (`${prefix}_1_title`, `${prefix}_2_title`, …).
+ *
+ * Sub-elements use the renderer's flex flow — no x/y on them — so item
+ * count can vary without touching geometry.
+ */
+function emitFlexRegion(
+  region: FlexRegion,
+  system: DesignSystem,
+  slideState: SurfaceState,
+  fontPreset: { heading: string; body: string }
+): string {
+  const itemState: SurfaceState = region.surface ?? slideState;
+  const layoutAttrs: string[] = [
+    `layout="${region.layout}"`,
+    ...(region.gap !== undefined ? [`gap={${pxY(region.gap)}}`] : []),
+    ...(region.padding !== undefined ? [`padding={${pxY(region.padding)}}`] : []),
+    ...(region.justify ? [`justify="${region.justify}"`] : []),
+    ...(region.align ? [`align="${region.align}"`] : []),
+  ];
+  const innerLayout = region.itemLayout ?? "row";
+  const innerAttrs: string[] = [
+    `layout="${innerLayout}"`,
+    ...(region.itemGap !== undefined ? [`gap={${pxY(region.itemGap)}}`] : []),
+    ...(region.itemJustify ? [`justify="${region.itemJustify}"`] : []),
+    ...(region.itemAlign ? [`align="${region.itemAlign}"`] : []),
+  ];
+  // Resolve the divider color once for separator lines. Pulls from the
+  // design system's `divider` role under the region's surface state.
+  const separatorStyle = region.separator
+    ? resolveStyle(system, "divider", itemState)
+    : null;
+  const itemParts: string[] = [];
+  for (let i = 0; i < region.defaultItems.length; i++) {
+    itemParts.push(
+      emitFlexItem(region, i + 1, region.defaultItems[i]!, system, itemState, fontPreset, innerAttrs)
+    );
+    if (separatorStyle) {
+      itemParts.push(emitFlexSeparator(region, i + 1, separatorStyle));
+    }
+  }
+  return `<Anuma.Group id="${region.idPrefix}" x={${pxX(region.x)}} y={${pxY(region.y)}} w={${pxX(region.w)}} h={${pxY(region.h)}} ${layoutAttrs.join(" ")}>
+${itemParts.join("\n")}
+</Anuma.Group>`;
+}
+
+/** Hairline sibling between items in a flex region. */
+function emitFlexSeparator(region: FlexRegion, afterIndex: number, style: RoleStyle): string {
+  const id = `${region.idPrefix}_${afterIndex}_rule`;
+  return `<Anuma.Line id="${id}" stroke="${style.color}" strokeWidth={1} />`;
+}
+
+function emitFlexItem(
+  region: FlexRegion,
+  index: number,
+  data: FlexItemDefault,
+  system: DesignSystem,
+  state: SurfaceState,
+  fontPreset: { heading: string; body: string },
+  innerAttrs: string[]
+): string {
+  const children = region.item
+    .map((rel) => emitRelativeElement(region, rel, index, data, system, state, fontPreset))
+    .join("\n");
+  const itemId = `${region.idPrefix}_${index}`;
+  return `<Anuma.Group id="${itemId}" ${innerAttrs.join(" ")}>
+${children}
+</Anuma.Group>`;
+}
+
+/** Realise a RelativeElement into JSX for one item instance. */
+function emitRelativeElement(
+  region: FlexRegion,
+  rel: RelativeElement,
+  index: number,
+  data: FlexItemDefault,
+  system: DesignSystem,
+  state: SurfaceState,
+  fontPreset: { heading: string; body: string }
+): string {
+  const id = `${region.idPrefix}_${index}_${rel.id}`;
+  const elState: SurfaceState = rel.surface ?? state;
+  const s = resolveStyle(system, rel.role, elState);
+  const sizeAttrs: string[] = [
+    ...(rel.w !== undefined ? [`w={${pxX(rel.w)}}`] : []),
+    ...(rel.h !== undefined ? [`h={${pxY(rel.h)}}`] : []),
+    ...(rel.grow !== undefined ? [`grow={${rel.grow}}`] : []),
+  ];
+  // Shape roles render as the relevant primitive without text.
+  if (rel.role === "divider") {
+    return `<Anuma.Line id="${id}" ${sizeAttrs.join(" ")} stroke="${s.color}" strokeWidth={1} />`;
+  }
+  if (rel.role === "accent-bar") {
+    return `<Anuma.Rect id="${id}" ${sizeAttrs.join(" ")} fill="${s.color}" cornerRadius={0.2} />`;
+  }
+  // Default: text element with role styling. align override + inline-accent
+  // markers behave the same as in absolute elements.
+  const text = data[rel.id] ?? rel.defaultText ?? "";
+  const fontRole = s.fontFamily === "heading" ? "heading" : "body";
+  const resolved = rel.align ? { ...s, align: rel.align } : s;
+  const style = styleObject(resolved, fontPreset);
+  const body = renderInlineAccents(text, rel.role, system, elState);
+  return `<Anuma.Text id="${id}" ${sizeAttrs.join(" ")} fontRole="${fontRole}" style=${style}>${body}</Anuma.Text>`;
+}
+
 function emitCardSurface(el: CompositionElement, system: DesignSystem, state: SurfaceState): string {
   // For default state, use the role's base color (typically the cream
   // `slideBg`/`#FAFAFA`); for dark/accent, pull the surface's bg color.
@@ -2718,7 +3120,12 @@ export function compile(
 ): string {
   const slideState: SurfaceState = composition.surface ?? "default";
   const lines: string[] = [];
-  for (const el of composition.elements) {
+  for (const child of composition.elements) {
+    if (isFlexRegion(child)) {
+      lines.push(emitFlexRegion(child, system, slideState, fontPreset));
+      continue;
+    }
+    const el = child;
     // Element-level surface overrides the slide-level surface.
     const elState: SurfaceState = el.surface ?? slideState;
     const s = resolveStyle(system, el.role, elState);
@@ -2876,7 +3283,32 @@ export function describeComposition(
     "",
     "Slots:",
   ];
-  for (const el of composition.elements) {
+  for (const child of composition.elements) {
+    if (isFlexRegion(child)) {
+      out.push("");
+      out.push(
+        `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items, layout="${child.layout}". Add or remove items as needed; the model passes ${child.idPrefix}_<index>_<slot> ids for each.`
+      );
+      for (const rel of child.item) {
+        if (STATIC_ROLES.has(rel.role)) {
+          out.push(`    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: static element, no content`);
+          continue;
+        }
+        const style = system.styles[rel.role];
+        if (!style) continue;
+        const budget = estimateRelativeSlotBudget(rel, child, style, fontPreset);
+        const fit: FitMode = rel.fit ?? "multi-line";
+        if (fit === "single-line") {
+          out.push(`    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: ≤ ${budget.charsPerLine} chars, ONE LINE.`);
+        } else {
+          out.push(
+            `    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: ≤ ${budget.charsPerLine} chars/line × ${budget.maxLines} lines (~${budget.total} chars total).`
+          );
+        }
+      }
+      continue;
+    }
+    const el = child;
     if (STATIC_ROLES.has(el.role)) {
       out.push(`  - ${el.id} [${el.role}]: static element, no content`);
       continue;
@@ -2894,6 +3326,115 @@ export function describeComposition(
     }
   }
   return out.join("\n");
+}
+
+/**
+ * Estimate the per-instance slot budget for a RelativeElement inside a
+ * FlexRegion. Falls back to region-derived defaults when the relative
+ * element doesn't set its own w/h: width = region.w - padding (or split
+ * if itemLayout is "row"), height = region.h / item-count (or set if
+ * itemLayout is "column").
+ *
+ * This is approximate — actual rendered size depends on flex flow with
+ * siblings — but matches the "did the model overflow" check we need.
+ */
+function estimateRelativeSlotBudget(
+  rel: RelativeElement,
+  region: FlexRegion,
+  style: RoleStyle,
+  fontPreset: { heading: string; body: string }
+): SlotBudget {
+  const padding = region.padding ?? 0;
+  const gap = region.gap ?? 0;
+  const itemCount = Math.max(1, region.defaultItems.length);
+  // Default width/height heuristics when the rel doesn't specify them.
+  let w = rel.w;
+  let h = rel.h;
+  if (w === undefined) {
+    if (region.layout === "row") {
+      // Items lay out horizontally — divide the region's inner width.
+      w = (region.w - 2 * padding - gap * (itemCount - 1)) / itemCount;
+    } else {
+      // Column layout — items get the full inner width.
+      w = region.w - 2 * padding;
+    }
+  }
+  if (h === undefined) {
+    if (region.layout === "column") {
+      // Items stack vertically — divide the region's inner height.
+      h = (region.h - 2 * padding - gap * (itemCount - 1)) / itemCount;
+    } else {
+      // Row layout — each item gets the full inner height.
+      h = region.h - 2 * padding;
+    }
+  }
+  // Reuse estimateSlotBudget by faking a CompositionElement shape with
+  // the derived geometry. Only the dimensions matter to the calculation.
+  return estimateSlotBudget(
+    { id: rel.id, role: rel.role, x: 0, y: 0, w, h, fit: rel.fit } as CompositionElement,
+    style,
+    fontPreset
+  );
+}
+
+/**
+ * Validate each item in a FlexRegion's defaultItems against the template
+ * sub-elements' per-instance budgets. Returns one SlotIssue per overflowing
+ * sub-element with the issue id prefixed by item index for traceability.
+ */
+function validateFlexRegionDefaults(
+  region: FlexRegion,
+  system: DesignSystem,
+  fontPreset: { heading: string; body: string }
+): SlotIssue[] {
+  const issues: SlotIssue[] = [];
+  for (let i = 0; i < region.defaultItems.length; i++) {
+    const data = region.defaultItems[i]!;
+    const idx = i + 1;
+    for (const rel of region.item) {
+      if (STATIC_ROLES.has(rel.role)) continue;
+      const style = system.styles[rel.role];
+      if (!style) continue;
+      const text = data[rel.id] ?? rel.defaultText;
+      if (!text) continue;
+      const budget = estimateRelativeSlotBudget(rel, region, style, fontPreset);
+      const fit: FitMode = rel.fit ?? "multi-line";
+      const trimmed = text.trim();
+      const visible = trimmed.replace(/\*([^*]+)\*/g, "$1");
+      const fullId = `${region.idPrefix}_${idx}_${rel.id}`;
+      if (budget.boxHeightPx < budget.safeLinePx) {
+        issues.push({
+          id: fullId,
+          role: rel.role,
+          text: trimmed,
+          budget,
+          fit,
+          issue: `box too short for descenders: h=${Math.round(budget.boxHeightPx)}px < ${Math.round(budget.safeLinePx)}px needed (line ${Math.round(budget.linePx)}px + descender room)`,
+        });
+        continue;
+      }
+      if (fit === "single-line" && visible.length > budget.charsPerLine) {
+        issues.push({
+          id: fullId,
+          role: rel.role,
+          text: trimmed,
+          budget,
+          fit,
+          issue: `single-line: ${visible.length} chars exceeds ${budget.charsPerLine}-char budget`,
+        });
+      } else if (fit === "multi-line" && visible.length > budget.total) {
+        issues.push({
+          id: fullId,
+          role: rel.role,
+          text: trimmed,
+          budget,
+          fit,
+          issue: `multi-line: ${visible.length} chars exceeds ${budget.total}-char budget (${budget.maxLines}×${budget.charsPerLine})`,
+        });
+      }
+    }
+  }
+  return issues;
 }
 
 /** A slot whose `defaultText` exceeds the slot's budget under the system. */
@@ -2917,7 +3458,12 @@ export function validateComposition(
   fontPreset: { heading: string; body: string }
 ): SlotIssue[] {
   const issues: SlotIssue[] = [];
-  for (const el of composition.elements) {
+  for (const child of composition.elements) {
+    if (isFlexRegion(child)) {
+      issues.push(...validateFlexRegionDefaults(child, system, fontPreset));
+      continue;
+    }
+    const el = child;
     if (STATIC_ROLES.has(el.role)) continue;
     const style = system.styles[el.role];
     if (!style || !el.defaultText) continue;
@@ -2997,15 +3543,49 @@ export function validateSlotContent(
   slide: { children: Array<{ tag?: string; attrs?: Record<string, unknown>; children?: unknown[] } | string> }
 ): SlotIssue[] {
   const issues: SlotIssue[] = [];
+  // Recursively collect every Text element's id → joined-text in the
+  // slide tree. Flex regions nest Text inside Anuma.Group children, so a
+  // top-level-only walk would miss them.
   const textsBySlotId = new Map<string, string>();
-  for (const child of slide.children) {
-    if (typeof child === "string") continue;
-    if (child.tag !== "Text") continue;
-    const id = typeof child.attrs?.id === "string" ? child.attrs.id : null;
-    if (!id) continue;
-    textsBySlotId.set(id, joinTextChildren(child.children ?? []));
-  }
-  for (const el of composition.elements) {
+  collectSlideTexts(slide.children, textsBySlotId);
+  for (const child of composition.elements) {
+    if (isFlexRegion(child)) {
+      for (let i = 0; i < child.defaultItems.length; i++) {
+        const idx = i + 1;
+        for (const rel of child.item) {
+          if (STATIC_ROLES.has(rel.role)) continue;
+          const style = system.styles[rel.role];
+          if (!style) continue;
+          const fullId = `${child.idPrefix}_${idx}_${rel.id}`;
+          const actual = textsBySlotId.get(fullId);
+          if (actual === undefined) continue;
+          const budget = estimateRelativeSlotBudget(rel, child, style, fontPreset);
+          const fit: FitMode = rel.fit ?? "multi-line";
+          const visibleText = actual.replace(/\*([^*]+)\*/g, "$1").trim();
+          if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
+            issues.push({
+              id: fullId,
+              role: rel.role,
+              text: actual,
+              budget,
+              fit,
+              issue: `single-line: ${visibleText.length} chars exceeds ${budget.charsPerLine}-char budget`,
+            });
+          } else if (fit === "multi-line" && visibleText.length > budget.total) {
+            issues.push({
+              id: fullId,
+              role: rel.role,
+              text: actual,
+              budget,
+              fit,
+              issue: `multi-line: ${visibleText.length} chars exceeds ${budget.total}-char budget (${budget.maxLines}×${budget.charsPerLine})`,
+            });
+          }
+        }
+      }
+      continue;
+    }
+    const el = child;
     if (STATIC_ROLES.has(el.role)) continue;
     const style = system.styles[el.role];
     if (!style) continue;
@@ -3055,6 +3635,34 @@ function joinTextChildren(children: unknown[]): string {
   return parts.join("");
 }
 
+/**
+ * Recursively walk a slide's child tree, collecting every Text element's
+ * id → joined-text into `out`. Used by validateSlotContent so that Text
+ * elements nested inside Anuma.Group wrappers (flex regions) are found
+ * the same way as top-level text slots.
+ */
+function collectSlideTexts(
+  children: Array<{ tag?: string; attrs?: Record<string, unknown>; children?: unknown[] } | string>,
+  out: Map<string, string>
+): void {
+  for (const child of children) {
+    if (typeof child === "string") continue;
+    if (child.tag === "Text") {
+      const id = typeof child.attrs?.id === "string" ? child.attrs.id : null;
+      if (id) out.set(id, joinTextChildren(child.children ?? []));
+      continue;
+    }
+    if (Array.isArray(child.children)) {
+      collectSlideTexts(
+        child.children as Array<
+          { tag?: string; attrs?: Record<string, unknown>; children?: unknown[] } | string
+        >,
+        out
+      );
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Live-tools registry — bridges this proposal module into the live
 // `plan_deck` / `add_slide` tools. Each composition × design system pair
@@ -3068,6 +3676,7 @@ const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_STATEMENT,
   PROBLEM_EVIDENCE,
   HEADLINE_NUMBER,
+  AGENDA,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,

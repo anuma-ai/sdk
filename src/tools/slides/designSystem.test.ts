@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AGENDA,
   BRAND_STORY_SPLIT,
   EDITORIAL_WARM,
+  compile,
+  isFlexRegion,
   validateSlotContent,
+  type LayoutComposition,
 } from "./designSystem";
 import { FONT_PRESETS } from "./index";
 
@@ -67,5 +71,100 @@ describe("validateSlotContent", () => {
       children: [],
     });
     expect(issues).toEqual([]);
+  });
+
+  it("validates flex-region item content against per-item budgets", () => {
+    // AGENDA's `title` rel is single-line ≤ ~33 chars in techno-bold. A
+    // long title should overflow; a short one should pass.
+    const longTitle = "An extremely long agenda item title that won't fit at all";
+    const slide = {
+      children: [
+        // Nested inside an Anuma.Group (item wrapper) inside the region's
+        // outer group — the recursive walker should find the Text.
+        {
+          tag: "Group",
+          attrs: { id: "agenda" },
+          children: [
+            {
+              tag: "Group",
+              attrs: { id: "agenda_1" },
+              children: [
+                {
+                  tag: "Text",
+                  attrs: { id: "agenda_1_title" },
+                  children: [longTitle],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const issues = validateSlotContent(AGENDA, EDITORIAL_WARM, fontPreset, slide);
+    const overflow = issues.find((i) => i.id === "agenda_1_title");
+    expect(overflow).toBeDefined();
+    expect(overflow!.issue).toMatch(/single-line.*exceeds/);
+  });
+
+  it("accepts flex-region items that fit their per-instance budgets", () => {
+    const slide = {
+      children: [
+        {
+          tag: "Group",
+          attrs: { id: "agenda" },
+          children: [
+            {
+              tag: "Group",
+              attrs: { id: "agenda_1" },
+              children: [
+                { tag: "Text", attrs: { id: "agenda_1_title" }, children: ["Kickoff"] },
+                { tag: "Text", attrs: { id: "agenda_1_number" }, children: ["01"] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const issues = validateSlotContent(AGENDA, EDITORIAL_WARM, fontPreset, slide);
+    expect(issues.filter((i) => i.id.startsWith("agenda_"))).toEqual([]);
+  });
+});
+
+describe("compile() with flex regions", () => {
+  it("emits an Anuma.Group for the region with one Group per item", () => {
+    const out = compile(AGENDA, EDITORIAL_WARM, fontPreset);
+    // Outer region group: id="agenda" with layout="column"
+    expect(out).toContain('<Anuma.Group id="agenda"');
+    expect(out).toContain('layout="column"');
+    // One inner Group per defaultItems entry (6 in AGENDA).
+    const innerMatches = out.match(/<Anuma\.Group id="agenda_\d"/g);
+    expect(innerMatches).toHaveLength(6);
+    // Each inner Group uses row layout (itemLayout: "row").
+    expect(out).toMatch(/<Anuma\.Group id="agenda_1"[^>]*layout="row"/);
+  });
+
+  it("interpolates 1-based item index into relative slot ids", () => {
+    const out = compile(AGENDA, EDITORIAL_WARM, fontPreset);
+    expect(out).toContain('id="agenda_1_title"');
+    expect(out).toContain('id="agenda_1_number"');
+    expect(out).toContain('id="agenda_6_duration"');
+  });
+
+  it("populates each item's slot text from the defaultItems entry", () => {
+    const out = compile(AGENDA, EDITORIAL_WARM, fontPreset);
+    // Item 1's defaults from the composition.
+    expect(out).toContain(">01</Anuma.Text>");
+    expect(out).toContain(">Action tracker from SC-03</Anuma.Text>");
+    // Item 4's duration.
+    expect(out).toContain(">6 MIN</Anuma.Text>");
+  });
+
+  it("isFlexRegion type guard discriminates correctly", () => {
+    const agendaRegion = AGENDA.elements.find(isFlexRegion);
+    expect(agendaRegion).toBeDefined();
+    expect(agendaRegion!.idPrefix).toBe("agenda");
+    // Cast to discard the rest of the union for the type assertion below.
+    const _typed: LayoutComposition["elements"][number] = agendaRegion!;
+    expect(_typed).toBeTruthy();
   });
 });

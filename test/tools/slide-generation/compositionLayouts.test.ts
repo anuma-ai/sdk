@@ -213,4 +213,67 @@ describe("composition-layouts wire-in", () => {
 
     expect(slides.length).toBeGreaterThanOrEqual(7);
   });
+
+  // Flex-region e2e: the agenda composition uses our new variable-count
+  // flex primitive. The model must understand the `agenda_<idx>_<slot>`
+  // pattern from the recipe and generate N items at fill time. This is
+  // the architectural risk worth derisking — unit tests prove the
+  // plumbing, but not that the model can produce conforming JSX.
+  it("fills the agenda composition's flex region with N items end-to-end", { timeout: 300_000 }, async () => {
+    const store = createFileStore();
+    const log: ToolCallLog[] = [];
+    const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
+
+    const result = await timedToolLoop({
+      messages: makeMessages(
+        "Create a 3-slide steering-committee deck for Project Meridian. " +
+          "First slide: cover. " +
+          "Second slide: an AGENDA listing exactly 5 items — 'Action review', 'Programme health', 'Three findings', 'Decision on pricing', 'Next steps'. " +
+          "Third slide: a closing 'why now' statement. " +
+          "Use the editorial-warm design system throughout.",
+        SYSTEM_PROMPT
+      ),
+      model: config.model,
+      baseUrl: config.baseUrl,
+      headers: { "X-API-Key": config.portalKey },
+      apiType: config.apiType,
+      tools,
+      toolChoice: "auto",
+      maxToolRounds: 20,
+    });
+
+    printResult(result);
+    dumpFiles(store, "composition-layouts-agenda");
+    expect(result.error).toBeNull();
+    expect(store.has("slides.jsx")).toBe(true);
+
+    const addCalls = log.filter((l) => l.name === "add_slide");
+    const usedLayouts = addCalls.map((c) => c.args.layout as string);
+    console.log("\n  Agenda e2e layouts:", JSON.stringify(usedLayouts));
+
+    // The model should have picked the agenda composition for slide 2.
+    expect(usedLayouts).toContain("agenda--editorial-warm");
+
+    // Inspect the deck JSX for flex-region structure. The outer Anuma.Group's
+    // id may either sit on the same line as the tag (short attr set) or on
+    // its own line (long attr set — serializer breaks long tags). The id
+    // can also have a dedupe suffix ("agenda-2") if the slide id collides
+    // with the region's idPrefix.
+    const jsx = store.get("slides.jsx") ?? "";
+    const outerGroup = jsx.match(/<Anuma\.Group\s+[^>]*id="agenda(-\d+)?"/s);
+    expect(outerGroup, "expected agenda outer Anuma.Group in serialized deck").toBeTruthy();
+
+    // Item Groups carry the sequential prefix and are the load-bearing
+    // signal that the model conformed to the `<prefix>_<idx>` pattern.
+    const itemGroups = jsx.match(/<Anuma\.Group id="agenda_\d+"/g) ?? [];
+    console.log(`    item groups: ${itemGroups.length}`);
+    expect(itemGroups.length).toBeGreaterThanOrEqual(3);
+
+    // Per-item slot ids ("agenda_1_title", "agenda_2_title", …) should be
+    // present in sequence. The real load-bearing assertion: the model
+    // generates conforming slot ids from the prefix pattern.
+    const titleIds = (jsx.match(/id="agenda_\d+_title"/g) ?? []).length;
+    console.log(`    title slots: ${titleIds}`);
+    expect(titleIds).toBeGreaterThanOrEqual(3);
+  });
 });

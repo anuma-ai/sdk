@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+  AGENDA,
   BRAND_STORY_SPLIT,
   COVER_SPLIT_PORTRAIT,
   COVER_STATEMENT,
@@ -58,6 +59,7 @@ const compositions: LayoutComposition[] = [
   COVER_STATEMENT,
   PROBLEM_EVIDENCE,
   HEADLINE_NUMBER,
+  AGENDA,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
