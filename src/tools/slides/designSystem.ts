@@ -51,6 +51,7 @@ export type ElementRole =
   | "footer" // bottom footer line
   | "divider" // thin hairline rule (shape role)
   | "accent-bar" // colored accent rectangle (shape role)
+  | "marker" // small filled circle — timeline dots, list bullets (shape role)
   | "image"; // image placeholder (image role)
 
 // ---------------------------------------------------------------------------
@@ -557,6 +558,11 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontSize: 0,
       color: "accent",
     },
+    marker: {
+      fontFamily: "body",
+      fontSize: 0,
+      color: "accent",
+    },
     image: {
       fontFamily: "body",
       fontSize: 0,
@@ -831,6 +837,7 @@ export const TECHNO_BOLD: DesignSystem = {
     "card-surface": { fontFamily: SANS, fontSize: 0, color: "#FAFAFA" },
     divider: { fontFamily: SANS, fontSize: 0, color: "#E4E4E7" },
     "accent-bar": { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
+    marker: { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
     image: { fontFamily: SANS, fontSize: 0, color: "#0A0A0A" },
   },
   // Per-surface treatments — same shape as editorial-warm.
@@ -2975,6 +2982,10 @@ function emitAccentBar(el: CompositionElement, s: RoleStyle): string {
   return `<Anuma.Rect id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" cornerRadius={0.2} />`;
 }
 
+function emitMarker(el: CompositionElement, s: RoleStyle): string {
+  return `<Anuma.Circle id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" />`;
+}
+
 function emitImage(el: CompositionElement, system: DesignSystem, state: SurfaceState): string {
   // Placeholder color tracks the surface state so the image area stays
   // visually coherent with the slide ground until we have real image
@@ -3087,6 +3098,9 @@ function emitRelativeElement(
   if (rel.role === "accent-bar") {
     return `<Anuma.Rect id="${id}" ${sizeAttrs.join(" ")} fill="${s.color}" cornerRadius={0.2} />`;
   }
+  if (rel.role === "marker") {
+    return `<Anuma.Circle id="${id}" ${sizeAttrs.join(" ")} fill="${s.color}" />`;
+  }
   // Default: text element with role styling. align override + inline-accent
   // markers behave the same as in absolute elements.
   const text = data[rel.id] ?? rel.defaultText ?? "";
@@ -3135,6 +3149,9 @@ export function compile(
         break;
       case "accent-bar":
         lines.push(emitAccentBar(el, s));
+        break;
+      case "marker":
+        lines.push(emitMarker(el, s));
         break;
       case "card-surface":
         lines.push(emitCardSurface(el, system, elState));
@@ -3256,6 +3273,7 @@ export function estimateSlotBudget(
 const STATIC_ROLES: ReadonlySet<ElementRole> = new Set([
   "divider",
   "accent-bar",
+  "marker",
   "image",
   "card-surface",
 ]);
