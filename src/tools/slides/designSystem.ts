@@ -34,6 +34,7 @@ export type ElementRole =
   | "eyebrow" // small mono uppercase label above a heading
   | "body" // running prose paragraph
   | "bullets" // multi-line bulleted body
+  | "stat-display" // massive display number that IS the slide — "$40M", "$1B", "10M" — 3× bigger than stat-value
   | "stat-value" // big featured number ("62", "95%", "+240") — slide-hero scale
   | "stat-value-mid" // medium stat for cards ("30,000+", "5,000+") — between hero and row
   | "stat-value-small" // small stat in a bottom-row context ("$9.50", "2.4×")
@@ -277,7 +278,7 @@ export const EDITORIAL_WARM: DesignSystem = {
     },
     subtitle: {
       fontFamily: "heading",
-      fontSize: 2.2,
+      fontSize: 3.2,
       fontWeight: 500,
       color: "textSecondary",
       lineHeight: 1.3,
@@ -306,6 +307,14 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontWeight: 400,
       color: "textSecondary",
       lineHeight: 1.75,
+      align: "left",
+    },
+    "stat-display": {
+      fontFamily: "heading",
+      fontSize: 14,
+      fontWeight: 500,
+      color: "textPrimary",
+      lineHeight: 1.0,
       align: "left",
     },
     "stat-value": {
@@ -464,6 +473,7 @@ export const EDITORIAL_WARM: DesignSystem = {
         subtitle: { color: "border" },
         body: { color: "border" },
         bullets: { color: "border" },
+        "stat-display": { color: "slideBg" },
         "stat-value": { color: "slideBg" },
         "stat-value-mid": { color: "slideBg" },
         "stat-value-small": { color: "slideBg" },
@@ -491,6 +501,7 @@ export const EDITORIAL_WARM: DesignSystem = {
         subtitle: { color: "#3C2A1F" },
         body: { color: "#3C2A1F" },
         bullets: { color: "#3C2A1F" },
+        "stat-display": { color: "#1F1A14" },
         "stat-value": { color: "#1F1A14" },
         "stat-value-mid": { color: "#1F1A14" },
         "stat-value-small": { color: "#1F1A14" },
@@ -553,7 +564,7 @@ export const TECHNO_BOLD: DesignSystem = {
     },
     subtitle: {
       fontFamily: SANS,
-      fontSize: 2.0,
+      fontSize: 3.2,
       fontWeight: 500,
       color: "#52525B",
       lineHeight: 1.3,
@@ -582,6 +593,15 @@ export const TECHNO_BOLD: DesignSystem = {
       fontWeight: 400,
       color: "#52525B",
       lineHeight: 1.7,
+      align: "left",
+    },
+    "stat-display": {
+      fontFamily: SANS,
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#0A0A0A",
+      lineHeight: 1.0,
+      letterSpacing: -0.03,
       align: "left",
     },
     "stat-value": {
@@ -716,6 +736,7 @@ export const TECHNO_BOLD: DesignSystem = {
         eyebrow: { color: "#60A5FA" },
         body: { color: "#A1A1AA" },
         bullets: { color: "#A1A1AA" },
+        "stat-display": { color: "#FAFAFA" },
         "stat-value": { color: "#FAFAFA" },
         "stat-value-mid": { color: "#FAFAFA" },
         "stat-value-small": { color: "#FAFAFA" },
@@ -742,6 +763,7 @@ export const TECHNO_BOLD: DesignSystem = {
         eyebrow: { color: "#FAFAFA" },
         body: { color: "#DBEAFE" },
         bullets: { color: "#DBEAFE" },
+        "stat-display": { color: "#FAFAFA" },
         "stat-value": { color: "#FAFAFA" },
         "stat-value-mid": { color: "#FAFAFA" },
         "stat-value-small": { color: "#FAFAFA" },
@@ -1211,6 +1233,143 @@ export const PROBLEM_EVIDENCE: LayoutComposition = {
       h: 3,
       fit: "single-line",
       defaultText: "FORGE AI · SERIES A · 02 / 16",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// HEADLINE_NUMBER — the slide is ONE massive number. Used for "The Ask"
+// raises, big market-size openers, milestone reveals — anywhere the
+// single headline figure should carry the whole slide. Hairline + 3-column
+// footer surfaces supporting terms (structure / board / timeline, or
+// whatever metadata accompanies the figure). Sibling to cover-statement:
+// same chrome and footer rhythm, but a stat-display where the hero text
+// would go.
+// ---------------------------------------------------------------------------
+
+export const HEADLINE_NUMBER: LayoutComposition = {
+  name: "headline-number",
+  description:
+    "Dark slide whose entire focal point is one massive number rendered in the stat-display role (the raise amount, the market size, a milestone). Subhead under the number, divider, and a 3-column footer of label/value pairs at the bottom — for deal terms, milestones, or metadata that contextualises the headline.",
+  surface: "dark",
+  elements: [
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "12 / THE ASK",
+    },
+    // The slide's whole point — one massive number. stat-display is
+    // ~2× stat-value; box height clears the descender for the
+    // canvas-percent-scaled font in both systems.
+    {
+      id: "stat",
+      role: "stat-display",
+      x: 6,
+      y: 28,
+      w: 88,
+      h: 29,
+      fit: "single-line",
+      defaultText: "$40M",
+    },
+    // Subhead — two-line subtitle directly under the number, ~55% width
+    // so it reads as one coherent thought rather than running canvas-wide.
+    {
+      id: "subhead",
+      role: "subtitle",
+      x: 6,
+      y: 62,
+      w: 62,
+      h: 18,
+      fit: "multi-line",
+      defaultText:
+        "Series A · led by an AI-native fund with deep dev-tools distribution.",
+    },
+    // Footer divider sets the bottom rail apart from the upper block.
+    {
+      id: "footer_rule",
+      role: "divider",
+      x: 6,
+      y: 84,
+      w: 88,
+      h: 0,
+    },
+    // Three-column footer of label/value pairs. Generic slots — the
+    // model picks any three terms that contextualise the headline
+    // number (raise structure, board composition, timeline, etc).
+    {
+      id: "col_1_label",
+      role: "stat-label",
+      x: 6,
+      y: 86,
+      w: 28,
+      h: 2.5,
+      fit: "single-line",
+      defaultText: "STRUCTURE",
+    },
+    {
+      id: "col_1_value",
+      role: "body",
+      x: 6,
+      y: 89,
+      w: 28,
+      h: 6,
+      fit: "single-line",
+      defaultText: "$30M primary · $10M secondary",
+    },
+    {
+      id: "col_2_label",
+      role: "stat-label",
+      x: 36,
+      y: 86,
+      w: 28,
+      h: 2.5,
+      fit: "single-line",
+      defaultText: "BOARD",
+    },
+    {
+      id: "col_2_value",
+      role: "body",
+      x: 36,
+      y: 89,
+      w: 28,
+      h: 6,
+      fit: "single-line",
+      defaultText: "1 lead · 2 founder · 1 indep",
+    },
+    {
+      id: "col_3_label",
+      role: "stat-label",
+      x: 66,
+      y: 86,
+      w: 28,
+      h: 2.5,
+      fit: "single-line",
+      defaultText: "TIMELINE",
+    },
+    {
+      id: "col_3_value",
+      role: "body",
+      x: 66,
+      y: 89,
+      w: 28,
+      h: 6,
+      fit: "single-line",
+      defaultText: "Target: *May 30, 2026*",
+    },
+    {
+      id: "footer",
+      role: "footer",
+      x: 6,
+      y: 96,
+      w: 60,
+      h: 3,
+      fit: "single-line",
+      defaultText: "FORGE AI · SERIES A · 14 / 16",
     },
   ],
 };
@@ -2908,6 +3067,7 @@ const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
   COVER_STATEMENT,
   PROBLEM_EVIDENCE,
+  HEADLINE_NUMBER,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
