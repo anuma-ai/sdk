@@ -293,7 +293,7 @@ Call this FIRST — once — to set up the theme, title, slide count, and layout
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
   - slideCount: how many slides the deck will have (commit to a concrete number)
   - layouts: the subset of compound "<composition>--<system>" layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list, and every name must share the same "--<system>" suffix.
-  - accent: a 6-digit hex like "#1E40AF" — the brand accent color for the deck. ALWAYS set this to match the deck's topic (coffee → terracotta, fintech → indigo, climate → forest green; see CHOOSING AN ACCENT in the system prompt). Leaving it unset gives the system's generic default (blue / red / orange) which usually clashes with the topic. Skip ONLY for genuinely brand-ambiguous topics.
+  - accent: a 6-digit hex — the brand accent color for the deck. Set it to a hex that fits this deck's specific brand or topic. Skip ONLY for genuinely brand-ambiguous topics.
 
 The result contains the full <Anuma.*> element recipes ONLY for the layouts you named in \`layouts\`, plus <Anuma.*> tag schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
 
@@ -340,7 +340,7 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         type: "string",
         pattern: "^#[0-9A-Fa-f]{6}$",
         description:
-          "Brand accent color as a 6-digit hex. Almost every deck should set this — leaving it unset gives the system's generic default (often blue or red) which rarely fits a real topic. Read the user's topic and pick a hex a designer would pick for that industry: coffee/food → terracotta #C2410C, fintech → indigo #1E40AF, climate → forest #166534, healthcare → teal #0F766E, kids/education → warm orange #EA580C, luxury → gold #B45309. See the CHOOSING AN ACCENT block in the system prompt for the full mapping. Omit ONLY when the topic is genuinely brand-ambiguous (internal status update, generic example).",
+          "Brand accent color as a 6-digit hex. Almost every deck should set this. Pick a hex that fits this deck's specific brand or topic — what a designer would pick for THIS deck, not a generic industry default. Omit only when the topic is genuinely brand-ambiguous (internal status update, generic example).",
       },
     },
     required: ["title", "fontPreset", "paletteName", "slideCount", "layouts"],
@@ -1386,21 +1386,13 @@ JSX VOCABULARY — two families of tags, mix freely:
   - <Anuma.Deck> / <Anuma.Slide> / <Anuma.Screen> — containers with canvas semantics.
   - <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line> — SVG shape abstractions (fill / stroke / strokeWidth / cornerRadius as attrs, not style).
 
-Plain HTML tags (allowlisted) for everything else:
-  - Structure: div, span, section, article, header, footer, main, aside, nav, figure, figcaption.
-  - Text: h1–h6, p, a, strong, em, code, pre, blockquote, small, sub, sup, mark, hr, br.
-  - Lists: ul, ol, li, dl, dt, dd.
-  - Interactive / form: button, input, textarea, select, option, optgroup, label, fieldset, legend, form, progress, meter.
-  - Tabular: table, thead, tbody, tfoot, tr, th, td, caption, colgroup, col.
-  - Media: img, picture, source, video, audio, track, canvas.
-  - SVG: svg, path, rect, circle, ellipse, line, polygon, polyline, g, defs, use, symbol, text, tspan, mask, clipPath, linearGradient, radialGradient, stop.
-  Forbidden (safety): script, iframe, link, style, meta, object, embed, head, body, noscript. Event-handler attrs (onClick, onChange, etc.) are also rejected.
+Plain HTML for everything else — standard structural, text, list, form, table, media, and SVG tags (h1–h6, p, div, span, ul/ol/li, table/tr/td, button, input, img, svg, path, …). Forbidden: script, iframe, link, style, meta, object, embed, head, body, noscript, plus all event-handler attrs (onClick, onChange, etc.).
 
 WHEN TO REACH FOR EACH:
   - Use <Anuma.Slide> / <Anuma.Screen> as the root for each slide / app screen.
   - Use <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line> for decorative shapes.
-  - Use plain HTML for every piece of content: headings, paragraphs, buttons, inputs, images, lists, tables. The LLM and downstream code are most fluent with these.
-  - For flex layout, use <div style={{ display: "flex", flexDirection: "row", gap: 16, padding: 24 }}>…</div>. No custom layout attrs needed.
+  - Use plain HTML for every piece of content: headings, paragraphs, buttons, inputs, images, lists, tables.
+  - For flex layout, use <Anuma.Group layout="row" gap={16} padding={24}>…</Anuma.Group> (see LAYOUT MODES below).
 
 ATTRIBUTES:
   - Numeric attrs use JSX expressions: x={96}. String attrs are quoted.
@@ -1409,11 +1401,6 @@ ATTRIBUTES:
       <h1 x={58} y={162} w={844} h={54} style={{ fontSize: 43, fontWeight: 700, color: "textPrimary", textAlign: "center" }}>Welcome</h1>
     Color strings inside style accept theme tokens (textPrimary, accent, slideBg, textMuted, border, card, surfaceSecondary) OR hex/rgb literals.
   - Shape fill/stroke (on <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line>) ALSO accept theme tokens: fill="accent" or fill="#10b981".
-
-COORDINATE SYSTEM — every position is container-relative pixels on a 960×540 slide canvas.
-- Child (x, y) is the pixel offset from the parent's top-left. (w, h) are pixel dimensions.
-- Content area: x=58–902, y=49–491 (standard padding ≈ 58px horizontal, 49px vertical).
-- fontSize is pixels: 43 ≈ large heading, 18 ≈ body, 13 ≈ mono eyebrow.
 
 TEXT BUDGETS — each layout recipe reports a "Text budgets" line listing the max-character estimate per text slot, derived from the slot's box width × height at the chosen font size. Treat the numbers as a soft target: write copy that fits well under the limit. Overflowing text gets line-clamped with an ellipsis at render time, so going over the budget loses information. When in doubt, write tighter. Slot ids in the budget line match the recipe's <Anuma.Text id="..."> attributes.
 
@@ -1435,10 +1422,7 @@ ${listCompositionDescriptions()
 Available design systems (pick ONE for the whole deck — match the deck's register / industry to a system's use case):
 ${renderDesignSystemCatalog()}
 
-Form layout names by joining with "--". The full set of valid compound names:
-${listCompositionLayoutNames()
-  .map((n) => `- ${n}`)
-  .join("\n")}
+Form layout names by joining a composition with a design system using "--" (e.g. "cover-split-portrait--editorial-warm"). plan_deck and add_slide reject unknown combinations.
 
 Recipes are fully styled — copy verbatim and substitute slot text only.
 
@@ -1452,16 +1436,7 @@ CHOOSING A PALETTE — don't default to dark grey + orange. Pick the register th
 
 ${renderPaletteNames()}
 
-CHOOSING AN ACCENT (plan_deck.accent) — ALWAYS set the \`accent\` arg on plan_deck to a 6-digit hex that fits the deck's topic. This is the brand-color knob; leaving it unset gives you the system's generic default (often blue or red), which is almost never the right choice for a real deck. Read the user's topic and pick a hex that a designer would pick for that industry / brand mood:
-  - coffee, leather, bakery, food, restaurant       → warm earthy: terracotta #C2410C, burnt orange #EA580C, espresso brown #78350F
-  - fintech, banking, insurance, B2B SaaS, security → trust blue / indigo: #1E40AF, #3730A3, navy #1E3A8A
-  - climate, agriculture, sustainability, wellness   → forest / leaf green: #166534, #15803D, sage #4D7C0F
-  - healthcare, biotech, clean energy, water         → teal / mint: #0F766E, #0E7490, #047857
-  - creative agency, lifestyle, magazine, fashion    → muted rose / burgundy: #9F1239, #BE185D, dusty pink #BE123C
-  - kids, education, family, cookbook, classroom     → warm coral / mustard: #EA580C, #D97706, butter #CA8A04
-  - luxury, premium, hospitality, cosmetics          → deep gold / bronze: #B45309, #92400E, plum #6B21A8
-  - tech startup, AI, dev tools, gaming              → electric violet / cyan: #7C3AED, #6366F1, #06B6D4
-Pick ONE hex per deck and pass it as plan_deck.accent. Omit ONLY when the topic is genuinely ambiguous (e.g. an internal status update with no brand context). Every system honors the override: techno-bold / minimal-swiss / playful-creative swap their colored accent role; corporate-modern applies it to chrome only (eyebrows, markers, accent-bar — hero stays monochrome, which is the system's signature); editorial-warm inherits it via the palette's accent token.
+CHOOSING AN ACCENT (plan_deck.accent) — set \`accent\` to a 6-digit hex that fits the deck's specific brand or topic. Pick the color a designer would pick for THIS deck, not a generic industry default. Omit only when the topic is genuinely brand-ambiguous (e.g. an internal status update).
 
 IMAGES:
 - Do NOT use web search or arbitrary URLs. Only "attached:N" strings (user-attached images) or URLs from AnumaImageMCP-generate_cloud_image (generate 1–2 max first).
