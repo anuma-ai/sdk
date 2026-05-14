@@ -1661,9 +1661,9 @@ export const MINIMAL_SWISS: DesignSystem = {
         hero: { color: "#FAFAFA" },
         // Accent stays red — lighter shade (red-400) for legibility
         // on the black surface.
-        "hero-accent": { color: "#F87171" },
+        "hero-accent": { color: "#EF4444" },
         subtitle: { color: "#A3A3A3" },
-        eyebrow: { color: "#F87171" },
+        eyebrow: { color: "#EF4444" },
         body: { color: "#A3A3A3" },
         bullets: { color: "#A3A3A3" },
         "stat-display": { color: "#FAFAFA" },
@@ -1672,9 +1672,9 @@ export const MINIMAL_SWISS: DesignSystem = {
         "stat-value-small": { color: "#FAFAFA" },
         "stat-label": { color: "#A3A3A3" },
         quote: { color: "#FAFAFA" },
-        "quote-accent": { color: "#F87171" },
+        "quote-accent": { color: "#EF4444" },
         attribution: { color: "#FAFAFA" },
-        "card-eyebrow": { color: "#F87171" },
+        "card-eyebrow": { color: "#EF4444" },
         "card-title": { color: "#FAFAFA" },
         "card-body": { color: "#A3A3A3" },
         "chrome-left": { color: "#FAFAFA" },
