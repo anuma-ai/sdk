@@ -176,6 +176,25 @@ describe("parseJsx", () => {
     const style = node.attrs.style as Record<string, number>;
     expect(style.letterSpacing).toBe(-0.04);
   });
+
+  it("rejects lowercase typos in style keys with a suggestion", () => {
+    // React silently ignores `fontsize`, leaving the element to render
+    // at the default font size — an invisible bug. The parser should
+    // reject it with a hint pointing at `fontSize`.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontsize: 43 }}>Hi</Anuma.Text>`
+      )
+    ).toThrow(/fontsize.*fontSize/i);
+  });
+
+  it("rejects entirely unknown style keys", () => {
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ frobnicate: 12 }}>Hi</Anuma.Text>`
+      )
+    ).toThrow(/Unknown CSS-in-JS style key/);
+  });
 });
 
 describe("serializeJsx", () => {

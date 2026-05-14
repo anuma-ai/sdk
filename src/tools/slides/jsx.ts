@@ -313,6 +313,122 @@ const LEAF_TAGS = new Set<string>([
   "col",
 ]);
 
+/**
+ * Recognized CSS-in-JS property names for `style={{}}`. React itself
+ * accepts any camelCase key, but slide content benefits from rejecting
+ * lowercase typos (`fontsize` instead of `fontSize`) and accidental
+ * kebab-case (`font-size`) — those render as no-ops because React
+ * silently ignores unknown keys, and the error then surfaces as an
+ * invisible / mis-sized element rather than a parse failure. The set
+ * covers every key the catalog recipes and live tool flow actually
+ * emit; uncommon CSS properties are intentionally excluded so an
+ * unfamiliar key forces a deliberate addition here.
+ */
+const STYLE_ALLOWED_KEYS = new Set<string>([
+  "alignItems",
+  "alignSelf",
+  "background",
+  "backgroundColor",
+  "backgroundImage",
+  "backgroundPosition",
+  "backgroundRepeat",
+  "backgroundSize",
+  "border",
+  "borderColor",
+  "borderRadius",
+  "borderStyle",
+  "borderWidth",
+  "bottom",
+  "boxShadow",
+  "boxSizing",
+  "color",
+  "display",
+  "filter",
+  "flex",
+  "flexBasis",
+  "flexDirection",
+  "flexGrow",
+  "flexShrink",
+  "flexWrap",
+  "fontFamily",
+  "fontSize",
+  "fontStyle",
+  "fontVariant",
+  "fontWeight",
+  "gap",
+  "height",
+  "justifyContent",
+  "left",
+  "letterSpacing",
+  "lineHeight",
+  "listStyle",
+  "margin",
+  "marginBottom",
+  "marginLeft",
+  "marginRight",
+  "marginTop",
+  "maxHeight",
+  "maxWidth",
+  "minHeight",
+  "minWidth",
+  "objectFit",
+  "objectPosition",
+  "opacity",
+  "overflow",
+  "overflowX",
+  "overflowY",
+  "padding",
+  "paddingBottom",
+  "paddingLeft",
+  "paddingRight",
+  "paddingTop",
+  "position",
+  "right",
+  "textAlign",
+  "textDecoration",
+  "textTransform",
+  "top",
+  "transform",
+  "transformOrigin",
+  "verticalAlign",
+  "visibility",
+  "whiteSpace",
+  "width",
+  "wordBreak",
+  "wordSpacing",
+  "zIndex",
+]);
+
+/**
+ * Lookup table from lowercase variant back to the canonical camelCase
+ * key, used to produce "Did you mean 'fontSize'?" hints when the model
+ * writes `fontsize` or similar.
+ */
+const STYLE_KEY_LOWER_TO_CAMEL = new Map<string, string>(
+  Array.from(STYLE_ALLOWED_KEYS, (k) => [k.toLowerCase(), k])
+);
+
+/**
+ * Validate one key in a `style={{}}` object. Throws a helpful
+ * AnumaJsxError when the key isn't on the allowlist; suggests the
+ * camelCase form for common lowercase typos.
+ */
+function validateStyleKey(key: string, loc: SrcLoc): void {
+  if (STYLE_ALLOWED_KEYS.has(key)) return;
+  const lower = key.toLowerCase();
+  const suggestion = STYLE_KEY_LOWER_TO_CAMEL.get(lower);
+  if (suggestion && suggestion !== key) {
+    throw new AnumaJsxError(
+      `Unknown CSS-in-JS style key "${key}". Did you mean "${suggestion}"? React silently ignores unknown style keys, so this would render at the default value.`,
+      loc
+    );
+  }
+  throw new AnumaJsxError(
+    `Unknown CSS-in-JS style key "${key}". Recognized keys are camelCase CSS properties (fontSize, lineHeight, color, …). React silently ignores unknown keys, so this would render at the default value.`,
+    loc
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Parse: JSX string -> AnumaNode
 // ---------------------------------------------------------------------------
@@ -511,6 +627,7 @@ function readObjectExpr(
         loc
       );
     }
+    if (attrName === "style") validateStyleKey(key, loc);
     const v = prop.value;
     if (v.type === "StringLiteral") {
       out[key] = v.value;
