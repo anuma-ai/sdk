@@ -1046,6 +1046,176 @@ export const COVER_STATEMENT: LayoutComposition = {
 };
 
 // ---------------------------------------------------------------------------
+// PROBLEM_EVIDENCE — dark, stat-led problem statement. Wrapped multi-line
+// hero with an inline accent number, source citation directly under the
+// hero, and a 3-card row at the bottom where each card carries an
+// eyebrow / big stat / supporting body / source citation. The structure
+// signals "research-backed problem framing" — useful for investor decks
+// where the problem slide needs cited evidence, not just a vibe.
+// ---------------------------------------------------------------------------
+
+/**
+ * One stat card with eyebrow + big stat + body + source-citation footer.
+ * Used by PROBLEM_EVIDENCE for the bottom row. Inner padding 2% per side.
+ */
+function statCardCited(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  eyebrow: string,
+  stat: string,
+  body: string,
+  source: string
+): CompositionElement[] {
+  const px = 2;
+  return [
+    { id: `${id}_surface`, role: "card-surface", surface: "default", x, y, w, h },
+    {
+      id: `${id}_eyebrow`,
+      role: "card-eyebrow",
+      surface: "default",
+      x: x + px,
+      y: y + 2,
+      w: w - 2 * px,
+      h: 3,
+      fit: "single-line",
+      defaultText: eyebrow,
+    },
+    {
+      id: `${id}_stat`,
+      role: "stat-value-mid",
+      surface: "default",
+      x: x + px,
+      y: y + 5.5,
+      w: w - 2 * px,
+      h: 12,
+      fit: "single-line",
+      defaultText: stat,
+    },
+    {
+      id: `${id}_body`,
+      role: "card-body",
+      surface: "default",
+      x: x + px,
+      y: y + 18,
+      w: w - 2 * px,
+      h: 13,
+      fit: "multi-line",
+      defaultText: body,
+    },
+    {
+      id: `${id}_source`,
+      role: "stat-label",
+      surface: "default",
+      x: x + px,
+      y: y + h - 4,
+      w: w - 2 * px,
+      h: 3,
+      fit: "single-line",
+      defaultText: source,
+    },
+  ];
+}
+
+export const PROBLEM_EVIDENCE: LayoutComposition = {
+  name: "problem-evidence",
+  description:
+    "Dark research-backed problem slide. Section chrome top-left, a 3-line wrapped hero with an inline accent stat (a number embedded in the sentence), and a source-citation line directly under the hero. Three stat cards below — each with eyebrow / big stat / supporting body / source citation. For investor/credible problem framing where evidence has to carry the slide.",
+  surface: "dark",
+  elements: [
+    // Section chrome (top-left only — this composition uses a bottom-left
+    // brand chrome instead of the usual top-right page counter).
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 30,
+      h: 3,
+      fit: "single-line",
+      defaultText: "01 / PROBLEM",
+    },
+    // Multi-line hero — wraps naturally; the `*marker*` syntax around
+    // the number renders it as an inline italic-accent span ("62%" pops
+    // in the accent color). The whole sentence carries the headline stat
+    // rather than parking it in a separate display block.
+    {
+      id: "hero",
+      role: "hero",
+      x: 6,
+      y: 13,
+      w: 88,
+      h: 37,
+      fit: "multi-line",
+      defaultText:
+        "Engineering orgs spend *62%* of capacity on work that isn't shipping.",
+    },
+    // Source citation under the hero (mono uppercase, muted). The
+    // research-credibility signal — distinguishes this from a marketing
+    // pull-quote.
+    {
+      id: "hero_source",
+      role: "stat-label",
+      x: 6,
+      y: 52,
+      w: 88,
+      h: 3,
+      fit: "single-line",
+      defaultText: "STRIPE / HARRIS POLL DEVELOPER COEFFICIENT · N=1,003 · RE-VALIDATED 2024",
+    },
+    // Three evidence cards along the bottom. Each carries its own stat,
+    // a one-sentence interpretation, and a source citation footer.
+    ...statCardCited(
+      "card_1",
+      6,
+      58,
+      28,
+      34,
+      "THE TOIL",
+      "41%",
+      "Of senior eng capacity goes to bug triage and migration tickets.",
+      "GITHUB OCTOVERSE 2024"
+    ),
+    ...statCardCited(
+      "card_2",
+      36,
+      58,
+      28,
+      34,
+      "THE GAP",
+      "49%",
+      "Of issues stay open past 30 days — well-scoped, just under-prioritised.",
+      "LINEARB ENG. BENCHMARKS 2024"
+    ),
+    ...statCardCited(
+      "card_3",
+      66,
+      58,
+      28,
+      34,
+      "THE COST",
+      "$85B",
+      "Annual U.S. eng payroll spent on work an autonomous agent could complete.",
+      "BLS OEWS 2024 · INTERNAL MODEL"
+    ),
+    // Bottom-left brand chrome — small mono muted, anchors the deck
+    // identity at the page edge rather than at the top.
+    {
+      id: "footer",
+      role: "footer",
+      x: 6,
+      y: 95,
+      w: 60,
+      h: 3,
+      fit: "single-line",
+      defaultText: "FORGE AI · SERIES A · 02 / 16",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // MARKETING_GRID — a 2×2 card grid where each card declares its own surface
 // state independently. Exercises the multi-state surface flag: two cards
 // stay on the default ground, one card is dark, one is accent. Same
@@ -1978,7 +2148,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       id: "chrome_left",
       role: "chrome-left",
       x: 6,
-      y: 4,
+      y: 5,
       w: 30,
       h: 3,
       fit: "single-line",
@@ -1988,7 +2158,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       id: "chrome_right",
       role: "chrome-right",
       x: 70,
-      y: 4,
+      y: 5,
       w: 24,
       h: 3,
       fit: "single-line",
@@ -2121,7 +2291,7 @@ export const PEER_COMPARISON_TABLE: LayoutComposition = {
       id: "chrome_left",
       role: "chrome-left",
       x: 6,
-      y: 4,
+      y: 5,
       w: 30,
       h: 3,
       fit: "single-line",
@@ -2131,7 +2301,7 @@ export const PEER_COMPARISON_TABLE: LayoutComposition = {
       id: "chrome_right",
       role: "chrome-right",
       x: 70,
-      y: 4,
+      y: 5,
       w: 24,
       h: 3,
       fit: "single-line",
@@ -2737,6 +2907,7 @@ function joinTextChildren(children: unknown[]): string {
 const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
   COVER_STATEMENT,
+  PROBLEM_EVIDENCE,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
   MARKETING_GRID,
