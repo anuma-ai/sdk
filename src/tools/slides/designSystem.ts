@@ -1485,7 +1485,7 @@ const SWISS_SANS = "Work Sans";
 export const MINIMAL_SWISS: DesignSystem = {
   name: "minimal-swiss",
   useFor:
-    "design portfolios, architecture, museum/gallery, research showcases, premium editorial — International Style discipline: one neutral sans, extreme weight contrast, single red accent.",
+    "design portfolios, architecture, museum/gallery, research showcases, premium editorial — International Style discipline: heavy single sans throughout, pure black-on-white, one red word per headline as the canonical Swiss-poster accent.",
   defaultBackground: "#FFFFFF",
   accent: { base: "#DC2626", onDark: "#EF4444" },
   composition: {
@@ -4704,6 +4704,16 @@ export function listCompositionLayoutNames(): string[] {
  */
 export function listDesignSystemNames(): string[] {
   return ALL_SYSTEMS.map((s) => s.name);
+}
+
+/**
+ * Render the design-system catalog as a prompt-friendly block — one
+ * line per system with its name and `useFor` hint. The model picks the
+ * system at plan_deck time by reading this list and matching the
+ * deck's topic / register to one of the use cases.
+ */
+export function renderDesignSystemCatalog(): string {
+  return ALL_SYSTEMS.map(({ name, system }) => `- ${name} — ${system.useFor}`).join("\n");
 }
 
 /**

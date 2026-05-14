@@ -64,6 +64,7 @@ import {
   listCompositionDescriptions,
   listCompositionLayoutNames,
   listDesignSystemNames,
+  renderDesignSystemCatalog,
   renderCompositionLayoutRecipe,
   resolveCompositionLayout,
   validateSlotContent,
@@ -1431,10 +1432,8 @@ ${listCompositionDescriptions()
   .map((c) => `- ${c.name} — ${c.description}`)
   .join("\n")}
 
-Available design systems (pick ONE for the whole deck):
-${listDesignSystemNames()
-  .map((n) => `- ${n}`)
-  .join("\n")}
+Available design systems (pick ONE for the whole deck — match the deck's register / industry to a system's use case):
+${renderDesignSystemCatalog()}
 
 Form layout names by joining with "--". The full set of valid compound names:
 ${listCompositionLayoutNames()
