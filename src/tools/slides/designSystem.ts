@@ -896,6 +896,277 @@ export const TECHNO_BOLD: DesignSystem = {
 };
 
 // ---------------------------------------------------------------------------
+// CORPORATE_MODERN — restrained institutional system for enterprise SaaS,
+// financial services, consulting, board decks. Sans-serif throughout
+// (IBM Plex Sans + IBM Plex Mono), neutral slate palette with a deep
+// blue accent. The "signature move" is COLOR-based emphasis on the
+// hero-accent line (saturated slate-blue) — no italic, because corporate
+// decks read slant as informal. Generous letter-spacing on chrome,
+// modest weights (regular body, semibold display), and tight line-heights
+// on display copy keep the deck businesslike rather than editorial.
+// ---------------------------------------------------------------------------
+
+const PLEX = "IBM Plex Sans";
+const PLEX_MONO = "IBM Plex Mono";
+
+export const CORPORATE_MODERN: DesignSystem = {
+  name: "corporate-modern",
+  useFor:
+    "enterprise B2B, financial services, professional services, board decks — restrained institutional voice with clean sans typography.",
+  defaultBackground: "#FFFFFF",
+  composition: {
+    preferAsymmetric: false,
+    preferDarkVariants: false,
+  },
+  styles: {
+    // Hero: semibold (not extra-bold like techno-bold, not regular like
+    // editorial-warm). Tight letter-spacing. Reads as structured, not
+    // bombastic.
+    hero: {
+      fontFamily: PLEX,
+      fontSize: 6.0,
+      fontWeight: 600,
+      color: "#18181B",
+      lineHeight: 1.05,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    // Hero-accent: emphasis through WEIGHT only — same slate-900 as
+    // hero, but bolder (700 vs 600). The corporate restraint move:
+    // contrast through density, not color.
+    "hero-accent": {
+      fontFamily: PLEX,
+      fontSize: 6.0,
+      fontWeight: 700,
+      color: "#18181B",
+      lineHeight: 1.05,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    subtitle: {
+      fontFamily: PLEX,
+      fontSize: 2.0,
+      fontWeight: 500,
+      color: "#52525B",
+      lineHeight: 1.35,
+      align: "left",
+    },
+    eyebrow: {
+      fontFamily: PLEX_MONO,
+      fontSize: 1.1,
+      fontWeight: 500,
+      color: "#71717A",
+      textTransform: "uppercase",
+      letterSpacing: 0.12,
+      align: "left",
+    },
+    body: {
+      fontFamily: PLEX,
+      fontSize: 1.6,
+      fontWeight: 400,
+      color: "#3F3F46",
+      lineHeight: 1.55,
+      align: "left",
+    },
+    bullets: {
+      fontFamily: PLEX,
+      fontSize: 1.6,
+      fontWeight: 400,
+      color: "#3F3F46",
+      lineHeight: 1.6,
+      align: "left",
+    },
+    // Display stats — semibold (not extra-bold). Letter-spacing
+    // tightened slightly for cohesion with hero.
+    "stat-display": {
+      fontFamily: PLEX,
+      fontSize: 14,
+      fontWeight: 600,
+      color: "#18181B",
+      lineHeight: 1.0,
+      letterSpacing: -0.03,
+      align: "left",
+    },
+    "stat-value": {
+      fontFamily: PLEX,
+      fontSize: 8.5,
+      fontWeight: 600,
+      color: "#18181B",
+      lineHeight: 1.0,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "stat-value-mid": {
+      fontFamily: PLEX,
+      fontSize: 5.5,
+      fontWeight: 600,
+      color: "#18181B",
+      lineHeight: 1.0,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "stat-value-small": {
+      fontFamily: PLEX,
+      fontSize: 3.5,
+      fontWeight: 600,
+      color: "#18181B",
+      lineHeight: 1.0,
+      align: "left",
+    },
+    "stat-label": {
+      fontFamily: PLEX_MONO,
+      fontSize: 1.05,
+      fontWeight: 500,
+      color: "#71717A",
+      textTransform: "uppercase",
+      letterSpacing: 0.12,
+      align: "left",
+    },
+    quote: {
+      fontFamily: PLEX,
+      fontSize: 3.5,
+      fontWeight: 500,
+      color: "#18181B",
+      lineHeight: 1.3,
+      align: "left",
+    },
+    "quote-accent": {
+      fontFamily: PLEX,
+      fontSize: 3.5,
+      fontWeight: 500,
+      color: "#3F3F46",
+      lineHeight: 1.3,
+      align: "left",
+    },
+    attribution: {
+      fontFamily: PLEX,
+      fontSize: 1.4,
+      fontWeight: 500,
+      color: "#18181B",
+      align: "left",
+    },
+    "card-eyebrow": {
+      fontFamily: PLEX_MONO,
+      fontSize: 1.0,
+      fontWeight: 500,
+      color: "#3F3F46",
+      textTransform: "uppercase",
+      letterSpacing: 0.12,
+      align: "left",
+    },
+    "card-title": {
+      fontFamily: PLEX,
+      fontSize: 2.0,
+      fontWeight: 600,
+      color: "#18181B",
+      lineHeight: 1.25,
+      align: "left",
+    },
+    "card-body": {
+      fontFamily: PLEX,
+      fontSize: 1.45,
+      fontWeight: 400,
+      color: "#52525B",
+      lineHeight: 1.55,
+      align: "left",
+    },
+    "chrome-left": {
+      fontFamily: PLEX_MONO,
+      fontSize: 1.1,
+      fontWeight: 500,
+      color: "#3F3F46",
+      textTransform: "uppercase",
+      letterSpacing: 0.12,
+      align: "left",
+    },
+    "chrome-right": {
+      fontFamily: PLEX_MONO,
+      fontSize: 1.05,
+      fontWeight: 500,
+      color: "#71717A",
+      textTransform: "uppercase",
+      letterSpacing: 0.12,
+      align: "right",
+    },
+    footer: {
+      fontFamily: PLEX_MONO,
+      fontSize: 0.85,
+      fontWeight: 500,
+      color: "#71717A",
+      textTransform: "uppercase",
+      letterSpacing: 0.1,
+      align: "left",
+    },
+    // Shape roles — fontSize ignored; only color matters. Mid-slate
+    // for decorative accents — readable on white, doesn't compete with
+    // text. Pure-gray accent is the corporate identity move.
+    "card-surface": { fontFamily: PLEX, fontSize: 0, color: "#FAFAFA" },
+    divider: { fontFamily: PLEX, fontSize: 0, color: "#E4E4E7" },
+    "accent-bar": { fontFamily: PLEX, fontSize: 0, color: "#52525B" },
+    marker: { fontFamily: PLEX, fontSize: 0, color: "#52525B" },
+    image: { fontFamily: PLEX, fontSize: 0, color: "#F4F4F5" },
+  },
+  // Surface treatments — corporate dark goes slate-900; accent surface
+  // is slate-800 (a deep neutral, not a brand-color block). Emphasis
+  // stays monochrome on both.
+  surfaces: {
+    dark: {
+      background: "#18181B",
+      overrides: {
+        hero: { color: "#F4F4F5" },
+        // hero-accent matches hero color — emphasis comes from the
+        // role's 700 weight (vs hero's 600).
+        "hero-accent": { color: "#F4F4F5" },
+        subtitle: { color: "#A1A1AA" },
+        eyebrow: { color: "#D4D4D8" },
+        body: { color: "#D4D4D8" },
+        bullets: { color: "#D4D4D8" },
+        "stat-display": { color: "#F4F4F5" },
+        "stat-value": { color: "#F4F4F5" },
+        "stat-value-mid": { color: "#F4F4F5" },
+        "stat-value-small": { color: "#F4F4F5" },
+        "stat-label": { color: "#A1A1AA" },
+        quote: { color: "#F4F4F5" },
+        "quote-accent": { color: "#F4F4F5" },
+        attribution: { color: "#F4F4F5" },
+        "card-eyebrow": { color: "#D4D4D8" },
+        "card-title": { color: "#F4F4F5" },
+        "card-body": { color: "#A1A1AA" },
+        "chrome-left": { color: "#F4F4F5" },
+        "chrome-right": { color: "#A1A1AA" },
+        footer: { color: "#71717A" },
+        divider: { color: "#27272A" },
+        "accent-bar": { color: "#A1A1AA" },
+        marker: { color: "#A1A1AA" },
+      },
+    },
+    accent: {
+      background: "#27272A",
+      overrides: {
+        hero: { color: "#FFFFFF" },
+        "hero-accent": { color: "#FFFFFF" },
+        subtitle: { color: "#D4D4D8" },
+        eyebrow: { color: "#D4D4D8" },
+        body: { color: "#D4D4D8" },
+        bullets: { color: "#D4D4D8" },
+        "stat-display": { color: "#FFFFFF" },
+        "stat-value": { color: "#FFFFFF" },
+        "stat-value-mid": { color: "#FFFFFF" },
+        "stat-value-small": { color: "#FFFFFF" },
+        "stat-label": { color: "#D4D4D8" },
+        quote: { color: "#FFFFFF" },
+        "quote-accent": { color: "#FFFFFF" },
+        attribution: { color: "#FFFFFF" },
+        "card-eyebrow": { color: "#D4D4D8" },
+        "card-title": { color: "#FFFFFF" },
+        "card-body": { color: "#D4D4D8" },
+        footer: { color: "#D4D4D8" },
+      },
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Example composition — cover slide with text-left / image-right split
 // ---------------------------------------------------------------------------
 
@@ -3707,6 +3978,7 @@ const ALL_COMPOSITIONS: LayoutComposition[] = [
 const ALL_SYSTEMS: Array<{ name: string; system: DesignSystem }> = [
   { name: "editorial-warm", system: EDITORIAL_WARM },
   { name: "techno-bold", system: TECHNO_BOLD },
+  { name: "corporate-modern", system: CORPORATE_MODERN },
 ];
 
 /**

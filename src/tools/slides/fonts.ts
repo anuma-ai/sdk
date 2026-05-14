@@ -289,6 +289,12 @@ export const FONT_LIBRARY: FontSpec[] = [
     feel: "readable monospace — labels, eyebrows, code-feel chrome",
     weights: "400;500;700",
   },
+  {
+    name: "IBM Plex Mono",
+    category: "mono",
+    feel: "IBM corporate monospace — institutional precision, board decks",
+    weights: "400;500;600;700",
+  },
 
   // ── ACCENT (use for ONE word or a signature, not body copy) ────────────
   {

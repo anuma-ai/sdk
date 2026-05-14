@@ -23,6 +23,7 @@ import path from "node:path";
 import {
   AGENDA,
   BRAND_STORY_SPLIT,
+  CORPORATE_MODERN,
   COVER_SPLIT_PORTRAIT,
   COVER_STATEMENT,
   EDITORIAL_WARM,
@@ -72,6 +73,7 @@ const compositions: LayoutComposition[] = [
 const systems: Array<{ name: string; system: DesignSystem }> = [
   { name: "editorial-warm", system: EDITORIAL_WARM },
   { name: "techno-bold", system: TECHNO_BOLD },
+  { name: "corporate-modern", system: CORPORATE_MODERN },
 ];
 
 // Build one deck with every (composition × system) pair, grouped by
