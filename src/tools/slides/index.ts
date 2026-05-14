@@ -292,7 +292,7 @@ Call this FIRST — once — to set up the theme, title, slide count, and layout
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
   - slideCount: how many slides the deck will have (commit to a concrete number)
   - layouts: the subset of compound "<composition>--<system>" layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list, and every name must share the same "--<system>" suffix.
-  - accent (optional): a 6-digit hex like "#16A34A" to override the chosen system's default accent color across the whole deck. Use it when the topic suggests a specific brand hue (a fintech accent, a coffee brand's terracotta, a healthcare green). Omit to keep the system's curated default. Skip it for monochrome corporate-modern and palette-driven editorial-warm — those ignore overrides.
+  - accent: a 6-digit hex like "#1E40AF" — the brand accent color for the deck. ALWAYS set this to match the deck's topic (coffee → terracotta, fintech → indigo, climate → forest green; see CHOOSING AN ACCENT in the system prompt). Leaving it unset gives the system's generic default (blue / red / orange) which usually clashes with the topic. Skip ONLY for genuinely brand-ambiguous topics.
 
 The result contains the full <Anuma.*> element recipes ONLY for the layouts you named in \`layouts\`, plus <Anuma.*> tag schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
 
@@ -339,7 +339,7 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         type: "string",
         pattern: "^#[0-9A-Fa-f]{6}$",
         description:
-          "OPTIONAL accent color override as a 6-digit hex (e.g. '#16A34A' for green, '#7C3AED' for violet). When set, the system's default accent (used on hero-accent, eyebrow, markers, accent-bar, accent-surface bg) is swapped to this color across the deck — the dark-surface lightened variant is auto-derived. Pick a hue that matches the deck's brand or topic; omit to keep the system's curated default. No-op on monochrome systems (corporate-modern) and palette-driven systems (editorial-warm) — those ignore the override.",
+          "Brand accent color as a 6-digit hex. Almost every deck should set this — leaving it unset gives the system's generic default (often blue or red) which rarely fits a real topic. Read the user's topic and pick a hex a designer would pick for that industry: coffee/food → terracotta #C2410C, fintech → indigo #1E40AF, climate → forest #166534, healthcare → teal #0F766E, kids/education → warm orange #EA580C, luxury → gold #B45309. See the CHOOSING AN ACCENT block in the system prompt for the full mapping. Omit ONLY when the topic is genuinely brand-ambiguous (internal status update, generic example).",
       },
     },
     required: ["title", "fontPreset", "paletteName", "slideCount", "layouts"],
@@ -724,6 +724,10 @@ export function createSlideTools({
         // Initialize an empty deck with the chosen theme. The <Anuma.Deck>
         // root carries `fontPreset` + the nine palette colour tokens as
         // attrs — these are the theme, there's no nested theme object.
+        // If the model passed an accent override, swap the palette's accent
+        // token with it so palette-driven systems (editorial-warm) inherit
+        // the override too — their roles resolve color from the deck's
+        // `accent` attr at render time.
         const deck: AnumaNode = {
           tag: "Deck",
           attrs: {
@@ -734,7 +738,7 @@ export function createSlideTools({
             textPrimary: palette.colors.textPrimary,
             textSecondary: palette.colors.textSecondary,
             textMuted: palette.colors.textMuted,
-            accent: palette.colors.accent,
+            accent: accent ?? palette.colors.accent,
             card: palette.colors.card,
             border: palette.colors.border,
           },
@@ -763,7 +767,11 @@ export function createSlideTools({
 
 Theme: ${palette.name} (fontPreset: ${fontPreset})
 Palette colors (already applied to theme.colors):
-${renderPaletteColors(palette)}
+${renderPaletteColors(
+  accent
+    ? { ...palette, colors: { ...palette.colors, accent } }
+    : palette
+)}
 Planned slide count: ${slideCount} (call add_slide exactly ${slideCount} times).
 
 COORDINATE SYSTEM — container-relative pixels on a 960×540 slide canvas.
@@ -1444,6 +1452,17 @@ Tech → bold/techno. Business → geometric/clean. Culture → editorial/humani
 CHOOSING A PALETTE — don't default to dark grey + orange. Pick the register that matches the topic; plan_deck will inject its hex values for you. Don't invent new palettes unless the topic really demands it.
 
 ${renderPaletteNames()}
+
+CHOOSING AN ACCENT (plan_deck.accent) — ALWAYS set the \`accent\` arg on plan_deck to a 6-digit hex that fits the deck's topic. This is the brand-color knob; leaving it unset gives you the system's generic default (often blue or red), which is almost never the right choice for a real deck. Read the user's topic and pick a hex that a designer would pick for that industry / brand mood:
+  - coffee, leather, bakery, food, restaurant       → warm earthy: terracotta #C2410C, burnt orange #EA580C, espresso brown #78350F
+  - fintech, banking, insurance, B2B SaaS, security → trust blue / indigo: #1E40AF, #3730A3, navy #1E3A8A
+  - climate, agriculture, sustainability, wellness   → forest / leaf green: #166534, #15803D, sage #4D7C0F
+  - healthcare, biotech, clean energy, water         → teal / mint: #0F766E, #0E7490, #047857
+  - creative agency, lifestyle, magazine, fashion    → muted rose / burgundy: #9F1239, #BE185D, dusty pink #BE123C
+  - kids, education, family, cookbook, classroom     → warm coral / mustard: #EA580C, #D97706, butter #CA8A04
+  - luxury, premium, hospitality, cosmetics          → deep gold / bronze: #B45309, #92400E, plum #6B21A8
+  - tech startup, AI, dev tools, gaming              → electric violet / cyan: #7C3AED, #6366F1, #06B6D4
+Pick ONE hex per deck and pass it as plan_deck.accent. Omit ONLY when the topic is genuinely ambiguous (e.g. an internal status update with no brand context). Every system honors the override: techno-bold / minimal-swiss / playful-creative swap their colored accent role; corporate-modern applies it to chrome only (eyebrows, markers, accent-bar — hero stays monochrome, which is the system's signature); editorial-warm inherits it via the palette's accent token.
 
 IMAGES:
 - Do NOT use web search or arbitrary URLs. Only "attached:N" strings (user-attached images) or URLs from AnumaImageMCP-generate_cloud_image (generate 1–2 max first).

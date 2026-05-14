@@ -221,18 +221,25 @@ describe("plan_deck executor", () => {
     expect(content).not.toContain("#3B82F6");
   });
 
-  it("treats accent on monochrome systems as a no-op (recipes unchanged)", async () => {
-    // corporate-modern declares no accent — passing one shouldn't fail
-    // and shouldn't inject the hex into its recipes.
-    const result = (await getTool("plan_deck").executor!({
+  it("applies an accent override to palette-driven systems via the deck-level accent token", async () => {
+    // editorial-warm doesn't have an `accent` slot on the design system —
+    // its colors resolve through the deck's palette tokens. Setting
+    // plan_deck.accent overrides the deck-level accent token, which
+    // every editorial role using color="accent" picks up at render time.
+    const { store, storage } = makeStore();
+    const tools = createSlideTools({ getConversationId: () => "cid", storage });
+    const result = (await tools.find((t) => toolName(t) === "plan_deck")!.executor!({
       ...VALID_PLAN,
-      paletteName: "techno dark",
-      fontPreset: "techno",
-      layouts: ["cover-statement--corporate-modern"],
+      layouts: ["cover-split-portrait--editorial-warm"],
       accent: "#16A34A",
     })) as { content?: string; error?: string };
     expect(result.error).toBeUndefined();
-    expect(result.content ?? "").not.toContain("#16A34A");
+    // Deck wrapper's accent token is now the override.
+    const deck = parseJsx(store.get("slides.jsx")!);
+    expect(deck.attrs.accent).toBe("#16A34A");
+    // And it appears in the prompt's palette-colors block so the model
+    // sees what it'll resolve to.
+    expect(result.content ?? "").toContain("#16A34A");
   });
 
   it("refuses to overwrite an existing non-empty deck (state-machine guard)", async () => {

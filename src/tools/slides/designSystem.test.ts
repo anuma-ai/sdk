@@ -210,13 +210,16 @@ describe("applyAccent", () => {
     expect(themed.surfaces?.accent?.background).toBe("#16A34A");
   });
 
-  it("returns the input unchanged for monochrome systems (no accent)", () => {
-    expect(CORPORATE_MODERN.accent).toBeUndefined();
-    const themed = applyAccent(CORPORATE_MODERN, {
+  it("returns the input unchanged for palette-driven systems (no accent slot)", () => {
+    // EDITORIAL_WARM is palette-driven (colors resolve from deck tokens),
+    // not literal-hex like the colored systems, so applyAccent has
+    // nothing to swap and returns the input unchanged.
+    expect(EDITORIAL_WARM.accent).toBeUndefined();
+    const themed = applyAccent(EDITORIAL_WARM, {
       base: "#16A34A",
       onDark: "#4ADE80",
     });
-    expect(themed).toBe(CORPORATE_MODERN);
+    expect(themed).toBe(EDITORIAL_WARM);
   });
 
   it("does not mutate the input system", () => {
