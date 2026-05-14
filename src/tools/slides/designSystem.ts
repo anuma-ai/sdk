@@ -3832,10 +3832,33 @@ function emitMarker(el: CompositionElement, s: RoleStyle): string {
   return `<Anuma.Circle id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" />`;
 }
 
-function emitImage(el: CompositionElement, system: DesignSystem, state: SurfaceState): string {
-  // Placeholder color tracks the surface state so the image area stays
-  // visually coherent with the slide ground until we have real image
-  // generation.
+/**
+ * Sentinel placeholder emitted when compile() runs in `"sentinel"` mode
+ * (e.g. for recipes shipped to the model). The model is expected to
+ * replace this with a real image URL (attached:N or generated) or to
+ * remove the element entirely if no image is available. It is not a
+ * real URL by design — the previous `placehold.co` URL looked real
+ * enough that the model frequently copied it verbatim into production
+ * decks. add_slide validation rejects any slide JSX that still contains
+ * this string.
+ */
+export const IMAGE_PLACEHOLDER_SENTINEL = "REPLACE_WITH_IMAGE_OR_REMOVE";
+
+function emitImage(
+  el: CompositionElement,
+  system: DesignSystem,
+  state: SurfaceState,
+  imageSrcMode: "placeholder" | "sentinel"
+): string {
+  // Sentinel mode (recipes shipped to the model): emit an obvious
+  // not-a-URL string so the model knows to replace or remove.
+  if (imageSrcMode === "sentinel") {
+    const src = el.defaultSrc ?? IMAGE_PLACEHOLDER_SENTINEL;
+    return `<Anuma.Image id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} src="${escapeText(src)}" />`;
+  }
+  // Placeholder mode (catalog dumps for visual review): surface-aware
+  // placehold.co URL so the image area stays visually coherent with
+  // the slide ground.
   const isLight = state === "default";
   const bgHex = isLight ? "#E5E5E5" : (surfaceBackground(system, state) ?? "#1a1a1a");
   const fgHex = isLight ? "#9E9E9E" : "#3F3F3F";
@@ -4097,13 +4120,22 @@ function hslToHex(h: number, s: number, l: number): string {
  * Compile a composition + design system into a `<Anuma.Slide>` JSX string
  * ready to drop inside a `<Anuma.Deck>`. The deck wrapper supplies the
  * fontPreset and palette tokens that the role styles reference.
+ *
+ * `options.imageSrcMode` controls how `<Anuma.Image>` slots are filled:
+ *   - "placeholder" (default): emits a surface-tinted placehold.co URL,
+ *     useful for visual review of the catalog.
+ *   - "sentinel": emits the literal `REPLACE_WITH_IMAGE_OR_REMOVE`
+ *     string — used when the recipe is shipped to the model so it
+ *     swaps in a real image URL or drops the element entirely.
  */
 export function compile(
   composition: LayoutComposition,
   system: DesignSystem,
   fontPreset: { heading: string; body: string },
-  slideId?: string
+  slideId?: string,
+  options?: { imageSrcMode?: "placeholder" | "sentinel" }
 ): string {
+  const imageSrcMode = options?.imageSrcMode ?? "placeholder";
   const slideState: SurfaceState = composition.surface ?? "default";
   const lines: string[] = [];
   for (const child of composition.elements) {
@@ -4129,7 +4161,7 @@ export function compile(
         lines.push(emitCardSurface(el, system, elState));
         break;
       case "image":
-        lines.push(emitImage(el, system, elState));
+        lines.push(emitImage(el, system, elState, imageSrcMode));
         break;
       default:
         lines.push(emitText(el, s, fontPreset, system, elState));
@@ -4763,13 +4795,23 @@ export function renderCompositionLayoutRecipe(
   const resolved = resolveCompositionLayout(name);
   if (!resolved) return null;
   const system = accent ? applyAccent(resolved.system, accent) : resolved.system;
-  const slideJsx = compile(resolved.composition, system, fontPreset);
+  // sentinel mode: <Anuma.Image> slots ship with src="REPLACE_WITH_IMAGE_OR_REMOVE"
+  // so the model knows to swap in a real image URL or drop the element.
+  const slideJsx = compile(resolved.composition, system, fontPreset, undefined, {
+    imageSrcMode: "sentinel",
+  });
   const slots = describeComposition(resolved.composition, system, fontPreset);
+  const hasImage = resolved.composition.elements.some(
+    (e) => !isFlexRegion(e) && e.role === "image"
+  );
+  const imageNote = hasImage
+    ? `\n\nImage slots: <Anuma.Image src="${IMAGE_PLACEHOLDER_SENTINEL}"> is a placeholder. Replace src with a real URL (attached:N reference, or a URL from AnumaImageMCP-generate_cloud_image if that tool is in your tool list) OR remove the <Anuma.Image> element entirely if no image is available. Never ship the literal sentinel string.`
+    : "";
   return `${name} — ${resolved.composition.description}
 
 ${slots}
 
 Recipe (copy this slide JSX; substitute text content per slot — do not change x/y/w/h/style):
 
-${slideJsx}`;
+${slideJsx}${imageNote}`;
 }

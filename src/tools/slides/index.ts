@@ -63,6 +63,7 @@ import {
   compositionSlideBackground,
   listCompositionDescriptions,
   listCompositionLayoutNames,
+  IMAGE_PLACEHOLDER_SENTINEL,
   listDesignSystemNames,
   renderDesignSystemCatalog,
   renderCompositionLayoutRecipe,
@@ -846,6 +847,16 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
         }
         if (!slideJsx) {
           return { error: "slideJsx is required and must be a <Anuma.Slide> JSX fragment" };
+        }
+        // Recipe image slots ship with src="REPLACE_WITH_IMAGE_OR_REMOVE"
+        // (see designSystem.ts → IMAGE_PLACEHOLDER_SENTINEL). Reject any
+        // slide that copies the sentinel verbatim — the model must
+        // substitute a real image source or remove the <Anuma.Image>
+        // element entirely.
+        if (slideJsx.includes(IMAGE_PLACEHOLDER_SENTINEL)) {
+          return {
+            error: `slideJsx still contains the recipe placeholder "${IMAGE_PLACEHOLDER_SENTINEL}". Replace src with a real URL (attached:N reference or an AnumaImageMCP-generate_cloud_image URL if that tool is available) OR remove the <Anuma.Image> element entirely if you have no image for this slot.`,
+          };
         }
         let slide: AnumaNode;
         try {
