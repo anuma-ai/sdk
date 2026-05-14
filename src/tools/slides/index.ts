@@ -987,15 +987,24 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           }
 
           // Build a short usage hint the model can act on without reading
-          // the whole conversation back.
+          // the whole conversation back. While the deck is in progress,
+          // also list which plan layouts haven't been used yet so the
+          // model has a concrete target rather than just a count it can
+          // ignore.
           const usage = state?.layoutUsage ?? {};
           const usageSummary = Object.entries(usage)
             .map(([name, count]) => `${name}×${count}`)
             .join(", ");
+          const plannedLayouts = state?.plannedLayouts ?? [];
+          const unused = plannedLayouts.filter((n) => !(n in usage));
+          const varietyHint =
+            unused.length > 0
+              ? ` Unused from your plan: ${unused.join(", ")} — prefer one of these for the next slide.`
+              : "";
 
           const baseMessage =
             typeof remaining === "number" && remaining > 0
-              ? `Appended slide ${totalSlides} (${layout}). ${remaining} more to go (layouts so far: ${usageSummary}).`
+              ? `Appended slide ${totalSlides} (${layout}). ${remaining} more to go (layouts so far: ${usageSummary}).${varietyHint}`
               : typeof remaining === "number" && remaining === 0
                 ? `Appended slide ${totalSlides} (${layout}). Deck is complete (layouts used: ${usageSummary}).`
                 : `Appended slide ${totalSlides} (${layout}).`;
