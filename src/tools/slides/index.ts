@@ -1435,6 +1435,8 @@ ${renderDesignSystemCatalog()}
 
 Form layout names by joining a composition with a design system using "--" (e.g. "cover-split-portrait--editorial-warm"). plan_deck and add_slide reject unknown combinations.
 
+The "--<system>" suffix is the design-system name from the list above (${listDesignSystemNames().join(", ")}) — NOT a palette name. Palette names (from CHOOSING A PALETTE below) go in the separate \`paletteName\` arg; they are never valid as layout suffixes even when they look similar (e.g. the palette "humanist cream" is not a system; the closest system is "editorial-warm").
+
 Recipes are fully styled — copy verbatim and substitute slot text only.
 
 Layout variety: add_slide reports usage counts after each call. Prefer layouts you haven't used yet; use a layout more than twice only for structural repetition like chapter-break slides.
