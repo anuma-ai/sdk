@@ -780,7 +780,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 22,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ ATLAS ROASTERS",
+      defaultText: "ATLAS ROASTERS",
     },
     {
       id: "chrome_right",
@@ -909,7 +909,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 30,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ AEGIS",
+      defaultText: "AEGIS",
     },
     {
       id: "chrome_right",
@@ -1280,7 +1280,7 @@ export const MARKETING_GRID: LayoutComposition = {
       w: 30,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ 08 / OPERATIONS",
+      defaultText: "08 / OPERATIONS",
     },
     {
       id: "chrome_right",
@@ -1378,7 +1378,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 22,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ 01 / BRAND STORY",
+      defaultText: "01 / BRAND STORY",
     },
     {
       id: "chrome_right",
@@ -1749,7 +1749,7 @@ export const SURFACE_PAIR: LayoutComposition = {
       w: 22,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ 04 / UNIT ECONOMICS",
+      defaultText: "04 / UNIT ECONOMICS",
     },
     {
       id: "chrome_right",
@@ -1826,7 +1826,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 22,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ 03 / POSITIONING",
+      defaultText: "03 / POSITIONING",
     },
     {
       id: "chrome_right",
@@ -1999,7 +1999,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 30,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ 01 / BRAND STORY",
+      defaultText: "01 / BRAND STORY",
     },
     {
       id: "chrome_right",
@@ -2152,7 +2152,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       w: 30,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ 02 / MARKET",
+      defaultText: "02 / MARKET",
     },
     {
       id: "chrome_right",
@@ -2295,7 +2295,7 @@ export const PEER_COMPARISON_TABLE: LayoutComposition = {
       w: 30,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ 06 / FRANCHISE POLICY",
+      defaultText: "06 / FRANCHISE POLICY",
     },
     {
       id: "chrome_right",
