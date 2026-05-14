@@ -58,14 +58,9 @@ import {
   updateAttrs,
   walk,
 } from "./jsx";
-import {
-  getLayoutByName,
-  renderLayoutCatalog,
-  renderLayoutRecipes,
-  renderSharedHeader,
-} from "./layouts";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
 import {
+  compositionSlideBackground,
   listCompositionDescriptions,
   listCompositionLayoutNames,
   listDesignSystemNames,
@@ -296,9 +291,9 @@ Call this FIRST — once — to set up the theme, title, slide count, and layout
   - fontPreset: one of the font-preset keys
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
   - slideCount: how many slides the deck will have (commit to a concrete number)
-  - layouts: the subset of layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list.
+  - layouts: the subset of compound "<composition>--<system>" layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list, and every name must share the same "--<system>" suffix.
 
-The result contains the full <Anuma.*> element recipes ONLY for the layouts you named in \`layouts\`, plus the shared header pattern, <Anuma.*> tag schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
+The result contains the full <Anuma.*> element recipes ONLY for the layouts you named in \`layouts\`, plus <Anuma.*> tag schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
 
 After plan_deck, call add_slide ONCE PER SLIDE, in order, passing the slide as a <Anuma.Slide> JSX fragment, until you've appended slideCount slides. Each add_slide call reports how many slides remain, so you can track progress.
 
@@ -337,7 +332,7 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         items: { type: "string" },
         minItems: 1,
         description:
-          "Layout names (from the LAYOUT CATALOG) you plan to use across this deck. Pick a small, well-matched subset — typically 3–8 layouts for a deck of 10 slides. Each add_slide call must use a layout from this list; picking a layout outside it is rejected. Names are short kebab-case (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').",
+          "Compound layout names (from the LAYOUT CATALOG) you plan to use across this deck. Pick a small, well-matched subset — typically 3–8 layouts for a deck of 10 slides. Each name must be of the form '<composition>--<system>' (e.g. 'cover-split-portrait--editorial-warm'); every entry must share the same '--<system>' suffix so the deck stays in one visual identity. Each add_slide call must use a layout from this list; picking a layout outside it is rejected.",
       },
     },
     required: ["title", "fontPreset", "paletteName", "slideCount", "layouts"],
@@ -357,14 +352,20 @@ Example slideJsx:
     <Anuma.Text id="title" x={96} y={216} w={768} h={108} fontSize={58} fontRole="heading" fontWeight={700} color="textPrimary" align="center">Welcome</Anuma.Text>
   </Anuma.Slide>
 
-Include the shared header pattern on every content slide (skip on cover + section-dark chapter breaks).`,
+Each composition recipe already defines its own chrome (header/footer slots) — copy the recipe verbatim and fill the role-tagged slots; do not invent a separate "header pattern".`,
   arguments: {
     type: "object",
     properties: {
+      slideIndex: {
+        type: "integer",
+        description:
+          "1-based position of this slide in the deck (1 = cover, slideCount = last). REQUIRED when emitting multiple add_slide calls in parallel in one turn (the recommended pattern) — without it the parallel calls land in non-deterministic order. Resubmitting with the same slideIndex overwrites the slide at that position; omit only for serial single-slide flows.",
+        minimum: 1,
+      },
       layout: {
         type: "string",
         description:
-          "Name of the layout you're using for this slide — must be an exact kebab-case name from the LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered'). Rejected with a helpful error if unknown.",
+          "Name of the layout you're using for this slide — must be an exact compound '<composition>--<system>' name from the LAYOUT CATALOG (e.g. 'cover-split-portrait--editorial-warm'). Rejected with a helpful error if unknown.",
       },
       slideJsx: {
         type: "string",
@@ -642,9 +643,9 @@ export function createSlideTools({
         // add_slide later refuses to use anything outside this set.
         const layoutsRaw = args.layouts;
         if (!Array.isArray(layoutsRaw) || layoutsRaw.length === 0) {
+          const sample = listCompositionLayoutNames().slice(0, 3);
           return {
-            error:
-              "layouts is required and must be a non-empty array of layout names from the LAYOUT CATALOG (e.g. ['cover-bottom', 'text-bullets', 'takeaways-numbered']).",
+            error: `layouts is required and must be a non-empty array of composition layout names (e.g. ${JSON.stringify(sample)}).`,
           };
         }
         const plannedLayouts: string[] = [];
@@ -654,9 +655,7 @@ export function createSlideTools({
           if (typeof raw !== "string" || !raw) continue;
           if (seenLayouts.has(raw)) continue;
           seenLayouts.add(raw);
-          // A layout name is valid if it's either in the legacy catalog
-          // or registered as a composition × design-system pair.
-          if (!getLayoutByName(raw) && !resolveCompositionLayout(raw)) {
+          if (!resolveCompositionLayout(raw)) {
             badLayouts.push(raw);
             continue;
           }
@@ -664,12 +663,12 @@ export function createSlideTools({
         }
         if (badLayouts.length > 0) {
           return {
-            error: `Unknown layout name(s) in layouts: ${badLayouts.map((n) => JSON.stringify(n)).join(", ")}. Use short kebab-case names from the LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').`,
+            error: `Unknown layout name(s) in layouts: ${badLayouts.map((n) => JSON.stringify(n)).join(", ")}. Use a compound composition--system name from the LAYOUT CATALOG (e.g. 'cover-split-portrait--editorial-warm'). Bare composition names without a system suffix are rejected.`,
           };
         }
         if (plannedLayouts.length === 0) {
           return {
-            error: "layouts must contain at least one valid layout name from the LAYOUT CATALOG.",
+            error: "layouts must contain at least one valid composition layout name (e.g. 'cover-split-portrait--editorial-warm').",
           };
         }
 
@@ -750,36 +749,18 @@ COORDINATE SYSTEM — container-relative pixels on a 960×540 slide canvas.
 ELEMENT TAGS — every slide child is one of these <Anuma.*> elements (numeric attrs use {…}, string attrs quoted):
 ${renderElementKinds()}
 
-SHARED HEADER PATTERN — place on every content slide (skip on cover and chapter-break):
-${renderSharedHeader()}
-
 LAYOUT RECIPES — JSX recipes for the ${plannedLayouts.length} layout(s) you named in plan_deck. Each add_slide call must pick one of these; copy the element geometry and substitute your text:
 
-${(() => {
-  // Split planned layouts into legacy templates (rendered via
-  // renderLayoutRecipes) and composition×design-system pairs (rendered
-  // via renderCompositionLayoutRecipe). Each set produces its own block
-  // of recipes; concatenate.
-  const legacy: string[] = [];
-  const compositionLayouts: string[] = [];
-  for (const name of plannedLayouts) {
-    if (resolveCompositionLayout(name)) compositionLayouts.push(name);
-    else legacy.push(name);
-  }
-  const blocks: string[] = [];
-  if (legacy.length > 0) blocks.push(renderLayoutRecipes(legacy));
-  for (const name of compositionLayouts) {
-    const recipe = renderCompositionLayoutRecipe(name, FONT_PRESETS[fontPreset]!);
-    if (recipe) blocks.push(recipe);
-  }
-  return blocks.join("\n\n");
-})()}
+${plannedLayouts
+  .map((name) => renderCompositionLayoutRecipe(name, FONT_PRESETS[fontPreset]!))
+  .filter((r): r is string => r !== null)
+  .join("\n\n")}
 
 FONT LIBRARY — the theme already applies the fontPreset pairing (${fontPreset}) to every <Anuma.Text> element by default. Override per-element by setting fontFamily on <Anuma.Text> to any name from this library — reach for a display face on a hero title, or an accent script for a single signature word. Do NOT use accent fonts for body copy. Names validated on write; typos are rejected with a hint.
 
 ${renderFontLibrary()}
 
-NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_slide takes { layout: "<layout-name>", slideJsx: "<Anuma.Slide …>…</Anuma.Slide>" } and reports how many slides remain and which layouts you've used so far — use that feedback to keep layouts varied across the deck.`;
+NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes { slideIndex: <1..${slideCount}>, layout: "<layout-name>", slideJsx: "<Anuma.Slide …>…</Anuma.Slide>" }. Pass the correct slideIndex on every call so the deck ends up in the order you intend — parallel tool calls otherwise land in non-deterministic order. The response reports how many slides remain and which layouts you've used so far — use that feedback to keep layouts varied across the deck.`;
 
         return {
           content,
@@ -802,13 +783,18 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         const conversationId = requireConversationId();
         const layout = typeof args.layout === "string" ? args.layout : "";
         const slideJsx = typeof args.slideJsx === "string" ? args.slideJsx : "";
+        const slideIndexRaw = args.slideIndex;
+        const slideIndex =
+          typeof slideIndexRaw === "number" && Number.isInteger(slideIndexRaw) && slideIndexRaw >= 1
+            ? slideIndexRaw
+            : null;
 
         if (!layout) {
-          return { error: "layout is required (short kebab-case name from LAYOUT CATALOG)" };
+          return { error: "layout is required (compound composition--system name from LAYOUT CATALOG)" };
         }
-        if (!getLayoutByName(layout) && !resolveCompositionLayout(layout)) {
+        if (!resolveCompositionLayout(layout)) {
           return {
-            error: `Unknown layout '${layout}'. Use the short kebab-case name from LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered') or a design-system layout (e.g. 'cover-split-portrait--editorial-warm').`,
+            error: `Unknown layout '${layout}'. Use a compound composition--system name from the LAYOUT CATALOG (e.g. 'cover-split-portrait--editorial-warm'). Bare composition names without a system suffix are rejected.`,
           };
         }
         const priorState = deckStateByConv.get(conversationId);
@@ -835,29 +821,41 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         const fontError = validateFontFamilies(slide);
         if (fontError) return { error: fontError };
 
-        // Composition slot-budget check: when this is a design-system
-        // layout, reject content that overflows the slot's char budget so
-        // the model retries tighter copy instead of silently clipping at
-        // render time (e.g. a single-line hero box filling with a 2-line
-        // string and losing the second line under overflow:hidden).
-        const compositionResolved = resolveCompositionLayout(layout);
-        if (compositionResolved) {
-          const presetName = deckStateByConv.get(requireConversationId())?.fontPreset ?? "default";
-          const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
-          const slotIssues = validateSlotContent(
-            compositionResolved.composition,
-            compositionResolved.system,
-            fontPreset,
-            slide
-          );
-          if (slotIssues.length > 0) {
-            const list = slotIssues
-              .map((i) => `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`)
-              .join("\n");
-            return {
-              error: `Content overflows the layout's slot budget — shorten the copy in these slots and resubmit add_slide for this slide:\n${list}\nSingle-line slots must fit on one line. Multi-line slots have a total-char ceiling (charsPerLine × maxLines).`,
-            };
-          }
+        // Slot-budget check: reject content that overflows the slot's char
+        // budget so the model retries tighter copy instead of silently
+        // clipping at render time (e.g. a single-line hero box filling
+        // with a 2-line string and losing the second line under
+        // overflow:hidden). The layout is guaranteed resolvable here —
+        // validation rejected unknown names above.
+        const compositionResolved = resolveCompositionLayout(layout)!;
+        const presetName = deckStateByConv.get(requireConversationId())?.fontPreset ?? "default";
+        const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
+        const slotIssues = validateSlotContent(
+          compositionResolved.composition,
+          compositionResolved.system,
+          fontPreset,
+          slide
+        );
+        if (slotIssues.length > 0) {
+          const list = slotIssues
+            .map((i) => `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`)
+            .join("\n");
+          return {
+            error: `Content overflows the layout's slot budget — shorten the copy in these slots and resubmit add_slide for this slide:\n${list}\nSingle-line slots must fit on one line. Multi-line slots have a total-char ceiling (charsPerLine × maxLines).`,
+          };
+        }
+
+        // Force the composition's expected slide background regardless of
+        // whether the model copied it from the recipe. compositions with a
+        // "dark" surface use text colors that read against a dark ground
+        // (e.g. color="slideBg" for the cover hero) — if the slide ends
+        // up on the deck's light slideBg those lines render invisible.
+        const expectedBg = compositionSlideBackground(
+          compositionResolved.composition,
+          compositionResolved.system
+        );
+        if (expectedBg && typeof slide.attrs.background !== "string") {
+          slide.attrs.background = expectedBg;
         }
 
         // Serialize the read-modify-write so parallel add_slide tool calls
@@ -868,10 +866,44 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
             return { error: "No slides.jsx found. Call plan_deck first." };
           }
           const deck = parseJsx(file.content);
+          // A retry for the same slideIndex must replace, not duplicate.
+          if (slideIndex !== null) {
+            const sameIdx = deck.children.findIndex(
+              (c) =>
+                typeof c !== "string" &&
+                c.tag === "Slide" &&
+                typeof c.attrs.slideIndex === "number" &&
+                c.attrs.slideIndex === slideIndex
+            );
+            if (sameIdx >= 0) deck.children.splice(sameIdx, 1);
+          }
+          // Existing slide count after any retry-replacement removal.
+          const existingSlideCount = deck.children.filter(
+            (c) => typeof c !== "string" && c.tag === "Slide"
+          ).length;
+          // Auto-assign the next position when the model omits slideIndex
+          // (serial flows that rely on append order). Explicit indices
+          // win for parallel batches.
+          const finalIndex = slideIndex ?? existingSlideCount + 1;
+          slide.attrs.slideIndex = finalIndex;
           // Rewrite duplicate ids before merging so tree-wide id lookups
           // outside the tool (editor sidebar, renderer, etc.) stay safe.
           const renames = dedupeIds(collectIds(deck), slide);
           deck.children.push(slide);
+          // Sort children by slideIndex so the on-disk order is always
+          // the model's declared deck order, not the parallel-tool-call
+          // arrival order. Slides without a slideIndex sort to the end.
+          deck.children.sort((a, b) => {
+            const ai =
+              typeof a !== "string" && typeof a.attrs.slideIndex === "number"
+                ? a.attrs.slideIndex
+                : Number.POSITIVE_INFINITY;
+            const bi =
+              typeof b !== "string" && typeof b.attrs.slideIndex === "number"
+                ? b.attrs.slideIndex
+                : Number.POSITIVE_INFINITY;
+            return ai - bi;
+          });
           await storage.putFile(conversationId, SLIDES_FILE_PATH, serializeJsx(deck));
 
           // Update deck state: bump layout usage, compute remaining.
@@ -1287,7 +1319,7 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
  *
  * Instructs the LLM to call plan_deck once (picks title + palette +
  * fontPreset, initializes an empty slides.jsx, returns the full layout
- * recipes + element-type schemas + shared header + palette hex values),
+ * recipes + element-type schemas + palette hex values),
  * then call add_slide once per slide to append. Per-slide rounds keep
  * each tool-call stream small so slow / reasoning-heavy models can finish
  * within portal per-provider timeout ceilings.
@@ -1300,8 +1332,8 @@ export function buildSlideSystemPrompt(): string {
   return `You are a presentation design assistant. You produce polished slide decks as React-compatible JSX with positioned <Anuma.*> elements.
 
 WORKFLOW (initialize then add all slides at once):
-1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–19) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the JSX recipes for ONLY the layouts you named, plus the SHARED HEADER, element-tag schemas, coordinate-system notes, and palette hex values.
-2. APPEND — in your next assistant turn, emit all N add_slide calls in parallel (one per slide) with { layout: "<name>", slideJsx: "<Anuma.Slide id=\\"...\\">…children…</Anuma.Slide>" }. Design every slide up-front from the plan_deck recipes and dispatch them together — this cuts round-trips from N+1 to 2. layout MUST be one of the names you passed to plan_deck; using anything else is rejected.
+1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–19) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the JSX recipes for ONLY the layouts you named, plus element-tag schemas, coordinate-system notes, and palette hex values.
+2. APPEND — in your next assistant turn, emit all N add_slide calls in parallel (one per slide) with { slideIndex: <1-based position>, layout: "<name>", slideJsx: "<Anuma.Slide id=\\"...\\">…children…</Anuma.Slide>" }. Pass slideIndex = 1 for the cover, 2 for the second slide, and so on through slideCount. WITHOUT slideIndex the parallel calls land in the deck in non-deterministic order. Design every slide up-front from the plan_deck recipes and dispatch them together — this cuts round-trips from N+1 to 2. layout MUST be one of the names you passed to plan_deck; using anything else is rejected.
 
 For edits to an existing deck: read_slides (returns the deck as <Anuma.Deck> JSX) → patch_slides (replace_element / insert_element / remove_element / replace_slide / insert_slide / remove_slide / update_theme). No plan_deck needed for edits.
 
@@ -1352,9 +1384,7 @@ LAYOUT MODES — containers (Deck, Slide, Group) default to absolute positioning
 
 Never output code as text. Always use tools. Keep text responses to one or two sentences.
 
-LAYOUT CATALOG — pick layouts from one of two families. Default to COMPOSITION LAYOUTS (richer typography, role-tagged slots, fully styled recipes); only reach for a LEGACY LAYOUT when no composition matches the slide's intent.
-
-COMPOSITION LAYOUTS — formed by combining a composition (the content shape) with a design system (the visual identity). The layout name you pass to plan_deck and add_slide MUST be the compound form "<composition>--<system>". Bare composition names like "cover-split-portrait" without a system suffix are REJECTED. Across the whole deck pick ONE design system and apply it to every composition (don't mix "--${listDesignSystemNames().join('" and "--')}" in the same deck).
+LAYOUT CATALOG — every layout is formed by combining a composition (the content shape) with a design system (the visual identity). The layout name you pass to plan_deck and add_slide MUST be the compound form "<composition>--<system>". Bare composition names like "cover-split-portrait" without a system suffix are REJECTED. Across the whole deck pick ONE design system and apply it to every composition (don't mix "--${listDesignSystemNames().join('" and "--')}" in the same deck).
 
 Available compositions (pick by content shape):
 ${listCompositionDescriptions()
@@ -1371,11 +1401,7 @@ ${listCompositionLayoutNames()
   .map((n) => `- ${n}`)
   .join("\n")}
 
-Composition recipes are fully styled — copy verbatim and substitute slot text only.
-
-LEGACY LAYOUTS — older single-style templates. Use these only as a fallback when no composition fits. Each entry is "short-name — description".
-
-${renderLayoutCatalog()}
+Recipes are fully styled — copy verbatim and substitute slot text only.
 
 Layout variety: add_slide reports usage counts after each call. Prefer layouts you haven't used yet; use a layout more than twice only for structural repetition like chapter-break slides.
 

@@ -48,7 +48,7 @@ const VALID_PLAN = {
   fontPreset: "editorial",
   paletteName: "warm editorial",
   slideCount: 5,
-  layouts: ["cover-centered", "text-bullets"],
+  layouts: ["cover-split-portrait--editorial-warm", "brand-story-split--editorial-warm"],
 };
 
 /** Minimal valid <Anuma.Slide> with no children — reused across tests. */
@@ -78,13 +78,13 @@ describe("plan_deck executor", () => {
       fontPreset: "editorial",
       paletteName: "warm editorial",
       slideCount: 5,
-      layouts: ["cover-centered"],
+      layouts: ["cover-split-portrait--editorial-warm"],
     })) as { error?: string };
     expect(result.error).toMatch(/title is required/);
   });
 
   it("rejects when layouts is missing or empty", async () => {
-    for (const layouts of [undefined, [], "cover-centered", null]) {
+    for (const layouts of [undefined, [], "cover-split-portrait--editorial-warm", null]) {
       const result = (await getTool("plan_deck").executor!({
         ...VALID_PLAN,
         layouts,
@@ -98,7 +98,7 @@ describe("plan_deck executor", () => {
   it("rejects when layouts contains unknown names", async () => {
     const result = (await getTool("plan_deck").executor!({
       ...VALID_PLAN,
-      layouts: ["cover-centered", "not-a-layout", "another-bogus"],
+      layouts: ["cover-split-portrait--editorial-warm", "not-a-layout", "another-bogus"],
     })) as { error?: string };
     expect(result.error).toMatch(/Unknown layout name\(s\) in layouts/);
     expect(result.error).toContain('"not-a-layout"');
@@ -108,15 +108,15 @@ describe("plan_deck executor", () => {
   it("renders recipes only for the planned layouts, not the full catalog", async () => {
     const result = (await getTool("plan_deck").executor!({
       ...VALID_PLAN,
-      layouts: ["cover-centered", "text-bullets"],
+      layouts: ["cover-split-portrait--editorial-warm", "brand-story-split--editorial-warm"],
     })) as { content?: string };
     const content = result.content ?? "";
     // Planned layouts are present
-    expect(content).toContain("cover-centered");
-    expect(content).toContain("text-bullets");
-    // An unrelated layout is NOT rendered as a recipe heading
-    expect(content).not.toMatch(/^compare-two-panel —/m);
-    expect(content).not.toMatch(/^takeaways-numbered —/m);
+    expect(content).toContain("cover-split-portrait--editorial-warm");
+    expect(content).toContain("brand-story-split--editorial-warm");
+    // An unplanned compound layout is NOT rendered as a recipe heading
+    expect(content).not.toMatch(/^multi-stat-asymmetric--editorial-warm —/m);
+    expect(content).not.toMatch(/^peer-comparison-table--editorial-warm —/m);
   });
 
   it("rejects when fontPreset is unknown", async () => {
@@ -183,12 +183,11 @@ describe("plan_deck executor", () => {
     expect(result.content).toContain("fontPreset: bold");
   });
 
-  it("returns content with palette hex values, element tags, shared header, and layout recipes", async () => {
+  it("returns content with palette hex values, element tags, and layout recipes", async () => {
     const result = (await getTool("plan_deck").executor!(VALID_PLAN)) as { content?: string };
     const content = result.content ?? "";
     expect(content).toContain("#F3EEE5"); // palette hex
     expect(content).toContain("ELEMENT TAGS");
-    expect(content).toContain("SHARED HEADER PATTERN");
     expect(content).toContain("LAYOUT RECIPES");
     expect(content).toContain("NOW call add_slide");
   });
@@ -202,7 +201,7 @@ describe("plan_deck executor", () => {
     // Initialize + add one slide.
     await planDeck.executor!(VALID_PLAN);
     await addSlide.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: EMPTY_SLIDE_JSX,
     });
 
@@ -290,22 +289,22 @@ describe("add_slide executor", () => {
     const tools = createSlideTools({ getConversationId: () => "cid", storage });
     await tools.find((t) => toolName(t) === "plan_deck")!.executor!({
       ...VALID_PLAN,
-      layouts: ["cover-centered"],
+      layouts: ["cover-split-portrait--editorial-warm"],
     });
-    // "text-bullets" is a valid catalog name but not in this deck's plan.
+    // "brand-story-split--editorial-warm" is a valid catalog name but not in this deck's plan.
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "text-bullets",
+      layout: "brand-story-split--editorial-warm",
       slideJsx: EMPTY_SLIDE_JSX,
     })) as { error?: string };
     expect(result.error).toMatch(/not in the plan_deck layouts list/);
-    expect(result.error).toContain("'cover-centered'");
+    expect(result.error).toContain("'cover-split-portrait--editorial-warm'");
   });
 
   it("rejects when slideJsx is missing", async () => {
     const { storage } = makeStore();
     const tools = await initDeck(storage);
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
     })) as { error?: string };
     expect(result.error).toMatch(/slideJsx is required/);
   });
@@ -314,7 +313,7 @@ describe("add_slide executor", () => {
     const { storage } = makeStore();
     const tools = await initDeck(storage);
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: `<Anuma.Deck fontPreset="default" />`,
     })) as { error?: string };
     expect(result.error).toMatch(/Invalid slideJsx/);
@@ -324,7 +323,7 @@ describe("add_slide executor", () => {
     const { storage } = makeStore();
     const tools = await initDeck(storage);
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: `<Anuma.Slide id="s1"><this is broken`,
     })) as { error?: string };
     expect(result.error).toMatch(/Invalid slideJsx/);
@@ -334,7 +333,7 @@ describe("add_slide executor", () => {
     const { storage } = makeStore();
     const tools = createSlideTools({ getConversationId: () => "cid", storage });
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: EMPTY_SLIDE_JSX,
     })) as { error?: string };
     expect(result.error).toMatch(/Call plan_deck first/);
@@ -344,7 +343,7 @@ describe("add_slide executor", () => {
     const { store, storage } = makeStore();
     const tools = await initDeck(storage, undefined, 3);
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: slideJsxWithText({ slideId: "cover" }),
     })) as {
       success?: boolean;
@@ -357,11 +356,60 @@ describe("add_slide executor", () => {
     expect(result.slideIndex).toBe(0);
     expect(result.totalSlides).toBe(1);
     expect(result.remaining).toBe(2);
-    expect(result.layoutUsage).toEqual({ "cover-centered": 1 });
+    expect(result.layoutUsage).toEqual({ "cover-split-portrait--editorial-warm": 1 });
     const parsed = parseJsx(store.get("slides.jsx")!);
     const slides = slidesOf(parsed);
     expect(slides).toHaveLength(1);
     expect(getId(slides[0]!)).toBe("cover");
+  });
+
+  it("sorts slides by slideIndex regardless of insertion order (parallel-batch ordering)", async () => {
+    // Simulate parallel add_slide calls landing in reverse order: the
+    // last call (slideIndex=3) arrives first, then 1, then 2. The deck
+    // should end up in 1, 2, 3 order on disk.
+    const { store, storage } = makeStore();
+    const tools = await initDeck(storage, undefined, 3);
+    const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
+    await addSlide.executor!({
+      slideIndex: 3,
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="slide-c" />`,
+    });
+    await addSlide.executor!({
+      slideIndex: 1,
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="slide-a" />`,
+    });
+    await addSlide.executor!({
+      slideIndex: 2,
+      layout: "brand-story-split--editorial-warm",
+      slideJsx: `<Anuma.Slide id="slide-b" />`,
+    });
+    const deck = parseJsx(store.get("slides.jsx")!);
+    const slideIds = deck.children
+      .filter((c) => typeof c !== "string" && c.tag === "Slide")
+      .map((c) => (c as { attrs: { id?: unknown } }).attrs.id);
+    expect(slideIds).toEqual(["slide-a", "slide-b", "slide-c"]);
+  });
+
+  it("overwrites a slide when add_slide is retried with the same slideIndex", async () => {
+    const { store, storage } = makeStore();
+    const tools = await initDeck(storage, undefined, 3);
+    const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
+    await addSlide.executor!({
+      slideIndex: 1,
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="first-attempt" />`,
+    });
+    await addSlide.executor!({
+      slideIndex: 1,
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="retry" />`,
+    });
+    const deck = parseJsx(store.get("slides.jsx")!);
+    const slides = deck.children.filter((c) => typeof c !== "string" && c.tag === "Slide");
+    expect(slides).toHaveLength(1);
+    expect((slides[0] as { attrs: { id?: unknown } }).attrs.id).toBe("retry");
   });
 
   it("bumps layoutUsage and decrements remaining across multiple calls", async () => {
@@ -369,26 +417,26 @@ describe("add_slide executor", () => {
     const tools = await initDeck(storage, undefined, 3);
     const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
     await addSlide.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: `<Anuma.Slide id="s1" />`,
     });
     await addSlide.executor!({
-      layout: "text-bullets",
+      layout: "brand-story-split--editorial-warm",
       slideJsx: `<Anuma.Slide id="s2" />`,
     });
     const result = (await addSlide.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: `<Anuma.Slide id="s3" />`,
     })) as { remaining?: number; layoutUsage?: Record<string, number> };
     expect(result.remaining).toBe(0);
-    expect(result.layoutUsage).toEqual({ "cover-centered": 2, "text-bullets": 1 });
+    expect(result.layoutUsage).toEqual({ "cover-split-portrait--editorial-warm": 2, "brand-story-split--editorial-warm": 1 });
   });
 
   it("rejects an unknown fontFamily on any element", async () => {
     const { storage } = makeStore();
     const tools = await initDeck(storage);
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: slideJsxWithText({ fontFamily: "Comic Sans MS" }),
     })) as { error?: string };
     expect(result.error).toMatch(/Unknown fontFamily/);
@@ -399,7 +447,7 @@ describe("add_slide executor", () => {
     const { storage } = makeStore();
     const tools = await initDeck(storage);
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: slideJsxWithText({ fontFamily: "Bebas Neue" }),
     })) as { success?: boolean; error?: string };
     expect(result.error).toBeUndefined();
@@ -418,11 +466,11 @@ describe("add_slide executor", () => {
 
     const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
     await addSlide.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: `<Anuma.Slide id="s1" />`,
     });
     await addSlide.executor!({
-      layout: "text-bullets",
+      layout: "brand-story-split--editorial-warm",
       slideJsx: `<Anuma.Slide id="s2" />`,
     });
 
@@ -442,12 +490,12 @@ describe("add_slide executor", () => {
 
     // First slide claims id "title".
     await addSlide.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: slideJsxWithText({ slideId: "s1", textId: "title", text: "First" }),
     });
     // Second slide tries to claim id "title" again — should be renamed.
     const second = (await addSlide.executor!({
-      layout: "text-bullets",
+      layout: "brand-story-split--editorial-warm",
       slideJsx: slideJsxWithText({ slideId: "s2", textId: "title", text: "Second" }),
     })) as {
       success?: boolean;
@@ -471,11 +519,11 @@ describe("add_slide executor", () => {
     const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
 
     await addSlide.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: slideJsxWithText({ slideId: "s1", textId: "cover-title" }),
     });
     const second = (await addSlide.executor!({
-      layout: "text-bullets",
+      layout: "brand-story-split--editorial-warm",
       slideJsx: slideJsxWithText({ slideId: "s2", textId: "body-text" }),
     })) as { renamedIds?: unknown; message?: string };
     expect(second.renamedIds).toBeUndefined();
@@ -500,7 +548,7 @@ describe("patch_slides interaction_id fallback", () => {
     // plan_deck (deck_1), add one slide (deck_2)
     await tools.find((t) => toolName(t) === "plan_deck")!.executor!(VALID_PLAN);
     await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: `<Anuma.Slide id="s1" />`,
     });
 
@@ -552,7 +600,7 @@ describe("patch_slides JSX ops", () => {
     });
     await tools.find((t) => toolName(t) === "plan_deck")!.executor!(VALID_PLAN);
     await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: slideJsxWithText(),
     });
     return { store, storage, tools };
@@ -711,7 +759,7 @@ describe("read_slides", () => {
     const tools = createSlideTools({ getConversationId: () => "cid", storage });
     await tools.find((t) => toolName(t) === "plan_deck")!.executor!(VALID_PLAN);
     await tools.find((t) => toolName(t) === "add_slide")!.executor!({
-      layout: "cover-centered",
+      layout: "cover-split-portrait--editorial-warm",
       slideJsx: slideJsxWithText(),
     });
     const result = (await tools.find((t) => toolName(t) === "read_slides")!.executor!({})) as {

@@ -134,6 +134,14 @@ export interface DesignSystem {
   /** The role → style map for the default (light) surface. */
   styles: Record<ElementRole, RoleStyle>;
   /**
+   * Background color for the default (non-dark, non-accent) surface.
+   * Compositions emit this as the slide's `background=` so the system's
+   * literal-hex text colors stay readable even when the deck-level
+   * palette specifies a contrasting slideBg. Omit only if the system
+   * truly adapts to any backdrop.
+   */
+  defaultBackground?: string;
+  /**
    * Per-surface-state treatments. Each entry declares a background color
    * plus per-role overrides applied to elements sitting on that surface.
    * Roles not listed inherit base styles.
@@ -511,6 +519,11 @@ export const TECHNO_BOLD: DesignSystem = {
   name: "techno-bold",
   useFor:
     "product launches, dev tools, fintech, AI infrastructure — confident technical voice with high-contrast modern typography.",
+  // techno-bold uses literal hex for every role (color "#0A0A0A" etc.) —
+  // those don't read the deck's palette. Force the slide ground to a
+  // near-white surface so dark text stays legible even when the deck
+  // wrapper specifies a contrasting slideBg.
+  defaultBackground: "#FAFAFA",
   composition: {
     preferAsymmetric: true,
     preferDarkVariants: true,
@@ -2072,11 +2085,14 @@ function resolveStyle(
 
 /**
  * The fill color for the slide ground, or for a card-surface element,
- * under the given surface state. Returns null for "default" so the
- * caller can decide whether to omit the bg attribute entirely.
+ * under the given surface state. Falls back to `defaultBackground` for
+ * "default" state so compositions whose literal-hex text colors assume
+ * a specific surface stay readable regardless of the deck's slideBg.
+ * Returns null only if the system declares no default background and
+ * the state has no treatment.
  */
 function surfaceBackground(system: DesignSystem, state: SurfaceState): string | null {
-  if (state === "default") return null;
+  if (state === "default") return system.defaultBackground ?? null;
   return system.surfaces?.[state]?.background ?? "#1a1a1a";
 }
 
@@ -2457,6 +2473,21 @@ export function validateComposition(
     }
   }
   return issues;
+}
+
+/**
+ * The slide-level background the composition expects under its design
+ * system. Resolved from `composition.backgroundColor` (explicit override),
+ * then the system's surface treatment for the composition's surface state,
+ * then the system's `defaultBackground`. Returns null when the composition
+ * is happy to inherit the deck's slideBg.
+ */
+export function compositionSlideBackground(
+  composition: LayoutComposition,
+  system: DesignSystem
+): string | null {
+  if (composition.backgroundColor) return composition.backgroundColor;
+  return surfaceBackground(system, composition.surface ?? "default");
 }
 
 /**

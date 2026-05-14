@@ -21,6 +21,7 @@ import {
   createFileStore,
   dumpFiles,
   getDeck,
+  getServerToolSchemas,
   printResult,
   slidesOf,
   timedToolLoop,
@@ -158,5 +159,58 @@ describe("composition-layouts wire-in", () => {
     // The actual signal we care about: did the model pick at least one
     // composition layout on its own?
     expect(usedComp.length).toBeGreaterThan(0);
+  });
+
+  // Demo run: a richer deck across image-bearing layouts. Portal exposes
+  // AnumaImageMCP-generate_cloud_image server-side based on prompt context,
+  // so the model can populate image slots with real generated URLs instead
+  // of placehold.co rectangles. Bumped maxToolRounds because image MCP
+  // calls add round-trips before plan_deck/add_slide.
+  it("generates a 7-slide demo deck with real images", { timeout: 600_000 }, async () => {
+    const store = createFileStore();
+    const log: ToolCallLog[] = [];
+    const slideTools = createTestSlideTools(store).map((t) => wrapTool(t, log));
+    // Pull the real AnumaImageMCP tool schema from Portal so the model
+    // can generate cloud-hosted images. Portal executes the tool
+    // server-side when the model calls it; the schema-only entry on the
+    // client side just declares its existence to the LLM.
+    const imageSchemas = await getServerToolSchemas(["AnumaImageMCP-generate_cloud_image"]);
+    const tools = [...slideTools, ...imageSchemas];
+
+    const result = await timedToolLoop({
+      messages: makeMessages(
+        "Build a 7-slide investor pitch deck for a high-end electric vehicle startup called Volta Atelier. " +
+          "Cover, brand story, market opportunity with stats, founder quote, product showcase, competitive comparison, and a closing 'why now' moment. " +
+          "Use image-rich composition layouts where it fits the slide intent. " +
+          "For every image slot in the chosen layouts, FIRST call AnumaImageMCP-generate_cloud_image to produce a real, on-brand image URL (generate 4-5 max, share between slides), THEN reference those URLs in the slide JSX. " +
+          "Pick whichever design system best matches a premium automotive brand and apply it consistently across all slides.",
+        SYSTEM_PROMPT
+      ),
+      model: config.model,
+      baseUrl: config.baseUrl,
+      headers: { "X-API-Key": config.portalKey },
+      apiType: config.apiType,
+      tools,
+      toolChoice: "auto",
+      maxToolRounds: 30,
+    });
+
+    printResult(result);
+    dumpFiles(store, "composition-layouts-demo");
+    expect(result.error).toBeNull();
+    expect(store.has("slides.jsx")).toBe(true);
+
+    const deck = getDeck(store);
+    const slides = slidesOf(deck);
+    console.log(`\n  Demo deck: ${slides.length} slides`);
+
+    // Surface how many real image URLs (vs placeholders) ended up in the
+    // serialized deck — useful to confirm AnumaImageMCP actually fired.
+    const jsx = store.get("slides.jsx") ?? "";
+    const realImages = (jsx.match(/src="https?:\/\/(?!placehold\.co)[^"]+"/g) ?? []).length;
+    const placeholderImages = (jsx.match(/src="https?:\/\/placehold\.co\/[^"]+"/g) ?? []).length;
+    console.log(`    image URLs → ${realImages} real, ${placeholderImages} placeholder`);
+
+    expect(slides.length).toBeGreaterThanOrEqual(7);
   });
 });

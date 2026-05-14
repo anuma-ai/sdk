@@ -25,6 +25,61 @@ export { config, extractText, printResult, wrapTool, type ToolCallLog } from "..
 export { runToolLoop };
 export type { StepFinishEvent };
 
+import { config as _config } from "../setup.js";
+
+// ---------------------------------------------------------------------------
+// Portal server-tool schemas (e.g. AnumaImageMCP-generate_cloud_image)
+// ---------------------------------------------------------------------------
+
+export type ServerToolSchema = {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+};
+
+let cachedServerTools: ServerToolSchema[] | null = null;
+
+/**
+ * Fetch MCP tool schemas from Portal's `/api/v1/tools` endpoint and return
+ * the ones matching the given names. Portal executes the tools server-side
+ * when the model calls them — there is no client-side executor, so these
+ * schemas have no `executor` field. Cached for the test session.
+ */
+export async function getServerToolSchemas(names: string[]): Promise<ServerToolSchema[]> {
+  if (cachedServerTools) {
+    const nameSet = new Set(names);
+    return cachedServerTools.filter((t) => nameSet.has(t.function.name));
+  }
+  const res = await fetch(`${_config.baseUrl}/api/v1/tools`, {
+    headers: { "X-API-Key": _config.portalKey },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch server tools: ${res.status}`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  // Handle both response shapes: { checksum, tools: {...} } or flat { toolName: {...} }
+  const toolsMap = ("tools" in raw && typeof raw.tools === "object"
+    ? raw.tools
+    : raw) as Record<string, Record<string, unknown>>;
+  cachedServerTools = Object.values(toolsMap).map((t) => {
+    const schema = (t.schema ?? t) as {
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    };
+    return {
+      type: "function" as const,
+      function: {
+        name: schema.name,
+        description: schema.description,
+        parameters: schema.parameters,
+      },
+    };
+  });
+  console.log(`  Fetched ${cachedServerTools.length} server tools from portal`);
+  const nameSet = new Set(names);
+  const matched = cachedServerTools.filter((t) => nameSet.has(t.function.name));
+  console.log(`  Matched ${matched.length} tool(s) for: ${names.join(", ")}`);
+  return matched;
+}
+
 /**
  * Wrapper that times the tool loop, captures per-round info via
  * `onStepFinish`, and logs the total duration. Returns the raw tool-loop
