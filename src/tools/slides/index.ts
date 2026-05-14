@@ -1461,9 +1461,9 @@ ${renderPaletteNames()}
 CHOOSING AN ACCENT (plan_deck.accent) — set \`accent\` to a 6-digit hex that fits the deck's specific brand or topic. Pick the color a designer would pick for THIS deck, not a generic industry default. Omit only when the topic is genuinely brand-ambiguous (e.g. an internal status update).
 
 IMAGES:
-- Do NOT use web search or arbitrary URLs. Only "attached:N" strings (user-attached images) or URLs from AnumaImageMCP-generate_cloud_image (generate 1–2 max first).
-- Most decks should be text-only. If no images are available, omit image elements entirely.
-- With images: generate them FIRST, then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
+- Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaImageMCP-generate_cloud_image if available in your tool list). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.
+- Most decks should be text-only. If you have no real image source for a slot — no attached images AND no image-generation tool in your tool list — omit the <Anuma.Image> element entirely. Layout recipes ship images with src="REPLACE_WITH_IMAGE_OR_REMOVE"; add_slide rejects any slide that still contains that sentinel.
+- With images: generate them FIRST (1–2 max), then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
 
 ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.
 
