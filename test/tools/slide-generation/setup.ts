@@ -208,11 +208,26 @@ const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
 /**
  * Write all files from the store to disk for inspection. If slides.jsx is
- * present and parses as a SlideDeck, also emits a self-contained `index.html`
- * you can open in a browser to visually step through the deck, and refreshes
- * the top-level .output/index.html that links to every dumped deck.
+ * present, parses as a SlideDeck, AND has at least one Slide child, also
+ * emits a self-contained `index.html` you can open in a browser to step
+ * through the deck, and refreshes the top-level `.output/index.html`
+ * with a link to it.
+ *
+ * Decks that fail to parse, or that parse but contain zero slides
+ * (common when a test errors mid-flow before any add_slide lands —
+ * e.g. an SSE 503 from the upstream LLM), get a `FAILED.txt` written
+ * with the reason and are skipped from the top-level index so they
+ * don't masquerade as passing dumps.
+ *
+ * Callers can also pass `meta.error` to mark a dump as failed even
+ * when slides are present — useful when a test made it through some
+ * add_slide calls before erroring.
  */
-export function dumpFiles(store: FileStore, testName: string): string {
+export function dumpFiles(
+  store: FileStore,
+  testName: string,
+  meta?: { error?: string | null }
+): string {
   const dir = path.join(OUTPUT_DIR, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
   fs.mkdirSync(dir, { recursive: true });
   for (const [filePath, content] of store) {
@@ -222,11 +237,31 @@ export function dumpFiles(store: FileStore, testName: string): string {
   }
 
   const deck = tryGetDeck(store);
-  if (deck) {
-    const html = renderDeckToHtml(deck, testName);
-    fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
-    writeOutputIndex();
+  const slideCount = deck
+    ? deck.children.filter((c) => typeof c !== "string" && c.tag === "Slide").length
+    : 0;
+  const failureReasons: string[] = [];
+  if (meta?.error) failureReasons.push(`Test reported an error: ${meta.error}`);
+  if (!deck) failureReasons.push("slides.jsx was missing or unparseable");
+  else if (slideCount === 0)
+    failureReasons.push("Deck parsed but has zero <Anuma.Slide> children");
+
+  if (failureReasons.length > 0) {
+    fs.writeFileSync(
+      path.join(dir, "FAILED.txt"),
+      `Dump marked as failed by dumpFiles().\n\n${failureReasons.join("\n")}\n`,
+      "utf-8"
+    );
+    console.log(
+      `  Output written to ${path.relative(process.cwd(), dir)}/ (FAILED — skipped from index)`
+    );
+    return dir;
   }
+
+  // Happy path — render the deck preview and refresh the top-level index.
+  const html = renderDeckToHtml(deck!, testName);
+  fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
+  writeOutputIndex();
 
   console.log(`  Output written to ${path.relative(process.cwd(), dir)}/`);
   return dir;
