@@ -157,6 +157,21 @@ export interface DesignSystem {
     preferAsymmetric?: boolean;
     preferDarkVariants?: boolean;
   };
+  /**
+   * Optional accent color slot. Declares the system's default accent hex
+   * (`base`, used on light surfaces) plus its dark-surface variant
+   * (`onDark`, lightened so it stays legible against the dark
+   * background). When `applyAccent()` is called, it walks the system's
+   * `styles` and `surfaces` and substitutes any role color matching
+   * `base` with the override, and any matching `onDark` with the
+   * override's dark variant. Omit on monochrome systems (CORPORATE_MODERN)
+   * and palette-driven systems (EDITORIAL_WARM); their `applyAccent()`
+   * call is a no-op.
+   */
+  accent?: {
+    base: string;
+    onDark: string;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -649,6 +664,7 @@ export const TECHNO_BOLD: DesignSystem = {
   // near-white surface so dark text stays legible even when the deck
   // wrapper specifies a contrasting slideBg.
   defaultBackground: "#FAFAFA",
+  accent: { base: "#3B82F6", onDark: "#60A5FA" },
   composition: {
     preferAsymmetric: true,
     preferDarkVariants: true,
@@ -1194,6 +1210,7 @@ export const PLAYFUL_CREATIVE: DesignSystem = {
   useFor:
     "family, classroom, cookbook, lifestyle, parenting, kid-product, and any informal/cozy deck — single rounded humanist sans with a warm-orange accent; soft and friendly, never austere.",
   defaultBackground: "#FFFBEB",
+  accent: { base: "#EA580C", onDark: "#FB923C" },
   composition: {
     preferAsymmetric: false,
     preferDarkVariants: false,
@@ -1458,6 +1475,7 @@ export const MINIMAL_SWISS: DesignSystem = {
   useFor:
     "design portfolios, architecture, museum/gallery, research showcases, premium editorial — International Style discipline: one neutral sans, extreme weight contrast, single red accent.",
   defaultBackground: "#FFFFFF",
+  accent: { base: "#DC2626", onDark: "#EF4444" },
   composition: {
     preferAsymmetric: false,
     preferDarkVariants: false,
@@ -3938,6 +3956,132 @@ function emitCardSurface(el: CompositionElement, system: DesignSystem, state: Su
 }
 
 /**
+ * Return a copy of `system` with its declared accent (`system.accent`)
+ * swapped for `override`. Walks every `color` field in `styles` and in
+ * every surface's `overrides` map, plus surface backgrounds; substitutes
+ * any value equal to `system.accent.base` with `override.base` and any
+ * value equal to `system.accent.onDark` with `override.onDark`.
+ *
+ * Why a pre-compile rewrite vs a runtime token: keeps `DesignSystem` a
+ * flat literal-hex shape that's trivial to read in tests and dumps. The
+ * accent override is the one knob we expose; everything else stays
+ * curated.
+ *
+ * Pass-through behavior: if `system.accent` is undefined (monochrome or
+ * palette-driven systems) the input is returned unchanged.
+ */
+export function applyAccent(
+  system: DesignSystem,
+  override: { base: string; onDark?: string }
+): DesignSystem {
+  if (!system.accent) return system;
+  const oldBase = system.accent.base.toLowerCase();
+  const oldDark = system.accent.onDark.toLowerCase();
+  const newBase = override.base;
+  const newDark = override.onDark ?? lightenForDarkSurface(override.base);
+  const swap = (c: string | undefined): string | undefined => {
+    if (!c) return c;
+    const k = c.toLowerCase();
+    if (k === oldBase) return newBase;
+    if (k === oldDark) return newDark;
+    return c;
+  };
+  const rewriteStyle = (style: RoleStyle): RoleStyle => {
+    const next = swap(style.color) ?? style.color;
+    return next === style.color ? style : { ...style, color: next };
+  };
+  const rewriteStyles = (
+    map: Record<string, RoleStyle>
+  ): Record<string, RoleStyle> => {
+    const out: Record<string, RoleStyle> = {};
+    for (const [k, v] of Object.entries(map)) out[k] = rewriteStyle(v);
+    return out;
+  };
+  const rewriteOverrides = (
+    map: SurfaceTreatment["overrides"]
+  ): SurfaceTreatment["overrides"] => {
+    const out: SurfaceTreatment["overrides"] = {};
+    for (const [k, v] of Object.entries(map)) {
+      if (v && typeof v === "object" && "color" in v) {
+        const next = swap(v.color);
+        out[k as ElementRole] = next === v.color ? v : { ...v, color: next };
+      } else {
+        out[k as ElementRole] = v;
+      }
+    }
+    return out;
+  };
+  const surfaces: DesignSystem["surfaces"] = system.surfaces
+    ? Object.fromEntries(
+        Object.entries(system.surfaces).map(([k, t]) => [
+          k,
+          {
+            background: swap(t.background) ?? t.background,
+            overrides: rewriteOverrides(t.overrides),
+          },
+        ])
+      )
+    : undefined;
+  return {
+    ...system,
+    styles: rewriteStyles(system.styles) as DesignSystem["styles"],
+    surfaces,
+    accent: { base: newBase, onDark: newDark },
+  };
+}
+
+/**
+ * Lighten a hex color in HSL space — bumps L by ~22 points (clamped at
+ * 0.78) so an arbitrary accent stays legible on a dark surface. Used as
+ * the default when `applyAccent` is called without an explicit `onDark`,
+ * which is the typical LLM call ("here's one hex, you figure out the
+ * dark variant").
+ */
+function lightenForDarkSurface(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return hslToHex(h, s, Math.min(0.78, l + 0.22));
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+  if (hp < 1) [r1, g1, b1] = [c, x, 0];
+  else if (hp < 2) [r1, g1, b1] = [x, c, 0];
+  else if (hp < 3) [r1, g1, b1] = [0, c, x];
+  else if (hp < 4) [r1, g1, b1] = [0, x, c];
+  else if (hp < 5) [r1, g1, b1] = [x, 0, c];
+  else [r1, g1, b1] = [c, 0, x];
+  const m = l - c / 2;
+  const to255 = (v: number) =>
+    Math.round((v + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${to255(r1)}${to255(g1)}${to255(b1)}`.toUpperCase();
+}
+
+/**
  * Compile a composition + design system into a `<Anuma.Slide>` JSX string
  * ready to drop inside a `<Anuma.Deck>`. The deck wrapper supplies the
  * fontPreset and palette tokens that the role styles reference.
@@ -4524,6 +4668,8 @@ const ALL_SYSTEMS: Array<{ name: string; system: DesignSystem }> = [
   { name: "editorial-warm", system: EDITORIAL_WARM },
   { name: "techno-bold", system: TECHNO_BOLD },
   { name: "corporate-modern", system: CORPORATE_MODERN },
+  { name: "minimal-swiss", system: MINIMAL_SWISS },
+  { name: "playful-creative", system: PLAYFUL_CREATIVE },
 ];
 
 /**
@@ -4581,15 +4727,22 @@ export function resolveCompositionLayout(
  * its own text in each slot. The recipe is the compile() output run
  * through the chosen design system, so it already has correct
  * coordinates, colors, fonts — the model only changes text content.
+ *
+ * When `accent` is provided, the system's accent color family is
+ * swapped via `applyAccent()` before compile, so the recipe carries the
+ * model's chosen hue. No-op for systems without an accent slot
+ * (CORPORATE_MODERN, EDITORIAL_WARM).
  */
 export function renderCompositionLayoutRecipe(
   name: string,
-  fontPreset: { heading: string; body: string }
+  fontPreset: { heading: string; body: string },
+  accent?: { base: string; onDark?: string }
 ): string | null {
   const resolved = resolveCompositionLayout(name);
   if (!resolved) return null;
-  const slideJsx = compile(resolved.composition, resolved.system, fontPreset);
-  const slots = describeComposition(resolved.composition, resolved.system, fontPreset);
+  const system = accent ? applyAccent(resolved.system, accent) : resolved.system;
+  const slideJsx = compile(resolved.composition, system, fontPreset);
+  const slots = describeComposition(resolved.composition, system, fontPreset);
   return `${name} — ${resolved.composition.description}
 
 ${slots}

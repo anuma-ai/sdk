@@ -292,6 +292,7 @@ Call this FIRST — once — to set up the theme, title, slide count, and layout
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
   - slideCount: how many slides the deck will have (commit to a concrete number)
   - layouts: the subset of compound "<composition>--<system>" layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list, and every name must share the same "--<system>" suffix.
+  - accent (optional): a 6-digit hex like "#16A34A" to override the chosen system's default accent color across the whole deck. Use it when the topic suggests a specific brand hue (a fintech accent, a coffee brand's terracotta, a healthcare green). Omit to keep the system's curated default. Skip it for monochrome corporate-modern and palette-driven editorial-warm — those ignore overrides.
 
 The result contains the full <Anuma.*> element recipes ONLY for the layouts you named in \`layouts\`, plus <Anuma.*> tag schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
 
@@ -333,6 +334,12 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         minItems: 1,
         description:
           "Compound layout names (from the LAYOUT CATALOG) you plan to use across this deck. Pick a small, well-matched subset — typically 3–8 layouts for a deck of 10 slides. Each name must be of the form '<composition>--<system>' (e.g. 'cover-split-portrait--editorial-warm'); every entry must share the same '--<system>' suffix so the deck stays in one visual identity. Each add_slide call must use a layout from this list; picking a layout outside it is rejected.",
+      },
+      accent: {
+        type: "string",
+        pattern: "^#[0-9A-Fa-f]{6}$",
+        description:
+          "OPTIONAL accent color override as a 6-digit hex (e.g. '#16A34A' for green, '#7C3AED' for violet). When set, the system's default accent (used on hero-accent, eyebrow, markers, accent-bar, accent-surface bg) is swapped to this color across the deck — the dark-surface lightened variant is auto-derived. Pick a hue that matches the deck's brand or topic; omit to keep the system's curated default. No-op on monochrome systems (corporate-modern) and palette-driven systems (editorial-warm) — those ignore the override.",
       },
     },
     required: ["title", "fontPreset", "paletteName", "slideCount", "layouts"],
@@ -574,6 +581,12 @@ export function createSlideTools({
     plannedLayouts: string[];
     /** plan_deck's fontPreset — required to compute composition slot budgets. */
     fontPreset: string;
+    /**
+     * Optional accent color override (hex) the model passed at plan_deck.
+     * Persisted so future recipes / patch flows can reapply it. Undefined
+     * = use each system's curated default.
+     */
+    accent?: string;
     layoutUsage: Record<string, number>;
   }
   const deckStateByConv = new Map<string, DeckState>();
@@ -635,6 +648,18 @@ export function createSlideTools({
           return {
             error: `slideCount must be an integer between 3 and 19 (got ${JSON.stringify(slideCountRaw)}).`,
           };
+        }
+
+        // Optional accent override — a single 6-digit hex string. The
+        // dark-surface variant is auto-derived inside applyAccent().
+        let accent: string | undefined;
+        if (args.accent !== undefined && args.accent !== null && args.accent !== "") {
+          if (typeof args.accent !== "string" || !/^#[0-9A-Fa-f]{6}$/.test(args.accent)) {
+            return {
+              error: `accent must be a 6-digit hex color (e.g. '#16A34A'); got ${JSON.stringify(args.accent)}.`,
+            };
+          }
+          accent = args.accent.toUpperCase();
         }
 
         // Validate and dedupe the layouts list. Each name must resolve in
@@ -730,6 +755,7 @@ export function createSlideTools({
           slideCount,
           plannedLayouts,
           fontPreset,
+          accent,
           layoutUsage: {},
         });
 
@@ -752,7 +778,13 @@ ${renderElementKinds()}
 LAYOUT RECIPES — JSX recipes for the ${plannedLayouts.length} layout(s) you named in plan_deck. Each add_slide call must pick one of these; copy the element geometry and substitute your text:
 
 ${plannedLayouts
-  .map((name) => renderCompositionLayoutRecipe(name, FONT_PRESETS[fontPreset]!))
+  .map((name) =>
+    renderCompositionLayoutRecipe(
+      name,
+      FONT_PRESETS[fontPreset]!,
+      accent ? { base: accent } : undefined
+    )
+  )
   .filter((r): r is string => r !== null)
   .join("\n\n")}
 

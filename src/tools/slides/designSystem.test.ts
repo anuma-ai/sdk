@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   AGENDA,
   BRAND_STORY_SPLIT,
+  CORPORATE_MODERN,
   EDITORIAL_WARM,
+  MINIMAL_SWISS,
+  applyAccent,
   compile,
   isFlexRegion,
   validateSlotContent,
@@ -166,5 +169,85 @@ describe("compile() with flex regions", () => {
     // Cast to discard the rest of the union for the type assertion below.
     const _typed: LayoutComposition["elements"][number] = agendaRegion!;
     expect(_typed).toBeTruthy();
+  });
+});
+
+describe("applyAccent", () => {
+  it("swaps the base accent across all role styles", () => {
+    // Swiss's base accent is #DC2626; eyebrow, hero-accent, marker, etc.
+    // all use it.
+    expect(MINIMAL_SWISS.accent?.base).toBe("#DC2626");
+    const themed = applyAccent(MINIMAL_SWISS, {
+      base: "#16A34A",
+      onDark: "#4ADE80",
+    });
+    expect(themed.styles.eyebrow.color).toBe("#16A34A");
+    expect(themed.styles["hero-accent"].color).toBe("#16A34A");
+    expect(themed.styles.marker.color).toBe("#16A34A");
+    expect(themed.styles["accent-bar"].color).toBe("#16A34A");
+    // Non-accent roles are untouched.
+    expect(themed.styles.hero.color).toBe(MINIMAL_SWISS.styles.hero.color);
+    expect(themed.styles.body.color).toBe(MINIMAL_SWISS.styles.body.color);
+  });
+
+  it("swaps the dark-surface accent variant on dark overrides", () => {
+    const themed = applyAccent(MINIMAL_SWISS, {
+      base: "#16A34A",
+      onDark: "#4ADE80",
+    });
+    expect(themed.surfaces?.dark?.overrides["hero-accent"]?.color).toBe("#4ADE80");
+    expect(themed.surfaces?.dark?.overrides.eyebrow?.color).toBe("#4ADE80");
+  });
+
+  it("swaps the accent-surface background when it matches the base accent", () => {
+    // Swiss's accent surface bg IS its accent color #DC2626 — swap to
+    // green and the bg becomes green.
+    expect(MINIMAL_SWISS.surfaces?.accent?.background).toBe("#DC2626");
+    const themed = applyAccent(MINIMAL_SWISS, {
+      base: "#16A34A",
+      onDark: "#4ADE80",
+    });
+    expect(themed.surfaces?.accent?.background).toBe("#16A34A");
+  });
+
+  it("returns the input unchanged for monochrome systems (no accent)", () => {
+    expect(CORPORATE_MODERN.accent).toBeUndefined();
+    const themed = applyAccent(CORPORATE_MODERN, {
+      base: "#16A34A",
+      onDark: "#4ADE80",
+    });
+    expect(themed).toBe(CORPORATE_MODERN);
+  });
+
+  it("does not mutate the input system", () => {
+    const before = MINIMAL_SWISS.styles.eyebrow.color;
+    applyAccent(MINIMAL_SWISS, { base: "#16A34A", onDark: "#4ADE80" });
+    expect(MINIMAL_SWISS.styles.eyebrow.color).toBe(before);
+  });
+
+  it("records the new accent pair on the returned system", () => {
+    const themed = applyAccent(MINIMAL_SWISS, {
+      base: "#16A34A",
+      onDark: "#4ADE80",
+    });
+    expect(themed.accent).toEqual({ base: "#16A34A", onDark: "#4ADE80" });
+  });
+
+  it("auto-derives onDark via HSL lightening when caller passes only base", () => {
+    // Typical LLM call: one hex, let us pick the dark-surface variant.
+    const themed = applyAccent(MINIMAL_SWISS, { base: "#16A34A" });
+    expect(themed.accent?.base).toBe("#16A34A");
+    // The derived onDark should differ from base, be a valid hex, and
+    // land on a lighter color (higher mean channel value).
+    const derived = themed.accent!.onDark;
+    expect(derived).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(derived.toLowerCase()).not.toBe("#16a34a");
+    const meanOf = (h: string) => {
+      const n = parseInt(h.slice(1), 16);
+      return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255);
+    };
+    expect(meanOf(derived)).toBeGreaterThan(meanOf("#16A34A"));
+    // The derived value is also applied on the dark surface override.
+    expect(themed.surfaces?.dark?.overrides["hero-accent"]?.color).toBe(derived);
   });
 });

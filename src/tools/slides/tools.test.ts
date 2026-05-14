@@ -192,6 +192,49 @@ describe("plan_deck executor", () => {
     expect(content).toContain("NOW call add_slide");
   });
 
+  it("rejects accent that isn't a 6-digit hex", async () => {
+    for (const accent of ["green", "#abc", "#GGGGGG", "rgb(0,0,0)", 123]) {
+      const result = (await getTool("plan_deck").executor!({
+        ...VALID_PLAN,
+        accent,
+      })) as { error?: string };
+      expect(result.error, `accent=${JSON.stringify(accent)}`).toMatch(
+        /accent must be a 6-digit hex/
+      );
+    }
+  });
+
+  it("applies an accent override to a colored system's recipes", async () => {
+    // techno-bold's default accent is #3B82F6 (blue). Pass green and it
+    // should be swapped throughout the recipes.
+    const result = (await getTool("plan_deck").executor!({
+      ...VALID_PLAN,
+      paletteName: "techno dark",
+      fontPreset: "techno",
+      layouts: ["cover-statement--techno-bold", "brand-story-split--techno-bold"],
+      accent: "#16A34A",
+    })) as { content?: string; error?: string };
+    expect(result.error).toBeUndefined();
+    const content = result.content ?? "";
+    expect(content).toContain("#16A34A");
+    // The system's default blue accent (#3B82F6) is gone from recipes.
+    expect(content).not.toContain("#3B82F6");
+  });
+
+  it("treats accent on monochrome systems as a no-op (recipes unchanged)", async () => {
+    // corporate-modern declares no accent — passing one shouldn't fail
+    // and shouldn't inject the hex into its recipes.
+    const result = (await getTool("plan_deck").executor!({
+      ...VALID_PLAN,
+      paletteName: "techno dark",
+      fontPreset: "techno",
+      layouts: ["cover-statement--corporate-modern"],
+      accent: "#16A34A",
+    })) as { content?: string; error?: string };
+    expect(result.error).toBeUndefined();
+    expect(result.content ?? "").not.toContain("#16A34A");
+  });
+
   it("refuses to overwrite an existing non-empty deck (state-machine guard)", async () => {
     const { storage } = makeStore();
     const tools = createSlideTools({ getConversationId: () => "cid", storage });
