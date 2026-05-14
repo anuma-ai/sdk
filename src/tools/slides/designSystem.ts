@@ -780,7 +780,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 22,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ EMBER & LEAF",
+      defaultText: "◆ ATLAS ROASTERS",
     },
     {
       id: "chrome_right",
@@ -801,7 +801,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 40,
       h: 3,
       fit: "single-line",
-      defaultText: "FRANCHISE PARTNER PROSPECTUS",
+      defaultText: "WHOLESALE PARTNER PACKET",
     },
     // Hero — three positioned lines, each its own slot. Each slot's box
     // height (h) must be ≥ fontSize × 100 / canvas_h to avoid glyph
@@ -816,7 +816,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 40,
       h: 14,
       fit: "single-line",
-      defaultText: "Build a",
+      defaultText: "Beans from",
     },
     {
       id: "hero_2",
@@ -826,7 +826,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 40,
       h: 14,
       fit: "single-line",
-      defaultText: "teahouse",
+      defaultText: "10 farms,",
     },
     {
       id: "hero_3",
@@ -836,7 +836,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 40,
       h: 14,
       fit: "single-line",
-      defaultText: "that pays.",
+      defaultText: "your bar.",
     },
     // Body — under the hero. multi-line; the renderer wraps within the
     // box and the model is told the per-line / total char budget.
@@ -849,7 +849,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       h: 12,
       fit: "multi-line",
       defaultText:
-        "A modern Asian tea & comfort-food chain. Open Studio, Flagship, and Kiosk formats.",
+        "Direct-trade espresso, roasted to your dial. Studio, café, and hotel formats.",
     },
     // Footer band — hairline + small mono note
     {
@@ -868,7 +868,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 40,
       h: 2.5,
       fit: "single-line",
-      defaultText: "CONFIDENTIAL · PROSPECTIVE FRANCHISEES ONLY · NOT AN OFFER TO SELL",
+      defaultText: "CONFIDENTIAL · WHOLESALE PARTNERS ONLY · 2026 PRICING",
     },
     // Image — right half full-bleed, pulled in by 2% to leave a gap
     // between the left-panel text column and the image edge. No
@@ -909,7 +909,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 30,
       h: 3,
       fit: "single-line",
-      defaultText: "◆ FORGE / AI",
+      defaultText: "◆ AEGIS",
     },
     {
       id: "chrome_right",
@@ -920,7 +920,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       h: 3,
       fit: "single-line",
       align: "right",
-      defaultText: "SERIES A · CONFIDENTIAL · Q1 2026",
+      defaultText: "SERIES B · STRATEGIC PREVIEW · 2026",
     },
     // Hero — two stacked lines, full width. Box height is fontSize × ~1.2
     // (just enough to clear descenders) so the two lines read as one
@@ -933,7 +933,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 88,
       h: 14,
       fit: "single-line",
-      defaultText: "Ship code,",
+      defaultText: "Detect threats,",
     },
     {
       id: "hero_2",
@@ -943,7 +943,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 88,
       h: 14,
       fit: "single-line",
-      defaultText: "not tickets.",
+      defaultText: "not noise.",
     },
     // Body — under the hero, ~60% width so the line breaks land naturally
     // around 60-65 chars per line. Box height ≈ 3 lines at body size.
@@ -956,7 +956,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       h: 16,
       fit: "multi-line",
       defaultText:
-        "Forge AI builds autonomous software engineers that work in your repo, your CI, and your reviewer queue — closing tickets end-to-end with a human in control of merge.",
+        "Aegis is the SOC platform that fuses telemetry, ML triage, and human review into a single response surface — for security teams that can't afford to chase false positives.",
     },
     // Footer rail — four equal-width left-aligned columns of label/value
     // pairs. Labels use stat-label (mono caps, muted); values use
@@ -980,7 +980,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 20,
       h: 8,
       fit: "single-line",
-      defaultText: "$40M Series A",
+      defaultText: "$25M Series B",
     },
     {
       id: "stat_2_label",
@@ -1000,7 +1000,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 20,
       h: 8,
       fit: "single-line",
-      defaultText: "Post-product",
+      defaultText: "Post-revenue",
     },
     {
       id: "stat_3_label",
@@ -1010,7 +1010,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 20,
       h: 2.5,
       fit: "single-line",
-      defaultText: "BENCHMARK",
+      defaultText: "COVERAGE",
     },
     {
       id: "stat_3_value",
@@ -1020,7 +1020,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 20,
       h: 8,
       fit: "single-line",
-      defaultText: "SWE-bench top-3",
+      defaultText: "300+ techniques",
     },
     {
       id: "stat_4_label",
@@ -1040,7 +1040,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       w: 22,
       h: 8,
       fit: "single-line",
-      defaultText: "forge.ai",
+      defaultText: "aegis.run",
     },
   ],
 };
@@ -1163,7 +1163,7 @@ export const MARKETING_GRID: LayoutComposition = {
       22,
       "default",
       "02 · TECH STACK",
-      "EMBER POS + KDS + inventory + loyalty app + financial dashboard. One log-in, no per-seat fees."
+      "Unified POS + KDS + inventory + loyalty app + financial dashboard. One log-in, no per-seat fees."
     ),
     ...card(
       "card_3",
@@ -1230,7 +1230,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 38,
       h: 3,
       fit: "single-line",
-      defaultText: "MEI HAN · FOUNDER & CEO · PORTLAND STUDIO, 2024",
+      defaultText: "ANNA KIM · FOUNDER & CEO · BERLIN STUDIO, 2024",
     },
     // Right column — eyebrow, multi-line quote, attribution
     {
@@ -1253,7 +1253,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 44,
       h: 9,
       fit: "single-line",
-      defaultText: "“We don’t sell a brand.",
+      defaultText: "“We don’t sell scent.",
     },
     {
       id: "quote_2",
@@ -1263,7 +1263,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 44,
       h: 9,
       fit: "single-line",
-      defaultText: "We sell a kitchen",
+      defaultText: "We sell a calm",
     },
     {
       id: "quote_3",
@@ -1273,7 +1273,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 44,
       h: 9,
       fit: "single-line",
-      defaultText: "that behaves the same",
+      defaultText: "that fits your shelf",
     },
     {
       id: "quote_4",
@@ -1283,7 +1283,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 44,
       h: 9,
       fit: "single-line",
-      defaultText: "at 7am and 10pm.”",
+      defaultText: "and your weekday.”",
     },
     {
       id: "body",
@@ -1294,7 +1294,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       h: 18,
       fit: "multi-line",
       defaultText:
-        "My grandmother ran a tea stall in Hangzhou for 34 years. Every cup cost the same and tasted the same. We scale that promise.",
+        "I spent ten years formulating fragrances for houses you've heard of. Lume is the first where the buyer is the only person I please.",
     },
     {
       id: "attribution",
@@ -1304,7 +1304,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 44,
       h: 4,
       fit: "single-line",
-      defaultText: "— Mei Han",
+      defaultText: "— Anna Kim",
     },
     {
       id: "attribution_role",
@@ -1620,7 +1620,7 @@ export const SURFACE_PAIR: LayoutComposition = {
       "default",
       "REVENUE BUILD",
       "$1.18M",
-      "Annual, mature studio store. 348 avg daily covers at $9.50 ticket across 358 trading days."
+      "Annual ACV from a mature enterprise account: 24 seats at $4.1K each, services attached."
     ),
     ...panel(
       "panel_r",
@@ -1631,7 +1631,7 @@ export const SURFACE_PAIR: LayoutComposition = {
       "dark",
       "OPEX SHARE",
       "19.4%",
-      "Store-level EBITDA after food (28%), labor (24%), rent (10%), royalties, and utilities."
+      "Operating margin after R&D (28%), GTM (24%), G&A (10%), and infrastructure costs."
     ),
   ],
 };
@@ -1679,7 +1679,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 44,
       h: 3,
       fit: "single-line",
-      defaultText: "WHO WALKS IN",
+      defaultText: "WHO USES IT",
     },
     {
       id: "hero_1",
@@ -1689,7 +1689,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 44,
       h: 14,
       fit: "single-line",
-      defaultText: "A guest who",
+      defaultText: "A member who",
     },
     {
       id: "hero_2",
@@ -1699,7 +1699,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 44,
       h: 14,
       fit: "single-line",
-      defaultText: "visits us",
+      defaultText: "trains here",
     },
     {
       id: "hero_3",
@@ -1709,7 +1709,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 44,
       h: 14,
       fit: "single-line",
-      defaultText: "2.4× a week.",
+      defaultText: "3.1× a week.",
     },
     {
       id: "body",
@@ -1720,7 +1720,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       h: 12,
       fit: "multi-line",
       defaultText:
-        "Daypart mix: 18% breakfast, 32% lunch, 26% snack, 24% dinner — the flattest curve in QSR.",
+        "Class mix: 28% strength, 32% mobility, 22% yoga, 18% cycling — flat curve across formats.",
     },
     // Hairline divider + 4-stat row at bottom-right, using stat-value-small.
     { id: "stat_rule", role: "divider", x: 50, y: 76, w: 44, h: 0 },
@@ -1732,7 +1732,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 11,
       h: 8,
       fit: "single-line",
-      defaultText: "$9.50",
+      defaultText: "$149",
     },
     {
       id: "stat_1_label",
@@ -1742,7 +1742,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 11,
       h: 3,
       fit: "single-line",
-      defaultText: "AVG TICKET",
+      defaultText: "AVG SPEND",
     },
     {
       id: "stat_2_value",
@@ -1752,7 +1752,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 11,
       h: 8,
       fit: "single-line",
-      defaultText: "2.4×",
+      defaultText: "3.1×",
     },
     {
       id: "stat_2_label",
@@ -1772,7 +1772,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 11,
       h: 8,
       fit: "single-line",
-      defaultText: "61%",
+      defaultText: "73%",
     },
     {
       id: "stat_3_label",
@@ -1782,7 +1782,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 11,
       h: 3,
       fit: "single-line",
-      defaultText: "LOYALTY SHARE",
+      defaultText: "RETENTION",
     },
     {
       id: "stat_4_value",
@@ -1792,7 +1792,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 11,
       h: 8,
       fit: "single-line",
-      defaultText: "7–10p",
+      defaultText: "6–9p",
     },
     {
       id: "stat_4_label",
@@ -1802,7 +1802,7 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       w: 11,
       h: 3,
       fit: "single-line",
-      defaultText: "OPERATING",
+      defaultText: "PEAK HOURS",
     },
   ],
 };
@@ -1850,7 +1850,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 42,
       h: 3,
       fit: "single-line",
-      defaultText: "FOUNDED 2017 · PORTLAND, OR",
+      defaultText: "FOUNDED 2014 · KYOTO, JAPAN",
     },
     {
       id: "hero_1",
@@ -1860,7 +1860,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 44,
       h: 14,
       fit: "single-line",
-      defaultText: "From a stall",
+      defaultText: "From a loom",
     },
     {
       id: "hero_2",
@@ -1870,7 +1870,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 44,
       h: 14,
       fit: "single-line",
-      defaultText: "to 62 stores",
+      defaultText: "to 41 shops",
     },
     {
       id: "hero_3",
@@ -1880,7 +1880,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 44,
       h: 14,
       fit: "single-line",
-      defaultText: "in 9 years.",
+      defaultText: "in 4 cities.",
     },
     // Body paragraph
     {
@@ -1892,7 +1892,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       h: 16,
       fit: "multi-line",
       defaultText:
-        "EMBER & LEAF began in a converted firehouse. Nine years later, 14 corporate and 48 franchise locations.",
+        "Loma Knit weaves merino on family looms in Kyoto. Direct-to-customer model keeps 80% of margin with the makers.",
     },
     // Hairline + 3-stat row at bottom
     { id: "stat_rule", role: "divider", x: 6, y: 84, w: 44, h: 0 },
@@ -1904,7 +1904,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 14,
       h: 8,
       fit: "single-line",
-      defaultText: "62",
+      defaultText: "41",
     },
     {
       id: "stat_1_label",
@@ -1914,7 +1914,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 14,
       h: 3,
       fit: "single-line",
-      defaultText: "TOTAL STORES",
+      defaultText: "BOUTIQUES",
     },
     {
       id: "stat_2_value",
@@ -1924,7 +1924,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 14,
       h: 8,
       fit: "single-line",
-      defaultText: "9",
+      defaultText: "4",
     },
     {
       id: "stat_2_label",
@@ -1944,7 +1944,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 14,
       h: 8,
       fit: "single-line",
-      defaultText: "94%",
+      defaultText: "78%",
     },
     {
       id: "stat_3_label",
@@ -1954,7 +1954,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       w: 14,
       h: 3,
       fit: "single-line",
-      defaultText: "RENEWAL RATE",
+      defaultText: "REPEAT BUYERS",
     },
     // Image on the right
     { id: "image", role: "image", x: 52, y: 18, w: 42, h: 76 },
@@ -2006,7 +2006,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       w: 52,
       h: 14,
       fit: "single-line",
-      defaultText: "Why franchise.",
+      defaultText: "Why EV now.",
     },
     {
       id: "hero_2",
@@ -2016,7 +2016,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       w: 52,
       h: 14,
       fit: "single-line",
-      defaultText: "Why *now.*",
+      defaultText: "Why *us.*",
     },
     // Multi-line body left, BELOW the hero. Wraps to ~2-3 lines.
     {
@@ -2028,7 +2028,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       h: 16,
       fit: "multi-line",
       defaultText:
-        "Restaurant franchising remains the dominant chain-expansion model. The largest QSR brand runs 95% through franchisees.",
+        "Luxury EV is the fastest-growing automotive segment. Premium buyers shift electric at 3× the rate of mass-market.",
     },
     // Anchor stat panel (dark) — same y as body, on the right. No body
     // text in the panel (just eyebrow + big stat) so it fits a tight
@@ -2051,7 +2051,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       w: 38,
       h: 3,
       fit: "single-line",
-      defaultText: "MCDONALD'S CORP · 2024",
+      defaultText: "GLOBAL LUXURY EV · 2025",
     },
     {
       id: "anchor_stat",
@@ -2062,7 +2062,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       w: 38,
       h: 14,
       fit: "single-line",
-      defaultText: "95%",
+      defaultText: "$320B",
     },
     // Bottom stat-card row: default / default / accent. h=30 leaves room
     // for stat-value-mid (h=13) + one line of card-body.
@@ -2073,9 +2073,9 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       28,
       30,
       "default",
-      "MIXUE · 2025",
-      "30,000+",
-      "1997 start in Zhengzhou."
+      "CAGR · 2024-2030",
+      "24.7%",
+      "vs 9% mass-market EV."
     ),
     ...statCardMid(
       "card_2",
@@ -2084,9 +2084,9 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       28,
       30,
       "default",
-      "CHAGEE · 2024",
-      "5,000+",
-      "in under a decade."
+      "AVG SELLING PRICE",
+      "$185K",
+      "our target segment."
     ),
     ...statCardMid(
       "card_3",
@@ -2095,9 +2095,9 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       28,
       30,
       "accent",
-      "EMBER · TARGET 2030",
-      "+240",
-      "across U.S. and China."
+      "VOLTA · TARGET 2030",
+      "75K",
+      "annual deliveries.",
     ),
   ],
 };
@@ -2156,17 +2156,17 @@ export const PEER_COMPARISON_TABLE: LayoutComposition = {
       w: 88,
       h: 14,
       fit: "single-line",
-      defaultText: "to *illustrative peers*.",
+      defaultText: "to *the market*.",
     },
     // The table — 6 columns × 6 rows, "us" column highlighted.
     ...table("terms", 6, 46, 88, 46, {
       headers: [
         { label: "FRANCHISE TERM" },
-        { label: "EMBER & LEAF", sublabel: "Studio · 50 m²", highlight: true },
-        { label: "PEER · A", sublabel: "Modern tea, U.S." },
-        { label: "PEER · B", sublabel: "Asian QSR, U.S." },
-        { label: "PEER · C", sublabel: "Premium coffee" },
-        { label: "PEER · D", sublabel: "Comfort food, CN" },
+        { label: "SOURDOUGH CO", sublabel: "Bakery · 45 m²", highlight: true },
+        { label: "PEER · A", sublabel: "Artisan bread, U.S." },
+        { label: "PEER · B", sublabel: "Patisserie, EU" },
+        { label: "PEER · C", sublabel: "Café-bakery, AU" },
+        { label: "PEER · D", sublabel: "Bagels, U.S." },
       ],
       rows: [
         { label: "Initial fee", values: ["$35,000", "$45,000", "$50,000", "$40,000", "$30,000"] },
