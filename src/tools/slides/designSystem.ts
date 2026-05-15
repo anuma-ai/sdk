@@ -2222,89 +2222,34 @@ export const COVER_STATEMENT: LayoutComposition = {
       defaultText:
         "Aegis is the SOC platform that fuses telemetry, ML triage, and human review into a single response surface — for security teams that can't afford to chase false positives.",
     },
-    // Footer rail — four equal-width left-aligned columns of label/value
-    // pairs. Labels use stat-label (mono caps, muted); values use
-    // card-title (small + bold + primary). All four slots are generic —
-    // the model picks any short key facts that summarise the deck.
+    // Footer rail — variable-count equal-width columns of label/value
+    // pairs. Labels (stat-label: mono caps, muted) sit above values
+    // (card-title: small + bold + primary). Composition pinned 4 columns
+    // with absolute positions; the flex region accepts 3–5 by varying
+    // defaultItems (or by the model passing more or fewer
+    // stats_<index>_<slot> ids). All slots are generic — the model
+    // picks any short key facts that summarise the deck.
     {
-      id: "stat_1_label",
-      role: "stat-label",
+      kind: "flex-region",
+      idPrefix: "stats",
       x: 6,
       y: 88,
-      w: 20,
-      h: 2.5,
-      fit: "single-line",
-      defaultText: "RAISING",
-    },
-    {
-      id: "stat_1_value",
-      role: "card-title",
-      x: 6,
-      y: 91,
-      w: 20,
-      h: 8,
-      fit: "single-line",
-      defaultText: "$25M Series B",
-    },
-    {
-      id: "stat_2_label",
-      role: "stat-label",
-      x: 28,
-      y: 88,
-      w: 20,
-      h: 2.5,
-      fit: "single-line",
-      defaultText: "STAGE",
-    },
-    {
-      id: "stat_2_value",
-      role: "card-title",
-      x: 28,
-      y: 91,
-      w: 20,
-      h: 8,
-      fit: "single-line",
-      defaultText: "Post-revenue",
-    },
-    {
-      id: "stat_3_label",
-      role: "stat-label",
-      x: 50,
-      y: 88,
-      w: 20,
-      h: 2.5,
-      fit: "single-line",
-      defaultText: "COVERAGE",
-    },
-    {
-      id: "stat_3_value",
-      role: "card-title",
-      x: 50,
-      y: 91,
-      w: 20,
-      h: 8,
-      fit: "single-line",
-      defaultText: "300+ techniques",
-    },
-    {
-      id: "stat_4_label",
-      role: "stat-label",
-      x: 72,
-      y: 88,
-      w: 22,
-      h: 2.5,
-      fit: "single-line",
-      defaultText: "WEBSITE",
-    },
-    {
-      id: "stat_4_value",
-      role: "card-title",
-      x: 72,
-      y: 91,
-      w: 22,
-      h: 8,
-      fit: "single-line",
-      defaultText: "aegis.run",
+      w: 88,
+      h: 11,
+      layout: "row",
+      itemLayout: "column",
+      itemGap: 1,
+      itemAlign: "start",
+      item: [
+        { id: "label", role: "stat-label", fit: "single-line" },
+        { id: "value", role: "card-title", fit: "single-line" },
+      ],
+      defaultItems: [
+        { label: "RAISING", value: "$25M Series B" },
+        { label: "STAGE", value: "Post-revenue" },
+        { label: "COVERAGE", value: "300+ techniques" },
+        { label: "WEBSITE", value: "aegis.run" },
+      ],
     },
   ],
 };
@@ -2540,68 +2485,33 @@ export const HEADLINE_NUMBER: LayoutComposition = {
       w: 88,
       h: 0,
     },
-    // Three-column footer of label/value pairs. Generic slots — the
-    // model picks any three terms that contextualise the headline
-    // number (raise structure, board composition, timeline, etc).
+    // Footer rail — variable-count equal-width columns of contextual
+    // label/value pairs (raise structure, board composition, timeline).
+    // Values use the `body` role (not card-title) so prose-style values
+    // like "$30M primary · $10M secondary" read at body weight, not stat
+    // weight. Composition pinned 3 columns; the flex region accepts 2–4
+    // by varying defaultItems (or by the model passing more or fewer
+    // cols_<index>_<slot> ids).
     {
-      id: "col_1_label",
-      role: "stat-label",
+      kind: "flex-region",
+      idPrefix: "cols",
       x: 6,
       y: 86,
-      w: 28,
-      h: 2.5,
-      fit: "single-line",
-      defaultText: "STRUCTURE",
-    },
-    {
-      id: "col_1_value",
-      role: "body",
-      x: 6,
-      y: 89,
-      w: 28,
-      h: 6,
-      fit: "single-line",
-      defaultText: "$30M primary · $10M secondary",
-    },
-    {
-      id: "col_2_label",
-      role: "stat-label",
-      x: 36,
-      y: 86,
-      w: 28,
-      h: 2.5,
-      fit: "single-line",
-      defaultText: "BOARD",
-    },
-    {
-      id: "col_2_value",
-      role: "body",
-      x: 36,
-      y: 89,
-      w: 28,
-      h: 6,
-      fit: "single-line",
-      defaultText: "1 lead · 2 founder · 1 indep",
-    },
-    {
-      id: "col_3_label",
-      role: "stat-label",
-      x: 66,
-      y: 86,
-      w: 28,
-      h: 2.5,
-      fit: "single-line",
-      defaultText: "TIMELINE",
-    },
-    {
-      id: "col_3_value",
-      role: "body",
-      x: 66,
-      y: 89,
-      w: 28,
-      h: 6,
-      fit: "single-line",
-      defaultText: "Target: *May 30, 2026*",
+      w: 88,
+      h: 10,
+      layout: "row",
+      itemLayout: "column",
+      itemGap: 1,
+      itemAlign: "start",
+      item: [
+        { id: "label", role: "stat-label", fit: "single-line" },
+        { id: "value", role: "body", fit: "single-line" },
+      ],
+      defaultItems: [
+        { label: "STRUCTURE", value: "$30M primary · $10M secondary" },
+        { label: "BOARD", value: "1 lead · 2 founder · 1 indep" },
+        { label: "TIMELINE", value: "Target: *May 30, 2026*" },
+      ],
     },
     {
       id: "footer",
@@ -3598,67 +3508,31 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       defaultText:
         "Loma Knit weaves merino on family looms in Kyoto. Direct-to-customer model keeps 80% of margin with the makers.",
     },
-    // Hairline + 3-stat row at bottom
+    // Hairline + variable-count stat row at bottom of left column. The
+    // composition pinned 3 stats with absolute positions; the flex region
+    // accepts 2–4 by varying defaultItems (or by the model passing more or
+    // fewer stats_<index>_<slot> ids).
     { id: "stat_rule", role: "divider", x: 6, y: 84, w: 44, h: 0 },
     {
-      id: "stat_1_value",
-      role: "card-title",
+      kind: "flex-region",
+      idPrefix: "stats",
       x: 6,
       y: 86,
-      w: 14,
-      h: 8,
-      fit: "single-line",
-      defaultText: "41",
-    },
-    {
-      id: "stat_1_label",
-      role: "stat-label",
-      x: 6,
-      y: 95,
-      w: 14,
-      h: 3,
-      fit: "single-line",
-      defaultText: "BOUTIQUES",
-    },
-    {
-      id: "stat_2_value",
-      role: "card-title",
-      x: 21,
-      y: 86,
-      w: 14,
-      h: 8,
-      fit: "single-line",
-      defaultText: "4",
-    },
-    {
-      id: "stat_2_label",
-      role: "stat-label",
-      x: 21,
-      y: 95,
-      w: 14,
-      h: 3,
-      fit: "single-line",
-      defaultText: "CITIES",
-    },
-    {
-      id: "stat_3_value",
-      role: "card-title",
-      x: 36,
-      y: 86,
-      w: 14,
-      h: 8,
-      fit: "single-line",
-      defaultText: "78%",
-    },
-    {
-      id: "stat_3_label",
-      role: "stat-label",
-      x: 36,
-      y: 95,
-      w: 14,
-      h: 3,
-      fit: "single-line",
-      defaultText: "REPEAT BUYERS",
+      w: 44,
+      h: 12,
+      layout: "row",
+      itemLayout: "column",
+      itemGap: 1,
+      itemAlign: "start",
+      item: [
+        { id: "value", role: "card-title", fit: "single-line" },
+        { id: "label", role: "stat-label", fit: "single-line" },
+      ],
+      defaultItems: [
+        { value: "41", label: "BOUTIQUES" },
+        { value: "4", label: "CITIES" },
+        { value: "78%", label: "REPEAT BUYERS" },
+      ],
     },
     // Image on the right
     { id: "image", role: "image", x: 52, y: 18, w: 42, h: 76 },
