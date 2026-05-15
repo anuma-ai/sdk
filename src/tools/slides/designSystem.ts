@@ -1182,7 +1182,7 @@ export const CORPORATE_MODERN: DesignSystem = {
     divider: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#E4E4E7" },
     "accent-bar": { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
     marker: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
-    image: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#F4F4F5" },
+    image: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#D4D4D8" },
   },
   // Surface treatments — corporate dark goes zinc-900; accent surface
   // is zinc-800 (a deep neutral, not a brand-color block). Emphasis
