@@ -1452,6 +1452,7 @@ ATTRIBUTES:
       <h1 x={58} y={162} w={844} h={54} style={{ fontSize: 43, fontWeight: 700, color: "textPrimary", textAlign: "center" }}>Welcome</h1>
     Color strings inside style accept theme tokens (textPrimary, accent, slideBg, textMuted, border, card, surfaceSecondary) OR hex/rgb literals.
   - Shape fill/stroke (on <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line>) ALSO accept theme tokens: fill="accent" or fill="#10b981".
+  - <Anuma.Group> also accepts fill and cornerRadius to act as a card surface (useful when a flex-region item IS the card).
 
 TEXT BUDGETS — each layout recipe reports a "Text budgets" line listing the max-character estimate per text slot, derived from the slot's box width × height at the chosen font size. Treat the numbers as a soft target: write copy that fits well under the limit. Overflowing text gets line-clamped with an ellipsis at render time, so going over the budget loses information. When in doubt, write tighter. Slot ids in the budget line match the recipe's <Anuma.Text id="..."> attributes.
 

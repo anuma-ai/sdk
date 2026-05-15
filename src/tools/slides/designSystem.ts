@@ -265,12 +265,16 @@ export interface RelativeElement {
 }
 
 /**
- * Default content for ONE item inside a FlexRegion. The map keys match
- * the RelativeElement ids in the region's template (without the index
- * suffix). The compiler uses these to fill placeholder content per item
- * when the catalog dumps render the recipe.
+ * Default content for ONE item inside a FlexRegion. String values are the
+ * text for each RelativeElement (keyed by rel.id). The optional `surface`
+ * key is reserved — it overrides the region's surface state for THIS
+ * item, so a single grid can mix neutral/dark/accent cards without a new
+ * composition. RelativeElement ids must never be literally "surface".
  */
-export type FlexItemDefault = Record<string, string>;
+export type FlexItemDefault = {
+  [key: string]: string | SurfaceState | undefined;
+  surface?: SurfaceState;
+};
 
 /**
  * A repeating flex region inside a composition. The region's own frame
@@ -308,6 +312,12 @@ export interface FlexRegion {
   itemLayout?: "row" | "column";
   /** Gap between sub-elements within one item, in canvas-percent. */
   itemGap?: number;
+  /**
+   * Inner padding around an item's sub-elements, in canvas-percent. Used
+   * with `cardItems` to inset text content from the card's painted edge
+   * — otherwise eyebrow + title sit flush against the corner.
+   */
+  itemPadding?: number;
   /** justify-content within each item. */
   itemJustify?: "start" | "center" | "end" | "space-between";
   /**
@@ -323,6 +333,27 @@ export interface FlexRegion {
    * table-of-contents patterns where each row needs visual separation.
    */
   separator?: boolean;
+  /**
+   * Grid mode: when set, items lay out in a 2-D grid with `columns` items
+   * per row, items flowing row-major. The outer container becomes a flex
+   * column whose children are row-flex groups; each row-flex group holds
+   * up to `columns` item-groups. `gap` becomes the inter-row gap; the
+   * inter-column gap inside each row falls back to `gap` unless
+   * `columnGap` is set explicitly. When undefined, the region uses the
+   * standard 1-D layout determined by `layout`.
+   */
+  columns?: number;
+  /** Inter-column gap inside each row when `columns` is set. Defaults to `gap`. */
+  columnGap?: number;
+  /**
+   * Card-style items: when true, each item-group paints its own
+   * card-surface fill (resolved from the design system's card-surface
+   * role under the item's surface state) and `cornerRadius={0.3}`. Use
+   * for MARKETING_GRID-style card grids where the item IS the card; the
+   * item template should then carry text rels only (no `card-surface`
+   * rel). Per-item surface variety travels on FlexItemDefault.surface.
+   */
+  cardItems?: boolean;
   /**
    * The template item — a list of RelativeElements describing the
    * sub-elements of ONE item. compile() emits N copies with sequential
@@ -2766,7 +2797,7 @@ function card(
 export const MARKETING_GRID: LayoutComposition = {
   name: "marketing-grid",
   description:
-    "Light slide with a 2-line hero on top and a 2×2 card grid below. Each card declares its own surface state (default / dark / accent), so a single grid can mix neutral, dark-emphasized, and brand-accent cards without changing the composition.",
+    "Light slide with a 2-line hero on top and a card grid below. Each card declares its own surface state (default / dark / accent), so a single grid can mix neutral, dark-emphasized, and brand-accent cards. The grid accepts a variable number of cards (typically 3–6) flowing across two columns.",
   elements: [
     // Chrome row
     {
@@ -2811,47 +2842,58 @@ export const MARKETING_GRID: LayoutComposition = {
       fit: "single-line",
       defaultText: "quietly in the back.",
     },
-    // 2×2 card grid — each card declares its own surface state.
-    ...card(
-      "card_1",
-      6,
-      52,
-      42,
-      22,
-      "default",
-      "01 · BRAND FUND",
-      "National creative + paid social + influencer cohort. We produce, you translate."
-    ),
-    ...card(
-      "card_2",
-      52,
-      52,
-      42,
-      22,
-      "default",
-      "02 · TECH STACK",
-      "Unified POS + KDS + inventory + loyalty app + financial dashboard. One log-in, no per-seat fees."
-    ),
-    ...card(
-      "card_3",
-      6,
-      76,
-      42,
-      22,
-      "dark",
-      "03 · LAUNCH PACKAGE",
-      "$8,000 grand-opening kit: geo-targeted ads, sample drops, KOL/KOC seeding, day-1 PR notes."
-    ),
-    ...card(
-      "card_4",
-      52,
-      76,
-      42,
-      22,
-      "accent",
-      "04 · OPERATOR SUPPORT",
-      "Regional ops manager, 24/7 hotline, quarterly P&L review, semi-annual compliance audit."
-    ),
+    // Card grid — variable count, 2 columns. Each item is one card; the
+    // item-group paints its own card-surface (region.cardItems = true).
+    // Per-item surface state ("default" / "dark" / "accent") travels on
+    // each defaultItems entry. With 4 items × 2 columns this renders as
+    // a 2×2 grid; with 3 it's 2-on-top + 1; with 6 it's 2×3.
+    {
+      kind: "flex-region",
+      idPrefix: "cards",
+      x: 6,
+      y: 52,
+      w: 88,
+      h: 46,
+      layout: "column",
+      columns: 2,
+      gap: 2,
+      columnGap: 4,
+      cardItems: true,
+      itemLayout: "column",
+      itemGap: 1,
+      itemPadding: 2,
+      itemAlign: "start",
+      item: [
+        { id: "eyebrow", role: "card-eyebrow", fit: "single-line" },
+        { id: "title", role: "card-title", fit: "multi-line", grow: 1 },
+      ],
+      defaultItems: [
+        {
+          surface: "default",
+          eyebrow: "01 · BRAND FUND",
+          title:
+            "National creative + paid social + influencer cohort. We produce, you translate.",
+        },
+        {
+          surface: "default",
+          eyebrow: "02 · TECH STACK",
+          title:
+            "Unified POS + KDS + inventory + loyalty app + financial dashboard. One log-in, no per-seat fees.",
+        },
+        {
+          surface: "dark",
+          eyebrow: "03 · LAUNCH PACKAGE",
+          title:
+            "$8,000 grand-opening kit: geo-targeted ads, sample drops, KOL/KOC seeding, day-1 PR notes.",
+        },
+        {
+          surface: "accent",
+          eyebrow: "04 · OPERATOR SUPPORT",
+          title:
+            "Regional ops manager, 24/7 hotline, quarterly P&L review, semi-annual compliance audit.",
+        },
+      ],
+    },
   ],
 };
 
@@ -3990,8 +4032,14 @@ function emitFlexRegion(
   fontPreset: { heading: string; body: string }
 ): string {
   const itemState: SurfaceState = region.surface ?? slideState;
+  // Grid mode: outer container is always layout="column" (rows stacked),
+  // overriding the region's `layout` field. Each row is its own
+  // layout="row" group holding up to `columns` items. Inter-row gap uses
+  // `gap`; inter-column gap uses `columnGap` (falls back to `gap`).
+  const isGrid = region.columns !== undefined && region.columns > 0;
+  const outerLayout = isGrid ? "column" : region.layout;
   const layoutAttrs: string[] = [
-    `layout="${region.layout}"`,
+    `layout="${outerLayout}"`,
     ...(region.gap !== undefined ? [`gap={${pxY(region.gap)}}`] : []),
     ...(region.padding !== undefined ? [`padding={${pxY(region.padding)}}`] : []),
     ...(region.justify ? [`justify="${region.justify}"`] : []),
@@ -4001,6 +4049,7 @@ function emitFlexRegion(
   const innerAttrs: string[] = [
     `layout="${innerLayout}"`,
     ...(region.itemGap !== undefined ? [`gap={${pxY(region.itemGap)}}`] : []),
+    ...(region.itemPadding !== undefined ? [`padding={${pxY(region.itemPadding)}}`] : []),
     ...(region.itemJustify ? [`justify="${region.itemJustify}"`] : []),
     ...(region.itemAlign ? [`align="${region.itemAlign}"`] : []),
   ];
@@ -4009,6 +4058,36 @@ function emitFlexRegion(
   const separatorStyle = region.separator
     ? resolveStyle(system, "divider", itemState)
     : null;
+
+  if (isGrid) {
+    // Row-chunked items. Each row is a flex sub-group whose item-groups
+    // share its width via grow={1}. Row gap comes from the outer column
+    // gap; column gap is `columnGap` or falls back to `gap`.
+    const columns = region.columns!;
+    const colGap = region.columnGap ?? region.gap;
+    const rowAttrs: string[] = [
+      `layout="row"`,
+      ...(colGap !== undefined ? [`gap={${pxY(colGap)}}`] : []),
+    ];
+    const rowGroups: string[] = [];
+    for (let r = 0; r * columns < region.defaultItems.length; r++) {
+      const rowItems: string[] = [];
+      for (let c = 0; c < columns; c++) {
+        const i = r * columns + c;
+        if (i >= region.defaultItems.length) break;
+        rowItems.push(
+          emitFlexItem(region, i + 1, region.defaultItems[i]!, system, itemState, fontPreset, innerAttrs, "row")
+        );
+      }
+      rowGroups.push(`<Anuma.Group ${rowAttrs.join(" ")} grow={1}>
+${rowItems.join("\n")}
+</Anuma.Group>`);
+    }
+    return `<Anuma.Group id="${region.idPrefix}" x={${pxX(region.x)}} y={${pxY(region.y)}} w={${pxX(region.w)}} h={${pxY(region.h)}} ${layoutAttrs.join(" ")}>
+${rowGroups.join("\n")}
+</Anuma.Group>`;
+  }
+
   const itemParts: string[] = [];
   for (let i = 0; i < region.defaultItems.length; i++) {
     itemParts.push(
@@ -4036,18 +4115,39 @@ function emitFlexItem(
   system: DesignSystem,
   state: SurfaceState,
   fontPreset: { heading: string; body: string },
-  innerAttrs: string[]
+  innerAttrs: string[],
+  /**
+   * Layout direction of the IMMEDIATE parent flex container — controls
+   * whether this item needs grow={1} to distribute the parent's width.
+   * In grid mode, the parent is a row-group regardless of region.layout;
+   * callers pass "row" explicitly. In 1-D mode it equals region.layout.
+   */
+  parentLayout?: "row" | "column"
 ): string {
+  // Per-item surface override: each defaultItems entry can carry a
+  // `surface` key that overrides the region's surface state for THIS
+  // item. Lets one grid mix neutral/dark/accent cards.
+  const itemState: SurfaceState = data.surface ?? state;
   const children = region.item
-    .map((rel) => emitRelativeElement(region, rel, index, data, system, state, fontPreset))
+    .map((rel) => emitRelativeElement(region, rel, index, data, system, itemState, fontPreset))
     .join("\n");
   const itemId = `${region.idPrefix}_${index}`;
-  // In a row-layout region, item-groups have no intrinsic width — without
-  // grow they collapse to their content's width and clump at the start of
-  // the region. grow={1} makes the N items split the region's width evenly.
-  // Column-layout regions don't need this (parent's align="stretch" handles
-  // cross-axis sizing, content drives main-axis height).
-  const itemAttrs = region.layout === "row" ? [...innerAttrs, "grow={1}"] : innerAttrs;
+  // grow={1} so items distribute the parent flex container's main-axis.
+  // Defaults to region.layout when caller doesn't override (1-D mode).
+  const parent = parentLayout ?? region.layout;
+  const baseAttrs = parent === "row" ? [...innerAttrs, "grow={1}"] : innerAttrs;
+  // Card-item fill: the item-group itself paints the card surface using
+  // the design system's card-surface color for the item's surface state.
+  // Mirrors emitCardSurface() so absolute and flex card surfaces match.
+  const surfaceAttrs: string[] = [];
+  if (region.cardItems) {
+    const fill =
+      itemState === "default"
+        ? system.styles["card-surface"].color
+        : (surfaceBackground(system, itemState) ?? "#1a1a1a");
+    surfaceAttrs.push(`fill="${fill}"`, "cornerRadius={0.3}");
+  }
+  const itemAttrs = [...baseAttrs, ...surfaceAttrs];
   return `<Anuma.Group id="${itemId}" ${itemAttrs.join(" ")}>
 ${children}
 </Anuma.Group>`;
@@ -4082,8 +4182,10 @@ function emitRelativeElement(
     return `<Anuma.Circle id="${id}" ${sizeAttrs.join(" ")} fill="${s.color}" />`;
   }
   // Default: text element with role styling. align override + inline-accent
-  // markers behave the same as in absolute elements.
-  const text = data[rel.id] ?? rel.defaultText ?? "";
+  // markers behave the same as in absolute elements. `surface` is reserved
+  // and never serves text data; values for other rel ids are strings.
+  const raw = data[rel.id];
+  const text = (typeof raw === "string" ? raw : undefined) ?? rel.defaultText ?? "";
   const fontRole = s.fontFamily === "heading" ? "heading" : "body";
   const resolved = rel.align ? { ...s, align: rel.align } : s;
   const style = styleObject(resolved, fontPreset);
@@ -4419,8 +4521,12 @@ export function describeComposition(
   for (const child of composition.elements) {
     if (isFlexRegion(child)) {
       out.push("");
+      const shape =
+        child.columns !== undefined && child.columns > 0
+          ? `grid, ${child.columns} columns`
+          : `layout="${child.layout}"`;
       out.push(
-        `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items, layout="${child.layout}". Add or remove items as needed; the model passes ${child.idPrefix}_<index>_<slot> ids for each.`
+        `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items, ${shape}. Add or remove items as needed; the model passes ${child.idPrefix}_<index>_<slot> ids for each.`
       );
       for (const rel of child.item) {
         if (STATIC_ROLES.has(rel.role)) {
@@ -4483,22 +4589,36 @@ function estimateRelativeSlotBudget(
   // Default width/height heuristics when the rel doesn't specify them.
   let w = rel.w;
   let h = rel.h;
-  if (w === undefined) {
-    if (region.layout === "row") {
+  if (region.columns !== undefined && region.columns > 0) {
+    // Grid mode: items split BOTH axes. cols across the width, ceil(N/cols)
+    // rows down the height. `gap` is the row gap; columnGap (fallback gap)
+    // is the inter-column gap inside each row.
+    const cols = region.columns;
+    const rows = Math.max(1, Math.ceil(itemCount / cols));
+    const colGap = region.columnGap ?? gap;
+    if (w === undefined) {
+      w = (region.w - 2 * padding - colGap * (cols - 1)) / cols;
+    }
+    if (h === undefined) {
+      h = (region.h - 2 * padding - gap * (rows - 1)) / rows;
+    }
+  } else if (region.layout === "row") {
+    if (w === undefined) {
       // Items lay out horizontally — divide the region's inner width.
       w = (region.w - 2 * padding - gap * (itemCount - 1)) / itemCount;
-    } else {
+    }
+    if (h === undefined) {
+      // Row layout — each item gets the full inner height.
+      h = region.h - 2 * padding;
+    }
+  } else {
+    if (w === undefined) {
       // Column layout — items get the full inner width.
       w = region.w - 2 * padding;
     }
-  }
-  if (h === undefined) {
-    if (region.layout === "column") {
+    if (h === undefined) {
       // Items stack vertically — divide the region's inner height.
       h = (region.h - 2 * padding - gap * (itemCount - 1)) / itemCount;
-    } else {
-      // Row layout — each item gets the full inner height.
-      h = region.h - 2 * padding;
     }
   }
   // Reuse estimateSlotBudget by faking a CompositionElement shape with
@@ -4528,7 +4648,8 @@ function validateFlexRegionDefaults(
       if (STATIC_ROLES.has(rel.role)) continue;
       const style = system.styles[rel.role];
       if (!style) continue;
-      const text = data[rel.id] ?? rel.defaultText;
+      const raw = data[rel.id];
+      const text = (typeof raw === "string" ? raw : undefined) ?? rel.defaultText;
       if (!text) continue;
       const budget = estimateRelativeSlotBudget(rel, region, style, fontPreset);
       const fit: FitMode = rel.fit ?? "multi-line";

@@ -5,6 +5,7 @@ import {
   BRAND_STORY_SPLIT,
   CORPORATE_MODERN,
   EDITORIAL_WARM,
+  MARKETING_GRID,
   MINIMAL_SWISS,
   STAT_ROW_BOTTOM,
   applyAccent,
@@ -196,6 +197,52 @@ describe("compile() with flex regions", () => {
     const out = compile(AGENDA, EDITORIAL_WARM, fontPreset);
     const firstItem = out.match(/<Anuma\.Group id="agenda_1"[^>]*>/)![0];
     expect(firstItem).not.toContain("grow={1}");
+  });
+
+  it("emits a grid region as a column-of-rows with `columns` items per row", () => {
+    // MARKETING_GRID is a 2-column grid; 4 default items should produce 2
+    // row sub-groups, each holding 2 item-groups. The outer cards Group is
+    // layout="column" (overrides region.layout which we still set), and
+    // each row Group is layout="row" with grow={1} to fill the outer height.
+    const out = compile(MARKETING_GRID, EDITORIAL_WARM, fontPreset);
+    const outerCards = out.match(/<Anuma\.Group id="cards"[^>]*>/)![0];
+    expect(outerCards).toContain('layout="column"');
+    const itemGroups = out.match(/<Anuma\.Group id="cards_\d+"/g) ?? [];
+    expect(itemGroups.length).toBe(4);
+    // Each card item is layout="column" (itemLayout) with grow={1} (parent
+    // row distributes width) AND carries its own fill + cornerRadius from
+    // cardItems=true. The fill can be a theme token (e.g. "slideBg" for
+    // palette-driven systems like editorial-warm) OR a hex (techno-bold).
+    const card1 = out.match(/<Anuma\.Group id="cards_1"[^>]*>/)![0];
+    expect(card1).toContain('layout="column"');
+    expect(card1).toContain("grow={1}");
+    expect(card1).toContain("cornerRadius={0.3}");
+    expect(card1).toMatch(/fill="(#[0-9A-Fa-f]{6}|[a-zA-Z]+)"/);
+  });
+
+  it("applies per-item surface state from defaultItems.surface", () => {
+    // MARKETING_GRID's 4 cards declare surfaces: default, default, dark,
+    // accent. The item-group's fill should reflect each surface — cards 1+2
+    // share the default fill; card 3 uses the dark surface bg; card 4 uses
+    // the accent surface bg. Distinct fills prove the per-item surface flow
+    // is wired through to the emitter.
+    const out = compile(MARKETING_GRID, EDITORIAL_WARM, fontPreset);
+    const fills = (out.match(/id="cards_\d+"[^>]*fill="([^"]+)"/g) ?? []).map(
+      (m) => m.match(/fill="([^"]+)"/)![1]!.toLowerCase()
+    );
+    expect(fills).toHaveLength(4);
+    expect(fills[0]).toBe(fills[1]); // both "default"
+    expect(fills[2]).not.toBe(fills[0]); // dark != default
+    expect(fills[3]).not.toBe(fills[0]); // accent != default
+    expect(fills[3]).not.toBe(fills[2]); // accent != dark
+  });
+
+  it("does NOT emit grid row-groups when `columns` is unset", () => {
+    // STAT_ROW_BOTTOM is 1-D row layout (no columns). The outer stats
+    // Group should be layout="row" itself, not a column of row sub-groups.
+    const out = compile(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset);
+    const outer = out.match(/<Anuma\.Group id="stats"[^>]*>/)![0];
+    expect(outer).toContain('layout="row"');
   });
 });
 

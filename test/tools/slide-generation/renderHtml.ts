@@ -111,11 +111,19 @@ function positionStyle(node: AnumaNode, parentIsFlex: boolean): string {
     const h = typeof node.attrs.h === "number" ? `height:${node.attrs.h}px;` : "";
     const grow = typeof node.attrs.grow === "number" ? `flex-grow:${node.attrs.grow};` : "";
     const shrink = typeof node.attrs.shrink === "number" ? `flex-shrink:${node.attrs.shrink};` : "";
+    // flex-basis: when grow is set without an explicit width, default basis
+    // to 0 so siblings distribute their parent's main-axis evenly regardless
+    // of content size. Without this, longer content claims more space and a
+    // 2-card row with unequal copy renders with unequal card widths.
+    const basis =
+      typeof node.attrs.grow === "number" && typeof node.attrs.w !== "number"
+        ? `flex-basis:0;`
+        : "";
     const alignSelf =
       typeof node.attrs.alignSelf === "string"
         ? `align-self:${mapAlign(node.attrs.alignSelf)};`
         : "";
-    return `position:relative;${w}${h}${grow}${shrink}${alignSelf}`;
+    return `position:relative;${w}${h}${grow}${shrink}${basis}${alignSelf}`;
   }
   const x = typeof node.attrs.x === "number" ? node.attrs.x : 0;
   const y = typeof node.attrs.y === "number" ? node.attrs.y : 0;
@@ -225,11 +233,20 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
     case "Group": {
       const containerStyle = buildContainerStyle(node);
       const myIsFlex = isFlexContainer(node);
+      // Group acts as a flex container OR a styled box. Fill + cornerRadius
+      // let it double as a card surface so a flex-region item-group can
+      // paint its own background — needed for MARKETING_GRID-style card
+      // grids where each flex item IS the card.
+      const fill = node.attrs.fill ? `background:${resolve(node.attrs.fill)};` : "";
+      const radius =
+        typeof node.attrs.cornerRadius === "number"
+          ? `border-radius:${node.attrs.cornerRadius}px;`
+          : "";
       const kids = node.children
         .filter((c): c is AnumaNode => typeof c !== "string")
         .map((c) => renderNode(c, colors, myIsFlex))
         .join("\n");
-      return `<div style="${base}${containerStyle}">${kids}</div>`;
+      return `<div style="${base}${containerStyle}${fill}${radius}">${kids}</div>`;
     }
     default:
       if (isAnumaTag(node.tag)) return "";
