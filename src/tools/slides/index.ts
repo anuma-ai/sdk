@@ -46,7 +46,7 @@ export type { FontCategory, FontSpec } from "./fonts";
 export { buildFontsUrl, FONT_LIBRARY, getFontByName, isKnownFont } from "./fonts";
 export type { LegacyDeckJson } from "./legacy";
 export { convertLegacyDeckJson, isLegacyDeckJson } from "./legacy";
-import type { AnumaNode } from "./jsx";
+import type { AnumaNode, AttrValue } from "./jsx";
 import {
   AnumaJsxError,
   getId,
@@ -214,7 +214,8 @@ export const PATCH_SLIDES_SCHEMA = {
 The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
 
 Operations (set 'action' and the fields noted):
-- replace_element: { slideId, elementId, jsx } — replace a matched element with a new content-element JSX fragment (e.g. <Anuma.Text …>…</Anuma.Text>).
+- update_element: { slideId, elementId, attrs } — change specific attrs on an existing element WITHOUT rewriting the rest. PREFER THIS for x/y/w/h moves, single-style-key changes (color, fontSize, fontWeight, fontFamily), or any small attr edit. The 'attrs' object merges onto the element — { x: 100, y: 60 } moves it; { style: { fontSize: 24 } } changes one style key and keeps the others intact. Use this instead of replace_element for any edit that doesn't change the element's tag or text content — it's ~10× fewer output tokens and ~5× faster.
+- replace_element: { slideId, elementId, jsx } — replace a matched element with a new content-element JSX fragment (e.g. <Anuma.Text …>…</Anuma.Text>). Use ONLY when the edit changes the element's tag, its text/children content, or a large chunk of style at once.
 - insert_element: { slideId, jsx, afterElementId? } — insert a new content-element JSX fragment. Appends to the end when afterElementId is omitted.
 - remove_element: { slideId, elementId }.
 - replace_slide: { slideId, jsx } — replace an entire <Anuma.Slide> with a new JSX fragment (root must be <Anuma.Slide>).
@@ -238,6 +239,7 @@ Operations (set 'action' and the fields noted):
             action: {
               type: "string",
               enum: [
+                "update_element",
                 "replace_element",
                 "insert_element",
                 "remove_element",
@@ -254,7 +256,15 @@ Operations (set 'action' and the fields noted):
             },
             elementId: {
               type: "string",
-              description: "Target element id (for replace_element and remove_element)",
+              description:
+                "Target element id (for update_element, replace_element, and remove_element)",
+            },
+            attrs: {
+              type: "object",
+              properties: {},
+              additionalProperties: true,
+              description:
+                "For update_element: partial attrs to merge onto the existing element (e.g. { x: 100, y: 60 } moves it). When 'style' is an object, its keys merge with the existing style — other style keys are preserved.",
             },
             jsx: {
               type: "string",
@@ -1080,6 +1090,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           afterSlideId?: string;
           afterElementId?: string;
           set?: Record<string, unknown>;
+          attrs?: Record<string, unknown>;
         }>;
 
         if (!Array.isArray(operations) || operations.length === 0) {
@@ -1100,6 +1111,78 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
             const slideNode = op.slideId !== undefined ? findSlideById(deck, op.slideId) : null;
 
             switch (op.action) {
+              case "update_element": {
+                // Surgical attr-merge — no JSX rewrite needed. Cuts the
+                // model's output token cost by ~10× vs replace_element
+                // for the common "move / resize / restyle one attr" case.
+                // Validates the merged shape before committing so a typo'd
+                // fontFamily can't slip through (mirrors add_slide's check).
+                if (!slideNode) {
+                  results.push(`update_element: slide ${op.slideId} not found`);
+                  break;
+                }
+                if (typeof op.elementId !== "string" || !op.elementId) {
+                  results.push("update_element: elementId is required");
+                  break;
+                }
+                if (
+                  !op.attrs ||
+                  typeof op.attrs !== "object" ||
+                  Array.isArray(op.attrs)
+                ) {
+                  results.push("update_element: attrs (object) is required");
+                  break;
+                }
+                let elementNode: AnumaNode | null = null;
+                walk(slideNode, (n) => {
+                  if (getId(n) === op.elementId) {
+                    elementNode = n;
+                    return false;
+                  }
+                });
+                if (!elementNode) {
+                  results.push(
+                    `update_element: element ${op.elementId} not found in slide ${op.slideId}`
+                  );
+                  break;
+                }
+                // Reassert the type — narrowed inside the walk closure but
+                // TypeScript's CFA loses that across the boundary.
+                const target = elementNode as AnumaNode;
+                const incoming = op.attrs as Record<string, unknown>;
+                const merged: Record<string, unknown> = { ...target.attrs };
+                for (const [key, value] of Object.entries(incoming)) {
+                  if (
+                    key === "style" &&
+                    value &&
+                    typeof value === "object" &&
+                    !Array.isArray(value)
+                  ) {
+                    const existing =
+                      (target.attrs.style as Record<string, unknown> | undefined) ?? {};
+                    merged.style = { ...existing, ...(value as Record<string, unknown>) };
+                  } else {
+                    merged[key] = value;
+                  }
+                }
+                // Validate the proposed merge before committing. Build a
+                // throwaway node with the merged attrs so a font typo
+                // doesn't half-apply and leave the element in a broken state.
+                // The merged map is typed as Record<string, unknown> here
+                // because the schema accepts additionalProperties; we cast
+                // to the tree's AttrValue map only after the font check
+                // (the validator only inspects fontFamily strings).
+                const mergedAttrs = merged as Record<string, AttrValue>;
+                const probe: AnumaNode = { ...target, attrs: mergedAttrs };
+                const fontErr = validateFontFamilies(probe);
+                if (fontErr) {
+                  results.push(`update_element: ${fontErr}`);
+                  break;
+                }
+                target.attrs = mergedAttrs;
+                results.push(`updated ${op.slideId}/${op.elementId}`);
+                break;
+              }
               case "replace_element": {
                 if (!slideNode) {
                   results.push(`replace_element: slide ${op.slideId} not found`);

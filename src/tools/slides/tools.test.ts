@@ -955,10 +955,92 @@ describe("patch_slides JSX ops", () => {
     const { store, tools } = await setupDeckWithOneSlide();
     const before = store.get("slides.jsx")!;
     const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "frobnicate", slideId: "s1", elementId: "t1" }],
+    })) as { results?: string[] };
+    expect(result.results!.join(" | ")).toMatch(/unknown action: frobnicate/);
+    expect(store.get("slides.jsx")).toBe(before);
+  });
+
+  it("update_element merges top-level attrs without rewriting the element", async () => {
+    // The whole point of update_element is to spend ~10× fewer output
+    // tokens than replace_element on moves/resizes. The model sends
+    // ONLY the attrs that change; everything else is preserved verbatim.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    expect(before).toContain(`id="t1"`);
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "update_element", slideId: "s1", elementId: "t1", attrs: { x: 200, y: 60 } }],
+    })) as { results?: string[] };
+    expect(result.results![0]).toBe("updated s1/t1");
+    const after = store.get("slides.jsx")!;
+    expect(after).toContain(`x={200}`);
+    expect(after).toContain(`y={60}`);
+    // All other attrs survive — same id, same style block.
+    expect(after).toContain(`id="t1"`);
+  });
+
+  it("update_element deep-merges style — other style keys are preserved", async () => {
+    // The single most error-prone failure mode for an attrs merge is to
+    // CLOBBER the existing style object with only the model's new keys.
+    // This pins the deep-merge: changing fontSize keeps color, fontFamily,
+    // etc. as they were.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "update_element",
+          slideId: "s1",
+          elementId: "t1",
+          attrs: { style: { fontSize: 32 } },
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toBe("updated s1/t1");
+    const after = store.get("slides.jsx")!;
+    expect(after).toContain("fontSize: 32");
+    // The seed slide's title had color "textPrimary" and fontWeight 400;
+    // both must survive the partial style update — the bug we're guarding
+    // against is the merge clobbering the existing style with only the
+    // new key.
+    expect(after).toContain(`color: "textPrimary"`);
+    expect(after).toContain(`fontWeight: 400`);
+  });
+
+  it("update_element rejects unknown fontFamily values before committing", async () => {
+    // Mirrors add_slide's font-family check — a typo'd font name slipped
+    // into an update_element call would silently corrupt the slide if we
+    // committed the merge first and validated later. Validate-then-write.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "update_element",
+          slideId: "s1",
+          elementId: "t1",
+          attrs: { style: { fontFamily: "Definitely Not A Real Font" } },
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toMatch(/update_element: .*unknown fontFamily/i);
+    expect(store.get("slides.jsx")).toBe(before);
+  });
+
+  it("update_element reports clear errors for missing slide / element / attrs", async () => {
+    const { tools } = await setupDeckWithOneSlide();
+    const patch = tools.find((t) => toolName(t) === "patch_slides")!;
+    const noSlide = (await patch.executor!({
+      operations: [{ action: "update_element", slideId: "missing", elementId: "t1", attrs: { x: 0 } }],
+    })) as { results?: string[] };
+    expect(noSlide.results![0]).toMatch(/slide missing not found/);
+    const noElement = (await patch.executor!({
+      operations: [{ action: "update_element", slideId: "s1", elementId: "ghost", attrs: { x: 0 } }],
+    })) as { results?: string[] };
+    expect(noElement.results![0]).toMatch(/element ghost not found/);
+    const noAttrs = (await patch.executor!({
       operations: [{ action: "update_element", slideId: "s1", elementId: "t1" }],
     })) as { results?: string[] };
-    expect(result.results!.join(" | ")).toMatch(/unknown action: update_element/);
-    expect(store.get("slides.jsx")).toBe(before);
+    expect(noAttrs.results![0]).toMatch(/attrs.*required/);
   });
 });
 
