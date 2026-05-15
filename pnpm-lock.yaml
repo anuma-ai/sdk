@@ -207,6 +207,28 @@ importers:
         specifier: ^4.0.14
         version: 4.0.15(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
 
+  packages/agents/registry:
+    dependencies:
+      '@anuma/agent-haven':
+        specifier: workspace:*
+        version: link:../haven
+      '@anuma/agent-sentinel':
+        specifier: workspace:*
+        version: link:../sentinel
+      '@anuma/sdk':
+        specifier: workspace:*
+        version: link:../../..
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@microsoft/api-extractor@7.57.1(@types/node@25.5.2))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.14
+        version: 4.0.15(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
   packages/agents/sentinel:
     dependencies:
       '@anuma/sdk':

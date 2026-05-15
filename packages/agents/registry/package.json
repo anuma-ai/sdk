@@ -1,0 +1,47 @@
+{
+  "name": "@anuma/agents-registry",
+  "version": "1.0.0",
+  "description": "Lookup helpers for Anuma agents (Haven, Sentinel) and their skill metadata",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "pnpm build",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anuma-ai/sdk.git",
+    "directory": "packages/agents/registry"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/anuma-ai/sdk/issues"
+  },
+  "homepage": "https://github.com/anuma-ai/sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@anuma/agent-haven": "workspace:*",
+    "@anuma/agent-sentinel": "workspace:*",
+    "@anuma/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  }
+}
