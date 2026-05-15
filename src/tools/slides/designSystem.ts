@@ -2263,7 +2263,7 @@ export const COVER_STATEMENT: LayoutComposition = {
     // picks any short key facts that summarise the deck.
     {
       kind: "flex-region",
-      idPrefix: "stats",
+      idPrefix: "facts",
       x: 6,
       y: 88,
       w: 88,
@@ -2508,9 +2508,11 @@ export const HEADLINE_NUMBER: LayoutComposition = {
       defaultText:
         "Series A · led by an AI-native fund with deep dev-tools distribution.",
     },
-    // Footer divider sets the bottom rail apart from the upper block.
+    // Rail divider separates the headline number block from the
+    // contextual label/value rail below. Distinct from `footer_rule`
+    // (used elsewhere to sit 2% above the footer text at y=96).
     {
-      id: "footer_rule",
+      id: "rail_rule",
       role: "divider",
       x: 6,
       y: 84,
@@ -3432,16 +3434,16 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       defaultText:
         "Class mix: 28% strength, 32% mobility, 22% yoga, 18% cycling — flat curve across formats.",
     },
-    // Hairline divider + variable-count stat row at bottom-right. The
-    // composition pinned 4 stats with absolute positions; the flex region
-    // accepts 2–5 by varying defaultItems (or by the model passing more or
-    // fewer stats_<index>_<slot> ids). Each item is a column of
-    // value-over-label, items distribute the region width evenly via the
-    // emitter's grow={1} default for row layout.
-    { id: "stat_rule", role: "divider", x: 50, y: 76, w: 44, h: 0 },
+    // Hairline divider + variable-count audience stats at bottom-right.
+    // The composition pinned 4 stats with absolute positions; the flex
+    // region accepts 2–5 by varying defaultItems (or by the model passing
+    // more or fewer audience_<index>_<slot> ids). idPrefix is namespaced
+    // per composition (vs the generic "stats") so two slides using this
+    // and another stats-bearing composition don't collide under dedupeIds.
+    { id: "audience_rule", role: "divider", x: 50, y: 76, w: 44, h: 0 },
     {
       kind: "flex-region",
-      idPrefix: "stats",
+      idPrefix: "audience",
       x: 50,
       y: 80,
       w: 44,
@@ -3551,14 +3553,17 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
       defaultText:
         "Loma Knit weaves merino on family looms in Kyoto. Direct-to-customer model keeps 80% of margin with the makers.",
     },
-    // Hairline + variable-count stat row at bottom of left column. The
-    // composition pinned 3 stats with absolute positions; the flex region
-    // accepts 2–4 by varying defaultItems (or by the model passing more or
-    // fewer stats_<index>_<slot> ids).
-    { id: "stat_rule", role: "divider", x: 6, y: 84, w: 44, h: 0 },
+    // Hairline + variable-count proof-points strip at bottom of left
+    // column. The composition pinned 3 stats with absolute positions;
+    // the flex region accepts 2–4 by varying defaultItems (or by the
+    // model passing more or fewer proof_<index>_<slot> ids). idPrefix
+    // is namespaced per composition (vs the generic "stats") so two
+    // slides using this and another stats-bearing composition don't
+    // collide under dedupeIds.
+    { id: "proof_rule", role: "divider", x: 6, y: 84, w: 44, h: 0 },
     {
       kind: "flex-region",
-      idPrefix: "stats",
+      idPrefix: "proof",
       x: 6,
       y: 86,
       w: 44,

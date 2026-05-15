@@ -4,6 +4,7 @@ import {
   AGENDA,
   BRAND_STORY_SPLIT,
   CORPORATE_MODERN,
+  COVER_STATEMENT,
   EDITORIAL_WARM,
   MARKETING_GRID,
   MINIMAL_SWISS,
@@ -177,17 +178,19 @@ describe("compile() with flex regions", () => {
   it("auto-applies grow={1} to item-groups in a row-layout region", () => {
     // Row-layout items have no intrinsic width — without grow they collapse
     // to content and clump at the start. STAT_ROW_BOTTOM's bottom stat row
-    // relies on this so 3, 4, or 5 stats all distribute the region width.
+    // (idPrefix="audience", namespaced to avoid cross-composition dedupe
+    // collisions) relies on this so 3, 4, or 5 stats all distribute the
+    // region width.
     const out = compile(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset);
-    // Every stats_<n> item-group carries grow={1}.
-    const itemGroups = out.match(/<Anuma\.Group id="stats_\d"[^>]*>/g) ?? [];
+    // Every audience_<n> item-group carries grow={1}.
+    const itemGroups = out.match(/<Anuma\.Group id="audience_\d"[^>]*>/g) ?? [];
     expect(itemGroups.length).toBe(4);
     for (const g of itemGroups) {
       expect(g).toContain("grow={1}");
     }
     // The outer region group itself must NOT carry grow={1} — it owns a
     // fixed x/y/w/h frame on the slide canvas.
-    const outer = out.match(/<Anuma\.Group id="stats"[^>]*>/)![0];
+    const outer = out.match(/<Anuma\.Group id="audience"[^>]*>/)![0];
     expect(outer).not.toContain("grow={1}");
   });
 
@@ -237,11 +240,28 @@ describe("compile() with flex regions", () => {
     expect(fills[3]).not.toBe(fills[2]); // accent != dark
   });
 
+  it("namespaces flex-region idPrefix per composition (no cross-composition collisions)", () => {
+    // Three compositions that historically shared idPrefix="stats" — the
+    // collision caused dedupeIds to rewrite every slot id (stats_1_value →
+    // stats_1_value-2) when two such compositions appeared in the same
+    // deck, breaking the `<prefix>_<idx>_<rel>` discoverability pattern.
+    // The fix: distinct per-composition prefixes. This test pins the
+    // distinctness so a future "just call them all stats" regression
+    // breaks loudly.
+    const prefixes = [
+      COVER_STATEMENT,
+      STAT_ROW_BOTTOM,
+      BRAND_STORY_SPLIT,
+    ].map((c) => c.elements.find(isFlexRegion)!.idPrefix);
+    expect(new Set(prefixes).size).toBe(prefixes.length);
+    expect(prefixes).toEqual(expect.arrayContaining(["facts", "audience", "proof"]));
+  });
+
   it("does NOT emit grid row-groups when `columns` is unset", () => {
-    // STAT_ROW_BOTTOM is 1-D row layout (no columns). The outer stats
+    // STAT_ROW_BOTTOM is 1-D row layout (no columns). The outer audience
     // Group should be layout="row" itself, not a column of row sub-groups.
     const out = compile(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset);
-    const outer = out.match(/<Anuma\.Group id="stats"[^>]*>/)![0];
+    const outer = out.match(/<Anuma\.Group id="audience"[^>]*>/)![0];
     expect(outer).toContain('layout="row"');
   });
 });

@@ -30,6 +30,16 @@ describe("FONT_LIBRARY", () => {
     }
   });
 
+  it("Work Sans declares fontWeight 900 — MINIMAL_SWISS leans on it for poster-weight headlines", () => {
+    // The design system uses fontWeight: 900 on hero / stat-display /
+    // stat-value{,-mid,-small}. Without 900 in the library's weights
+    // string, the Google Fonts URL doesn't request it and browsers
+    // silently fall back to the closest declared weight (800), which
+    // muffles the system's intended "uncompromising" character.
+    const workSans = FONT_LIBRARY.find((f) => f.name === "Work Sans")!;
+    expect(workSans.weights.split(";")).toContain("900");
+  });
+
   it("covers the 40 Google Fonts plus the families referenced by FONT_PRESETS", () => {
     // Every preset's heading and body font must resolve in the library —
     // otherwise a deck using that preset would have no fontFamily fallback.

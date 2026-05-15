@@ -207,7 +207,7 @@ export const FONT_LIBRARY: FontSpec[] = [
     name: "Work Sans",
     category: "sans-body",
     feel: "slightly industrial sans — clean editorial; full weight range for Swiss/Bauhaus contrast",
-    weights: "300;400;500;600;700;800",
+    weights: "300;400;500;600;700;800;900",
   },
   {
     name: "Rubik",
