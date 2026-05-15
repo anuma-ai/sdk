@@ -276,4 +276,62 @@ describe("composition-layouts wire-in", () => {
     console.log(`    title slots: ${titleIds}`);
     expect(titleIds).toBeGreaterThanOrEqual(3);
   });
+
+  // Topic-driven design-system selection. The model should pick a
+  // restrained / institutional system for a board-deck request (any of
+  // corporate-modern, minimal-swiss, or editorial-warm — but NOT
+  // techno-bold or playful-creative). This is the catalog-regression
+  // canary: if the design-system descriptions get garbled (e.g. someone
+  // edits the useFor strings), this test starts picking off-tone systems.
+  it("picks a register-appropriate design system from a topic-only prompt", async () => {
+    const store = createFileStore();
+    const log: ToolCallLog[] = [];
+    const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
+
+    const result = await timedToolLoop({
+      messages: makeMessages(
+        "Build a 3-slide quarterly board update for a publicly-traded financial-services firm. Restrained institutional voice, no marketing flourishes — this gets read by the audit committee.",
+        SYSTEM_PROMPT
+      ),
+      model: config.model,
+      baseUrl: config.baseUrl,
+      headers: { "X-API-Key": config.portalKey },
+      apiType: config.apiType,
+      tools,
+      toolChoice: "auto",
+      maxToolRounds: 15,
+    });
+
+    printResult(result);
+    dumpFiles(store, "board-update-tone");
+    expect(result.error).toBeNull();
+
+    // Inspect the deck's chosen system via the last successful plan_deck.
+    const planCalls = log.filter((l) => l.name === "plan_deck");
+    expect(planCalls.length).toBeGreaterThanOrEqual(1);
+    const planLayouts = (planCalls.at(-1)!.args.layouts as string[]) ?? [];
+    expect(planLayouts.length).toBeGreaterThan(0);
+    // Every layout must share the same "--<system>" suffix per the
+    // prompt's deck-coherence rule — extract the system from the first
+    // and assert all others match.
+    const suffixOf = (n: string) => n.split("--").at(-1) ?? "";
+    const systemSuffix = suffixOf(planLayouts[0]!);
+    expect(systemSuffix.length).toBeGreaterThan(0);
+    for (const n of planLayouts) expect(suffixOf(n)).toBe(systemSuffix);
+
+    console.log(`\n  Topic→system pick: ${systemSuffix}`);
+    // Acceptable picks for the institutional/board-deck register.
+    // playful-creative and techno-bold are explicitly the wrong tone
+    // here; failing this assertion means the catalog descriptions are
+    // no longer steering the model correctly.
+    const acceptable = new Set([
+      "corporate-modern",
+      "minimal-swiss",
+      "editorial-warm",
+    ]);
+    expect(
+      acceptable.has(systemSuffix),
+      `expected one of ${[...acceptable].join(", ")}; got ${systemSuffix}`
+    ).toBe(true);
+  });
 });
