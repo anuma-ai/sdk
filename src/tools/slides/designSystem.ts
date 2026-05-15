@@ -3479,87 +3479,34 @@ export const STAT_ROW_BOTTOM: LayoutComposition = {
       defaultText:
         "Class mix: 28% strength, 32% mobility, 22% yoga, 18% cycling — flat curve across formats.",
     },
-    // Hairline divider + 4-stat row at bottom-right, using stat-value-small.
+    // Hairline divider + variable-count stat row at bottom-right. The
+    // composition pinned 4 stats with absolute positions; the flex region
+    // accepts 2–5 by varying defaultItems (or by the model passing more or
+    // fewer stats_<index>_<slot> ids). Each item is a column of
+    // value-over-label, items distribute the region width evenly via the
+    // emitter's grow={1} default for row layout.
     { id: "stat_rule", role: "divider", x: 50, y: 76, w: 44, h: 0 },
     {
-      id: "stat_1_value",
-      role: "card-title",
+      kind: "flex-region",
+      idPrefix: "stats",
       x: 50,
       y: 80,
-      w: 11,
-      h: 8,
-      fit: "single-line",
-      defaultText: "$149",
-    },
-    {
-      id: "stat_1_label",
-      role: "stat-label",
-      x: 50,
-      y: 90,
-      w: 11,
-      h: 3,
-      fit: "single-line",
-      defaultText: "AVG SPEND",
-    },
-    {
-      id: "stat_2_value",
-      role: "card-title",
-      x: 61,
-      y: 80,
-      w: 11,
-      h: 8,
-      fit: "single-line",
-      defaultText: "3.1×",
-    },
-    {
-      id: "stat_2_label",
-      role: "stat-label",
-      x: 61,
-      y: 90,
-      w: 11,
-      h: 3,
-      fit: "single-line",
-      defaultText: "VISITS / WK",
-    },
-    {
-      id: "stat_3_value",
-      role: "card-title",
-      x: 72,
-      y: 80,
-      w: 11,
-      h: 8,
-      fit: "single-line",
-      defaultText: "73%",
-    },
-    {
-      id: "stat_3_label",
-      role: "stat-label",
-      x: 72,
-      y: 90,
-      w: 11,
-      h: 3,
-      fit: "single-line",
-      defaultText: "RETENTION",
-    },
-    {
-      id: "stat_4_value",
-      role: "card-title",
-      x: 83,
-      y: 80,
-      w: 11,
-      h: 8,
-      fit: "single-line",
-      defaultText: "6–9p",
-    },
-    {
-      id: "stat_4_label",
-      role: "stat-label",
-      x: 83,
-      y: 90,
-      w: 11,
-      h: 3,
-      fit: "single-line",
-      defaultText: "PEAK HOURS",
+      w: 44,
+      h: 14,
+      layout: "row",
+      itemLayout: "column",
+      itemGap: 1,
+      itemAlign: "start",
+      item: [
+        { id: "value", role: "card-title", fit: "single-line" },
+        { id: "label", role: "stat-label", fit: "single-line" },
+      ],
+      defaultItems: [
+        { value: "$149", label: "AVG SPEND" },
+        { value: "3.1×", label: "VISITS / WK" },
+        { value: "73%", label: "RETENTION" },
+        { value: "6–9p", label: "PEAK HOURS" },
+      ],
     },
   ],
 };
@@ -4221,7 +4168,13 @@ function emitFlexItem(
     .map((rel) => emitRelativeElement(region, rel, index, data, system, state, fontPreset))
     .join("\n");
   const itemId = `${region.idPrefix}_${index}`;
-  return `<Anuma.Group id="${itemId}" ${innerAttrs.join(" ")}>
+  // In a row-layout region, item-groups have no intrinsic width — without
+  // grow they collapse to their content's width and clump at the start of
+  // the region. grow={1} makes the N items split the region's width evenly.
+  // Column-layout regions don't need this (parent's align="stretch" handles
+  // cross-axis sizing, content drives main-axis height).
+  const itemAttrs = region.layout === "row" ? [...innerAttrs, "grow={1}"] : innerAttrs;
+  return `<Anuma.Group id="${itemId}" ${itemAttrs.join(" ")}>
 ${children}
 </Anuma.Group>`;
 }

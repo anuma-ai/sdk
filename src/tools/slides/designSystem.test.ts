@@ -6,6 +6,7 @@ import {
   CORPORATE_MODERN,
   EDITORIAL_WARM,
   MINIMAL_SWISS,
+  STAT_ROW_BOTTOM,
   applyAccent,
   compile,
   isFlexRegion,
@@ -170,6 +171,31 @@ describe("compile() with flex regions", () => {
     // Cast to discard the rest of the union for the type assertion below.
     const _typed: LayoutComposition["elements"][number] = agendaRegion!;
     expect(_typed).toBeTruthy();
+  });
+
+  it("auto-applies grow={1} to item-groups in a row-layout region", () => {
+    // Row-layout items have no intrinsic width — without grow they collapse
+    // to content and clump at the start. STAT_ROW_BOTTOM's bottom stat row
+    // relies on this so 3, 4, or 5 stats all distribute the region width.
+    const out = compile(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset);
+    // Every stats_<n> item-group carries grow={1}.
+    const itemGroups = out.match(/<Anuma\.Group id="stats_\d"[^>]*>/g) ?? [];
+    expect(itemGroups.length).toBe(4);
+    for (const g of itemGroups) {
+      expect(g).toContain("grow={1}");
+    }
+    // The outer region group itself must NOT carry grow={1} — it owns a
+    // fixed x/y/w/h frame on the slide canvas.
+    const outer = out.match(/<Anuma\.Group id="stats"[^>]*>/)![0];
+    expect(outer).not.toContain("grow={1}");
+  });
+
+  it("does NOT add grow on item-groups in a column-layout region", () => {
+    // AGENDA is column-layout; row-distribution doesn't apply. Item-groups
+    // are stretched horizontally by the parent's align="stretch" instead.
+    const out = compile(AGENDA, EDITORIAL_WARM, fontPreset);
+    const firstItem = out.match(/<Anuma\.Group id="agenda_1"[^>]*>/)![0];
+    expect(firstItem).not.toContain("grow={1}");
   });
 });
 
