@@ -250,6 +250,83 @@ describe("useChat", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    it("should return success when signal aborts after the stream completed cleanly", async () => {
+      // Repro for the council-mode race: each per-model worker calls
+      // `stop()` from its React unmount cleanup once the store flips
+      // `isStreaming: false`. That cleanup-time abort fires AFTER the
+      // server closed the connection and the for-await loop exited
+      // with every byte parsed. The old post-loop `signal?.aborted`
+      // check incorrectly classified this as "Request aborted" even
+      // though the response was complete.
+      //
+      // We simulate the race by letting the mock SSE generator yield
+      // its full response, then wait one microtask before returning —
+      // and call `stop()` during that microtask. With the old code
+      // that flipped the result to "Request aborted"; with the fix
+      // the already-delivered response is preserved.
+      let aborted: (() => void) | null = null;
+      const abortGate = new Promise<void>((resolve) => {
+        aborted = resolve;
+      });
+
+      mockCreateSseClient.mockReturnValue({
+        stream: (async function* () {
+          yield {
+            type: "response.created",
+            response: {
+              id: "resp-123",
+              model: "fireworks/accounts/fireworks/models/kimi-k2p5",
+            },
+          };
+          yield {
+            type: "response.output_text.delta",
+            delta: { OfString: "Hello world" },
+          };
+          yield {
+            type: "response.completed",
+            response: { usage: { input_tokens: 10, output_tokens: 5 } },
+          };
+          // Hold the generator open until the test has aborted the
+          // signal. Returning here would let the for-await exit
+          // before stop() fires, masking the race.
+          await abortGate;
+        })(),
+      } as any);
+
+      const { result } = renderHook(() =>
+        useChat({
+          getToken: async () => "fake-token",
+        })
+      );
+
+      let response: SendMessageResult | undefined;
+
+      const sendPromise = (async () => {
+        await act(async () => {
+          response = await result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+            model: "fireworks/accounts/fireworks/models/kimi-k2p5",
+          });
+        });
+      })();
+
+      // Yield to the event loop so the generator processes its yields.
+      await new Promise((r) => setTimeout(r, 10));
+
+      // Abort the request, then let the generator return. The signal
+      // is now aborted *after* every byte of the response was
+      // delivered — exactly the council-mode race condition.
+      await act(async () => {
+        result.current.stop();
+        aborted!();
+      });
+
+      await sendPromise;
+
+      expect(response?.error).toBeNull();
+      expect(response?.data).toBeDefined();
+    });
+
     it("should reset isLoading to false when token getter fails", async () => {
       const { result } = renderHook(() =>
         useChat({
