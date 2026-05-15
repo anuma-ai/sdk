@@ -2146,12 +2146,13 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       defaultText:
         "Direct-trade espresso, roasted to your dial. Studio, café, and hotel formats.",
     },
-    // Footer band — hairline + small mono note
+    // Footer band — hairline + small mono note. Footer baseline y=96 is
+    // the deck-wide footer convention; rule sits 2% above it.
     {
       id: "footer_rule",
       role: "divider",
       x: 6,
-      y: 92,
+      y: 94,
       w: 40,
       h: 0,
     },
@@ -2159,7 +2160,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       id: "footer",
       role: "footer",
       x: 6,
-      y: 94,
+      y: 96,
       w: 40,
       h: 2.5,
       fit: "single-line",
@@ -2446,7 +2447,7 @@ export const PROBLEM_EVIDENCE: LayoutComposition = {
       id: "footer",
       role: "footer",
       x: 6,
-      y: 95,
+      y: 96,
       w: 60,
       h: 3,
       fit: "single-line",
@@ -3805,7 +3806,7 @@ export const PEER_COMPARISON_TABLE: LayoutComposition = {
       id: "footer",
       role: "footer",
       x: 6,
-      y: 94,
+      y: 96,
       w: 88,
       h: 3,
       fit: "single-line",
