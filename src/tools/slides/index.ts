@@ -1462,7 +1462,8 @@ CHOOSING AN ACCENT (plan_deck.accent) — set \`accent\` to a 6-digit hex that f
 
 IMAGES:
 - Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaImageMCP-generate_cloud_image if available in your tool list). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.
-- Most decks should be text-only. If you have no real image source for a slot — no attached images AND no image-generation tool in your tool list — omit the <Anuma.Image> element entirely. Layout recipes ship images with src="REPLACE_WITH_IMAGE_OR_REMOVE"; add_slide rejects any slide that still contains that sentinel.
+- Most decks should be text-only. Layout recipes ship <Anuma.Image> elements with src="REPLACE_WITH_IMAGE_OR_REMOVE"; add_slide rejects any slide that still contains that sentinel.
+- When you have FEWER real image sources than image slots in your chosen layouts, REMOVE the unfilled <Anuma.Image> elements from the slide JSX entirely. Do NOT leave the sentinel in, do NOT re-use one image URL across many slots, and do NOT generate one image per slot — generate 1–2 images max and drop the rest of the image elements. The deck reads fine without them.
 - With images: generate them FIRST (1–2 max), then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
 
 ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.
