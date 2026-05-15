@@ -59,20 +59,18 @@ describe("sentinelAgent", () => {
     }
   });
 
-  it("each skill's requiredVariables is covered by a matching journey field or file step", () => {
+  it("each skill's requiredVariables has a matching journey field", () => {
     // requiredVariables is the full set of slots the prompt template needs (used
-    // by the SMS gateway, which has no file upload). Journey forms may mark
-    // some of these as `required: false` when the upload step can substitute,
-    // so we accept either a matching field (required or optional) or — for
-    // body-text variables — the journey's file step covering it.
+    // by the SMS gateway, which has no file upload). Every required variable
+    // must have a matching journey field — even when the journey accepts file
+    // uploads, the SMS path needs the same data via a question prompt.
     for (const skill of sentinelAgent.skills) {
       const journey = sentinelAgent.skillJourneys![skill.id];
       const fieldKeys = new Set(journey.fields.map((f) => f.key));
       for (const variable of skill.requiredVariables ?? []) {
-        const coveredByFile = journey.acceptsFiles;
         expect(
-          fieldKeys.has(variable) || coveredByFile,
-          `${skill.id}.requiredVariables[${variable}] must have a matching journey field or a file step`
+          fieldKeys.has(variable),
+          `${skill.id}.requiredVariables[${variable}] must have a matching journey field`
         ).toBe(true);
       }
     }
