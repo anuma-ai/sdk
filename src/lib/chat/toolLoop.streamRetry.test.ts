@@ -143,6 +143,122 @@ describe("runToolLoop streaming retry", () => {
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
   });
 
+  // --------------------------------------------------------------------
+  // Continuation-round retry coverage.
+  //
+  // The initial-round path and the continuation-round path are structurally
+  // identical (deliberately — drift between them is a known risk). These
+  // tests drive runToolLoop through one successful tool call so the loop
+  // enters a continuation round, then inject the failure on that round.
+  // --------------------------------------------------------------------
+
+  /** Stream that ends by emitting one tool call — drives the loop into a
+   * continuation round so the next createSseClient() call is for the
+   * continuation request, not the initial. */
+  function makeStreamWithToolCall(toolName: string, callId: string, args: string) {
+    return (async function* () {
+      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield {
+        type: "response.output_item.added",
+        item: {
+          type: "function_call",
+          id: callId,
+          call_id: callId,
+          name: toolName,
+          arguments: args,
+        },
+      };
+      yield {
+        type: "response.completed",
+        response: { usage: { input_tokens: 1, output_tokens: 1 } },
+      };
+    })();
+  }
+
+  function makeEchoTool() {
+    return [
+      {
+        type: "function" as const,
+        function: {
+          name: "echo",
+          description: "echo the argument back",
+          parameters: { type: "object", properties: { text: { type: "string" } } },
+        },
+        executor: async (args: Record<string, unknown>) => ({ echoed: args.text }),
+      },
+    ];
+  }
+
+  it("retries a continuation round that fails pre-content with a transient error", async () => {
+    // Initial round emits one tool call → continuation round throws
+    // `terminated` before any chunk → retry → continuation succeeds.
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeStreamWithToolCall("echo", "call_1", '{"text":"hi"}'),
+      } as never)
+      .mockReturnValueOnce({ stream: makeRejectingStream(new Error("terminated")) } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
+
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+      tools: makeEchoTool(),
+    });
+
+    expect(result.error).toBeNull();
+    // 1 initial + 1 failing continuation + 1 recovered continuation
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(3);
+  });
+
+  it("does NOT retry a continuation round once any chunk has emitted downstream", async () => {
+    // Continuation round emits one text delta, then throws. Retry would
+    // double-stream the partial content, so we bail.
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeStreamWithToolCall("echo", "call_1", '{"text":"hi"}'),
+      } as never)
+      .mockReturnValueOnce({
+        stream: makePartiallyEmittingThenRejectingStream(new Error("terminated")),
+      } as never);
+
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+      tools: makeEchoTool(),
+    });
+
+    expect(result.error).toContain("terminated");
+    // 1 initial + 1 mid-content-failing continuation, no retry
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up after the configured cap on a continuation round too", async () => {
+    // Initial succeeds, then all three continuation attempts fail.
+    let call = 0;
+    mockCreateSseClient.mockImplementation(() => {
+      call++;
+      if (call === 1) {
+        return {
+          stream: makeStreamWithToolCall("echo", "call_1", '{"text":"hi"}'),
+        } as never;
+      }
+      return { stream: makeRejectingStream(new Error("terminated")) } as never;
+    });
+
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+      tools: makeEchoTool(),
+    });
+
+    expect(result.error).toContain("terminated");
+    // 1 initial + 3 continuation attempts before giving up
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(4);
+  });
+
   it("gives up after the configured attempt cap and surfaces the last error", async () => {
     // All three attempts fail with a retriable error → the loop should
     // stop and surface the failure rather than retry forever.
