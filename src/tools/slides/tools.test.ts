@@ -780,6 +780,45 @@ describe("patch_slides JSX ops", () => {
     expect(result.results!.join(" | ")).toMatch(/insert_element: Unknown fontFamily/);
   });
 
+  it("patch_slides ops auto-strip <Anuma.Image> elements that still carry the placeholder sentinel", async () => {
+    // add_slide already strips the sentinel; patch_slides should match
+    // that policy across all four JSX-accepting ops (replace_element,
+    // insert_element, replace_slide, insert_slide). Verify each op
+    // strips and reports the count in its results line.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const patch = tools.find((t) => toolName(t) === "patch_slides")!;
+
+    // 1) replace_element: replace t1 with a Group that contains one
+    // sentinel image and one real-URL image.
+    const replaceElementResult = (await patch.executor!({
+      operations: [
+        {
+          action: "replace_element",
+          slideId: "s1",
+          elementId: "t1",
+          jsx: `<Anuma.Group id="grp" x={0} y={0} w={100} h={100}><Anuma.Image id="i_bad" x={0} y={0} w={50} h={50} src="REPLACE_WITH_IMAGE_OR_REMOVE" /><Anuma.Image id="i_good" x={50} y={0} w={50} h={50} src="https://example.com/real.jpg" /></Anuma.Group>`,
+        },
+      ],
+    })) as { results?: string[] };
+    expect(replaceElementResult.results![0]).toMatch(/replaced s1\/t1.*stripped 1 unfilled/);
+
+    // 2) insert_slide with one sentinel image. The slide should ship,
+    // the sentinel image should be gone.
+    const insertSlideResult = (await patch.executor!({
+      operations: [
+        {
+          action: "insert_slide",
+          jsx: `<Anuma.Slide id="s2"><Anuma.Image id="i2" x={0} y={0} w={100} h={100} src="REPLACE_WITH_IMAGE_OR_REMOVE" /></Anuma.Slide>`,
+        },
+      ],
+    })) as { results?: string[] };
+    expect(insertSlideResult.results![0]).toMatch(/inserted slide s2.*stripped 1 unfilled/);
+
+    const persisted = store.get("slides.jsx")!;
+    expect(persisted).not.toContain("REPLACE_WITH_IMAGE_OR_REMOVE");
+    expect(persisted).toContain('src="https://example.com/real.jpg"');
+  });
+
   it("replace_element accepts a library font", async () => {
     const { tools } = await setupDeckWithOneSlide();
     const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({

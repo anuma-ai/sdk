@@ -1116,6 +1116,10 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   );
                   break;
                 }
+                // Strip sentinel-laced <Anuma.Image> elements — same
+                // policy as add_slide: a partial subtree without
+                // unfilled placeholders is more useful than a rejection.
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`replace_element: ${fontErr}`);
@@ -1139,9 +1143,14 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push(`replace_element: element ${op.elementId} not found`);
                   break;
                 }
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0)
+                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `replaced ${op.slideId}/${op.elementId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `replaced ${op.slideId}/${op.elementId} (${noteParts.join("; ")})`
                     : `replaced ${op.slideId}/${op.elementId}`
                 );
                 break;
@@ -1169,6 +1178,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   );
                   break;
                 }
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`insert_element: ${fontErr}`);
@@ -1177,9 +1187,14 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const renames = dedupeIds(collectIds(deck), next);
                 insertChild(slideNode, next, op.afterElementId);
                 const newId = getId(next) ?? "<no-id>";
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0)
+                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `inserted ${newId} into ${op.slideId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `inserted ${newId} into ${op.slideId} (${noteParts.join("; ")})`
                     : `inserted ${newId} into ${op.slideId}`
                 );
                 break;
@@ -1223,6 +1238,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   );
                   break;
                 }
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`replace_slide: ${fontErr}`);
@@ -1242,9 +1258,14 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push(`replace_slide: slide ${op.slideId} not found`);
                   break;
                 }
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0)
+                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `replaced slide ${op.slideId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `replaced slide ${op.slideId} (${noteParts.join("; ")})`
                     : `replaced slide ${op.slideId}`
                 );
                 break;
@@ -1266,6 +1287,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push(`insert_slide: root must be <Anuma.Slide>, got <Anuma.${next.tag}>`);
                   break;
                 }
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`insert_slide: ${fontErr}`);
@@ -1274,9 +1296,14 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const renames = dedupeIds(collectIds(deck), next);
                 insertChild(deck, next, op.afterSlideId);
                 const newId = getId(next) ?? "<no-id>";
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0)
+                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `inserted slide ${newId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `inserted slide ${newId} (${noteParts.join("; ")})`
                     : `inserted slide ${newId}`
                 );
                 break;
