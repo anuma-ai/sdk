@@ -78,6 +78,39 @@ describe("runToolLoop streaming retry", () => {
     mockGenerateEmbedding.mockResolvedValue([0.1]);
   });
 
+  it("invokes the onStreamRetry hook for each retried attempt and reports the round / counter", async () => {
+    // Two failing attempts, then recovery — hook should fire twice
+    // (once per retry decision), carrying the round identifier and the
+    // 1-based attempt counter.
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: makeRejectingStream(new Error("terminated")) } as never)
+      .mockReturnValueOnce({ stream: makeRejectingStream(new Error("terminated")) } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
+
+    const events: Array<{
+      round: "initial" | number;
+      attempt: number;
+      maxAttempts: number;
+      backoffMs: number;
+      error: Error;
+    }> = [];
+
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+      onStreamRetry: (e) => events.push(e),
+    });
+
+    expect(result.error).toBeNull();
+    expect(events).toHaveLength(2);
+    expect(events[0]!.round).toBe("initial");
+    expect(events[0]!.attempt).toBe(1);
+    expect(events[0]!.maxAttempts).toBe(3);
+    expect(events[0]!.error.message).toBe("terminated");
+    expect(events[1]!.attempt).toBe(2);
+  });
+
   it("retries when the first attempt fails with `terminated` before any chunk emits", async () => {
     mockCreateSseClient
       .mockReturnValueOnce({ stream: makeRejectingStream(new Error("terminated")) } as never)

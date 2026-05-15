@@ -361,6 +361,23 @@ export type RunToolLoopOptions = {
    */
   onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
   /**
+   * Called when the streaming transport hits a transient pre-content
+   * failure and the toolLoop schedules a retry. Surfaces the round
+   * (`"initial"` or the 1-based continuation index), attempt counter,
+   * remaining cap, the underlying error, and the backoff delay so
+   * callers can log / surface UI / report metrics. Not invoked for
+   * mid-content failures (where retry is unsafe) or for the final
+   * attempt that surfaces as `result.error`. When omitted, retries
+   * fire silently.
+   */
+  onStreamRetry?: (event: {
+    round: "initial" | number;
+    attempt: number;
+    maxAttempts: number;
+    backoffMs: number;
+    error: Error;
+  }) => void;
+  /**
    * Custom streaming transport. Defaults to a fetch-based SSE client.
    * React Native environments can supply an XHR-based transport since
    * `fetch` response body streaming isn't available in RN.
@@ -524,6 +541,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onToolCallArgumentsDelta,
     onStepFinish,
     onRequest,
+    onStreamRetry,
     transport: makeStreamingRequest = defaultTransport,
     preProcessors,
     maxConnectorCalls = 2,
@@ -706,10 +724,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           isRetriableStreamError(streamErr)
         ) {
           const backoff = STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000;
-          const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
-          console.warn(
-            `[runToolLoop] streaming round (initial) attempt ${attempt + 1}/${STREAM_RETRY_MAX_ATTEMPTS} failed (${msg}); retrying in ${backoff}ms.`
-          );
+          if (onStreamRetry) {
+            const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
+            onStreamRetry({
+              round: "initial",
+              attempt: attempt + 1,
+              maxAttempts: STREAM_RETRY_MAX_ATTEMPTS,
+              backoffMs: backoff,
+              error: err,
+            });
+          }
           await sleep(backoff, signal);
           continue;
         }
@@ -1185,10 +1209,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             isRetriableStreamError(streamErr)
           ) {
             const backoff = STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000;
-            const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
-            console.warn(
-              `[runToolLoop] streaming round (continuation ${toolIteration}) attempt ${attempt + 1}/${STREAM_RETRY_MAX_ATTEMPTS} failed (${msg}); retrying in ${backoff}ms.`
-            );
+            if (onStreamRetry) {
+              const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
+              onStreamRetry({
+                round: toolIteration,
+                attempt: attempt + 1,
+                maxAttempts: STREAM_RETRY_MAX_ATTEMPTS,
+                backoffMs: backoff,
+                error: err,
+              });
+            }
             await sleep(backoff, signal);
             continue;
           }
