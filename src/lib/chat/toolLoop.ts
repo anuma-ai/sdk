@@ -74,12 +74,13 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 /**
  * Predicate for "this streaming-round error is worth retrying."
  *
- * Conservative: includes upstream timeouts, 5xx/408/429 HTTP errors,
- * undici's `terminated` (TCP reset / unexpected close), and the
- * `ProviderStreamError("timeout")` shape providers like Fireworks emit
- * via an in-stream `{"error":...}` chunk. Excludes abort errors (user
- * cancelled) and 4xx other than 408/429 (validation / auth — retry
- * won't help).
+ * Conservative: includes 5xx/408/429 HTTP errors, undici's `terminated`
+ * (TCP reset / unexpected close), and Node-level network failures
+ * (ECONNRESET, ETIMEDOUT, "connect error"). Excludes abort errors
+ * (user cancelled), 4xx other than 408/429 (validation / auth — retry
+ * won't help), and ProviderStreamError (an in-band model timeout — the
+ * same prompt would likely time out the same way on a retry, so we
+ * surface the real cause instead of burning round-trips).
  */
 function isRetriableStreamError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
