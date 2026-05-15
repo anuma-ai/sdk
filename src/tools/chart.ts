@@ -50,7 +50,7 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
     description:
-      'Render a chart inline. You MUST pass the actual numeric values in the "data" array — they are never inferred. Example call: {"chartType":"bar","data":[{"label":"A","value":10},{"label":"B","value":20}],"dataKeys":["value"],"xAxisKey":"label"}',
+      'Render a bar, line, area, or pie chart inline. Use when the user asks to plot, chart, or graph data. You MUST pass the actual numeric values in the "data" array — they are never inferred.',
     parameters: {
       type: "object",
       properties: {

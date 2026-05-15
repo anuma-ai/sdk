@@ -39,6 +39,7 @@ import {
   Message,
   type MessageChunk,
   type SearchSource,
+  type ServerToolsFilterFn,
   type StorageOperationsContext,
   type StoredConversation,
   type StoredFileWithContext,
@@ -112,12 +113,16 @@ import {
   readEncryptedFile,
 } from "../lib/storage";
 import {
+  BUILT_IN_TOOL_SETS,
+  expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
   getServerTools,
   mergeTools,
+  scoreTools,
   type ServerTool,
   shouldRefreshTools,
+  type ToolSet,
 } from "../lib/tools";
 import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
@@ -132,7 +137,7 @@ const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 // is just a safety cap to avoid pathological cases.
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.52;
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -158,15 +163,20 @@ async function autoFilterClientTools(
   clientTools: LlmapiChatCompletionTool[],
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
-  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string }
+  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
+  extraToolSets: ToolSet[] = [],
+  activeToolSets: string[] = []
 ): Promise<LlmapiChatCompletionTool[]> {
   // Memory tools are always included — only filter connector tools (Notion, Google)
   const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
-  // Skip if no embeddings or too few filterable tools
-  if (!promptEmbeddings || filterCandidates.length <= MAX_CLIENT_TOOLS_AFTER_FILTER) {
+  // Skip only if we have nothing to match against. The prior count gate
+  // (skip when filterCandidates <= MAX_CLIENT_TOOLS_AFTER_FILTER) defeated
+  // filtering on small catalogs, where dropping irrelevant tools still
+  // matters. MAX_CLIENT_TOOLS_AFTER_FILTER remains the result-size cap below.
+  if (!promptEmbeddings || filterCandidates.length === 0) {
     return clientTools;
   }
 
@@ -218,20 +228,154 @@ async function autoFilterClientTools(
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
-    relevanceRatio: 0.85,
+    // 0.90 (instead of the global 0.85 default): when there's a clear top
+    // match (e.g. create_file at 0.66), borderline matches at 0.55-0.59
+    // shouldn't cling on. With additive set expansion this matters extra:
+    // a borderline anchor (patch_slides 0.58, github_api 0.58) would
+    // otherwise activate a whole second tool set on prompts where the user
+    // clearly meant something else.
+    relevanceRatio: 0.9,
   });
 
-  if (matches.length === 0) {
-    // No matches above threshold — return only always-included tools (e.g. memory)
+  const matchedNames = new Set(matches.map((m) => m.tool.name));
+  // Build the score map from raw similarities (no relevance / limit /
+  // ambiguity cuts) so anchor activation in expandToolSetsAdditive sees
+  // anchors that scored above anchorMinSimilarity even when a dominant
+  // non-anchor pushed them below the 0.9 relevance cutoff above.
+  const scores = scoreTools(promptEmbeddings, pseudoServerTools);
+  const availableNames = new Set(filterCandidates.map(getToolName));
+
+  // Apply tool sets additively: if an anchor matches OR a set is marked
+  // active by the consumer, add set members alongside the original matches.
+  // Recall over precision — a few extra tool defs in the request are cheap;
+  // missing a tool the model needs (e.g. display_chart for a dashboard prompt)
+  // is what we can't afford.
+  const toolSets =
+    extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
+  const activeSetNames = activeToolSets.length > 0 ? new Set(activeToolSets) : undefined;
+  const finalNames = expandToolSetsAdditive(
+    matchedNames,
+    availableNames,
+    scores,
+    toolSets,
+    activeSetNames
+  );
+
+  // If nothing semantically matched AND no active sets pulled anything in,
+  // return only always-included tools (e.g. memory).
+  if (finalNames.size === 0) {
     return alwaysInclude;
   }
 
-  const matchedNames = new Set(matches.map((m) => m.tool.name));
   const filtered = filterCandidates.filter((t) => {
     const name = getToolName(t);
-    return name && matchedNames.has(name);
+    return name && finalNames.has(name);
   });
   return [...alwaysInclude, ...filtered];
+}
+
+/**
+ * Preview which tools `useChatStorage` will include for a given prompt,
+ * without making the actual chat request.
+ *
+ * Runs the exact same client + server tool selection pipeline that
+ * `useChatStorage`'s `sendMessage` runs internally — same embedding,
+ * same `autoFilterClientTools` call, same server-tools branch — so the
+ * returned names are guaranteed to match what a real request would
+ * include for that prompt + config.
+ *
+ * Intended for debug UIs ("show me what the model will see for this
+ * prompt"). Pass the same `clientTools`, `serverToolsFilter`,
+ * `extraToolSets`, and `activeToolSets` you pass to `useChatStorage`
+ * so the result is faithful.
+ *
+ * Caveats:
+ * - For server tools, this only mirrors the dynamic `findMatchingTools`
+ *   path (the one used for the responses API in `sendMessage`). If your
+ *   serverToolsFilter is a function, it's invoked directly with the
+ *   prompt embedding.
+ * - Embedding generation hits the same `/embeddings` endpoint as the
+ *   real request; pass a shared `clientToolEmbeddingsCache` if you call
+ *   this repeatedly to avoid re-embedding tool descriptions.
+ */
+export async function previewToolSelection(options: {
+  prompt: string;
+  clientTools?: LlmapiChatCompletionTool[];
+  serverToolsFilter?: string[] | ServerToolsFilterFn;
+  serverToolsConfig?: { cacheExpirationMs?: number };
+  getToken: () => Promise<string | null>;
+  baseUrl?: string;
+  embeddingModel?: string;
+  extraToolSets?: ToolSet[];
+  activeToolSets?: string[];
+  /** Optional cache of tool-description embeddings, shared across calls. */
+  clientToolEmbeddingsCache?: Map<string, number[]>;
+}): Promise<{
+  clientToolNames: string[];
+  serverToolNames: string[];
+}> {
+  const {
+    prompt,
+    clientTools = [],
+    serverToolsFilter,
+    serverToolsConfig,
+    getToken,
+    baseUrl,
+    embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
+    extraToolSets,
+    activeToolSets,
+    clientToolEmbeddingsCache,
+  } = options;
+
+  if (!prompt.trim()) {
+    return { clientToolNames: [], serverToolNames: [] };
+  }
+
+  const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+
+  let promptEmbedding: number[];
+  try {
+    promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
+  } catch {
+    return { clientToolNames: [], serverToolNames: [] };
+  }
+
+  // Client tools — identical call path to sendMessage
+  const cache = clientToolEmbeddingsCache ?? new Map<string, number[]>();
+  const filteredClientTools = await autoFilterClientTools(
+    clientTools,
+    promptEmbedding,
+    cache,
+    embeddingOptions,
+    extraToolSets ?? [],
+    activeToolSets ?? []
+  );
+  const clientToolNames = filteredClientTools.map(getToolName).filter(Boolean);
+
+  // Server tools — mirror the responses-API branch in sendMessage
+  let serverToolNames: string[] = [];
+  if (
+    serverToolsFilter !== undefined &&
+    !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
+  ) {
+    try {
+      const allServerTools = await getServerTools({
+        baseUrl,
+        cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+        getToken,
+      });
+      if (typeof serverToolsFilter === "function") {
+        serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
+      } else {
+        const allow = new Set(serverToolsFilter);
+        serverToolNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
+      }
+    } catch {
+      // Server tools optional; leave empty on fetch failure.
+    }
+  }
+
+  return { clientToolNames, serverToolNames };
 }
 
 /**
@@ -508,6 +652,33 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * @default true
    */
   autoFlushOnKeyAvailable?: boolean;
+
+  /**
+   * Additional tool sets to apply on top of the built-in ones (app-generation,
+   * slides, github). When any anchor tool in a custom set is selected by
+   * semantic matching, all members of that set are included automatically.
+   *
+   * Treated as static config — set once at hook setup. Changing it across
+   * renders does not affect in-flight `sendMessage` calls; use
+   * `activeToolSets` for dynamic, conversation-state-driven overrides.
+   */
+  extraToolSets?: ToolSet[];
+
+  /**
+   * Tool set names that should expand unconditionally for this request,
+   * bypassing the anchor-similarity check. Use when conversation state
+   * implies a set should be present regardless of how the prompt is phrased
+   * — e.g., pass `["slides"]` when the conversation already contains a slide
+   * deck artifact, so short follow-up prompts ("add a thank you slide",
+   * "make it bigger") still get the full slide toolkit.
+   *
+   * Read via a ref so updates are visible to in-flight `sendMessage` calls
+   * without rebuilding the callback.
+   *
+   * Names must match a set's `name` from `BUILT_IN_TOOL_SETS` or
+   * `extraToolSets`. Unknown names are ignored.
+   */
+  activeToolSets?: string[];
 }
 
 /**
@@ -805,6 +976,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getWalletAddress,
     enableQueue = true,
     autoFlushOnKeyAvailable = true,
+    extraToolSets,
+    activeToolSets,
     fileProcessors,
     fileProcessingOptions,
     serverTools: serverToolsConfig,
@@ -866,6 +1039,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     }),
     [database, walletAddress, signMessage, embeddedWalletSigner]
   );
+
+  // `sendMessage` is a useCallback with explicit deps that intentionally
+  // omits config values. `activeToolSets` is dynamic per-conversation state
+  // — the consumer updates it when artifact-creating tool calls land in
+  // history. Read it via a ref so closures inside sendMessage always see
+  // the latest value without forcing a callback rebuild.
+  const activeToolSetsRef = useRef<string[] | undefined>(activeToolSets);
+  activeToolSetsRef.current = activeToolSets;
 
   // Memory vault operations context
   const vaultMemoryCollection = useMemo(
@@ -1871,7 +2052,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             clientTools,
             skipStorageEmbeddings,
             clientToolEmbeddingsCacheRef.current,
-            { getToken, baseUrl, model: embeddingModel }
+            { getToken, baseUrl, model: embeddingModel },
+            extraToolSets,
+            activeToolSetsRef.current
           );
         }
 
@@ -2297,7 +2480,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientTools,
           userMessageEmbeddings ?? null,
           clientToolEmbeddingsCacheRef.current,
-          { getToken, baseUrl, model: embeddingModel }
+          { getToken, baseUrl, model: embeddingModel },
+          extraToolSets,
+          activeToolSetsRef.current
         );
       }
 

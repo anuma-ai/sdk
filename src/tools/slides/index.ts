@@ -203,7 +203,9 @@ export const READ_SLIDES_SCHEMA = {
 
 export const PATCH_SLIDES_SCHEMA = {
   name: "patch_slides",
-  description: `Apply targeted operations to an existing slide deck. The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
+  description: `Apply patch operations to an existing slide deck — change a slide's text, swap a layout, update the theme, or add and remove slides. Pair with read_slides when the user wants to change something in their deck.
+
+The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
 
 Operations (set 'action' and the fields noted):
 - replace_element: { slideId, elementId, jsx } — replace a matched element with a new content-element JSX fragment (e.g. <Anuma.Text …>…</Anuma.Text>).
@@ -279,7 +281,9 @@ Operations (set 'action' and the fields noted):
 
 export const PLAN_DECK_SCHEMA = {
   name: "plan_deck",
-  description: `Initialize a new slide deck. Call this FIRST — once — to set up the theme, title, slide count, and layout pool. You pick:
+  description: `Create a new slide deck or presentation — use when the user asks to make, build, generate, or start a new slide deck, slideshow, PowerPoint, or Keynote presentation.
+
+Call this FIRST — once — to set up the theme, title, slide count, and layout pool. You pick:
   - title: presentation title (shown above the deck in the UI)
   - fontPreset: one of the font-preset keys
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
