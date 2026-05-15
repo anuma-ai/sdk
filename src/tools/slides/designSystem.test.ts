@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AGENDA,
+  ALL_COMPOSITIONS,
   BRAND_STORY_SPLIT,
   CORPORATE_MODERN,
   COVER_STATEMENT,
@@ -369,21 +370,23 @@ describe("compile() with flex regions", () => {
     expect(fills[3]).not.toBe(fills[2]); // accent != dark
   });
 
-  it("namespaces flex-region idPrefix per composition (no cross-composition collisions)", () => {
-    // Three compositions that historically shared idPrefix="stats" — the
-    // collision caused dedupeIds to rewrite every slot id (stats_1_value →
+  it("every flex-region idPrefix is distinct across compositions (no cross-composition collisions)", () => {
+    // Compositions historically shared idPrefix="stats" — the collision
+    // caused dedupeIds to rewrite every slot id (stats_1_value →
     // stats_1_value-2) when two such compositions appeared in the same
     // deck, breaking the `<prefix>_<idx>_<rel>` discoverability pattern.
-    // The fix: distinct per-composition prefixes. This test pins the
-    // distinctness so a future "just call them all stats" regression
-    // breaks loudly.
-    const prefixes = [
-      COVER_STATEMENT,
-      STAT_ROW_BOTTOM,
-      BRAND_STORY_SPLIT,
-    ].map((c) => c.elements.find(isFlexRegion)!.idPrefix);
-    expect(new Set(prefixes).size).toBe(prefixes.length);
-    expect(prefixes).toEqual(expect.arrayContaining(["facts", "audience", "proof"]));
+    // The fix: distinct per-composition prefixes. This walks ALL_COMPOSITIONS
+    // and asserts every flex region's idPrefix is globally unique so a
+    // future "just reuse a prefix" regression breaks loudly.
+    const allPrefixes: string[] = [];
+    for (const composition of ALL_COMPOSITIONS) {
+      for (const child of composition.elements) {
+        if (isFlexRegion(child)) allPrefixes.push(child.idPrefix);
+      }
+    }
+    expect(new Set(allPrefixes).size, `duplicate idPrefix: ${allPrefixes.join(", ")}`).toBe(
+      allPrefixes.length
+    );
   });
 
   it("does NOT emit grid row-groups when `columns` is unset", () => {

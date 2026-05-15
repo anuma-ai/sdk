@@ -54,6 +54,21 @@ export type ElementRole =
   | "marker" // small filled circle — timeline dots, list bullets (shape role)
   | "image"; // image placeholder (image role)
 
+/**
+ * The subset of ElementRole that a FlexRegion item can carry.
+ *
+ * `emitRelativeElement` handles dividers / accent-bars / markers as
+ * shape primitives and routes every other role through the text path
+ * (with role-specific style + fontRole resolution). It explicitly does
+ * NOT render `image` (no `<Anuma.Image>` emit path for rels) or
+ * `card-surface` (cards paint their surface via `cardItems: true` on
+ * the region, not via a per-rel role). Narrowing the type here makes
+ * those two roles uncompilable inside a flex item — so the silent-
+ * misrender case (rel.role="image" rendering as zero-size Text) can't
+ * be constructed.
+ */
+export type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface">;
+
 // ---------------------------------------------------------------------------
 // RoleStyle — the concrete styling applied to a role within a design system
 // ---------------------------------------------------------------------------
@@ -251,7 +266,14 @@ export interface CompositionElement {
 export interface RelativeElement {
   /** Slot id pattern. `${index}` is replaced with the 1-based item index. */
   id: string;
-  role: ElementRole;
+  /**
+   * One of the roles the flex emitter actually renders. Excludes "image"
+   * (no flex-item Image emit path) and "card-surface" (cards paint their
+   * surface via `cardItems: true` on the region, not via a per-rel role).
+   * The type narrows what `ElementRole` would otherwise advertise so
+   * those silent-misrender cases can't be constructed.
+   */
+  role: RelativeElementRole;
   /** Width in canvas-percent. Ignored when the parent flex axis assigns it. */
   w?: number;
   /** Height in canvas-percent. Ignored when the parent flex axis assigns it. */
@@ -2525,12 +2547,14 @@ export const HEADLINE_NUMBER: LayoutComposition = {
     // like "$30M primary · $10M secondary" read at body weight, not stat
     // weight. Composition pinned 3 columns; the flex region accepts 2–4
     // by varying defaultItems (or by the model passing more or fewer
-    // terms_<index>_<slot> ids). Prefix is content-oriented ("terms"
-    // for deal/board terms) rather than layout-oriented, matching the
-    // pattern of facts/audience/proof/agenda/cards.
+    // meta_<index>_<slot> ids). Prefix is content-oriented ("meta" for
+    // metadata about the headline number) rather than layout-oriented,
+    // matching the pattern of facts/audience/proof/agenda/cards.
+    // Distinct from PEER_COMPARISON_TABLE's table builder which uses
+    // the "terms" prefix.
     {
       kind: "flex-region",
-      idPrefix: "terms",
+      idPrefix: "meta",
       x: 6,
       y: 86,
       w: 88,
