@@ -12,6 +12,7 @@ import {
   applyAccent,
   compile,
   isFlexRegion,
+  renderCompositionLayoutRecipe,
   renderDesignSystemCatalog,
   validateSlotContent,
   type LayoutComposition,
@@ -383,6 +384,47 @@ describe("applyAccent", () => {
     expect(meanOf(derived)).toBeGreaterThan(meanOf("#16A34A"));
     // The derived value is also applied on the dark surface override.
     expect(themed.surfaces?.dark?.overrides["hero-accent"]?.color).toBe(derived);
+  });
+});
+
+describe("renderCompositionLayoutRecipe image-note conditionality", () => {
+  // The recipe note for image-bearing compositions has historically
+  // advertised AnumaImageMCP-generate_cloud_image unconditionally, even
+  // when the host hasn't bound that MCP to the loop. The model then
+  // hallucinates calls to a tool that doesn't exist. The
+  // `hasImageGenerator` flag adapts the recipe text accordingly.
+  it("advertises AnumaImageMCP when hasImageGenerator=true", () => {
+    const recipe = renderCompositionLayoutRecipe(
+      "cover-split-portrait--editorial-warm",
+      { heading: "Playfair Display", body: "Source Sans 3" },
+      undefined,
+      true
+    );
+    expect(recipe).toBeTruthy();
+    expect(recipe).toContain("AnumaImageMCP-generate_cloud_image");
+  });
+
+  it("omits the AnumaImageMCP reference when hasImageGenerator is false or unset", () => {
+    const recipe = renderCompositionLayoutRecipe(
+      "cover-split-portrait--editorial-warm",
+      { heading: "Playfair Display", body: "Source Sans 3" }
+    );
+    expect(recipe).toBeTruthy();
+    expect(recipe).not.toContain("AnumaImageMCP");
+    // Still tells the model how to handle an unfilled image slot.
+    expect(recipe).toContain("attached:N");
+    expect(recipe).toContain("remove the <Anuma.Image> element");
+  });
+
+  it("emits no image note at all for compositions without an image slot", () => {
+    // COVER_STATEMENT is image-less by design — the recipe shouldn't
+    // surface image guidance the model can't act on.
+    const recipe = renderCompositionLayoutRecipe(
+      "cover-statement--editorial-warm",
+      { heading: "Playfair Display", body: "Source Sans 3" }
+    );
+    expect(recipe).toBeTruthy();
+    expect(recipe).not.toContain("Image slots:");
   });
 });
 

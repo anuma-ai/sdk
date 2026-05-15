@@ -406,6 +406,15 @@ export interface CreateSlideToolsOptions {
   /** Optional error logger. Defaults to a no-op. */
   logError?: (message: string, error?: Error) => void;
   /**
+   * Set to true when the host has bound an image-generation tool (e.g.
+   * AnumaImageMCP-generate_cloud_image) to the same loop as these slide
+   * tools. plan_deck's recipe text adapts: when false (the default),
+   * the recipe tells the model the only valid path is attached:N or
+   * removing the element; when true, AnumaImageMCP is advertised as an
+   * option. Avoids leaking a tool name the model can't actually call.
+   */
+  hasImageGenerator?: boolean;
+  /**
    * Host-supplied hook that emits a deck-display UI interaction. Called
    * automatically from inside `plan_deck`, `add_slide`, and `patch_slides`;
    * its return value is merged into the tool result so the model (and the
@@ -554,6 +563,7 @@ export function createSlideTools({
   storage,
   logError = () => {},
   displaySlides,
+  hasImageGenerator = false,
 }: CreateSlideToolsOptions): SlideToolSet {
   function requireConversationId(): string {
     const id = getConversationId();
@@ -793,7 +803,8 @@ ${plannedLayouts
     renderCompositionLayoutRecipe(
       name,
       FONT_PRESETS[fontPreset]!,
-      accent ? { base: accent } : undefined
+      accent ? { base: accent } : undefined,
+      hasImageGenerator
     )
   )
   .filter((r): r is string => r !== null)

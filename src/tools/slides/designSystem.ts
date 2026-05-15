@@ -5034,7 +5034,16 @@ export function resolveCompositionLayout(
 export function renderCompositionLayoutRecipe(
   name: string,
   fontPreset: { heading: string; body: string },
-  accent?: { base: string; onDark?: string }
+  accent?: { base: string; onDark?: string },
+  /**
+   * When true, the recipe's image note advertises
+   * AnumaImageMCP-generate_cloud_image as an option. When false (the
+   * default), it tells the model the only valid path is attached:N or
+   * removing the element. Pass `true` only when the host has the
+   * AnumaImageMCP tool bound to the same loop — otherwise the model
+   * sees a tool-name it can't actually call.
+   */
+  hasImageGenerator?: boolean
 ): string | null {
   const resolved = resolveCompositionLayout(name);
   if (!resolved) return null;
@@ -5048,9 +5057,13 @@ export function renderCompositionLayoutRecipe(
   const hasImage = resolved.composition.elements.some(
     (e) => !isFlexRegion(e) && e.role === "image"
   );
-  const imageNote = hasImage
-    ? `\n\nImage slots: <Anuma.Image src="${IMAGE_PLACEHOLDER_SENTINEL}"> is a placeholder. Replace src with a real URL (attached:N reference, or a URL from AnumaImageMCP-generate_cloud_image if that tool is in your tool list) OR remove the <Anuma.Image> element entirely if no image is available. Never ship the literal sentinel string.`
-    : "";
+  let imageNote = "";
+  if (hasImage) {
+    const sourceClause = hasImageGenerator
+      ? "Replace src with a real URL (attached:N reference, or a URL from AnumaImageMCP-generate_cloud_image)"
+      : "Replace src with an attached:N reference if you have one";
+    imageNote = `\n\nImage slots: <Anuma.Image src="${IMAGE_PLACEHOLDER_SENTINEL}"> is a placeholder. ${sourceClause} OR remove the <Anuma.Image> element entirely if no image is available. Never ship the literal sentinel string.`;
+  }
   return `${name} — ${resolved.composition.description}
 
 ${slots}

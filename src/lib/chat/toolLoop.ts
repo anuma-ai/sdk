@@ -48,9 +48,40 @@ function wrapSseError(error: unknown): Error {
  * a retry would emit different content). Backoff is exponential-ish
  * with a small cap so a real outage doesn't hang the loop for half an
  * hour.
+ *
+ * Two schedules: rate-limited (429) gets longer backoffs because the
+ * server is telling us to slow down — retrying in 500ms three times
+ * burns round-trips and almost always fails again. We can't read the
+ * actual Retry-After header (the SSE client lives in a generated file
+ * that throws a stringified error), but a 5/15/30s schedule is a sane
+ * default for a portal that occasionally rate-limits. Transient
+ * transport failures (5xx, terminated, ECONNRESET) stay on the fast
+ * schedule so a momentary blip doesn't add seconds of latency.
  */
 const STREAM_RETRY_MAX_ATTEMPTS = 3;
 const STREAM_RETRY_BACKOFF_MS: readonly number[] = [500, 2000, 5000];
+const RATE_LIMIT_RETRY_BACKOFF_MS: readonly number[] = [5000, 15000, 30000];
+
+/**
+ * Pick a backoff for `attempt` (0-based) based on the error's
+ * rate-limit classification. 429 errors get the longer schedule; all
+ * other retriable errors get the fast schedule.
+ */
+function backoffForRetry(attempt: number, err: unknown): number {
+  const schedule = isRateLimitedStreamError(err)
+    ? RATE_LIMIT_RETRY_BACKOFF_MS
+    : STREAM_RETRY_BACKOFF_MS;
+  return schedule[attempt] ?? schedule[schedule.length - 1] ?? 1000;
+}
+
+/** True iff `err` represents a 429 Too Many Requests response. */
+function isRateLimitedStreamError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err instanceof SseError) return err.statusCode === 429;
+  const msg = (err.message ?? "").toLowerCase();
+  const m = msg.match(/sse failed: (\d+)/);
+  return m ? Number(m[1]) === 429 : false;
+}
 
 /**
  * Sleep for `ms` milliseconds; resolves immediately when the signal is
@@ -723,7 +754,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           !lastAttempt &&
           isRetriableStreamError(streamErr)
         ) {
-          const backoff = STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000;
+          const backoff = backoffForRetry(attempt, streamErr);
           if (onStreamRetry) {
             const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
             onStreamRetry({
@@ -1208,7 +1239,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             !lastAttempt &&
             isRetriableStreamError(streamErr)
           ) {
-            const backoff = STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000;
+            const backoff = backoffForRetry(attempt, streamErr);
             if (onStreamRetry) {
               const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
               onStreamRetry({

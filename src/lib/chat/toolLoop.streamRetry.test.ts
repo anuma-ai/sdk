@@ -109,7 +109,45 @@ describe("runToolLoop streaming retry", () => {
     expect(events[0]!.maxAttempts).toBe(3);
     expect(events[0]!.error.message).toBe("terminated");
     expect(events[1]!.attempt).toBe(2);
+    // Fast-schedule backoff for transient transport failures: <2s on
+    // first retry. The rate-limit schedule would put this at 5s+.
+    expect(events[0]!.backoffMs).toBeLessThan(2000);
   });
+
+  it("uses a longer rate-limit-specific backoff for 429 vs the fast schedule for 5xx", async () => {
+    // 429 should back off in the seconds-range (5s) — the server is
+    // telling us to slow down. Same retry-attempt index on a 503 stays
+    // on the fast schedule (~500ms). Without this differentiation, a
+    // rate-limited portal sees 3 retries in 7.5s and the user-visible
+    // failure surfaces despite the server having said "wait longer."
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeRejectingStream(new Error("SSE failed: 429 Too Many Requests")),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
+
+    const events: Array<{
+      round: "initial" | number;
+      attempt: number;
+      maxAttempts: number;
+      backoffMs: number;
+      error: Error;
+    }> = [];
+
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+      onStreamRetry: (e) => events.push(e),
+    });
+
+    expect(result.error).toBeNull();
+    expect(events).toHaveLength(1);
+    // Rate-limit schedule starts at 5000ms — well above the 500ms first
+    // step of the fast schedule, which would otherwise burn three
+    // round-trips in 7.5s against a server asking us to slow down.
+    expect(events[0]!.backoffMs).toBeGreaterThanOrEqual(5000);
+  }, 10_000);
 
   it("retries when the first attempt fails with `terminated` before any chunk emits", async () => {
     mockCreateSseClient
