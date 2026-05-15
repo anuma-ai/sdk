@@ -45,11 +45,24 @@ export interface CreateWeatherToolOptions {
    * Defaults to checking `navigator.language` for US/LR/MM regions.
    */
   detectUseFahrenheit?: () => boolean;
-  /** Called when a fetch error occurs. */
+  /** Called when a fetch error occurs (after retry). */
   onError?: (error: Error, ctx: { location: string }) => void;
   /** Timeout in milliseconds for fetch requests. Defaults to 10000. */
   timeoutMs?: number;
+  /**
+   * Override the Open-Meteo geocoding API base URL.
+   * Defaults to `https://geocoding-api.open-meteo.com/v1`.
+   */
+  geocodingBaseUrl?: string;
+  /**
+   * Override the Open-Meteo forecast API base URL.
+   * Defaults to `https://api.open-meteo.com/v1`.
+   */
+  forecastBaseUrl?: string;
 }
+
+const DEFAULT_GEOCODING_BASE = "https://geocoding-api.open-meteo.com/v1";
+const DEFAULT_FORECAST_BASE = "https://api.open-meteo.com/v1";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,7 +79,7 @@ function defaultDetectUseFahrenheit(): boolean {
   }
 }
 
-async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
+async function fetchJsonOnce<T>(url: string, timeoutMs: number): Promise<T> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -75,6 +88,22 @@ async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
     return (await res.json()) as T;
   } finally {
     clearTimeout(id);
+  }
+}
+
+/**
+ * One retry with jitter (100-300ms) for transient network/HTTP failures.
+ * AbortError (timeout) is NOT retried — repeating it would just double the
+ * user's wait time before the same outcome.
+ */
+async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
+  try {
+    return await fetchJsonOnce<T>(url, timeoutMs);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    const jitter = 100 + Math.random() * 200;
+    await new Promise(resolve => setTimeout(resolve, jitter));
+    return await fetchJsonOnce<T>(url, timeoutMs);
   }
 }
 
@@ -135,11 +164,13 @@ export function createWeatherTool(
   const detectUseFahrenheit = weatherOptions?.detectUseFahrenheit ?? defaultDetectUseFahrenheit;
   const onError = weatherOptions?.onError;
   const timeoutMs = weatherOptions?.timeoutMs ?? 10_000;
+  const geocodingBase = weatherOptions?.geocodingBaseUrl ?? DEFAULT_GEOCODING_BASE;
+  const forecastBase = weatherOptions?.forecastBaseUrl ?? DEFAULT_FORECAST_BASE;
 
   return createDisplayTool(options, {
     name: "display_weather",
     description:
-      "Display a weather forecast card showing temperature, conditions, and a 7-day forecast for a city or location. Only call this when the user explicitly asks about weather, temperature, rain, snow, or climate conditions. Do NOT repeat the card's data in text — just add a brief comment.",
+      "Fetches and displays current weather as a visual card in the chat. ALWAYS call this tool when the user asks about weather, even if you already have weather data from another tool. The card displays temperature, conditions, and a 7-day forecast visually — do NOT repeat this data in your text response. Just add a brief conversational comment if appropriate.",
     parameters: {
       type: "object",
       properties: {
@@ -164,7 +195,7 @@ export function createWeatherTool(
         const windUnit = useFahrenheit ? "mph" : "kmh";
 
         const geoData = await fetchJson<GeocodingResponse>(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
+          `${geocodingBase}/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
           timeoutMs
         );
 
@@ -176,7 +207,7 @@ export function createWeatherTool(
         const { latitude, longitude, name, country } = firstResult;
 
         const weatherData = await fetchJson<WeatherResponse>(
-          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto&temperature_unit=${tempUnit}&wind_speed_unit=${windUnit}`,
+          `${forecastBase}/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto&temperature_unit=${tempUnit}&wind_speed_unit=${windUnit}`,
           timeoutMs
         );
         const current = weatherData.current;
