@@ -921,6 +921,44 @@ export function walk(
   visit(root, null);
 }
 
+/**
+ * Remove every `<Anuma.Image>` descendant whose `src` attribute contains
+ * the given sentinel string — used by add_slide to auto-strip unfilled
+ * image placeholders the model failed to replace. Returns the number of
+ * elements removed so the caller can surface a hint to the model.
+ *
+ * Mutates `root` in place. Only `<Anuma.Image>` children are inspected;
+ * other elements that happen to contain the sentinel in some attribute
+ * are left intact (the sentinel is only ever emitted as an Image.src by
+ * the compiler, so any other occurrence is a separate bug worth seeing).
+ */
+export function stripImagesWithSrcSubstring(root: AnumaNode, sentinel: string): number {
+  let stripped = 0;
+  function visit(node: AnumaNode): void {
+    if (!Array.isArray(node.children) || node.children.length === 0) return;
+    const next: AnumaChild[] = [];
+    for (const child of node.children) {
+      if (typeof child === "string") {
+        next.push(child);
+        continue;
+      }
+      if (
+        child.tag === "Image" &&
+        typeof child.attrs.src === "string" &&
+        child.attrs.src.includes(sentinel)
+      ) {
+        stripped++;
+        continue; // drop from parent's children
+      }
+      visit(child);
+      next.push(child);
+    }
+    node.children = next;
+  }
+  visit(root);
+  return stripped;
+}
+
 /** Find the first node whose `attrs.id` matches `id`. */
 export function findById(root: AnumaNode, id: string): AnumaNode | null {
   let found: AnumaNode | null = null;

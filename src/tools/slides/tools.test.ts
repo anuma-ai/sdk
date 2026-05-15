@@ -493,19 +493,61 @@ describe("add_slide executor", () => {
     expect(result.error).toMatch(/Comic Sans MS/);
   });
 
-  it("rejects slideJsx that still contains the image-placeholder sentinel", async () => {
-    // Recipe templates ship <Anuma.Image src="REPLACE_WITH_IMAGE_OR_REMOVE">
-    // so the model knows to substitute a real source or drop the element.
-    // Verify a slide copied verbatim with the sentinel is refused.
-    const { storage } = makeStore();
+  it("auto-strips <Anuma.Image> elements whose src still carries the placeholder sentinel", async () => {
+    // Recipe templates ship <Anuma.Image src="REPLACE_WITH_IMAGE_OR_REMOVE">.
+    // The model is supposed to either fill src with a real URL or remove
+    // the element. When it forgets, prior policy was to reject the whole
+    // slide — but a partial deck with the image stripped is more useful.
+    // Verify: slide goes in, sentinel element is gone, message names the
+    // strip count so the model still gets feedback.
+    const { store, storage } = makeStore();
     const tools = await initDeck(storage);
-    const slideJsx = `<Anuma.Slide id="s1"><Anuma.Image id="img" x={0} y={0} w={100} h={100} src="REPLACE_WITH_IMAGE_OR_REMOVE" /></Anuma.Slide>`;
+    const slideJsx = `<Anuma.Slide id="s1"><Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontSize: 18, color: "textPrimary" }}>Hi</Anuma.Text><Anuma.Image id="img" x={0} y={0} w={100} h={100} src="REPLACE_WITH_IMAGE_OR_REMOVE" /></Anuma.Slide>`;
     const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
       layout: "cover-split-portrait--editorial-warm",
       slideJsx,
-    })) as { error?: string };
-    expect(result.error).toMatch(/REPLACE_WITH_IMAGE_OR_REMOVE/);
-    expect(result.error).toMatch(/Replace src with a real URL/);
+    })) as { success?: boolean; error?: string; message?: string; strippedImageCount?: number };
+    expect(result.error).toBeUndefined();
+    expect(result.success).toBe(true);
+    expect(result.strippedImageCount).toBe(1);
+    expect(result.message).toMatch(/Auto-stripped 1 unfilled <Anuma\.Image>/);
+    // The persisted slide should NOT contain the sentinel anymore.
+    const persisted = store.get("slides.jsx")!;
+    expect(persisted).not.toContain("REPLACE_WITH_IMAGE_OR_REMOVE");
+    // The non-image content (the Text) should still be there.
+    expect(persisted).toContain(">Hi<");
+  });
+
+  it("strips multiple sentinel-carrying Image elements and counts each", async () => {
+    const { store, storage } = makeStore();
+    const tools = await initDeck(storage);
+    const slideJsx = `<Anuma.Slide id="s2">
+      <Anuma.Image id="img1" x={0} y={0} w={100} h={100} src="REPLACE_WITH_IMAGE_OR_REMOVE" />
+      <Anuma.Image id="img2" x={120} y={0} w={100} h={100} src="REPLACE_WITH_IMAGE_OR_REMOVE" />
+      <Anuma.Image id="img3" x={240} y={0} w={100} h={100} src="https://example.com/real.jpg" />
+    </Anuma.Slide>`;
+    const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx,
+    })) as { success?: boolean; strippedImageCount?: number };
+    expect(result.success).toBe(true);
+    expect(result.strippedImageCount).toBe(2);
+    // The real-URL image survives; the two sentinel ones don't.
+    const persisted = store.get("slides.jsx")!;
+    expect(persisted).toContain('src="https://example.com/real.jpg"');
+    expect(persisted).not.toContain("REPLACE_WITH_IMAGE_OR_REMOVE");
+  });
+
+  it("omits strippedImageCount from the response when no Image was stripped", async () => {
+    const { storage } = makeStore();
+    const tools = await initDeck(storage);
+    const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="s3" />`,
+    })) as { success?: boolean; strippedImageCount?: number; message?: string };
+    expect(result.success).toBe(true);
+    expect(result.strippedImageCount).toBeUndefined();
+    expect(result.message ?? "").not.toMatch(/Auto-stripped/);
   });
 
   it("reports unused plan layouts in the success message while the deck is in progress", async () => {

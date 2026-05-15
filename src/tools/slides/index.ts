@@ -55,6 +55,7 @@ import {
   removeById,
   replaceById,
   serializeJsx,
+  stripImagesWithSrcSubstring,
   updateAttrs,
   walk,
 } from "./jsx";
@@ -848,16 +849,6 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
         if (!slideJsx) {
           return { error: "slideJsx is required and must be a <Anuma.Slide> JSX fragment" };
         }
-        // Recipe image slots ship with src="REPLACE_WITH_IMAGE_OR_REMOVE"
-        // (see designSystem.ts → IMAGE_PLACEHOLDER_SENTINEL). Reject any
-        // slide that copies the sentinel verbatim — the model must
-        // substitute a real image source or remove the <Anuma.Image>
-        // element entirely.
-        if (slideJsx.includes(IMAGE_PLACEHOLDER_SENTINEL)) {
-          return {
-            error: `slideJsx still contains the recipe placeholder "${IMAGE_PLACEHOLDER_SENTINEL}". Replace src with a real URL (attached:N reference or an AnumaImageMCP-generate_cloud_image URL if that tool is available) OR remove the <Anuma.Image> element entirely if you have no image for this slot.`,
-          };
-        }
         let slide: AnumaNode;
         try {
           slide = parseJsx(slideJsx);
@@ -865,6 +856,14 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           const msg = err instanceof AnumaJsxError ? err.message : String(err);
           return { error: `Invalid slideJsx: ${msg}` };
         }
+        // Recipe image slots ship with src="REPLACE_WITH_IMAGE_OR_REMOVE"
+        // (see designSystem.ts → IMAGE_PLACEHOLDER_SENTINEL). If the
+        // model copies them verbatim, drop just those <Anuma.Image>
+        // elements rather than rejecting the whole slide — a slide with
+        // its images stripped is more useful than no slide at all. The
+        // count is surfaced in the success message so the model still
+        // sees the friction and can do better on the next slide.
+        const strippedImageCount = stripImagesWithSrcSubstring(slide, IMAGE_PLACEHOLDER_SENTINEL);
         if (slide.tag !== "Slide") {
           return {
             error: `Invalid slideJsx: root must be <Anuma.Slide>, got <Anuma.${slide.tag}>`,
@@ -1012,14 +1011,19 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
             renames.length > 0
               ? ` Renamed duplicate ids: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}.`
               : "";
+          const strippedNote =
+            strippedImageCount > 0
+              ? ` Auto-stripped ${strippedImageCount} unfilled <Anuma.Image> element(s) (src still held the recipe sentinel). For future slides: either fill src with a real URL (attached:N or an image-generation tool's output) or omit the element from the JSX entirely.`
+              : "";
           return {
             success: true,
             slideIndex: totalSlides - 1,
             totalSlides,
             remaining,
             layoutUsage: usage,
+            ...(strippedImageCount > 0 ? { strippedImageCount } : {}),
             ...(renames.length > 0 ? { renamedIds: renames } : {}),
-            message: baseMessage + renameNote,
+            message: baseMessage + renameNote + strippedNote,
             ...(display && typeof display === "object" ? display : {}),
           };
         });
@@ -1462,8 +1466,8 @@ CHOOSING AN ACCENT (plan_deck.accent) — set \`accent\` to a 6-digit hex that f
 
 IMAGES:
 - Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaImageMCP-generate_cloud_image if available in your tool list). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.
-- Most decks should be text-only. Layout recipes ship <Anuma.Image> elements with src="REPLACE_WITH_IMAGE_OR_REMOVE"; add_slide rejects any slide that still contains that sentinel.
-- When you have FEWER real image sources than image slots in your chosen layouts, REMOVE the unfilled <Anuma.Image> elements from the slide JSX entirely. Do NOT leave the sentinel in, do NOT re-use one image URL across many slots, and do NOT generate one image per slot — generate 1–2 images max and drop the rest of the image elements. The deck reads fine without them.
+- Most decks should be text-only. Layout recipes ship <Anuma.Image> elements with src="REPLACE_WITH_IMAGE_OR_REMOVE"; if you leave the sentinel in, add_slide auto-strips just those <Anuma.Image> elements and accepts the rest of the slide (the response.message will tell you how many were stripped). The slide ships, but with empty image slots — better to handle it deliberately.
+- When you have FEWER real image sources than image slots in your chosen layouts, REMOVE the unfilled <Anuma.Image> elements from the slide JSX yourself. Do NOT re-use one image URL across many slots, and do NOT generate one image per slot — generate 1–2 images max and drop the rest of the image elements deliberately. The deck reads fine without them.
 - With images: generate them FIRST (1–2 max), then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
 
 ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.

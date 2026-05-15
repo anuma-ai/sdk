@@ -4120,8 +4120,11 @@ function emitMarker(el: CompositionElement, s: RoleStyle): string {
  * remove the element entirely if no image is available. It is not a
  * real URL by design — the previous `placehold.co` URL looked real
  * enough that the model frequently copied it verbatim into production
- * decks. add_slide validation rejects any slide JSX that still contains
- * this string.
+ * decks.
+ *
+ * Policy: add_slide auto-strips <Anuma.Image> elements whose src still
+ * holds this sentinel (see stripSentinelImages in jsx.ts) — a partial
+ * deck with the image dropped is more useful than a wholesale rejection.
  */
 export const IMAGE_PLACEHOLDER_SENTINEL = "REPLACE_WITH_IMAGE_OR_REMOVE";
 
