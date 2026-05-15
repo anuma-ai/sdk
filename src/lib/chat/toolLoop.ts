@@ -89,9 +89,12 @@ function isRetriableStreamError(err: unknown): boolean {
     const s = err.statusCode;
     return s === 408 || s === 429 || (s >= 500 && s < 600);
   }
-  if (err instanceof ProviderStreamError) {
-    return err.code === "timeout";
-  }
+  // ProviderStreamError is NOT retried: it represents an in-band error
+  // chunk emitted by the upstream provider (e.g. "the model timed out
+  // generating a response"). The same prompt is likely to time out the
+  // same way on a retry — better to surface the real cause immediately
+  // so the caller knows the failure is at the model level, not the
+  // transport.
 
   const msg = (err.message ?? "").toLowerCase();
   if (msg === "terminated") return true;
@@ -701,7 +704,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           !lastAttempt &&
           isRetriableStreamError(streamErr)
         ) {
-          await sleep(STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000, signal);
+          const backoff = STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000;
+          const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+          console.warn(
+            `[runToolLoop] streaming round (initial) attempt ${attempt + 1}/${STREAM_RETRY_MAX_ATTEMPTS} failed (${msg}); retrying in ${backoff}ms.`
+          );
+          await sleep(backoff, signal);
           continue;
         }
         throw streamErr;
@@ -1175,7 +1183,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             !lastAttempt &&
             isRetriableStreamError(streamErr)
           ) {
-            await sleep(STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000, signal);
+            const backoff = STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000;
+            const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+            console.warn(
+              `[runToolLoop] streaming round (continuation ${toolIteration}) attempt ${attempt + 1}/${STREAM_RETRY_MAX_ATTEMPTS} failed (${msg}); retrying in ${backoff}ms.`
+            );
+            await sleep(backoff, signal);
             continue;
           }
           throw streamErr;
