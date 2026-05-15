@@ -493,6 +493,51 @@ describe("add_slide executor", () => {
     expect(result.error).toMatch(/Comic Sans MS/);
   });
 
+  it("rejects slideJsx that still contains the image-placeholder sentinel", async () => {
+    // Recipe templates ship <Anuma.Image src="REPLACE_WITH_IMAGE_OR_REMOVE">
+    // so the model knows to substitute a real source or drop the element.
+    // Verify a slide copied verbatim with the sentinel is refused.
+    const { storage } = makeStore();
+    const tools = await initDeck(storage);
+    const slideJsx = `<Anuma.Slide id="s1"><Anuma.Image id="img" x={0} y={0} w={100} h={100} src="REPLACE_WITH_IMAGE_OR_REMOVE" /></Anuma.Slide>`;
+    const result = (await tools.find((t) => toolName(t) === "add_slide")!.executor!({
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx,
+    })) as { error?: string };
+    expect(result.error).toMatch(/REPLACE_WITH_IMAGE_OR_REMOVE/);
+    expect(result.error).toMatch(/Replace src with a real URL/);
+  });
+
+  it("reports unused plan layouts in the success message while the deck is in progress", async () => {
+    // plan_deck commits to two layouts; after using one, the success
+    // message should name the other so the model has a concrete target
+    // instead of just a usage count.
+    const { storage } = makeStore();
+    const tools = await initDeck(storage, undefined, 3);
+    const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
+    const result = (await addSlide.executor!({
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="cover" />`,
+    })) as { message?: string };
+    expect(result.message).toMatch(/Unused from your plan: brand-story-split--editorial-warm/);
+    expect(result.message).toMatch(/prefer one of these for the next slide/);
+  });
+
+  it("omits the unused-layouts hint when every plan layout has been used at least once", async () => {
+    const { storage } = makeStore();
+    const tools = await initDeck(storage, undefined, 3);
+    const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
+    await addSlide.executor!({
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="s1" />`,
+    });
+    const result = (await addSlide.executor!({
+      layout: "brand-story-split--editorial-warm",
+      slideJsx: `<Anuma.Slide id="s2" />`,
+    })) as { message?: string };
+    expect(result.message).not.toMatch(/Unused from your plan/);
+  });
+
   it("accepts any fontFamily listed in the library", async () => {
     const { storage } = makeStore();
     const tools = await initDeck(storage);

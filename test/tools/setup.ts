@@ -23,11 +23,25 @@ export const config = {
   portalKey: process.env.PORTAL_API_KEY || "",
 };
 
-if (!config.portalKey) {
-  throw new Error("PORTAL_API_KEY is required. Add it to .env or set the environment variable.");
+/**
+ * Throws if PORTAL_API_KEY isn't configured. Call this from tests that
+ * actually make portal calls; pure helpers that just consume types or
+ * file-store utilities can import from this module without needing the
+ * key set — this keeps unit-mode tests (vitest.config.mts) loadable
+ * even when running in an environment that hasn't provisioned the e2e
+ * credentials.
+ */
+export function requirePortalKey(): void {
+  if (!config.portalKey) {
+    throw new Error(
+      "PORTAL_API_KEY is required. Add it to .env or set the environment variable."
+    );
+  }
 }
 
-console.log(`[e2e] model: ${config.model}, apiType: ${config.apiType}`);
+if (config.portalKey) {
+  console.log(`[e2e] model: ${config.model}, apiType: ${config.apiType}`);
+}
 
 // ── Result helpers ───────────────────────────────────────────────────────────
 

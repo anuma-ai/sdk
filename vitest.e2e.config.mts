@@ -9,6 +9,8 @@ export default defineConfig({
       "test/tools/googleAuth.ts",
       "test/tools/**/setup.ts",
       "test/tools/**/tools.ts",
+      // Pure unit test for dumpFiles — runs under the main vitest config.
+      "test/tools/slide-generation/dumpFiles.test.ts",
     ],
     testTimeout: 300_000,
     hookTimeout: 120_000,

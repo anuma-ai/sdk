@@ -132,6 +132,18 @@ describe("tool prompt/schema consistency", () => {
     assertNoUnknownReferences("buildSlideSystemPrompt()", buildSlideSystemPrompt());
   });
 
+  it("slide system prompt disambiguates palette names from design-system suffixes", () => {
+    // An earlier run produced plan_deck calls like "cover-statement--humanist-cream"
+    // because the "humanist cream" palette name read as a plausible system
+    // suffix. The disambiguation sentence in the LAYOUT CATALOG block is the
+    // sole guardrail against that collision — if a future trim removes it,
+    // the failure mode comes back.
+    const prompt = buildSlideSystemPrompt();
+    expect(prompt).toMatch(/Palette names .*\bnot a system\b/i);
+    expect(prompt).toMatch(/humanist cream/);
+    expect(prompt).toMatch(/paletteName/);
+  });
+
   // ---------------------------------------------------------------------------
   // Sanity: confirm the test would catch a regression
   // ---------------------------------------------------------------------------

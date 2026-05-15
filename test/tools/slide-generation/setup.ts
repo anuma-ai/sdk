@@ -25,7 +25,7 @@ export { config, extractText, printResult, wrapTool, type ToolCallLog } from "..
 export { runToolLoop };
 export type { StepFinishEvent };
 
-import { config as _config } from "../setup.js";
+import { config as _config, requirePortalKey } from "../setup.js";
 
 // ---------------------------------------------------------------------------
 // Portal server-tool schemas (e.g. AnumaImageMCP-generate_cloud_image)
@@ -93,6 +93,10 @@ export async function timedToolLoop(
 ): Promise<
   Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number; rounds: StepFinishEvent[] }
 > {
+  // Fail fast if the e2e env wasn't provisioned — keeps the "missing
+  // key" surface in the test that needs it, instead of at module load
+  // (which would block unit-mode imports of this file).
+  requirePortalKey();
   const rounds: StepFinishEvent[] = [];
   const userOnStepFinish = options.onStepFinish;
   const start = performance.now();
@@ -226,9 +230,10 @@ const OUTPUT_DIR = path.resolve(__dirname, ".output");
 export function dumpFiles(
   store: FileStore,
   testName: string,
-  meta?: { error?: string | null }
+  meta?: { error?: string | null; outDir?: string }
 ): string {
-  const dir = path.join(OUTPUT_DIR, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
+  const baseDir = meta?.outDir ?? OUTPUT_DIR;
+  const dir = path.join(baseDir, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
   fs.mkdirSync(dir, { recursive: true });
   for (const [filePath, content] of store) {
     const fullPath = path.join(dir, filePath);
@@ -261,7 +266,8 @@ export function dumpFiles(
   // Happy path — render the deck preview and refresh the top-level index.
   const html = renderDeckToHtml(deck!, testName);
   fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
-  writeOutputIndex();
+  // Only refresh the canonical .output/index.html, never a custom out dir.
+  if (baseDir === OUTPUT_DIR) writeOutputIndex();
 
   console.log(`  Output written to ${path.relative(process.cwd(), dir)}/`);
   return dir;
