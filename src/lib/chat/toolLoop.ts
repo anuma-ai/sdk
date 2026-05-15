@@ -40,6 +40,73 @@ function wrapSseError(error: unknown): Error {
 }
 
 /**
+ * Defaults for transport-level retry on a single streaming round. We
+ * retry ONLY when the failure happens before any chunk has been
+ * processed downstream — once data has reached the smoothers /
+ * accumulator / user callbacks, re-running the request would risk
+ * duplicated or contradictory output (the upstream LLM is stochastic;
+ * a retry would emit different content). Backoff is exponential-ish
+ * with a small cap so a real outage doesn't hang the loop for half an
+ * hour.
+ */
+const STREAM_RETRY_MAX_ATTEMPTS = 3;
+const STREAM_RETRY_BACKOFF_MS: readonly number[] = [500, 2000, 5000];
+
+/**
+ * Sleep for `ms` milliseconds; resolves immediately when the signal is
+ * aborted so backoff doesn't hold up a cancellation.
+ */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) return resolve();
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(t);
+        resolve();
+      },
+      { once: true }
+    );
+  });
+}
+
+/**
+ * Predicate for "this streaming-round error is worth retrying."
+ *
+ * Conservative: includes upstream timeouts, 5xx/408/429 HTTP errors,
+ * undici's `terminated` (TCP reset / unexpected close), and the
+ * `ProviderStreamError("timeout")` shape providers like Fireworks emit
+ * via an in-stream `{"error":...}` chunk. Excludes abort errors (user
+ * cancelled) and 4xx other than 408/429 (validation / auth — retry
+ * won't help).
+ */
+function isRetriableStreamError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (isAbortError(err)) return false;
+
+  if (err instanceof SseError) {
+    const s = err.statusCode;
+    return s === 408 || s === 429 || (s >= 500 && s < 600);
+  }
+  if (err instanceof ProviderStreamError) {
+    return err.code === "timeout";
+  }
+
+  const msg = (err.message ?? "").toLowerCase();
+  if (msg === "terminated") return true;
+  if (msg.includes("econnreset") || msg.includes("etimedout")) return true;
+  if (msg.includes("connection refused") || msg.includes("connect error")) return true;
+  // Plain-string "SSE failed: 5xx ..." that escaped SseError wrapping
+  const match = msg.match(/sse failed: (\d+)/);
+  if (match) {
+    const code = Number(match[1]);
+    return code === 408 || code === 429 || (code >= 500 && code < 600);
+  }
+  return false;
+}
+
+/**
  * Error thrown when an upstream provider emits an in-stream error event.
  * Carries the provider's code (e.g. `"timeout"`) so callers can match
  * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
@@ -539,67 +606,106 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       conversationId,
     });
 
-    if (onRequest) onRequest(measureRequest(0, requestBody, messages, apiTools));
+    // Populated by the retry loop below; declared out here so the rest
+    // of the function (post-stream tool execution etc.) can reach them.
+    let accumulator!: ReturnType<typeof createStreamAccumulator>;
+    let contentSmoother!: StreamSmoother;
+    let thinkingSmoother!: StreamSmoother;
 
-    const sseResult = makeStreamingRequest({
-      baseUrl,
-      endpoint: strategy.endpoint,
-      body: requestBody,
-      token,
-      headers,
-      signal,
-      onSseError: (error) => {
-        sseError = wrapSseError(error);
-      },
-    });
+    // Transport-level retry: only fires when the failure happens before
+    // any chunk reached the smoothers / accumulator. Once user-visible
+    // output has started, a retry would risk duplicate or contradictory
+    // content (the LLM is stochastic), so we bail instead.
+    for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
+      sseError = null;
+      if (onRequest) onRequest(measureRequest(0, requestBody, messages, apiTools));
 
-    const accumulator = createStreamAccumulator(model || undefined);
+      const sseResult = makeStreamingRequest({
+        baseUrl,
+        endpoint: strategy.endpoint,
+        body: requestBody,
+        token,
+        headers,
+        signal,
+        onSseError: (error) => {
+          sseError = wrapSseError(error);
+        },
+      });
 
-    const contentSmoother = new StreamSmoother((text) => {
-      if (onData) onData(text);
-    }, smoothing);
-    const thinkingSmoother = new StreamSmoother((text) => {
-      if (onThinking) onThinking(text);
-    }, smoothing);
+      accumulator = createStreamAccumulator(model || undefined);
+      contentSmoother = new StreamSmoother((text) => {
+        if (onData) onData(text);
+      }, smoothing);
+      thinkingSmoother = new StreamSmoother((text) => {
+        if (onThinking) onThinking(text);
+      }, smoothing);
 
-    try {
-      for await (const chunk of sseResult.stream) {
-        if (isDoneMarker(chunk)) continue;
+      let chunksEmittedDownstream = false;
+      try {
+        for await (const chunk of sseResult.stream) {
+          if (isDoneMarker(chunk)) continue;
 
-        const providerError = extractProviderStreamError(chunk);
-        if (providerError) {
-          contentSmoother.destroy();
-          thinkingSmoother.destroy();
-          throw providerError;
+          const providerError = extractProviderStreamError(chunk);
+          if (providerError) {
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
+            throw providerError;
+          }
+
+          if (chunk && typeof chunk === "object") {
+            const {
+              content: contentDelta,
+              thinking: thinkingDelta,
+              serverToolCall,
+              toolCallArgumentsDelta,
+            } = strategy.processStreamChunk(chunk, accumulator);
+            if (contentDelta) {
+              chunksEmittedDownstream = true;
+              contentSmoother.push(contentDelta);
+            }
+            if (thinkingDelta) {
+              chunksEmittedDownstream = true;
+              thinkingSmoother.push(thinkingDelta);
+            }
+            if (serverToolCall) {
+              chunksEmittedDownstream = true;
+              if (onServerToolCall) onServerToolCall(serverToolCall);
+            }
+            if (toolCallArgumentsDelta) {
+              chunksEmittedDownstream = true;
+              if (onToolCallArgumentsDelta) onToolCallArgumentsDelta(toolCallArgumentsDelta);
+            }
+          }
         }
-
-        if (chunk && typeof chunk === "object") {
-          const {
-            content: contentDelta,
-            thinking: thinkingDelta,
-            serverToolCall,
-            toolCallArgumentsDelta,
-          } = strategy.processStreamChunk(chunk, accumulator);
-          if (contentDelta) contentSmoother.push(contentDelta);
-          if (thinkingDelta) thinkingSmoother.push(thinkingDelta);
-          if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
-          if (toolCallArgumentsDelta && onToolCallArgumentsDelta)
-            onToolCallArgumentsDelta(toolCallArgumentsDelta);
-        }
-      }
-    } catch (streamErr) {
-      if (isAbortError(streamErr) || signal?.aborted) {
+        // An sseError set via the onSseError callback (but never thrown
+        // by the iterator itself) still represents a transport-level
+        // failure — fold it into the retry path.
+        if (sseError !== null) throw sseError as Error;
+        // Success.
+        break;
+      } catch (streamErr) {
         contentSmoother.destroy();
         thinkingSmoother.destroy();
-        return {
-          data: strategy.buildFinalResponse(accumulator),
-          error: "Request aborted",
-          toolsChecksum: accumulator.toolsChecksum,
-        };
+
+        if (isAbortError(streamErr) || signal?.aborted) {
+          return {
+            data: strategy.buildFinalResponse(accumulator),
+            error: "Request aborted",
+            toolsChecksum: accumulator.toolsChecksum,
+          };
+        }
+
+        const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
+        if (
+          !chunksEmittedDownstream &&
+          !lastAttempt &&
+          isRetriableStreamError(streamErr)
+        ) {
+          await sleep(STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000, signal);
+          continue;
+        }
+        throw streamErr;
       }
-      contentSmoother.destroy();
-      thinkingSmoother.destroy();
-      throw streamErr;
     }
 
     if (signal?.aborted) {
@@ -610,12 +716,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         error: "Request aborted",
         toolsChecksum: accumulator.toolsChecksum,
       };
-    }
-
-    if (sseError !== null) {
-      contentSmoother.destroy();
-      thinkingSmoother.destroy();
-      throw sseError as Error;
     }
 
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
@@ -986,70 +1086,100 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         conversationId,
       });
 
-      if (onRequest)
-        onRequest(
-          measureRequest(toolIteration, continuationRequestBody, currentMessages, apiTools)
-        );
+      // Continuation rounds use the same transport-level retry as the
+      // initial request — same chunk-emission guard so we never replay
+      // a round once partial content has reached the user.
+      let contContentSmoother!: StreamSmoother;
+      let contThinkingSmoother!: StreamSmoother;
+      for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
+        sseError = null;
+        if (onRequest)
+          onRequest(
+            measureRequest(toolIteration, continuationRequestBody, currentMessages, apiTools)
+          );
 
-      const continuationResult = makeStreamingRequest({
-        baseUrl,
-        endpoint: strategy.endpoint,
-        body: continuationRequestBody,
-        token,
-        headers,
-        signal,
-        onSseError: (error) => {
-          sseError = wrapSseError(error);
-        },
-      });
+        const continuationResult = makeStreamingRequest({
+          baseUrl,
+          endpoint: strategy.endpoint,
+          body: continuationRequestBody,
+          token,
+          headers,
+          signal,
+          onSseError: (error) => {
+            sseError = wrapSseError(error);
+          },
+        });
 
-      currentAccumulator = createStreamAccumulator(model || undefined);
+        currentAccumulator = createStreamAccumulator(model || undefined);
+        contContentSmoother = new StreamSmoother((text) => {
+          if (onData) onData(text);
+        }, smoothing);
+        contThinkingSmoother = new StreamSmoother((text) => {
+          if (onThinking) onThinking(text);
+        }, smoothing);
 
-      const contContentSmoother = new StreamSmoother((text) => {
-        if (onData) onData(text);
-      }, smoothing);
-      const contThinkingSmoother = new StreamSmoother((text) => {
-        if (onThinking) onThinking(text);
-      }, smoothing);
+        let chunksEmittedDownstream = false;
+        try {
+          for await (const chunk of continuationResult.stream) {
+            if (isDoneMarker(chunk)) continue;
 
-      try {
-        for await (const chunk of continuationResult.stream) {
-          if (isDoneMarker(chunk)) continue;
+            const providerError = extractProviderStreamError(chunk);
+            if (providerError) {
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
+              throw providerError;
+            }
 
-          const providerError = extractProviderStreamError(chunk);
-          if (providerError) {
-            contContentSmoother.destroy();
-            contThinkingSmoother.destroy();
-            throw providerError;
+            if (chunk && typeof chunk === "object") {
+              const {
+                content: contentDelta,
+                thinking: thinkingDelta,
+                serverToolCall,
+                toolCallArgumentsDelta: contToolCallArgsDelta,
+              } = strategy.processStreamChunk(chunk, currentAccumulator);
+              if (contentDelta) {
+                chunksEmittedDownstream = true;
+                contContentSmoother.push(contentDelta);
+              }
+              if (thinkingDelta) {
+                chunksEmittedDownstream = true;
+                contThinkingSmoother.push(thinkingDelta);
+              }
+              if (serverToolCall) {
+                chunksEmittedDownstream = true;
+                if (onServerToolCall) onServerToolCall(serverToolCall);
+              }
+              if (contToolCallArgsDelta) {
+                chunksEmittedDownstream = true;
+                if (onToolCallArgumentsDelta) onToolCallArgumentsDelta(contToolCallArgsDelta);
+              }
+            }
           }
-
-          if (chunk && typeof chunk === "object") {
-            const {
-              content: contentDelta,
-              thinking: thinkingDelta,
-              serverToolCall,
-              toolCallArgumentsDelta: contToolCallArgsDelta,
-            } = strategy.processStreamChunk(chunk, currentAccumulator);
-            if (contentDelta) contContentSmoother.push(contentDelta);
-            if (thinkingDelta) contThinkingSmoother.push(thinkingDelta);
-            if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
-            if (contToolCallArgsDelta && onToolCallArgumentsDelta)
-              onToolCallArgumentsDelta(contToolCallArgsDelta);
-          }
-        }
-      } catch (streamErr) {
-        if (isAbortError(streamErr) || signal?.aborted) {
+          if (sseError !== null) throw sseError as Error;
+          break; // success
+        } catch (streamErr) {
           contContentSmoother.destroy();
           contThinkingSmoother.destroy();
-          return {
-            data: strategy.buildFinalResponse(currentAccumulator),
-            error: "Request aborted",
-            toolsChecksum: currentAccumulator.toolsChecksum,
-          };
+
+          if (isAbortError(streamErr) || signal?.aborted) {
+            return {
+              data: strategy.buildFinalResponse(currentAccumulator),
+              error: "Request aborted",
+              toolsChecksum: currentAccumulator.toolsChecksum,
+            };
+          }
+
+          const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
+          if (
+            !chunksEmittedDownstream &&
+            !lastAttempt &&
+            isRetriableStreamError(streamErr)
+          ) {
+            await sleep(STREAM_RETRY_BACKOFF_MS[attempt] ?? 1000, signal);
+            continue;
+          }
+          throw streamErr;
         }
-        contContentSmoother.destroy();
-        contThinkingSmoother.destroy();
-        throw streamErr;
       }
 
       if (signal?.aborted) {
@@ -1060,12 +1190,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           error: "Request aborted",
           toolsChecksum: currentAccumulator.toolsChecksum,
         };
-      }
-
-      if (sseError !== null) {
-        contContentSmoother.destroy();
-        contThinkingSmoother.destroy();
-        throw sseError as Error;
       }
 
       await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
