@@ -302,6 +302,26 @@ export type StreamingTransportResult = {
  * A pluggable transport function for streaming SSE requests.
  * The default uses `fetch` + `ReadableStream`. React Native environments
  * can supply an XHR-based transport instead.
+ *
+ * ### Abort contract
+ *
+ * When `options.signal` aborts **mid-stream**, the returned async iterable
+ * MUST surface an `AbortError` (an `Error` whose `name === "AbortError"`)
+ * to its consumer — either by throwing from the iterator, or by causing
+ * the underlying `read()` to reject. It MUST NOT terminate the iterable
+ * with an orderly `done` in that case.
+ *
+ * `runToolLoop` relies on this to distinguish two scenarios that are
+ * otherwise indistinguishable from outside the transport:
+ * 1. The server closed the connection cleanly and every byte was
+ *    delivered → iterable returns `done`, result is success.
+ * 2. The caller aborted the request mid-stream → iterable throws
+ *    `AbortError`, result is `{ data: <partial>, error: "Request aborted" }`.
+ *
+ * Transports that swallow mid-stream aborts and yield `done` instead
+ * will cause a partial response to be reported as a successful
+ * completion. The built-in `xhrTransport` and the default fetch-based
+ * transport both honor this contract.
  */
 export type StreamingTransport = (options: StreamingTransportOptions) => StreamingTransportResult;
 
