@@ -25,6 +25,9 @@
 
 import "dotenv/config";
 
+import fs from "node:fs";
+import path from "node:path";
+
 import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
 import {
   buildSlideSystemPrompt,
@@ -32,9 +35,10 @@ import {
 } from "../../../src/tools/slides/index.js";
 import type { ToolConfig } from "../../../src/lib/chat/useChat/types.js";
 import { normalizePath, type AppFileStorage } from "../../../src/tools/appGeneration.js";
-import { config, createFileStore, type FileStore } from "./setup.js";
+import { config, createFileStore, dumpFiles, type FileStore } from "./setup.js";
 
 const MODEL = process.env.EDIT_MODEL || config.model;
+const DUMP_ROOT = path.resolve(__dirname, ".output", "editing-timings");
 
 interface ToolCallTiming {
   name: string;
@@ -215,6 +219,15 @@ async function runRequest(
       (result.error ? ` · error: ${result.error}` : "")
   );
   if (finalText) console.log(`  assistant> ${finalText.slice(0, 200)}`);
+
+  // Dump the post-request deck so the actual rendered HTML is reviewable.
+  // The script's wall-time / token numbers tell you whether it ran fast;
+  // they tell you NOTHING about whether the rendered slide is correct.
+  // Use a sortable slug like "01_generate-deck" so the per-step dirs land
+  // in execution order under .output/editing-timings/.
+  const slug = label.replace(/^(\d+)\.\s*/, "$1_").replace(/[^a-zA-Z0-9-_]/g, "-");
+  dumpFiles(store, slug, { outDir: DUMP_ROOT, error: result.error });
+
   return { label, userText, wallMs, rounds, finalText, error: result.error };
 }
 
@@ -242,6 +255,11 @@ async function main(): Promise<void> {
     console.error("PORTAL_API_KEY is required (set in .env).");
     process.exit(1);
   }
+  // Wipe the dump root so this run's outputs don't sit alongside stale
+  // ones from previous runs (per-step dirs are sortable so a clean root
+  // makes the chronological flow obvious).
+  if (fs.existsSync(DUMP_ROOT)) fs.rmSync(DUMP_ROOT, { recursive: true, force: true });
+  fs.mkdirSync(DUMP_ROOT, { recursive: true });
   const store = createFileStore();
   const timings: RequestTiming[] = [];
 
@@ -250,7 +268,7 @@ async function main(): Promise<void> {
   timings.push(
     await runRequest(
       "1. generate deck",
-      "Make a 3-slide pitch deck for a boutique coffee subscription called Atlas Roasters. Cover, brand story, and pricing.",
+      "Make a 20-slide investor pitch deck for a boutique coffee subscription called Atlas Roasters. Cover, problem, market opportunity with stats, brand story, supply chain, sourcing partners, roast process, subscription plans, pricing, competitive landscape, traction, customer testimonials, founder quote, team, growth roadmap, unit economics, financial projections, fundraising ask, key milestones, and a closing why-now slide.",
       store
     )
   );
@@ -273,8 +291,21 @@ async function main(): Promise<void> {
   timings.push(
     await runRequest("6. move element", "On the cover slide, move the hero text down by ~50px.", store)
   );
+  // This edit deliberately needs the slide's CURRENT geometry to plan
+  // the patch — the model can't satisfy it from the summary alone (the
+  // summary doesn't carry x/y). So it should request the slide's full
+  // JSX via slideIds:["s2"] (or whichever the brand-story slide ended
+  // up with), exercising the new slim-read path's escape hatch.
+  timings.push(
+    await runRequest(
+      "7. align by inspection",
+      "On the brand story slide, vertically center the body text within the empty space below the hero. Use the current geometry to calculate the new y position.",
+      store
+    )
+  );
 
   printSummary(timings);
+  console.log(`\nDeck dumps → ${path.relative(process.cwd(), DUMP_ROOT)}/`);
 }
 
 main().catch((err) => {

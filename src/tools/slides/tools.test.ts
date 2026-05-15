@@ -831,11 +831,12 @@ describe("patch_slides JSX ops", () => {
     expect(replaceSlideResult.results![0]).toMatch(/replaced slide s1.*stripped 1 unfilled/);
 
     // 4) insert_slide with one sentinel image. The slide should ship,
-    // the sentinel image should be gone.
+    // the sentinel image should be gone. layout is required.
     const insertSlideResult = (await patch.executor!({
       operations: [
         {
           action: "insert_slide",
+          layout: "cover-statement--editorial-warm",
           jsx: `<Anuma.Slide id="s2"><Anuma.Image id="i2" x={0} y={0} w={100} h={100} src="REPLACE_WITH_IMAGE_OR_REMOVE" /></Anuma.Slide>`,
         },
       ],
@@ -915,6 +916,7 @@ describe("patch_slides JSX ops", () => {
       operations: [
         {
           action: "insert_slide",
+          layout: "cover-statement--editorial-warm",
           jsx: slideJsxWithText({ slideId: "s2" }),
         },
       ],
@@ -941,6 +943,41 @@ describe("patch_slides JSX ops", () => {
     expect(parsed.attrs.accent).toBe("#ff0000");
     // Other color tokens should NOT be dropped by the patch.
     expect(parsed.attrs.slideBg).toBe("#F3EEE5");
+  });
+
+  it("update_theme cascades the new color into literal hex usages across the slide tree", async () => {
+    // Recipes bake hex into every element's style.color / fill / stroke
+    // at compile time. Without the cascade, update_theme flips the
+    // deck-level attr but leaves every slide visually unchanged — a
+    // silent no-op edit. This pins the rewrite path so a future
+    // "simplify update_theme" doesn't quietly regress.
+    const { store, storage } = makeStore();
+    const tools = createSlideTools({ getConversationId: () => "cid", storage });
+    await tools.find((t) => toolName(t) === "plan_deck")!.executor!(VALID_PLAN);
+    // Seed a slide with the deck's accent baked into a Text color and a
+    // Rect fill — the kind of recipe output the model receives from
+    // plan_deck. Use a literal value that won't appear in any other style.
+    const accentLiteral = "#abcdef";
+    await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "update_theme", set: { accent: accentLiteral } }],
+    });
+    await tools.find((t) => toolName(t) === "add_slide")!.executor!({
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: `<Anuma.Slide id="s1">
+        <Anuma.Text id="t1" x={0} y={0} w={10} h={5} fontRole="body" style={{ fontSize: 18, color: "${accentLiteral}" }}>Hi</Anuma.Text>
+        <Anuma.Rect id="r1" x={0} y={0} w={5} h={5} fill="${accentLiteral}" />
+      </Anuma.Slide>`,
+    });
+    const before = store.get("slides.jsx")!;
+    expect(before.match(new RegExp(accentLiteral, "gi")) ?? []).toHaveLength(3); // deck.accent + 2 element refs
+    // Now flip the accent — every literal occurrence should swap.
+    const newAccent = "#102030";
+    await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "update_theme", set: { accent: newAccent } }],
+    });
+    const after = store.get("slides.jsx")!;
+    expect(after).not.toContain(accentLiteral);
+    expect(after.match(new RegExp(newAccent, "gi")) ?? []).toHaveLength(3);
   });
 
   it("update_theme rejects an unknown fontPreset", async () => {
@@ -1006,6 +1043,117 @@ describe("patch_slides JSX ops", () => {
     expect(after).toContain(`fontWeight: 400`);
   });
 
+  it("insert_slide REJECTS without layout — model is forced to anchor to a recipe", async () => {
+    // Without a layout the model invents off-template JSX. The previous
+    // "optional + warn" form let bad slides ship. The op now rejects
+    // outright and the result string tells the model how to recover.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "insert_slide",
+          jsx: `<Anuma.Slide id="s2"><Anuma.Text id="t2" x={0} y={0} w={10} h={5} fontRole="body" style={{ fontSize: 18, fontWeight: 400, color: "textPrimary" }}>Hi</Anuma.Text></Anuma.Slide>`,
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toMatch(/insert_slide: layout is required/);
+    // The deck is unchanged — no slide was inserted.
+    expect(store.get("slides.jsx")).toBe(before);
+  });
+
+  it("insert_slide rejects an unknown layout name", async () => {
+    const { tools } = await setupDeckWithOneSlide();
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "insert_slide",
+          layout: "made-up-layout--not-real",
+          jsx: `<Anuma.Slide id="s2"></Anuma.Slide>`,
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toMatch(/insert_slide: unknown layout/);
+  });
+
+  it("insert_slide with a valid layout passes slot validation when content fits", async () => {
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "insert_slide",
+          layout: "cover-statement--editorial-warm",
+          jsx: `<Anuma.Slide id="cover-statement"><Anuma.Text id="hero_1" x={57.6} y={194.4} w={844.8} h={75.6} fontRole="heading" style={{ fontSize: 57.6, fontWeight: 400, color: "textPrimary", lineHeight: 1, textAlign: "left", fontFamily: "Playfair Display" }}>Short.</Anuma.Text></Anuma.Slide>`,
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toMatch(/inserted slide cover-statement/);
+    expect(result.results![0]).not.toMatch(/no layout passed/);
+    expect(store.get("slides.jsx")).not.toBe(before);
+  });
+
+  it("update_element with text replaces ONLY the text body — every attr and style key is preserved", async () => {
+    // The specific failure this guards against: a rename via replace_element
+    // forces the model to rewrite the full <Anuma.Text> JSX, which is the
+    // easiest way to lose design-system styling (wrong fontFamily, wrong
+    // y, wrong width). update_element with `text:` keeps the existing
+    // styling intact — only the child string changes.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    // Sanity-check the seed has the original text + styling we'll watch.
+    expect(before).toContain(">Hi</Anuma.Text>");
+    expect(before).toContain(`fontSize: 18`);
+    expect(before).toContain(`color: "textPrimary"`);
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "update_element", slideId: "s1", elementId: "t1", text: "Renamed" }],
+    })) as { results?: string[] };
+    expect(result.results![0]).toBe("updated s1/t1");
+    const after = store.get("slides.jsx")!;
+    expect(after).toContain(">Renamed</Anuma.Text>");
+    expect(after).not.toContain(">Hi</Anuma.Text>");
+    // Every original style key must be intact — this is the load-bearing
+    // assertion vs replace_element, which the model tends to use as an
+    // opportunity to write rougher / wrong styling.
+    expect(after).toContain(`fontSize: 18`);
+    expect(after).toContain(`fontWeight: 400`);
+    expect(after).toContain(`color: "textPrimary"`);
+    // Position attrs preserved too.
+    expect(after).toContain(`x={0}`);
+    expect(after).toContain(`y={0}`);
+  });
+
+  it("update_element with both attrs and text applies both in one op", async () => {
+    // A combined edit — rename AND nudge position — should land as one
+    // op without losing other attrs. Pin the combination so a future
+    // "simplify update_element" doesn't break the dual-write path.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "update_element",
+          slideId: "s1",
+          elementId: "t1",
+          attrs: { y: 120 },
+          text: "Combined",
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toBe("updated s1/t1");
+    const after = store.get("slides.jsx")!;
+    expect(after).toContain(">Combined</Anuma.Text>");
+    expect(after).toContain(`y={120}`);
+    expect(after).toContain(`fontSize: 18`); // unchanged style
+  });
+
+  it("update_element requires at least one of attrs or text", async () => {
+    const { tools } = await setupDeckWithOneSlide();
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "update_element", slideId: "s1", elementId: "t1" }],
+    })) as { results?: string[] };
+    expect(result.results![0]).toMatch(/pass attrs.*or text.*at least one/);
+  });
+
   it("update_element rejects unknown fontFamily values before committing", async () => {
     // Mirrors add_slide's font-family check — a typo'd font name slipped
     // into an update_element call would silently corrupt the slide if we
@@ -1040,27 +1188,71 @@ describe("patch_slides JSX ops", () => {
     const noAttrs = (await patch.executor!({
       operations: [{ action: "update_element", slideId: "s1", elementId: "t1" }],
     })) as { results?: string[] };
-    expect(noAttrs.results![0]).toMatch(/attrs.*required/);
+    expect(noAttrs.results![0]).toMatch(/pass attrs.*or text/);
   });
 });
 
 describe("read_slides", () => {
-  it("returns the deck as <Anuma.Deck> JSX", async () => {
+  async function setupTwoSlideDeck() {
     const { storage } = makeStore();
     const tools = createSlideTools({ getConversationId: () => "cid", storage });
     await tools.find((t) => toolName(t) === "plan_deck")!.executor!(VALID_PLAN);
     await tools.find((t) => toolName(t) === "add_slide")!.executor!({
       layout: "cover-split-portrait--editorial-warm",
-      slideJsx: slideJsxWithText(),
+      slideJsx: slideJsxWithText({ slideId: "s1", textId: "t1", text: "First" }),
     });
+    await tools.find((t) => toolName(t) === "add_slide")!.executor!({
+      layout: "cover-split-portrait--editorial-warm",
+      slideJsx: slideJsxWithText({ slideId: "s2", textId: "t2", text: "Second" }),
+    });
+    return tools;
+  }
+
+  it("returns a compact summary by default (no slideIds), not the full deck JSX", async () => {
+    // The whole point of the summary path: typical edits don't need full
+    // JSX, just the slide → element id mapping. Confirm the summary
+    // names slides + their elements + a text preview, but doesn't dump
+    // every style attribute. This is the 5-10× input-token win.
+    const tools = await setupTwoSlideDeck();
     const result = (await tools.find((t) => toolName(t) === "read_slides")!.executor!({})) as {
       content?: string;
     };
-    expect(result.content).toContain("<Anuma.Deck");
-    expect(result.content).toContain(`<Anuma.Slide`);
-    expect(result.content).toContain(`id="s1"`);
-    expect(result.content).toContain(`<Anuma.Text`);
-    expect(result.content).toContain(">Hi</Anuma.Text>");
+    expect(result.content).toContain("DECK SUMMARY");
+    expect(result.content).toContain("Slide 1 (s1)");
+    expect(result.content).toContain("Slide 2 (s2)");
+    expect(result.content).toContain("elements: t1");
+    expect(result.content).toContain("elements: t2");
+    expect(result.content).toContain('t1="First"');
+    expect(result.content).toContain('t2="Second"');
+    // The summary must NOT contain the slide's full JSX — that's the
+    // whole point of the slim default.
+    expect(result.content).not.toContain("<Anuma.Slide");
+    expect(result.content).not.toContain("<Anuma.Text");
+    // Closing hint tells the model the slideIds escape hatch exists.
+    expect(result.content).toContain("read_slides with slideIds");
+  });
+
+  it("includes full JSX for slides named in slideIds, alongside the summary", async () => {
+    const tools = await setupTwoSlideDeck();
+    const result = (await tools.find((t) => toolName(t) === "read_slides")!.executor!({
+      slideIds: ["s2"],
+    })) as { content?: string };
+    expect(result.content).toContain("DECK SUMMARY");
+    // s2 is named → full JSX present.
+    expect(result.content).toContain("--- s2 (full JSX) ---");
+    expect(result.content).toContain('<Anuma.Slide id="s2"');
+    expect(result.content).toContain(">Second</Anuma.Text>");
+    // s1 is NOT named → no full JSX for it (still appears in summary).
+    expect(result.content).not.toContain("--- s1 (full JSX) ---");
+  });
+
+  it("notes missing slideIds in the response instead of failing the whole call", async () => {
+    const tools = await setupTwoSlideDeck();
+    const result = (await tools.find((t) => toolName(t) === "read_slides")!.executor!({
+      slideIds: ["s2", "ghost"],
+    })) as { content?: string };
+    expect(result.content).toContain("--- s2 (full JSX) ---");
+    expect(result.content).toContain("slide(s) not found: ghost");
   });
 });
 

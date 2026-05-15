@@ -199,11 +199,17 @@ export type LayoutMode = (typeof LAYOUT_MODES)[number];
 
 export const READ_SLIDES_SCHEMA = {
   name: "read_slides",
-  description:
-    "Returns the current slide deck as an <Anuma.Deck> JSX document. Use this before patch_slides to see what needs changing.",
+  description: `Get the current slide deck. Defaults to a compact summary — slide ids, layout names, element ids per slide, and short text previews — typically 5-10× smaller than the full deck JSX. Use the summary to LOCATE the slide(s) you want to edit, then call patch_slides with the ids you found. When you need to see a slide's full JSX (e.g. to copy an existing style block, or to inspect element geometry before patching), pass slideIds: ["s4"] and read_slides will include the full JSX of just those slides alongside the summary. Do NOT request slideIds you don't need to read — every slide you list pays full token cost.`,
   arguments: {
     type: "object",
-    properties: {},
+    properties: {
+      slideIds: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Optional list of slide ids to return in full JSX form (alongside the summary). Use sparingly — only ask for slides you must inspect to write a patch. Omit entirely for the cheap summary-only response.",
+      },
+    },
   },
 } as const;
 
@@ -214,12 +220,12 @@ export const PATCH_SLIDES_SCHEMA = {
 The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
 
 Operations (set 'action' and the fields noted):
-- update_element: { slideId, elementId, attrs } — change specific attrs on an existing element WITHOUT rewriting the rest. PREFER THIS for x/y/w/h moves, single-style-key changes (color, fontSize, fontWeight, fontFamily), or any small attr edit. The 'attrs' object merges onto the element — { x: 100, y: 60 } moves it; { style: { fontSize: 24 } } changes one style key and keeps the others intact. Use this instead of replace_element for any edit that doesn't change the element's tag or text content — it's ~10× fewer output tokens and ~5× faster.
-- replace_element: { slideId, elementId, jsx } — replace a matched element with a new content-element JSX fragment (e.g. <Anuma.Text …>…</Anuma.Text>). Use ONLY when the edit changes the element's tag, its text/children content, or a large chunk of style at once.
+- update_element: { slideId, elementId, attrs?, text? } — surgically patch ONE element WITHOUT rewriting it. Use 'attrs' for x/y/w/h moves and style tweaks (deep-merges; passing { style: { fontSize: 24 } } keeps every other style key intact). Use 'text' to rename or rewrite the element's text body — only the child string changes, every attr and style key is preserved exactly. Either field works alone or together. PREFER THIS for any edit that doesn't change the element's tag. Renames, recolors, moves, resizes all belong here. ~10× fewer output tokens than replace_element and you can't accidentally degrade the original styling.
+- replace_element: { slideId, elementId, jsx } — replace a matched element with a new content-element JSX fragment. Use ONLY when the element's TAG changes (e.g. swapping a <Anuma.Text> for an <Anuma.Image>). For text rename / styling changes / position changes use update_element instead — replace_element forces you to rewrite every attr from scratch and is the easiest place to silently lose design-system styling.
 - insert_element: { slideId, jsx, afterElementId? } — insert a new content-element JSX fragment. Appends to the end when afterElementId is omitted.
 - remove_element: { slideId, elementId }.
 - replace_slide: { slideId, jsx } — replace an entire <Anuma.Slide> with a new JSX fragment (root must be <Anuma.Slide>).
-- insert_slide: { jsx, afterSlideId? } — insert a new <Anuma.Slide>. Appends to the end when afterSlideId is omitted.
+- insert_slide: { jsx, layout, afterSlideId? } — insert a new <Anuma.Slide>. 'layout' is REQUIRED: pass the compound "<composition>--<system>" name pattern used by the existing slides. The executor validates the slide's slot content against the recipe and REJECTS the op if layout is missing — same contract as add_slide. To match the deck visually: call read_slides with slideIds:[an existing slide id] to copy its element structure, then keep the same "--<system>" suffix in the layout name. Appends to the end when afterSlideId is omitted.
 - remove_slide: { slideId }.
 - update_theme: { set: { fontPreset?, colors? } } — structured partial patch for theme metadata (no tree shape to rewrite).`,
   arguments: {
@@ -266,6 +272,11 @@ Operations (set 'action' and the fields noted):
               description:
                 "For update_element: partial attrs to merge onto the existing element (e.g. { x: 100, y: 60 } moves it). When 'style' is an object, its keys merge with the existing style — other style keys are preserved.",
             },
+            text: {
+              type: "string",
+              description:
+                "For update_element: replace the element's text body. Only the child string changes; every attr and style key is preserved. Use this for renames and copy-rewrites — replace_element rewrites the whole element from scratch and is the easiest way to drop the recipe's design-system styling. Pass alongside attrs to combine a text edit with a position/style nudge.",
+            },
             jsx: {
               type: "string",
               description:
@@ -274,6 +285,11 @@ Operations (set 'action' and the fields noted):
             afterSlideId: {
               type: "string",
               description: "Insert new slide after this id. Omit to append at the end.",
+            },
+            layout: {
+              type: "string",
+              description:
+                "For insert_slide: the compound \"<composition>--<system>\" layout name (same form as add_slide). Always pass this so insert_slide can validate the new slide's slot structure against the recipe and reject off-template JSX.",
             },
             afterElementId: {
               type: "string",
@@ -439,6 +455,151 @@ export interface CreateSlideToolsOptions {
    */
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   displaySlides?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
+}
+
+/**
+ * Build a compact, model-friendly summary of the deck. Typical output is
+ * 5-10× smaller than the full deck JSX, which is the win on large decks:
+ * the model can locate the slide / element to edit from this without
+ * paying the input-token cost of every element's style block.
+ *
+ * Format (per slide):
+ *   Slide <n> (<id>) — <layout>
+ *     elements: id1, id2, ...
+ *     text: id1="preview...", id3="preview..."
+ *
+ * Includes deck-level metadata (fontPreset, palette) so the model has
+ * theme context without an extra round-trip.
+ */
+function summarizeDeck(deck: AnumaNode): string {
+  const lines: string[] = [];
+  // Deck-level metadata first — fontPreset + every color token the
+  // model might reference when patching.
+  const meta: string[] = [];
+  for (const k of [
+    "fontPreset",
+    "background",
+    "slideBg",
+    "textPrimary",
+    "textSecondary",
+    "textMuted",
+    "accent",
+    "card",
+    "border",
+    "surfaceSecondary",
+  ]) {
+    const v = deck.attrs[k];
+    if (typeof v === "string") meta.push(`${k}="${v}"`);
+  }
+  lines.push("DECK SUMMARY");
+  if (meta.length > 0) lines.push(`<Anuma.Deck ${meta.join(" ")}>`);
+  let n = 0;
+  for (const child of deck.children) {
+    if (typeof child === "string") continue;
+    if (child.tag !== "Slide") continue;
+    n++;
+    const slideId = typeof child.attrs.id === "string" ? child.attrs.id : `(no-id-${n})`;
+    const layout =
+      typeof child.attrs.compositionName === "string"
+        ? child.attrs.compositionName
+        : typeof child.attrs.layout === "string"
+          ? child.attrs.layout
+          : "(layout unknown)";
+    lines.push("");
+    lines.push(`Slide ${n} (${slideId}) — ${layout}`);
+    // Element-id roll-up (one line). The model uses these for patch_slides
+    // targeting. Group / region containers get an "items: N" suffix so
+    // flex regions are scannable without dumping every inner slot id.
+    const elementSummaries: string[] = [];
+    const textPreviews: string[] = [];
+    for (const el of child.children) {
+      if (typeof el === "string") continue;
+      const id = getId(el);
+      if (id === undefined) continue;
+      if (el.tag === "Group" && Array.isArray(el.children)) {
+        const items = el.children.filter(
+          (c) => typeof c !== "string" && c.tag === "Group"
+        ).length;
+        elementSummaries.push(items > 0 ? `${id}(group, ${items} items)` : id);
+        continue;
+      }
+      elementSummaries.push(id);
+      if (el.tag === "Text") {
+        const text = joinTextBody(el).trim();
+        if (text) {
+          const preview =
+            text.length > 60 ? `${text.slice(0, 57)}...` : text;
+          textPreviews.push(`${id}=${JSON.stringify(preview)}`);
+        }
+      }
+    }
+    if (elementSummaries.length > 0) {
+      lines.push(`  elements: ${elementSummaries.join(", ")}`);
+    }
+    if (textPreviews.length > 0) {
+      lines.push(`  text: ${textPreviews.join(", ")}`);
+    }
+  }
+  lines.push("");
+  lines.push(
+    n === 0
+      ? "(no slides in this deck yet)"
+      : `${n} slide(s) total. Call read_slides with slideIds:[…] to get full JSX for any slide you need to patch.`
+  );
+  return lines.join("\n");
+}
+
+/**
+ * Cascade theme-color changes through the deck tree. Recipes bake hex
+ * literals into every element's `style.color`, `fill`, `stroke`, and
+ * Slide `background` at compile time (for portability — slide JSX is
+ * self-contained without needing the deck wrapper at render time). The
+ * downside is that update_theme alone changes nothing visible: the deck
+ * attr flips but every slide still references the old hex.
+ *
+ * This walker rewrites every literal hex in `swap` (case-insensitive
+ * lookup) to its new value. Covers Text.style.color, shape fill/stroke,
+ * Slide.background. Doesn't touch theme-token strings ("accent",
+ * "textPrimary", etc.) — those resolve from the deck attrs at render
+ * time and already pick up the new value via updateAttrs above.
+ */
+function cascadeColorSwaps(deck: AnumaNode, swap: Map<string, string>): void {
+  function lookup(v: unknown): string | undefined {
+    if (typeof v !== "string") return undefined;
+    return swap.get(v) ?? swap.get(v.toLowerCase());
+  }
+  walk(deck, (node) => {
+    // Slide / container background attr.
+    const bg = lookup(node.attrs.background);
+    if (bg !== undefined) node.attrs.background = bg;
+    // Shape primitives: fill + stroke as top-level attrs.
+    const fill = lookup(node.attrs.fill);
+    if (fill !== undefined) node.attrs.fill = fill;
+    const stroke = lookup(node.attrs.stroke);
+    if (stroke !== undefined) node.attrs.stroke = stroke;
+    // Text / Group style block.
+    const style = node.attrs.style;
+    if (style && typeof style === "object" && !Array.isArray(style)) {
+      const s = style as Record<string, unknown>;
+      for (const k of ["color", "background", "backgroundColor", "borderColor"]) {
+        const next = lookup(s[k]);
+        if (next !== undefined) s[k] = next;
+      }
+    }
+  });
+}
+
+/** Concatenate string children + the bodies of inline Span children. */
+function joinTextBody(node: AnumaNode): string {
+  const parts: string[] = [];
+  for (const c of node.children) {
+    if (typeof c === "string") {
+      parts.push(c);
+    } else if (Array.isArray(c.children)) {
+      parts.push(joinTextBody(c));
+    }
+  }
+  return parts.join("");
 }
 
 /**
@@ -1060,13 +1221,41 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
   const readSlidesTool: ToolConfig = {
     type: "function",
     function: READ_SLIDES_SCHEMA,
-    executor: async () => {
+    executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
         const file = await storage.getFile(conversationId, SLIDES_FILE_PATH);
         if (!file) return { error: "No slides.jsx found." };
-        // Stored content is already the canonical <Anuma.Deck> JSX — return verbatim.
-        return { content: file.content };
+        const requestedIds = Array.isArray(args.slideIds)
+          ? (args.slideIds as unknown[]).filter((s): s is string => typeof s === "string")
+          : [];
+        // Parse the stored deck once. The summarizer walks it for the
+        // compact representation; the full-JSX path slices specific
+        // slides from the same parse. parseJsx is the bottleneck on
+        // very large decks but it's still O(N) on the deck size.
+        const deck = parseJsx(file.content);
+        const summary = summarizeDeck(deck);
+        if (requestedIds.length === 0) {
+          // Default path: cheap summary only. Typical edits read this,
+          // patch via slot ids learned here, and never need full JSX.
+          return { content: summary };
+        }
+        const requestedFullJsx: string[] = [];
+        const missingIds: string[] = [];
+        for (const sid of requestedIds) {
+          const slide = findSlideById(deck, sid);
+          if (slide) {
+            requestedFullJsx.push(`--- ${sid} (full JSX) ---\n${serializeJsx(slide)}`);
+          } else {
+            missingIds.push(sid);
+          }
+        }
+        const parts: string[] = [summary];
+        if (requestedFullJsx.length > 0) parts.push("", ...requestedFullJsx);
+        if (missingIds.length > 0) {
+          parts.push("", `Note: slide(s) not found: ${missingIds.join(", ")}`);
+        }
+        return { content: parts.join("\n") };
       } catch (err) {
         logError("read_slides failed", err instanceof Error ? err : undefined);
         return {
@@ -1089,8 +1278,10 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           jsx?: string;
           afterSlideId?: string;
           afterElementId?: string;
+          layout?: string;
           set?: Record<string, unknown>;
           attrs?: Record<string, unknown>;
+          text?: string;
         }>;
 
         if (!Array.isArray(operations) || operations.length === 0) {
@@ -1112,11 +1303,13 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
 
             switch (op.action) {
               case "update_element": {
-                // Surgical attr-merge — no JSX rewrite needed. Cuts the
-                // model's output token cost by ~10× vs replace_element
-                // for the common "move / resize / restyle one attr" case.
-                // Validates the merged shape before committing so a typo'd
-                // fontFamily can't slip through (mirrors add_slide's check).
+                // Surgical patch — no JSX rewrite needed. Cuts the model's
+                // output token cost by ~10× vs replace_element. Accepts:
+                //   - attrs: partial attr/style merge (move / resize / restyle)
+                //   - text:  replace the element's text body, keeping ALL attrs
+                // At least one of the two must be present. Validates the
+                // merged shape before committing so a typo'd fontFamily can't
+                // slip through (mirrors add_slide's check).
                 if (!slideNode) {
                   results.push(`update_element: slide ${op.slideId} not found`);
                   break;
@@ -1125,12 +1318,20 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push("update_element: elementId is required");
                   break;
                 }
-                if (
-                  !op.attrs ||
-                  typeof op.attrs !== "object" ||
-                  Array.isArray(op.attrs)
-                ) {
-                  results.push("update_element: attrs (object) is required");
+                const hasAttrs =
+                  op.attrs !== undefined &&
+                  op.attrs !== null &&
+                  typeof op.attrs === "object" &&
+                  !Array.isArray(op.attrs);
+                const hasText = typeof op.text === "string";
+                if (op.attrs !== undefined && !hasAttrs) {
+                  results.push("update_element: attrs must be an object when provided");
+                  break;
+                }
+                if (!hasAttrs && !hasText) {
+                  results.push(
+                    "update_element: pass attrs (for style/position) or text (for text-body rewrite) — at least one is required"
+                  );
                   break;
                 }
                 let elementNode: AnumaNode | null = null;
@@ -1149,7 +1350,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 // Reassert the type — narrowed inside the walk closure but
                 // TypeScript's CFA loses that across the boundary.
                 const target = elementNode as AnumaNode;
-                const incoming = op.attrs as Record<string, unknown>;
+                const incoming = hasAttrs ? (op.attrs as Record<string, unknown>) : {};
                 const merged: Record<string, unknown> = { ...target.attrs };
                 for (const [key, value] of Object.entries(incoming)) {
                   if (
@@ -1180,6 +1381,14 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   break;
                 }
                 target.attrs = mergedAttrs;
+                if (hasText) {
+                  // Replace ONLY the text body. Existing inline children
+                  // (e.g. <Anuma.Span> accent runs) are also overwritten —
+                  // that's intentional for a "rewrite the text" op. If the
+                  // caller needs to preserve inline spans, replace_element
+                  // is the right path.
+                  target.children = [op.text as string];
+                }
                 results.push(`updated ${op.slideId}/${op.elementId}`);
                 break;
               }
@@ -1369,6 +1578,26 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push("insert_slide: missing jsx");
                   break;
                 }
+                // layout is REQUIRED — same contract as add_slide. Without
+                // it the model invents off-template JSX (wrong attr
+                // placement, plain HTML where Anuma primitives belong)
+                // and overflowing copy slips through validateSlotContent.
+                // The previous "optional + hint" form let the model
+                // ignore the hint and ship broken slides; rejecting
+                // outright forces a retry with a real layout.
+                if (typeof op.layout !== "string" || !op.layout) {
+                  results.push(
+                    'insert_slide: layout is required — pass the same compound "<composition>--<system>" name used by the existing deck (call read_slides to see slide ids and their layouts). Without layout the executor can\'t validate the slide\'s slot budgets and the slide ships off-template.'
+                  );
+                  break;
+                }
+                const resolved = resolveCompositionLayout(op.layout);
+                if (!resolved) {
+                  results.push(
+                    `insert_slide: unknown layout ${JSON.stringify(op.layout)}. Use one of the catalog's compound "<composition>--<system>" names.`
+                  );
+                  break;
+                }
                 let next: AnumaNode;
                 try {
                   next = parseJsx(op.jsx);
@@ -1379,6 +1608,27 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 }
                 if (next.tag !== "Slide") {
                   results.push(`insert_slide: root must be <Anuma.Slide>, got <Anuma.${next.tag}>`);
+                  break;
+                }
+                const state = deckStateByConv.get(conversationId);
+                const presetName = state?.fontPreset ?? "default";
+                const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
+                const slotIssues = validateSlotContent(
+                  resolved.composition,
+                  resolved.system,
+                  fontPreset,
+                  next
+                );
+                if (slotIssues.length > 0) {
+                  const list = slotIssues
+                    .map(
+                      (i) =>
+                        `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`
+                    )
+                    .join("\n");
+                  results.push(
+                    `insert_slide: Content overflows the layout's slot budget — shorten the copy in these slots and resubmit:\n${list}`
+                  );
                   break;
                 }
                 const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
@@ -1434,9 +1684,48 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                     colors?: Record<string, unknown>;
                     [key: string]: unknown;
                   };
+                  // Snapshot the pre-update color attrs so we can rewrite
+                  // their literal hex values throughout the slide tree
+                  // after the update — recipes bake hex into every
+                  // element's style.color / fill / stroke at compile time,
+                  // so without this cascade, `update_theme` would change
+                  // the deck-level attr but leave all slide content stuck
+                  // on the old value (invisible no-op edit).
+                  const colorKeys: string[] = [];
+                  for (const key of Object.keys(flatPatch)) {
+                    if (key === "fontPreset") continue;
+                    colorKeys.push(key);
+                  }
+                  if (nestedColors && typeof nestedColors === "object") {
+                    for (const key of Object.keys(nestedColors)) colorKeys.push(key);
+                  }
+                  const oldByKey: Record<string, string> = {};
+                  for (const key of colorKeys) {
+                    const v = deck.attrs[key];
+                    if (typeof v === "string") oldByKey[key] = v;
+                  }
                   updateAttrs(deck, flatPatch);
                   if (nestedColors && typeof nestedColors === "object") {
                     updateAttrs(deck, nestedColors);
+                  }
+                  // Build a hex→hex swap map: only keys whose value actually
+                  // changed AND whose old value is a hex literal (model
+                  // already used the token form? then there's nothing to
+                  // rewrite — the renderer handles it).
+                  const swap = new Map<string, string>();
+                  for (const key of colorKeys) {
+                    const before = oldByKey[key];
+                    const after = deck.attrs[key];
+                    if (typeof before !== "string" || typeof after !== "string") continue;
+                    if (before === after) continue;
+                    if (!/^#[0-9A-Fa-f]{3,8}$/.test(before)) continue;
+                    swap.set(before.toLowerCase(), after);
+                    // Cover the un-lowercased variant too in case the
+                    // recipe emitted mixed-case hex.
+                    swap.set(before, after);
+                  }
+                  if (swap.size > 0) {
+                    cascadeColorSwaps(deck, swap);
                   }
                 }
                 results.push("updated theme");
@@ -1539,7 +1828,7 @@ WORKFLOW (initialize then add all slides at once):
 1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–19) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the JSX recipes for ONLY the layouts you named, plus element-tag schemas, coordinate-system notes, and palette hex values.
 2. APPEND — in your next assistant turn, emit all N add_slide calls in parallel (one per slide) with { slideIndex: <1-based position>, layout: "<name>", slideJsx: "<Anuma.Slide id=\\"...\\">…children…</Anuma.Slide>" }. Pass slideIndex = 1 for the cover, 2 for the second slide, and so on through slideCount. WITHOUT slideIndex the parallel calls land in the deck in non-deterministic order. Design every slide up-front from the plan_deck recipes and dispatch them together — this cuts round-trips from N+1 to 2. layout MUST be one of the names you passed to plan_deck; using anything else is rejected.
 
-For edits to an existing deck: read_slides (returns the deck as <Anuma.Deck> JSX) → patch_slides (replace_element / insert_element / remove_element / replace_slide / insert_slide / remove_slide / update_theme). No plan_deck needed for edits.
+For edits to an existing deck: read_slides → patch_slides. By default read_slides returns a COMPACT SUMMARY (slide ids, layout names, element ids per slide, short text previews) — that's almost always enough to locate what to change. Use the ids from the summary to patch_slides directly. Only call read_slides with slideIds: ["s4"] when you must see a specific slide's full JSX (e.g. to copy a style block, or to inspect element geometry before a position-sensitive patch). For most edits — change text, recolor, move things — the summary alone is enough; requesting full slide JSX you don't need pays the input-token cost for no reason. Patch ops: update_element / replace_element / insert_element / remove_element / replace_slide / insert_slide / remove_slide / update_theme. No plan_deck needed for edits.
 
 RESPONSE STYLE — after the tool calls complete, keep your closing message to ONE short sentence ("Done." or "Renamed across 5 slides." is ideal). The deck re-renders inline so the user already sees the changes; do NOT recap which slides changed, list operations, or summarize the deck contents in prose. Long post-tool summaries are the single biggest source of latency in this flow — keep them out.
 
@@ -1608,6 +1897,7 @@ IMAGES:
 - ${imageSourceClause}
 - Most decks should be text-only. Layout recipes ship <Anuma.Image> elements with src="REPLACE_WITH_IMAGE_OR_REMOVE"; if you leave the sentinel in, add_slide auto-strips just those <Anuma.Image> elements and accepts the rest of the slide (the response.message will tell you how many were stripped). The slide ships, but with empty image slots — better to handle it deliberately.
 - When you have FEWER real image sources than image slots in your chosen layouts, REMOVE the unfilled <Anuma.Image> elements from the slide JSX yourself. Do NOT re-use one image URL across many slots, and do NOT generate one image per slot — generate 1–2 images max and drop the rest of the image elements deliberately. The deck reads fine without them.
+- NEVER substitute decorative shapes for a removed image. Do NOT add <Anuma.Rect>, <Anuma.Circle>, <Anuma.Line>, or background-filled <Anuma.Group> elements to fill the slot's space. The composition is designed to read correctly with the image slot empty — the typography or content on the other side of the slide carries it. If a layout leaves too much empty space without an image, pick a different layout (one without an image slot, e.g. cover-statement instead of cover-split-portrait) — don't invent decoration. Picking the wrong layout is a fixable mistake; inventing custom shape compositions is not.
 - With images: generate them FIRST (1–2 max), then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
 
 ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.
