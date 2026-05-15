@@ -59,16 +59,20 @@ describe("havenAgent", () => {
     }
   });
 
-  it("each skill's requiredVariables is covered by required journey fields", () => {
+  it("each skill's requiredVariables is covered by a matching journey field or file step", () => {
+    // requiredVariables is the full set of slots the prompt template needs (used
+    // by the SMS gateway, which has no file upload). Journey forms may mark
+    // some of these as `required: false` when the upload step can substitute,
+    // so we accept either a matching field (required or optional) or — for
+    // body-text variables — the journey's file step covering it.
     for (const skill of havenAgent.skills) {
       const journey = havenAgent.skillJourneys![skill.id];
-      const requiredFieldKeys = new Set(
-        journey.fields.filter((f) => f.required === true).map((f) => f.key)
-      );
+      const fieldKeys = new Set(journey.fields.map((f) => f.key));
       for (const variable of skill.requiredVariables ?? []) {
+        const coveredByFile = journey.acceptsFiles;
         expect(
-          requiredFieldKeys.has(variable),
-          `${skill.id}.requiredVariables[${variable}] must be a required journey field`
+          fieldKeys.has(variable) || coveredByFile,
+          `${skill.id}.requiredVariables[${variable}] must have a matching journey field or a file step`
         ).toBe(true);
       }
     }

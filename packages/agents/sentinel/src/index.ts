@@ -30,10 +30,11 @@ export const sentinelAgent: AgentConfig = {
     name: "Sentinel",
     description: "AI-powered billing analyst and money recovery advisor",
     runtimes: ["server"],
-    skills: SENTINEL_SKILLS.map(({ id, name, requiredVariables }) => ({
+    skills: SENTINEL_SKILLS.map(({ id, name, requiredVariables, smsPrompts }) => ({
       id,
       name,
       requiredVariables,
+      smsPrompts,
     })),
   },
 };

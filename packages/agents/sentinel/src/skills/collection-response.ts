@@ -32,6 +32,10 @@ Use web search to confirm the current {{state}} statute of limitations and any s
   requiredTools: FINANCE_REQUIRED_TOOLS,
   preferredModel: FINANCE_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: ["state"],
+  requiredVariables: ["state", "collection_notice"],
+  smsPrompts: {
+    state: "What state do you live in? (Statute-of-limitations rules are state-specific.)",
+    collection_notice: "Paste the collection notice or summarize what it says.",
+  },
   contextSuffix: FINANCE_MEMORY_SUFFIX,
 };

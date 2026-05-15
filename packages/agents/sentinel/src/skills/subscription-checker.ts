@@ -32,6 +32,10 @@ Use web search to confirm current pricing or competing services when the answer 
   requiredTools: FINANCE_REQUIRED_TOOLS,
   preferredModel: FINANCE_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: [],
+  requiredVariables: ["statement_text"],
+  smsPrompts: {
+    statement_text:
+      "Paste your recent transactions or statement (a list of charges with merchant and amount works).",
+  },
   contextSuffix: FINANCE_MEMORY_SUFFIX,
 };

@@ -22,13 +22,15 @@ export interface SkillMeta {
   id: string;
   name: string;
   requiredVariables: string[];
+  /** SMS-friendly question prompts keyed by variable name, when available. */
+  smsPrompts?: Record<string, string>;
 }
 
 /**
  * Look up skill metadata by (agentId, skillId). Returns null when either is
  * unknown. Use this when you only need `id` / `name` / `requiredVariables`
- * — for the full SkillConfig (including templates), import the agent package
- * directly.
+ * / `smsPrompts` — for the full SkillConfig (including templates), import
+ * the agent package directly.
  */
 export function getAgentSkillMeta(agentId: string, skillId: string): SkillMeta | null {
   const agent = getAgent(agentId);
@@ -38,5 +40,6 @@ export function getAgentSkillMeta(agentId: string, skillId: string): SkillMeta |
     id: skill.id,
     name: skill.name,
     requiredVariables: skill.requiredVariables ?? [],
+    smsPrompts: skill.smsPrompts,
   };
 }
