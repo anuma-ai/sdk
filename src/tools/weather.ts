@@ -30,6 +30,7 @@ export type DisplayWeatherResult =
       windSpeed: number;
       weatherCode: number;
       isDay: boolean;
+      useFahrenheit: boolean;
       forecast?: ForecastDay[];
       _meta?: { location: string };
     }
@@ -37,6 +38,71 @@ export type DisplayWeatherResult =
       error: string;
       _meta?: { location: string };
     };
+
+export interface CreateWeatherToolOptions {
+  /**
+   * Detect whether to fetch Fahrenheit/mph instead of Celsius/km/h.
+   * Defaults to checking `navigator.language` for US/LR/MM regions.
+   */
+  detectUseFahrenheit?: () => boolean;
+  /** Called when a fetch error occurs. */
+  onError?: (error: Error, ctx: { location: string }) => void;
+  /** Timeout in milliseconds for fetch requests. Defaults to 10000. */
+  timeoutMs?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const FAHRENHEIT_REGIONS = new Set(["US", "LR", "MM"]);
+
+function defaultDetectUseFahrenheit(): boolean {
+  try {
+    const region = new Intl.Locale(navigator.language).region;
+    return FAHRENHEIT_REGIONS.has(region ?? "");
+  } catch {
+    return false;
+  }
+}
+
+async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+type GeocodingResponse = {
+  results?: {
+    latitude: number;
+    longitude: number;
+    name: string;
+    country?: string;
+  }[];
+};
+
+type WeatherResponse = {
+  current: {
+    temperature_2m: number;
+    apparent_temperature: number;
+    relative_humidity_2m: number;
+    wind_speed_10m: number;
+    weather_code: number;
+    is_day: number;
+  };
+  daily?: {
+    time?: string[];
+    weather_code: number[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+  };
+};
 
 // ---------------------------------------------------------------------------
 // Tool factory
@@ -49,17 +115,27 @@ export type DisplayWeatherResult =
  * weather and a 7-day forecast from Open-Meteo, and renders it as a card.
  * The result is not sent back to the LLM (`skipContinuation: true`).
  *
+ * Units are auto-detected from `navigator.language` (US/LR/MM → Fahrenheit
+ * + mph). Override with `weatherOptions.detectUseFahrenheit`.
+ *
  * @example
  * ```typescript
  * import { createWeatherTool } from "@anuma/sdk/tools";
  *
- * const weatherTool = createWeatherTool({
- *   getContext: () => uiInteraction,
- *   getLastMessageId: () => lastMsgId,
- * });
+ * const weatherTool = createWeatherTool(
+ *   { getContext: () => uiInteraction, getLastMessageId: () => lastMsgId },
+ *   { onError: (err, { location }) => logError("weather", err, { location }) }
+ * );
  * ```
  */
-export function createWeatherTool(options: CreateUIToolsOptions): ToolConfig {
+export function createWeatherTool(
+  options: CreateUIToolsOptions,
+  weatherOptions?: CreateWeatherToolOptions
+): ToolConfig {
+  const detectUseFahrenheit = weatherOptions?.detectUseFahrenheit ?? defaultDetectUseFahrenheit;
+  const onError = weatherOptions?.onError;
+  const timeoutMs = weatherOptions?.timeoutMs ?? 10_000;
+
   return createDisplayTool(options, {
     name: "display_weather",
     description:
@@ -83,56 +159,36 @@ export function createWeatherTool(options: CreateUIToolsOptions): ToolConfig {
       }
 
       try {
-        const geoRes = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
-        );
-        const geoData = (await geoRes.json()) as {
-          results?: {
-            latitude: number;
-            longitude: number;
-            name: string;
-            country?: string;
-          }[];
-        };
+        const useFahrenheit = detectUseFahrenheit();
+        const tempUnit = useFahrenheit ? "fahrenheit" : "celsius";
+        const windUnit = useFahrenheit ? "mph" : "kmh";
 
-        if (!geoData.results || geoData.results.length === 0) {
-          return {
-            error: `Location not found: ${location}`,
-            _meta: { location },
-          };
+        const geoData = await fetchJson<GeocodingResponse>(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
+          timeoutMs
+        );
+
+        const firstResult = geoData.results?.[0];
+        if (!firstResult) {
+          return { error: `Location not found: ${location}`, _meta: { location } };
         }
 
-        const { latitude, longitude, name, country } = geoData.results[0];
+        const { latitude, longitude, name, country } = firstResult;
 
-        const weatherRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto`
+        const weatherData = await fetchJson<WeatherResponse>(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto&temperature_unit=${tempUnit}&wind_speed_unit=${windUnit}`,
+          timeoutMs
         );
-        const weatherData = (await weatherRes.json()) as {
-          current: {
-            temperature_2m: number;
-            apparent_temperature: number;
-            relative_humidity_2m: number;
-            wind_speed_10m: number;
-            weather_code: number;
-            is_day: number;
-          };
-          daily?: {
-            time?: string[];
-            weather_code: number[];
-            temperature_2m_max: number[];
-            temperature_2m_min: number[];
-          };
-        };
         const current = weatherData.current;
         const daily = weatherData.daily;
 
         const forecast: ForecastDay[] =
           daily?.time?.map((date: string, i: number) => ({
             date,
-            weatherCode: daily.weather_code[i],
-            temperatureMax: daily.temperature_2m_max[i],
-            temperatureMin: daily.temperature_2m_min[i],
-          })) || [];
+            weatherCode: daily.weather_code[i] ?? 0,
+            temperatureMax: daily.temperature_2m_max[i] ?? 0,
+            temperatureMin: daily.temperature_2m_min[i] ?? 0,
+          })) ?? [];
 
         return {
           location: name,
@@ -143,14 +199,19 @@ export function createWeatherTool(options: CreateUIToolsOptions): ToolConfig {
           windSpeed: current.wind_speed_10m,
           weatherCode: current.weather_code,
           isDay: current.is_day === 1,
+          useFahrenheit,
           forecast,
           _meta: { location },
         };
-      } catch {
-        return {
-          error: "Failed to fetch weather data",
-          _meta: { location },
-        };
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        onError?.(error, { location });
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return { error: "Weather request timed out", _meta: { location } };
+        }
+
+        return { error: "Failed to fetch weather data", _meta: { location } };
       }
     },
   });
