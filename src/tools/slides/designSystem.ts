@@ -2238,7 +2238,7 @@ export const COVER_STATEMENT: LayoutComposition = {
       h: 3,
       fit: "single-line",
       align: "right",
-      defaultText: "SERIES B · STRATEGIC PREVIEW · 2026",
+      defaultText: "SERIES B · PREVIEW 2026",
     },
     // Hero — two stacked lines, full width. Box height is fontSize × ~1.2
     // (just enough to clear descenders) so the two lines read as one
@@ -2450,7 +2450,7 @@ export const PROBLEM_EVIDENCE: LayoutComposition = {
       "THE GAP",
       "49%",
       "Of issues stay open past 30 days — well-scoped, just under-prioritised.",
-      "LINEARB ENG. BENCHMARKS 2024"
+      "LINEARB BENCHMARKS 2024"
     ),
     ...statCardCited(
       "card_3",
@@ -2461,7 +2461,7 @@ export const PROBLEM_EVIDENCE: LayoutComposition = {
       "THE COST",
       "$85B",
       "Annual U.S. eng payroll spent on work an autonomous agent could complete.",
-      "BLS OEWS 2024 · INTERNAL MODEL"
+      "BLS OEWS · INT. MODEL"
     ),
     // Bottom-left brand chrome — small mono muted, anchors the deck
     // identity at the page edge rather than at the top.
@@ -2924,7 +2924,7 @@ export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
       w: 38,
       h: 3,
       fit: "single-line",
-      defaultText: "ANNA KIM · FOUNDER & CEO · BERLIN STUDIO, 2024",
+      defaultText: "ANNA KIM · CEO · BERLIN 2024",
     },
     // Right column — eyebrow, multi-line quote, attribution
     {
@@ -3771,9 +3771,9 @@ export const PEER_COMPARISON_TABLE: LayoutComposition = {
       headers: [
         { label: "FRANCHISE TERM" },
         { label: "SOURDOUGH CO", sublabel: "Bakery · 45 m²", highlight: true },
-        { label: "PEER · A", sublabel: "Artisan bread, U.S." },
+        { label: "PEER · A", sublabel: "Artisan, U.S." },
         { label: "PEER · B", sublabel: "Patisserie, EU" },
-        { label: "PEER · C", sublabel: "Café-bakery, AU" },
+        { label: "PEER · C", sublabel: "Café, AU" },
         { label: "PEER · D", sublabel: "Bagels, U.S." },
       ],
       rows: [
@@ -4440,12 +4440,27 @@ function charWidthFactor(
   fontPreset: { heading: string; body: string }
 ): number {
   const family = resolveFamily(style, fontPreset).toLowerCase();
-  if (/mono|jetbrains|courier|menlo|consolas/.test(family)) return CHAR_WIDTH_FACTOR.mono;
-  if (/serif|crimson|playfair|times|garamond|georgia|baskerville/.test(family)) {
-    return CHAR_WIDTH_FACTOR.serif;
+  let base: number;
+  if (/mono|jetbrains|courier|menlo|consolas/.test(family)) {
+    base = CHAR_WIDTH_FACTOR.mono;
+  } else if (/serif|crimson|playfair|times|garamond|georgia|baskerville/.test(family)) {
+    base = CHAR_WIDTH_FACTOR.serif;
+  } else {
+    const isBold = (style.fontWeight ?? 400) >= 600;
+    base = isBold ? CHAR_WIDTH_FACTOR.sansBold : CHAR_WIDTH_FACTOR.sans;
   }
-  const isBold = (style.fontWeight ?? 400) >= 600;
-  return isBold ? CHAR_WIDTH_FACTOR.sansBold : CHAR_WIDTH_FACTOR.sans;
+  // Uppercase glyphs run ~15-20% wider than the mixed-case average our
+  // family factors assume. Without this correction, eyebrow / stat-label
+  // / chrome roles (all `textTransform: "uppercase"`) under-budget by a
+  // chunk and clip at render time.
+  if (style.textTransform === "uppercase") base *= 1.18;
+  // letterSpacing in em adds directly to each character's footprint —
+  // 0.14em letter-spacing means every glyph occupies 14% more horizontal
+  // space than its natural width. Add it to the per-char factor.
+  if (typeof style.letterSpacing === "number" && style.letterSpacing > 0) {
+    base += style.letterSpacing;
+  }
+  return base;
 }
 
 /**

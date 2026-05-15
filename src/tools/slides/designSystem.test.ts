@@ -12,11 +12,14 @@ import {
   STAT_ROW_BOTTOM,
   applyAccent,
   compile,
+  estimateSlotBudget,
   isFlexRegion,
   renderCompositionLayoutRecipe,
   renderDesignSystemCatalog,
   validateSlotContent,
+  type CompositionElement,
   type LayoutComposition,
+  type RoleStyle,
 } from "./designSystem";
 import { FONT_PRESETS } from "./index";
 
@@ -395,6 +398,47 @@ describe("compile() with flex regions", () => {
     const out = compile(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset);
     const outer = out.match(/<Anuma\.Group id="audience"[^>]*>/)![0];
     expect(outer).toContain('layout="row"');
+  });
+
+  it("estimateSlotBudget tightens charsPerLine for uppercase + letterSpacing styles", () => {
+    // Uppercase glyphs run ~15-20% wider than mixed case; letterSpacing
+    // adds directly to each glyph's footprint. Without those corrections
+    // the validator over-budgeted eyebrow/stat-label/chrome roles and
+    // overflowing copy ("BESPOKE LUXURY EV", "SOFIA MOREAU STUDIO")
+    // shipped to render. Pin both corrections so a future "simplify the
+    // heuristic" pass doesn't silently regress.
+    const baseEl: CompositionElement = {
+      id: "test",
+      role: "stat-label",
+      x: 0,
+      y: 0,
+      w: 30,
+      h: 5,
+      fit: "single-line",
+    };
+    const plainStyle: RoleStyle = {
+      fontFamily: "Inter",
+      fontSize: 1.5,
+      color: "#000",
+    };
+    const upperStyle: RoleStyle = { ...plainStyle, textTransform: "uppercase" };
+    const spacedStyle: RoleStyle = { ...plainStyle, letterSpacing: 0.16 };
+    const upperSpacedStyle: RoleStyle = {
+      ...plainStyle,
+      textTransform: "uppercase",
+      letterSpacing: 0.16,
+    };
+    const plain = estimateSlotBudget(baseEl, plainStyle, fontPreset);
+    const upper = estimateSlotBudget(baseEl, upperStyle, fontPreset);
+    const spaced = estimateSlotBudget(baseEl, spacedStyle, fontPreset);
+    const both = estimateSlotBudget(baseEl, upperSpacedStyle, fontPreset);
+    // Uppercase alone reduces the budget.
+    expect(upper.charsPerLine).toBeLessThan(plain.charsPerLine);
+    // letterSpacing alone reduces the budget.
+    expect(spaced.charsPerLine).toBeLessThan(plain.charsPerLine);
+    // Both together compound (strictly smaller than either alone).
+    expect(both.charsPerLine).toBeLessThan(upper.charsPerLine);
+    expect(both.charsPerLine).toBeLessThan(spaced.charsPerLine);
   });
 });
 

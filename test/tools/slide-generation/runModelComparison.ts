@@ -47,13 +47,13 @@ const MODELS = process.env.COMPARE_MODELS
   ? process.env.COMPARE_MODELS.split(",").map((s) => s.trim())
   : DEFAULT_MODELS;
 
-const OUT_DIR = path.resolve(
-  __dirname,
-  ".output",
-  "model-comparison"
-);
+// COMPARE_OUT overrides the output subdirectory so multiple runs (different
+// prompts / topics) can coexist without overwriting each other.
+const OUT_SUBDIR = process.env.COMPARE_OUT ?? "model-comparison";
 
-const PROMPT = [
+const OUT_DIR = path.resolve(__dirname, ".output", OUT_SUBDIR);
+
+const DEFAULT_PROMPT = [
   "Build a 10-slide investor pitch deck for Volta Atelier, a high-end electric vehicle startup.",
   "Slide shape: cover, problem, market opportunity with stats, brand story, product showcase,",
   "founder quote, competitive comparison, business model, why-now moment, and a closing ask slide.",
@@ -64,6 +64,8 @@ const PROMPT = [
   "don't fill with a real URL — don't ship the sentinel.",
   "Pick whichever design system best matches a premium automotive brand and apply it consistently.",
 ].join(" ");
+
+const PROMPT = process.env.COMPARE_PROMPT ?? DEFAULT_PROMPT;
 
 function modelSlug(model: string): string {
   return model.replace(/[^a-zA-Z0-9-]/g, "_");
