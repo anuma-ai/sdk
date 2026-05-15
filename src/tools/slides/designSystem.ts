@@ -2525,10 +2525,12 @@ export const HEADLINE_NUMBER: LayoutComposition = {
     // like "$30M primary · $10M secondary" read at body weight, not stat
     // weight. Composition pinned 3 columns; the flex region accepts 2–4
     // by varying defaultItems (or by the model passing more or fewer
-    // cols_<index>_<slot> ids).
+    // terms_<index>_<slot> ids). Prefix is content-oriented ("terms"
+    // for deal/board terms) rather than layout-oriented, matching the
+    // pattern of facts/audience/proof/agenda/cards.
     {
       kind: "flex-region",
-      idPrefix: "cols",
+      idPrefix: "terms",
       x: 6,
       y: 86,
       w: 88,
@@ -4133,15 +4135,19 @@ function emitRelativeElement(
     ...(rel.h !== undefined ? [`h={${pxY(rel.h)}}`] : []),
     ...(rel.grow !== undefined ? [`grow={${rel.grow}}`] : []),
   ];
+  // Join with a leading space only when sizeAttrs has entries — avoids
+  // the ugly `<Anuma.Text id="..."  fontRole=...>` double-space in
+  // recipes the model copies verbatim.
+  const sizePrefix = sizeAttrs.length > 0 ? ` ${sizeAttrs.join(" ")}` : "";
   // Shape roles render as the relevant primitive without text.
   if (rel.role === "divider") {
-    return `<Anuma.Line id="${id}" ${sizeAttrs.join(" ")} stroke="${s.color}" strokeWidth={1} />`;
+    return `<Anuma.Line id="${id}"${sizePrefix} stroke="${s.color}" strokeWidth={1} />`;
   }
   if (rel.role === "accent-bar") {
-    return `<Anuma.Rect id="${id}" ${sizeAttrs.join(" ")} fill="${s.color}" cornerRadius={0.2} />`;
+    return `<Anuma.Rect id="${id}"${sizePrefix} fill="${s.color}" cornerRadius={0.2} />`;
   }
   if (rel.role === "marker") {
-    return `<Anuma.Circle id="${id}" ${sizeAttrs.join(" ")} fill="${s.color}" />`;
+    return `<Anuma.Circle id="${id}"${sizePrefix} fill="${s.color}" />`;
   }
   // Default: text element with role styling. align override + inline-accent
   // markers behave the same as in absolute elements. `surface` is reserved
@@ -4152,7 +4158,7 @@ function emitRelativeElement(
   const resolved = rel.align ? { ...s, align: rel.align } : s;
   const style = styleObject(resolved, fontPreset);
   const body = renderInlineAccents(text, rel.role, system, elState);
-  return `<Anuma.Text id="${id}" ${sizeAttrs.join(" ")} fontRole="${fontRole}" style=${style}>${body}</Anuma.Text>`;
+  return `<Anuma.Text id="${id}"${sizePrefix} fontRole="${fontRole}" style=${style}>${body}</Anuma.Text>`;
 }
 
 function emitCardSurface(el: CompositionElement, system: DesignSystem, state: SurfaceState): string {
@@ -4483,13 +4489,31 @@ export function describeComposition(
   for (const child of composition.elements) {
     if (isFlexRegion(child)) {
       out.push("");
-      const shape =
-        child.columns !== undefined && child.columns > 0
-          ? `grid, ${child.columns} columns`
-          : `layout="${child.layout}"`;
+      const isGrid = child.columns !== undefined && child.columns > 0;
+      const shape = isGrid ? `grid, ${child.columns} columns` : `layout="${child.layout}"`;
+      const shrinkHint = isGrid
+        ? `In grid mode only height shrinks as more rows fill — per-item width stays roughly constant. Items in a trailing partial row stretch to full row width.`
+        : `Budgets shrink roughly linearly with item count (½ budget at double the count). Keep counts low for tighter copy.`;
       out.push(
-        `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items by default, ${shape}. Add or remove items by changing the count of ${child.idPrefix}_<index>_<slot> ids you pass; budgets below are sized for the default count and shrink roughly linearly as you add items (½ budget at double the count). For tighter copy, keep the count low.`
+        `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items by default, ${shape}. Add or remove items by changing the count of ${child.idPrefix}_<index>_<slot> ids you pass. ${shrinkHint}`
       );
+      if (child.cardItems) {
+        // Each item-Group paints its own card surface — the recipe's
+        // emitted JSX has a per-item fill + cornerRadius. The fills are
+        // opaque hex; without a name-to-index map the model can't know
+        // that cards_3's fill = dark surface vs cards_1 = default. Print
+        // the mapping so the model can pick the right item-Group to copy
+        // when it adds or rebalances cards.
+        const surfaceMap = child.defaultItems
+          .map((item, i) => {
+            const s = typeof item.surface === "string" ? item.surface : "default";
+            return `${child.idPrefix}_${i + 1}=${s}`;
+          })
+          .join(", ");
+        out.push(
+          `    Card surfaces: each item paints its own card-surface (fill + cornerRadius on the item-Group). Surface map: ${surfaceMap}. To add or vary a card, copy the matching existing item-Group — fill, cornerRadius, and per-surface text colors travel together.`
+        );
+      }
       for (const rel of child.item) {
         if (STATIC_ROLES.has(rel.role)) {
           out.push(`    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: static element, no content`);
@@ -4552,7 +4576,18 @@ function estimateRelativeSlotBudget(
    * geometry — without this, items beyond defaultItems.length would
    * inherit the default-count budget and silently overflow.
    */
-  itemCountOverride?: number
+  itemCountOverride?: number,
+  /**
+   * 1-based index of the specific item this budget is computed for.
+   * Only meaningful in grid mode: the trailing partial row of a 3-item
+   * cols=2 grid renders the lonely card at full row width (CSS flex
+   * with grow={1}), not at half-width like full rows. When `itemIndex`
+   * is provided and this item lives in a trailing partial row, the
+   * width budget reflects that. Without the index, grid mode computes
+   * the pessimistic per-item width (region.w / cols) for the recipe
+   * dump's general budget hint.
+   */
+  itemIndex?: number
 ): SlotBudget {
   const padding = region.padding ?? 0;
   const gap = region.gap ?? 0;
@@ -4567,8 +4602,22 @@ function estimateRelativeSlotBudget(
     const cols = region.columns;
     const rows = Math.max(1, Math.ceil(itemCount / cols));
     const colGap = region.columnGap ?? gap;
+    // Trailing-row adjustment: when N isn't a multiple of cols, the last
+    // row has fewer cards but they stretch (flex grow={1}) to fill the
+    // full row width. Without this, a 3-item cols=2 grid reports the 3rd
+    // item's width as region.w/2 — but the emitter actually gives it
+    // region.w. Validator false-positives result. Only applied when the
+    // caller passes itemIndex (per-item validation); the description
+    // path keeps the pessimistic full-cols budget.
+    const lastRowFill = itemCount - cols * (rows - 1);
+    const itemIsInLastRow =
+      itemIndex !== undefined && itemIndex > cols * (rows - 1);
+    const effectiveCols =
+      itemIsInLastRow && lastRowFill < cols ? lastRowFill : cols;
     if (w === undefined) {
-      w = (region.w - 2 * padding - colGap * (cols - 1)) / cols;
+      w =
+        (region.w - 2 * padding - colGap * Math.max(0, effectiveCols - 1)) /
+        effectiveCols;
     }
     if (h === undefined) {
       h = (region.h - 2 * padding - gap * (rows - 1)) / rows;
@@ -4622,7 +4671,14 @@ function validateFlexRegionDefaults(
       const raw = data[rel.id];
       const text = (typeof raw === "string" ? raw : undefined) ?? rel.defaultText;
       if (!text) continue;
-      const budget = estimateRelativeSlotBudget(rel, region, style, fontPreset);
+      const budget = estimateRelativeSlotBudget(
+        rel,
+        region,
+        style,
+        fontPreset,
+        undefined,
+        idx
+      );
       const fit: FitMode = rel.fit ?? "multi-line";
       const trimmed = text.trim();
       const visible = trimmed.replace(/\*([^*]+)\*/g, "$1");
@@ -4811,7 +4867,8 @@ export function validateSlotContent(
             child,
             style,
             fontPreset,
-            itemCountForBudget
+            itemCountForBudget,
+            idx
           );
           const fit: FitMode = rel.fit ?? "multi-line";
           const visibleText = actual.replace(/\*([^*]+)\*/g, "$1").trim();
@@ -4929,7 +4986,7 @@ function collectSlideTexts(
 // layout names alongside the legacy 30-template catalog.
 // ---------------------------------------------------------------------------
 
-const ALL_COMPOSITIONS: LayoutComposition[] = [
+export const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
   COVER_STATEMENT,
   PROBLEM_EVIDENCE,
@@ -4944,7 +5001,7 @@ const ALL_COMPOSITIONS: LayoutComposition[] = [
   PEER_COMPARISON_TABLE,
 ];
 
-const ALL_SYSTEMS: Array<{ name: string; system: DesignSystem }> = [
+export const ALL_SYSTEMS: Array<{ name: string; system: DesignSystem }> = [
   { name: "editorial-warm", system: EDITORIAL_WARM },
   { name: "techno-bold", system: TECHNO_BOLD },
   { name: "corporate-modern", system: CORPORATE_MODERN },

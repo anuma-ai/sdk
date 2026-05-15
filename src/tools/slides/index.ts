@@ -1427,10 +1427,28 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
  * each tool-call stream small so slow / reasoning-heavy models can finish
  * within portal per-provider timeout ceilings.
  */
-export function buildSlideSystemPrompt(): string {
+export interface BuildSlideSystemPromptOptions {
+  /**
+   * Set to true when the host has bound an image-generation tool (e.g.
+   * AnumaImageMCP-generate_cloud_image) to the same loop. The IMAGES
+   * section adapts: when false (the default) it tells the model the
+   * only valid path is attached:N or removing the element; when true,
+   * AnumaImageMCP is advertised as an option. Mirrors the same flag on
+   * `CreateSlideToolsOptions` — host should pass the same value to both.
+   */
+  hasImageGenerator?: boolean;
+}
+
+export function buildSlideSystemPrompt(
+  options: BuildSlideSystemPromptOptions = {}
+): string {
+  const { hasImageGenerator = false } = options;
   const fontTable = Object.entries(FONT_PRESETS)
     .map(([name, p]) => `  ${name}: heading="${p.heading}", body="${p.body}"`)
     .join("\n");
+  const imageSourceClause = hasImageGenerator
+    ? `Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaImageMCP-generate_cloud_image). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`
+    : `Allowed image sources: "attached:N" strings (user-attached images) only — you have no image-generation tool bound. NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`;
 
   return `You are a presentation design assistant. You produce polished slide decks as React-compatible JSX with positioned <Anuma.*> elements.
 
@@ -1504,7 +1522,7 @@ ${renderPaletteNames()}
 CHOOSING AN ACCENT (plan_deck.accent) — set \`accent\` to a 6-digit hex that fits the deck's specific brand or topic. Pick the color a designer would pick for THIS deck, not a generic industry default. Omit only when the topic is genuinely brand-ambiguous (e.g. an internal status update).
 
 IMAGES:
-- Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaImageMCP-generate_cloud_image if available in your tool list). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.
+- ${imageSourceClause}
 - Most decks should be text-only. Layout recipes ship <Anuma.Image> elements with src="REPLACE_WITH_IMAGE_OR_REMOVE"; if you leave the sentinel in, add_slide auto-strips just those <Anuma.Image> elements and accepts the rest of the slide (the response.message will tell you how many were stripped). The slide ships, but with empty image slots — better to handle it deliberately.
 - When you have FEWER real image sources than image slots in your chosen layouts, REMOVE the unfilled <Anuma.Image> elements from the slide JSX yourself. Do NOT re-use one image URL across many slots, and do NOT generate one image per slot — generate 1–2 images max and drop the rest of the image elements deliberately. The deck reads fine without them.
 - With images: generate them FIRST (1–2 max), then call plan_deck and add_slide — the deck renders incrementally as slides are appended.

@@ -177,7 +177,7 @@ export const FONT_LIBRARY: FontSpec[] = [
     name: "Raleway",
     category: "sans-body",
     feel: "thin elegant sans — fashion, boutique",
-    weights: "400;500;600;700",
+    weights: "300;400;500;600;700",
   },
   {
     name: "Nunito",

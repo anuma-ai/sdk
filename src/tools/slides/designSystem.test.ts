@@ -173,6 +173,97 @@ describe("validateSlotContent", () => {
     expect(overflowingLateItem, "items beyond defaultItems.length must be checked").toBeDefined();
     expect(overflowingLateItem!.issue).toMatch(/single-line.*exceeds/);
   });
+
+  it("budgets flex items by COUNT of distinct indices, not max(index) — handles sparse fills", () => {
+    // CSS flex distributes N children across the region regardless of
+    // what numeric idx the model wrote on them. A model emitting items
+    // 1, 3, 5 (skipping 2 and 4) ships 3 children to the flex container,
+    // each getting region.w/3 — NOT region.w/5. The validator must
+    // budget against count(distinct indices), not max(index). A future
+    // refactor that switches to max() would double the budget for the
+    // sparse case and silently regress.
+    const sparseValue = "10char_str"; // 10 chars
+    const slide = {
+      children: [
+        {
+          tag: "Group",
+          attrs: { id: "audience" },
+          children: [1, 3, 5].map((i) => ({
+            tag: "Group" as const,
+            attrs: { id: `audience_${i}` },
+            children: [
+              {
+                tag: "Text" as const,
+                attrs: { id: `audience_${i}_value` },
+                children: [sparseValue],
+              },
+              {
+                tag: "Text" as const,
+                attrs: { id: `audience_${i}_label` },
+                children: ["LABEL"],
+              },
+            ],
+          })),
+        },
+      ],
+    };
+    const issues = validateSlotContent(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset, slide);
+    // 3 items in a 44%-wide region → ~14% per item → comfortably fits 10 chars.
+    // Max-index budgeting would treat this as 5 items → ~8.8% → 10 chars would
+    // overflow. Assert no overflow at the value slots to pin count-based logic.
+    const valueOverflows = issues.filter(
+      (i) => i.id.endsWith("_value") && i.fit === "single-line"
+    );
+    expect(valueOverflows).toEqual([]);
+  });
+
+  it("widens the budget for a trailing partial row in grid mode (cols=2, N=3)", () => {
+    // MARKETING_GRID is cols=2. With 3 items, the 3rd lives alone in
+    // the trailing row and the emitter gives it full row width via
+    // flex grow={1}. The validator must budget that 3rd card's title
+    // against full row width, NOT region.w/cols=2 — otherwise content
+    // that fits the actual rendered width gets false-positive overflow
+    // reports.
+    // A 65-char title fits a full-row card (~88% wide) but not a
+    // half-row card (~44% wide). Three items with this title at idx 3
+    // (in the trailing partial row) must NOT overflow.
+    const trailingTitle =
+      "Sixty-five characters here yes including this little extra bit.";
+    expect(trailingTitle.length).toBe(63);
+    const slide = {
+      children: [
+        {
+          tag: "Group",
+          attrs: { id: "cards" },
+          children: [1, 2, 3].map((i) => ({
+            tag: "Group" as const,
+            attrs: { id: `cards_${i}` },
+            children: [
+              {
+                tag: "Text" as const,
+                attrs: { id: `cards_${i}_eyebrow` },
+                children: [`0${i}`],
+              },
+              {
+                tag: "Text" as const,
+                attrs: { id: `cards_${i}_title` },
+                children: [trailingTitle],
+              },
+            ],
+          })),
+        },
+      ],
+    };
+    const issues = validateSlotContent(MARKETING_GRID, EDITORIAL_WARM, fontPreset, slide);
+    // Card 3 (in the trailing partial row) gets the wider budget —
+    // it MUST pass even though card 1 and card 2 (in a 2-card row)
+    // would over-budget it.
+    const card3TitleOverflow = issues.find((i) => i.id === "cards_3_title");
+    expect(
+      card3TitleOverflow,
+      "card_3 in trailing partial row should not overflow at full-row width"
+    ).toBeUndefined();
+  });
 });
 
 describe("compile() with flex regions", () => {

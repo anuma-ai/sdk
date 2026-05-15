@@ -21,24 +21,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
-  AGENDA,
-  BRAND_STORY_SPLIT,
-  CORPORATE_MODERN,
-  COVER_SPLIT_PORTRAIT,
-  COVER_STATEMENT,
-  EDITORIAL_WARM,
-  HEADLINE_NUMBER,
-  FOUNDER_QUOTE_PORTRAIT,
-  LUXURY_EDITORIAL,
-  MARKETING_GRID,
-  MINIMAL_SWISS,
-  MULTI_STAT_ASYMMETRIC,
-  PEER_COMPARISON_TABLE,
-  PLAYFUL_CREATIVE,
-  PROBLEM_EVIDENCE,
-  STAT_ROW_BOTTOM,
-  SURFACE_PAIR,
-  TECHNO_BOLD,
+  ALL_COMPOSITIONS,
+  ALL_SYSTEMS,
   compile,
   describeComposition,
   validateComposition,
@@ -58,30 +42,11 @@ const OUT_DIR = path.resolve(__dirname, ".output", "design-system");
 const palette = PALETTES.find((p) => p.name === "warm editorial")!;
 const fontPreset = FONT_PRESETS[palette.fontPreset] ?? FONT_PRESETS.default!;
 
-const compositions: LayoutComposition[] = [
-  COVER_SPLIT_PORTRAIT,
-  COVER_STATEMENT,
-  PROBLEM_EVIDENCE,
-  HEADLINE_NUMBER,
-  AGENDA,
-  BRAND_STORY_SPLIT,
-  FOUNDER_QUOTE_PORTRAIT,
-  MARKETING_GRID,
-  SURFACE_PAIR,
-  STAT_ROW_BOTTOM,
-  MULTI_STAT_ASYMMETRIC,
-  PEER_COMPARISON_TABLE,
-];
-
-const baseSystems: Array<{ name: string; system: DesignSystem }> = [
-  { name: "editorial-warm", system: EDITORIAL_WARM },
-  { name: "techno-bold", system: TECHNO_BOLD },
-  { name: "corporate-modern", system: CORPORATE_MODERN },
-  { name: "playful-creative", system: PLAYFUL_CREATIVE },
-  { name: "minimal-swiss", system: MINIMAL_SWISS },
-  { name: "luxury-editorial", system: LUXURY_EDITORIAL },
-];
-
+// Use the live registry from designSystem.ts directly — one source of
+// truth for which compositions and systems exist. Adding a new entry
+// in designSystem.ts now shows up in the dump automatically.
+const compositions: LayoutComposition[] = ALL_COMPOSITIONS;
+const baseSystems: Array<{ name: string; system: DesignSystem }> = ALL_SYSTEMS;
 const systems: Array<{ name: string; system: DesignSystem }> = baseSystems;
 
 // Build one deck with every (composition × system) pair, grouped by
