@@ -29,6 +29,7 @@ import {
   EDITORIAL_WARM,
   HEADLINE_NUMBER,
   FOUNDER_QUOTE_PORTRAIT,
+  LUXURY_EDITORIAL,
   MARKETING_GRID,
   MINIMAL_SWISS,
   MULTI_STAT_ASYMMETRIC,
@@ -91,6 +92,7 @@ const baseSystems: Array<{ name: string; system: DesignSystem }> = [
   { name: "corporate-modern", system: CORPORATE_MODERN },
   { name: "playful-creative", system: PLAYFUL_CREATIVE },
   { name: "minimal-swiss", system: MINIMAL_SWISS },
+  { name: "luxury-editorial", system: LUXURY_EDITORIAL },
 ];
 
 const systems: Array<{ name: string; system: DesignSystem }> = [

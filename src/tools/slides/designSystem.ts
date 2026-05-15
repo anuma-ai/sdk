@@ -1742,6 +1742,287 @@ export const MINIMAL_SWISS: DesignSystem = {
 };
 
 // ---------------------------------------------------------------------------
+// LUXURY_EDITORIAL — boutique-fashion / hospitality / cosmetics /
+// premium-product register. Pairs DM Serif Display (a high-contrast
+// modern fashion-magazine serif, distinct from editorial-warm's
+// Playfair) with Raleway (thin elegant sans). The signature move is
+// the OUT-OF-FAMILY letter-spacing on chrome — eyebrow / footer use
+// a 0.28 tracking that no other system goes near (editorial uses
+// 0.16; swiss uses 0.18). Combined with a dusty muted-blush accent
+// (#BE8B6E — distinct from every other system's accent), pale stone
+// surface, and italic-on-serif emphasis, the system reads as quiet
+// confident luxury — not "loud premium." Use it for decks that need
+// to feel expensive without shouting (boutique pitch, hospitality
+// portfolio, fashion brand presentation, cosmetics / fragrance,
+// jewelry, watches).
+// ---------------------------------------------------------------------------
+
+const LUXURY_SERIF = "DM Serif Display";
+const LUXURY_SANS = "Raleway";
+
+export const LUXURY_EDITORIAL: DesignSystem = {
+  name: "luxury-editorial",
+  useFor:
+    "boutique fashion, hospitality, cosmetics, fragrance, jewelry, premium-product brand decks — quiet confident luxury via thin elegant sans, fashion-magazine serif, generous chrome tracking, and a muted dusty-blush accent. Reach for it when the deck should feel expensive but restrained, not loud-premium.",
+  defaultBackground: "#F5F5F4",
+  accent: { base: "#BE8B6E", onDark: "#D4A88A" },
+  composition: {
+    preferAsymmetric: true,
+    preferDarkVariants: false,
+  },
+  styles: {
+    // Hero: DM Serif Display, only available at weight 400 — the
+    // high-contrast strokes do the work. Tighter line-height than
+    // editorial-warm to keep the air-around-the-text feel without
+    // letting lines drift apart.
+    hero: {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 5.5,
+      fontWeight: 400,
+      color: "#1F2937",
+      lineHeight: 1.1,
+      letterSpacing: -0.01,
+      align: "left",
+    },
+    // Hero-accent: italic + the muted dusty-blush. Editorial-warm
+    // also uses italic on serif but with warm terracotta — the
+    // cooler blush here keeps the register clearly distinct.
+    "hero-accent": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 5.5,
+      fontWeight: 400,
+      fontStyle: "italic",
+      color: "#BE8B6E",
+      lineHeight: 1.1,
+      letterSpacing: -0.01,
+      align: "left",
+    },
+    subtitle: {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.8,
+      fontWeight: 300,
+      color: "#4B5563",
+      lineHeight: 1.45,
+      letterSpacing: 0.02,
+      align: "left",
+    },
+    eyebrow: {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.05,
+      fontWeight: 500,
+      color: "#BE8B6E",
+      textTransform: "uppercase",
+      letterSpacing: 0.28,
+      align: "left",
+    },
+    body: {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.55,
+      fontWeight: 300,
+      color: "#4B5563",
+      lineHeight: 1.7,
+      align: "left",
+    },
+    bullets: {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.55,
+      fontWeight: 300,
+      color: "#4B5563",
+      lineHeight: 1.75,
+      align: "left",
+    },
+    // Display stats: serif at the same fontSize family as hero but
+    // SHARPLY larger. The luxury move is to let one big number
+    // command the slide; everything else recedes around it.
+    "stat-display": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 13.5,
+      fontWeight: 400,
+      color: "#1F2937",
+      lineHeight: 1.0,
+      letterSpacing: -0.02,
+      align: "left",
+    },
+    "stat-value": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 8.5,
+      fontWeight: 400,
+      color: "#1F2937",
+      lineHeight: 1.0,
+      letterSpacing: -0.01,
+      align: "left",
+    },
+    "stat-value-mid": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 5.5,
+      fontWeight: 400,
+      color: "#1F2937",
+      lineHeight: 1.0,
+      align: "left",
+    },
+    "stat-value-small": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 3.4,
+      fontWeight: 400,
+      color: "#1F2937",
+      lineHeight: 1.0,
+      align: "left",
+    },
+    "stat-label": {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.0,
+      fontWeight: 500,
+      color: "#6B7280",
+      textTransform: "uppercase",
+      letterSpacing: 0.24,
+      align: "left",
+    },
+    quote: {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 3.4,
+      fontWeight: 400,
+      color: "#1F2937",
+      lineHeight: 1.35,
+      align: "left",
+    },
+    "quote-accent": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 3.4,
+      fontWeight: 400,
+      fontStyle: "italic",
+      color: "#BE8B6E",
+      lineHeight: 1.35,
+      align: "left",
+    },
+    attribution: {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.35,
+      fontWeight: 500,
+      color: "#1F2937",
+      letterSpacing: 0.06,
+      align: "left",
+    },
+    "card-eyebrow": {
+      fontFamily: LUXURY_SANS,
+      fontSize: 0.95,
+      fontWeight: 500,
+      color: "#BE8B6E",
+      textTransform: "uppercase",
+      letterSpacing: 0.24,
+      align: "left",
+    },
+    "card-title": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 2.0,
+      fontWeight: 400,
+      color: "#1F2937",
+      lineHeight: 1.25,
+      align: "left",
+    },
+    "card-body": {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.4,
+      fontWeight: 300,
+      color: "#4B5563",
+      lineHeight: 1.6,
+      align: "left",
+    },
+    // Chrome: massive letter-spacing — the unmistakable luxury cue.
+    // Other systems max out around 0.18; here we go to 0.28 on
+    // header chrome and 0.22 on the footer.
+    "chrome-left": {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.05,
+      fontWeight: 500,
+      color: "#1F2937",
+      textTransform: "uppercase",
+      letterSpacing: 0.28,
+      align: "left",
+    },
+    "chrome-right": {
+      fontFamily: LUXURY_SANS,
+      fontSize: 1.0,
+      fontWeight: 500,
+      color: "#6B7280",
+      textTransform: "uppercase",
+      letterSpacing: 0.28,
+      align: "right",
+    },
+    footer: {
+      fontFamily: LUXURY_SANS,
+      fontSize: 0.85,
+      fontWeight: 500,
+      color: "#9CA3AF",
+      textTransform: "uppercase",
+      letterSpacing: 0.22,
+      align: "left",
+    },
+    // Shape roles — dusty blush only on functional accents
+    // (markers, bars). Cards stay near-monochrome.
+    "card-surface": { fontFamily: LUXURY_SANS, fontSize: 0, color: "#FAFAF9" },
+    divider: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#E7E5E4" },
+    "accent-bar": { fontFamily: LUXURY_SANS, fontSize: 0, color: "#BE8B6E" },
+    marker: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#BE8B6E" },
+    image: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#E7E5E4" },
+  },
+  surfaces: {
+    dark: {
+      // Deep slate, not pure black — keeps the warmth of the daylight
+      // surface even when inverted.
+      background: "#1F2937",
+      overrides: {
+        hero: { color: "#F5F5F4" },
+        "hero-accent": { color: "#D4A88A" },
+        subtitle: { color: "#9CA3AF" },
+        eyebrow: { color: "#D4A88A" },
+        body: { color: "#D1D5DB" },
+        bullets: { color: "#D1D5DB" },
+        "stat-display": { color: "#F5F5F4" },
+        "stat-value": { color: "#F5F5F4" },
+        "stat-value-mid": { color: "#F5F5F4" },
+        "stat-value-small": { color: "#F5F5F4" },
+        "stat-label": { color: "#9CA3AF" },
+        quote: { color: "#F5F5F4" },
+        "quote-accent": { color: "#D4A88A" },
+        attribution: { color: "#F5F5F4" },
+        "card-eyebrow": { color: "#D4A88A" },
+        "card-title": { color: "#F5F5F4" },
+        "card-body": { color: "#D1D5DB" },
+        "chrome-left": { color: "#F5F5F4" },
+        "chrome-right": { color: "#9CA3AF" },
+        footer: { color: "#6B7280" },
+        divider: { color: "#374151" },
+      },
+    },
+    accent: {
+      // Saturated dusty blush block — used sparingly for cover
+      // statements or signature moments.
+      background: "#BE8B6E",
+      overrides: {
+        hero: { color: "#FFFFFF" },
+        "hero-accent": { color: "#FFFFFF" },
+        subtitle: { color: "#FAE9DC" },
+        eyebrow: { color: "#FFFFFF" },
+        body: { color: "#FAE9DC" },
+        bullets: { color: "#FAE9DC" },
+        "stat-display": { color: "#FFFFFF" },
+        "stat-value": { color: "#FFFFFF" },
+        "stat-value-mid": { color: "#FFFFFF" },
+        "stat-value-small": { color: "#FFFFFF" },
+        "stat-label": { color: "#FAE9DC" },
+        quote: { color: "#FFFFFF" },
+        "quote-accent": { color: "#FFFFFF" },
+        attribution: { color: "#FFFFFF" },
+        "card-eyebrow": { color: "#FFFFFF" },
+        "card-title": { color: "#FFFFFF" },
+        "card-body": { color: "#FAE9DC" },
+        footer: { color: "#FAE9DC" },
+      },
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Example composition — cover slide with text-left / image-right split
 // ---------------------------------------------------------------------------
 
@@ -4714,6 +4995,7 @@ const ALL_SYSTEMS: Array<{ name: string; system: DesignSystem }> = [
   { name: "corporate-modern", system: CORPORATE_MODERN },
   { name: "minimal-swiss", system: MINIMAL_SWISS },
   { name: "playful-creative", system: PLAYFUL_CREATIVE },
+  { name: "luxury-editorial", system: LUXURY_EDITORIAL },
 ];
 
 /**
