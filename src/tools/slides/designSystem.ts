@@ -2753,50 +2753,6 @@ export const AGENDA: LayoutComposition = {
 // composition, same design system, different surface mix per card.
 // ---------------------------------------------------------------------------
 
-/**
- * Helper to build the three elements of one card: surface rect, eyebrow,
- * and title. All three share the same `surface` state so text inside
- * the card resolves against the card's ground, not the slide's.
- */
-function card(
-  id: string,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  surface: SurfaceState,
-  eyebrow: string,
-  title: string
-): CompositionElement[] {
-  // Inner padding for text inside the card: 5% of canvas width.
-  const px = 2;
-  return [
-    { id: `${id}_surface`, role: "card-surface", surface, x, y, w, h },
-    {
-      id: `${id}_eyebrow`,
-      role: "card-eyebrow",
-      surface,
-      x: x + px,
-      y: y + 2,
-      w: w - 2 * px,
-      h: 3,
-      fit: "single-line",
-      defaultText: eyebrow,
-    },
-    {
-      id: `${id}_title`,
-      role: "card-title",
-      surface,
-      x: x + px,
-      y: y + 6,
-      w: w - 2 * px,
-      h: h - 8,
-      fit: "multi-line",
-      defaultText: title,
-    },
-  ];
-}
-
 export const MARKETING_GRID: LayoutComposition = {
   name: "marketing-grid",
   description:
@@ -4532,7 +4488,7 @@ export function describeComposition(
           ? `grid, ${child.columns} columns`
           : `layout="${child.layout}"`;
       out.push(
-        `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items, ${shape}. Add or remove items as needed; the model passes ${child.idPrefix}_<index>_<slot> ids for each.`
+        `  Flex region ${child.idPrefix} — ${child.defaultItems.length} items by default, ${shape}. Add or remove items by changing the count of ${child.idPrefix}_<index>_<slot> ids you pass; budgets below are sized for the default count and shrink roughly linearly as you add items (½ budget at double the count). For tighter copy, keep the count low.`
       );
       for (const rel of child.item) {
         if (STATIC_ROLES.has(rel.role)) {
@@ -4587,11 +4543,20 @@ function estimateRelativeSlotBudget(
   rel: RelativeElement,
   region: FlexRegion,
   style: RoleStyle,
-  fontPreset: { heading: string; body: string }
+  fontPreset: { heading: string; body: string },
+  /**
+   * Override the item count used for width/height splitting. Defaults to
+   * `region.defaultItems.length`. Callers that know the actual rendered
+   * count (validateSlotContent walking a real slide tree) should pass
+   * the discovered count so the budget reflects the actual per-item
+   * geometry — without this, items beyond defaultItems.length would
+   * inherit the default-count budget and silently overflow.
+   */
+  itemCountOverride?: number
 ): SlotBudget {
   const padding = region.padding ?? 0;
   const gap = region.gap ?? 0;
-  const itemCount = Math.max(1, region.defaultItems.length);
+  const itemCount = Math.max(1, itemCountOverride ?? region.defaultItems.length);
   // Default width/height heuristics when the rel doesn't specify them.
   let w = rel.w;
   let h = rel.h;
@@ -4810,8 +4775,30 @@ export function validateSlotContent(
   collectSlideTexts(slide.children, textsBySlotId);
   for (const child of composition.elements) {
     if (isFlexRegion(child)) {
-      for (let i = 0; i < child.defaultItems.length; i++) {
-        const idx = i + 1;
+      // Discover the actual rendered item count from the slide tree by
+      // scanning slot ids matching `<prefix>_<idx>_<rel>` and counting
+      // distinct <idx> values. The model can ship more or fewer items
+      // than defaultItems.length — budget shrinks linearly with count,
+      // so we MUST validate against the discovered count, not the
+      // default. Falls back to defaultItems.length when the slide
+      // didn't populate any item (treats the budget as if the defaults
+      // would render).
+      const itemPattern = new RegExp(`^${escapeForRegex(child.idPrefix)}_(\\d+)_`);
+      const discoveredIndices = new Set<number>();
+      for (const slotId of textsBySlotId.keys()) {
+        const m = slotId.match(itemPattern);
+        if (m) discoveredIndices.add(parseInt(m[1]!, 10));
+      }
+      const actualCount =
+        discoveredIndices.size > 0 ? discoveredIndices.size : child.defaultItems.length;
+      const itemCountForBudget = actualCount;
+      // Iterate every discovered index (not just 1..defaultItems.length)
+      // so items 5+ in a region defaulted to 4 still get validated.
+      const indicesToCheck =
+        discoveredIndices.size > 0
+          ? [...discoveredIndices].sort((a, b) => a - b)
+          : Array.from({ length: child.defaultItems.length }, (_, i) => i + 1);
+      for (const idx of indicesToCheck) {
         for (const rel of child.item) {
           if (STATIC_ROLES.has(rel.role)) continue;
           const style = system.styles[rel.role];
@@ -4819,7 +4806,13 @@ export function validateSlotContent(
           const fullId = `${child.idPrefix}_${idx}_${rel.id}`;
           const actual = textsBySlotId.get(fullId);
           if (actual === undefined) continue;
-          const budget = estimateRelativeSlotBudget(rel, child, style, fontPreset);
+          const budget = estimateRelativeSlotBudget(
+            rel,
+            child,
+            style,
+            fontPreset,
+            itemCountForBudget
+          );
           const fit: FitMode = rel.fit ?? "multi-line";
           const visibleText = actual.replace(/\*([^*]+)\*/g, "$1").trim();
           if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
@@ -4875,6 +4868,11 @@ export function validateSlotContent(
     }
   }
   return issues;
+}
+
+/** Escape regex metacharacters in a literal string for use in a RegExp. */
+function escapeForRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Concatenate string children and inline element bodies into one string. */

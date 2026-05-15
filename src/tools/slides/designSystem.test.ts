@@ -135,6 +135,43 @@ describe("validateSlotContent", () => {
     const issues = validateSlotContent(AGENDA, EDITORIAL_WARM, fontPreset, slide);
     expect(issues.filter((i) => i.id.startsWith("agenda_"))).toEqual([]);
   });
+
+  it("validates items beyond defaultItems.length and applies the shrunk per-item budget", () => {
+    // STAT_ROW_BOTTOM defaults to 4 audience stats — each gets ~11% of
+    // the 44% region width, ~95px after canvas scaling. If the model
+    // emits 8 items, the per-item budget halves; an "$149" value that
+    // fits at 4 items wouldn't necessarily fit at 8. The old validator
+    // iterated only 1..defaultItems.length, so items 5–8 escaped budget
+    // enforcement entirely. This test pins the discovered-count path.
+    const wide = "$149,999,999"; // 12 visible chars — fits 4-item single-line budget (~14), overflows the 8-item budget (~7).
+    const items = Array.from({ length: 8 }, (_, i) => ({
+      tag: "Group" as const,
+      attrs: { id: `audience_${i + 1}` },
+      children: [
+        {
+          tag: "Text" as const,
+          attrs: { id: `audience_${i + 1}_value` },
+          children: [wide],
+        },
+        {
+          tag: "Text" as const,
+          attrs: { id: `audience_${i + 1}_label` },
+          children: ["LABEL"],
+        },
+      ],
+    }));
+    const slide = {
+      children: [
+        { tag: "Group", attrs: { id: "audience" }, children: items },
+      ],
+    };
+    const issues = validateSlotContent(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset, slide);
+    // The new validator must report overflow on items beyond index 4
+    // (5..8) — the old behavior silently passed them.
+    const overflowingLateItem = issues.find((i) => i.id === "audience_7_value");
+    expect(overflowingLateItem, "items beyond defaultItems.length must be checked").toBeDefined();
+    expect(overflowingLateItem!.issue).toMatch(/single-line.*exceeds/);
+  });
 });
 
 describe("compile() with flex regions", () => {
