@@ -9,6 +9,7 @@ import {
   applyAccent,
   compile,
   isFlexRegion,
+  renderDesignSystemCatalog,
   validateSlotContent,
   type LayoutComposition,
 } from "./designSystem";
@@ -252,5 +253,29 @@ describe("applyAccent", () => {
     expect(meanOf(derived)).toBeGreaterThan(meanOf("#16A34A"));
     // The derived value is also applied on the dark surface override.
     expect(themed.surfaces?.dark?.overrides["hero-accent"]?.color).toBe(derived);
+  });
+});
+
+describe("renderDesignSystemCatalog", () => {
+  it("appends composition hints in [brackets] when the system declares them", () => {
+    // techno-bold sets both preferAsymmetric and preferDarkVariants —
+    // the catalog should surface both so the model knows to bias
+    // layouts accordingly.
+    const out = renderDesignSystemCatalog();
+    const technoLine = out
+      .split("\n")
+      .find((l) => l.startsWith("- techno-bold —"))!;
+    expect(technoLine).toMatch(/\[.*prefers asymmetric layouts.*prefers dark-surface variants.*\]/);
+  });
+
+  it("omits the brackets for systems that declare no composition hints", () => {
+    // minimal-swiss has composition.preferAsymmetric=false and
+    // preferDarkVariants=false — falsy values shouldn't generate a
+    // misleading empty `[]` annotation.
+    const out = renderDesignSystemCatalog();
+    const swissLine = out
+      .split("\n")
+      .find((l) => l.startsWith("- minimal-swiss —"))!;
+    expect(swissLine).not.toMatch(/\[/);
   });
 });

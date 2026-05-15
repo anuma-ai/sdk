@@ -5025,12 +5025,19 @@ export function listDesignSystemNames(): string[] {
 
 /**
  * Render the design-system catalog as a prompt-friendly block — one
- * line per system with its name and `useFor` hint. The model picks the
+ * line per system with its name, `useFor` hint, and any composition
+ * hints (preferAsymmetric / preferDarkVariants). The model picks the
  * system at plan_deck time by reading this list and matching the
  * deck's topic / register to one of the use cases.
  */
 export function renderDesignSystemCatalog(): string {
-  return ALL_SYSTEMS.map(({ name, system }) => `- ${name} — ${system.useFor}`).join("\n");
+  return ALL_SYSTEMS.map(({ name, system }) => {
+    const hints: string[] = [];
+    if (system.composition?.preferAsymmetric) hints.push("prefers asymmetric layouts");
+    if (system.composition?.preferDarkVariants) hints.push("prefers dark-surface variants");
+    const hintSuffix = hints.length > 0 ? ` [${hints.join(", ")}]` : "";
+    return `- ${name} — ${system.useFor}${hintSuffix}`;
+  }).join("\n");
 }
 
 /**
