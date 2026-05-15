@@ -39,7 +39,6 @@ import {
   STAT_ROW_BOTTOM,
   SURFACE_PAIR,
   TECHNO_BOLD,
-  applyAccent,
   compile,
   describeComposition,
   validateComposition,
@@ -74,18 +73,6 @@ const compositions: LayoutComposition[] = [
   PEER_COMPARISON_TABLE,
 ];
 
-// LLM-style accent overrides — pass-only a `base` hex; the dark-surface
-// variant is auto-derived via HSL lightening in applyAccent(). Each
-// override produces a variant of the colored systems (techno-bold,
-// playful-creative, minimal-swiss) — monochrome corporate-modern and
-// palette-driven editorial-warm declare no accent and pass through
-// unchanged.
-const accentOverrides: Array<{ label: string; base: string }> = [
-  { label: "green", base: "#16A34A" },
-  { label: "violet", base: "#7C3AED" },
-  { label: "mustard", base: "#D97706" },
-];
-
 const baseSystems: Array<{ name: string; system: DesignSystem }> = [
   { name: "editorial-warm", system: EDITORIAL_WARM },
   { name: "techno-bold", system: TECHNO_BOLD },
@@ -95,20 +82,7 @@ const baseSystems: Array<{ name: string; system: DesignSystem }> = [
   { name: "luxury-editorial", system: LUXURY_EDITORIAL },
 ];
 
-const systems: Array<{ name: string; system: DesignSystem }> = [
-  ...baseSystems,
-  // Variants: each colored system with each accent override applied.
-  // Systems without an `accent` slot return unchanged from applyAccent
-  // and are skipped here so the filter doesn't get noise.
-  ...baseSystems.flatMap(({ name, system }) =>
-    system.accent
-      ? accentOverrides.map(({ label, base }) => ({
-          name: `${name}@${label}`,
-          system: applyAccent(system, { base }),
-        }))
-      : []
-  ),
-];
+const systems: Array<{ name: string; system: DesignSystem }> = baseSystems;
 
 // Build one deck with every (composition × system) pair, grouped by
 // composition so two adjacent slides are the same layout in different
@@ -239,7 +213,6 @@ function reportPair(
   }
 }
 
-// Only base systems get the budget report — accent variants share budgets.
 for (const composition of compositions) {
   for (const { name, system } of baseSystems) {
     reportPair(composition, name, system);
@@ -247,7 +220,6 @@ for (const composition of compositions) {
 }
 
 console.log(
-  `\nCompiled ${compositions.length} compositions × ${systems.length} system variants ` +
-    `(${baseSystems.length} base + ${systems.length - baseSystems.length} accent overrides) ` +
+  `\nCompiled ${compositions.length} compositions × ${systems.length} systems ` +
     `= ${slides.length} slides → ${path.relative(process.cwd(), outPath)}`
 );
