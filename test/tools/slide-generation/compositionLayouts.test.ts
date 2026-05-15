@@ -133,22 +133,15 @@ describe("composition-layouts wire-in", () => {
     const addCalls = log.filter((l) => l.name === "add_slide");
     const usedLayouts = addCalls.map((c) => c.args.layout as string);
 
-    // Composition names are compound: "<composition>--<system>". Legacy
-    // layouts are single-token kebab-case. Count how often the model chose
-    // a composition vs a legacy layout.
-    const isComposition = (name: string): boolean => name.includes("--");
-    const planComp = planLayouts.filter(isComposition);
-    const planLegacy = planLayouts.filter((n) => !isComposition(n));
-    const usedComp = usedLayouts.filter(isComposition);
-    const usedLegacy = usedLayouts.filter((n) => !isComposition(n));
+    // Every layout name today is required to be compound
+    // "<composition>--<system>" — the legacy single-token form was
+    // removed when design systems shipped. Extract the system suffix
+    // so we can assert the deck stays in one visual identity.
+    const suffixOf = (n: string): string => n.split("--").at(-1) ?? "";
 
     console.log("\n  Open-ended layout choices:");
-    console.log(`    plan_deck → ${planLayouts.length} layouts (${planComp.length} composition, ${planLegacy.length} legacy)`);
-    console.log(`      composition: ${JSON.stringify(planComp)}`);
-    console.log(`      legacy:      ${JSON.stringify(planLegacy)}`);
-    console.log(`    add_slide → ${usedLayouts.length} slides (${usedComp.length} composition, ${usedLegacy.length} legacy)`);
-    console.log(`      composition: ${JSON.stringify(usedComp)}`);
-    console.log(`      legacy:      ${JSON.stringify(usedLegacy)}`);
+    console.log(`    plan_deck → ${planLayouts.length} layouts: ${JSON.stringify(planLayouts)}`);
+    console.log(`    add_slide → ${usedLayouts.length} slides: ${JSON.stringify(usedLayouts)}`);
 
     // Deck must parse.
     expect(store.has("slides.jsx")).toBe(true);
@@ -156,9 +149,30 @@ describe("composition-layouts wire-in", () => {
     const slides = slidesOf(deck);
     expect(slides.length).toBeGreaterThanOrEqual(4);
 
-    // The actual signal we care about: did the model pick at least one
-    // composition layout on its own?
-    expect(usedComp.length).toBeGreaterThan(0);
+    // Every plan layout is compound (single-token names are rejected by
+    // plan_deck — and a stale assertion that just checked for "--"
+    // became tautological once bare names went away).
+    expect(planLayouts.length).toBeGreaterThan(0);
+    for (const n of planLayouts) {
+      expect(n, `plan layout "${n}" must be compound <composition>--<system>`).toContain("--");
+    }
+    // All plan layouts share the same system suffix — the LAYOUT
+    // CATALOG block explicitly forbids mixing systems in one deck.
+    const planSuffix = suffixOf(planLayouts[0]!);
+    for (const n of planLayouts) {
+      expect(suffixOf(n)).toBe(planSuffix);
+    }
+    // The model can only USE layouts it committed to; verify every
+    // add_slide layout was on the plan list. plan_deck rejects
+    // off-plan layouts so this is a sanity check on the validator
+    // staying wired up, not on the model.
+    for (const n of usedLayouts) {
+      expect(planLayouts).toContain(n);
+    }
+    // Variety canary: across 4 slides the model should reach for at
+    // least two distinct layouts from its plan. A single-layout deck
+    // means the new "Unused from your plan: …" hint isn't biting.
+    expect(new Set(usedLayouts).size).toBeGreaterThanOrEqual(2);
   });
 
   // Demo run: a richer deck across image-bearing layouts. Portal exposes
