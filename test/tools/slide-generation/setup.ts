@@ -264,6 +264,12 @@ export function dumpFiles(
   }
 
   // Happy path — render the deck preview and refresh the top-level index.
+  // Clear any stale FAILED.txt from a prior run that ended in the failure
+  // branch above. Without this, a fresh successful dump sits next to a
+  // leftover failure marker and reviewers can't tell whether this run
+  // passed or failed at a glance.
+  const stale = path.join(dir, "FAILED.txt");
+  if (fs.existsSync(stale)) fs.unlinkSync(stale);
   const html = renderDeckToHtml(deck!, testName);
   fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
   // Only refresh the canonical .output/index.html, never a custom out dir.

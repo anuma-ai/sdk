@@ -105,4 +105,22 @@ describe("dumpFiles", () => {
     const dir = dumpFiles(store, "path-check", { outDir });
     expect(dir).toBe(path.join(outDir, "path-check"));
   });
+
+  it("clears a stale FAILED.txt left by a prior failed run when a new run succeeds", () => {
+    // Reproduces a real e2e churn: a test failed → FAILED.txt written.
+    // The next run with the same testName succeeds — without cleanup,
+    // reviewers see FAILED.txt sitting next to a valid index.html and
+    // can't tell whether the dump passed or failed at a glance.
+    const outDir = makeTmp();
+    const emptyStore = seedStore(`<Anuma.Deck fontPreset="default" />`);
+    const dir = dumpFiles(emptyStore, "rerun", { outDir });
+    expect(fs.existsSync(path.join(dir, "FAILED.txt"))).toBe(true);
+
+    const goodStore = seedStore(
+      `<Anuma.Deck fontPreset="default"><Anuma.Slide id="s1" /></Anuma.Deck>`
+    );
+    dumpFiles(goodStore, "rerun", { outDir });
+    expect(fs.existsSync(path.join(dir, "FAILED.txt"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, "index.html"))).toBe(true);
+  });
 });
