@@ -3993,14 +3993,15 @@ function emitImage(
   }
   // Placeholder mode (catalog dumps for visual review): surface-aware
   // placehold.co URL so the image area stays visually coherent with
-  // the slide ground.
+  // the slide ground. No `?text=...` — letting placehold.co auto-size
+  // its centered label to a 1200×1200 source produced huge, distracting
+  // glyphs in print output. A flat tinted rectangle reads as "image
+  // here" without competing with the slide's actual typography.
   const isLight = state === "default";
   const bgHex = isLight ? "#E5E5E5" : (surfaceBackground(system, state) ?? "#1a1a1a");
-  const fgHex = isLight ? "#9E9E9E" : "#3F3F3F";
   const stripHash = (s: string) => s.replace(/^#/, "");
   const src =
-    el.defaultSrc ??
-    `https://placehold.co/1200x1200/${stripHash(bgHex)}/${stripHash(fgHex)}?text=Photography`;
+    el.defaultSrc ?? `https://placehold.co/1200x1200/${stripHash(bgHex)}/${stripHash(bgHex)}`;
   return `<Anuma.Image id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} src="${escapeText(src)}" />`;
 }
 

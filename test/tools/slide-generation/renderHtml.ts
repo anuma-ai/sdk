@@ -450,6 +450,38 @@ h1,h2,h3,h4{font-family:'${preset.heading}',system-ui,sans-serif}
 .nav button:disabled:hover{background:none}
 .nav .counter{font-size:13px;color:rgba(255,255,255,.7);min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
 img{display:block}
+
+/* Print: each slide → its own page, native 960×540 canvas, no chrome.
+   Use Cmd/Ctrl+P with margins=none and background-graphics=on (browser
+   defaults vary). The slide canvas is exactly the page size (10in × 5.625in
+   = 960×540 at 96dpi), so backgrounds and edge-anchored elements hit the
+   page edges as intended. */
+@page { size: 10in 5.625in; margin: 0 }
+@media print {
+  html, body { width: auto; height: auto; overflow: visible; background: ${slideBg} }
+  .viewport { position: static; width: auto; height: auto; display: block }
+  /* Force every state of .slide (incl. .active / .exit) back to native
+     size with no transform. Without !important the preview's --scale-driven
+     transform on .slide.active (set by fitScale() to match the browser
+     window) wins and the printed slide gets scaled to your screen size,
+     overflowing the page. Same for the slide.exit / pre-active states. */
+  .slide,
+  .slide.active,
+  .slide.exit {
+    position: relative !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    width: ${SLIDE_CANVAS_WIDTH}px !important;
+    height: ${SLIDE_CANVAS_HEIGHT}px !important;
+    break-after: page;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto }
+  .nav, #system-filter { display: none !important }
+}
 </style>
 </head>
 <body>
