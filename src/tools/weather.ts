@@ -102,7 +102,7 @@ async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
     const jitter = 100 + Math.random() * 200;
-    await new Promise(resolve => setTimeout(resolve, jitter));
+    await new Promise((resolve) => setTimeout(resolve, jitter));
     return await fetchJsonOnce<T>(url, timeoutMs);
   }
 }
