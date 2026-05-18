@@ -29,6 +29,11 @@ Use web search to verify current {{state}} landlord-tenant law statutes. Be spec
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: ["state"],
+  requiredVariables: ["state", "lease_text"],
+  smsPrompts: {
+    state: "What state is your lease in?",
+    lease_text:
+      "Paste the lease text you want reviewed. If it's long, send the most important sections.",
+  },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
 };

@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import type { SkillConfig } from "@anuma/sdk";
 
-import { HAVEN_SKILLS } from "./index";
+import { SENTINEL_SKILLS } from "./index";
 
-describe("Haven skills", () => {
-  it("exports exactly 4 skills", () => {
-    expect(HAVEN_SKILLS).toHaveLength(4);
+describe("Sentinel skills", () => {
+  it("exports exactly 3 skills", () => {
+    expect(SENTINEL_SKILLS).toHaveLength(3);
   });
 
   it("each skill satisfies SkillConfig shape", () => {
-    for (const skill of HAVEN_SKILLS) {
+    for (const skill of SENTINEL_SKILLS) {
       const typed: SkillConfig = skill;
       expect(typeof typed.id).toBe("string");
       expect(typeof typed.name).toBe("string");
@@ -19,62 +19,50 @@ describe("Haven skills", () => {
   });
 
   it("has the correct skill IDs", () => {
-    const ids = HAVEN_SKILLS.map((s) => s.id);
+    const ids = SENTINEL_SKILLS.map((s) => s.id);
     expect(ids).toEqual([
-      "housing.lease-review",
-      "housing.demand-letter",
-      "housing.rent-increase-checker",
-      "housing.hoa-dispute",
+      "finance.subscription-checker",
+      "finance.chargeback-assistant",
+      "finance.collection-response",
     ]);
   });
 
-  it("lease-review requires state and lease_text (SMS gateway asks for both)", () => {
-    const skill = HAVEN_SKILLS.find((s) => s.id === "housing.lease-review")!;
-    expect(skill.requiredVariables).toEqual(["state", "lease_text"]);
+  it("subscription-checker requires statement_text (SMS gateway needs the statement body)", () => {
+    const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.subscription-checker")!;
+    expect(skill.requiredVariables).toEqual(["statement_text"]);
   });
 
-  it("demand-letter requires tenant/landlord/property/state/issue", () => {
-    const skill = HAVEN_SKILLS.find((s) => s.id === "housing.demand-letter")!;
-    expect(skill.requiredVariables).toEqual([
-      "tenant_name",
-      "landlord_name",
-      "property_address",
-      "state",
-      "issue_description",
-    ]);
+  it("chargeback-assistant requires charge_details", () => {
+    const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.chargeback-assistant")!;
+    expect(skill.requiredVariables).toEqual(["charge_details"]);
   });
 
-  it("rent-increase-checker requires city/state/current_rent/proposed_rent", () => {
-    const skill = HAVEN_SKILLS.find((s) => s.id === "housing.rent-increase-checker")!;
-    expect(skill.requiredVariables).toEqual(["city", "state", "current_rent", "proposed_rent"]);
-  });
-
-  it("hoa-dispute requires state/hoa_name/issue_type/hoa_notice (SMS needs the notice text)", () => {
-    const skill = HAVEN_SKILLS.find((s) => s.id === "housing.hoa-dispute")!;
-    expect(skill.requiredVariables).toEqual(["state", "hoa_name", "issue_type", "hoa_notice"]);
+  it("collection-response requires state/collection_notice (SMS gateway needs the notice body)", () => {
+    const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.collection-response")!;
+    expect(skill.requiredVariables).toEqual(["state", "collection_notice"]);
   });
 
   it("all skills use anthropic/claude-sonnet-4-6 as preferredModel", () => {
-    for (const skill of HAVEN_SKILLS) {
+    for (const skill of SENTINEL_SKILLS) {
       expect(skill.preferredModel).toBe("anthropic/claude-sonnet-4-6");
     }
   });
 
   it("each promptTemplate is non-empty", () => {
-    for (const skill of HAVEN_SKILLS) {
+    for (const skill of SENTINEL_SKILLS) {
       expect(skill.promptTemplate.length).toBeGreaterThan(50);
     }
   });
 
   it("each skill defines a userTemplate", () => {
-    for (const skill of HAVEN_SKILLS) {
+    for (const skill of SENTINEL_SKILLS) {
       expect(typeof skill.userTemplate).toBe("string");
       expect((skill.userTemplate ?? "").length).toBeGreaterThan(0);
     }
   });
 
   it("every skill declares smsPrompts for every required variable", () => {
-    for (const skill of HAVEN_SKILLS) {
+    for (const skill of SENTINEL_SKILLS) {
       const required = skill.requiredVariables ?? [];
       expect(skill.smsPrompts, `${skill.id} is missing smsPrompts`).toBeDefined();
       for (const name of required) {
@@ -86,7 +74,7 @@ describe("Haven skills", () => {
   });
 
   it("smsPrompts keys do not include variables outside requiredVariables", () => {
-    for (const skill of HAVEN_SKILLS) {
+    for (const skill of SENTINEL_SKILLS) {
       const required = new Set(skill.requiredVariables ?? []);
       for (const key of Object.keys(skill.smsPrompts ?? {})) {
         expect(required.has(key), `${skill.id}.smsPrompts has stray key ${key}`).toBe(true);
@@ -98,18 +86,15 @@ describe("Haven skills", () => {
     const interpolate = (template: string, vars: Record<string, string>) =>
       template.replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? `{{${k}}}`);
 
-    const skill = HAVEN_SKILLS.find((s) => s.id === "housing.rent-increase-checker")!;
+    const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.collection-response")!;
     const filled = interpolate(skill.userTemplate!, {
-      city: "Austin",
+      collector_name: "Acme Collections",
       state: "TX",
-      current_rent: "$1,500",
-      proposed_rent: "$1,800",
-      lease_type: "month-to-month",
-      notice_date: "2026-04-01",
+      collection_notice: "Pay us $1,234 or else.",
     });
-    expect(filled).toContain("Austin, TX");
-    expect(filled).toContain("$1,500");
-    expect(filled).toContain("$1,800");
+    expect(filled).toContain("Acme Collections");
+    expect(filled).toContain("TX");
+    expect(filled).toContain("$1,234");
     expect(filled).not.toMatch(/\{\{\w+\}\}/);
   });
 });

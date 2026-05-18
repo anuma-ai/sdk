@@ -1,61 +1,61 @@
 import { describe, it, expect } from "vitest";
 import type { AgentConfig } from "@anuma/sdk";
 
-import { havenAgent } from "./index";
+import { sentinelAgent } from "./index";
 
-describe("havenAgent", () => {
+describe("sentinelAgent", () => {
   it("satisfies AgentConfig", () => {
-    const agent: AgentConfig = havenAgent;
+    const agent: AgentConfig = sentinelAgent;
     expect(agent).toBeDefined();
   });
 
-  it('has id "haven"', () => {
-    expect(havenAgent.id).toBe("haven");
+  it('has id "sentinel"', () => {
+    expect(sentinelAgent.id).toBe("sentinel");
   });
 
   it('runtimes is ["server"]', () => {
-    expect(havenAgent.runtimes).toEqual(["server"]);
+    expect(sentinelAgent.runtimes).toEqual(["server"]);
   });
 
-  it("has 4 skills", () => {
-    expect(havenAgent.skills).toHaveLength(4);
+  it("has 3 skills", () => {
+    expect(sentinelAgent.skills).toHaveLength(3);
   });
 
   it("tools is empty array", () => {
-    expect(havenAgent.tools).toEqual([]);
+    expect(sentinelAgent.tools).toEqual([]);
   });
 
-  it('manifest.id is "haven"', () => {
-    expect(havenAgent.manifest.id).toBe("haven");
+  it('manifest.id is "sentinel"', () => {
+    expect(sentinelAgent.manifest.id).toBe("sentinel");
   });
 
-  it("manifest.skills has 4 entries", () => {
-    expect(havenAgent.manifest.skills).toHaveLength(4);
+  it("manifest.skills has 3 entries", () => {
+    expect(sentinelAgent.manifest.skills).toHaveLength(3);
   });
 
   it("manifest does NOT contain a prompt field", () => {
-    expect("prompt" in havenAgent.manifest).toBe(false);
+    expect("prompt" in sentinelAgent.manifest).toBe(false);
   });
 
-  it("prompt is non-empty and contains Haven identity", () => {
-    expect(havenAgent.prompt).toContain("You are Haven");
+  it("prompt is non-empty and contains Sentinel identity", () => {
+    expect(sentinelAgent.prompt).toContain("You are Sentinel");
   });
 
   it("model.default is anthropic/claude-sonnet-4-6", () => {
-    expect(havenAgent.model.default).toBe("anthropic/claude-sonnet-4-6");
+    expect(sentinelAgent.model.default).toBe("anthropic/claude-sonnet-4-6");
   });
 
   it("skillJourneys is defined", () => {
-    expect(havenAgent.skillJourneys).toBeDefined();
+    expect(sentinelAgent.skillJourneys).toBeDefined();
   });
 
-  it("skillJourneys has 4 entries", () => {
-    expect(Object.keys(havenAgent.skillJourneys!)).toHaveLength(4);
+  it("skillJourneys has 3 entries", () => {
+    expect(Object.keys(sentinelAgent.skillJourneys!)).toHaveLength(3);
   });
 
   it("each skill has a corresponding skillJourney entry", () => {
-    for (const skill of havenAgent.skills) {
-      expect(havenAgent.skillJourneys![skill.id]).toBeDefined();
+    for (const skill of sentinelAgent.skills) {
+      expect(sentinelAgent.skillJourneys![skill.id]).toBeDefined();
     }
   });
 
@@ -64,8 +64,8 @@ describe("havenAgent", () => {
     // by the SMS gateway, which has no file upload). Every required variable
     // must have a matching journey field — even when the journey accepts file
     // uploads, the SMS path needs the same data via a question prompt.
-    for (const skill of havenAgent.skills) {
-      const journey = havenAgent.skillJourneys![skill.id];
+    for (const skill of sentinelAgent.skills) {
+      const journey = sentinelAgent.skillJourneys![skill.id];
       const fieldKeys = new Set(journey.fields.map((f) => f.key));
       for (const variable of skill.requiredVariables ?? []) {
         expect(

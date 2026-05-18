@@ -1,7 +1,7 @@
 {
-  "name": "@anuma/agent-haven",
+  "name": "@anuma/agent-sentinel",
   "version": "1.0.0",
-  "description": "Haven housing agent for Anuma SDK",
+  "description": "Sentinel finance agent for Anuma SDK",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/anuma-ai/sdk.git",
-    "directory": "packages/agents/haven"
+    "directory": "packages/agents/sentinel"
   },
   "license": "ISC",
   "bugs": {

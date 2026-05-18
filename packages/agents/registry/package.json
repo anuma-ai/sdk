@@ -1,7 +1,7 @@
 {
-  "name": "@anuma/agent-haven",
+  "name": "@anuma/agents-registry",
   "version": "1.0.0",
-  "description": "Haven housing agent for Anuma SDK",
+  "description": "Lookup helpers for Anuma agents (Haven, Sentinel) and their skill metadata",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/anuma-ai/sdk.git",
-    "directory": "packages/agents/haven"
+    "directory": "packages/agents/registry"
   },
   "license": "ISC",
   "bugs": {
@@ -33,6 +33,10 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@anuma/agent-haven": "workspace:*",
+    "@anuma/agent-sentinel": "workspace:*"
   },
   "peerDependencies": {
     "@anuma/sdk": "workspace:*"
