@@ -99,7 +99,17 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
     if (signal.aborted) throw err;
     const jitter = 100 + Math.random() * 200;
-    await new Promise((resolve) => setTimeout(resolve, jitter));
+    await new Promise<void>((resolve, reject) => {
+      const id = setTimeout(resolve, jitter);
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(id);
+          reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+        },
+        { once: true }
+      );
+    });
     return await fetchJsonOnce<T>(url, signal);
   }
 }
