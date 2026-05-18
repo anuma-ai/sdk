@@ -773,6 +773,444 @@ export function findMatchingTools(
 }
 
 /**
+ * Compute the raw max similarity for every tool with a valid embedding,
+ * without any filtering (no `minSimilarity`, no `relevanceRatio`, no
+ * ambiguity check, no limit). Use this when you need true per-tool scores
+ * — e.g., to drive `expandToolSetsAdditive`'s anchor activation without
+ * letting `findMatchingTools`' relevance cutoff silently drop sub-threshold
+ * anchors that should still trigger their set.
+ */
+export function scoreTools(
+  promptEmbeddings: number[] | number[][],
+  tools: ServerTool[]
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  if (!promptEmbeddings || (promptEmbeddings as unknown[]).length === 0) return scores;
+  if (!tools || tools.length === 0) return scores;
+
+  const embeddings: number[][] = Array.isArray(promptEmbeddings[0])
+    ? (promptEmbeddings as number[][])
+    : [promptEmbeddings as number[]];
+
+  for (const tool of tools) {
+    if (!tool.embedding || tool.embedding.length === 0) continue;
+    let maxSimilarity = -Infinity;
+    try {
+      for (const embedding of embeddings) {
+        const similarity = cosineSimilarity(embedding, tool.embedding);
+        if (similarity > maxSimilarity) maxSimilarity = similarity;
+      }
+    } catch {
+      continue;
+    }
+    if (maxSimilarity > -Infinity) scores.set(tool.name, maxSimilarity);
+  }
+
+  return scores;
+}
+
+// ---------------------------------------------------------------------------
+// Tool sets — groups of tools that must be included/excluded together
+// ---------------------------------------------------------------------------
+
+/**
+ * A tool set defines a group of tools that work together. When any "anchor"
+ * tool in the set is matched semantically (with a score at or above
+ * `anchorMinSimilarity`), the set is activated and all of its members are
+ * pulled into the selection.
+ *
+ * Two activation strategies consume this interface:
+ * - `expandToolSetsAdditive` (used by `useChatStorage` and
+ *   `createServerToolsFilter`) keeps all original matches and adds the
+ *   set's members on top — non-set tools are never dropped.
+ * - `applyToolSets` is exclusive: it keeps only set members plus non-set
+ *   tools that scored above `independentThreshold`.
+ *
+ * Pick `expandToolSetsAdditive` when you want recall over precision
+ * (typical), and `applyToolSets` when you specifically want non-set
+ * matches stripped on activation.
+ */
+export interface ToolSet {
+  /** Human-readable name for logging/debugging */
+  name: string;
+  /** All tool names in the set */
+  members: string[];
+  /**
+   * Tools that trigger the set when selected. If any anchor appears in the
+   * semantic match results with a score at or above `anchorMinSimilarity`,
+   * all members are pulled in.
+   */
+  anchors: string[];
+  /**
+   * Minimum similarity an anchor must reach to activate the set.
+   * Prevents false activation on prompts where the anchor barely passes
+   * the global minSimilarity threshold. Default: 0.60
+   */
+  anchorMinSimilarity?: number;
+}
+
+/** Built-in tool sets. Consumers can extend this with their own. */
+export const BUILT_IN_TOOL_SETS: ToolSet[] = [
+  {
+    name: "app-generation",
+    members: ["create_file", "patch_file", "delete_file", "read_file", "list_files"],
+    anchors: ["create_file", "patch_file"],
+    // Set above the global filter floor (0.53). The floor says "this tool
+    // might be relevant"; anchoring says "this is an app-building
+    // workflow". Equating them lets any tool that barely clears the filter
+    // pull in the full toolkit, amplifying false positives 5x. Legitimate
+    // app prompts score 0.57+ on create_file; chitchat false positives sit
+    // right at 0.53. 0.55 separates them with margin on both sides.
+    anchorMinSimilarity: 0.55,
+  },
+  {
+    name: "slides",
+    members: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+    anchors: ["plan_deck", "patch_slides"],
+    // Match the client-tool floor (0.53). Short colloquial prompts like
+    // "make me a powerpoint about X" score plan_deck around 0.535 — above
+    // the global floor but inside any anchor gap. plan_deck and patch_slides
+    // are specific enough names that 0.53 won't false-positive in practice.
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "github",
+    members: ["github_get_authenticated_user", "github_api"],
+    anchors: ["github_api"],
+    anchorMinSimilarity: 0.55,
+  },
+];
+
+/**
+ * Apply tool set logic to a set of semantic match results.
+ *
+ * For each defined tool set, if any anchor tool appears in `matchedNames`,
+ * all set members present in `availableNames` are added and non-member
+ * tools are removed (unless they scored above `independentThreshold`).
+ *
+ * @param matchedNames - Names selected by semantic matching
+ * @param availableNames - All tool names available for selection
+ * @param scores - Map of tool name → similarity score (from semantic matching)
+ * @param toolSets - Tool sets to apply (defaults to BUILT_IN_TOOL_SETS)
+ * @param independentThreshold - Non-set tools scoring above this survive (default: 0.65)
+ */
+export function applyToolSets(
+  matchedNames: Set<string>,
+  availableNames: Set<string>,
+  scores: Map<string, number>,
+  toolSets: ToolSet[] = BUILT_IN_TOOL_SETS,
+  independentThreshold: number = 0.65
+): Set<string> {
+  // Collect every tool set whose anchor cleared its similarity floor.
+  // Multiple sets can activate on the same prompt (e.g. an app-gen anchor
+  // and a slides anchor both clearing 0.53) — expanding only the first
+  // would silently drop the others' members.
+  const activatedSets: ToolSet[] = [];
+  for (const ts of toolSets) {
+    const minSim = ts.anchorMinSimilarity ?? 0.6;
+    const triggered = ts.anchors.some(
+      (anchor) => matchedNames.has(anchor) && (scores.get(anchor) ?? 0) >= minSim
+    );
+    if (triggered) activatedSets.push(ts);
+  }
+
+  if (activatedSets.length === 0) return matchedNames;
+
+  const setMembers = new Set<string>();
+  for (const ts of activatedSets) {
+    for (const member of ts.members) setMembers.add(member);
+  }
+
+  const result = new Set<string>();
+
+  // Include all set members that are available
+  for (const member of setMembers) {
+    if (availableNames.has(member)) {
+      result.add(member);
+    }
+  }
+
+  // Keep non-set tools only if they scored above the independent threshold
+  for (const name of matchedNames) {
+    if (setMembers.has(name)) continue;
+    const score = scores.get(name) ?? 0;
+    if (score >= independentThreshold) {
+      result.add(name);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Additively expand tool sets: when any anchor of a set scores at or above
+ * its `anchorMinSimilarity`, all set members are added to the result.
+ * Original matches are preserved; multiple sets can expand independently.
+ *
+ * Members of sets that *don't* activate are kept if they were individually
+ * matched. We deliberately don't strip orphans: the cost of a single
+ * borderline tool slipping into the request is cheap (a few extra bytes,
+ * no behavioral impact) but stripping legitimate matches like
+ * `create_file 0.55` on prompts where `patch_file` doesn't also clear the
+ * anchor threshold would silently break app-creation flows. Recall over
+ * precision.
+ *
+ * Use this for server-side toolkit suites where the LLM needs the full
+ * call chain (e.g. fal_list_models → fal_model_schema → fal_queue_submit →
+ * fal_queue_status → fal_queue_result). Differs from `applyToolSets`, which
+ * replaces non-set matches when a set activates.
+ *
+ * To express "any member triggers the set" (not specific anchors), pass
+ * `anchors: members` when defining the ToolSet.
+ *
+ * @param matchedNames - Names selected by semantic matching
+ * @param availableNames - All tool names available for selection
+ * @param scores - Map of tool name → similarity score
+ * @param toolSets - Tool sets to evaluate
+ * @param activeSetNames - Set names that should expand unconditionally,
+ *   bypassing the anchor-similarity check. Use this when conversation state
+ *   implies a set should be present regardless of how the current prompt is
+ *   phrased (e.g., a slide deck artifact already exists in the conversation).
+ * @returns Set including original matches plus members of any activated set
+ */
+export function expandToolSetsAdditive(
+  matchedNames: Set<string>,
+  availableNames: Set<string>,
+  scores: Map<string, number>,
+  toolSets: ToolSet[],
+  activeSetNames?: ReadonlySet<string>
+): Set<string> {
+  const result = new Set(matchedNames);
+  for (const ts of toolSets) {
+    let triggered = activeSetNames?.has(ts.name) ?? false;
+    if (!triggered) {
+      const minSim = ts.anchorMinSimilarity ?? 0.6;
+      triggered = ts.anchors.some((a) => (scores.get(a) ?? 0) >= minSim);
+    }
+    if (!triggered) continue;
+    for (const member of ts.members) {
+      if (availableNames.has(member)) {
+        result.add(member);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Options for createServerToolsFilter.
+ */
+export interface CreateServerToolsFilterOptions {
+  /**
+   * Tool sets to expand additively. When any anchor scores at or above the
+   * set's `anchorMinSimilarity`, all members are included alongside the
+   * original semantic matches.
+   */
+  toolSets?: ToolSet[];
+  /** Tool names to always drop from results, even when they match. */
+  excludeTools?: Iterable<string>;
+  /** Options forwarded to `findMatchingTools`. */
+  matchOptions?: ToolMatchOptions;
+}
+
+/**
+ * Build a server-tools filter function for use with `useChatStorage`'s
+ * `serverTools` option. Composes `findMatchingTools`, `expandToolSetsAdditive`,
+ * and an exclude-list into a single (embeddings, tools) → string[] callback.
+ *
+ * @example
+ * ```ts
+ * import { createServerToolsFilter } from "@anuma/sdk/tools";
+ *
+ * const serverTools = createServerToolsFilter({
+ *   toolSets: [
+ *     {
+ *       name: "fal",
+ *       members: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
+ *       anchors: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
+ *       anchorMinSimilarity: 0.7,
+ *     },
+ *   ],
+ *   excludeTools: ["AnumaFalMCP-fal_billing"],
+ *   matchOptions: { limit: 5, minSimilarity: 0.5 },
+ * });
+ * ```
+ */
+export function createServerToolsFilter(
+  options: CreateServerToolsFilterOptions = {}
+): (embeddings: number[] | number[][], tools: ServerTool[]) => string[] {
+  const exclude = new Set(options.excludeTools ?? []);
+  const sets = options.toolSets ?? [];
+  const matchOpts = options.matchOptions;
+
+  return (embeddings, tools) => {
+    const matches = findMatchingTools(embeddings, tools, matchOpts);
+    if (matches.length === 0) return [];
+
+    const matchedNames = new Set(matches.map((m) => m.tool.name));
+    let finalNames: Set<string>;
+    if (sets.length > 0) {
+      // Score from the raw catalog (not from `matches`) so anchors dropped
+      // by `findMatchingTools`' limit / relevanceRatio / ambiguity cuts can
+      // still activate their set when they cleared `anchorMinSimilarity`.
+      const scores = scoreTools(embeddings, tools);
+      const availableNames = new Set(tools.map((t) => t.name));
+      finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, sets);
+    } else {
+      finalNames = matchedNames;
+    }
+
+    for (const name of exclude) finalNames.delete(name);
+    return [...finalNames];
+  };
+}
+
+// ── Default server-tools filter ─────────────────────────────────────────────
+
+/**
+ * Default exclusions baked into `defaultServerToolsFilter`.
+ *
+ * - `AnumaVisionMCP-anuma_analyze_image`: modern frontier models have native
+ *   vision via image content blocks; routing through a server-side vision
+ *   tool just adds a hop.
+ * - `OpenMeteoMCP-weather_forecast` + `OpenMeteoMCP-geocoding`: redundant when
+ *   the consumer registers `createWeatherTool` (the client-side display tool
+ *   handles geocoding internally and renders a card inline). Including the
+ *   server-side equivalents causes the model to prefer raw data over the card.
+ *   Consumers who don't register `createWeatherTool` should instead build
+ *   their own filter via `createServerToolsFilter`.
+ */
+export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
+  "AnumaVisionMCP-anuma_analyze_image",
+  "OpenMeteoMCP-weather_forecast",
+  "OpenMeteoMCP-geocoding",
+];
+
+/** Default match options for the server-tools filter (limit 5, minSim 0.5). */
+export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
+  limit: 5,
+  minSimilarity: 0.5,
+};
+
+/**
+ * Pre-configured server-tools filter ready to drop into `useChatStorage`'s
+ * `serverTools` option. Pure semantic matching against the user prompt with
+ * the default exclusion list applied.
+ *
+ * @example
+ * ```ts
+ * import { defaultServerToolsFilter, useChatStorage } from "@anuma/sdk/react";
+ *
+ * useChatStorage({
+ *   ...,
+ *   serverTools: defaultServerToolsFilter,
+ * });
+ * ```
+ *
+ * If you need to customize (extra excludes, different limits, opt into
+ * tool-set expansion), call `createServerToolsFilter` directly.
+ */
+export const defaultServerToolsFilter = createServerToolsFilter({
+  excludeTools: DEFAULT_EXCLUDED_SERVER_TOOLS,
+  matchOptions: DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+});
+
+/**
+ * Type for a server-tools filter — a function that takes prompt embeddings
+ * and the full server tool catalog and returns the names of tools to keep.
+ * Matches `useChatStorage`'s `serverTools` callback signature.
+ */
+export type ServerToolsFilterFunction = (
+  embeddings: number[] | number[][],
+  tools: ServerTool[]
+) => string[];
+
+/**
+ * Options for `selectServerToolsForPrompt`.
+ */
+export interface SelectServerToolsForPromptOptions {
+  /** User prompt to match tools against. */
+  prompt: string;
+  /**
+   * Filter to apply: either a function (called with the prompt embedding +
+   * full catalog) or a static list of tool names. Same shape `useChatStorage`
+   * accepts on its `serverTools` option. Pass `defaultServerToolsFilter` to
+   * mirror the default chat-flow selection.
+   */
+  serverToolsFilter?: string[] | ServerToolsFilterFunction;
+  /** Function that resolves an auth token (Bearer). */
+  getToken: () => Promise<string | null>;
+  /** Base URL for the API. */
+  baseUrl?: string;
+  /** Embedding model override. Falls back to the SDK default. */
+  embeddingModel?: string;
+  /** Cache expiration in ms for the server-tools catalog fetch. */
+  cacheExpirationMs?: number;
+}
+
+/**
+ * Select server-side tools for a prompt using the same path
+ * `useChatStorage` runs internally. Use this anywhere outside the chat
+ * hook — background-task workers, server scripts, debug tools — that needs
+ * the same selection the chat flow would produce.
+ *
+ * Mirrors the responses-API branch of `sendMessage`: fetch catalog with
+ * caching, optionally embed the prompt (only when the filter is a function),
+ * apply the filter, return matching `ServerTool[]` (with embeddings and
+ * descriptions intact for downstream serialization).
+ *
+ * Returns `[]` on any of: undefined/empty filter, empty prompt for a
+ * function filter, failed catalog fetch, or failed embedding.
+ *
+ * @example
+ * ```ts
+ * import { defaultServerToolsFilter, selectServerToolsForPrompt } from "@anuma/sdk/server";
+ *
+ * const tools = await selectServerToolsForPrompt({
+ *   prompt: "Generate a slide deck about AI",
+ *   serverToolsFilter: defaultServerToolsFilter,
+ *   getToken: async () => identityToken,
+ *   baseUrl: process.env.API_URL,
+ * });
+ * ```
+ */
+export async function selectServerToolsForPrompt(
+  options: SelectServerToolsForPromptOptions
+): Promise<ServerTool[]> {
+  const { prompt, serverToolsFilter, getToken, baseUrl, embeddingModel, cacheExpirationMs } =
+    options;
+
+  if (serverToolsFilter === undefined) return [];
+  if (Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0) return [];
+
+  let allServerTools: ServerTool[];
+  try {
+    allServerTools = await getServerTools({ baseUrl, cacheExpirationMs, getToken });
+  } catch {
+    return [];
+  }
+  if (allServerTools.length === 0) return [];
+
+  if (typeof serverToolsFilter === "function") {
+    if (!prompt.trim()) return [];
+    let promptEmbedding: number[];
+    try {
+      promptEmbedding = await generateEmbedding(prompt, {
+        getToken,
+        baseUrl,
+        model: embeddingModel,
+      });
+    } catch {
+      return [];
+    }
+    const names = serverToolsFilter(promptEmbedding, allServerTools);
+    return filterServerTools(allServerTools, names);
+  }
+
+  return filterServerTools(allServerTools, serverToolsFilter);
+}
+
+/**
  * Options for selectServerSideTools
  */
 export interface SelectServerSideToolsOptions {

@@ -135,7 +135,7 @@ export type {
   UseChatStorageOptions,
   UseChatStorageResult,
 } from "./useChatStorage";
-export { useChatStorage } from "./useChatStorage";
+export { previewToolSelection, useChatStorage } from "./useChatStorage";
 
 // OPFS encrypted storage utilities
 export {
@@ -476,20 +476,30 @@ export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dro
 export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";
 export type {
   CachedServerTools,
+  CreateServerToolsFilterOptions,
   ParsedServerToolsResponse,
   ServerTool,
   ServerToolsOptions,
   ServerToolsResponse,
   ToolMatchOptions,
   ToolMatchResult,
+  ToolSet,
 } from "../lib/tools";
+export type { SelectServerToolsForPromptOptions, ServerToolsFilterFunction } from "../lib/tools";
 export {
+  BUILT_IN_TOOL_SETS,
   clearServerToolsCache,
+  createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
+  expandToolSetsAdditive,
   findMatchingTools,
   getCachedServerTools,
   getServerTools,
   getToolsChecksum,
+  selectServerToolsForPrompt,
   shouldRefreshTools,
 } from "../lib/tools";
 export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";
