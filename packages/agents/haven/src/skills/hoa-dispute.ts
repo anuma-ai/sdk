@@ -38,6 +38,12 @@ Use web search to verify current {{state}} HOA statutes and case law.`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: ["state", "hoa_name", "issue_type"],
+  requiredVariables: ["state", "hoa_name", "issue_type", "hoa_notice"],
+  smsPrompts: {
+    state: "What state does the HOA operate in?",
+    hoa_name: "What's the HOA or community name?",
+    issue_type: "What kind of dispute is this (fine appeal, rule violation, maintenance, etc.)?",
+    hoa_notice: "Paste the HOA notice or violation letter you received.",
+  },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
 };

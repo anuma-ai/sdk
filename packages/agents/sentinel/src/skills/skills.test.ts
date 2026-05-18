@@ -27,9 +27,9 @@ describe("Sentinel skills", () => {
     ]);
   });
 
-  it("subscription-checker has no required variables (file may replace text)", () => {
+  it("subscription-checker requires statement_text (SMS gateway needs the statement body)", () => {
     const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.subscription-checker")!;
-    expect(skill.requiredVariables).toEqual([]);
+    expect(skill.requiredVariables).toEqual(["statement_text"]);
   });
 
   it("chargeback-assistant requires charge_details", () => {
@@ -37,9 +37,9 @@ describe("Sentinel skills", () => {
     expect(skill.requiredVariables).toEqual(["charge_details"]);
   });
 
-  it("collection-response requires state (statute of limitations is state-specific)", () => {
+  it("collection-response requires state/collection_notice (SMS gateway needs the notice body)", () => {
     const skill = SENTINEL_SKILLS.find((s) => s.id === "finance.collection-response")!;
-    expect(skill.requiredVariables).toEqual(["state"]);
+    expect(skill.requiredVariables).toEqual(["state", "collection_notice"]);
   });
 
   it("all skills use anthropic/claude-sonnet-4-6 as preferredModel", () => {
@@ -58,6 +58,27 @@ describe("Sentinel skills", () => {
     for (const skill of SENTINEL_SKILLS) {
       expect(typeof skill.userTemplate).toBe("string");
       expect((skill.userTemplate ?? "").length).toBeGreaterThan(0);
+    }
+  });
+
+  it("every skill declares smsPrompts for every required variable", () => {
+    for (const skill of SENTINEL_SKILLS) {
+      const required = skill.requiredVariables ?? [];
+      expect(skill.smsPrompts, `${skill.id} is missing smsPrompts`).toBeDefined();
+      for (const name of required) {
+        const prompt = skill.smsPrompts?.[name];
+        expect(prompt, `${skill.id} is missing an SMS prompt for ${name}`).toBeTruthy();
+        expect(prompt?.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("smsPrompts keys do not include variables outside requiredVariables", () => {
+    for (const skill of SENTINEL_SKILLS) {
+      const required = new Set(skill.requiredVariables ?? []);
+      for (const key of Object.keys(skill.smsPrompts ?? {})) {
+        expect(required.has(key), `${skill.id}.smsPrompts has stray key ${key}`).toBe(true);
+      }
     }
   });
 
