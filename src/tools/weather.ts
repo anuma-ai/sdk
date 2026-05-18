@@ -105,7 +105,11 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
         "abort",
         () => {
           clearTimeout(id);
-          reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+          reject(
+            signal.reason instanceof Error
+              ? signal.reason
+              : new DOMException("Aborted", "AbortError")
+          );
         },
         { once: true }
       );
