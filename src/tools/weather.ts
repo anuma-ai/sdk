@@ -236,11 +236,12 @@ export function createWeatherTool(
         };
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        onError?.(error, { location });
 
         if (error instanceof DOMException && error.name === "AbortError") {
           return { error: "Weather request timed out", _meta: { location } };
         }
+
+        onError?.(error, { location });
 
         return { error: "Failed to fetch weather data", _meta: { location } };
       } finally {
