@@ -37,6 +37,7 @@ jobs:
 
       - name: Generate
         if: steps.portal.outputs.latest != steps.portal.outputs.current
+        id: generate
         continue-on-error: true
         run: pnpm run generate
 
@@ -54,9 +55,17 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GENERATE_OUTCOME: ${{ steps.generate.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           BRANCH="chore/update-portal-client"
           VERSION=$(node -e "console.log(require('./package.json').dependencies['@anuma/portal'])")
+
+          if [ "$GENERATE_OUTCOME" = "success" ]; then
+            BODY="Updates the generated client code from \`@anuma/portal@$VERSION\`."
+          else
+            BODY=$(printf '⚠️ `pnpm run generate` failed — see the [workflow run](%s). Only the version bump and any partial regen output are included; hand-written re-exports in `src/index.ts` / `src/react/useCredits.ts` likely need migration to match the new spec.' "$RUN_URL")
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -69,11 +78,11 @@ jobs:
           EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')
 
           if [ -n "$EXISTING_PR" ]; then
-            gh pr edit "$EXISTING_PR" --title "chore: update @anuma/portal to $VERSION"
+            gh pr edit "$EXISTING_PR" --title "chore: update @anuma/portal to $VERSION" --body "$BODY"
           else
             gh pr create \
               --title "chore: update @anuma/portal to $VERSION" \
-              --body "Updates the generated client code from \`@anuma/portal@$VERSION\`." \
+              --body "$BODY" \
               --head "$BRANCH" \
               --base main
           fi
