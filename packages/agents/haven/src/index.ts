@@ -25,10 +25,11 @@ export const havenAgent: AgentConfig = {
     name: "Haven",
     description: "AI-powered housing and tenant rights advisor",
     runtimes: ["server"],
-    skills: HAVEN_SKILLS.map(({ id, name, requiredVariables }) => ({
+    skills: HAVEN_SKILLS.map(({ id, name, requiredVariables, smsPrompts }) => ({
       id,
       name,
       requiredVariables,
+      smsPrompts,
     })),
   },
 };

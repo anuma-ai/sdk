@@ -5,10 +5,18 @@
  */
 
 export {
+  applyToolSets,
+  BUILT_IN_TOOL_SETS,
   type CachedServerTools,
   clearServerToolsCache,
+  createServerToolsFilter,
+  type CreateServerToolsFilterOptions,
   // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
+  expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
   // Functions
@@ -17,13 +25,18 @@ export {
   getToolsChecksum,
   mergeTools,
   type ParsedServerToolsResponse,
+  scoreTools,
   selectServerSideTools,
   type SelectServerSideToolsOptions,
+  selectServerToolsForPrompt,
+  type SelectServerToolsForPromptOptions,
   type ServerTool,
+  type ServerToolsFilterFunction,
   type ServerToolsOptions,
   // Types
   type ServerToolsResponse,
   shouldRefreshTools,
   type ToolMatchOptions,
   type ToolMatchResult,
+  type ToolSet,
 } from "./serverTools";

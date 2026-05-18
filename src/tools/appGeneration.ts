@@ -288,17 +288,7 @@ export class MapFileStorage implements AppFileStorage {
 
 export const CREATE_FILE_SCHEMA = {
   name: "create_file",
-  description: `Creates or overwrites files in the app project. ALWAYS use this tool when the user asks to create any visual, interactive app, demo, diagram, game, simulation, UI mockup, dashboard, tracker, or data visualization. NEVER output code as text. A live preview appears automatically.
-
-Supports two modes:
-- Single file: pass "path" and "content".
-- Batch (preferred): pass "files" array with {path, content} objects to write all files in one call.
-
-WORKFLOW: Call create_file once with all files (package.json, App.js, styles, etc.). The preview renders automatically — there is no separate display tool.
-
-App.js must be a default export React component. Do NOT create index.js or index.html — these are auto-generated. Use standard import statements for all libraries. NEVER use CDN script tags — instead list dependencies in package.json. Example package.json: {"dependencies": {"chart.js": "^4.4.0", "react-chartjs-2": "^5.2.0"}}
-
-DESIGN: Visually polished apps with modern aesthetics, generous whitespace, readable typography, cohesive colors, and responsive layouts.`,
+  description: `Build a new app — a calculator, a game, a todo list, a form, a dashboard, a chart, a simulation, or another interactive demo. Writes files into the in-chat app project; the live preview renders automatically.`,
   arguments: {
     type: "object",
     properties: {
@@ -320,9 +310,9 @@ DESIGN: Visually polished apps with modern aesthetics, generous whitespace, read
 
 export const PATCH_FILE_SCHEMA = {
   name: "patch_file",
-  description: `Applies targeted find-and-replace patches to an existing file. Use this instead of create_file when making small changes (color tweaks, text edits, adding a few lines). The file must already exist.
+  description: `Edit, modify, or update an existing file in the app project via find-and-replace. Use this instead of create_file when changing a few lines of an existing app — small edits, fixes, or component updates.
 
-Pass a "patches" array where each item has "find" (exact string to locate) and "replace" (replacement string). Patches are applied in order. The find string must match exactly — include enough surrounding context (2-3 lines) to be unique.`,
+Pass a "patches" array of {find, replace} objects. The "find" string must match exactly — include 2-3 lines of surrounding context to be unique.`,
   arguments: {
     type: "object",
     properties: {

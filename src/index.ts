@@ -773,7 +773,18 @@ export {
   putApiV1AdminPersonasById,
   putApiV1AgentsByIdPreference,
 } from "./client";
-export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/tools";
+export {
+  applyToolSets,
+  createServerToolsFilter,
+  type CreateServerToolsFilterOptions,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
+  expandToolSetsAdditive,
+  selectServerSideTools,
+  type SelectServerSideToolsOptions,
+  type ToolSet,
+} from "./lib/tools";
 
 // SSE idle-keepalive wrapper for the generated SSE client
 export {

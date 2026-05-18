@@ -28,9 +28,9 @@ describe("Haven skills", () => {
     ]);
   });
 
-  it("lease-review requires state (lease_text is optional — file upload is the alternative)", () => {
+  it("lease-review requires state and lease_text (SMS gateway asks for both)", () => {
     const skill = HAVEN_SKILLS.find((s) => s.id === "housing.lease-review")!;
-    expect(skill.requiredVariables).toEqual(["state"]);
+    expect(skill.requiredVariables).toEqual(["state", "lease_text"]);
   });
 
   it("demand-letter requires tenant/landlord/property/state/issue", () => {
@@ -49,9 +49,9 @@ describe("Haven skills", () => {
     expect(skill.requiredVariables).toEqual(["city", "state", "current_rent", "proposed_rent"]);
   });
 
-  it("hoa-dispute requires state/hoa_name/issue_type (hoa_notice is optional — file upload is the alternative)", () => {
+  it("hoa-dispute requires state/hoa_name/issue_type/hoa_notice (SMS needs the notice text)", () => {
     const skill = HAVEN_SKILLS.find((s) => s.id === "housing.hoa-dispute")!;
-    expect(skill.requiredVariables).toEqual(["state", "hoa_name", "issue_type"]);
+    expect(skill.requiredVariables).toEqual(["state", "hoa_name", "issue_type", "hoa_notice"]);
   });
 
   it("all skills use anthropic/claude-sonnet-4-6 as preferredModel", () => {
@@ -70,6 +70,27 @@ describe("Haven skills", () => {
     for (const skill of HAVEN_SKILLS) {
       expect(typeof skill.userTemplate).toBe("string");
       expect((skill.userTemplate ?? "").length).toBeGreaterThan(0);
+    }
+  });
+
+  it("every skill declares smsPrompts for every required variable", () => {
+    for (const skill of HAVEN_SKILLS) {
+      const required = skill.requiredVariables ?? [];
+      expect(skill.smsPrompts, `${skill.id} is missing smsPrompts`).toBeDefined();
+      for (const name of required) {
+        const prompt = skill.smsPrompts?.[name];
+        expect(prompt, `${skill.id} is missing an SMS prompt for ${name}`).toBeTruthy();
+        expect(prompt?.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("smsPrompts keys do not include variables outside requiredVariables", () => {
+    for (const skill of HAVEN_SKILLS) {
+      const required = new Set(skill.requiredVariables ?? []);
+      for (const key of Object.keys(skill.smsPrompts ?? {})) {
+        expect(required.has(key), `${skill.id}.smsPrompts has stray key ${key}`).toBe(true);
+      }
     }
   });
 
