@@ -37,13 +37,14 @@ jobs:
 
       - name: Generate
         if: steps.portal.outputs.latest != steps.portal.outputs.current
+        continue-on-error: true
         run: pnpm run generate
 
-      - name: Check for client changes
+      - name: Check for changes
         if: steps.portal.outputs.latest != steps.portal.outputs.current
         id: changes
         run: |
-          if git diff --quiet src/client/; then
+          if git diff --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
