@@ -4,7 +4,12 @@
 
 | Type Alias | Description |
 | ------ | ------ |
+| [AuthJwk](Internal/type-aliases/AuthJwk.md) | - |
+| [AuthJwks](Internal/type-aliases/AuthJwks.md) | - |
 | [ClientOptions](Internal/type-aliases/ClientOptions.md) | - |
+| [ConfigCompactLists](Internal/type-aliases/ConfigCompactLists.md) | - |
+| [ConfigCuratedModel](Internal/type-aliases/ConfigCuratedModel.md) | - |
+| [ConfigCuratedModelsResponse](Internal/type-aliases/ConfigCuratedModelsResponse.md) | - |
 | [DeleteApiV1AccountData](Internal/type-aliases/DeleteApiV1AccountData.md) | - |
 | [DeleteApiV1AccountError](Internal/type-aliases/DeleteApiV1AccountError.md) | - |
 | [DeleteApiV1AccountErrors](Internal/type-aliases/DeleteApiV1AccountErrors.md) | - |
@@ -25,6 +30,11 @@
 | [DeleteApiV1AdminAppsByIdErrors](Internal/type-aliases/DeleteApiV1AdminAppsByIdErrors.md) | - |
 | [DeleteApiV1AdminAppsByIdResponse](Internal/type-aliases/DeleteApiV1AdminAppsByIdResponse.md) | - |
 | [DeleteApiV1AdminAppsByIdResponses](Internal/type-aliases/DeleteApiV1AdminAppsByIdResponses.md) | - |
+| [DeleteApiV1AdminOauthClientsByClientIdData](Internal/type-aliases/DeleteApiV1AdminOauthClientsByClientIdData.md) | - |
+| [DeleteApiV1AdminOauthClientsByClientIdError](Internal/type-aliases/DeleteApiV1AdminOauthClientsByClientIdError.md) | - |
+| [DeleteApiV1AdminOauthClientsByClientIdErrors](Internal/type-aliases/DeleteApiV1AdminOauthClientsByClientIdErrors.md) | - |
+| [DeleteApiV1AdminOauthClientsByClientIdResponse](Internal/type-aliases/DeleteApiV1AdminOauthClientsByClientIdResponse.md) | - |
+| [DeleteApiV1AdminOauthClientsByClientIdResponses](Internal/type-aliases/DeleteApiV1AdminOauthClientsByClientIdResponses.md) | - |
 | [DeleteApiV1AdminPersonasByIdData](Internal/type-aliases/DeleteApiV1AdminPersonasByIdData.md) | - |
 | [DeleteApiV1AdminPersonasByIdError](Internal/type-aliases/DeleteApiV1AdminPersonasByIdError.md) | - |
 | [DeleteApiV1AdminPersonasByIdErrors](Internal/type-aliases/DeleteApiV1AdminPersonasByIdErrors.md) | - |
@@ -35,6 +45,16 @@
 | [DeleteApiV1AdminTextResetErrors](Internal/type-aliases/DeleteApiV1AdminTextResetErrors.md) | - |
 | [DeleteApiV1AdminTextResetResponse](Internal/type-aliases/DeleteApiV1AdminTextResetResponse.md) | - |
 | [DeleteApiV1AdminTextResetResponses](Internal/type-aliases/DeleteApiV1AdminTextResetResponses.md) | - |
+| [DeleteApiV1AdminUsersDeleteData](Internal/type-aliases/DeleteApiV1AdminUsersDeleteData.md) | - |
+| [DeleteApiV1AdminUsersDeleteError](Internal/type-aliases/DeleteApiV1AdminUsersDeleteError.md) | - |
+| [DeleteApiV1AdminUsersDeleteErrors](Internal/type-aliases/DeleteApiV1AdminUsersDeleteErrors.md) | - |
+| [DeleteApiV1AdminUsersDeleteResponse](Internal/type-aliases/DeleteApiV1AdminUsersDeleteResponse.md) | - |
+| [DeleteApiV1AdminUsersDeleteResponses](Internal/type-aliases/DeleteApiV1AdminUsersDeleteResponses.md) | - |
+| [DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData](Internal/type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData.md) | - |
+| [DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdError](Internal/type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdError.md) | - |
+| [DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors](Internal/type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors.md) | - |
+| [DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponse](Internal/type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponse.md) | - |
+| [DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses](Internal/type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdError](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdError.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors.md) | - |
@@ -60,6 +80,11 @@
 | [DeleteApiV1UserApiKeysByKeyIdErrors](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdErrors.md) | - |
 | [DeleteApiV1UserApiKeysByKeyIdResponse](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdResponse.md) | - |
 | [DeleteApiV1UserApiKeysByKeyIdResponses](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdResponses.md) | - |
+| [DeleteApiV1UserOauthGrantsByIdData](Internal/type-aliases/DeleteApiV1UserOauthGrantsByIdData.md) | - |
+| [DeleteApiV1UserOauthGrantsByIdError](Internal/type-aliases/DeleteApiV1UserOauthGrantsByIdError.md) | - |
+| [DeleteApiV1UserOauthGrantsByIdErrors](Internal/type-aliases/DeleteApiV1UserOauthGrantsByIdErrors.md) | - |
+| [DeleteApiV1UserOauthGrantsByIdResponse](Internal/type-aliases/DeleteApiV1UserOauthGrantsByIdResponse.md) | - |
+| [DeleteApiV1UserOauthGrantsByIdResponses](Internal/type-aliases/DeleteApiV1UserOauthGrantsByIdResponses.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -80,6 +105,19 @@
 | [GetApiV1AdminAppsErrors](Internal/type-aliases/GetApiV1AdminAppsErrors.md) | - |
 | [GetApiV1AdminAppsResponse](Internal/type-aliases/GetApiV1AdminAppsResponse.md) | - |
 | [GetApiV1AdminAppsResponses](Internal/type-aliases/GetApiV1AdminAppsResponses.md) | - |
+| [GetApiV1AdminOauthClientsByClientIdData](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdData.md) | - |
+| [GetApiV1AdminOauthClientsByClientIdError](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdError.md) | - |
+| [GetApiV1AdminOauthClientsByClientIdErrors](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdErrors.md) | - |
+| [GetApiV1AdminOauthClientsByClientIdResponse](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdResponse.md) | - |
+| [GetApiV1AdminOauthClientsByClientIdResponses](Internal/type-aliases/GetApiV1AdminOauthClientsByClientIdResponses.md) | - |
+| [GetApiV1AdminOauthClientsData](Internal/type-aliases/GetApiV1AdminOauthClientsData.md) | - |
+| [GetApiV1AdminOauthClientsResponse](Internal/type-aliases/GetApiV1AdminOauthClientsResponse.md) | - |
+| [GetApiV1AdminOauthClientsResponses](Internal/type-aliases/GetApiV1AdminOauthClientsResponses.md) | - |
+| [GetApiV1AdminPrivyIdentifiersAuditData](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditData.md) | - |
+| [GetApiV1AdminPrivyIdentifiersAuditError](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditError.md) | - |
+| [GetApiV1AdminPrivyIdentifiersAuditErrors](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditErrors.md) | - |
+| [GetApiV1AdminPrivyIdentifiersAuditResponse](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditResponse.md) | - |
+| [GetApiV1AdminPrivyIdentifiersAuditResponses](Internal/type-aliases/GetApiV1AdminPrivyIdentifiersAuditResponses.md) | - |
 | [GetApiV1AdminUsersLookupData](Internal/type-aliases/GetApiV1AdminUsersLookupData.md) | - |
 | [GetApiV1AdminUsersLookupError](Internal/type-aliases/GetApiV1AdminUsersLookupError.md) | - |
 | [GetApiV1AdminUsersLookupErrors](Internal/type-aliases/GetApiV1AdminUsersLookupErrors.md) | - |
@@ -100,6 +138,16 @@
 | [GetApiV1AgentsErrors](Internal/type-aliases/GetApiV1AgentsErrors.md) | - |
 | [GetApiV1AgentsResponse](Internal/type-aliases/GetApiV1AgentsResponse.md) | - |
 | [GetApiV1AgentsResponses](Internal/type-aliases/GetApiV1AgentsResponses.md) | - |
+| [GetApiV1AuthMfaStatusData](Internal/type-aliases/GetApiV1AuthMfaStatusData.md) | - |
+| [GetApiV1AuthMfaStatusError](Internal/type-aliases/GetApiV1AuthMfaStatusError.md) | - |
+| [GetApiV1AuthMfaStatusErrors](Internal/type-aliases/GetApiV1AuthMfaStatusErrors.md) | - |
+| [GetApiV1AuthMfaStatusResponse](Internal/type-aliases/GetApiV1AuthMfaStatusResponse.md) | - |
+| [GetApiV1AuthMfaStatusResponses](Internal/type-aliases/GetApiV1AuthMfaStatusResponses.md) | - |
+| [GetApiV1BootstrapData](Internal/type-aliases/GetApiV1BootstrapData.md) | - |
+| [GetApiV1BootstrapError](Internal/type-aliases/GetApiV1BootstrapError.md) | - |
+| [GetApiV1BootstrapErrors](Internal/type-aliases/GetApiV1BootstrapErrors.md) | - |
+| [GetApiV1BootstrapResponse](Internal/type-aliases/GetApiV1BootstrapResponse.md) | - |
+| [GetApiV1BootstrapResponses](Internal/type-aliases/GetApiV1BootstrapResponses.md) | - |
 | [GetApiV1ConfigData](Internal/type-aliases/GetApiV1ConfigData.md) | - |
 | [GetApiV1ConfigError](Internal/type-aliases/GetApiV1ConfigError.md) | - |
 | [GetApiV1ConfigErrors](Internal/type-aliases/GetApiV1ConfigErrors.md) | - |
@@ -115,6 +163,9 @@
 | [GetApiV1CreditsPacksErrors](Internal/type-aliases/GetApiV1CreditsPacksErrors.md) | - |
 | [GetApiV1CreditsPacksResponse](Internal/type-aliases/GetApiV1CreditsPacksResponse.md) | - |
 | [GetApiV1CreditsPacksResponses](Internal/type-aliases/GetApiV1CreditsPacksResponses.md) | - |
+| [GetApiV1CuratedModelsData](Internal/type-aliases/GetApiV1CuratedModelsData.md) | - |
+| [GetApiV1CuratedModelsResponse](Internal/type-aliases/GetApiV1CuratedModelsResponse.md) | - |
+| [GetApiV1CuratedModelsResponses](Internal/type-aliases/GetApiV1CuratedModelsResponses.md) | - |
 | [GetApiV1DeveloperAppsByAppUuidApiKeysData](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysData.md) | - |
 | [GetApiV1DeveloperAppsByAppUuidApiKeysError](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysError.md) | - |
 | [GetApiV1DeveloperAppsByAppUuidApiKeysErrors](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysErrors.md) | - |
@@ -158,6 +209,11 @@
 | [GetApiV1DocsSwaggerJsonData](Internal/type-aliases/GetApiV1DocsSwaggerJsonData.md) | - |
 | [GetApiV1DocsSwaggerJsonResponse](Internal/type-aliases/GetApiV1DocsSwaggerJsonResponse.md) | - |
 | [GetApiV1DocsSwaggerJsonResponses](Internal/type-aliases/GetApiV1DocsSwaggerJsonResponses.md) | - |
+| [GetApiV1GuestBootstrapData](Internal/type-aliases/GetApiV1GuestBootstrapData.md) | - |
+| [GetApiV1GuestBootstrapError](Internal/type-aliases/GetApiV1GuestBootstrapError.md) | - |
+| [GetApiV1GuestBootstrapErrors](Internal/type-aliases/GetApiV1GuestBootstrapErrors.md) | - |
+| [GetApiV1GuestBootstrapResponse](Internal/type-aliases/GetApiV1GuestBootstrapResponse.md) | - |
+| [GetApiV1GuestBootstrapResponses](Internal/type-aliases/GetApiV1GuestBootstrapResponses.md) | - |
 | [GetApiV1ModelsData](Internal/type-aliases/GetApiV1ModelsData.md) | - |
 | [GetApiV1ModelsError](Internal/type-aliases/GetApiV1ModelsError.md) | - |
 | [GetApiV1ModelsErrors](Internal/type-aliases/GetApiV1ModelsErrors.md) | - |
@@ -188,11 +244,6 @@
 | [GetApiV1SubscriptionsStatusErrors](Internal/type-aliases/GetApiV1SubscriptionsStatusErrors.md) | - |
 | [GetApiV1SubscriptionsStatusResponse](Internal/type-aliases/GetApiV1SubscriptionsStatusResponse.md) | - |
 | [GetApiV1SubscriptionsStatusResponses](Internal/type-aliases/GetApiV1SubscriptionsStatusResponses.md) | - |
-| [GetApiV1TasksData](Internal/type-aliases/GetApiV1TasksData.md) | - |
-| [GetApiV1TasksError](Internal/type-aliases/GetApiV1TasksError.md) | - |
-| [GetApiV1TasksErrors](Internal/type-aliases/GetApiV1TasksErrors.md) | - |
-| [GetApiV1TasksResponse](Internal/type-aliases/GetApiV1TasksResponse.md) | - |
-| [GetApiV1TasksResponses](Internal/type-aliases/GetApiV1TasksResponses.md) | - |
 | [GetApiV1TextByChannelLookupData](Internal/type-aliases/GetApiV1TextByChannelLookupData.md) | - |
 | [GetApiV1TextByChannelLookupError](Internal/type-aliases/GetApiV1TextByChannelLookupError.md) | - |
 | [GetApiV1TextByChannelLookupErrors](Internal/type-aliases/GetApiV1TextByChannelLookupErrors.md) | - |
@@ -208,6 +259,11 @@
 | [GetApiV1ToolsErrors](Internal/type-aliases/GetApiV1ToolsErrors.md) | - |
 | [GetApiV1ToolsResponse](Internal/type-aliases/GetApiV1ToolsResponse.md) | - |
 | [GetApiV1ToolsResponses](Internal/type-aliases/GetApiV1ToolsResponses.md) | - |
+| [GetApiV1UsageByModalityData](Internal/type-aliases/GetApiV1UsageByModalityData.md) | - |
+| [GetApiV1UsageByModalityError](Internal/type-aliases/GetApiV1UsageByModalityError.md) | - |
+| [GetApiV1UsageByModalityErrors](Internal/type-aliases/GetApiV1UsageByModalityErrors.md) | - |
+| [GetApiV1UsageByModalityResponse](Internal/type-aliases/GetApiV1UsageByModalityResponse.md) | - |
+| [GetApiV1UsageByModalityResponses](Internal/type-aliases/GetApiV1UsageByModalityResponses.md) | - |
 | [GetApiV1UsageModelsData](Internal/type-aliases/GetApiV1UsageModelsData.md) | - |
 | [GetApiV1UsageModelsError](Internal/type-aliases/GetApiV1UsageModelsError.md) | - |
 | [GetApiV1UsageModelsErrors](Internal/type-aliases/GetApiV1UsageModelsErrors.md) | - |
@@ -218,11 +274,27 @@
 | [GetApiV1UserApiKeysErrors](Internal/type-aliases/GetApiV1UserApiKeysErrors.md) | - |
 | [GetApiV1UserApiKeysResponse](Internal/type-aliases/GetApiV1UserApiKeysResponse.md) | - |
 | [GetApiV1UserApiKeysResponses](Internal/type-aliases/GetApiV1UserApiKeysResponses.md) | - |
+| [GetApiV1UserOauthGrantsData](Internal/type-aliases/GetApiV1UserOauthGrantsData.md) | - |
+| [GetApiV1UserOauthGrantsError](Internal/type-aliases/GetApiV1UserOauthGrantsError.md) | - |
+| [GetApiV1UserOauthGrantsErrors](Internal/type-aliases/GetApiV1UserOauthGrantsErrors.md) | - |
+| [GetApiV1UserOauthGrantsResponse](Internal/type-aliases/GetApiV1UserOauthGrantsResponse.md) | - |
+| [GetApiV1UserOauthGrantsResponses](Internal/type-aliases/GetApiV1UserOauthGrantsResponses.md) | - |
 | [GetHealthData](Internal/type-aliases/GetHealthData.md) | - |
 | [GetHealthError](Internal/type-aliases/GetHealthError.md) | - |
 | [GetHealthErrors](Internal/type-aliases/GetHealthErrors.md) | - |
 | [GetHealthResponse](Internal/type-aliases/GetHealthResponse.md) | - |
 | [GetHealthResponses](Internal/type-aliases/GetHealthResponses.md) | - |
+| [GetOauthAuthorizeData](Internal/type-aliases/GetOauthAuthorizeData.md) | - |
+| [GetOauthAuthorizeError](Internal/type-aliases/GetOauthAuthorizeError.md) | - |
+| [GetOauthAuthorizeErrors](Internal/type-aliases/GetOauthAuthorizeErrors.md) | - |
+| [GetOauthConsentData](Internal/type-aliases/GetOauthConsentData.md) | - |
+| [GetOauthConsentError](Internal/type-aliases/GetOauthConsentError.md) | - |
+| [GetOauthConsentErrors](Internal/type-aliases/GetOauthConsentErrors.md) | - |
+| [GetOauthConsentResponse](Internal/type-aliases/GetOauthConsentResponse.md) | - |
+| [GetOauthConsentResponses](Internal/type-aliases/GetOauthConsentResponses.md) | - |
+| [GetWellKnownJwksJsonData](Internal/type-aliases/GetWellKnownJwksJsonData.md) | - |
+| [GetWellKnownJwksJsonResponse](Internal/type-aliases/GetWellKnownJwksJsonResponse.md) | - |
+| [GetWellKnownJwksJsonResponses](Internal/type-aliases/GetWellKnownJwksJsonResponses.md) | - |
 | [HandlersAddCreditsRequest](Internal/type-aliases/HandlersAddCreditsRequest.md) | - |
 | [HandlersAddCreditsResponse](Internal/type-aliases/HandlersAddCreditsResponse.md) | - |
 | [HandlersAgentListItem](Internal/type-aliases/HandlersAgentListItem.md) | - |
@@ -236,14 +308,15 @@
 | [HandlersAppUserUsageResponse](Internal/type-aliases/HandlersAppUserUsageResponse.md) | - |
 | [HandlersBillingHistoryResponse](Internal/type-aliases/HandlersBillingHistoryResponse.md) | - |
 | [HandlersBillingRecordResponse](Internal/type-aliases/HandlersBillingRecordResponse.md) | - |
+| [HandlersBootstrapBuild](Internal/type-aliases/HandlersBootstrapBuild.md) | Build is the server build metadata at the time of bootstrap. |
+| [HandlersBootstrapResponse](Internal/type-aliases/HandlersBootstrapResponse.md) | - |
+| [HandlersBootstrapUser](Internal/type-aliases/HandlersBootstrapUser.md) | User is the authenticated identity context. |
 | [HandlersCancelScheduledDowngradeResponse](Internal/type-aliases/HandlersCancelScheduledDowngradeResponse.md) | - |
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
-| [HandlersClaimDailyCreditsResponse](Internal/type-aliases/HandlersClaimDailyCreditsResponse.md) | - |
-| [HandlersClaimTaskRewardRequest](Internal/type-aliases/HandlersClaimTaskRewardRequest.md) | - |
-| [HandlersClaimTaskRewardResponse](Internal/type-aliases/HandlersClaimTaskRewardResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
 | [HandlersConfigurePrivyRequest](Internal/type-aliases/HandlersConfigurePrivyRequest.md) | - |
+| [HandlersConsentApproveResponse](Internal/type-aliases/HandlersConsentApproveResponse.md) | - |
 | [HandlersCreateAgentRequest](Internal/type-aliases/HandlersCreateAgentRequest.md) | - |
 | [HandlersCreateApiKeyRequest](Internal/type-aliases/HandlersCreateApiKeyRequest.md) | - |
 | [HandlersCreateAppRequest](Internal/type-aliases/HandlersCreateAppRequest.md) | - |
@@ -251,36 +324,60 @@
 | [HandlersCreateCreditPackCheckoutRequest](Internal/type-aliases/HandlersCreateCreditPackCheckoutRequest.md) | - |
 | [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
 | [HandlersCreateDeveloperAppRequest](Internal/type-aliases/HandlersCreateDeveloperAppRequest.md) | - |
+| [HandlersCreateOAuthClientRequest](Internal/type-aliases/HandlersCreateOAuthClientRequest.md) | - |
+| [HandlersCreateOAuthClientResponse](Internal/type-aliases/HandlersCreateOAuthClientResponse.md) | - |
 | [HandlersCreatePersonaRequest](Internal/type-aliases/HandlersCreatePersonaRequest.md) | - |
 | [HandlersCreatePhoneCallRequest](Internal/type-aliases/HandlersCreatePhoneCallRequest.md) | - |
 | [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
 | [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
 | [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
 | [HandlersCustomerPortalResponse](Internal/type-aliases/HandlersCustomerPortalResponse.md) | - |
+| [HandlersDeleteUserResponse](Internal/type-aliases/HandlersDeleteUserResponse.md) | - |
 | [HandlersDeveloperApiKeyRequest](Internal/type-aliases/HandlersDeveloperApiKeyRequest.md) | - |
 | [HandlersDeveloperApiKeyResponse](Internal/type-aliases/HandlersDeveloperApiKeyResponse.md) | - |
 | [HandlersDeveloperApiKeyWithSecretResponse](Internal/type-aliases/HandlersDeveloperApiKeyWithSecretResponse.md) | - |
 | [HandlersDeveloperAppResponse](Internal/type-aliases/HandlersDeveloperAppResponse.md) | - |
 | [HandlersDeveloperUserResponse](Internal/type-aliases/HandlersDeveloperUserResponse.md) | - |
+| [HandlersDisableRequest](Internal/type-aliases/HandlersDisableRequest.md) | - |
 | [HandlersExchangeRequest](Internal/type-aliases/HandlersExchangeRequest.md) | - |
 | [HandlersExpiringCredits](Internal/type-aliases/HandlersExpiringCredits.md) | - |
 | [HandlersFundDeveloperAppRequest](Internal/type-aliases/HandlersFundDeveloperAppRequest.md) | - |
 | [HandlersGeneratedApiKey](Internal/type-aliases/HandlersGeneratedApiKey.md) | - |
 | [HandlersGetToolsResponse](Internal/type-aliases/HandlersGetToolsResponse.md) | - |
+| [HandlersGrantResponse](Internal/type-aliases/HandlersGrantResponse.md) | - |
+| [HandlersGuestBootstrapResponse](Internal/type-aliases/HandlersGuestBootstrapResponse.md) | - |
+| [HandlersGuestChatResponse](Internal/type-aliases/HandlersGuestChatResponse.md) | - |
+| [HandlersGuestLimitResponse](Internal/type-aliases/HandlersGuestLimitResponse.md) | - |
 | [HandlersHealthResponse](Internal/type-aliases/HandlersHealthResponse.md) | - |
 | [HandlersListApiKeysResponse](Internal/type-aliases/HandlersListApiKeysResponse.md) | - |
 | [HandlersListAppsResponse](Internal/type-aliases/HandlersListAppsResponse.md) | - |
 | [HandlersListDeveloperApiKeysResponse](Internal/type-aliases/HandlersListDeveloperApiKeysResponse.md) | - |
 | [HandlersListDeveloperAppsResponse](Internal/type-aliases/HandlersListDeveloperAppsResponse.md) | - |
+| [HandlersListOAuthClientsResponse](Internal/type-aliases/HandlersListOAuthClientsResponse.md) | - |
 | [HandlersListUserApiKeysResponse](Internal/type-aliases/HandlersListUserApiKeysResponse.md) | - |
 | [HandlersListUsersResponse](Internal/type-aliases/HandlersListUsersResponse.md) | - |
+| [HandlersMfaSessionResponse](Internal/type-aliases/HandlersMfaSessionResponse.md) | - |
+| [HandlersMfaStatusResponse](Internal/type-aliases/HandlersMfaStatusResponse.md) | - |
+| [HandlersModalityUsageItem](Internal/type-aliases/HandlersModalityUsageItem.md) | - |
 | [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
+| [HandlersOAuthClientResponse](Internal/type-aliases/HandlersOAuthClientResponse.md) | - |
+| [HandlersOauthTokenError](Internal/type-aliases/HandlersOauthTokenError.md) | - |
+| [HandlersOAuthTokenResponse](Internal/type-aliases/HandlersOAuthTokenResponse.md) | - |
 | [HandlersPaginationResponse](Internal/type-aliases/HandlersPaginationResponse.md) | - |
+| [HandlersPasskeyCredentialDto](Internal/type-aliases/HandlersPasskeyCredentialDto.md) | - |
+| [HandlersPasskeyDeleteResponse](Internal/type-aliases/HandlersPasskeyDeleteResponse.md) | - |
+| [HandlersPasskeyEnrollFinishRequest](Internal/type-aliases/HandlersPasskeyEnrollFinishRequest.md) | - |
+| [HandlersPasskeyEnrollFinishResponse](Internal/type-aliases/HandlersPasskeyEnrollFinishResponse.md) | - |
+| [HandlersPasskeyVerifyFinishRequest](Internal/type-aliases/HandlersPasskeyVerifyFinishRequest.md) | - |
 | [HandlersPersonaListResponse](Internal/type-aliases/HandlersPersonaListResponse.md) | - |
 | [HandlersPersonaResponse](Internal/type-aliases/HandlersPersonaResponse.md) | - |
 | [HandlersPhoneCallResponse](Internal/type-aliases/HandlersPhoneCallResponse.md) | - |
 | [HandlersPhoneCallTranscriptEntry](Internal/type-aliases/HandlersPhoneCallTranscriptEntry.md) | - |
+| [HandlersPrivyIdentifierAuditEntry](Internal/type-aliases/HandlersPrivyIdentifierAuditEntry.md) | - |
+| [HandlersPrivyIdentifierAuditResponse](Internal/type-aliases/HandlersPrivyIdentifierAuditResponse.md) | - |
+| [HandlersPrivyIdentifierMigrateFailure](Internal/type-aliases/HandlersPrivyIdentifierMigrateFailure.md) | - |
+| [HandlersPrivyIdentifierMigrateResponse](Internal/type-aliases/HandlersPrivyIdentifierMigrateResponse.md) | - |
 | [HandlersRedeemTokensRequest](Internal/type-aliases/HandlersRedeemTokensRequest.md) | - |
 | [HandlersRedeemTokensResponse](Internal/type-aliases/HandlersRedeemTokensResponse.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
@@ -296,24 +393,29 @@
 | [HandlersSetSubscriptionTierRequest](Internal/type-aliases/HandlersSetSubscriptionTierRequest.md) | - |
 | [HandlersSetSubscriptionTierResponse](Internal/type-aliases/HandlersSetSubscriptionTierResponse.md) | - |
 | [HandlersSetUserAgentPreferenceRequest](Internal/type-aliases/HandlersSetUserAgentPreferenceRequest.md) | - |
+| [HandlersSmsStatusDto](Internal/type-aliases/HandlersSmsStatusDto.md) | - |
 | [HandlersSubscriptionPlan](Internal/type-aliases/HandlersSubscriptionPlan.md) | - |
 | [HandlersSubscriptionPlansResponse](Internal/type-aliases/HandlersSubscriptionPlansResponse.md) | - |
 | [HandlersSubscriptionStatusResponse](Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | - |
-| [HandlersSyncSnagResponse](Internal/type-aliases/HandlersSyncSnagResponse.md) | - |
-| [HandlersTaskResponse](Internal/type-aliases/HandlersTaskResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
 | [HandlersToolCallDetailItem](Internal/type-aliases/HandlersToolCallDetailItem.md) | - |
 | [HandlersTopUpUserRequest](Internal/type-aliases/HandlersTopUpUserRequest.md) | - |
+| [HandlersTotpEnrollInitResponse](Internal/type-aliases/HandlersTotpEnrollInitResponse.md) | - |
+| [HandlersTotpVerifyRequest](Internal/type-aliases/HandlersTotpVerifyRequest.md) | - |
 | [HandlersUnregisterTextResponse](Internal/type-aliases/HandlersUnregisterTextResponse.md) | - |
 | [HandlersUpdateAgentRequest](Internal/type-aliases/HandlersUpdateAgentRequest.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
 | [HandlersUpdateAppRequest](Internal/type-aliases/HandlersUpdateAppRequest.md) | - |
 | [HandlersUpdateDeveloperAppRequest](Internal/type-aliases/HandlersUpdateDeveloperAppRequest.md) | - |
+| [HandlersUpdateGrantRequest](Internal/type-aliases/HandlersUpdateGrantRequest.md) | - |
+| [HandlersUpdateOAuthClientRequest](Internal/type-aliases/HandlersUpdateOAuthClientRequest.md) | - |
 | [HandlersUpdatePersonaRequest](Internal/type-aliases/HandlersUpdatePersonaRequest.md) | - |
 | [HandlersUpdateUserLimitRequest](Internal/type-aliases/HandlersUpdateUserLimitRequest.md) | - |
 | [HandlersUpgradeSubscriptionRequest](Internal/type-aliases/HandlersUpgradeSubscriptionRequest.md) | - |
 | [HandlersUpgradeSubscriptionResponse](Internal/type-aliases/HandlersUpgradeSubscriptionResponse.md) | - |
+| [HandlersUsageByModalityResponse](Internal/type-aliases/HandlersUsageByModalityResponse.md) | - |
+| [HandlersUsageByModalityTotals](Internal/type-aliases/HandlersUsageByModalityTotals.md) | - |
 | [HandlersUsageByModelResponse](Internal/type-aliases/HandlersUsageByModelResponse.md) | - |
 | [HandlersUsagePeriod](Internal/type-aliases/HandlersUsagePeriod.md) | - |
 | [HandlersUsageTimeseriesPoint](Internal/type-aliases/HandlersUsageTimeseriesPoint.md) | - |
@@ -328,6 +430,7 @@
 | [HandlersUserLookupResponse](Internal/type-aliases/HandlersUserLookupResponse.md) | - |
 | [HandlersUserLookupTextReg](Internal/type-aliases/HandlersUserLookupTextReg.md) | - |
 | [HandlersUserUsageResponse](Internal/type-aliases/HandlersUserUsageResponse.md) | - |
+| [HandlersVerifyRequest](Internal/type-aliases/HandlersVerifyRequest.md) | - |
 | [HandlersWalletDetails](Internal/type-aliases/HandlersWalletDetails.md) | Wallet account details |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
 | [LlmapiChatCompletionRequest](Internal/type-aliases/LlmapiChatCompletionRequest.md) | - |
@@ -369,13 +472,16 @@
 | [LlmapiToolCallEvent](Internal/type-aliases/LlmapiToolCallEvent.md) | - |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
 | [McpToolSchema](Internal/type-aliases/McpToolSchema.md) | - |
-| [ModelsReferralRewardRequest](Internal/type-aliases/ModelsReferralRewardRequest.md) | - |
-| [ModelsReferralRewardResponse](Internal/type-aliases/ModelsReferralRewardResponse.md) | - |
 | [ModelsRegisterTextRequest](Internal/type-aliases/ModelsRegisterTextRequest.md) | - |
 | [ModelsTextChannel](Internal/type-aliases/ModelsTextChannel.md) | - |
 | [ModelsTextLookupResult](Internal/type-aliases/ModelsTextLookupResult.md) | - |
 | [ModelsTextStatusResponse](Internal/type-aliases/ModelsTextStatusResponse.md) | - |
 | [Options](Internal/type-aliases/Options.md) | - |
+| [PatchApiV1AdminOauthClientsByClientIdData](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdData.md) | - |
+| [PatchApiV1AdminOauthClientsByClientIdError](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdError.md) | - |
+| [PatchApiV1AdminOauthClientsByClientIdErrors](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdErrors.md) | - |
+| [PatchApiV1AdminOauthClientsByClientIdResponse](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdResponse.md) | - |
+| [PatchApiV1AdminOauthClientsByClientIdResponses](Internal/type-aliases/PatchApiV1AdminOauthClientsByClientIdResponses.md) | - |
 | [PatchApiV1DeveloperAppsByAppUuidData](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidData.md) | - |
 | [PatchApiV1DeveloperAppsByAppUuidError](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidError.md) | - |
 | [PatchApiV1DeveloperAppsByAppUuidErrors](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidErrors.md) | - |
@@ -386,6 +492,11 @@
 | [PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors.md) | - |
 | [PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponse](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponse.md) | - |
 | [PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses.md) | - |
+| [PatchApiV1UserOauthGrantsByIdData](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdData.md) | - |
+| [PatchApiV1UserOauthGrantsByIdError](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdError.md) | - |
+| [PatchApiV1UserOauthGrantsByIdErrors](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdErrors.md) | - |
+| [PatchApiV1UserOauthGrantsByIdResponse](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdResponse.md) | - |
+| [PatchApiV1UserOauthGrantsByIdResponses](Internal/type-aliases/PatchApiV1UserOauthGrantsByIdResponses.md) | - |
 | [PostApiV1AdminAddCreditsData](Internal/type-aliases/PostApiV1AdminAddCreditsData.md) | - |
 | [PostApiV1AdminAddCreditsError](Internal/type-aliases/PostApiV1AdminAddCreditsError.md) | - |
 | [PostApiV1AdminAddCreditsErrors](Internal/type-aliases/PostApiV1AdminAddCreditsErrors.md) | - |
@@ -406,11 +517,21 @@
 | [PostApiV1AdminAppsErrors](Internal/type-aliases/PostApiV1AdminAppsErrors.md) | - |
 | [PostApiV1AdminAppsResponse](Internal/type-aliases/PostApiV1AdminAppsResponse.md) | - |
 | [PostApiV1AdminAppsResponses](Internal/type-aliases/PostApiV1AdminAppsResponses.md) | - |
+| [PostApiV1AdminOauthClientsData](Internal/type-aliases/PostApiV1AdminOauthClientsData.md) | - |
+| [PostApiV1AdminOauthClientsError](Internal/type-aliases/PostApiV1AdminOauthClientsError.md) | - |
+| [PostApiV1AdminOauthClientsErrors](Internal/type-aliases/PostApiV1AdminOauthClientsErrors.md) | - |
+| [PostApiV1AdminOauthClientsResponse](Internal/type-aliases/PostApiV1AdminOauthClientsResponse.md) | - |
+| [PostApiV1AdminOauthClientsResponses](Internal/type-aliases/PostApiV1AdminOauthClientsResponses.md) | - |
 | [PostApiV1AdminPersonasData](Internal/type-aliases/PostApiV1AdminPersonasData.md) | - |
 | [PostApiV1AdminPersonasError](Internal/type-aliases/PostApiV1AdminPersonasError.md) | - |
 | [PostApiV1AdminPersonasErrors](Internal/type-aliases/PostApiV1AdminPersonasErrors.md) | - |
 | [PostApiV1AdminPersonasResponse](Internal/type-aliases/PostApiV1AdminPersonasResponse.md) | - |
 | [PostApiV1AdminPersonasResponses](Internal/type-aliases/PostApiV1AdminPersonasResponses.md) | - |
+| [PostApiV1AdminPrivyIdentifiersMigrateData](Internal/type-aliases/PostApiV1AdminPrivyIdentifiersMigrateData.md) | - |
+| [PostApiV1AdminPrivyIdentifiersMigrateError](Internal/type-aliases/PostApiV1AdminPrivyIdentifiersMigrateError.md) | - |
+| [PostApiV1AdminPrivyIdentifiersMigrateErrors](Internal/type-aliases/PostApiV1AdminPrivyIdentifiersMigrateErrors.md) | - |
+| [PostApiV1AdminPrivyIdentifiersMigrateResponse](Internal/type-aliases/PostApiV1AdminPrivyIdentifiersMigrateResponse.md) | - |
+| [PostApiV1AdminPrivyIdentifiersMigrateResponses](Internal/type-aliases/PostApiV1AdminPrivyIdentifiersMigrateResponses.md) | - |
 | [PostApiV1AdminSeedAppsData](Internal/type-aliases/PostApiV1AdminSeedAppsData.md) | - |
 | [PostApiV1AdminSeedAppsError](Internal/type-aliases/PostApiV1AdminSeedAppsError.md) | - |
 | [PostApiV1AdminSeedAppsErrors](Internal/type-aliases/PostApiV1AdminSeedAppsErrors.md) | - |
@@ -421,21 +542,56 @@
 | [PostApiV1AdminSubscriptionTierErrors](Internal/type-aliases/PostApiV1AdminSubscriptionTierErrors.md) | - |
 | [PostApiV1AdminSubscriptionTierResponse](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponse.md) | - |
 | [PostApiV1AdminSubscriptionTierResponses](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponses.md) | - |
+| [PostApiV1AuthMfaDisableData](Internal/type-aliases/PostApiV1AuthMfaDisableData.md) | - |
+| [PostApiV1AuthMfaDisableError](Internal/type-aliases/PostApiV1AuthMfaDisableError.md) | - |
+| [PostApiV1AuthMfaDisableErrors](Internal/type-aliases/PostApiV1AuthMfaDisableErrors.md) | - |
+| [PostApiV1AuthMfaDisableResponse](Internal/type-aliases/PostApiV1AuthMfaDisableResponse.md) | - |
+| [PostApiV1AuthMfaDisableResponses](Internal/type-aliases/PostApiV1AuthMfaDisableResponses.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollBeginData](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginData.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollBeginError](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginError.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollBeginErrors](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginErrors.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollBeginResponse](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginResponse.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollBeginResponses](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginResponses.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollFinishData](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollFinishData.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollFinishError](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollFinishError.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollFinishErrors](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollFinishErrors.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollFinishResponse](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollFinishResponse.md) | - |
+| [PostApiV1AuthMfaPasskeyEnrollFinishResponses](Internal/type-aliases/PostApiV1AuthMfaPasskeyEnrollFinishResponses.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyBeginData](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginData.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyBeginError](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginError.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyBeginErrors](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginErrors.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyBeginResponse](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginResponse.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyBeginResponses](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginResponses.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyFinishData](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyFinishData.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyFinishError](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyFinishError.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyFinishErrors](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyFinishErrors.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyFinishResponse](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyFinishResponse.md) | - |
+| [PostApiV1AuthMfaPasskeyVerifyFinishResponses](Internal/type-aliases/PostApiV1AuthMfaPasskeyVerifyFinishResponses.md) | - |
+| [PostApiV1AuthMfaRecoveryCodesRegenerateData](Internal/type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateData.md) | - |
+| [PostApiV1AuthMfaRecoveryCodesRegenerateError](Internal/type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateError.md) | - |
+| [PostApiV1AuthMfaRecoveryCodesRegenerateErrors](Internal/type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateErrors.md) | - |
+| [PostApiV1AuthMfaRecoveryCodesRegenerateResponse](Internal/type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateResponse.md) | - |
+| [PostApiV1AuthMfaRecoveryCodesRegenerateResponses](Internal/type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateResponses.md) | - |
+| [PostApiV1AuthMfaTotpEnrollInitData](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollInitData.md) | - |
+| [PostApiV1AuthMfaTotpEnrollInitError](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollInitError.md) | - |
+| [PostApiV1AuthMfaTotpEnrollInitErrors](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollInitErrors.md) | - |
+| [PostApiV1AuthMfaTotpEnrollInitResponse](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollInitResponse.md) | - |
+| [PostApiV1AuthMfaTotpEnrollInitResponses](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollInitResponses.md) | - |
+| [PostApiV1AuthMfaTotpEnrollVerifyData](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollVerifyData.md) | - |
+| [PostApiV1AuthMfaTotpEnrollVerifyError](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollVerifyError.md) | - |
+| [PostApiV1AuthMfaTotpEnrollVerifyErrors](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollVerifyErrors.md) | - |
+| [PostApiV1AuthMfaTotpEnrollVerifyResponse](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollVerifyResponse.md) | - |
+| [PostApiV1AuthMfaTotpEnrollVerifyResponses](Internal/type-aliases/PostApiV1AuthMfaTotpEnrollVerifyResponses.md) | - |
+| [PostApiV1AuthMfaVerifyData](Internal/type-aliases/PostApiV1AuthMfaVerifyData.md) | - |
+| [PostApiV1AuthMfaVerifyError](Internal/type-aliases/PostApiV1AuthMfaVerifyError.md) | - |
+| [PostApiV1AuthMfaVerifyErrors](Internal/type-aliases/PostApiV1AuthMfaVerifyErrors.md) | - |
+| [PostApiV1AuthMfaVerifyResponse](Internal/type-aliases/PostApiV1AuthMfaVerifyResponse.md) | - |
+| [PostApiV1AuthMfaVerifyResponses](Internal/type-aliases/PostApiV1AuthMfaVerifyResponses.md) | - |
 | [PostApiV1ChatCompletionsData](Internal/type-aliases/PostApiV1ChatCompletionsData.md) | - |
 | [PostApiV1ChatCompletionsError](Internal/type-aliases/PostApiV1ChatCompletionsError.md) | - |
 | [PostApiV1ChatCompletionsErrors](Internal/type-aliases/PostApiV1ChatCompletionsErrors.md) | - |
 | [PostApiV1ChatCompletionsResponse](Internal/type-aliases/PostApiV1ChatCompletionsResponse.md) | - |
 | [PostApiV1ChatCompletionsResponses](Internal/type-aliases/PostApiV1ChatCompletionsResponses.md) | - |
-| [PostApiV1CreditsClaimDailyData](Internal/type-aliases/PostApiV1CreditsClaimDailyData.md) | - |
-| [PostApiV1CreditsClaimDailyError](Internal/type-aliases/PostApiV1CreditsClaimDailyError.md) | - |
-| [PostApiV1CreditsClaimDailyErrors](Internal/type-aliases/PostApiV1CreditsClaimDailyErrors.md) | - |
-| [PostApiV1CreditsClaimDailyResponse](Internal/type-aliases/PostApiV1CreditsClaimDailyResponse.md) | - |
-| [PostApiV1CreditsClaimDailyResponses](Internal/type-aliases/PostApiV1CreditsClaimDailyResponses.md) | - |
-| [PostApiV1CreditsClaimTaskData](Internal/type-aliases/PostApiV1CreditsClaimTaskData.md) | - |
-| [PostApiV1CreditsClaimTaskError](Internal/type-aliases/PostApiV1CreditsClaimTaskError.md) | - |
-| [PostApiV1CreditsClaimTaskErrors](Internal/type-aliases/PostApiV1CreditsClaimTaskErrors.md) | - |
-| [PostApiV1CreditsClaimTaskResponse](Internal/type-aliases/PostApiV1CreditsClaimTaskResponse.md) | - |
-| [PostApiV1CreditsClaimTaskResponses](Internal/type-aliases/PostApiV1CreditsClaimTaskResponses.md) | - |
 | [PostApiV1CreditsPurchaseData](Internal/type-aliases/PostApiV1CreditsPurchaseData.md) | - |
 | [PostApiV1CreditsPurchaseError](Internal/type-aliases/PostApiV1CreditsPurchaseError.md) | - |
 | [PostApiV1CreditsPurchaseErrors](Internal/type-aliases/PostApiV1CreditsPurchaseErrors.md) | - |
@@ -446,11 +602,6 @@
 | [PostApiV1CreditsRedeemTokensErrors](Internal/type-aliases/PostApiV1CreditsRedeemTokensErrors.md) | - |
 | [PostApiV1CreditsRedeemTokensResponse](Internal/type-aliases/PostApiV1CreditsRedeemTokensResponse.md) | - |
 | [PostApiV1CreditsRedeemTokensResponses](Internal/type-aliases/PostApiV1CreditsRedeemTokensResponses.md) | - |
-| [PostApiV1CreditsSyncSnagData](Internal/type-aliases/PostApiV1CreditsSyncSnagData.md) | - |
-| [PostApiV1CreditsSyncSnagError](Internal/type-aliases/PostApiV1CreditsSyncSnagError.md) | - |
-| [PostApiV1CreditsSyncSnagErrors](Internal/type-aliases/PostApiV1CreditsSyncSnagErrors.md) | - |
-| [PostApiV1CreditsSyncSnagResponse](Internal/type-aliases/PostApiV1CreditsSyncSnagResponse.md) | - |
-| [PostApiV1CreditsSyncSnagResponses](Internal/type-aliases/PostApiV1CreditsSyncSnagResponses.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidApiKeysData](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysData.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidApiKeysError](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysError.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidApiKeysErrors](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysErrors.md) | - |
@@ -481,6 +632,11 @@
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
 | [PostApiV1EmbeddingsResponse](Internal/type-aliases/PostApiV1EmbeddingsResponse.md) | - |
 | [PostApiV1EmbeddingsResponses](Internal/type-aliases/PostApiV1EmbeddingsResponses.md) | - |
+| [PostApiV1GuestChatCompletionsData](Internal/type-aliases/PostApiV1GuestChatCompletionsData.md) | - |
+| [PostApiV1GuestChatCompletionsError](Internal/type-aliases/PostApiV1GuestChatCompletionsError.md) | - |
+| [PostApiV1GuestChatCompletionsErrors](Internal/type-aliases/PostApiV1GuestChatCompletionsErrors.md) | - |
+| [PostApiV1GuestChatCompletionsResponse](Internal/type-aliases/PostApiV1GuestChatCompletionsResponse.md) | - |
+| [PostApiV1GuestChatCompletionsResponses](Internal/type-aliases/PostApiV1GuestChatCompletionsResponses.md) | - |
 | [PostApiV1PhoneCallsData](Internal/type-aliases/PostApiV1PhoneCallsData.md) | - |
 | [PostApiV1PhoneCallsError](Internal/type-aliases/PostApiV1PhoneCallsError.md) | - |
 | [PostApiV1PhoneCallsErrors](Internal/type-aliases/PostApiV1PhoneCallsErrors.md) | - |
@@ -536,11 +692,6 @@
 | [PostApiV1TextByChannelRegisterErrors](Internal/type-aliases/PostApiV1TextByChannelRegisterErrors.md) | - |
 | [PostApiV1TextByChannelRegisterResponse](Internal/type-aliases/PostApiV1TextByChannelRegisterResponse.md) | - |
 | [PostApiV1TextByChannelRegisterResponses](Internal/type-aliases/PostApiV1TextByChannelRegisterResponses.md) | - |
-| [PostApiV1TextReferralRewardData](Internal/type-aliases/PostApiV1TextReferralRewardData.md) | - |
-| [PostApiV1TextReferralRewardError](Internal/type-aliases/PostApiV1TextReferralRewardError.md) | - |
-| [PostApiV1TextReferralRewardErrors](Internal/type-aliases/PostApiV1TextReferralRewardErrors.md) | - |
-| [PostApiV1TextReferralRewardResponse](Internal/type-aliases/PostApiV1TextReferralRewardResponse.md) | - |
-| [PostApiV1TextReferralRewardResponses](Internal/type-aliases/PostApiV1TextReferralRewardResponses.md) | - |
 | [PostApiV1UserApiKeysData](Internal/type-aliases/PostApiV1UserApiKeysData.md) | - |
 | [PostApiV1UserApiKeysError](Internal/type-aliases/PostApiV1UserApiKeysError.md) | - |
 | [PostApiV1UserApiKeysErrors](Internal/type-aliases/PostApiV1UserApiKeysErrors.md) | - |
@@ -566,6 +717,21 @@
 | [PostAuthOauthByProviderRevokeErrors](Internal/type-aliases/PostAuthOauthByProviderRevokeErrors.md) | - |
 | [PostAuthOauthByProviderRevokeResponse](Internal/type-aliases/PostAuthOauthByProviderRevokeResponse.md) | - |
 | [PostAuthOauthByProviderRevokeResponses](Internal/type-aliases/PostAuthOauthByProviderRevokeResponses.md) | - |
+| [PostOauthConsentData](Internal/type-aliases/PostOauthConsentData.md) | - |
+| [PostOauthConsentError](Internal/type-aliases/PostOauthConsentError.md) | - |
+| [PostOauthConsentErrors](Internal/type-aliases/PostOauthConsentErrors.md) | - |
+| [PostOauthConsentResponse](Internal/type-aliases/PostOauthConsentResponse.md) | - |
+| [PostOauthConsentResponses](Internal/type-aliases/PostOauthConsentResponses.md) | - |
+| [PostOauthRevokeData](Internal/type-aliases/PostOauthRevokeData.md) | - |
+| [PostOauthRevokeError](Internal/type-aliases/PostOauthRevokeError.md) | - |
+| [PostOauthRevokeErrors](Internal/type-aliases/PostOauthRevokeErrors.md) | - |
+| [PostOauthRevokeResponse](Internal/type-aliases/PostOauthRevokeResponse.md) | - |
+| [PostOauthRevokeResponses](Internal/type-aliases/PostOauthRevokeResponses.md) | - |
+| [PostOauthTokenData](Internal/type-aliases/PostOauthTokenData.md) | - |
+| [PostOauthTokenError](Internal/type-aliases/PostOauthTokenError.md) | - |
+| [PostOauthTokenErrors](Internal/type-aliases/PostOauthTokenErrors.md) | - |
+| [PostOauthTokenResponse](Internal/type-aliases/PostOauthTokenResponse.md) | - |
+| [PostOauthTokenResponses](Internal/type-aliases/PostOauthTokenResponses.md) | - |
 | [PutApiV1AdminAgentsByIdData](Internal/type-aliases/PutApiV1AdminAgentsByIdData.md) | - |
 | [PutApiV1AdminAgentsByIdError](Internal/type-aliases/PutApiV1AdminAgentsByIdError.md) | - |
 | [PutApiV1AdminAgentsByIdErrors](Internal/type-aliases/PutApiV1AdminAgentsByIdErrors.md) | - |
@@ -601,24 +767,34 @@
 | [deleteApiV1AdminAgentsById](Internal/functions/deleteApiV1AdminAgentsById.md) | Delete agent |
 | [deleteApiV1AdminAppsByAppIdApiKeysById](Internal/functions/deleteApiV1AdminAppsByAppIdApiKeysById.md) | Delete API key |
 | [deleteApiV1AdminAppsById](Internal/functions/deleteApiV1AdminAppsById.md) | Delete app |
+| [deleteApiV1AdminOauthClientsByClientId](Internal/functions/deleteApiV1AdminOauthClientsByClientId.md) | Revoke an OAuth client (soft delete) |
 | [deleteApiV1AdminPersonasById](Internal/functions/deleteApiV1AdminPersonasById.md) | Delete persona |
 | [deleteApiV1AdminTextReset](Internal/functions/deleteApiV1AdminTextReset.md) | Reset text registrations |
+| [deleteApiV1AdminUsersDelete](Internal/functions/deleteApiV1AdminUsersDelete.md) | Delete user account (admin) |
+| [deleteApiV1AuthMfaPasskeyCredentialsByCredentialId](Internal/functions/deleteApiV1AuthMfaPasskeyCredentialsByCredentialId.md) | Delete a passkey |
 | [deleteApiV1DeveloperAppsByAppUuid](Internal/functions/deleteApiV1DeveloperAppsByAppUuid.md) | Delete app |
 | [deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId](Internal/functions/deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId.md) | Delete API key |
 | [deleteApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/deleteApiV1DeveloperAppsByAppUuidPrivy.md) | Remove Privy |
 | [deleteApiV1TextByChannelUnregister](Internal/functions/deleteApiV1TextByChannelUnregister.md) | Unregister text channel |
 | [deleteApiV1UserApiKeysByKeyId](Internal/functions/deleteApiV1UserApiKeysByKeyId.md) | Delete user API key |
+| [deleteApiV1UserOauthGrantsById](Internal/functions/deleteApiV1UserOauthGrantsById.md) | Revoke OAuth grant |
 | [getApiV1AdminApps](Internal/functions/getApiV1AdminApps.md) | List all apps |
 | [getApiV1AdminAppsByAppIdApiKeys](Internal/functions/getApiV1AdminAppsByAppIdApiKeys.md) | List API keys for an app |
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
+| [getApiV1AdminOauthClients](Internal/functions/getApiV1AdminOauthClients.md) | List OAuth clients |
+| [getApiV1AdminOauthClientsByClientId](Internal/functions/getApiV1AdminOauthClientsByClientId.md) | Get an OAuth client |
+| [getApiV1AdminPrivyIdentifiersAudit](Internal/functions/getApiV1AdminPrivyIdentifiersAudit.md) | Audit Privy wallet identifiers |
 | [getApiV1AdminUsersLookup](Internal/functions/getApiV1AdminUsersLookup.md) | Lookup user by identifier |
 | [getApiV1AgentPreferences](Internal/functions/getApiV1AgentPreferences.md) | List user agent preferences |
 | [getApiV1Agents](Internal/functions/getApiV1Agents.md) | List agents |
 | [getApiV1AgentsById](Internal/functions/getApiV1AgentsById.md) | Get agent |
+| [getApiV1AuthMfaStatus](Internal/functions/getApiV1AuthMfaStatus.md) | MFA status |
+| [getApiV1Bootstrap](Internal/functions/getApiV1Bootstrap.md) | Bootstrap client session |
 | [getApiV1Config](Internal/functions/getApiV1Config.md) | Get configuration |
 | [getApiV1CreditsBalance](Internal/functions/getApiV1CreditsBalance.md) | Get credit balance |
 | [getApiV1CreditsPacks](Internal/functions/getApiV1CreditsPacks.md) | List available credit packs |
+| [getApiV1CuratedModels](Internal/functions/getApiV1CuratedModels.md) | List curated models |
 | [getApiV1DeveloperApps](Internal/functions/getApiV1DeveloperApps.md) | List apps |
 | [getApiV1DeveloperAppsByAppUuid](Internal/functions/getApiV1DeveloperAppsByAppUuid.md) | Get app |
 | [getApiV1DeveloperAppsByAppUuidApiKeys](Internal/functions/getApiV1DeveloperAppsByAppUuidApiKeys.md) | List API keys |
@@ -628,40 +804,56 @@
 | [getApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/getApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Get user |
 | [getApiV1DeveloperBilling](Internal/functions/getApiV1DeveloperBilling.md) | Get billing history |
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
+| [getApiV1GuestBootstrap](Internal/functions/getApiV1GuestBootstrap.md) | Bootstrap guest session |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
 | [getApiV1Personas](Internal/functions/getApiV1Personas.md) | List personas |
 | [getApiV1PersonasById](Internal/functions/getApiV1PersonasById.md) | Get persona |
 | [getApiV1PhoneCallsByCallId](Internal/functions/getApiV1PhoneCallsByCallId.md) | Get phone call |
 | [getApiV1SubscriptionsPlans](Internal/functions/getApiV1SubscriptionsPlans.md) | List available subscription plans |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
-| [getApiV1Tasks](Internal/functions/getApiV1Tasks.md) | Get available tasks |
 | [getApiV1TextByChannelLookup](Internal/functions/getApiV1TextByChannelLookup.md) | Lookup text channel registration by identifier |
 | [getApiV1TextByChannelStatus](Internal/functions/getApiV1TextByChannelStatus.md) | Get text channel registration status |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
+| [getApiV1UsageByModality](Internal/functions/getApiV1UsageByModality.md) | Get usage by modality |
 | [getApiV1UsageModels](Internal/functions/getApiV1UsageModels.md) | Get usage by model |
 | [getApiV1UserApiKeys](Internal/functions/getApiV1UserApiKeys.md) | List user API keys |
+| [getApiV1UserOauthGrants](Internal/functions/getApiV1UserOauthGrants.md) | List user OAuth grants |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
+| [getOauthAuthorize](Internal/functions/getOauthAuthorize.md) | OAuth 2.0 authorization endpoint |
+| [getOauthConsent](Internal/functions/getOauthConsent.md) | OAuth consent screen |
+| [getWellKnownJwksJson](Internal/functions/getWellKnownJwksJson.md) | OAuth 2.0 JSON Web Key Set |
+| [patchApiV1AdminOauthClientsByClientId](Internal/functions/patchApiV1AdminOauthClientsByClientId.md) | Update an OAuth client |
 | [patchApiV1DeveloperAppsByAppUuid](Internal/functions/patchApiV1DeveloperAppsByAppUuid.md) | Update app |
 | [patchApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/patchApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Update user limit |
+| [patchApiV1UserOauthGrantsById](Internal/functions/patchApiV1UserOauthGrantsById.md) | Update OAuth grant |
 | [postApiV1AdminAddCredits](Internal/functions/postApiV1AdminAddCredits.md) | Add credits to user |
 | [postApiV1AdminAgents](Internal/functions/postApiV1AdminAgents.md) | Create agent |
 | [postApiV1AdminApps](Internal/functions/postApiV1AdminApps.md) | Create app |
 | [postApiV1AdminAppsByAppIdApiKeys](Internal/functions/postApiV1AdminAppsByAppIdApiKeys.md) | Create API key |
+| [postApiV1AdminOauthClients](Internal/functions/postApiV1AdminOauthClients.md) | Create an OAuth client (agent registration) |
 | [postApiV1AdminPersonas](Internal/functions/postApiV1AdminPersonas.md) | Create persona |
+| [postApiV1AdminPrivyIdentifiersMigrate](Internal/functions/postApiV1AdminPrivyIdentifiersMigrate.md) | Migrate Privy wallet identifiers |
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
+| [postApiV1AuthMfaDisable](Internal/functions/postApiV1AuthMfaDisable.md) | Disable MFA |
+| [postApiV1AuthMfaPasskeyEnrollBegin](Internal/functions/postApiV1AuthMfaPasskeyEnrollBegin.md) | Begin passkey enrollment |
+| [postApiV1AuthMfaPasskeyEnrollFinish](Internal/functions/postApiV1AuthMfaPasskeyEnrollFinish.md) | Finish passkey enrollment |
+| [postApiV1AuthMfaPasskeyVerifyBegin](Internal/functions/postApiV1AuthMfaPasskeyVerifyBegin.md) | Begin passkey login verification |
+| [postApiV1AuthMfaPasskeyVerifyFinish](Internal/functions/postApiV1AuthMfaPasskeyVerifyFinish.md) | Finish passkey login verification |
+| [postApiV1AuthMfaRecoveryCodesRegenerate](Internal/functions/postApiV1AuthMfaRecoveryCodesRegenerate.md) | Regenerate recovery codes |
+| [postApiV1AuthMfaTotpEnrollInit](Internal/functions/postApiV1AuthMfaTotpEnrollInit.md) | Begin TOTP enrollment |
+| [postApiV1AuthMfaTotpEnrollVerify](Internal/functions/postApiV1AuthMfaTotpEnrollVerify.md) | Verify TOTP enrollment |
+| [postApiV1AuthMfaVerify](Internal/functions/postApiV1AuthMfaVerify.md) | Verify MFA at login |
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
-| [postApiV1CreditsClaimDaily](Internal/functions/postApiV1CreditsClaimDaily.md) | Claim daily credits |
-| [postApiV1CreditsClaimTask](Internal/functions/postApiV1CreditsClaimTask.md) | Claim task reward |
 | [postApiV1CreditsPurchase](Internal/functions/postApiV1CreditsPurchase.md) | Create credit pack checkout session |
 | [postApiV1CreditsRedeemTokens](Internal/functions/postApiV1CreditsRedeemTokens.md) | Redeem Anuma Tokens for credits |
-| [postApiV1CreditsSyncSnag](Internal/functions/postApiV1CreditsSyncSnag.md) | Sync Snag points |
 | [postApiV1DeveloperApps](Internal/functions/postApiV1DeveloperApps.md) | Create app |
 | [postApiV1DeveloperAppsByAppUuidApiKeys](Internal/functions/postApiV1DeveloperAppsByAppUuidApiKeys.md) | Create API key |
 | [postApiV1DeveloperAppsByAppUuidFund](Internal/functions/postApiV1DeveloperAppsByAppUuidFund.md) | Fund developer app balance |
 | [postApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/postApiV1DeveloperAppsByAppUuidPrivy.md) | Configure Privy |
 | [postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp](Internal/functions/postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp.md) | Top up user credits |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
+| [postApiV1GuestChatCompletions](Internal/functions/postApiV1GuestChatCompletions.md) | Guest chat completion (free trial) |
 | [postApiV1PhoneCalls](Internal/functions/postApiV1PhoneCalls.md) | Create phone call |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |
@@ -673,12 +865,14 @@
 | [postApiV1SubscriptionsUpgrade](Internal/functions/postApiV1SubscriptionsUpgrade.md) | Upgrade subscription |
 | [postApiV1SubscriptionsWebhook](Internal/functions/postApiV1SubscriptionsWebhook.md) | Handle Stripe webhook |
 | [postApiV1TextByChannelRegister](Internal/functions/postApiV1TextByChannelRegister.md) | Register identifier for text channel |
-| [postApiV1TextReferralReward](Internal/functions/postApiV1TextReferralReward.md) | Grant referral reward credits |
 | [postApiV1UserApiKeys](Internal/functions/postApiV1UserApiKeys.md) | Create user API key |
 | [postApiV1WebhooksRevenuecat](Internal/functions/postApiV1WebhooksRevenuecat.md) | Handle RevenueCat webhook |
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
+| [postOauthConsent](Internal/functions/postOauthConsent.md) | Process OAuth consent |
+| [postOauthRevoke](Internal/functions/postOauthRevoke.md) | OAuth 2.0 token revocation (RFC 7009) |
+| [postOauthToken](Internal/functions/postOauthToken.md) | OAuth 2.0 token endpoint |
 | [putApiV1AdminAgentsById](Internal/functions/putApiV1AdminAgentsById.md) | Update agent |
 | [putApiV1AdminAppsByAppIdApiKeysById](Internal/functions/putApiV1AdminAppsByAppIdApiKeysById.md) | Update API key |
 | [putApiV1AdminAppsById](Internal/functions/putApiV1AdminAppsById.md) | Update app |

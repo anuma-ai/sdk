@@ -2,7 +2,7 @@
 
 > **PostApiV1TextByChannelRegisterErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5358](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5358)
+Defined in: [src/client/types.gen.ts:6400](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6400)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5358](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5362)
+Defined in: [src/client/types.gen.ts:6404](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6404)
 
 Invalid channel, identifier, or identifier not in linked accounts
 
@@ -20,7 +20,7 @@ Invalid channel, identifier, or identifier not in linked accounts
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5366](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5366)
+Defined in: [src/client/types.gen.ts:6408](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6408)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5370](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5370)
+Defined in: [src/client/types.gen.ts:6412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6412)
 
 Identifier registered to another account
 
@@ -40,6 +40,6 @@ Identifier registered to another account
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5374)
+Defined in: [src/client/types.gen.ts:6416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6416)
 
 Internal Server Error

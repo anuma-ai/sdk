@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminAgentsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminAgentsByIdData`](../type-aliases/DeleteApiV1AdminAgentsByIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminAgentsByIdResponses`](../type-aliases/DeleteApiV1AdminAgentsByIdResponses.md), [`DeleteApiV1AdminAgentsByIdErrors`](../type-aliases/DeleteApiV1AdminAgentsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#70)
+Defined in: [src/client/sdk.gen.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#82)
 
 Delete agent
 

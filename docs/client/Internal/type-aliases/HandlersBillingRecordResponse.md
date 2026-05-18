@@ -2,7 +2,7 @@
 
 > **HandlersBillingRecordResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#287)
+Defined in: [src/client/types.gen.ts:363](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#363)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:287](https://github.com/anuma-ai/sdk/blob/m
 
 > **amount\_cents**: `number`
 
-Defined in: [src/client/types.gen.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#288)
+Defined in: [src/client/types.gen.ts:364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#364)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:288](https://github.com/anuma-ai/sdk/blob/m
 
 > **app\_uuid**: `string`
 
-Defined in: [src/client/types.gen.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#289)
+Defined in: [src/client/types.gen.ts:365](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#365)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:289](https://github.com/anuma-ai/sdk/blob/m
 
 > **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#290)
+Defined in: [src/client/types.gen.ts:366](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#366)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:290](https://github.com/anuma-ai/sdk/blob/m
 
 > **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#291)
+Defined in: [src/client/types.gen.ts:367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#367)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:291](https://github.com/anuma-ai/sdk/blob/m
 
 > **currency**: `string`
 
-Defined in: [src/client/types.gen.ts:292](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#292)
+Defined in: [src/client/types.gen.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#368)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:292](https://github.com/anuma-ai/sdk/blob/m
 
 > **id**: `number`
 
-Defined in: [src/client/types.gen.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#293)
+Defined in: [src/client/types.gen.ts:369](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#369)
 
 ***
 
@@ -58,4 +58,4 @@ Defined in: [src/client/types.gen.ts:293](https://github.com/anuma-ai/sdk/blob/m
 
 > **status**: `string`
 
-Defined in: [src/client/types.gen.ts:294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#294)
+Defined in: [src/client/types.gen.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#370)
