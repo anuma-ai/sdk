@@ -79,31 +79,28 @@ function defaultDetectUseFahrenheit(): boolean {
   }
 }
 
-async function fetchJsonOnce<T>(url: string, timeoutMs: number): Promise<T> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as T;
-  } finally {
-    clearTimeout(id);
-  }
+async function fetchJsonOnce<T>(url: string, signal: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as T;
 }
 
 /**
  * One retry with jitter (100-300ms) for transient network/HTTP failures.
  * AbortError (timeout) is NOT retried — repeating it would just double the
- * user's wait time before the same outcome.
+ * user's wait time before the same outcome. The caller's signal is shared
+ * across both attempts, so `timeoutMs` bounds the total operation rather
+ * than restarting per attempt.
  */
-async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
+async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   try {
-    return await fetchJsonOnce<T>(url, timeoutMs);
+    return await fetchJsonOnce<T>(url, signal);
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
+    if (signal.aborted) throw err;
     const jitter = 100 + Math.random() * 200;
     await new Promise((resolve) => setTimeout(resolve, jitter));
-    return await fetchJsonOnce<T>(url, timeoutMs);
+    return await fetchJsonOnce<T>(url, signal);
   }
 }
 
@@ -189,6 +186,9 @@ export function createWeatherTool(
         return { error: "No location provided", _meta: { location: "" } };
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
       try {
         const useFahrenheit = detectUseFahrenheit();
         const tempUnit = useFahrenheit ? "fahrenheit" : "celsius";
@@ -196,7 +196,7 @@ export function createWeatherTool(
 
         const geoData = await fetchJson<GeocodingResponse>(
           `${geocodingBase}/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
-          timeoutMs
+          controller.signal
         );
 
         const firstResult = geoData.results?.[0];
@@ -208,7 +208,7 @@ export function createWeatherTool(
 
         const weatherData = await fetchJson<WeatherResponse>(
           `${forecastBase}/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto&temperature_unit=${tempUnit}&wind_speed_unit=${windUnit}`,
-          timeoutMs
+          controller.signal
         );
         const current = weatherData.current;
         const daily = weatherData.daily;
@@ -243,6 +243,8 @@ export function createWeatherTool(
         }
 
         return { error: "Failed to fetch weather data", _meta: { location } };
+      } finally {
+        clearTimeout(timeoutId);
       }
     },
   });
