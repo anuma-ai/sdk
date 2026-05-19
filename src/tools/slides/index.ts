@@ -1656,8 +1656,17 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push(`insert_slide: root must be <Anuma.Slide>, got <Anuma.${next.tag}>`);
                   break;
                 }
+                // Cold-start: when the conversation has no in-memory state
+                // (e.g. patching a deck from a previous session), fall back
+                // to the deck's stored fontPreset before "default". Without
+                // this, slot-budget validation runs against Inter while the
+                // deck is actually rendered with Playfair / Source Serif /
+                // etc., so overflow checks become unreliable in both
+                // directions.
                 const state = deckStateByConv.get(conversationId);
-                const presetName = state?.fontPreset ?? "default";
+                const presetName =
+                  state?.fontPreset ??
+                  (typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default");
                 const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
                 const slotIssues = validateSlotContent(
                   resolved.composition,
