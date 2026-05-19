@@ -1583,6 +1583,25 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push(`replace_slide: slide ${op.slideId} not found`);
                   break;
                 }
+                // Inherit layout-shaping attrs from the old slide when the new
+                // JSX omits them. compositionName drives `read_slides` compact
+                // summaries; background protects dark-surface compositions
+                // whose text tokens (color="slideBg" etc.) expect a dark
+                // ground. Models rewriting slide content tend to ship fresh
+                // JSX without these, which would leave the slide showing
+                // "(layout unknown)" or rendering invisible text.
+                if (
+                  typeof next.attrs.compositionName !== "string" &&
+                  typeof oldSlide.attrs.compositionName === "string"
+                ) {
+                  next.attrs.compositionName = oldSlide.attrs.compositionName;
+                }
+                if (
+                  typeof next.attrs.background !== "string" &&
+                  typeof oldSlide.attrs.background === "string"
+                ) {
+                  next.attrs.background = oldSlide.attrs.background;
+                }
                 const renames = dedupeIds(collectIds(deck, oldSlide), next);
                 if (!replaceById(deck, op.slideId, next)) {
                   results.push(`replace_slide: slide ${op.slideId} not found`);
