@@ -13,8 +13,14 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
   test: {
-    include: ["test/tools/slide-generation/*Probe.test.ts"],
-    testTimeout: 600_000,
+    include: [
+      "test/tools/slide-generation/*Probe.test.ts",
+      // Diagnostic build+edits timing sweep — same weak-assertion +
+      // detailed-log profile as the probes. Lives here so the default
+      // e2e suite doesn't pay its ~3-minute wall time per run.
+      "test/tools/slide-generation/deckEditingTimings.test.ts",
+    ],
+    testTimeout: 900_000,
     hookTimeout: 120_000,
     maxConcurrency: 2,
   },
