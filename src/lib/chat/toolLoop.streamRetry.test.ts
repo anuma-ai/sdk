@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
 import * as embeddingsModule from "../memoryEngine/embeddings";
-import { runToolLoop } from "./toolLoop";
+import { ProviderStreamError, runToolLoop } from "./toolLoop";
 
 vi.mock("../../client/core/serverSentEvents.gen", async (importOriginal) => {
   const orig = await importOriginal<typeof sseModule>();
@@ -236,6 +236,31 @@ describe("runToolLoop streaming retry", () => {
     });
 
     expect(result.error).toContain("401");
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry a ProviderStreamError even when its message matches a transport heuristic", async () => {
+    // Reachable via extractProviderStreamError on a provider that emits
+    // `{error: "terminated"}` — without the explicit instanceof guard in
+    // isRetriableStreamError, the message-based fallback ("terminated"
+    // → retry) would fire on a class of error that the predicate
+    // explicitly documents as non-retriable.
+    const provErr = new ProviderStreamError("terminated");
+    mockCreateSseClient.mockReturnValueOnce({
+      stream: (async function* () {
+        throw provErr;
+        // eslint-disable-next-line no-unreachable -- generator type inference
+        yield undefined as never;
+      })(),
+    } as never);
+
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+    });
+
+    expect(result.error).toBe("terminated");
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
   });
 

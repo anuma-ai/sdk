@@ -117,16 +117,21 @@ function isRetriableStreamError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   if (isAbortError(err)) return false;
 
-  if (err instanceof SseError) {
-    const s = err.statusCode;
-    return s === 408 || s === 429 || (s >= 500 && s < 600);
-  }
   // ProviderStreamError is NOT retried: it represents an in-band error
   // chunk emitted by the upstream provider (e.g. "the model timed out
   // generating a response"). The same prompt is likely to time out the
   // same way on a retry — better to surface the real cause immediately
   // so the caller knows the failure is at the model level, not the
-  // transport.
+  // transport. Without this explicit guard, a provider that emits
+  // `{error: "terminated"}` would build a ProviderStreamError whose
+  // message matches the undici-`terminated` heuristic below and get
+  // retried anyway.
+  if (err instanceof ProviderStreamError) return false;
+
+  if (err instanceof SseError) {
+    const s = err.statusCode;
+    return s === 408 || s === 429 || (s >= 500 && s < 600);
+  }
 
   const msg = (err.message ?? "").toLowerCase();
   if (msg === "terminated") return true;
