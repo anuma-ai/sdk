@@ -1063,7 +1063,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
         // overflow:hidden). The layout is guaranteed resolvable here —
         // validation rejected unknown names above.
         const compositionResolved = resolveCompositionLayout(layout)!;
-        const presetName = deckStateByConv.get(requireConversationId())?.fontPreset ?? "default";
+        const presetName = priorState?.fontPreset ?? "default";
         const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
         const slotIssues = validateSlotContent(
           compositionResolved.composition,
@@ -1665,6 +1665,18 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   break;
                 }
                 next.attrs.compositionName = op.layout;
+                // Force the composition's expected slide background when the
+                // model omits it — same defensive fill as add_slide. Without
+                // this, dark-surface compositions land on the deck's default
+                // light slideBg and any text colored `slideBg` becomes
+                // near-invisible.
+                const expectedBg = compositionSlideBackground(
+                  resolved.composition,
+                  resolved.system
+                );
+                if (expectedBg && typeof next.attrs.background !== "string") {
+                  next.attrs.background = expectedBg;
+                }
                 const renames = dedupeIds(collectIds(deck), next);
                 insertChild(deck, next, op.afterSlideId);
                 const newId = getId(next) ?? "<no-id>";
