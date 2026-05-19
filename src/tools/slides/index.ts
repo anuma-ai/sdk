@@ -1119,6 +1119,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           // win for parallel batches.
           const finalIndex = slideIndex ?? existingSlideCount + 1;
           slide.attrs.slideIndex = finalIndex;
+          slide.attrs.compositionName = layout;
           // Rewrite duplicate ids before merging so tree-wide id lookups
           // outside the tool (editor sidebar, renderer, etc.) stay safe.
           const renames = dedupeIds(collectIds(deck), slide);

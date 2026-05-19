@@ -285,7 +285,14 @@ export type AutoExecutedToolResult = {
  * opt-in.
  */
 export type RequestEvent = {
-  /** 0 for the initial request; 1+ for each continuation request following a tool round. */
+  /**
+   * 0 for the initial request; 1+ for each continuation request following a
+   * tool round. NOT unique across calls: when a transport-level retry fires
+   * (see `onStreamRetry`), `onRequest` is invoked again with the same
+   * `round` value for each retry attempt. Callers using `onRequest` for
+   * per-round cost accounting should pair it with `onStreamRetry` to
+   * deduplicate retries, or simply sum bytes across all events.
+   */
   round: number;
   /** Number of messages in the request body. */
   messageCount: number;
@@ -382,8 +389,10 @@ export type RunToolLoopOptions = {
   /**
    * Called immediately before each LLM request is dispatched, with payload
    * size metrics. Round 0 is the initial request; round 1+ are continuation
-   * requests after a tool round. Enabling this incurs an extra JSON.stringify
-   * pass over the request body.
+   * requests after a tool round. Transport-level retries (see
+   * `onStreamRetry`) fire `onRequest` again with the same `round` value
+   * each attempt — see `RequestEvent.round` for deduplication guidance.
+   * Enabling this incurs an extra JSON.stringify pass over the request body.
    */
   onRequest?: (event: RequestEvent) => void;
   /**

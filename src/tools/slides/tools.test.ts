@@ -1240,7 +1240,8 @@ describe("read_slides", () => {
     expect(result.content).toContain("DECK SUMMARY");
     // s2 is named → full JSX present.
     expect(result.content).toContain("--- s2 (full JSX) ---");
-    expect(result.content).toContain('<Anuma.Slide id="s2"');
+    expect(result.content).toContain("<Anuma.Slide");
+    expect(result.content).toContain('id="s2"');
     expect(result.content).toContain(">Second</Anuma.Text>");
     // s1 is NOT named → no full JSX for it (still appears in summary).
     expect(result.content).not.toContain("--- s1 (full JSX) ---");
