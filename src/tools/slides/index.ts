@@ -1038,7 +1038,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
         }
         let slide: AnumaNode;
         try {
-          slide = parseJsx(slideJsx);
+          slide = parseJsx(slideJsx, { strict: true });
         } catch (err) {
           const msg = err instanceof AnumaJsxError ? err.message : String(err);
           // Re-attach the recipe so the model retries with the right shape
@@ -1493,7 +1493,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
                   results.push(
@@ -1557,7 +1557,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
                   results.push(
@@ -1619,7 +1619,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
                   results.push(
@@ -1711,7 +1711,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
                   results.push(`insert_slide: invalid jsx: ${msg}${recipeHint(op.layout)}`);

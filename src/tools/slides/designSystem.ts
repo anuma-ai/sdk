@@ -3921,7 +3921,7 @@ function renderInlineAccents(
   const spanStyle = `{{ ${spanProps.join(", ")} }}`;
   const parts: string[] = [];
   let lastIndex = 0;
-  const re = /\*([^*]+)\*/g;
+  const re = /\*{1,2}([^*]+)\*{1,2}/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     if (match.index > lastIndex) {
@@ -4721,7 +4721,7 @@ function validateFlexRegionDefaults(
       );
       const fit: FitMode = rel.fit ?? "multi-line";
       const trimmed = text.trim();
-      const visible = trimmed.replace(/\*([^*]+)\*/g, "$1");
+      const visible = trimmed.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1");
       const fullId = `${region.idPrefix}_${idx}_${rel.id}`;
       if (budget.boxHeightPx < budget.safeLinePx) {
         issues.push({
@@ -4793,7 +4793,7 @@ export function validateComposition(
     const text = el.defaultText.trim();
     // Strip inline-accent `*marker*` syntax before counting — the markers
     // are parsed out at render time and don't occupy visible space.
-    const visibleText = text.replace(/\*([^*]+)\*/g, "$1");
+    const visibleText = text.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1");
     // Vertical-fit check: must accommodate one full line including
     // descender room (~15% below baseline). `safeLinePx` already includes
     // that, so this catches both tight-lineHeight and tight-box cases.
@@ -4911,7 +4911,12 @@ export function validateSlotContent(
             idx
           );
           const fit: FitMode = rel.fit ?? "multi-line";
-          const visibleText = actual.replace(/\*([^*]+)\*/g, "$1").trim();
+          // Strip both `*italic*` and `**bold**` markers. The original
+          // single-asterisk pattern `\*([^*]+)\*` matched the inner pair
+          // of a bold phrase first, leaving an orphan `*` and over-counting
+          // visible chars by 1 per bold span — small bug but loud once
+          // multi-bold content shows up in slot-budget checks.
+          const visibleText = actual.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1").trim();
           if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
             issues.push({
               id: fullId,
@@ -4943,7 +4948,7 @@ export function validateSlotContent(
     if (actual === undefined) continue;
     const budget = estimateSlotBudget(el, style, fontPreset);
     const fit: FitMode = el.fit ?? "multi-line";
-    const visibleText = actual.replace(/\*([^*]+)\*/g, "$1").trim();
+    const visibleText = actual.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1").trim();
     if (fit === "single-line" && visibleText.length > budget.charsPerLine) {
       issues.push({
         id: el.id,

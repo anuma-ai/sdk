@@ -516,7 +516,20 @@ export function isTextBodyTag(tag: string): boolean {
 // Parse: JSX string -> AnumaNode
 // ---------------------------------------------------------------------------
 
-export function parseJsx(source: string): AnumaNode {
+/**
+ * Parse a JSX source string into an AnumaNode tree.
+ *
+ * `strict` mode (opt-in, defaults to `false`) enables checks that catch
+ * model-emitted JSX with the wrong convention before it lands in the deck:
+ * top-level visual-styling props on text elements (which the renderer
+ * silently ignores → invisible output). Stored decks load with strict off
+ * — any deck previously built before the strict check existed might carry
+ * non-conforming JSX, and we don't want a tightened validator to retro-
+ * actively break every tool call on that deck. Callers that parse
+ * model-submitted JSX (`add_slide`, `insert_slide`, `replace_slide`,
+ * `replace_element`, `insert_element`) pass `strict: true`.
+ */
+export function parseJsx(source: string, options?: { strict?: boolean }): AnumaNode {
   let ast: Node;
   try {
     ast = parseExpression(source, {
@@ -531,17 +544,21 @@ export function parseJsx(source: string): AnumaNode {
   if (ast.type !== "JSXElement") {
     throw new AnumaJsxError(`Expected a JSX element at the top level, got ${ast.type}`, locOf(ast));
   }
-  return parseElement(ast);
+  return parseElement(ast, options?.strict ?? false);
 }
 
-function parseElement(el: JSXElement): AnumaNode {
+function parseElement(el: JSXElement, strict: boolean): AnumaNode {
   const tag = readTag(el);
   const attrs = readAttributes(el, tag);
-  // Reject visual-styling props at the top level (they belong inside
-  // style={{}}). Catches the convention drift that produces invisible
-  // text — see TOP_LEVEL_FORBIDDEN_STYLE_KEYS for the rationale.
-  checkNoTopLevelStyles(tag, attrs, locOf(el.openingElement));
-  const children = readChildren(el, tag);
+  if (strict) {
+    // Strict-mode-only check: reject visual-styling props at the top level
+    // (they belong inside style={{}}). Catches the convention drift that
+    // produces invisible text — see TOP_LEVEL_FORBIDDEN_STYLE_KEYS for the
+    // rationale. Skipped on lenient loads of stored decks so legacy data
+    // doesn't retroactively break.
+    checkNoTopLevelStyles(tag, attrs, locOf(el.openingElement));
+  }
+  const children = readChildren(el, tag, strict);
   return { tag, attrs, children };
 }
 
@@ -738,7 +755,7 @@ function readObjectExpr(
   return out;
 }
 
-function readChildren(el: JSXElement, tag: string): AnumaChild[] {
+function readChildren(el: JSXElement, tag: string, strict: boolean): AnumaChild[] {
   // Track ALL children in source order for mixed-content tags. Other
   // tags can derive flat textParts/elements from this ordered list.
   const ordered: AnumaChild[] = [];
@@ -770,7 +787,7 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
         locOf(child)
       );
     } else if (child.type === "JSXElement") {
-      ordered.push(parseElement(child));
+      ordered.push(parseElement(child, strict));
       sawNonText = true;
     } else if (child.type === "JSXFragment") {
       throw new AnumaJsxError(`<${tagName(tag)}> cannot contain JSX fragments`, locOf(child));

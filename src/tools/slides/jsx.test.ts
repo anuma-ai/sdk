@@ -194,33 +194,47 @@ describe("parseJsx", () => {
     ).toThrow(/Unknown CSS-in-JS style key/);
   });
 
-  it("rejects top-level visual-styling props on <Anuma.Text> — they belong in style={{}}", () => {
+  it("rejects top-level visual-styling props on <Anuma.Text> in strict mode — they belong in style={{}}", () => {
     // Repro of the e2e bug where insert_slide produced an invisible slide:
     // model emits top-level fontSize/color/fontWeight, renderer reads
     // styles only from style={{}} → falls back to defaults (18px white)
-    // → invisible on any light background.
+    // → invisible on any light background. Strict mode catches this.
     expect(() =>
       parseJsx(
-        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent" fontWeight={600}>Hi</Anuma.Text>`
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent" fontWeight={600}>Hi</Anuma.Text>`,
+        { strict: true }
       )
     ).toThrow(/Top-level "fontSize.*belong inside style/);
   });
 
-  it("rejects top-level fontSize on <Anuma.Span> too", () => {
+  it("rejects top-level fontSize on <Anuma.Span> in strict mode too", () => {
     expect(() =>
       parseJsx(
-        `<Anuma.Text id="t" x={0} y={0} w={100} h={20}><Anuma.Span fontWeight={700}>bold</Anuma.Span> tail</Anuma.Text>`
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20}><Anuma.Span fontWeight={700}>bold</Anuma.Span> tail</Anuma.Text>`,
+        { strict: true }
       )
     ).toThrow(/Top-level "fontWeight.*belong inside style/);
   });
 
-  it("accepts layout-controlling props that overlap with style keys (gap, padding) at top level on Group", () => {
+  it("lenient mode (default) accepts top-level styling props so stored decks load", () => {
+    // Stored-deck parses on disk-load must NOT throw on legacy non-conforming
+    // JSX, otherwise tightening the validator retroactively breaks every
+    // tool call on those decks. Strict checks are opt-in.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent">Hi</Anuma.Text>`
+      )
+    ).not.toThrow();
+  });
+
+  it("accepts layout-controlling props that overlap with style keys (gap, padding) at top level on Group even in strict mode", () => {
     // gap and padding are in STYLE_ALLOWED_KEYS, but Group reads them at
     // top level for flex layout. The reject set is narrowed to TEXT-style
     // keys only to preserve this.
     expect(() =>
       parseJsx(
-        `<Anuma.Group id="row" x={0} y={0} w={500} h={60} layout="row" gap={16} padding={24}><Anuma.Text id="t" x={0} y={0} w={100} h={20}>A</Anuma.Text></Anuma.Group>`
+        `<Anuma.Group id="row" x={0} y={0} w={500} h={60} layout="row" gap={16} padding={24}><Anuma.Text id="t" x={0} y={0} w={100} h={20}>A</Anuma.Text></Anuma.Group>`,
+        { strict: true }
       )
     ).not.toThrow();
   });
