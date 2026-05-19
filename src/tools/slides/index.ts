@@ -1043,8 +1043,19 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           const msg = err instanceof AnumaJsxError ? err.message : String(err);
           // Re-attach the recipe so the model retries with the right shape
           // in the same round instead of inferring the shape from memory.
-          const preset = FONT_PRESETS[deckStateByConv.get(conversationId)?.fontPreset ?? "default"] ?? FONT_PRESETS.default!;
-          const recipe = renderCompositionLayoutRecipe(layout, preset);
+          // Carry the deck's stored accent and host's image-generator
+          // capability so the recipe matches what the model would have
+          // received from plan_deck.
+          const state = deckStateByConv.get(conversationId);
+          const preset =
+            FONT_PRESETS[state?.fontPreset ?? "default"] ?? FONT_PRESETS.default!;
+          const accentOverride = state?.accent ? { base: state.accent } : undefined;
+          const recipe = renderCompositionLayoutRecipe(
+            layout,
+            preset,
+            accentOverride,
+            hasImageGenerator
+          );
           const hint = recipe ? `\n\nRecipe for "${layout}" — copy this shape:\n\n${recipe}` : "";
           return { error: `Invalid slideJsx: ${msg}${hint}` };
         }
@@ -1318,9 +1329,20 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           const deckFontPresetName =
             typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
           const deckFontPreset = FONT_PRESETS[deckFontPresetName] ?? FONT_PRESETS.default!;
+          // Pass the deck's stored accent so error-recovery recipes show
+          // the model's chosen hue instead of the system's default — and
+          // forward hasImageGenerator so image notes match what the host
+          // actually supports.
+          const deckAccent =
+            typeof deck.attrs.accent === "string" ? { base: deck.attrs.accent } : undefined;
           const recipeHint = (layout: string | undefined): string => {
             if (!layout) return "";
-            const recipe = renderCompositionLayoutRecipe(layout, deckFontPreset);
+            const recipe = renderCompositionLayoutRecipe(
+              layout,
+              deckFontPreset,
+              deckAccent,
+              hasImageGenerator
+            );
             return recipe ? `\n\nRecipe for "${layout}" — copy this shape:\n\n${recipe}` : "";
           };
           const slideLayoutAttr = (slide: AnumaNode | null): string | undefined => {
@@ -1833,6 +1855,16 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   updateAttrs(deck, flatPatch);
                   if (nestedColors && typeof nestedColors === "object") {
                     updateAttrs(deck, nestedColors);
+                  }
+                  // Propagate fontPreset into the in-memory session state.
+                  // Without this, subsequent insert_slide / add_slide calls
+                  // resolve their slot-budget validation against the
+                  // original plan_deck preset — the deck renders with
+                  // Playfair Display but content was sized for Inter,
+                  // and overflow checks become meaningless.
+                  if (typeof nextFontPreset === "string") {
+                    const sessionState = deckStateByConv.get(conversationId);
+                    if (sessionState) sessionState.fontPreset = nextFontPreset;
                   }
                   // Build a hex→hex swap map: only keys whose value actually
                   // changed AND whose old value is a hex literal (model
