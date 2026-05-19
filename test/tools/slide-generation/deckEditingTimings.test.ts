@@ -25,7 +25,7 @@ import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
 import type { ToolConfig } from "../../../src/lib/chat/useChat/types.js";
 import { buildSlideSystemPrompt } from "../../../src/tools/slides/index.js";
 import { createTestSlideTools } from "./tools.js";
-import { config, createFileStore } from "./setup.js";
+import { config, createFileStore, dumpFiles } from "./setup.js";
 
 type Message = {
   role: string;
@@ -249,6 +249,11 @@ describe("deck-editing timings", () => {
       );
 
       printSummary(snapshots);
+
+      // Render the final deck state (post-edits) so reviewers can open
+      // index.html and verify what the build + 4 edits actually produced.
+      const lastError = snapshots[snapshots.length - 1]!.error;
+      dumpFiles(store, "deckEditingTimings", { error: lastError });
 
       // Sanity: the build must have produced a deck. Edits are diagnostic
       // — they may sometimes fail upstream, and we still want the timing

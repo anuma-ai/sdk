@@ -1099,6 +1099,30 @@ describe("patch_slides JSX ops", () => {
     expect(result.results![0]).toMatch(/insert_slide: unknown layout/);
   });
 
+  it("insert_slide rejects top-level styling props AND includes the layout recipe in the error", async () => {
+    // The bug e2e turned up: the model wrote `fontSize={12} color="accent"`
+    // at top level (renderer reads style.* only → invisible slide). The
+    // parser now rejects, AND the tool layer appends the layout recipe so
+    // the model can copy the right shape on the same retry.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "insert_slide",
+          layout: "cover-statement--editorial-warm",
+          jsx: `<Anuma.Slide id="s2"><Anuma.Text id="hero" x={58} y={194} w={844} h={76} fontSize={12} color="accent">Short.</Anuma.Text></Anuma.Slide>`,
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toMatch(/insert_slide: invalid jsx.*Top-level "fontSize/);
+    expect(result.results![0]).toMatch(/Recipe for "cover-statement--editorial-warm"/);
+    // The recipe block carries the canonical style={{}} shape so the
+    // model has a concrete example to copy on retry.
+    expect(result.results![0]).toContain("style={{");
+    expect(store.get("slides.jsx")).toBe(before);
+  });
+
   it("insert_slide with a valid layout passes slot validation when content fits", async () => {
     const { store, tools } = await setupDeckWithOneSlide();
     const before = store.get("slides.jsx")!;
@@ -1175,6 +1199,27 @@ describe("patch_slides JSX ops", () => {
       operations: [{ action: "update_element", slideId: "s1", elementId: "t1" }],
     })) as { results?: string[] };
     expect(result.results![0]).toMatch(/pass attrs.*or text.*at least one/);
+  });
+
+  it("update_element rejects top-level styling props in incoming attrs", async () => {
+    // Same convention drift the parser catches for insert_slide / replace_slide:
+    // top-level fontSize/color/fontWeight ends up invisible in the renderer.
+    // update_element bypasses the parser (direct attrs merge), so the check
+    // has to live in the handler too.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [
+        {
+          action: "update_element",
+          slideId: "s1",
+          elementId: "t1",
+          attrs: { fontSize: 24 },
+        },
+      ],
+    })) as { results?: string[] };
+    expect(result.results![0]).toMatch(/Top-level "fontSize.*belong inside style/);
+    expect(store.get("slides.jsx")).toBe(before);
   });
 
   it("update_element rejects unknown fontFamily values before committing", async () => {

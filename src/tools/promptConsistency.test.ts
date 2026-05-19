@@ -37,6 +37,7 @@ import {
 const KNOWN_NON_TOOL_WORDS = new Set<string>([
   // `patch_slides` operation `action` values — they share the
   // verb_noun shape with tool names but are arguments, not tools.
+  "update_element",
   "replace_element",
   "insert_element",
   "remove_element",

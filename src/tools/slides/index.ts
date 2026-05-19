@@ -49,6 +49,7 @@ export { convertLegacyDeckJson, isLegacyDeckJson } from "./legacy";
 import type { AnumaNode, AttrValue } from "./jsx";
 import {
   AnumaJsxError,
+  checkNoTopLevelStyles,
   getId,
   insertChild,
   isTextBodyTag,
@@ -1040,7 +1041,12 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           slide = parseJsx(slideJsx);
         } catch (err) {
           const msg = err instanceof AnumaJsxError ? err.message : String(err);
-          return { error: `Invalid slideJsx: ${msg}` };
+          // Re-attach the recipe so the model retries with the right shape
+          // in the same round instead of inferring the shape from memory.
+          const preset = FONT_PRESETS[deckStateByConv.get(conversationId)?.fontPreset ?? "default"] ?? FONT_PRESETS.default!;
+          const recipe = renderCompositionLayoutRecipe(layout, preset);
+          const hint = recipe ? `\n\nRecipe for "${layout}" — copy this shape:\n\n${recipe}` : "";
+          return { error: `Invalid slideJsx: ${msg}${hint}` };
         }
         // Recipe image slots ship with src="REPLACE_WITH_IMAGE_OR_REMOVE"
         // (see designSystem.ts → IMAGE_PLACEHOLDER_SENTINEL). If the
@@ -1303,6 +1309,25 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           const deck = parseJsx(file.content);
           const results: string[] = [];
 
+          // Build a recipe hint to attach to JSX-parse error messages.
+          // The model often skips reading existing slide JSX before
+          // emitting replacement / insertion JSX, so when its JSX gets
+          // rejected we hand it the recipe inline — the right shape
+          // arrives in the same round instead of the model having to
+          // first call read_slides({slideIds:[…]}) and retry.
+          const deckFontPresetName =
+            typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
+          const deckFontPreset = FONT_PRESETS[deckFontPresetName] ?? FONT_PRESETS.default!;
+          const recipeHint = (layout: string | undefined): string => {
+            if (!layout) return "";
+            const recipe = renderCompositionLayoutRecipe(layout, deckFontPreset);
+            return recipe ? `\n\nRecipe for "${layout}" — copy this shape:\n\n${recipe}` : "";
+          };
+          const slideLayoutAttr = (slide: AnumaNode | null): string | undefined => {
+            const v = slide?.attrs.compositionName;
+            return typeof v === "string" ? v : undefined;
+          };
+
           for (const op of operations) {
             const slideNode = op.slideId !== undefined ? findSlideById(deck, op.slideId) : null;
 
@@ -1356,6 +1381,16 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 // TypeScript's CFA loses that across the boundary.
                 const target = elementNode as AnumaNode;
                 const incoming = hasAttrs ? (op.attrs as Record<string, unknown>) : {};
+                // Reject top-level styling props on the incoming attrs —
+                // parity with the JSX parser. Catches `attrs: { fontSize: 12 }`
+                // before it lands at top level (where renderers ignore it).
+                try {
+                  checkNoTopLevelStyles(target.tag, incoming);
+                } catch (err) {
+                  const msg = err instanceof AnumaJsxError ? err.message : String(err);
+                  results.push(`update_element: ${msg}`);
+                  break;
+                }
                 const merged: Record<string, unknown> = { ...target.attrs };
                 let styleErr: string | null = null;
                 for (const [key, value] of Object.entries(incoming)) {
@@ -1439,7 +1474,9 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   next = parseJsx(op.jsx);
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`replace_element: invalid jsx: ${msg}`);
+                  results.push(
+                    `replace_element: invalid jsx: ${msg}${recipeHint(slideLayoutAttr(slideNode))}`
+                  );
                   break;
                 }
                 if (next.tag === "Deck" || next.tag === "Slide") {
@@ -1501,7 +1538,9 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   next = parseJsx(op.jsx);
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`insert_element: invalid jsx: ${msg}`);
+                  results.push(
+                    `insert_element: invalid jsx: ${msg}${recipeHint(slideLayoutAttr(slideNode))}`
+                  );
                   break;
                 }
                 if (next.tag === "Deck" || next.tag === "Slide") {
@@ -1561,7 +1600,9 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   next = parseJsx(op.jsx);
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`replace_slide: invalid jsx: ${msg}`);
+                  results.push(
+                    `replace_slide: invalid jsx: ${msg}${recipeHint(slideLayoutAttr(slideNode))}`
+                  );
                   break;
                 }
                 if (next.tag !== "Slide") {
@@ -1651,7 +1692,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   next = parseJsx(op.jsx);
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`insert_slide: invalid jsx: ${msg}`);
+                  results.push(`insert_slide: invalid jsx: ${msg}${recipeHint(op.layout)}`);
                   break;
                 }
                 if (next.tag !== "Slide") {

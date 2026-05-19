@@ -447,6 +447,66 @@ export function validateStyleObject(style: Record<string, unknown>): string | nu
   return null;
 }
 
+/**
+ * Visual-styling keys that ONLY make sense inside a `style={{}}` block —
+ * never as top-level JSX attrs. Top-level styling props slip past the
+ * web/PDF renderers (which only read `style.*`), so the slide ships with
+ * default 18px white text — visually blank against a light background.
+ *
+ * The recipe-driven path (`add_slide` after `plan_deck`) gets these inside
+ * `style={{}}` because the recipe templates them that way; the model
+ * copies the shape. The free-form path (`insert_slide`, `replace_slide`,
+ * etc.) sees no recipe and the model improvises a different convention —
+ * this set is the gate that catches the drift.
+ *
+ * Layout-controlling keys that are *also* in STYLE_ALLOWED_KEYS (gap,
+ * padding, alignSelf, flex, etc.) are intentionally NOT here: the SDK
+ * accepts them as top-level on `<Anuma.Group>` for flex layout.
+ */
+const TOP_LEVEL_FORBIDDEN_STYLE_KEYS = new Set<string>([
+  "fontSize",
+  "fontWeight",
+  "fontFamily",
+  "fontStyle",
+  "fontVariant",
+  "color",
+  "textAlign",
+  "textDecoration",
+  "textTransform",
+  "letterSpacing",
+  "lineHeight",
+  "wordSpacing",
+  "wordBreak",
+  "whiteSpace",
+  "verticalAlign",
+]);
+
+/**
+ * Throw if any key in `attrs` is a styling-only prop that belongs inside
+ * `style={{}}`. The error is actionable — it tells the model exactly
+ * where to move the value.
+ */
+export function checkNoTopLevelStyles(
+  tag: string,
+  attrs: Record<string, unknown>,
+  loc?: SrcLoc
+): void {
+  for (const key of Object.keys(attrs)) {
+    if (!TOP_LEVEL_FORBIDDEN_STYLE_KEYS.has(key)) continue;
+    const value = attrs[key];
+    const valueStr =
+      typeof value === "string"
+        ? JSON.stringify(value)
+        : typeof value === "number" || typeof value === "boolean"
+          ? String(value)
+          : "...";
+    throw new AnumaJsxError(
+      `Top-level "${key}={${valueStr}}" on <${tag}> — visual styling props belong inside style={{}}. Move to style={{ ${key}: ${valueStr} }}. The renderer reads styling from style={{}} only, so a top-level prop silently falls back to defaults (18px, white).`,
+      loc
+    );
+  }
+}
+
 /** True iff `tag` is a text-body tag whose children are the displayed string. */
 export function isTextBodyTag(tag: string): boolean {
   return TEXT_BODY_TAGS.has(tag);
@@ -477,6 +537,10 @@ export function parseJsx(source: string): AnumaNode {
 function parseElement(el: JSXElement): AnumaNode {
   const tag = readTag(el);
   const attrs = readAttributes(el, tag);
+  // Reject visual-styling props at the top level (they belong inside
+  // style={{}}). Catches the convention drift that produces invisible
+  // text — see TOP_LEVEL_FORBIDDEN_STYLE_KEYS for the rationale.
+  checkNoTopLevelStyles(tag, attrs, locOf(el.openingElement));
   const children = readChildren(el, tag);
   return { tag, attrs, children };
 }

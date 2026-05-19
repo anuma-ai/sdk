@@ -47,10 +47,8 @@ function textNode(id: string, text: string, extras: Record<string, unknown> = {}
       y: 162,
       w: 768,
       h: 54,
-      fontSize: 43,
       fontRole: "heading",
-      fontWeight: 700,
-      color: "textPrimary",
+      style: { fontSize: 43, fontWeight: 700, color: "textPrimary" },
       ...(extras as Record<string, string | number | boolean>),
     },
     children: [text],
@@ -136,7 +134,7 @@ describe("parseJsx", () => {
 
   it("collapses Text body whitespace with React-like rules", () => {
     const node = parseJsx(`
-      <Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={18} fontRole="body" fontWeight={400} color="textPrimary">
+      <Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontSize: 18, fontWeight: 400, color: "textPrimary" }}>
         Hello World
       </Anuma.Text>
     `);
@@ -195,6 +193,37 @@ describe("parseJsx", () => {
       )
     ).toThrow(/Unknown CSS-in-JS style key/);
   });
+
+  it("rejects top-level visual-styling props on <Anuma.Text> — they belong in style={{}}", () => {
+    // Repro of the e2e bug where insert_slide produced an invisible slide:
+    // model emits top-level fontSize/color/fontWeight, renderer reads
+    // styles only from style={{}} → falls back to defaults (18px white)
+    // → invisible on any light background.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent" fontWeight={600}>Hi</Anuma.Text>`
+      )
+    ).toThrow(/Top-level "fontSize.*belong inside style/);
+  });
+
+  it("rejects top-level fontSize on <Anuma.Span> too", () => {
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20}><Anuma.Span fontWeight={700}>bold</Anuma.Span> tail</Anuma.Text>`
+      )
+    ).toThrow(/Top-level "fontWeight.*belong inside style/);
+  });
+
+  it("accepts layout-controlling props that overlap with style keys (gap, padding) at top level on Group", () => {
+    // gap and padding are in STYLE_ALLOWED_KEYS, but Group reads them at
+    // top level for flex layout. The reject set is narrowed to TEXT-style
+    // keys only to preserve this.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Group id="row" x={0} y={0} w={500} h={60} layout="row" gap={16} padding={24}><Anuma.Text id="t" x={0} y={0} w={100} h={20}>A</Anuma.Text></Anuma.Group>`
+      )
+    ).not.toThrow();
+  });
 });
 
 describe("serializeJsx", () => {
@@ -202,8 +231,8 @@ describe("serializeJsx", () => {
     const t = textNode("title", "Welcome");
     const s = serializeJsx(t);
     expect(s).toContain(`x={96}`);
-    expect(s).toContain(`fontSize={43}`);
-    expect(s).toContain(`color="textPrimary"`);
+    expect(s).toContain(`style={{ fontSize: 43`);
+    expect(s).toContain(`color: "textPrimary"`);
     expect(s).toContain(`>Welcome</Anuma.Text>`);
   });
 
@@ -298,8 +327,7 @@ describe("round-trip", () => {
             w: 96,
             h: 96,
             name: "bolt",
-            color: "accent",
-            fontSize: 80,
+            style: { color: "accent", fontSize: 80 },
           },
           children: [],
         },
