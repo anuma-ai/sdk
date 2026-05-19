@@ -988,6 +988,29 @@ describe("patch_slides JSX ops", () => {
     expect(result.results!.join(" | ")).toMatch(/update_theme: unknown fontPreset/);
   });
 
+  it("update_theme rejects an unknown color key without mutating the deck", async () => {
+    // Without the THEME_ATTRS allowlist, a typo like `accen` would land
+    // silently on deck.attrs via updateAttrs and the model would think the
+    // patch succeeded while the deck color stayed put.
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "update_theme", set: { accen: "#ff0000" } }],
+    })) as { results?: string[] };
+    expect(result.results!.join(" | ")).toMatch(/update_theme: unknown key "accen"/);
+    expect(store.get("slides.jsx")).toBe(before);
+  });
+
+  it("update_theme rejects an unknown color key inside the nested colors block", async () => {
+    const { store, tools } = await setupDeckWithOneSlide();
+    const before = store.get("slides.jsx")!;
+    const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
+      operations: [{ action: "update_theme", set: { colors: { hilight: "#ff0000" } } }],
+    })) as { results?: string[] };
+    expect(result.results!.join(" | ")).toMatch(/update_theme: unknown key "hilight"/);
+    expect(store.get("slides.jsx")).toBe(before);
+  });
+
   it("reports unknown actions without mutating the deck", async () => {
     const { store, tools } = await setupDeckWithOneSlide();
     const before = store.get("slides.jsx")!;

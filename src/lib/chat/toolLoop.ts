@@ -217,6 +217,7 @@ const REQUEST_PROBE_ENCODER = new TextEncoder();
 
 function measureRequest(
   round: number,
+  attempt: number,
   body: Record<string, unknown>,
   messages: LlmapiMessage[],
   tools: LlmapiChatCompletionTool[] | undefined
@@ -226,6 +227,7 @@ function measureRequest(
   const toolsBytes = tools?.length ? REQUEST_PROBE_ENCODER.encode(JSON.stringify(tools)).length : 0;
   return {
     round,
+    attempt,
     messageCount: messages.length,
     toolCount: tools?.length ?? 0,
     bodyBytes,
@@ -287,13 +289,19 @@ export type AutoExecutedToolResult = {
 export type RequestEvent = {
   /**
    * 0 for the initial request; 1+ for each continuation request following a
-   * tool round. NOT unique across calls: when a transport-level retry fires
-   * (see `onStreamRetry`), `onRequest` is invoked again with the same
-   * `round` value for each retry attempt. Callers using `onRequest` for
-   * per-round cost accounting should pair it with `onStreamRetry` to
-   * deduplicate retries, or simply sum bytes across all events.
+   * tool round. NOT unique across calls when transport-level retries fire —
+   * each retry attempt reuses the same `round` value. Pair with `attempt`
+   * to deduplicate: `attempt === 0` is the first dispatch of a round,
+   * `attempt > 0` is a retry.
    */
   round: number;
+  /**
+   * 0 for the first dispatch of a `round`; 1+ for each transport-level
+   * retry of the same round (see `onStreamRetry`). Use this to deduplicate
+   * `onRequest` events for per-round cost accounting — counting only
+   * `attempt === 0` gives one event per logical round.
+   */
+  attempt: number;
   /** Number of messages in the request body. */
   messageCount: number;
   /** Number of tool schemas in the request body. */
@@ -390,9 +398,10 @@ export type RunToolLoopOptions = {
    * Called immediately before each LLM request is dispatched, with payload
    * size metrics. Round 0 is the initial request; round 1+ are continuation
    * requests after a tool round. Transport-level retries (see
-   * `onStreamRetry`) fire `onRequest` again with the same `round` value
-   * each attempt — see `RequestEvent.round` for deduplication guidance.
-   * Enabling this incurs an extra JSON.stringify pass over the request body.
+   * `onStreamRetry`) fire `onRequest` again with the same `round` value —
+   * use `event.attempt` to distinguish the first dispatch (0) from retries
+   * (1+). Enabling this incurs an extra JSON.stringify pass over the
+   * request body.
    */
   onRequest?: (event: RequestEvent) => void;
   /**
@@ -700,7 +709,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     // content (the LLM is stochastic), so we bail instead.
     for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
       sseError = null;
-      if (onRequest) onRequest(measureRequest(0, requestBody, messages, apiTools));
+      if (onRequest) onRequest(measureRequest(0, attempt, requestBody, messages, apiTools));
 
       const sseResult = makeStreamingRequest({
         baseUrl,
@@ -1193,7 +1202,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         sseError = null;
         if (onRequest)
           onRequest(
-            measureRequest(toolIteration, continuationRequestBody, currentMessages, apiTools)
+            measureRequest(
+              toolIteration,
+              attempt,
+              continuationRequestBody,
+              currentMessages,
+              apiTools
+            )
           );
 
         const continuationResult = makeStreamingRequest({

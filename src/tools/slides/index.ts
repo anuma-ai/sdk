@@ -121,6 +121,8 @@ export const THEME_ATTRS = [
 
 export type ThemeAttr = (typeof THEME_ATTRS)[number];
 
+const THEME_ATTR_SET = new Set<ThemeAttr>(THEME_ATTRS);
+
 // ---------------------------------------------------------------------------
 // Font presets
 // ---------------------------------------------------------------------------
@@ -1752,6 +1754,21 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                     colors?: Record<string, unknown>;
                     [key: string]: unknown;
                   };
+                  // Reject unknown color keys against the THEME_ATTRS
+                  // allowlist before mutating. Without this, a typo like
+                  // `accen` for `accent` would silently land on
+                  // `deck.attrs` via updateAttrs and the model would think
+                  // the patch succeeded while the deck color stayed put.
+                  const unknownKey =
+                    [...Object.keys(flatPatch), ...Object.keys(nestedColors ?? {})].find(
+                      (k) => k !== "fontPreset" && !THEME_ATTR_SET.has(k as ThemeAttr)
+                    );
+                  if (unknownKey !== undefined) {
+                    results.push(
+                      `update_theme: unknown key ${JSON.stringify(unknownKey)}. Valid color keys: ${THEME_ATTRS.join(", ")} (or "fontPreset").`
+                    );
+                    break;
+                  }
                   // Snapshot the pre-update color attrs so we can rewrite
                   // their literal hex values throughout the slide tree
                   // after the update — recipes bake hex into every

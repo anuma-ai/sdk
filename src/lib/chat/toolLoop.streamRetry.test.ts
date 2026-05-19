@@ -164,6 +164,31 @@ describe("runToolLoop streaming retry", () => {
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
   });
 
+  it("fires onRequest for every attempt, marking retries via the attempt counter", async () => {
+    // Telemetry callers need to distinguish the first dispatch of a round
+    // from a transport-level retry, otherwise per-round cost accounting
+    // double-counts. `event.attempt === 0` is the first dispatch;
+    // `attempt > 0` is a retry of the same logical round.
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: makeRejectingStream(new Error("terminated")) } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
+
+    const events: Array<{ round: number; attempt: number }> = [];
+
+    const result = await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+      onRequest: (e) => events.push({ round: e.round, attempt: e.attempt }),
+    });
+
+    expect(result.error).toBeNull();
+    expect(events).toEqual([
+      { round: 0, attempt: 0 },
+      { round: 0, attempt: 1 },
+    ]);
+  });
+
   it("retries pre-content SSE 5xx failures", async () => {
     mockCreateSseClient
       .mockReturnValueOnce({
