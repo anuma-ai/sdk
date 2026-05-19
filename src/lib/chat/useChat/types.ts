@@ -6,6 +6,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
+import type { PromptPreProcessor } from "../preProcessor";
 import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
@@ -253,6 +254,14 @@ export type BaseUseChatOptions = {
    * Useful for progress indicators, cost tracking, and custom early-exit logic.
    */
   onStepFinish?: (event: StepFinishEvent) => void;
+  /**
+   * Pre-processors run after the last user message is received but before the
+   * first LLM request. Each receives the prompt text and a shared embedding
+   * (computed once per request) and may return messages to enrich the
+   * conversation. See `createWebSearchPreProcessor`, `createPricePreProcessor`,
+   * or write a custom one matching `PromptPreProcessor`.
+   */
+  preProcessors?: PromptPreProcessor[];
 };
 
 /**
