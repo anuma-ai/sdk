@@ -51,12 +51,14 @@ import {
   AnumaJsxError,
   getId,
   insertChild,
+  isTextBodyTag,
   parseJsx,
   removeById,
   replaceById,
   serializeJsx,
   stripImagesWithSrcSubstring,
   updateAttrs,
+  validateStyleObject,
   walk,
 } from "./jsx";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
@@ -1353,6 +1355,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const target = elementNode as AnumaNode;
                 const incoming = hasAttrs ? (op.attrs as Record<string, unknown>) : {};
                 const merged: Record<string, unknown> = { ...target.attrs };
+                let styleErr: string | null = null;
                 for (const [key, value] of Object.entries(incoming)) {
                   if (
                     key === "style" &&
@@ -1360,12 +1363,23 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                     typeof value === "object" &&
                     !Array.isArray(value)
                   ) {
+                    const incomingStyle = value as Record<string, unknown>;
+                    // Reject style keys outside the allowlist before merging
+                    // so a typo like `fontsize` can't reach the tree — parity
+                    // with the jsx parser, which validates the same set for
+                    // add_slide / replace_element / insert_element.
+                    styleErr = validateStyleObject(incomingStyle);
+                    if (styleErr) break;
                     const existing =
                       (target.attrs.style as Record<string, unknown> | undefined) ?? {};
-                    merged.style = { ...existing, ...(value as Record<string, unknown>) };
+                    merged.style = { ...existing, ...incomingStyle };
                   } else {
                     merged[key] = value;
                   }
+                }
+                if (styleErr) {
+                  results.push(`update_element: ${styleErr}`);
+                  break;
                 }
                 // Validate the proposed merge before committing. Build a
                 // throwaway node with the merged attrs so a font typo
@@ -1379,6 +1393,18 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const fontErr = validateFontFamilies(probe);
                 if (fontErr) {
                   results.push(`update_element: ${fontErr}`);
+                  break;
+                }
+                if (hasText && !isTextBodyTag(target.tag)) {
+                  // Container tags (Group, flex-region wrappers, etc.) serialize
+                  // by filtering string children out of their child list, so
+                  // setting `children` to `[op.text]` would silently erase
+                  // every inner element. Reject up-front and tell the caller
+                  // to use replace_element when they really want to rewrite
+                  // a container's contents.
+                  results.push(
+                    `update_element: text op is only valid on text-body tags (got <Anuma.${target.tag}>). Use replace_element to rewrite a container.`
+                  );
                   break;
                 }
                 target.attrs = mergedAttrs;
@@ -1638,6 +1664,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   results.push(`insert_slide: ${fontErr}`);
                   break;
                 }
+                next.attrs.compositionName = op.layout;
                 const renames = dedupeIds(collectIds(deck), next);
                 insertChild(deck, next, op.afterSlideId);
                 const newId = getId(next) ?? "<no-id>";

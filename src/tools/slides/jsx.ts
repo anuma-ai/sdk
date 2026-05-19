@@ -429,6 +429,29 @@ function validateStyleKey(key: string, loc: SrcLoc): void {
   );
 }
 
+/**
+ * Non-throwing equivalent of {@link validateStyleKey} for code paths that
+ * merge attrs without re-parsing JSX (e.g. `update_element` in patch_slides).
+ * Returns an error string on the first invalid key, or `null` if every key
+ * in `style` is on the allowlist.
+ */
+export function validateStyleObject(style: Record<string, unknown>): string | null {
+  for (const key of Object.keys(style)) {
+    if (STYLE_ALLOWED_KEYS.has(key)) continue;
+    const suggestion = STYLE_KEY_LOWER_TO_CAMEL.get(key.toLowerCase());
+    if (suggestion && suggestion !== key) {
+      return `Unknown CSS-in-JS style key "${key}". Did you mean "${suggestion}"? React silently ignores unknown style keys.`;
+    }
+    return `Unknown CSS-in-JS style key "${key}". Recognized keys are camelCase CSS properties (fontSize, lineHeight, color, …). React silently ignores unknown keys.`;
+  }
+  return null;
+}
+
+/** True iff `tag` is a text-body tag whose children are the displayed string. */
+export function isTextBodyTag(tag: string): boolean {
+  return TEXT_BODY_TAGS.has(tag);
+}
+
 // ---------------------------------------------------------------------------
 // Parse: JSX string -> AnumaNode
 // ---------------------------------------------------------------------------
