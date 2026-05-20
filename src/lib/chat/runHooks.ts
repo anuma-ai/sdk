@@ -68,16 +68,50 @@ export type RunErrorEvent = {
 };
 
 export type RunHooks = {
+  /**
+   * Fires once per `runToolLoop` invocation, before any pre-processor or
+   * model call. The `messages` payload is the raw caller-supplied
+   * conversation — pre-processors that enrich it (e.g. web search context)
+   * run afterwards, so `beforeModelCall.messages` reflects the
+   * post-enrichment state.
+   */
   onRunStart?: (e: RunStartEvent) => Promise<void> | void;
+  /**
+   * Fires exactly once per run on clean completion. Mutually exclusive
+   * with `onRunError` — a run that completes fires `onRunEnd`; a run that
+   * errors or is aborted fires `onRunError`. Consumers can rely on
+   * exactly one terminal hook per `onRunStart`.
+   */
   onRunEnd?: (e: RunEndEvent) => Promise<void> | void;
+  /**
+   * Fires exactly once per run when the loop errors or is aborted.
+   * `stage` is `"model"` for stream/provider errors and for aborts;
+   * tool execution failures surface as structured `{ error, errorType }`
+   * results on `afterToolUse` rather than firing `onRunError`.
+   * Mutually exclusive with `onRunEnd`.
+   */
   onRunError?: (e: RunErrorEvent) => Promise<void> | void;
   beforeModelCall?: (e: ModelCallStartEvent) => Promise<void> | void;
   afterModelCall?: (e: ModelCallEndEvent) => Promise<void> | void;
   /**
-   * Fires before each tool executor runs. Today this is observe-only.
+   * Fires before each tool the model invoked — including server-side
+   * tools that have no client executor. Today this is observe-only.
    * TODO(follow-up PR): allow returning { args?, abort?: { reason } } to
    * mutate arguments or short-circuit the tool call.
+   *
+   * Pairing with {@link afterToolUse} is asymmetric: server-side tools
+   * routed via `onToolCall` get `beforeToolUse` but no `afterToolUse`,
+   * because they don't execute in-process. Tools blocked by a failed
+   * dependency or a dependency cycle DO get `afterToolUse` with
+   * `errorType: "execution"` — consumers tallying matched pairs should
+   * filter on executor-backed tools to avoid spurious imbalances.
    */
   beforeToolUse?: (e: ToolUseStartEvent) => Promise<void> | void;
+  /**
+   * Fires after each executor-backed tool finishes (success or failure)
+   * and after each dependency-blocked tool is skipped (`errorType:
+   * "execution"`). Does NOT fire for server-side tools routed via
+   * `onToolCall`. See {@link beforeToolUse} for the pairing contract.
+   */
   afterToolUse?: (e: ToolUseEndEvent) => Promise<void> | void;
 };

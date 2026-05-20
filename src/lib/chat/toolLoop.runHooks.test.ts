@@ -65,6 +65,21 @@ function makeFailingStream(message: string) {
   })();
 }
 
+/** Stream that yields a chunk, then waits long enough for a mid-stream abort. */
+function makeAbortableStream() {
+  return (async function* () {
+    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield { type: "response.output_text.delta", delta: { OfString: "partial" } };
+    // Pause so the test can flip signal.aborted before the next iteration.
+    await new Promise((r) => setTimeout(r, 5));
+    yield { type: "response.output_text.delta", delta: { OfString: " more" } };
+    yield {
+      type: "response.completed",
+      response: { usage: { input_tokens: 1, output_tokens: 1 } },
+    };
+  })();
+}
+
 function makeHooksRecorder() {
   const calls: Array<{ hook: string; event: Record<string, unknown> }> = [];
   const record =
@@ -414,5 +429,55 @@ describe("runToolLoop lifecycle hooks", () => {
     const endCalls = calls.filter((c) => c.hook === "onRunEnd");
     expect(endCalls.length).toBe(1);
     expect(endCalls[0].event.totalSteps).toBe(2);
+  });
+
+  it("fires onRunError (not onRunEnd) when the request is aborted mid-stream", async () => {
+    mockCreateSseClient.mockReturnValueOnce({ stream: makeAbortableStream() } as never);
+
+    const controller = new AbortController();
+    const { hooks, calls } = makeHooksRecorder();
+
+    const promise = runToolLoop({
+      messages: [baseUserMsg],
+      model: "test-model",
+      token: "t",
+      signal: controller.signal,
+      hooks,
+    });
+
+    // Give the stream time to emit its first delta, then abort.
+    await new Promise((r) => setTimeout(r, 1));
+    controller.abort();
+
+    const result = await promise;
+    expect(result.error).toBe("Request aborted");
+
+    const runErrorCalls = calls.filter((c) => c.hook === "onRunError");
+    const runEndCalls = calls.filter((c) => c.hook === "onRunEnd");
+    expect(runErrorCalls.length).toBe(1);
+    expect(runErrorCalls[0].event.error).toBe("Request aborted");
+    expect(runErrorCalls[0].event.stage).toBe("model");
+    expect(runEndCalls.length).toBe(0);
+  });
+
+  it("swallows synchronous throws from hooks instead of crashing the loop", async () => {
+    mockCreateSseClient.mockReturnValueOnce({ stream: makeTextStream("ok") } as never);
+
+    const result = await runToolLoop({
+      messages: [baseUserMsg],
+      model: "test-model",
+      token: "t",
+      hooks: {
+        // Synchronous throw at the very first hook site — the one that
+        // sits outside the outer try/catch. Pre-thunk safeAwait would
+        // let this propagate to the caller.
+        onRunStart: () => {
+          throw new Error("boom");
+        },
+      } satisfies RunHooks,
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.data).toBeTruthy();
   });
 });

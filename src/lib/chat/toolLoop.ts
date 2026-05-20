@@ -12,16 +12,24 @@ import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
   ModelCallStartEvent,
+  RunEndEvent,
+  RunErrorEvent,
   RunHooks,
   ToolUseEndEvent,
   ToolUseStartEvent,
 } from "./runHooks";
 
-/** Fire-and-forget hook invocation. Observer errors are swallowed so a buggy hook can't crash the loop. */
-async function safeAwait<T>(p: T | Promise<T> | undefined): Promise<void> {
-  if (!p) return;
+/**
+ * Fire-and-forget hook invocation. Takes a thunk so synchronous throws
+ * during the hook call itself are caught alongside async rejections —
+ * passing the call's return value directly would let a sync throw escape
+ * before the try/catch wraps it.
+ */
+async function safeAwait(fn: () => unknown): Promise<void> {
   try {
-    await p;
+    // `await` on a non-thenable just resolves to the value, so this
+    // works whether the hook is sync, async, or omitted (returns undefined).
+    await fn();
   } catch {
     /* observer error, swallow */
   }
@@ -503,7 +511,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: "Request aborted" };
   }
 
-  await safeAwait(
+  // `onRunStart` carries the raw caller-supplied messages — pre-processors
+  // run after this point, so `beforeModelCall` reflects post-enrichment state.
+  await safeAwait(() =>
     hooks?.onRunStart?.({
       runId,
       model,
@@ -544,6 +554,22 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     }
   }
 
+  // `onRunEnd` and `onRunError` are mutually exclusive and fire at most once
+  // per run. Every terminal path (clean completion, mid-stream error, abort,
+  // outer catch) goes through these helpers so tracing consumers can rely on
+  // a single matched start/end pair.
+  let runTerminalFired = false;
+  const fireRunEnd = async (payload: Omit<RunEndEvent, "runId">) => {
+    if (runTerminalFired) return;
+    runTerminalFired = true;
+    await safeAwait(() => hooks?.onRunEnd?.({ runId, ...payload }));
+  };
+  const fireRunError = async (payload: Omit<RunErrorEvent, "runId">) => {
+    if (runTerminalFired) return;
+    runTerminalFired = true;
+    await safeAwait(() => hooks?.onRunError?.({ runId, ...payload }));
+  };
+
   try {
     let sseError: Error | null = null;
 
@@ -565,7 +591,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       conversationId,
     });
 
-    await safeAwait(
+    await safeAwait(() =>
       hooks?.beforeModelCall?.({
         runId,
         stepIndex,
@@ -595,7 +621,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     const fireAfterModelCall = async (payload: Omit<ModelCallEndEvent, "runId" | "stepIndex">) => {
       if (afterModelCallFired) return;
       afterModelCallFired = true;
-      await safeAwait(
+      await safeAwait(() =>
         hooks?.afterModelCall?.({
           runId,
           stepIndex,
@@ -657,6 +683,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (signal?.aborted) {
           contentSmoother.destroy();
           thinkingSmoother.destroy();
+          await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
+          await fireRunError({ error: "Request aborted", stage: "model" });
           return {
             data: strategy.buildFinalResponse(accumulator),
             error: "Request aborted",
@@ -692,6 +720,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         contentSmoother.destroy();
         thinkingSmoother.destroy();
         await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
+        await fireRunError({ error: "Request aborted", stage: "model" });
         return {
           data: strategy.buildFinalResponse(accumulator),
           error: "Request aborted",
@@ -764,7 +793,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       for (const toolCall of currentAccumulator.toolCalls.values()) {
         const executorConfig = executorMap.get(toolCall.name);
 
-        await safeAwait(
+        await safeAwait(() =>
           hooks?.beforeToolUse?.({
             runId,
             stepIndex,
@@ -870,7 +899,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               error: errorMsg,
               errorType: "execution",
             });
-            await safeAwait(
+            await safeAwait(() =>
               hooks?.afterToolUse?.({
                 runId,
                 stepIndex,
@@ -899,7 +928,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               executorConfig.executor,
               executorConfig.executorTimeout
             );
-            await safeAwait(
+            await safeAwait(() =>
               hooks?.afterToolUse?.({
                 runId,
                 stepIndex,
@@ -1067,13 +1096,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (continueResults.length === 0) {
         const skipResponse = strategy.buildFinalResponse(currentAccumulator);
         if (onFinish) onFinish(skipResponse);
-        await safeAwait(
-          hooks?.onRunEnd?.({
-            runId,
-            finalContent: currentAccumulator.content,
-            totalSteps: stepIndex + 1,
-          })
-        );
+        await fireRunEnd({
+          finalContent: currentAccumulator.content,
+          totalSteps: stepIndex + 1,
+        });
         return {
           data: skipResponse,
           error: null,
@@ -1132,7 +1158,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       stepIndex++;
       afterModelCallFired = false;
-      await safeAwait(
+      await safeAwait(() =>
         hooks?.beforeModelCall?.({
           runId,
           stepIndex,
@@ -1173,6 +1199,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           if (signal?.aborted) {
             contContentSmoother.destroy();
             contThinkingSmoother.destroy();
+            await fireAfterModelCall(
+              buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
+            );
+            await fireRunError({ error: "Request aborted", stage: "model" });
             return {
               data: strategy.buildFinalResponse(currentAccumulator),
               error: "Request aborted",
@@ -1210,6 +1240,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           await fireAfterModelCall(
             buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
           );
+          await fireRunError({ error: "Request aborted", stage: "model" });
           return {
             data: strategy.buildFinalResponse(currentAccumulator),
             error: "Request aborted",
@@ -1249,13 +1280,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (toolIteration > 0) {
       const finalResponse = strategy.buildFinalResponse(currentAccumulator);
       if (onFinish) onFinish(finalResponse);
-      await safeAwait(
-        hooks?.onRunEnd?.({
-          runId,
-          finalContent: currentAccumulator.content,
-          totalSteps: stepIndex + 1,
-        })
-      );
+      await fireRunEnd({
+        finalContent: currentAccumulator.content,
+        totalSteps: stepIndex + 1,
+      });
       return {
         data: finalResponse,
         error: null,
@@ -1265,13 +1293,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     }
 
     if (onFinish) onFinish(response);
-    await safeAwait(
-      hooks?.onRunEnd?.({
-        runId,
-        finalContent: accumulator.content,
-        totalSteps: stepIndex + 1,
-      })
-    );
+    await fireRunEnd({
+      finalContent: accumulator.content,
+      totalSteps: stepIndex + 1,
+    });
     return {
       data: response,
       error: null,
@@ -1279,25 +1304,20 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     };
   } catch (err) {
     if (isAbortError(err)) {
+      // `onRunStart` always fires before this try block opens, so any abort
+      // that escapes here still needs a terminal hook to close the run.
+      await fireRunError({ error: "Request aborted", stage: "model" });
       return { data: null, error: "Request aborted" };
     }
 
     const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
     const errorObj = err instanceof Error ? err : new Error(errorMsg);
     if (onError) onError(errorObj);
-    // onRunError and onRunEnd are mutually exclusive — they live in
-    // separate try/catch branches, so only one fires per run.
     // Stage is "model" because every throwing path in this loop is either
     // inside or immediately after an LLM stream consumption (provider error,
     // SSE error, stream exception). Tool execution failures surface as
     // structured `{ error, errorType }` results, not thrown exceptions.
-    await safeAwait(
-      hooks?.onRunError?.({
-        runId,
-        error: errorMsg,
-        stage: "model",
-      })
-    );
+    await fireRunError({ error: errorMsg, stage: "model" });
     const statusCode =
       err instanceof Error && "statusCode" in err
         ? (err as { statusCode: number }).statusCode
