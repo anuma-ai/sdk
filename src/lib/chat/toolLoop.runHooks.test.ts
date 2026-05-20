@@ -65,6 +65,38 @@ function makeFailingStream(message: string) {
   })();
 }
 
+/** Stream that emits two tool calls in the same round. */
+function makeTwoToolCallStream(
+  a: { callId: string; name: string; arguments: string },
+  b: { callId: string; name: string; arguments: string }
+) {
+  return (async function* () {
+    yield { type: "response.created", response: { id: "r", model: "m" } };
+    for (const tc of [a, b]) {
+      yield {
+        type: "response.output_item.added",
+        item: {
+          id: `item_${tc.callId}`,
+          call_id: tc.callId,
+          type: "function_call",
+          name: tc.name,
+          arguments: "",
+        },
+      };
+      yield {
+        type: "response.function_call_arguments.done",
+        item_id: `item_${tc.callId}`,
+        call_id: tc.callId,
+        arguments: tc.arguments,
+      };
+    }
+    yield {
+      type: "response.completed",
+      response: { usage: { input_tokens: 1, output_tokens: 1 } },
+    };
+  })();
+}
+
 /** Stream that yields a chunk, then waits long enough for a mid-stream abort. */
 function makeAbortableStream() {
   return (async function* () {
@@ -458,6 +490,116 @@ describe("runToolLoop lifecycle hooks", () => {
     expect(runErrorCalls[0].event.error).toBe("Request aborted");
     expect(runErrorCalls[0].event.stage).toBe("model");
     expect(runEndCalls.length).toBe(0);
+  });
+
+  it("fires afterToolUse with errorType 'execution' for tools blocked by a failed dependency", async () => {
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeTwoToolCallStream(
+          { callId: "a", name: "tool_a", arguments: "{}" },
+          { callId: "b", name: "tool_b", arguments: "{}" }
+        ),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("done") } as never);
+
+    const { hooks, calls } = makeHooksRecorder();
+
+    await runToolLoop({
+      messages: [baseUserMsg],
+      model: "test-model",
+      token: "t",
+      hooks,
+      tools: [
+        {
+          type: "function",
+          function: { name: "tool_a", parameters: { type: "object", properties: {} } },
+          executor: async () => {
+            throw new Error("a-failed");
+          },
+        },
+        {
+          type: "function",
+          function: { name: "tool_b", parameters: { type: "object", properties: {} } },
+          dependsOn: ["tool_a"],
+          executor: async () => "should not run",
+        },
+      ],
+    });
+
+    const afterB = calls.find((c) => c.hook === "afterToolUse" && c.event.name === "tool_b");
+    expect(afterB?.event.errorType).toBe("execution");
+    expect((afterB?.event.error as string).toLowerCase()).toContain("failed dependencies");
+  });
+
+  it("composes multiple hook objects via composeHooks so every listener fires", async () => {
+    mockCreateSseClient.mockReturnValueOnce({ stream: makeTextStream("hi") } as never);
+
+    const aCalls: string[] = [];
+    const bCalls: string[] = [];
+    const a: RunHooks = {
+      onRunStart: () => {
+        aCalls.push("start");
+      },
+      onRunEnd: () => {
+        aCalls.push("end");
+      },
+    };
+    const b: RunHooks = {
+      onRunStart: () => {
+        bCalls.push("start");
+      },
+      onRunEnd: () => {
+        bCalls.push("end");
+      },
+    };
+
+    await runToolLoop({
+      messages: [baseUserMsg],
+      model: "test-model",
+      token: "t",
+      hooks: [a, b],
+    });
+
+    expect(aCalls).toEqual(["start", "end"]);
+    expect(bCalls).toEqual(["start", "end"]);
+  });
+
+  it("fires onRunError (not onRunEnd) when validation fails before the loop starts", async () => {
+    const { hooks, calls } = makeHooksRecorder();
+
+    const result = await runToolLoop({
+      messages: [],
+      model: "test-model",
+      token: "t",
+      hooks,
+    });
+
+    expect(result.error).toBeTruthy();
+
+    const runStart = calls.filter((c) => c.hook === "onRunStart");
+    const runError = calls.filter((c) => c.hook === "onRunError");
+    const runEnd = calls.filter((c) => c.hook === "onRunEnd");
+    expect(runStart.length).toBe(1);
+    expect(runError.length).toBe(1);
+    expect(runEnd.length).toBe(0);
+    expect(runError[0].event.errorObject).toBeInstanceOf(Error);
+  });
+
+  it("swallows async rejections from hooks instead of crashing the loop", async () => {
+    mockCreateSseClient.mockReturnValueOnce({ stream: makeTextStream("ok") } as never);
+
+    const result = await runToolLoop({
+      messages: [baseUserMsg],
+      model: "test-model",
+      token: "t",
+      hooks: {
+        onRunStart: () => Promise.reject(new Error("async boom")),
+        afterModelCall: () => Promise.reject(new Error("after boom")),
+      } satisfies RunHooks,
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.data).toBeTruthy();
   });
 
   it("swallows synchronous throws from hooks instead of crashing the loop", async () => {

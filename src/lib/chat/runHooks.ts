@@ -1,8 +1,15 @@
 /**
- * Lifecycle hooks for runToolLoop. All hooks are optional and fire-and-forget —
- * observer errors are swallowed so a buggy hook can't crash the loop. Hook
- * names match the Claude Agent SDK shape (camelCase).
+ * Lifecycle hooks for runToolLoop. All hooks are optional and observer
+ * errors are swallowed (sync throws and async rejections both) so a buggy
+ * hook can't crash the loop. Hook names match the Claude Agent SDK shape
+ * (camelCase).
+ *
+ * Hooks are awaited synchronously at each fire site, so slow hooks
+ * serialize into loop latency — keep them fast and do any heavy work
+ * (network exports, file IO) asynchronously inside your own queue.
  */
+
+import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../client";
 
 export type LlmTokenUsage = {
   inputTokens?: number;
@@ -13,8 +20,8 @@ export type ModelCallStartEvent = {
   runId: string;
   stepIndex: number;
   model: string;
-  messages: Array<unknown>;
-  tools: Array<unknown>;
+  messages: Array<LlmapiMessage>;
+  tools: Array<LlmapiChatCompletionTool>;
   requestBody: Record<string, unknown>;
 };
 
@@ -50,8 +57,8 @@ export type ToolUseEndEvent = {
 export type RunStartEvent = {
   runId: string;
   model: string;
-  messages: Array<unknown>;
-  tools: Array<unknown>;
+  messages: Array<LlmapiMessage>;
+  tools: Array<LlmapiChatCompletionTool>;
 };
 
 export type RunEndEvent = {
@@ -64,7 +71,20 @@ export type RunEndEvent = {
 export type RunErrorEvent = {
   runId: string;
   error: string;
-  stage: "model" | "tool" | "unknown";
+  /**
+   * Only `"model"` today. Tool failures surface on {@link RunHooks.afterToolUse}
+   * with `errorType`, not on `onRunError`, so a tool stage isn't needed yet.
+   * Left as a union to leave room for `"validation"` or `"tool"` later
+   * without a breaking change.
+   */
+  stage: "model";
+  /**
+   * The underlying `Error` when one is available. `RunErrorEvent` predates
+   * this field, so `error` (a string message) is kept for backwards
+   * compatibility; new consumers should prefer `errorObject` when present
+   * for stack traces and `cause`.
+   */
+  errorObject?: Error;
 };
 
 export type RunHooks = {
@@ -115,3 +135,27 @@ export type RunHooks = {
    */
   afterToolUse?: (e: ToolUseEndEvent) => Promise<void> | void;
 };
+
+/**
+ * Combine multiple {@link RunHooks} listeners into a single object so
+ * tracing + logging + metrics can all observe the same run. Each
+ * registered handler is invoked once per event; one listener throwing
+ * does not block the others.
+ */
+export function composeHooks(hooks: Array<RunHooks | undefined>): RunHooks {
+  const handlers = hooks.filter((h): h is RunHooks => h !== undefined && h !== null);
+  const fan =
+    <E>(get: (h: RunHooks) => ((e: E) => Promise<void> | void) | undefined) =>
+    async (e: E): Promise<void> => {
+      await Promise.allSettled(handlers.map((h) => Promise.resolve().then(() => get(h)?.(e))));
+    };
+  return {
+    onRunStart: fan<RunStartEvent>((h) => h.onRunStart),
+    onRunEnd: fan<RunEndEvent>((h) => h.onRunEnd),
+    onRunError: fan<RunErrorEvent>((h) => h.onRunError),
+    beforeModelCall: fan<ModelCallStartEvent>((h) => h.beforeModelCall),
+    afterModelCall: fan<ModelCallEndEvent>((h) => h.afterModelCall),
+    beforeToolUse: fan<ToolUseStartEvent>((h) => h.beforeToolUse),
+    afterToolUse: fan<ToolUseEndEvent>((h) => h.afterToolUse),
+  };
+}

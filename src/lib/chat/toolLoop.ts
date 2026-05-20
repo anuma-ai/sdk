@@ -18,6 +18,7 @@ import type {
   ToolUseEndEvent,
   ToolUseStartEvent,
 } from "./runHooks";
+import { composeHooks } from "./runHooks";
 
 /**
  * Fire-and-forget hook invocation. Takes a thunk so synchronous throws
@@ -313,10 +314,13 @@ export type RunToolLoopOptions = {
   maxConnectorCalls?: number;
   /**
    * Lifecycle hooks for observability (telemetry, tracing, UI surfaces).
-   * All hooks are optional and fire-and-forget — errors thrown by a hook
-   * are swallowed so observers can't crash the loop. See `RunHooks`.
+   * All hooks are optional. Errors thrown by a hook are swallowed so a
+   * buggy observer can't crash the loop. Hooks are awaited synchronously
+   * at each fire site — keep them fast. Pass an array to attach multiple
+   * listeners; they're composed into one dispatcher internally. See
+   * `RunHooks` and `composeHooks`.
    */
-  hooks?: RunHooks;
+  hooks?: RunHooks | RunHooks[];
 };
 
 export type RunToolLoopResult =
@@ -478,8 +482,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     transport: makeStreamingRequest = defaultTransport,
     preProcessors,
     maxConnectorCalls = 2,
-    hooks,
+    hooks: hooksOption,
   } = options;
+  // Accept a single listener or an array — array form is composed into a
+  // single dispatcher so the rest of the loop can stay shape-agnostic.
+  const hooks: RunHooks | undefined = Array.isArray(hooksOption)
+    ? composeHooks(hooksOption)
+    : hooksOption;
   const runId = generateRunId();
   // `messages` is mutable so pre-processors can inject context
   // (e.g. web search results) before the first LLM request.
@@ -488,31 +497,27 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   const resolved = resolveApiType(apiType, model);
   const strategy = getStrategy(resolved);
 
-  // Validate inputs
-  const messagesValidation = validateMessages(messages);
-  if (!messagesValidation.valid) {
-    if (onError) onError(new Error(messagesValidation.message));
-    return { data: null, error: messagesValidation.message };
-  }
+  // `onRunEnd` and `onRunError` are mutually exclusive and fire at most once
+  // per run. Every terminal path (validation failure, pre-start abort, clean
+  // completion, mid-stream error, abort, outer catch) goes through these
+  // helpers so tracing consumers can rely on a single matched start/end pair.
+  let runTerminalFired = false;
+  const fireRunEnd = async (payload: Omit<RunEndEvent, "runId">) => {
+    if (runTerminalFired) return;
+    runTerminalFired = true;
+    await safeAwait(() => hooks?.onRunEnd?.({ runId, ...payload }));
+  };
+  const fireRunError = async (payload: Omit<RunErrorEvent, "runId">) => {
+    if (runTerminalFired) return;
+    runTerminalFired = true;
+    await safeAwait(() => hooks?.onRunError?.({ runId, ...payload }));
+  };
 
-  const modelValidation = validateModel(model);
-  if (!modelValidation.valid) {
-    if (onError) onError(new Error(modelValidation.message));
-    return { data: null, error: modelValidation.message };
-  }
-
-  if (!token && !headers) {
-    const msg = "No access token available. Provide `token` or auth via `headers`.";
-    if (onError) onError(new Error(msg));
-    return { data: null, error: msg };
-  }
-
-  if (signal?.aborted) {
-    return { data: null, error: "Request aborted" };
-  }
-
-  // `onRunStart` carries the raw caller-supplied messages — pre-processors
-  // run after this point, so `beforeModelCall` reflects post-enrichment state.
+  // `onRunStart` fires before validation so observers see every invocation,
+  // including failed pre-flight checks. The matching terminal hook fires
+  // via `fireRunError` below. `messages` here is the raw caller payload —
+  // pre-processors run later, so `beforeModelCall.messages` reflects the
+  // post-enrichment state.
   await safeAwait(() =>
     hooks?.onRunStart?.({
       runId,
@@ -521,6 +526,41 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       tools: tools ?? [],
     })
   );
+
+  // Validate inputs
+  const messagesValidation = validateMessages(messages);
+  if (!messagesValidation.valid) {
+    if (onError) onError(new Error(messagesValidation.message));
+    await fireRunError({
+      error: messagesValidation.message,
+      stage: "model",
+      errorObject: new Error(messagesValidation.message),
+    });
+    return { data: null, error: messagesValidation.message };
+  }
+
+  const modelValidation = validateModel(model);
+  if (!modelValidation.valid) {
+    if (onError) onError(new Error(modelValidation.message));
+    await fireRunError({
+      error: modelValidation.message,
+      stage: "model",
+      errorObject: new Error(modelValidation.message),
+    });
+    return { data: null, error: modelValidation.message };
+  }
+
+  if (!token && !headers) {
+    const msg = "No access token available. Provide `token` or auth via `headers`.";
+    if (onError) onError(new Error(msg));
+    await fireRunError({ error: msg, stage: "model", errorObject: new Error(msg) });
+    return { data: null, error: msg };
+  }
+
+  if (signal?.aborted) {
+    await fireRunError({ error: "Request aborted", stage: "model" });
+    return { data: null, error: "Request aborted" };
+  }
 
   // Run pre-processors if any are provided. Each receives the shared
   // embedding and may return messages to enrich the conversation.
@@ -553,22 +593,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       console.warn("[runToolLoop] pre-processor stage failed:", err);
     }
   }
-
-  // `onRunEnd` and `onRunError` are mutually exclusive and fire at most once
-  // per run. Every terminal path (clean completion, mid-stream error, abort,
-  // outer catch) goes through these helpers so tracing consumers can rely on
-  // a single matched start/end pair.
-  let runTerminalFired = false;
-  const fireRunEnd = async (payload: Omit<RunEndEvent, "runId">) => {
-    if (runTerminalFired) return;
-    runTerminalFired = true;
-    await safeAwait(() => hooks?.onRunEnd?.({ runId, ...payload }));
-  };
-  const fireRunError = async (payload: Omit<RunErrorEvent, "runId">) => {
-    if (runTerminalFired) return;
-    runTerminalFired = true;
-    await safeAwait(() => hooks?.onRunError?.({ runId, ...payload }));
-  };
 
   try {
     let sseError: Error | null = null;
@@ -720,7 +744,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         contentSmoother.destroy();
         thinkingSmoother.destroy();
         await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
-        await fireRunError({ error: "Request aborted", stage: "model" });
+        const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
+        await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
         return {
           data: strategy.buildFinalResponse(accumulator),
           error: "Request aborted",
@@ -1240,7 +1265,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           await fireAfterModelCall(
             buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
           );
-          await fireRunError({ error: "Request aborted", stage: "model" });
+          const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
+          await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
           return {
             data: strategy.buildFinalResponse(currentAccumulator),
             error: "Request aborted",
@@ -1306,7 +1332,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (isAbortError(err)) {
       // `onRunStart` always fires before this try block opens, so any abort
       // that escapes here still needs a terminal hook to close the run.
-      await fireRunError({ error: "Request aborted", stage: "model" });
+      const abortErr = err instanceof Error ? err : new Error("Request aborted");
+      await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
       return { data: null, error: "Request aborted" };
     }
 
@@ -1317,7 +1344,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     // inside or immediately after an LLM stream consumption (provider error,
     // SSE error, stream exception). Tool execution failures surface as
     // structured `{ error, errorType }` results, not thrown exceptions.
-    await fireRunError({ error: errorMsg, stage: "model" });
+    await fireRunError({ error: errorMsg, stage: "model", errorObject: errorObj });
     const statusCode =
       err instanceof Error && "statusCode" in err
         ? (err as { statusCode: number }).statusCode
