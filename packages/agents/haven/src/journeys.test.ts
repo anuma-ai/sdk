@@ -42,6 +42,7 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
       "city",
       "current_rent",
       "proposed_rent",
+      "notice_text",
     ]);
   });
 
@@ -67,7 +68,7 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
       "lease_text"
     );
     expect(HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"].fileExtraction?.targetField).toBe(
-      "notice_date"
+      "notice_text"
     );
     expect(HAVEN_SKILL_JOURNEYS["housing.demand-letter"].fileExtraction?.targetField).toBe(
       "issue_description"
@@ -83,11 +84,13 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
     expect(lr.fields.find((f) => f.key === "state")?.required).toBe(true);
     expect(lr.fields.find((f) => f.key === "home_type")?.required).toBe(false);
 
-    // rent-increase-checker: all 4 fields required
+    // rent-increase-checker: core rent details required; notice text is optional
     const ric = HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"];
-    for (const field of ric.fields) {
-      expect(field.required).toBe(true);
-    }
+    expect(ric.fields.find((f) => f.key === "state")?.required).toBe(true);
+    expect(ric.fields.find((f) => f.key === "city")?.required).toBe(true);
+    expect(ric.fields.find((f) => f.key === "current_rent")?.required).toBe(true);
+    expect(ric.fields.find((f) => f.key === "proposed_rent")?.required).toBe(true);
+    expect(ric.fields.find((f) => f.key === "notice_text")?.required).toBe(false);
 
     // demand-letter: tenant_name, landlord_name, property_address, state, issue_description required; landlord_address not
     const dl = HAVEN_SKILL_JOURNEYS["housing.demand-letter"];

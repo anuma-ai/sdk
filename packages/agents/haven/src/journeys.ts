@@ -166,7 +166,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       "Attach the renewal offer, notice, or lease addendum if you want Haven to quote the exact language back in the reply.",
     fileExtraction: {
       strategy: "pdf-text",
-      targetField: "notice_date",
+      targetField: "notice_text",
       unreadableInputError:
         "Haven cannot read that notice type yet. Upload a PDF/text file or continue without the file.",
     },
@@ -203,6 +203,14 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         helper: "Required.",
         type: "text",
         required: true,
+      },
+      {
+        key: "notice_text",
+        label: "Paste the rent increase notice",
+        placeholder: "Paste the notice, renewal offer, or lease addendum text.",
+        helper: "Use this instead of upload, or add context for the attached notice.",
+        type: "textarea",
+        required: false,
       },
     ],
     requiresContext: false,
