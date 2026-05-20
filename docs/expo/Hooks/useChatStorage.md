@@ -542,6 +542,28 @@ Use for live preview of artifacts (HTML, slides) being generated.
 <tr>
 <td>
 
+`options.preProcessors?`
+
+</td>
+<td>
+
+`PromptPreProcessor`\[]
+
+</td>
+<td>
+
+Pre-processors run after the last user message is received but before
+the first LLM request. Each receives the prompt text and a shared
+embedding (computed once per request) and may return messages to
+enrich the conversation. Forwarded to the underlying `useChat` hook.
+See `createWebSearchPreProcessor`, `createPricePreProcessor`, or write
+a custom one matching `PromptPreProcessor`.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.serverTools?`
 
 </td>

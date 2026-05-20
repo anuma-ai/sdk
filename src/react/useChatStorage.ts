@@ -985,6 +985,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     mcpR2Domain = MCP_R2_DOMAIN,
+    preProcessors,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1507,6 +1508,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onServerToolCall,
     onToolCallArgumentsDelta,
     apiType,
+    preProcessors,
   });
 
   /**
