@@ -54,6 +54,24 @@ export interface AgentManifest {
 /** Allowed input types for skill journey form fields. */
 export type SkillJourneyFieldType = "text" | "textarea" | "select";
 
+/** Supported file-to-text extraction modes for journey upload steps. */
+export type SkillJourneyFileExtractionStrategy = "pdf-text";
+
+/** How a journey upload step should map extracted file text into skill variables. */
+export interface SkillJourneyFileExtraction {
+  /** Extraction mode the client or gateway should use for uploaded files. */
+  strategy: SkillJourneyFileExtractionStrategy;
+  /** Skill variable key that receives the extracted text. */
+  targetField: string;
+  /**
+   * Optional error when the upload cannot be read and the target field has no
+   * typed fallback value.
+   */
+  missingInputError?: string;
+  /** Error when files are present but no readable text can be extracted. */
+  unreadableInputError?: string;
+}
+
 /** Properties shared by every skill journey field, regardless of input type. */
 interface SkillJourneyFieldBase {
   key: string;
@@ -84,6 +102,11 @@ export interface SkillJourneyDefinition {
   fileHint?: string;
   /** Per-skill copy for the file upload step prompt. Only meaningful when `acceptsFiles` is true. */
   filePrompt?: string;
+  /**
+   * Optional mapping for clients/gateways that extract text from uploaded
+   * files and need to merge it into a skill variable before submission.
+   */
+  fileExtraction?: SkillJourneyFileExtraction;
   fields: SkillJourneyField[];
   /**
    * When true, the journey expects substantive input — at least one of an

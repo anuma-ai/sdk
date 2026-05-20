@@ -81,6 +81,13 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     fileLabel: "Upload a lease PDF",
     fileHint:
       "If the lease is scanned or very long, upload the PDF and use the notes field to point Haven to the most important sections.",
+    fileExtraction: {
+      strategy: "pdf-text",
+      targetField: "lease_text",
+      missingInputError: "Paste lease text or upload an extractable PDF/text file before review.",
+      unreadableInputError:
+        "Haven cannot read that file type yet. Paste the lease text before review.",
+    },
     fields: [
       {
         key: "home_type",
@@ -101,8 +108,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       },
       {
         key: "state",
-        label: "State",
-        placeholder: "Select your state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required for state-specific lease rules.",
         type: "select",
         required: true,
@@ -149,12 +156,30 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     description:
       "Haven checks whether a rent increase looks lawful and drafts a negotiation plan with local context.",
     steps: [
-      "Enter your city, state, current rent, and proposed rent.",
+      "Enter your U.S. state, city, current rent, and proposed rent.",
       "Haven checks the increase and outlines leverage.",
       "Refine the reply in chat.",
     ],
-    acceptsFiles: false,
+    acceptsFiles: true,
+    fileLabel: "Upload the rent increase notice (optional)",
+    fileHint:
+      "Attach the renewal offer, notice, or lease addendum if you want Haven to quote the exact language back in the reply.",
+    fileExtraction: {
+      strategy: "pdf-text",
+      targetField: "notice_date",
+      unreadableInputError:
+        "Haven cannot read that notice type yet. Upload a PDF/text file or continue without the file.",
+    },
     fields: [
+      {
+        key: "state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
+        helper: "Haven currently supports U.S. rental workflows.",
+        type: "select",
+        required: true,
+        options: US_STATES,
+      },
       {
         key: "city",
         label: "City",
@@ -162,15 +187,6 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         helper: "Required for local rent rules and market context.",
         type: "text",
         required: true,
-      },
-      {
-        key: "state",
-        label: "State",
-        placeholder: "Select your state",
-        helper: "Required.",
-        type: "select",
-        required: true,
-        options: US_STATES,
       },
       {
         key: "current_rent",
@@ -216,7 +232,16 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       "Haven drafts a structured letter in chat.",
       "Revise tone or legal emphasis with follow-up messages.",
     ],
-    acceptsFiles: false,
+    acceptsFiles: true,
+    fileLabel: "Upload evidence or supporting documents (optional)",
+    fileHint:
+      "Attach photos, invoices, screenshots, repair requests, emails, or notices you want referenced in the draft.",
+    fileExtraction: {
+      strategy: "pdf-text",
+      targetField: "issue_description",
+      unreadableInputError:
+        "Haven cannot read that evidence type yet. Upload a PDF/text file or continue without the file.",
+    },
     fields: [
       {
         key: "tenant_name",
@@ -253,8 +278,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       },
       {
         key: "state",
-        label: "State",
-        placeholder: "Select your state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required.",
         type: "select",
         required: true,
@@ -304,11 +329,17 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     acceptsFiles: true,
     fileLabel: "Upload HOA notice",
     fileHint: "Attach the notice, violation letter, screenshots, or supporting docs.",
+    fileExtraction: {
+      strategy: "pdf-text",
+      targetField: "hoa_notice",
+      unreadableInputError:
+        "Haven cannot read that notice type yet. Upload a PDF/text file or continue without the file.",
+    },
     fields: [
       {
         key: "state",
-        label: "State",
-        placeholder: "Select your state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required.",
         type: "select",
         required: true,

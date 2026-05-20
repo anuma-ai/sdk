@@ -54,6 +54,18 @@ describe("SENTINEL_SKILL_JOURNEYS", () => {
     }
   });
 
+  it("file-enabled journeys expose extraction targets", () => {
+    expect(
+      SENTINEL_SKILL_JOURNEYS["finance.subscription-checker"].fileExtraction?.targetField
+    ).toBe("statement_text");
+    expect(
+      SENTINEL_SKILL_JOURNEYS["finance.chargeback-assistant"].fileExtraction?.targetField
+    ).toBe("charge_details");
+    expect(SENTINEL_SKILL_JOURNEYS["finance.collection-response"].fileExtraction?.targetField).toBe(
+      "collection_notice"
+    );
+  });
+
   it("required fields match the source data", () => {
     const sc = SENTINEL_SKILL_JOURNEYS["finance.subscription-checker"];
     expect(sc.fields.find((f) => f.key === "statement_text")?.required).toBe(false);
@@ -76,6 +88,7 @@ describe("SENTINEL_SKILL_JOURNEYS", () => {
       if (stateField) {
         expect(stateField.options).toHaveLength(51);
         expect(stateField.type).toBe("select");
+        expect(stateField.placeholder).toBe("Select your U.S. state");
       }
     }
   });
@@ -103,10 +116,14 @@ describe("SENTINEL_SKILL_JOURNEYS", () => {
       if (journey.acceptsFiles) {
         expect(journey.fileLabel, `${key} should set fileLabel`).toBeTruthy();
         expect(journey.fileHint, `${key} should set fileHint`).toBeTruthy();
+        expect(journey.fileExtraction?.strategy, `${key} should set extraction strategy`).toBe(
+          "pdf-text"
+        );
       } else {
         expect(journey.fileLabel, `${key} should omit fileLabel`).toBeUndefined();
         expect(journey.fileHint, `${key} should omit fileHint`).toBeUndefined();
         expect(journey.filePrompt, `${key} should omit filePrompt`).toBeUndefined();
+        expect(journey.fileExtraction, `${key} should omit fileExtraction`).toBeUndefined();
       }
     }
   });

@@ -71,16 +71,26 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
   "finance.subscription-checker": {
     title: "Subscription audit",
     description:
-      "Sentinel scans a statement or renewal list for duplicates, overlapping plans, and charges worth cancelling or disputing.",
+      "Sentinel scans a statement, renewal list, or connected-bank import to find recurring charges and cancellation targets.",
     steps: [
-      "Upload a statement or paste transactions.",
+      "Upload a statement, connect a bank, or paste transactions.",
       "Optionally call out vendors to review first.",
       "Get a clean findings summary in chat.",
     ],
     acceptsFiles: true,
-    fileLabel: "Upload a billing PDF or statement",
+    fileLabel: "Upload a billing PDF or statement (optional if you connect a bank)",
     fileHint:
-      "PDF, CSV, screenshots, or docs all work. Sentinel will inspect the attachment in chat.",
+      "Attach a PDF, CSV, screenshot, or connect a bank with Plaid to import recurring charges directly.",
+    filePrompt:
+      "Upload a statement, connect a bank with Plaid, or continue to paste transactions manually.",
+    fileExtraction: {
+      strategy: "pdf-text",
+      targetField: "statement_text",
+      missingInputError:
+        "Paste statement text, connect a bank, or upload an extractable statement before running this audit.",
+      unreadableInputError:
+        "Sentinel cannot read that statement type yet. Upload a PDF/text file, connect a bank, or paste transactions.",
+    },
     fields: [
       {
         key: "statement_text",
@@ -131,6 +141,14 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     fileLabel: "Upload receipts or charge evidence",
     fileHint:
       "Attach billing PDFs, order confirmations, emails, or screenshots that support the dispute.",
+    fileExtraction: {
+      strategy: "pdf-text",
+      targetField: "charge_details",
+      missingInputError:
+        "Describe the charge or upload extractable evidence before building a dispute case.",
+      unreadableInputError:
+        "Sentinel cannot read that evidence type yet. Upload a PDF/text file or describe the charge.",
+    },
     fields: [
       {
         key: "charge_details",
@@ -184,6 +202,14 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     acceptsFiles: true,
     fileLabel: "Upload the collection notice",
     fileHint: "Letters, PDFs, and screenshots work. You can also paste the notice text below.",
+    fileExtraction: {
+      strategy: "pdf-text",
+      targetField: "collection_notice",
+      missingInputError:
+        "Paste the collection notice or upload an extractable PDF/text file before drafting a response.",
+      unreadableInputError:
+        "Sentinel cannot read that notice type yet. Upload a PDF/text file or paste the notice.",
+    },
     fields: [
       {
         key: "collection_notice",
@@ -204,8 +230,8 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       },
       {
         key: "state",
-        label: "Your state",
-        placeholder: "Select your state",
+        label: "Your U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required for the statute of limitations check and state-specific debt rules.",
         type: "select",
         required: true,

@@ -6,4 +6,6 @@ export type {
   SkillJourneyDefinition,
   SkillJourneyField,
   SkillJourneyFieldType,
+  SkillJourneyFileExtraction,
+  SkillJourneyFileExtractionStrategy,
 } from "./types";

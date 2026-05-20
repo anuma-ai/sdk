@@ -121,6 +121,12 @@ describe("Agent type definitions", () => {
       acceptsFiles: true,
       fileLabel: "Upload a lease PDF",
       fileHint: "PDF or scanned document",
+      fileExtraction: {
+        strategy: "pdf-text",
+        targetField: "lease_text",
+        missingInputError: "Paste lease text or upload an extractable file.",
+        unreadableInputError: "Could not read that file.",
+      },
       fields: [
         {
           key: "state",
@@ -139,6 +145,7 @@ describe("Agent type definitions", () => {
 
     expect(journey.title).toBe("Lease review");
     expect(journey.acceptsFiles).toBe(true);
+    expect(journey.fileExtraction?.targetField).toBe("lease_text");
     expect(journey.fields).toHaveLength(1);
     expect(journey.systemContext).toBeDefined();
   });

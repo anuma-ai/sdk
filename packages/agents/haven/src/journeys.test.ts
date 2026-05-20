@@ -38,8 +38,8 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
   it("rent-increase-checker has correct field keys", () => {
     const ric = HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"];
     expect(ric.fields.map((f) => f.key)).toEqual([
-      "city",
       "state",
+      "city",
       "current_rent",
       "proposed_rent",
     ]);
@@ -62,9 +62,19 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
     expect(hoa.fields.map((f) => f.key)).toEqual(["state", "hoa_name", "issue_type", "hoa_notice"]);
   });
 
-  it("lease-review accepts files, rent-increase-checker does not", () => {
-    expect(HAVEN_SKILL_JOURNEYS["housing.lease-review"].acceptsFiles).toBe(true);
-    expect(HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"].acceptsFiles).toBe(false);
+  it("file-enabled journeys expose extraction targets", () => {
+    expect(HAVEN_SKILL_JOURNEYS["housing.lease-review"].fileExtraction?.targetField).toBe(
+      "lease_text"
+    );
+    expect(HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"].fileExtraction?.targetField).toBe(
+      "notice_date"
+    );
+    expect(HAVEN_SKILL_JOURNEYS["housing.demand-letter"].fileExtraction?.targetField).toBe(
+      "issue_description"
+    );
+    expect(HAVEN_SKILL_JOURNEYS["housing.hoa-dispute"].fileExtraction?.targetField).toBe(
+      "hoa_notice"
+    );
   });
 
   it("required fields match the source data", () => {
@@ -100,6 +110,7 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
       if (stateField) {
         expect(stateField.options).toHaveLength(51);
         expect(stateField.type).toBe("select");
+        expect(stateField.placeholder).toBe("Select your U.S. state");
       }
     }
   });
@@ -127,10 +138,14 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
       if (journey.acceptsFiles) {
         expect(journey.fileLabel, `${key} should set fileLabel`).toBeTruthy();
         expect(journey.fileHint, `${key} should set fileHint`).toBeTruthy();
+        expect(journey.fileExtraction?.strategy, `${key} should set extraction strategy`).toBe(
+          "pdf-text"
+        );
       } else {
         expect(journey.fileLabel, `${key} should omit fileLabel`).toBeUndefined();
         expect(journey.fileHint, `${key} should omit fileHint`).toBeUndefined();
         expect(journey.filePrompt, `${key} should omit filePrompt`).toBeUndefined();
+        expect(journey.fileExtraction, `${key} should omit fileExtraction`).toBeUndefined();
       }
     }
   });

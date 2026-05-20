@@ -802,6 +802,8 @@ export type {
   SkillJourneyDefinition,
   SkillJourneyField,
   SkillJourneyFieldType,
+  SkillJourneyFileExtraction,
+  SkillJourneyFileExtractionStrategy,
 } from "./agent";
 
 // Pluggable logger
