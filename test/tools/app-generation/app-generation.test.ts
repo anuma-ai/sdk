@@ -69,11 +69,9 @@ describe("app-generation", () => {
     dumpFiles(store, "counter-app");
     expect(result.error).toBeNull();
 
-    // Should have called create_file and display_app
+    // Should have called create_file (display is automatic — no display_app tool)
     const createCalls = log.filter((l) => l.name === "create_file");
-    const displayCalls = log.filter((l) => l.name === "display_app");
     expect(createCalls.length).toBeGreaterThanOrEqual(1);
-    expect(displayCalls.length).toBeGreaterThanOrEqual(1);
 
     // Files should exist in the store
     expect(store.size).toBeGreaterThanOrEqual(2);

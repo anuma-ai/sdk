@@ -131,6 +131,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onStepFinish,
     apiType: defaultApiType = "auto",
     smoothing,
+    preProcessors,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -271,6 +272,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onServerToolCall,
           onToolCallArgumentsDelta,
           onStepFinish,
+          preProcessors,
         });
 
         return result;
@@ -299,6 +301,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onStepFinish,
       defaultApiType,
       smoothing,
+      preProcessors,
     ]
   );
 

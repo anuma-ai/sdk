@@ -69,13 +69,22 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
   let lastProcessedIndex = 0;
   let incompleteBuffer = "";
 
+  const makeAbortError = () => {
+    const err = new Error("The operation was aborted");
+    err.name = "AbortError";
+    return err;
+  };
+
   const abortHandler = () => {
     xhr.abort();
   };
   if (options.signal) {
     if (options.signal.aborted) {
-      // Already aborted
-      push({ type: "done" });
+      // Already aborted before the request was sent. Surface this as an
+      // error item so the for-await consumer throws — matching fetch's
+      // behavior. The runToolLoop catch branch turns this into a
+      // "Request aborted" result.
+      push({ type: "error", error: makeAbortError() });
       finished = true;
     } else {
       options.signal.addEventListener("abort", abortHandler);
@@ -143,7 +152,11 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
 
     xhr.onabort = () => {
       options.signal?.removeEventListener("abort", abortHandler);
-      push({ type: "done" });
+      // Mid-stream abort: throw into the for-await loop so the catch in
+      // runToolLoop returns { data: <partial>, error: "Request aborted" }.
+      // We intentionally do NOT push `done` here — that would let the
+      // consumer exit cleanly and miss the abort.
+      push({ type: "error", error: makeAbortError() });
       finished = true;
     };
 

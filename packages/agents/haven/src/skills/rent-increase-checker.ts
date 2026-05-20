@@ -31,5 +31,11 @@ Cite specific statute references and deadlines for tenant response.`,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 1,
   requiredVariables: ["city", "state", "current_rent", "proposed_rent"],
+  smsPrompts: {
+    city: "What city is the unit in?",
+    state: "What state is the unit in?",
+    current_rent: "What's your current monthly rent?",
+    proposed_rent: "What's the proposed new rent?",
+  },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
 };

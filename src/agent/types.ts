@@ -24,6 +24,15 @@ export interface SkillConfig {
   maxSteps?: number;
   /** Variables the promptTemplate expects at runtime. */
   requiredVariables?: string[];
+  /**
+   * SMS-friendly question prompts keyed by variable name. The Anuma text
+   * gateway sends each prompt to the user one at a time and treats the
+   * user's reply as the slot value. Missing entries fall back to a
+   * generic "Please provide {name}." question in the gateway.
+   *
+   * Order of questions follows requiredVariables[] order.
+   */
+  smsPrompts?: Record<string, string>;
   /** Additional context appended after the prompt template. */
   contextSuffix?: string;
 }
@@ -34,7 +43,12 @@ export interface AgentManifest {
   name: string;
   description: string;
   runtimes: AgentRuntime[];
-  skills: Array<{ id: string; name: string; requiredVariables?: string[] }>;
+  skills: Array<{
+    id: string;
+    name: string;
+    requiredVariables?: string[];
+    smsPrompts?: Record<string, string>;
+  }>;
 }
 
 /** Allowed input types for skill journey form fields. */
