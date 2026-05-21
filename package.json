@@ -128,7 +128,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260410171436",
+    "@anuma/portal": "1.0.0-next.20260518144823",
     "@babel/parser": "^7.29.2",
     "@babel/types": "^7.29.0",
     "ai": "5.0.93",
@@ -220,7 +220,7 @@
       "tar": ">=7.5.11",
       "picomatch": ">=2.3.2 <3.0.0 || >=4.0.4",
       "@xmldom/xmldom": ">=0.8.13 <0.9.0",
-      "protobufjs": ">=7.5.5 <8.0.0"
+      "protobufjs": ">=7.5.8 <8.0.0"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",

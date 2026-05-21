@@ -43,5 +43,13 @@ Use web search to verify current {{state}} statutes and remedies.`,
     "state",
     "issue_description",
   ],
+  smsPrompts: {
+    tenant_name: "What's your full name (the tenant)?",
+    landlord_name: "What's the landlord or property manager's name?",
+    property_address: "What's the property address?",
+    state: "What state is the property in?",
+    issue_description:
+      "Describe the issue you want to address — include the timeline, any prior requests, and the outcome you want.",
+  },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
 };

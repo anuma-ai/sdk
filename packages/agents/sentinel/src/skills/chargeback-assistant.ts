@@ -32,5 +32,9 @@ Use web search to confirm current chargeback reason codes or merchant-specific d
   preferredModel: FINANCE_PREFERRED_MODEL,
   maxSteps: 15,
   requiredVariables: ["charge_details"],
+  smsPrompts: {
+    charge_details:
+      "Tell me about the disputed charge — merchant, amount, when it happened, and why you're disputing.",
+  },
   contextSuffix: FINANCE_MEMORY_SUFFIX,
 };
