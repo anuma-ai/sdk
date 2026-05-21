@@ -2,7 +2,7 @@
 
 > **PostApiV1TextByChannelRegisterData** = `object`
 
-Defined in: [src/client/types.gen.ts:5343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5343)
+Defined in: [src/client/types.gen.ts:6385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6385)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5343](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`ModelsRegisterTextRequest`](ModelsRegisterTextRequest.md)
 
-Defined in: [src/client/types.gen.ts:5347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5347)
+Defined in: [src/client/types.gen.ts:6389](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6389)
 
 Registration data
 
@@ -20,7 +20,7 @@ Registration data
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:5348](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5348)
+Defined in: [src/client/types.gen.ts:6390](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6390)
 
 **channel**
 
@@ -34,7 +34,7 @@ Text channel (sms, telegram)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5354)
+Defined in: [src/client/types.gen.ts:6396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6396)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:5354](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/text/{channel}/register"`
 
-Defined in: [src/client/types.gen.ts:5355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5355)
+Defined in: [src/client/types.gen.ts:6397](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6397)

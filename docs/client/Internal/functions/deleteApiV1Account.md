@@ -2,7 +2,7 @@
 
 > **deleteApiV1Account**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AccountData`](../type-aliases/DeleteApiV1AccountData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AccountResponses`](../type-aliases/DeleteApiV1AccountResponses.md), [`DeleteApiV1AccountErrors`](../type-aliases/DeleteApiV1AccountErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#26)
+Defined in: [src/client/sdk.gen.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#38)
 
 Delete the authenticated user's account
 

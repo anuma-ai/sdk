@@ -2,7 +2,7 @@
 
 > **postApiV1AdminAgents**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminAgentsData`](../type-aliases/PostApiV1AdminAgentsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminAgentsResponses`](../type-aliases/PostApiV1AdminAgentsResponses.md), [`PostApiV1AdminAgentsErrors`](../type-aliases/PostApiV1AdminAgentsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#54)
+Defined in: [src/client/sdk.gen.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#66)
 
 Create agent
 

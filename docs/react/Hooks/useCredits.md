@@ -2,10 +2,10 @@
 
 > **useCredits**(`options`: `object`): [`UseCreditsResult`](../Internal/type-aliases/UseCreditsResult.md)
 
-Defined in: [src/react/useCredits.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#86)
+Defined in: [src/react/useCredits.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#76)
 
-React hook for managing credits: checking balance, claiming daily credits,
-browsing packs, and purchasing credits.
+React hook for managing credits: checking balance, browsing packs, and
+purchasing credits.
 
 ## Parameters
 
