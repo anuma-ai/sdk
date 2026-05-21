@@ -330,16 +330,13 @@ export class MapFileStorage implements AppFileStorage {
 
 export const CREATE_FILE_SCHEMA = {
   name: "create_file",
-  description: `Build a new app — a calculator, a game, a todo list, a form, a dashboard, a chart, a simulation, or another interactive demo. Writes files into the in-chat app project; the live preview renders automatically.`,
+  description: `Build a new app — a calculator, a game, a todo list, a form, a dashboard, a chart, a simulation, or another interactive demo. Writes files into the in-chat app project; the live preview renders automatically. Pass every file (App.js, App.css, package.json, ...) in a single call.`,
   arguments: {
     type: "object",
     properties: {
-      path: { type: "string", description: "File path (single-file mode)" },
-      content: { type: "string", description: "File content (single-file mode)" },
       files: {
         type: "array",
-        description:
-          'Array of files to write in one batch (preferred). Each item: {"path": "App.js", "content": "..."}',
+        description: 'Files to write. Each item: {"path": "App.js", "content": "..."}',
         items: {
           type: "object",
           properties: { path: { type: "string" }, content: { type: "string" } },
@@ -347,6 +344,7 @@ export const CREATE_FILE_SCHEMA = {
         },
       },
     },
+    required: ["files"],
   },
 } as const;
 
@@ -547,61 +545,26 @@ export function createAppGenerationTools({
         const conversationId = requireConversationId();
         const filesArg = args.files as Array<{ path: string; content: string }> | undefined;
 
-        // Batch mode: files array
-        if (Array.isArray(filesArg) && filesArg.length > 0) {
-          // Validate every file's syntax before any write — atomic so a
-          // single broken file doesn't leave half the project committed.
-          const validationErrors = collectValidationErrors(filesArg);
-          if (validationErrors.length > 0) {
-            return {
-              error: `Validation failed: ${validationErrors.length} file(s) had syntax errors. Fix and retry — nothing was written.`,
-              validationErrors,
-            };
-          }
-          const err = await writeBatch(storage, conversationId, filesArg);
-          if (err) return { error: err };
-          const paths = filesArg.map((f) => normalizePath(f.path));
-          const allFiles = await storage.getFiles(conversationId);
-          const display = await triggerAppDisplay(conversationId);
+        if (!Array.isArray(filesArg) || filesArg.length === 0) {
+          return { error: "files array is required and must not be empty" };
+        }
+
+        // Validate every file's syntax before any write — atomic so a
+        // single broken file doesn't leave half the project committed.
+        const validationErrors = collectValidationErrors(filesArg);
+        if (validationErrors.length > 0) {
           return {
-            success: true,
-            paths,
-            filesCreated: paths.length,
-            totalProjectFiles: allFiles.length,
-            message: `Created ${paths.join(", ")}`,
-            projectFiles: allFiles.map((f) => f.path),
-            ...display,
+            error: `Validation failed: ${validationErrors.length} file(s) had syntax errors. Fix and retry — nothing was written.`,
+            validationErrors,
           };
         }
 
-        // Single-file fallback
-        const rawPath = args.path as string;
-        const content = args.content as string;
-        if (!rawPath || typeof rawPath !== "string") return { error: "path is required" };
-        if (typeof content !== "string") return { error: "content is required" };
-        const path = normalizePath(rawPath);
-        const ve = validateFileContent(path, content);
-        if (ve) {
-          return {
-            error: `Syntax error in ${path} at ${ve.line}:${ve.column}: ${ve.message}. File NOT written — fix and retry.`,
-            path,
-            line: ve.line,
-            column: ve.column,
-            message: ve.message,
-          };
-        }
-        await storage.putFile(conversationId, path, content);
-        const allFiles = await storage.getFiles(conversationId);
+        const err = await writeBatch(storage, conversationId, filesArg);
+        if (err) return { error: err };
+
+        const paths = filesArg.map((f) => normalizePath(f.path));
         const display = await triggerAppDisplay(conversationId);
-        return {
-          success: true,
-          path,
-          filesCreated: 1,
-          totalProjectFiles: allFiles.length,
-          message: `Created ${path}`,
-          projectFiles: allFiles.map((f) => f.path),
-          ...display,
-        };
+        return { success: true, paths, ...display };
       } catch (err) {
         logError("create_file failed", err instanceof Error ? err : undefined);
         return {
@@ -695,7 +658,7 @@ export function createAppGenerationTools({
 
         await storage.deleteFile(conversationId, path);
         const display = await triggerAppDisplay(conversationId);
-        return { success: true, path, message: `Deleted ${path}`, ...display };
+        return { success: true, path, ...display };
       } catch (err) {
         logError("delete_file failed", err instanceof Error ? err : undefined);
         return {
