@@ -101,7 +101,7 @@ export type { FormField, FormFieldOption, FormFieldType } from "./form";
 export { createFormTool } from "./form";
 
 // Weather display tool
-export type { DisplayWeatherResult, ForecastDay } from "./weather";
+export type { CreateWeatherToolOptions, DisplayWeatherResult, ForecastDay } from "./weather";
 export { createWeatherTool } from "./weather";
 
 // Google Drive exports
