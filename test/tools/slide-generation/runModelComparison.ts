@@ -22,10 +22,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 
-import {
-  buildSlideSystemPrompt,
-  createSlideTools,
-} from "../../../src/tools/slides/index.js";
+import { buildSlideSystemPrompt, createSlideTools } from "../../../src/tools/slides/index.js";
 import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
 import { normalizePath, type AppFileStorage } from "../../../src/tools/appGeneration.js";
 import {
@@ -107,9 +104,7 @@ async function runOne(model: string): Promise<RunResult> {
     hasImageGenerator: true,
     displaySlides: async () => ({}),
   });
-  const imageSchemas = await getServerToolSchemas([
-    "AnumaImageMCP-generate_cloud_image",
-  ]);
+  const imageSchemas = await getServerToolSchemas(["AnumaImageMCP-generate_cloud_image"]);
   const tools = [...slideTools, ...imageSchemas];
 
   let inputTokens = 0;
@@ -248,7 +243,9 @@ function writeIndex(results: RunResult[]): void {
 `;
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.writeFileSync(path.join(OUT_DIR, "index.html"), html, "utf-8");
-  console.log(`\nComparison index → ${path.relative(process.cwd(), path.join(OUT_DIR, "index.html"))}`);
+  console.log(
+    `\nComparison index → ${path.relative(process.cwd(), path.join(OUT_DIR, "index.html"))}`
+  );
 }
 
 function escapeHtml(s: string): string {

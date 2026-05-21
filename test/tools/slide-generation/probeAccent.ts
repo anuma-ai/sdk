@@ -91,7 +91,14 @@ async function runProbe(probe: Probe): Promise<{
 
   if (result.error) {
     console.error(`  ERROR: ${result.error}`);
-    return { slug: probe.slug, accent: null, designSystem: null, rounds: 0, elapsedMs: result.elapsedMs ?? 0, error: result.error };
+    return {
+      slug: probe.slug,
+      accent: null,
+      designSystem: null,
+      rounds: 0,
+      elapsedMs: result.elapsedMs ?? 0,
+      error: result.error,
+    };
   }
 
   // Inspect the plan_deck call to learn whether the LLM reached for the
@@ -101,9 +108,8 @@ async function runProbe(probe: Probe): Promise<{
   const accent = typeof args.accent === "string" ? args.accent : null;
   // Layouts use compound names like "cover-statement--minimal-swiss".
   // Pull the suffix off the first one.
-  const layout = Array.isArray(args.layouts) && typeof args.layouts[0] === "string"
-    ? args.layouts[0]
-    : null;
+  const layout =
+    Array.isArray(args.layouts) && typeof args.layouts[0] === "string" ? args.layouts[0] : null;
   const designSystem = layout?.includes("--") ? layout.split("--").slice(-1)[0]! : null;
 
   console.log(`  picked system : ${designSystem ?? "(none)"}`);

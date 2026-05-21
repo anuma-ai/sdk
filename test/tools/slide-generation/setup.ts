@@ -55,9 +55,10 @@ export async function getServerToolSchemas(names: string[]): Promise<ServerToolS
   if (!res.ok) throw new Error(`Failed to fetch server tools: ${res.status}`);
   const raw = (await res.json()) as Record<string, unknown>;
   // Handle both response shapes: { checksum, tools: {...} } or flat { toolName: {...} }
-  const toolsMap = ("tools" in raw && typeof raw.tools === "object"
-    ? raw.tools
-    : raw) as Record<string, Record<string, unknown>>;
+  const toolsMap = ("tools" in raw && typeof raw.tools === "object" ? raw.tools : raw) as Record<
+    string,
+    Record<string, unknown>
+  >;
   cachedServerTools = Object.values(toolsMap).map((t) => {
     const schema = (t.schema ?? t) as {
       name: string;
@@ -248,8 +249,7 @@ export function dumpFiles(
   const failureReasons: string[] = [];
   if (meta?.error) failureReasons.push(`Test reported an error: ${meta.error}`);
   if (!deck) failureReasons.push("slides.jsx was missing or unparseable");
-  else if (slideCount === 0)
-    failureReasons.push("Deck parsed but has zero <Anuma.Slide> children");
+  else if (slideCount === 0) failureReasons.push("Deck parsed but has zero <Anuma.Slide> children");
 
   if (failureReasons.length > 0) {
     fs.writeFileSync(

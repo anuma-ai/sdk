@@ -82,9 +82,7 @@ const baseHtml = renderDeckToHtml(
   { skipNav: true }
 );
 
-const systemOptions = systems
-  .map((s) => `<option value="${s.name}">${s.name}</option>`)
-  .join("");
+const systemOptions = systems.map((s) => `<option value="${s.name}">${s.name}</option>`).join("");
 const filterAndNav = `
 <div id="system-filter" style="position:fixed;top:16px;left:16px;z-index:11;
   background:rgba(0,0,0,.65);backdrop-filter:blur(12px);color:#fff;
@@ -159,11 +157,7 @@ fs.writeFileSync(outPath, html, "utf-8");
 // Print the LLM-facing slot-budget recipe and validation issues for each
 // composition × design system pair. Option 3 from the content-overflow
 // discussion — the constraints are surfaced to the prompt boundary.
-function reportPair(
-  composition: LayoutComposition,
-  label: string,
-  system: DesignSystem
-): void {
+function reportPair(composition: LayoutComposition, label: string, system: DesignSystem): void {
   console.log(`\n══════════ ${composition.name} × ${label} ══════════`);
   console.log(describeComposition(composition, system, fontPreset));
   const issues = validateComposition(composition, system, fontPreset);

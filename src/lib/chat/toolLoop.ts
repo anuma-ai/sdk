@@ -985,11 +985,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
 
         const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
-        if (
-          !chunksEmittedDownstream &&
-          !lastAttempt &&
-          isRetriableStreamError(streamErr)
-        ) {
+        if (!chunksEmittedDownstream && !lastAttempt && isRetriableStreamError(streamErr)) {
           const backoff = backoffForRetry(attempt, streamErr);
           if (onStreamRetry) {
             const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
@@ -1551,11 +1547,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           }
 
           const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
-          if (
-            !chunksEmittedDownstream &&
-            !lastAttempt &&
-            isRetriableStreamError(streamErr)
-          ) {
+          if (!chunksEmittedDownstream && !lastAttempt && isRetriableStreamError(streamErr)) {
             const backoff = backoffForRetry(attempt, streamErr);
             if (onStreamRetry) {
               const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));

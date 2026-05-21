@@ -277,7 +277,9 @@ describe("serializeJsx", () => {
     const node = parseJsx(source);
     const s = serializeJsx(node);
     // The Span must survive serialization (this is the bug).
-    expect(s).toContain(`<Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span>`);
+    expect(s).toContain(
+      `<Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span>`
+    );
     // The trailing space before the Span must be preserved (as raw text or
     // wrapped {"Why "} — both parse back identically).
     expect(s).toMatch(/(>Why |\{"Why "\})/);
@@ -285,7 +287,9 @@ describe("serializeJsx", () => {
     const reparsed = parseJsx(s);
     expect(reparsed.children).toHaveLength(2);
     expect(reparsed.children[0]).toBe("Why ");
-    expect(typeof reparsed.children[1] === "object" && (reparsed.children[1] as { tag: string }).tag).toBe("Span");
+    expect(
+      typeof reparsed.children[1] === "object" && (reparsed.children[1] as { tag: string }).tag
+    ).toBe("Span");
   });
 
   it("emits object-valued attrs as style={{ key: value, ... }}", () => {

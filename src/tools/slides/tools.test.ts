@@ -479,7 +479,10 @@ describe("add_slide executor", () => {
       slideJsx: `<Anuma.Slide id="s3" />`,
     })) as { remaining?: number; layoutUsage?: Record<string, number> };
     expect(result.remaining).toBe(0);
-    expect(result.layoutUsage).toEqual({ "cover-split-portrait--editorial-warm": 2, "brand-story-split--editorial-warm": 1 });
+    expect(result.layoutUsage).toEqual({
+      "cover-split-portrait--editorial-warm": 2,
+      "brand-story-split--editorial-warm": 1,
+    });
   });
 
   it("rejects an unknown fontFamily on any element", async () => {
@@ -814,7 +817,9 @@ describe("patch_slides JSX ops", () => {
         },
       ],
     })) as { results?: string[] };
-    expect(insertElementResult.results![0]).toMatch(/inserted grp_extra into s1.*stripped 1 unfilled/);
+    expect(insertElementResult.results![0]).toMatch(
+      /inserted grp_extra into s1.*stripped 1 unfilled/
+    );
 
     // 3) replace_slide: swap s1 wholesale for a slide whose body holds
     // one sentinel image. The sentinel must be gone from the persisted
@@ -1029,7 +1034,9 @@ describe("patch_slides JSX ops", () => {
     const before = store.get("slides.jsx")!;
     expect(before).toContain(`id="t1"`);
     const result = (await tools.find((t) => toolName(t) === "patch_slides")!.executor!({
-      operations: [{ action: "update_element", slideId: "s1", elementId: "t1", attrs: { x: 200, y: 60 } }],
+      operations: [
+        { action: "update_element", slideId: "s1", elementId: "t1", attrs: { x: 200, y: 60 } },
+      ],
     })) as { results?: string[] };
     expect(result.results![0]).toBe("updated s1/t1");
     const after = store.get("slides.jsx")!;
@@ -1246,11 +1253,15 @@ describe("patch_slides JSX ops", () => {
     const { tools } = await setupDeckWithOneSlide();
     const patch = tools.find((t) => toolName(t) === "patch_slides")!;
     const noSlide = (await patch.executor!({
-      operations: [{ action: "update_element", slideId: "missing", elementId: "t1", attrs: { x: 0 } }],
+      operations: [
+        { action: "update_element", slideId: "missing", elementId: "t1", attrs: { x: 0 } },
+      ],
     })) as { results?: string[] };
     expect(noSlide.results![0]).toMatch(/slide missing not found/);
     const noElement = (await patch.executor!({
-      operations: [{ action: "update_element", slideId: "s1", elementId: "ghost", attrs: { x: 0 } }],
+      operations: [
+        { action: "update_element", slideId: "s1", elementId: "ghost", attrs: { x: 0 } },
+      ],
     })) as { results?: string[] };
     expect(noElement.results![0]).toMatch(/element ghost not found/);
     const noAttrs = (await patch.executor!({

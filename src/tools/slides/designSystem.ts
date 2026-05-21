@@ -67,7 +67,7 @@ export type ElementRole =
  * misrender case (rel.role="image" rendering as zero-size Text) can't
  * be constructed.
  */
-export type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface">;
+type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface">;
 
 // ---------------------------------------------------------------------------
 // RoleStyle — the concrete styling applied to a role within a design system
@@ -86,7 +86,7 @@ export interface RoleStyle {
    *   through verbatim. Use this for monospace where we don't want to
    *   redefine the preset.
    */
-  fontFamily: "heading" | "body" | string;
+  fontFamily: "heading" | "body" | (string & {});
   /** Font size as a percentage of canvas width. */
   fontSize: number;
   fontWeight?: number;
@@ -263,7 +263,7 @@ export interface CompositionElement {
  * 1-based item index at emit time (`agenda_${index}_title` → `agenda_1_title`,
  * `agenda_2_title`, ...).
  */
-export interface RelativeElement {
+interface RelativeElement {
   /** Slot id pattern. `${index}` is replaced with the 1-based item index. */
   id: string;
   /**
@@ -293,8 +293,8 @@ export interface RelativeElement {
  * item, so a single grid can mix neutral/dark/accent cards without a new
  * composition. RelativeElement ids must never be literally "surface".
  */
-export type FlexItemDefault = {
-  [key: string]: string | SurfaceState | undefined;
+type FlexItemDefault = {
+  [key: string]: (string & {}) | SurfaceState | undefined;
   surface?: SurfaceState;
 };
 
@@ -306,7 +306,7 @@ export type FlexItemDefault = {
  * slot ids (`agenda_1_title`, `agenda_2_title`, …). Use this for agendas,
  * bullet lists, dynamic card grids, timeline rows.
  */
-export interface FlexRegion {
+interface FlexRegion {
   /** Discriminator — separates flex regions from absolute elements. */
   kind: "flex-region";
   /** Prefix for slot ids inside this region (e.g. "agenda_"). */
@@ -708,7 +708,7 @@ export const EDITORIAL_WARM: DesignSystem = {
 
 const SANS = "Inter";
 
-export const TECHNO_BOLD: DesignSystem = {
+const TECHNO_BOLD: DesignSystem = {
   name: "techno-bold",
   useFor:
     "product launches, dev tools, fintech, AI infrastructure — confident technical voice with high-contrast modern typography.",
@@ -1270,7 +1270,7 @@ const COZY_TEXT = "#1C1917"; // stone-900, warm dark
 const COZY_BODY = "#57534E"; // stone-600, warm gray for body
 const COZY_MUTED = "#78716C"; // stone-500, warm muted
 
-export const PLAYFUL_CREATIVE: DesignSystem = {
+const PLAYFUL_CREATIVE: DesignSystem = {
   name: "playful-creative",
   useFor:
     "family, classroom, cookbook, lifestyle, parenting, kid-product, and any informal/cozy deck — single rounded humanist sans with a warm-orange accent; soft and friendly, never austere.",
@@ -1813,7 +1813,7 @@ export const MINIMAL_SWISS: DesignSystem = {
 const LUXURY_SERIF = "DM Serif Display";
 const LUXURY_SANS = "Raleway";
 
-export const LUXURY_EDITORIAL: DesignSystem = {
+const LUXURY_EDITORIAL: DesignSystem = {
   name: "luxury-editorial",
   useFor:
     "boutique fashion, hospitality, cosmetics, fragrance, jewelry, premium-product brand decks — quiet confident luxury via thin elegant sans, fashion-magazine serif, generous chrome tracking, and a muted dusty-blush accent. Reach for it when the deck should feel expensive but restrained, not loud-premium.",
@@ -2079,7 +2079,7 @@ export const LUXURY_EDITORIAL: DesignSystem = {
 // Example composition — cover slide with text-left / image-right split
 // ---------------------------------------------------------------------------
 
-export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
+const COVER_SPLIT_PORTRAIT: LayoutComposition = {
   name: "cover-split-portrait",
   description:
     "Dark warm cover: text panel on the left half, full-bleed image on the right. The hero is three positioned lines — regular / italic-accent / regular — each occupying its own emotional moment. Brand chrome top, hairline footer bottom.",
@@ -2165,8 +2165,7 @@ export const COVER_SPLIT_PORTRAIT: LayoutComposition = {
       w: 40,
       h: 12,
       fit: "multi-line",
-      defaultText:
-        "Direct-trade espresso, roasted to your dial. Studio, café, and hotel formats.",
+      defaultText: "Direct-trade espresso, roasted to your dial. Studio, café, and hotel formats.",
     },
     // Footer band — hairline + small mono note. Footer baseline y=96 is
     // the deck-wide footer convention; rule sits 2% above it.
@@ -2382,7 +2381,7 @@ function statCardCited(
   ];
 }
 
-export const PROBLEM_EVIDENCE: LayoutComposition = {
+const PROBLEM_EVIDENCE: LayoutComposition = {
   name: "problem-evidence",
   description:
     "Dark research-backed problem slide. Section chrome top-left, a 3-line wrapped hero with an inline accent stat (a number embedded in the sentence), and a source-citation line directly under the hero. Three stat cards below — each with eyebrow / big stat / supporting body / source citation. For investor/credible problem framing where evidence has to carry the slide.",
@@ -2412,8 +2411,7 @@ export const PROBLEM_EVIDENCE: LayoutComposition = {
       w: 88,
       h: 37,
       fit: "multi-line",
-      defaultText:
-        "Engineering orgs spend *62%* of capacity on work that isn't shipping.",
+      defaultText: "Engineering orgs spend *62%* of capacity on work that isn't shipping.",
     },
     // Source citation under the hero (mono uppercase, muted). The
     // research-credibility signal — distinguishes this from a marketing
@@ -2488,7 +2486,7 @@ export const PROBLEM_EVIDENCE: LayoutComposition = {
 // would go.
 // ---------------------------------------------------------------------------
 
-export const HEADLINE_NUMBER: LayoutComposition = {
+const HEADLINE_NUMBER: LayoutComposition = {
   name: "headline-number",
   description:
     "Dark slide whose entire focal point is one massive number rendered in the stat-display role (the raise amount, the market size, a milestone). Subhead under the number, divider, and a 3-column footer of label/value pairs at the bottom — for deal terms, milestones, or metadata that contextualises the headline.",
@@ -2527,8 +2525,7 @@ export const HEADLINE_NUMBER: LayoutComposition = {
       w: 62,
       h: 18,
       fit: "multi-line",
-      defaultText:
-        "Series A · led by an AI-native fund with deep dev-tools distribution.",
+      defaultText: "Series A · led by an AI-native fund with deep dev-tools distribution.",
     },
     // Rail divider separates the headline number block from the
     // contextual label/value rail below. Distinct from `footer_rule`
@@ -2856,8 +2853,7 @@ export const MARKETING_GRID: LayoutComposition = {
         {
           surface: "default",
           eyebrow: "01 · BRAND FUND",
-          title:
-            "National creative + paid social + influencer cohort. We produce, you translate.",
+          title: "National creative + paid social + influencer cohort. We produce, you translate.",
         },
         {
           surface: "default",
@@ -2889,7 +2885,7 @@ export const MARKETING_GRID: LayoutComposition = {
 // to the hero / hero-accent pattern.
 // ---------------------------------------------------------------------------
 
-export const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
+const FOUNDER_QUOTE_PORTRAIT: LayoutComposition = {
   name: "founder-quote-portrait",
   description:
     "Light slide: portrait image on the left half, founder pull-quote on the right with a single italic-accent line in the middle, attribution + role beneath. Mono caption under the image.",
@@ -3260,7 +3256,7 @@ function table(
   return elements;
 }
 
-export const SURFACE_PAIR: LayoutComposition = {
+const SURFACE_PAIR: LayoutComposition = {
   name: "surface-pair",
   description:
     "Light slide with a 2-line hero and two side-by-side panels: a default-ground panel and a dark-ground panel. Used for revenue/cost contrasts, our-stat vs market-stat, before/after — anywhere two halves need equal weight but opposite tone.",
@@ -3576,7 +3572,7 @@ export const BRAND_STORY_SPLIT: LayoutComposition = {
 // narrative thesis, an anchor metric, and supporting evidence.
 // ---------------------------------------------------------------------------
 
-export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
+const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
   name: "multi-stat-asymmetric",
   description:
     "Light slide: hero + body on the left, anchor-stat panel (dark) on the right, 3 supporting stat cards across the bottom — two on the default surface, one on the accent surface for emphasis. For 'why this matters / how big the market is' slides.",
@@ -3705,7 +3701,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
       "accent",
       "VOLTA · TARGET 2030",
       "75K",
-      "annual deliveries.",
+      "annual deliveries."
     ),
   ],
 };
@@ -3719,7 +3715,7 @@ export const MULTI_STAT_ASYMMETRIC: LayoutComposition = {
 // compare line-by-line."
 // ---------------------------------------------------------------------------
 
-export const PEER_COMPARISON_TABLE: LayoutComposition = {
+const PEER_COMPARISON_TABLE: LayoutComposition = {
   name: "peer-comparison-table",
   description:
     "Light slide: 2-line hero with inline italic accent + a data table comparing our terms to N peer composites. The 'us' column is highlighted as a dark-surface stripe running the full table height. Use for pricing, terms, or spec comparisons.",
@@ -3815,10 +3811,7 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-function resolveFontFamily(
-  family: string,
-  fontPreset: { heading: string; body: string }
-): string {
+function resolveFontFamily(family: string, fontPreset: { heading: string; body: string }): string {
   if (family === "heading") return fontPreset.heading;
   if (family === "body") return fontPreset.body;
   return family;
@@ -3838,11 +3831,7 @@ function escapeText(s: string): string {
  * default surface, returns base styles unchanged. For non-default
  * surfaces, merges that surface's per-role override over the base.
  */
-function resolveStyle(
-  system: DesignSystem,
-  role: ElementRole,
-  state: SurfaceState
-): RoleStyle {
+function resolveStyle(system: DesignSystem, role: ElementRole, state: SurfaceState): RoleStyle {
   const base = system.styles[role];
   if (!base) throw new Error(`Design system "${system.name}" missing style for role "${role}"`);
   if (state === "default") return base;
@@ -3927,7 +3916,7 @@ function renderInlineAccents(
     if (match.index > lastIndex) {
       parts.push(escapeText(text.slice(lastIndex, match.index)));
     }
-    parts.push(`<Anuma.Span style=${spanStyle}>${escapeText(match[1]!)}</Anuma.Span>`);
+    parts.push(`<Anuma.Span style=${spanStyle}>${escapeText(match[1])}</Anuma.Span>`);
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < text.length) {
@@ -4044,9 +4033,7 @@ function emitFlexRegion(
   ];
   // Resolve the divider color once for separator lines. Pulls from the
   // design system's `divider` role under the region's surface state.
-  const separatorStyle = region.separator
-    ? resolveStyle(system, "divider", itemState)
-    : null;
+  const separatorStyle = region.separator ? resolveStyle(system, "divider", itemState) : null;
 
   if (isGrid) {
     // Row-chunked items. Each row is a flex sub-group whose item-groups
@@ -4065,7 +4052,16 @@ function emitFlexRegion(
         const i = r * columns + c;
         if (i >= region.defaultItems.length) break;
         rowItems.push(
-          emitFlexItem(region, i + 1, region.defaultItems[i]!, system, itemState, fontPreset, innerAttrs, "row")
+          emitFlexItem(
+            region,
+            i + 1,
+            region.defaultItems[i],
+            system,
+            itemState,
+            fontPreset,
+            innerAttrs,
+            "row"
+          )
         );
       }
       rowGroups.push(`<Anuma.Group ${rowAttrs.join(" ")} grow={1}>
@@ -4080,7 +4076,7 @@ ${rowGroups.join("\n")}
   const itemParts: string[] = [];
   for (let i = 0; i < region.defaultItems.length; i++) {
     itemParts.push(
-      emitFlexItem(region, i + 1, region.defaultItems[i]!, system, itemState, fontPreset, innerAttrs)
+      emitFlexItem(region, i + 1, region.defaultItems[i], system, itemState, fontPreset, innerAttrs)
     );
     if (separatorStyle) {
       itemParts.push(emitFlexSeparator(region, i + 1, separatorStyle));
@@ -4186,7 +4182,11 @@ function emitRelativeElement(
   return `<Anuma.Text id="${id}"${sizePrefix} fontRole="${fontRole}" style=${style}>${body}</Anuma.Text>`;
 }
 
-function emitCardSurface(el: CompositionElement, system: DesignSystem, state: SurfaceState): string {
+function emitCardSurface(
+  el: CompositionElement,
+  system: DesignSystem,
+  state: SurfaceState
+): string {
   // For default state, use the role's base color (typically the cream
   // `slideBg`/`#FAFAFA`); for dark/accent, pull the surface's bg color.
   const fill =
@@ -4231,16 +4231,12 @@ export function applyAccent(
     const next = swap(style.color) ?? style.color;
     return next === style.color ? style : { ...style, color: next };
   };
-  const rewriteStyles = (
-    map: Record<string, RoleStyle>
-  ): Record<string, RoleStyle> => {
+  const rewriteStyles = (map: Record<string, RoleStyle>): Record<string, RoleStyle> => {
     const out: Record<string, RoleStyle> = {};
     for (const [k, v] of Object.entries(map)) out[k] = rewriteStyle(v);
     return out;
   };
-  const rewriteOverrides = (
-    map: SurfaceTreatment["overrides"]
-  ): SurfaceTreatment["overrides"] => {
+  const rewriteOverrides = (map: SurfaceTreatment["overrides"]): SurfaceTreatment["overrides"] => {
     const out: SurfaceTreatment["overrides"] = {};
     for (const [k, v] of Object.entries(map)) {
       if (v && typeof v === "object" && "color" in v) {
@@ -4281,7 +4277,7 @@ export function applyAccent(
 function lightenForDarkSurface(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return hex;
-  const n = parseInt(m[1]!, 16);
+  const n = parseInt(m[1], 16);
   const r = ((n >> 16) & 255) / 255;
   const g = ((n >> 8) & 255) / 255;
   const b = (n & 255) / 255;
@@ -4305,15 +4301,18 @@ function hslToHex(h: number, s: number, l: number): string {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = h / 60;
   const x = c * (1 - Math.abs((hp % 2) - 1));
-  let r1 = 0;
-  let g1 = 0;
-  let b1 = 0;
-  if (hp < 1) [r1, g1, b1] = [c, x, 0];
-  else if (hp < 2) [r1, g1, b1] = [x, c, 0];
-  else if (hp < 3) [r1, g1, b1] = [0, c, x];
-  else if (hp < 4) [r1, g1, b1] = [0, x, c];
-  else if (hp < 5) [r1, g1, b1] = [x, 0, c];
-  else [r1, g1, b1] = [c, 0, x];
+  const [r1, g1, b1] =
+    hp < 1
+      ? [c, x, 0]
+      : hp < 2
+        ? [x, c, 0]
+        : hp < 3
+          ? [0, c, x]
+          : hp < 4
+            ? [0, x, c]
+            : hp < 5
+              ? [x, 0, c]
+              : [c, 0, x];
   const m = l - c / 2;
   const to255 = (v: number) =>
     Math.round((v + m) * 255)
@@ -4377,8 +4376,7 @@ export function compile(
   //   1. composition.backgroundColor — explicit override.
   //   2. The design system's surface background for the slide's state.
   //   3. No bg attribute (renderer uses deck-level slideBg).
-  const bg =
-    composition.backgroundColor ?? surfaceBackground(system, slideState);
+  const bg = composition.backgroundColor ?? surfaceBackground(system, slideState);
   const bgAttr = bg ? ` background="${bg}"` : "";
   const id = slideId ?? composition.name;
   return `<Anuma.Slide id="${id}"${bgAttr}>\n${lines.join("\n")}\n</Anuma.Slide>`;
@@ -4398,7 +4396,7 @@ export function compile(
  * model a reliable budget. When this estimate is wrong, the answer is to
  * tune the factor table — not to special-case at every slot site.
  */
-export interface SlotBudget {
+interface SlotBudget {
   charsPerLine: number;
   maxLines: number;
   /** charsPerLine × maxLines — total content budget for multi-line slots. */
@@ -4427,19 +4425,13 @@ const CHAR_WIDTH_FACTOR = {
   sansBold: 0.56,
 } as const;
 
-function resolveFamily(
-  style: RoleStyle,
-  fontPreset: { heading: string; body: string }
-): string {
+function resolveFamily(style: RoleStyle, fontPreset: { heading: string; body: string }): string {
   if (style.fontFamily === "heading") return fontPreset.heading;
   if (style.fontFamily === "body") return fontPreset.body;
   return style.fontFamily;
 }
 
-function charWidthFactor(
-  style: RoleStyle,
-  fontPreset: { heading: string; body: string }
-): number {
+function charWidthFactor(style: RoleStyle, fontPreset: { heading: string; body: string }): number {
   const family = resolveFamily(style, fontPreset).toLowerCase();
   let base: number;
   if (/mono|jetbrains|courier|menlo|consolas/.test(family)) {
@@ -4556,7 +4548,9 @@ export function describeComposition(
       }
       for (const rel of child.item) {
         if (STATIC_ROLES.has(rel.role)) {
-          out.push(`    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: static element, no content`);
+          out.push(
+            `    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: static element, no content`
+          );
           continue;
         }
         const style = system.styles[rel.role];
@@ -4564,7 +4558,9 @@ export function describeComposition(
         const budget = estimateRelativeSlotBudget(rel, child, style, fontPreset);
         const fit: FitMode = rel.fit ?? "multi-line";
         if (fit === "single-line") {
-          out.push(`    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: ≤ ${budget.charsPerLine} chars, ONE LINE.`);
+          out.push(
+            `    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: ≤ ${budget.charsPerLine} chars, ONE LINE.`
+          );
         } else {
           out.push(
             `    - ${child.idPrefix}_<index>_${rel.id} [${rel.role}]: ≤ ${budget.charsPerLine} chars/line × ${budget.maxLines} lines (~${budget.total} chars total).`
@@ -4650,14 +4646,10 @@ function estimateRelativeSlotBudget(
     // caller passes itemIndex (per-item validation); the description
     // path keeps the pessimistic full-cols budget.
     const lastRowFill = itemCount - cols * (rows - 1);
-    const itemIsInLastRow =
-      itemIndex !== undefined && itemIndex > cols * (rows - 1);
-    const effectiveCols =
-      itemIsInLastRow && lastRowFill < cols ? lastRowFill : cols;
+    const itemIsInLastRow = itemIndex !== undefined && itemIndex > cols * (rows - 1);
+    const effectiveCols = itemIsInLastRow && lastRowFill < cols ? lastRowFill : cols;
     if (w === undefined) {
-      w =
-        (region.w - 2 * padding - colGap * Math.max(0, effectiveCols - 1)) /
-        effectiveCols;
+      w = (region.w - 2 * padding - colGap * Math.max(0, effectiveCols - 1)) / effectiveCols;
     }
     if (h === undefined) {
       h = (region.h - 2 * padding - gap * (rows - 1)) / rows;
@@ -4702,7 +4694,7 @@ function validateFlexRegionDefaults(
 ): SlotIssue[] {
   const issues: SlotIssue[] = [];
   for (let i = 0; i < region.defaultItems.length; i++) {
-    const data = region.defaultItems[i]!;
+    const data = region.defaultItems[i];
     const idx = i + 1;
     for (const rel of region.item) {
       if (STATIC_ROLES.has(rel.role)) continue;
@@ -4711,14 +4703,7 @@ function validateFlexRegionDefaults(
       const raw = data[rel.id];
       const text = (typeof raw === "string" ? raw : undefined) ?? rel.defaultText;
       if (!text) continue;
-      const budget = estimateRelativeSlotBudget(
-        rel,
-        region,
-        style,
-        fontPreset,
-        undefined,
-        idx
-      );
+      const budget = estimateRelativeSlotBudget(rel, region, style, fontPreset, undefined, idx);
       const fit: FitMode = rel.fit ?? "multi-line";
       const trimmed = text.trim();
       const visible = trimmed.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1");
@@ -4759,7 +4744,7 @@ function validateFlexRegionDefaults(
 }
 
 /** A slot whose `defaultText` exceeds the slot's budget under the system. */
-export interface SlotIssue {
+interface SlotIssue {
   id: string;
   role: ElementRole;
   text: string;
@@ -4861,7 +4846,11 @@ export function validateSlotContent(
   composition: LayoutComposition,
   system: DesignSystem,
   fontPreset: { heading: string; body: string },
-  slide: { children: Array<{ tag?: string; attrs?: Record<string, unknown>; children?: unknown[] } | string> }
+  slide: {
+    children: Array<
+      { tag?: string; attrs?: Record<string, unknown>; children?: unknown[] } | string
+    >;
+  }
 ): SlotIssue[] {
   const issues: SlotIssue[] = [];
   // Recursively collect every Text element's id → joined-text in the
@@ -4883,7 +4872,7 @@ export function validateSlotContent(
       const discoveredIndices = new Set<number>();
       for (const slotId of textsBySlotId.keys()) {
         const m = slotId.match(itemPattern);
-        if (m) discoveredIndices.add(parseInt(m[1]!, 10));
+        if (m) discoveredIndices.add(parseInt(m[1], 10));
       }
       const actualCount =
         discoveredIndices.size > 0 ? discoveredIndices.size : child.defaultItems.length;

@@ -92,10 +92,7 @@ describe("slide-generation request probe", () => {
       const prev = requests[i - 1].messagesBytes + requests[i - 1].toolsBytes;
       cachedBillable += Math.max(0, cur - prev);
     }
-    const uncachedBillable = requests.reduce(
-      (s, r) => s + r.messagesBytes + r.toolsBytes,
-      0
-    );
+    const uncachedBillable = requests.reduce((s, r) => s + r.messagesBytes + r.toolsBytes, 0);
     const cacheSavingsBytes = uncachedBillable - cachedBillable;
     const cacheSavingsPct = ((cacheSavingsBytes / uncachedBillable) * 100).toFixed(1);
 
@@ -112,7 +109,9 @@ describe("slide-generation request probe", () => {
       console.log(`  ${round} | ${msgs} | ${toolsN} | ${body} | ${msgsB} | ${toolsB}`);
     }
     console.log(`\n  Total rounds:          ${requests.length}`);
-    console.log(`  Tool catalog size:     ${formatBytes(firstToolsBytes)} (${requests[0].toolCount} tools)`);
+    console.log(
+      `  Tool catalog size:     ${formatBytes(firstToolsBytes)} (${requests[0].toolCount} tools)`
+    );
     console.log(`  Total bytes sent:      ${formatBytes(totalBytes)}`);
     console.log(`  Of which messages:     ${formatBytes(totalMessagesBytes)}`);
     console.log(`  Of which tools:        ${formatBytes(totalToolsBytes)}`);

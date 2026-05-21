@@ -847,7 +847,10 @@ function normalizeJsxText(raw: string): string {
   if (!raw.includes("\n")) return raw;
   // Multi-line text: trim per-line whitespace, drop blank lines, join with a
   // single space (standard JSX whitespace collapsing for formatted content).
-  const lines = raw.split("\n").map((line) => line.trim()).filter((line) => line !== "");
+  const lines = raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
   return lines.join(" ");
 }
 

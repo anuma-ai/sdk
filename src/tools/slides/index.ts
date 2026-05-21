@@ -46,6 +46,17 @@ export type { FontCategory, FontSpec } from "./fonts";
 export { buildFontsUrl, FONT_LIBRARY, getFontByName, isKnownFont } from "./fonts";
 export type { LegacyDeckJson } from "./legacy";
 export { convertLegacyDeckJson, isLegacyDeckJson } from "./legacy";
+import {
+  compositionSlideBackground,
+  IMAGE_PLACEHOLDER_SENTINEL,
+  listCompositionDescriptions,
+  listCompositionLayoutNames,
+  listDesignSystemNames,
+  renderCompositionLayoutRecipe,
+  renderDesignSystemCatalog,
+  resolveCompositionLayout,
+  validateSlotContent,
+} from "./designSystem";
 import type { AnumaNode, AttrValue } from "./jsx";
 import {
   AnumaJsxError,
@@ -63,17 +74,6 @@ import {
   walk,
 } from "./jsx";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
-import {
-  compositionSlideBackground,
-  listCompositionDescriptions,
-  listCompositionLayoutNames,
-  IMAGE_PLACEHOLDER_SENTINEL,
-  listDesignSystemNames,
-  renderDesignSystemCatalog,
-  renderCompositionLayoutRecipe,
-  resolveCompositionLayout,
-  validateSlotContent,
-} from "./designSystem";
 
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag } from "./jsx";
 export {
@@ -294,7 +294,7 @@ Operations (set 'action' and the fields noted):
             layout: {
               type: "string",
               description:
-                "For insert_slide: the compound \"<composition>--<system>\" layout name (same form as add_slide). Always pass this so insert_slide can validate the new slide's slot structure against the recipe and reject off-template JSX.",
+                'For insert_slide: the compound "<composition>--<system>" layout name (same form as add_slide). Always pass this so insert_slide can validate the new slide\'s slot structure against the recipe and reject off-template JSX.',
             },
             afterElementId: {
               type: "string",
@@ -522,9 +522,7 @@ function summarizeDeck(deck: AnumaNode): string {
       const id = getId(el);
       if (id === undefined) continue;
       if (el.tag === "Group" && Array.isArray(el.children)) {
-        const items = el.children.filter(
-          (c) => typeof c !== "string" && c.tag === "Group"
-        ).length;
+        const items = el.children.filter((c) => typeof c !== "string" && c.tag === "Group").length;
         elementSummaries.push(items > 0 ? `${id}(group, ${items} items)` : id);
         continue;
       }
@@ -532,8 +530,7 @@ function summarizeDeck(deck: AnumaNode): string {
       if (el.tag === "Text") {
         const text = joinTextBody(el).trim();
         if (text) {
-          const preview =
-            text.length > 60 ? `${text.slice(0, 57)}...` : text;
+          const preview = text.length > 60 ? `${text.slice(0, 57)}...` : text;
           textPreviews.push(`${id}=${JSON.stringify(preview)}`);
         }
       }
@@ -882,7 +879,8 @@ export function createSlideTools({
         }
         if (plannedLayouts.length === 0) {
           return {
-            error: "layouts must contain at least one valid composition layout name (e.g. 'cover-split-portrait--editorial-warm').",
+            error:
+              "layouts must contain at least one valid composition layout name (e.g. 'cover-split-portrait--editorial-warm').",
           };
         }
 
@@ -956,11 +954,7 @@ export function createSlideTools({
 
 Theme: ${palette.name} (fontPreset: ${fontPreset})
 Palette colors (already applied to theme.colors):
-${renderPaletteColors(
-  accent
-    ? { ...palette, colors: { ...palette.colors, accent } }
-    : palette
-)}
+${renderPaletteColors(accent ? { ...palette, colors: { ...palette.colors, accent } } : palette)}
 Planned slide count: ${slideCount} (call add_slide exactly ${slideCount} times).
 
 COORDINATE SYSTEM — container-relative pixels on a 960×540 slide canvas.
@@ -978,7 +972,7 @@ ${plannedLayouts
   .map((name) =>
     renderCompositionLayoutRecipe(
       name,
-      FONT_PRESETS[fontPreset]!,
+      FONT_PRESETS[fontPreset],
       accent ? { base: accent } : undefined,
       hasImageGenerator
     )
@@ -1020,7 +1014,9 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
             : null;
 
         if (!layout) {
-          return { error: "layout is required (compound composition--system name from LAYOUT CATALOG)" };
+          return {
+            error: "layout is required (compound composition--system name from LAYOUT CATALOG)",
+          };
         }
         if (!resolveCompositionLayout(layout)) {
           return {
@@ -1047,8 +1043,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           // capability so the recipe matches what the model would have
           // received from plan_deck.
           const state = deckStateByConv.get(conversationId);
-          const preset =
-            FONT_PRESETS[state?.fontPreset ?? "default"] ?? FONT_PRESETS.default!;
+          const preset = FONT_PRESETS[state?.fontPreset ?? "default"] ?? FONT_PRESETS.default;
           const accentOverride = state?.accent ? { base: state.accent } : undefined;
           const recipe = renderCompositionLayoutRecipe(
             layout,
@@ -1083,7 +1078,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
         // validation rejected unknown names above.
         const compositionResolved = resolveCompositionLayout(layout)!;
         const presetName = priorState?.fontPreset ?? "default";
-        const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
+        const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default;
         const slotIssues = validateSlotContent(
           compositionResolved.composition,
           compositionResolved.system,
@@ -1092,7 +1087,10 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
         );
         if (slotIssues.length > 0) {
           const list = slotIssues
-            .map((i) => `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`)
+            .map(
+              (i) =>
+                `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`
+            )
             .join("\n");
           return {
             error: `Content overflows the layout's slot budget — shorten the copy in these slots and resubmit add_slide for this slide:\n${list}\nSingle-line slots must fit on one line. Multi-line slots have a total-char ceiling (charsPerLine × maxLines).`,
@@ -1328,7 +1326,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           // first call read_slides({slideIds:[…]}) and retry.
           const deckFontPresetName =
             typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
-          const deckFontPreset = FONT_PRESETS[deckFontPresetName] ?? FONT_PRESETS.default!;
+          const deckFontPreset = FONT_PRESETS[deckFontPresetName] ?? FONT_PRESETS.default;
           // Pass the deck's stored accent so error-recovery recipes show
           // the model's chosen hue instead of the system's default — and
           // forward hasImageGenerator so image notes match what the host
@@ -1537,8 +1535,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const noteParts: string[] = [];
                 if (renames.length > 0)
                   noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
-                if (stripped > 0)
-                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
                   noteParts.length > 0
                     ? `replaced ${op.slideId}/${op.elementId} (${noteParts.join("; ")})`
@@ -1583,8 +1580,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const noteParts: string[] = [];
                 if (renames.length > 0)
                   noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
-                if (stripped > 0)
-                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
                   noteParts.length > 0
                     ? `inserted ${newId} into ${op.slideId} (${noteParts.join("; ")})`
@@ -1675,8 +1671,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const noteParts: string[] = [];
                 if (renames.length > 0)
                   noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
-                if (stripped > 0)
-                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
                   noteParts.length > 0
                     ? `replaced slide ${op.slideId} (${noteParts.join("; ")})`
@@ -1698,7 +1693,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 // outright forces a retry with a real layout.
                 if (typeof op.layout !== "string" || !op.layout) {
                   results.push(
-                    'insert_slide: layout is required — pass the same compound "<composition>--<system>" name used by the existing deck (call read_slides to see slide ids and their layouts). Without layout the executor can\'t validate the slide\'s slot budgets and the slide ships off-template.'
+                    "insert_slide: layout is required — pass the same compound \"<composition>--<system>\" name used by the existing deck (call read_slides to see slide ids and their layouts). Without layout the executor can't validate the slide's slot budgets and the slide ships off-template."
                   );
                   break;
                 }
@@ -1732,7 +1727,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const presetName =
                   state?.fontPreset ??
                   (typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default");
-                const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default!;
+                const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default;
                 const slotIssues = validateSlotContent(
                   resolved.composition,
                   resolved.system,
@@ -1776,8 +1771,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                 const noteParts: string[] = [];
                 if (renames.length > 0)
                   noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
-                if (stripped > 0)
-                  noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
                   noteParts.length > 0
                     ? `inserted slide ${newId} (${noteParts.join("; ")})`
@@ -1822,10 +1816,10 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
                   // `accen` for `accent` would silently land on
                   // `deck.attrs` via updateAttrs and the model would think
                   // the patch succeeded while the deck color stayed put.
-                  const unknownKey =
-                    [...Object.keys(flatPatch), ...Object.keys(nestedColors ?? {})].find(
-                      (k) => k !== "fontPreset" && !THEME_ATTR_SET.has(k as ThemeAttr)
-                    );
+                  const unknownKey = [
+                    ...Object.keys(flatPatch),
+                    ...Object.keys(nestedColors ?? {}),
+                  ].find((k) => k !== "fontPreset" && !THEME_ATTR_SET.has(k as ThemeAttr));
                   if (unknownKey !== undefined) {
                     results.push(
                       `update_theme: unknown key ${JSON.stringify(unknownKey)}. Valid color keys: ${THEME_ATTRS.join(", ")} (or "fontPreset").`
@@ -1969,9 +1963,7 @@ export interface BuildSlideSystemPromptOptions {
   hasImageGenerator?: boolean;
 }
 
-export function buildSlideSystemPrompt(
-  options: BuildSlideSystemPromptOptions = {}
-): string {
+export function buildSlideSystemPrompt(options: BuildSlideSystemPromptOptions = {}): string {
   const { hasImageGenerator = false } = options;
   const fontTable = Object.entries(FONT_PRESETS)
     .map(([name, p]) => `  ${name}: heading="${p.heading}", body="${p.body}"`)

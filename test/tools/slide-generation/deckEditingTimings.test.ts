@@ -85,9 +85,7 @@ function briefArgs(name: string, args: Record<string, unknown>): string {
   }
   if (name === "patch_slides") {
     const ops = Array.isArray(args.operations) ? args.operations : [];
-    const actions = ops
-      .map((o) => (o as { action?: string }).action ?? "?")
-      .join(",");
+    const actions = ops.map((o) => (o as { action?: string }).action ?? "?").join(",");
     return `ops=${ops.length} [${actions}]`;
   }
   if (name === "read_slides") {
@@ -155,7 +153,7 @@ async function runRequest(
   for (const c of calls) {
     const errMark = c.error ? " ✗" : "";
     console.log(
-      `    [${(c.durationMs).toString().padStart(5, " ")}ms] ${c.name}${errMark}  args=${c.argsBytes}B result=${c.resultBytes}B  ${c.argsBrief}`
+      `    [${c.durationMs.toString().padStart(5, " ")}ms] ${c.name}${errMark}  args=${c.argsBytes}B result=${c.resultBytes}B  ${c.argsBrief}`
     );
   }
   return {
@@ -178,7 +176,8 @@ function printSummary(snapshots: RequestSnapshot[]): void {
     `  Total: ${(totalMs / 1000).toFixed(1)}s · in=${totalIn} out=${totalOut} (model=${config.model})`
   );
   console.log();
-  const header = "  " +
+  const header =
+    "  " +
     "label".padEnd(28) +
     "wall".padStart(8) +
     "  rounds".padStart(9) +
@@ -241,11 +240,7 @@ describe("deck-editing timings", () => {
       );
 
       snapshots.push(
-        await runRequest(
-          "EDIT 4: remove the problem slide",
-          "Remove the problem slide.",
-          store
-        )
+        await runRequest("EDIT 4: remove the problem slide", "Remove the problem slide.", store)
       );
 
       printSummary(snapshots);

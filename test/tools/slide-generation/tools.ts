@@ -43,4 +43,3 @@ export function createTestSlideTools(store: FileStore) {
     }),
   });
 }
-

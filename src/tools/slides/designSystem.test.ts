@@ -25,7 +25,11 @@ import { FONT_PRESETS } from "./index";
 
 const fontPreset = FONT_PRESETS.editorial ?? FONT_PRESETS.default!;
 
-function slideWithHero3(text: string | Array<{ tag: string; attrs: Record<string, unknown>; children: unknown[] } | string>) {
+function slideWithHero3(
+  text:
+    | string
+    | Array<{ tag: string; attrs: Record<string, unknown>; children: unknown[] } | string>
+) {
   return {
     children: [
       {
@@ -68,10 +72,7 @@ describe("validateSlotContent", () => {
       BRAND_STORY_SPLIT,
       EDITORIAL_WARM,
       fontPreset,
-      slideWithHero3([
-        "in 5 ",
-        { tag: "Span", attrs: {}, children: ["years."] },
-      ])
+      slideWithHero3(["in 5 ", { tag: "Span", attrs: {}, children: ["years."] }])
     );
     expect(issues.find((i) => i.id === "hero_3")).toBeUndefined();
   });
@@ -166,9 +167,7 @@ describe("validateSlotContent", () => {
       ],
     }));
     const slide = {
-      children: [
-        { tag: "Group", attrs: { id: "audience" }, children: items },
-      ],
+      children: [{ tag: "Group", attrs: { id: "audience" }, children: items }],
     };
     const issues = validateSlotContent(STAT_ROW_BOTTOM, EDITORIAL_WARM, fontPreset, slide);
     // The new validator must report overflow on items beyond index 4
@@ -215,9 +214,7 @@ describe("validateSlotContent", () => {
     // 3 items in a 44%-wide region → ~14% per item → comfortably fits 10 chars.
     // Max-index budgeting would treat this as 5 items → ~8.8% → 10 chars would
     // overflow. Assert no overflow at the value slots to pin count-based logic.
-    const valueOverflows = issues.filter(
-      (i) => i.id.endsWith("_value") && i.fit === "single-line"
-    );
+    const valueOverflows = issues.filter((i) => i.id.endsWith("_value") && i.fit === "single-line");
     expect(valueOverflows).toEqual([]);
   });
 
@@ -231,8 +228,7 @@ describe("validateSlotContent", () => {
     // A 65-char title fits a full-row card (~88% wide) but not a
     // half-row card (~44% wide). Three items with this title at idx 3
     // (in the trailing partial row) must NOT overflow.
-    const trailingTitle =
-      "Sixty-five characters here yes including this little extra bit.";
+    const trailingTitle = "Sixty-five characters here yes including this little extra bit.";
     expect(trailingTitle.length).toBe(63);
     const slide = {
       children: [
@@ -363,8 +359,8 @@ describe("compile() with flex regions", () => {
     // the accent surface bg. Distinct fills prove the per-item surface flow
     // is wired through to the emitter.
     const out = compile(MARKETING_GRID, EDITORIAL_WARM, fontPreset);
-    const fills = (out.match(/id="cards_\d+"[^>]*fill="([^"]+)"/g) ?? []).map(
-      (m) => m.match(/fill="([^"]+)"/)![1]!.toLowerCase()
+    const fills = (out.match(/id="cards_\d+"[^>]*fill="([^"]+)"/g) ?? []).map((m) =>
+      m.match(/fill="([^"]+)"/)![1]!.toLowerCase()
     );
     expect(fills).toHaveLength(4);
     expect(fills[0]).toBe(fills[1]); // both "default"
@@ -543,10 +539,10 @@ describe("renderCompositionLayoutRecipe image-note conditionality", () => {
   });
 
   it("omits the AnumaImageMCP reference when hasImageGenerator is false or unset", () => {
-    const recipe = renderCompositionLayoutRecipe(
-      "cover-split-portrait--editorial-warm",
-      { heading: "Playfair Display", body: "Source Sans 3" }
-    );
+    const recipe = renderCompositionLayoutRecipe("cover-split-portrait--editorial-warm", {
+      heading: "Playfair Display",
+      body: "Source Sans 3",
+    });
     expect(recipe).toBeTruthy();
     expect(recipe).not.toContain("AnumaImageMCP");
     // Still tells the model how to handle an unfilled image slot.
@@ -557,10 +553,10 @@ describe("renderCompositionLayoutRecipe image-note conditionality", () => {
   it("emits no image note at all for compositions without an image slot", () => {
     // COVER_STATEMENT is image-less by design — the recipe shouldn't
     // surface image guidance the model can't act on.
-    const recipe = renderCompositionLayoutRecipe(
-      "cover-statement--editorial-warm",
-      { heading: "Playfair Display", body: "Source Sans 3" }
-    );
+    const recipe = renderCompositionLayoutRecipe("cover-statement--editorial-warm", {
+      heading: "Playfair Display",
+      body: "Source Sans 3",
+    });
     expect(recipe).toBeTruthy();
     expect(recipe).not.toContain("Image slots:");
   });
@@ -572,9 +568,7 @@ describe("renderDesignSystemCatalog", () => {
     // the catalog should surface both so the model knows to bias
     // layouts accordingly.
     const out = renderDesignSystemCatalog();
-    const technoLine = out
-      .split("\n")
-      .find((l) => l.startsWith("- techno-bold —"))!;
+    const technoLine = out.split("\n").find((l) => l.startsWith("- techno-bold —"))!;
     expect(technoLine).toMatch(/\[.*prefers asymmetric layouts.*prefers dark-surface variants.*\]/);
   });
 
@@ -583,9 +577,7 @@ describe("renderDesignSystemCatalog", () => {
     // preferDarkVariants=false — falsy values shouldn't generate a
     // misleading empty `[]` annotation.
     const out = renderDesignSystemCatalog();
-    const swissLine = out
-      .split("\n")
-      .find((l) => l.startsWith("- minimal-swiss —"))!;
+    const swissLine = out.split("\n").find((l) => l.startsWith("- minimal-swiss —"))!;
     expect(swissLine).not.toMatch(/\[/);
   });
 });

@@ -33,9 +33,7 @@ export const config = {
  */
 export function requirePortalKey(): void {
   if (!config.portalKey) {
-    throw new Error(
-      "PORTAL_API_KEY is required. Add it to .env or set the environment variable."
-    );
+    throw new Error("PORTAL_API_KEY is required. Add it to .env or set the environment variable.");
   }
 }
 
