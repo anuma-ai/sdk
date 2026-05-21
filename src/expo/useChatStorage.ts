@@ -370,6 +370,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
+    preProcessors,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -681,6 +682,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     apiType,
+    preProcessors,
   });
 
   /**

@@ -1,6 +1,6 @@
 # StoredFileWithContext
 
-Defined in: [src/lib/db/chat/types.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#247)
+Defined in: [src/lib/db/chat/types.ts:248](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#248)
 
 File metadata with conversation context for file browsing.
 Extends FileMetadata with information about where the file was used.
@@ -15,7 +15,7 @@ Extends FileMetadata with information about where the file was used.
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#249)
+Defined in: [src/lib/db/chat/types.ts:250](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#250)
 
 ID of the conversation where this file was attached
 
@@ -25,7 +25,7 @@ ID of the conversation where this file was attached
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#251)
+Defined in: [src/lib/db/chat/types.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#252)
 
 Timestamp when the file was stored (from the message)
 
@@ -35,7 +35,7 @@ Timestamp when the file was stored (from the message)
 
 > **id**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#72)
+Defined in: [src/lib/db/chat/types.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#73)
 
 Unique identifier for the file (used as OPFS key for cached files)
 
@@ -49,7 +49,7 @@ Unique identifier for the file (used as OPFS key for cached files)
 
 > **messageRole**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/db/chat/types.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#253)
+Defined in: [src/lib/db/chat/types.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#254)
 
 Role of the message that contains this file
 
@@ -59,7 +59,7 @@ Role of the message that contains this file
 
 > **name**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#74)
+Defined in: [src/lib/db/chat/types.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#75)
 
 Display name of the file
 
@@ -73,7 +73,7 @@ Display name of the file
 
 > **size**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#78)
+Defined in: [src/lib/db/chat/types.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#79)
 
 File size in bytes
 
@@ -87,7 +87,7 @@ File size in bytes
 
 > `optional` **sourceUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#94)
+Defined in: [src/lib/db/chat/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#95)
 
 Original external URL for files downloaded and cached locally (e.g., from MCP R2).
 Used purely for URL→OPFS mapping to enable fallback when the source returns 404.
@@ -105,7 +105,7 @@ The file content is served from OPFS using the `id` field.
 
 > **type**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#76)
+Defined in: [src/lib/db/chat/types.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#77)
 
 MIME type (e.g., "image/png")
 
@@ -119,7 +119,7 @@ MIME type (e.g., "image/png")
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#86)
+Defined in: [src/lib/db/chat/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#87)
 
 Content URL to include when sending this message to the AI.
 When present, this URL is added as an `image_url` content part.

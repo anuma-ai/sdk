@@ -10,6 +10,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../client";
+import type { PromptPreProcessor } from "../../chat/preProcessor";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
@@ -408,6 +409,15 @@ export interface BaseUseChatStorageOptions {
    * Defaults to the hardcoded MCP_R2_DOMAIN from clientConfig.
    */
   mcpR2Domain?: string;
+  /**
+   * Pre-processors run after the last user message is received but before
+   * the first LLM request. Each receives the prompt text and a shared
+   * embedding (computed once per request) and may return messages to
+   * enrich the conversation. Forwarded to the underlying `useChat` hook.
+   * See `createWebSearchPreProcessor`, `createPricePreProcessor`, or write
+   * a custom one matching `PromptPreProcessor`.
+   */
+  preProcessors?: PromptPreProcessor[];
 }
 
 /**
