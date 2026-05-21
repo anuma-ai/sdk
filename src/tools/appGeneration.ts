@@ -93,15 +93,41 @@ export interface FileSnippet {
  *  (`}`, `)`, `;`) appear everywhere and produce noisy matches. */
 const ANCHOR_MIN_LENGTH = 8;
 
+/** Lines starting with these tags appear in nearly every React app's icon
+ *  markup and are poor anchors: a long `<svg viewBox="0 0 24 24" ...>` will
+ *  match the header icon even when the model intended to edit a button.
+ *  We try non-SVG candidates first and only fall back to these when nothing
+ *  else anchors — and in that case the match is marked low-confidence. */
+const NOISY_MARKUP_RE =
+  /^<(svg|path|circle|rect|polygon|polyline|line|ellipse|g|defs|use|symbol|stop|linearGradient|radialGradient)\b/i;
+
+function isNoisyMarkup(line: string): boolean {
+  return NOISY_MARKUP_RE.test(line.trim());
+}
+
+/** Result of fuzzy-locating where a failed `find` was probably targeting.
+ *  `high` confidence means a non-noisy line matched; `low` means only a
+ *  generic markup line (e.g. SVG header) matched and the snippet would
+ *  likely mislead the model. */
+export interface AnchorMatch {
+  line: number;
+  confidence: "high" | "low";
+}
+
 /**
  * Locate the most likely line in `content` that the failed `find` was
- * targeting. Strategy: take the non-trivial lines from `find` (length
- * ≥ ANCHOR_MIN_LENGTH, contains non-whitespace), search longest-first
- * for one that appears in `content`, and return its 1-based line number.
- * Returns `null` when no anchor line can be found — typical for fully
- * hallucinated patches.
+ * targeting. Two-pass strategy:
+ *
+ *   1. Try non-noisy candidates from `find`, longest first. If one
+ *      appears in the file, return its line as `high` confidence.
+ *   2. If nothing in pass 1 matched, repeat over ALL candidates
+ *      (including SVG/icon markup). Mark the match as `low` confidence
+ *      so callers can omit a misleading snippet.
+ *
+ * Returns `null` when no candidate line — noisy or not — appears in
+ * the file. Typical for fully hallucinated patches.
  */
-export function findBestAnchor(content: string, find: string): number | null {
+export function findBestAnchor(content: string, find: string): AnchorMatch | null {
   const candidates = find
     .split("\n")
     .map((l) => l.trim())
@@ -111,10 +137,18 @@ export function findBestAnchor(content: string, find: string): number | null {
   if (candidates.length === 0) return null;
 
   const contentLines = content.split("\n");
+
+  for (const candidate of candidates) {
+    if (isNoisyMarkup(candidate)) continue;
+    const idx = contentLines.findIndex((l) => l.includes(candidate));
+    if (idx !== -1) return { line: idx + 1, confidence: "high" };
+  }
+
   for (const candidate of candidates) {
     const idx = contentLines.findIndex((l) => l.includes(candidate));
-    if (idx !== -1) return idx + 1;
+    if (idx !== -1) return { line: idx + 1, confidence: "low" };
   }
+
   return null;
 }
 
@@ -144,21 +178,24 @@ export function snippetAroundLine(
 
 /** Lines of context to include before and after the anchor in a snippet. */
 const SNIPPET_CONTEXT = 8;
-/** Lines to include in the fallback file-head snippet when no anchor matches. */
-const FALLBACK_HEAD_LINES = 30;
+
+/** Number of consecutive patch_file match failures on the same file before
+ *  the executor stops returning snippets and demands a read_file. Failing
+ *  twice in a row is strong evidence the model's mental model of the file
+ *  is wrong — more snippets won't help; it needs fresh content. */
+const PATCH_FAILURE_THRESHOLD = 2;
 
 /**
  * Pick a focused region of the file to show alongside a failed patch.
- * If an anchor line exists, returns ±SNIPPET_CONTEXT lines around it.
- * Otherwise returns the first FALLBACK_HEAD_LINES lines so the model
- * has *something* to reason about even when its `find` was fully wrong.
+ * Returns `null` when the best anchor is either missing or low-confidence
+ * (only generic markup like a `<svg>` line matched). A null snippet is
+ * the executor's cue to nudge the model toward `read_file` instead of
+ * showing potentially misleading context.
  */
-export function snippetForFailedPatch(content: string, find: string): FileSnippet {
+export function snippetForFailedPatch(content: string, find: string): FileSnippet | null {
   const anchor = findBestAnchor(content, find);
-  if (anchor !== null) {
-    return snippetAroundLine(content, anchor, SNIPPET_CONTEXT, SNIPPET_CONTEXT);
-  }
-  return snippetAroundLine(content, 1, 0, FALLBACK_HEAD_LINES - 1);
+  if (anchor === null || anchor.confidence === "low") return null;
+  return snippetAroundLine(content, anchor.line, SNIPPET_CONTEXT, SNIPPET_CONTEXT);
 }
 
 // ---------------------------------------------------------------------------
@@ -580,6 +617,26 @@ export function createAppGenerationTools({
   }
   const appStateByConv = new Map<string, AppDisplayState>();
 
+  // Per-(conversation, path) tally of consecutive patch_file match failures.
+  // When this hits PATCH_FAILURE_THRESHOLD the executor stops returning
+  // snippets and demands a read_file — observed thrashing pattern is the
+  // model wholesale-hallucinating file contents and retrying with the
+  // same wrong mental model, even with snippets in hand.
+  const patchFailuresByConv = new Map<string, Map<string, number>>();
+  function bumpPatchFailure(conversationId: string, path: string): number {
+    let m = patchFailuresByConv.get(conversationId);
+    if (!m) {
+      m = new Map();
+      patchFailuresByConv.set(conversationId, m);
+    }
+    const n = (m.get(path) ?? 0) + 1;
+    m.set(path, n);
+    return n;
+  }
+  function clearPatchFailure(conversationId: string, path: string): void {
+    patchFailuresByConv.get(conversationId)?.delete(path);
+  }
+
   /**
    * Invoke the host's `displayApp` callback with cached state, fold
    * the reply back into per-conversation state, AND return it to the
@@ -678,22 +735,43 @@ export function createAppGenerationTools({
         const { content, appliedCount, failed } = applyPatches(existing.content, patches);
 
         // Atomic: if any patch failed to match, the file is unchanged.
-        // Attach a snippet of the current file around each failed
-        // patch's best anchor so the model can fix and retry without a
-        // separate read_file round-trip — and without re-receiving the
-        // entire file as input tokens.
         if (failed.length > 0) {
-          const failedPatches = failed.map((f) => ({
-            ...f,
-            snippet: snippetForFailedPatch(existing.content, f.find),
-          }));
+          const failureCount = bumpPatchFailure(conversationId, filePath);
+
+          // Repeated failure: the model is hallucinating file content.
+          // Stop returning snippets (they're not helping) and demand a
+          // read_file. Keep the full failed-find strings so the model
+          // can compare them against the read result.
+          if (failureCount >= PATCH_FAILURE_THRESHOLD) {
+            return {
+              success: false,
+              path: filePath,
+              applied: 0,
+              failed: failed.length,
+              failedPatches: failed,
+              message: `patch_file has failed ${failureCount} times in a row for ${filePath}. Your "find" strings do not match the actual file. STOP retrying patches — call read_file("${filePath}") first to see the current content, then write new patches using exact text from the file.`,
+            };
+          }
+
+          // First failure: attach a snippet around each failed patch's
+          // best anchor so the model can fix and retry without a separate
+          // read_file round-trip — and without re-receiving the entire
+          // file as input tokens. Snippets are omitted when only generic
+          // markup (e.g. <svg>) matched, since those would mislead.
+          const failedPatches = failed.map((f) => {
+            const snippet = snippetForFailedPatch(existing.content, f.find);
+            return snippet ? { ...f, snippet } : f;
+          });
+          const allHaveSnippets = failedPatches.every((p) => "snippet" in p);
           return {
             success: false,
             path: filePath,
             applied: 0,
             failed: failed.length,
             failedPatches,
-            message: `${failed.length} of ${patches.length} patches did not match. File NOT modified — each failed patch carries a numbered snippet of the current file near the closest match. Line numbers are display-only; your "find" string must contain only the file text without them.`,
+            message: allHaveSnippets
+              ? `${failed.length} of ${patches.length} patches did not match. File NOT modified — each failed patch carries a numbered snippet of the current file near the closest match. Line numbers are display-only; your "find" string must contain only the file text without them.`
+              : `${failed.length} of ${patches.length} patches did not match. File NOT modified — for failed patches with a snippet, the closest match is shown; for failed patches without one, no part of your find string was located in the file and you should call read_file("${filePath}") to see the current content before retrying.`,
           };
         }
 
@@ -725,6 +803,7 @@ export function createAppGenerationTools({
         }
 
         await storage.putFile(conversationId, filePath, content);
+        clearPatchFailure(conversationId, filePath);
         const display = await triggerAppDisplay(conversationId);
         return { success: true, path: filePath, applied: appliedCount, ...display };
       } catch (err) {

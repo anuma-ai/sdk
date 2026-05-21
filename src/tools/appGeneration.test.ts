@@ -178,7 +178,7 @@ describe("findBestAnchor", () => {
 
   it("finds the line containing a longer fragment of find", () => {
     const find = "function multiply(a, b) {\n  return a + b; // wrong\n}";
-    expect(findBestAnchor(file, find)).toBe(5);
+    expect(findBestAnchor(file, find)).toEqual({ line: 5, confidence: "high" });
   });
 
   it("returns null when no non-trivial line in find appears in content", () => {
@@ -191,10 +191,45 @@ describe("findBestAnchor", () => {
   });
 
   it("prefers the longest matching line when multiple candidates exist", () => {
-    // Both "function add(a, b) {" and "}" appear, but the long one wins —
-    // and it appears at line 1.
     const find = "function add(a, b) {\n  return WRONG;\n}";
-    expect(findBestAnchor(file, find)).toBe(1);
+    expect(findBestAnchor(file, find)).toEqual({ line: 1, confidence: "high" });
+  });
+
+  it("prefers a semantic line over a longer SVG markup line", () => {
+    // Common React component shape: a long icon SVG at the top, a
+    // semantic button handler further down. A failed find that contains
+    // both should anchor on the handler, NOT the icon — otherwise the
+    // returned snippet describes the wrong region of the file.
+    const reactFile = [
+      'function App() {',
+      '  return (',
+      '    <div>',
+      '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 13l4 4L19 7" /></svg>',
+      '      <button onClick={handleSubmit}>Save</button>',
+      '    </div>',
+      '  );',
+      '}',
+    ].join("\n");
+    const find = [
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">',
+      "  <path d=\"M12 5l7 7-7 7\" />",
+      "</svg>",
+      "<button onClick={handleSubmit}>",
+    ].join("\n");
+    expect(findBestAnchor(reactFile, find)).toEqual({ line: 5, confidence: "high" });
+  });
+
+  it("marks SVG-only matches as low confidence", () => {
+    // When the only line from `find` that anchors is a generic SVG tag,
+    // the match is structurally suspect — the model probably hallucinated
+    // the rest of the patch. Surface that via the low-confidence flag.
+    const reactFile = [
+      'function App() {',
+      '  return <svg viewBox="0 0 24 24" fill="none"><path d="M5 13" /></svg>;',
+      '}',
+    ].join("\n");
+    const find = '<svg viewBox="0 0 24 24" fill="none">\n<path d="M99 99" />';
+    expect(findBestAnchor(reactFile, find)).toEqual({ line: 2, confidence: "low" });
   });
 });
 
@@ -241,18 +276,27 @@ describe("snippetForFailedPatch", () => {
     "export default App;",
   ].join("\n");
 
-  it("returns context around the anchor when a match is found", () => {
+  it("returns context around the anchor when a high-confidence match is found", () => {
     const find = "const [count, setCount] = useState(0);\nreturn <DIFFERENT />;";
     const snip = snippetForFailedPatch(file, find);
-    expect(snip.content).toContain("4: ");
-    expect(snip.content).toContain("const [count, setCount] = useState(0);");
+    expect(snip).not.toBeNull();
+    expect(snip!.content).toContain("4: ");
+    expect(snip!.content).toContain("const [count, setCount] = useState(0);");
   });
 
-  it("falls back to the file head when no anchor matches", () => {
+  it("returns null when no anchor matches at all", () => {
     const find = "completely unrelated content here\nthat does not match anything";
-    const snip = snippetForFailedPatch(file, find);
-    expect(snip.startLine).toBe(1);
-    expect(snip.content.startsWith("1: ")).toBe(true);
+    expect(snippetForFailedPatch(file, find)).toBeNull();
+  });
+
+  it("returns null when only a noisy SVG markup line anchors (low confidence)", () => {
+    const svgFile = [
+      "function App() {",
+      '  return <svg viewBox="0 0 24 24" fill="none"><path d="M5 13" /></svg>;',
+      "}",
+    ].join("\n");
+    const find = '<svg viewBox="0 0 24 24" fill="none">\n<button onClick={hallucinated}>';
+    expect(snippetForFailedPatch(svgFile, find)).toBeNull();
   });
 });
 
