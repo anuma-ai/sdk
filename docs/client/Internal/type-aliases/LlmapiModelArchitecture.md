@@ -2,7 +2,7 @@
 
 > **LlmapiModelArchitecture** = `object`
 
-Defined in: [src/client/types.gen.ts:1754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1754)
+Defined in: [src/client/types.gen.ts:2179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2179)
 
 Architecture describes the model's technical capabilities
 
@@ -12,7 +12,7 @@ Architecture describes the model's technical capabilities
 
 > `optional` **instruct\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:1755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1755)
+Defined in: [src/client/types.gen.ts:2180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2180)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:1755](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **modality**: `string`
 
-Defined in: [src/client/types.gen.ts:1756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1756)
+Defined in: [src/client/types.gen.ts:2181](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2181)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1756](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **prompt\_formatting**: `string`
 
-Defined in: [src/client/types.gen.ts:1757](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1757)
+Defined in: [src/client/types.gen.ts:2182](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2182)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:1757](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tokenizer**: `string`
 
-Defined in: [src/client/types.gen.ts:1758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1758)
+Defined in: [src/client/types.gen.ts:2183](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2183)

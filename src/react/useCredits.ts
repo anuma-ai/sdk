@@ -2,15 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type {
-  HandlersClaimDailyCreditsResponse,
-  HandlersCreditBalanceResponse,
-  HandlersCreditPack,
-} from "../client";
+import type { HandlersCreditBalanceResponse, HandlersCreditPack } from "../client";
 import {
   getApiV1CreditsBalance,
   getApiV1CreditsPacks,
-  postApiV1CreditsClaimDaily,
   postApiV1CreditsPurchase,
 } from "../client/sdk.gen";
 import { BASE_URL } from "../clientConfig";
@@ -63,11 +58,6 @@ export type UseCreditsResult = {
    */
   fetchPacks: () => Promise<void>;
   /**
-   * Claim free daily credits (once per 24 hours)
-   * @returns The claim response or null on error
-   */
-  claimDailyCredits: () => Promise<HandlersClaimDailyCreditsResponse | null>;
-  /**
    * Create a Stripe checkout session for purchasing a credit pack
    * @param credits - Number of credits to purchase
    * @returns The checkout URL or null on error
@@ -79,8 +69,8 @@ export type UseCreditsResult = {
 };
 
 /**
- * React hook for managing credits: checking balance, claiming daily credits,
- * browsing packs, and purchasing credits.
+ * React hook for managing credits: checking balance, browsing packs, and
+ * purchasing credits.
  * @category Hooks
  */
 export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
@@ -210,36 +200,6 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
     }
   }, [getHeaders, handleError, startLoading, stopLoading]);
 
-  const claimDailyCredits =
-    useCallback(async (): Promise<HandlersClaimDailyCreditsResponse | null> => {
-      startLoading();
-      setError(null);
-
-      try {
-        const headers = await getHeaders();
-
-        const response = await postApiV1CreditsClaimDaily({
-          baseUrl: baseUrlRef.current,
-          headers,
-        });
-
-        if (response.error) {
-          const errorMsg = response.error.error ?? "Failed to claim daily credits";
-          throw new Error(errorMsg);
-        }
-
-        // Refetch balance after claiming
-        await fetchBalance();
-
-        return response.data ?? null;
-      } catch (err) {
-        handleError(err);
-        return null;
-      } finally {
-        stopLoading();
-      }
-    }, [getHeaders, handleError, fetchBalance, startLoading, stopLoading]);
-
   const purchaseCredits = useCallback(
     async (
       credits: number,
@@ -295,7 +255,6 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
     error,
     refetch,
     fetchPacks,
-    claimDailyCredits,
     purchaseCredits,
   };
 }

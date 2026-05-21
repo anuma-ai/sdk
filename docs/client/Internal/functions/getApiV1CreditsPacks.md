@@ -2,11 +2,11 @@
 
 > **getApiV1CreditsPacks**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsPacksData`](../type-aliases/GetApiV1CreditsPacksData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1CreditsPacksResponses`](../type-aliases/GetApiV1CreditsPacksResponses.md), [`GetApiV1CreditsPacksErrors`](../type-aliases/GetApiV1CreditsPacksErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:454](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#454)
+Defined in: [src/client/sdk.gen.ts:680](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#680)
 
 List available credit packs
 
-Returns available credit packs with prices fetched from Stripe. Pro users receive bonus credits on the same pack.
+Returns available credit packs with prices fetched from Stripe.
 
 ## Type Parameters
 

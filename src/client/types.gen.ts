@@ -4,6 +4,66 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type AuthJwk = {
+    alg?: string;
+    crv?: string;
+    kid?: string;
+    kty?: string;
+    use?: string;
+    x?: string;
+    y?: string;
+};
+
+export type AuthJwks = {
+    keys?: Array<AuthJwk>;
+};
+
+export type ConfigCompactLists = {
+    private?: Array<string>;
+    standard?: Array<string>;
+};
+
+export type ConfigCuratedModel = {
+    active?: boolean;
+    /**
+     * "text" | "image" | "vision"
+     */
+    category?: string;
+    description?: string;
+    featured?: boolean;
+    group_display_name?: string;
+    id?: string;
+    /**
+     * IsNew flags a recently-shipped model so clients can render a
+     * "New" badge in the picker. Set true on freshly-launched additions;
+     * product should clear it once the model has been GA for a release
+     * or two so the badge stays meaningful.
+     */
+    is_new?: boolean;
+    is_private?: boolean;
+    modalities?: Array<string>;
+    name?: string;
+    /**
+     * "$" | "$$" | "$$$"
+     */
+    price_tier?: string;
+    provider?: string;
+    /**
+     * "high" | "medium" | "low"
+     */
+    quality?: string;
+    /**
+     * "" | "Starter" | "Pro"
+     */
+    required_tier?: string;
+};
+
+export type ConfigCuratedModelsResponse = {
+    compact?: ConfigCompactLists;
+    models?: Array<ConfigCuratedModel>;
+    version?: string;
+};
+
 export type HandlersApiKeyResponse = {
     app_id: number;
     created_at: string;
@@ -58,6 +118,10 @@ export type HandlersAddCreditsResponse = {
 
 export type HandlersAgentListItem = {
     /**
+     * AgentServerURL is the URL of the agent's server runtime endpoint.
+     */
+    agent_server_url?: string;
+    /**
      * Category groups agents by use case.
      */
     category: string;
@@ -121,6 +185,10 @@ export type HandlersAgentListItem = {
      * RecommendedModel is the suggested default model.
      */
     recommended_model?: string;
+    /**
+     * Runtimes is the list of runtime environments the agent supports (e.g., "client", "server").
+     */
+    runtimes?: Array<string>;
     /**
      * Skills is the list of skill identifiers bound to this agent.
      */
@@ -148,6 +216,10 @@ export type HandlersAgentListResponse = {
 
 export type HandlersAgentResponse = {
     /**
+     * AgentServerURL is the URL of the agent's server runtime endpoint.
+     */
+    agent_server_url?: string;
+    /**
      * Category groups agents by use case.
      */
     category: string;
@@ -211,6 +283,10 @@ export type HandlersAgentResponse = {
      * RecommendedModel is the suggested default model.
      */
     recommended_model?: string;
+    /**
+     * Runtimes is the list of runtime environments the agent supports (e.g., "client", "server").
+     */
+    runtimes?: Array<string>;
     /**
      * Skills is the list of skill identifiers bound to this agent.
      */
@@ -294,6 +370,46 @@ export type HandlersBillingRecordResponse = {
     status: string;
 };
 
+/**
+ * Build is the server build metadata at the time of bootstrap.
+ */
+export type HandlersBootstrapBuild = {
+    /**
+     * Env is the deployment environment (e.g., "dev", "prod").
+     */
+    env?: string;
+    /**
+     * Version is the server build version (set via ldflags at compile time).
+     */
+    version?: string;
+};
+
+export type HandlersBootstrapResponse = {
+    build?: HandlersBootstrapBuild;
+    /**
+     * Flags maps registered feature-flag keys to the variant assigned to this user.
+     * Variant values are typed by PostHog: bool for boolean flags, string for multivariate.
+     */
+    flags?: {
+        [key: string]: unknown;
+    };
+    user?: HandlersBootstrapUser;
+};
+
+/**
+ * User is the authenticated identity context.
+ */
+export type HandlersBootstrapUser = {
+    /**
+     * SubscriptionTier reflects the user's tier (e.g., "basic", "starter", "pro").
+     */
+    subscription_tier?: string;
+    /**
+     * UserAddress is the EVM address resolved from the auth token.
+     */
+    user_address?: string;
+};
+
 export type HandlersCancelScheduledDowngradeResponse = {
     message: string;
 };
@@ -306,31 +422,6 @@ export type HandlersCancelSubscriptionResponse = {
 
 export type HandlersCheckoutSessionResponse = {
     url: string;
-};
-
-export type HandlersClaimDailyCreditsResponse = {
-    /**
-     * Credits awarded (1 credit = $0.01)
-     */
-    credits_awarded?: number;
-    message: string;
-    /**
-     * ISO8601 timestamp when next claim is available
-     */
-    next_claim_at?: string;
-    success: boolean;
-};
-
-export type HandlersClaimTaskRewardRequest = {
-    memories?: Array<string>;
-    task_type?: string;
-};
-
-export type HandlersClaimTaskRewardResponse = {
-    already_claimed: boolean;
-    credits_awarded?: number;
-    message: string;
-    success: boolean;
 };
 
 export type HandlersConfigResponse = {
@@ -349,6 +440,12 @@ export type HandlersConfigurePrivyRequest = {
     privy_verification_key?: string;
 };
 
+export type HandlersConsentApproveResponse = {
+    code?: string;
+    redirect_uri?: string;
+    state?: string;
+};
+
 export type HandlersCreateApiKeyRequest = {
     is_active?: boolean;
     /**
@@ -360,6 +457,10 @@ export type HandlersCreateApiKeyRequest = {
 };
 
 export type HandlersCreateAgentRequest = {
+    /**
+     * AgentServerURL is the URL of the agent's server runtime endpoint.
+     */
+    agent_server_url?: string;
     /**
      * Category groups agents by use case.
      */
@@ -412,6 +513,10 @@ export type HandlersCreateAgentRequest = {
      * RecommendedModel is the suggested default model.
      */
     recommended_model?: string;
+    /**
+     * Runtimes is the list of runtime environments the agent supports (e.g., "client", "server").
+     */
+    runtimes?: Array<string>;
     /**
      * Skills is the list of skill identifiers bound to this agent.
      */
@@ -488,6 +593,30 @@ export type HandlersCreateDeveloperAppRequest = {
     name?: string;
 };
 
+export type HandlersCreateOAuthClientRequest = {
+    agent_server_url?: string;
+    allowed_redirect_uris?: Array<string>;
+    allowed_scopes?: Array<string>;
+    client_id?: string;
+    is_public_client?: boolean;
+    name?: string;
+    owner_org?: string;
+};
+
+export type HandlersCreateOAuthClientResponse = {
+    agent_server_url?: string;
+    allowed_redirect_uris?: Array<string>;
+    allowed_scopes?: Array<string>;
+    client_id?: string;
+    client_secret?: string;
+    created_at?: string;
+    is_public_client?: boolean;
+    name?: string;
+    owner_org?: string;
+    status?: string;
+    updated_at?: string;
+};
+
 export type HandlersCreatePersonaRequest = {
     /**
      * Config is the persona configuration JSON.
@@ -515,33 +644,28 @@ export type HandlersCreditBalanceResponse = {
      * Available credits (1 credit = $0.01)
      */
     available_credits: number;
-    can_claim_daily: boolean;
-    /**
-     * Which import providers have been claimed
-     */
-    claimed_import_rewards: Array<string>;
     /**
      * Upcoming credit expirations (soonest first)
      */
     expiring_credits?: Array<HandlersExpiringCredits>;
-    last_claim_at?: string;
     /**
      * Total credits ever received (1 credit = $0.01)
      */
     lifetime_credits: number;
-    next_claim_at?: string;
     /**
      * "basic" or "pro"
      */
     subscription_tier: string;
+    /**
+     * Sum of on-chain token amounts redeemed (raw units, format with token decimals)
+     */
+    total_tokens_redeemed?: string;
     wallet_address: string;
 };
 
 export type HandlersCreditPack = {
-    bonus_percent: number;
     credits: number;
     currency: string;
-    pro_credits: number;
     unit_amount: number;
 };
 
@@ -551,6 +675,13 @@ export type HandlersCreditPacksResponse = {
 
 export type HandlersCustomerPortalResponse = {
     url: string;
+};
+
+export type HandlersDeleteUserResponse = {
+    account_id?: number;
+    message?: string;
+    stripe_cleanup_succeeded?: boolean;
+    wallet_address?: string;
 };
 
 export type HandlersDeveloperApiKeyRequest = {
@@ -675,6 +806,72 @@ export type HandlersGetToolsResponse = {
     };
 };
 
+export type HandlersGuestBootstrapResponse = {
+    build?: HandlersBootstrapBuild;
+    /**
+     * Flags maps registered feature-flag keys to variants assigned to this guest.
+     */
+    flags?: {
+        [key: string]: unknown;
+    };
+};
+
+export type HandlersGuestChatResponse = {
+    /**
+     * Choices contains the completion choices
+     */
+    choices?: Array<LlmapiChoice>;
+    /**
+     * ClientInjectedTools are tool names the client provided in the original request.
+     */
+    client_injected_tools?: Array<string>;
+    extra_fields?: LlmapiChatCompletionExtraFields;
+    /**
+     * ID is the completion ID
+     */
+    id?: string;
+    /**
+     * ImageModel is set when an image generation tool was called during the request.
+     * This allows the client to detect that the response contains generated images
+     * and render them appropriately, even when the orchestrating model is a text model.
+     */
+    image_model?: string;
+    /**
+     * InferenceID is the unique identifier for this inference request
+     */
+    inference_id?: string;
+    /**
+     * Messages contains the full conversation history when local tools need execution.
+     * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
+     * The client should execute these tools and send a new request with this message history
+     * plus the tool results appended.
+     */
+    messages?: Array<LlmapiMessage>;
+    messages_remaining?: number;
+    /**
+     * Model is the model used
+     */
+    model?: string;
+    /**
+     * PortalInjectedTools are tool names the portal's classifier added to the request.
+     */
+    portal_injected_tools?: Array<string>;
+    /**
+     * ToolCallEvents is an array of tool call events.
+     */
+    tool_call_events?: Array<LlmapiToolCallEvent>;
+    /**
+     * ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
+     */
+    tools_checksum?: string;
+    usage?: LlmapiChatCompletionUsage;
+};
+
+export type HandlersGuestLimitResponse = {
+    auth_prompt?: string;
+    error?: string;
+};
+
 export type HandlersHealthResponse = {
     /**
      * Status indicates the service health status
@@ -710,6 +907,11 @@ export type HandlersListDeveloperAppsResponse = {
     pagination: HandlersPaginationResponse;
 };
 
+export type HandlersListOAuthClientsResponse = {
+    clients?: Array<HandlersOAuthClientResponse>;
+    pagination?: HandlersPaginationResponse;
+};
+
 export type HandlersListUserApiKeysResponse = {
     api_keys: Array<HandlersUserApiKeyResponse>;
 };
@@ -717,6 +919,23 @@ export type HandlersListUserApiKeysResponse = {
 export type HandlersListUsersResponse = {
     pagination: HandlersPaginationResponse;
     users: Array<HandlersDeveloperUserResponse>;
+};
+
+export type HandlersMfaStatusResponse = {
+    enabled?: boolean;
+    enrolled_at?: string;
+    methods?: Array<string>;
+    passkey_credentials?: Array<HandlersPasskeyCredentialDto>;
+    recovery_codes_remaining?: number;
+    sms?: HandlersSmsStatusDto;
+    sms_eligible_for_enrollment?: boolean;
+};
+
+export type HandlersModalityUsageItem = {
+    cost_usd: number;
+    credits: number;
+    modality: string;
+    request_count: number;
 };
 
 export type HandlersModelToolUsageItem = {
@@ -732,6 +951,27 @@ export type HandlersModelUsageItem = {
     request_count: number;
     request_tokens: number;
     response_tokens: number;
+};
+
+export type HandlersOAuthClientResponse = {
+    agent_server_url?: string;
+    allowed_redirect_uris?: Array<string>;
+    allowed_scopes?: Array<string>;
+    client_id?: string;
+    created_at?: string;
+    is_public_client?: boolean;
+    name?: string;
+    owner_org?: string;
+    status?: string;
+    updated_at?: string;
+};
+
+export type HandlersOAuthTokenResponse = {
+    access_token?: string;
+    expires_in?: number;
+    refresh_token?: string;
+    scope?: string;
+    token_type?: string;
 };
 
 export type HandlersPaginationResponse = {
@@ -777,6 +1017,83 @@ export type HandlersPhoneCallTranscriptEntry = {
     created_at?: string;
     speaker?: string;
     text?: string;
+};
+
+export type HandlersPrivyIdentifierAuditEntry = {
+    account_id?: number;
+    current_address?: string;
+    embedded_address?: string;
+    privy_did?: string;
+};
+
+export type HandlersPrivyIdentifierAuditResponse = {
+    /**
+     * current identifier already matches embedded
+     */
+    already_ok?: number;
+    /**
+     * transient Privy API failures
+     */
+    api_errors?: number;
+    /**
+     * only includes WillChange entries
+     */
+    entries?: Array<HandlersPrivyIdentifierAuditEntry>;
+    /**
+     * limit applied to this request
+     */
+    limit?: number;
+    /**
+     * offset to pass next call; -1 when no more accounts remain
+     */
+    next_offset?: number;
+    /**
+     * user exists but has no embedded wallet
+     */
+    no_embedded?: number;
+    /**
+     * Privy API 404 for this DID
+     */
+    no_privy_user?: number;
+    /**
+     * offset applied to this request
+     */
+    offset?: number;
+    /**
+     * accounts processed in this batch
+     */
+    total?: number;
+    /**
+     * stored identifier differs from embedded (case-insensitive)
+     */
+    will_change?: number;
+};
+
+export type HandlersPrivyIdentifierMigrateFailure = {
+    account_id?: number;
+    privy_did?: string;
+    reason?: string;
+};
+
+export type HandlersPrivyIdentifierMigrateResponse = {
+    /**
+     * accounts whose identifier was rewritten
+     */
+    changes?: Array<HandlersPrivyIdentifierAuditEntry>;
+    /**
+     * DB update or constraint failure
+     */
+    failed?: number;
+    failures?: Array<HandlersPrivyIdentifierMigrateFailure>;
+    limit?: number;
+    migrated?: number;
+    next_offset?: number;
+    offset?: number;
+    /**
+     * already correct, no embedded, or Privy API miss
+     */
+    skipped?: number;
+    total?: number;
 };
 
 export type HandlersRedeemTokensRequest = {
@@ -942,7 +1259,7 @@ export type HandlersSubscriptionStatusResponse = {
      */
     interval?: string;
     /**
-     * "stripe" | "revenuecat" — tells the client how to manage subscription
+     * "stripe" | "revenuecat" | "staking" — tells the client how to manage subscription (no portal for "staking"; manage on-chain)
      */
     payment_provider?: string;
     /**
@@ -961,27 +1278,6 @@ export type HandlersSubscriptionStatusResponse = {
      * "none" | "active" | "canceling" | "past_due" | "canceled"
      */
     status: string;
-};
-
-export type HandlersSyncSnagResponse = {
-    credits_awarded?: number;
-    message: string;
-    next_sync_at?: string;
-    success: boolean;
-    total_converted?: number;
-};
-
-export type HandlersTaskResponse = {
-    /**
-     * 1 credit = $0.01
-     */
-    amount_credits: number;
-    /**
-     * null for one-time tasks
-     */
-    cooldown_secs?: number;
-    description: string;
-    type: string;
 };
 
 export type HandlersTokenResponse = {
@@ -1037,6 +1333,10 @@ export type HandlersUpdateApiKeyRequest = {
 
 export type HandlersUpdateAgentRequest = {
     /**
+     * AgentServerURL is the URL of the agent's server runtime endpoint.
+     */
+    agent_server_url?: string;
+    /**
      * Category groups agents by use case.
      */
     category?: string;
@@ -1089,6 +1389,10 @@ export type HandlersUpdateAgentRequest = {
      */
     recommended_model?: string;
     /**
+     * Runtimes is the list of runtime environments the agent supports (e.g., "client", "server").
+     */
+    runtimes?: Array<string>;
+    /**
      * Skills is the list of skill identifiers bound to this agent.
      */
     skills?: Array<string>;
@@ -1130,6 +1434,14 @@ export type HandlersUpdateDeveloperAppRequest = {
     name?: string;
 };
 
+export type HandlersUpdateOAuthClientRequest = {
+    agent_server_url?: string;
+    allowed_redirect_uris?: Array<string>;
+    allowed_scopes?: Array<string>;
+    name?: string;
+    status?: string;
+};
+
 export type HandlersUpdatePersonaRequest = {
     /**
      * Config is the new persona configuration JSON.
@@ -1165,6 +1477,18 @@ export type HandlersUpgradeSubscriptionResponse = {
     message: string;
     new_interval: string;
     new_plan: string;
+};
+
+export type HandlersUsageByModalityResponse = {
+    modalities: Array<HandlersModalityUsageItem>;
+    period: HandlersUsagePeriod;
+    totals: HandlersUsageByModalityTotals;
+};
+
+export type HandlersUsageByModalityTotals = {
+    cost_usd: number;
+    credits: number;
+    request_count: number;
 };
 
 export type HandlersUsageByModelResponse = {
@@ -1256,6 +1580,7 @@ export type HandlersUserLookupEnrollment = {
     lifetime_credits?: number;
     pending_cost_usd?: number;
     pro_activated_at?: string;
+    starter_activated_at?: string;
     subscription_tier?: string;
     updated_at?: string;
 };
@@ -1320,9 +1645,91 @@ export type HandlersWalletDetails = {
      */
     pro_activated_at?: string;
     /**
-     * "basic" or "pro"
+     * When user first became Starter subscriber
+     */
+    starter_activated_at?: string;
+    /**
+     * "basic", "starter", or "pro"
      */
     subscription_tier: string;
+};
+
+export type HandlersDisableRequest = {
+    code?: string;
+    method?: string;
+};
+
+export type HandlersGrantResponse = {
+    client_id?: string;
+    created_at?: string;
+    daily_spend_micro_usd?: number;
+    id?: number;
+    revoked_at?: string;
+    scopes?: Array<string>;
+    spending_cap_daily_micro_usd?: number;
+};
+
+export type HandlersMfaSessionResponse = {
+    expires_at?: string;
+    mfa_session_token?: string;
+    recovery_codes?: Array<string>;
+};
+
+export type HandlersOauthTokenError = {
+    error?: string;
+    error_description?: string;
+};
+
+export type HandlersPasskeyCredentialDto = {
+    created_at?: string;
+    id?: string;
+    label?: string;
+    last_used_at?: string;
+};
+
+export type HandlersPasskeyDeleteResponse = {
+    remaining_credentials?: Array<HandlersPasskeyCredentialDto>;
+    removed?: boolean;
+};
+
+export type HandlersPasskeyEnrollFinishRequest = {
+    [key: string]: unknown;
+};
+
+export type HandlersPasskeyEnrollFinishResponse = {
+    credential_id?: string;
+    expires_at?: string;
+    label?: string;
+    mfa_session_token?: string;
+    recovery_codes?: Array<string>;
+};
+
+export type HandlersPasskeyVerifyFinishRequest = {
+    [key: string]: unknown;
+};
+
+export type HandlersSmsStatusDto = {
+    enrolled?: boolean;
+    enrolled_at?: string;
+    phone_e164_masked?: string;
+};
+
+export type HandlersTotpEnrollInitResponse = {
+    otpauth_uri?: string;
+    secret_base32?: string;
+};
+
+export type HandlersTotpVerifyRequest = {
+    code?: string;
+};
+
+export type HandlersUpdateGrantRequest = {
+    spending_cap_daily_micro_usd?: number;
+};
+
+export type HandlersVerifyRequest = {
+    code?: string;
+    method?: string;
 };
 
 /**
@@ -1463,9 +1870,18 @@ export type LlmapiChatCompletionUsage = {
      */
     init_prompt_tokens?: number;
     /**
+     * PricingSource identifies which lookup produced CostMicroUSD; see internal/pricing/source.go.
+     */
+    pricing_source?: string;
+    /**
      * PromptTokens is the number of tokens in the prompt
      */
     prompt_tokens?: number;
+    /**
+     * ProviderCostMicroUSD is what we believe the provider charged us in micro-USD.
+     * Today equals CostMicroUSD (no markup); kept distinct so future per-tier pricing preserves history.
+     */
+    provider_cost_micro_usd?: number;
     /**
      * ToolCostMicroUSD is the cost of MCP tool calls in micro-dollars (subset of CostMicroUSD)
      */
@@ -1587,9 +2003,18 @@ export type LlmapiEmbeddingUsage = {
      */
     credits_used?: number;
     /**
+     * PricingSource identifies which lookup produced CostMicroUSD; see internal/pricing/source.go.
+     */
+    pricing_source?: string;
+    /**
      * PromptTokens is the number of tokens in the prompt
      */
     prompt_tokens?: number;
+    /**
+     * ProviderCostMicroUSD is what we believe the provider charged us in micro-USD.
+     * Today equals CostMicroUSD (no markup); kept distinct so future per-tier pricing preserves history.
+     */
+    provider_cost_micro_usd?: number;
     /**
      * TotalTokens is the total number of tokens used
      */
@@ -2063,9 +2488,18 @@ export type LlmapiResponseUsage = {
      */
     init_prompt_tokens?: number;
     /**
+     * PricingSource identifies which lookup produced CostMicroUSD; see internal/pricing/source.go.
+     */
+    pricing_source?: string;
+    /**
      * PromptTokens is the number of tokens in the prompt
      */
     prompt_tokens?: number;
+    /**
+     * ProviderCostMicroUSD is what we believe the provider charged us in micro-USD.
+     * Today equals CostMicroUSD (no markup); kept distinct so future per-tier pricing preserves history.
+     */
+    provider_cost_micro_usd?: number;
     /**
      * ToolCostMicroUSD is the cost of MCP tool calls in micro-dollars (subset of CostMicroUSD)
      */
@@ -2135,20 +2569,6 @@ export type McpToolSchema = {
     parameters?: unknown;
 };
 
-export type ModelsReferralRewardRequest = {
-    channel?: string;
-    referee_identifier?: string;
-    referee_reward_amount?: number;
-    referrer_identifier?: string;
-    referrer_reward_amount?: number;
-};
-
-export type ModelsReferralRewardResponse = {
-    referee_credits_granted?: number;
-    referrer_credits_granted?: number;
-    status?: string;
-};
-
 export type ModelsRegisterTextRequest = {
     identifier: string;
     preferred_model?: string;
@@ -2183,6 +2603,22 @@ export type ResponseErrorResponse = {
     trace_id?: string;
     type?: string;
 };
+
+export type GetWellKnownJwksJsonData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/.well-known/jwks.json';
+};
+
+export type GetWellKnownJwksJsonResponses = {
+    /**
+     * OK
+     */
+    200: AuthJwks;
+};
+
+export type GetWellKnownJwksJsonResponse = GetWellKnownJwksJsonResponses[keyof GetWellKnownJwksJsonResponses];
 
 export type DeleteApiV1AccountData = {
     body?: never;
@@ -2900,6 +3336,190 @@ export type PutApiV1AdminAppsByIdResponses = {
 
 export type PutApiV1AdminAppsByIdResponse = PutApiV1AdminAppsByIdResponses[keyof PutApiV1AdminAppsByIdResponses];
 
+export type GetApiV1AdminOauthClientsData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Maximum clients to return (default 50, max 200)
+         */
+        limit?: number;
+        /**
+         * Number of clients to skip (default 0)
+         */
+        offset?: number;
+    };
+    url: '/api/v1/admin/oauth/clients';
+};
+
+export type GetApiV1AdminOauthClientsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListOAuthClientsResponse;
+};
+
+export type GetApiV1AdminOauthClientsResponse = GetApiV1AdminOauthClientsResponses[keyof GetApiV1AdminOauthClientsResponses];
+
+export type PostApiV1AdminOauthClientsData = {
+    /**
+     * Client registration request
+     */
+    body: HandlersCreateOAuthClientRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/oauth/clients';
+};
+
+export type PostApiV1AdminOauthClientsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminOauthClientsError = PostApiV1AdminOauthClientsErrors[keyof PostApiV1AdminOauthClientsErrors];
+
+export type PostApiV1AdminOauthClientsResponses = {
+    /**
+     * Created
+     */
+    201: HandlersCreateOAuthClientResponse;
+};
+
+export type PostApiV1AdminOauthClientsResponse = PostApiV1AdminOauthClientsResponses[keyof PostApiV1AdminOauthClientsResponses];
+
+export type DeleteApiV1AdminOauthClientsByClientIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * OAuth client ID
+         */
+        client_id: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/oauth/clients/{client_id}';
+};
+
+export type DeleteApiV1AdminOauthClientsByClientIdErrors = {
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminOauthClientsByClientIdError = DeleteApiV1AdminOauthClientsByClientIdErrors[keyof DeleteApiV1AdminOauthClientsByClientIdErrors];
+
+export type DeleteApiV1AdminOauthClientsByClientIdResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteApiV1AdminOauthClientsByClientIdResponse = DeleteApiV1AdminOauthClientsByClientIdResponses[keyof DeleteApiV1AdminOauthClientsByClientIdResponses];
+
+export type GetApiV1AdminOauthClientsByClientIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * OAuth client ID
+         */
+        client_id: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/oauth/clients/{client_id}';
+};
+
+export type GetApiV1AdminOauthClientsByClientIdErrors = {
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminOauthClientsByClientIdError = GetApiV1AdminOauthClientsByClientIdErrors[keyof GetApiV1AdminOauthClientsByClientIdErrors];
+
+export type GetApiV1AdminOauthClientsByClientIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersOAuthClientResponse;
+};
+
+export type GetApiV1AdminOauthClientsByClientIdResponse = GetApiV1AdminOauthClientsByClientIdResponses[keyof GetApiV1AdminOauthClientsByClientIdResponses];
+
+export type PatchApiV1AdminOauthClientsByClientIdData = {
+    /**
+     * Updates
+     */
+    body: HandlersUpdateOAuthClientRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * OAuth client ID
+         */
+        client_id: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/oauth/clients/{client_id}';
+};
+
+export type PatchApiV1AdminOauthClientsByClientIdErrors = {
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type PatchApiV1AdminOauthClientsByClientIdError = PatchApiV1AdminOauthClientsByClientIdErrors[keyof PatchApiV1AdminOauthClientsByClientIdErrors];
+
+export type PatchApiV1AdminOauthClientsByClientIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersOAuthClientResponse;
+};
+
+export type PatchApiV1AdminOauthClientsByClientIdResponse = PatchApiV1AdminOauthClientsByClientIdResponses[keyof PatchApiV1AdminOauthClientsByClientIdResponses];
+
 export type PostApiV1AdminPersonasData = {
     /**
      * Create persona request
@@ -3043,6 +3663,76 @@ export type PutApiV1AdminPersonasByIdResponses = {
 
 export type PutApiV1AdminPersonasByIdResponse = PutApiV1AdminPersonasByIdResponses[keyof PutApiV1AdminPersonasByIdResponses];
 
+export type GetApiV1AdminPrivyIdentifiersAuditData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/privy-identifiers/audit';
+};
+
+export type GetApiV1AdminPrivyIdentifiersAuditErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminPrivyIdentifiersAuditError = GetApiV1AdminPrivyIdentifiersAuditErrors[keyof GetApiV1AdminPrivyIdentifiersAuditErrors];
+
+export type GetApiV1AdminPrivyIdentifiersAuditResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPrivyIdentifierAuditResponse;
+};
+
+export type GetApiV1AdminPrivyIdentifiersAuditResponse = GetApiV1AdminPrivyIdentifiersAuditResponses[keyof GetApiV1AdminPrivyIdentifiersAuditResponses];
+
+export type PostApiV1AdminPrivyIdentifiersMigrateData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/privy-identifiers/migrate';
+};
+
+export type PostApiV1AdminPrivyIdentifiersMigrateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminPrivyIdentifiersMigrateError = PostApiV1AdminPrivyIdentifiersMigrateErrors[keyof PostApiV1AdminPrivyIdentifiersMigrateErrors];
+
+export type PostApiV1AdminPrivyIdentifiersMigrateResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPrivyIdentifierMigrateResponse;
+};
+
+export type PostApiV1AdminPrivyIdentifiersMigrateResponse = PostApiV1AdminPrivyIdentifiersMigrateResponses[keyof PostApiV1AdminPrivyIdentifiersMigrateResponses];
+
 export type PostApiV1AdminSeedAppsData = {
     /**
      * Seed apps request
@@ -3180,6 +3870,66 @@ export type DeleteApiV1AdminTextResetResponses = {
 };
 
 export type DeleteApiV1AdminTextResetResponse = DeleteApiV1AdminTextResetResponses[keyof DeleteApiV1AdminTextResetResponses];
+
+export type DeleteApiV1AdminUsersDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * User wallet address (0x...)
+         */
+        wallet_address?: string;
+        /**
+         * Phone number (e.g. +15551234567)
+         */
+        phone?: string;
+        /**
+         * Telegram handle
+         */
+        telegram?: string;
+        /**
+         * Email address (requires Privy credentials)
+         */
+        email?: string;
+    };
+    url: '/api/v1/admin/users/delete';
+};
+
+export type DeleteApiV1AdminUsersDeleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminUsersDeleteError = DeleteApiV1AdminUsersDeleteErrors[keyof DeleteApiV1AdminUsersDeleteErrors];
+
+export type DeleteApiV1AdminUsersDeleteResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeleteUserResponse;
+};
+
+export type DeleteApiV1AdminUsersDeleteResponse = DeleteApiV1AdminUsersDeleteResponses[keyof DeleteApiV1AdminUsersDeleteResponses];
 
 export type GetApiV1AdminUsersLookupData = {
     body?: never;
@@ -3378,6 +4128,378 @@ export type PutApiV1AgentsByIdPreferenceResponses = {
 
 export type PutApiV1AgentsByIdPreferenceResponse = PutApiV1AgentsByIdPreferenceResponses[keyof PutApiV1AgentsByIdPreferenceResponses];
 
+export type PostApiV1AuthMfaDisableData = {
+    /**
+     * method (+ code for recovery_code)
+     */
+    body: HandlersDisableRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/disable';
+};
+
+export type PostApiV1AuthMfaDisableErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Locked
+     */
+    423: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaDisableError = PostApiV1AuthMfaDisableErrors[keyof PostApiV1AuthMfaDisableErrors];
+
+export type PostApiV1AuthMfaDisableResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type PostApiV1AuthMfaDisableResponse = PostApiV1AuthMfaDisableResponses[keyof PostApiV1AuthMfaDisableResponses];
+
+export type DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData = {
+    body?: never;
+    path: {
+        /**
+         * base64url-encoded credential id
+         */
+        credential_id: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/mfa/passkey/credentials/{credential_id}';
+};
+
+export type DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdError = DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors[keyof DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors];
+
+export type DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPasskeyDeleteResponse;
+};
+
+export type DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponse = DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses[keyof DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses];
+
+export type PostApiV1AuthMfaPasskeyEnrollBeginData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/passkey/enroll/begin';
+};
+
+export type PostApiV1AuthMfaPasskeyEnrollBeginErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaPasskeyEnrollBeginError = PostApiV1AuthMfaPasskeyEnrollBeginErrors[keyof PostApiV1AuthMfaPasskeyEnrollBeginErrors];
+
+export type PostApiV1AuthMfaPasskeyEnrollBeginResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostApiV1AuthMfaPasskeyEnrollBeginResponse = PostApiV1AuthMfaPasskeyEnrollBeginResponses[keyof PostApiV1AuthMfaPasskeyEnrollBeginResponses];
+
+export type PostApiV1AuthMfaPasskeyEnrollFinishData = {
+    /**
+     * credential + label
+     */
+    body: HandlersPasskeyEnrollFinishRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/passkey/enroll/finish';
+};
+
+export type PostApiV1AuthMfaPasskeyEnrollFinishErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaPasskeyEnrollFinishError = PostApiV1AuthMfaPasskeyEnrollFinishErrors[keyof PostApiV1AuthMfaPasskeyEnrollFinishErrors];
+
+export type PostApiV1AuthMfaPasskeyEnrollFinishResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPasskeyEnrollFinishResponse;
+};
+
+export type PostApiV1AuthMfaPasskeyEnrollFinishResponse = PostApiV1AuthMfaPasskeyEnrollFinishResponses[keyof PostApiV1AuthMfaPasskeyEnrollFinishResponses];
+
+export type PostApiV1AuthMfaPasskeyVerifyBeginData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/passkey/verify/begin';
+};
+
+export type PostApiV1AuthMfaPasskeyVerifyBeginErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaPasskeyVerifyBeginError = PostApiV1AuthMfaPasskeyVerifyBeginErrors[keyof PostApiV1AuthMfaPasskeyVerifyBeginErrors];
+
+export type PostApiV1AuthMfaPasskeyVerifyBeginResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostApiV1AuthMfaPasskeyVerifyBeginResponse = PostApiV1AuthMfaPasskeyVerifyBeginResponses[keyof PostApiV1AuthMfaPasskeyVerifyBeginResponses];
+
+export type PostApiV1AuthMfaPasskeyVerifyFinishData = {
+    /**
+     * credential
+     */
+    body: HandlersPasskeyVerifyFinishRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/passkey/verify/finish';
+};
+
+export type PostApiV1AuthMfaPasskeyVerifyFinishErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Locked
+     */
+    423: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaPasskeyVerifyFinishError = PostApiV1AuthMfaPasskeyVerifyFinishErrors[keyof PostApiV1AuthMfaPasskeyVerifyFinishErrors];
+
+export type PostApiV1AuthMfaPasskeyVerifyFinishResponses = {
+    /**
+     * OK
+     */
+    200: HandlersMfaSessionResponse;
+};
+
+export type PostApiV1AuthMfaPasskeyVerifyFinishResponse = PostApiV1AuthMfaPasskeyVerifyFinishResponses[keyof PostApiV1AuthMfaPasskeyVerifyFinishResponses];
+
+export type PostApiV1AuthMfaRecoveryCodesRegenerateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/recovery-codes/regenerate';
+};
+
+export type PostApiV1AuthMfaRecoveryCodesRegenerateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaRecoveryCodesRegenerateError = PostApiV1AuthMfaRecoveryCodesRegenerateErrors[keyof PostApiV1AuthMfaRecoveryCodesRegenerateErrors];
+
+export type PostApiV1AuthMfaRecoveryCodesRegenerateResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: Array<string>;
+    };
+};
+
+export type PostApiV1AuthMfaRecoveryCodesRegenerateResponse = PostApiV1AuthMfaRecoveryCodesRegenerateResponses[keyof PostApiV1AuthMfaRecoveryCodesRegenerateResponses];
+
+export type GetApiV1AuthMfaStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/status';
+};
+
+export type GetApiV1AuthMfaStatusErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type GetApiV1AuthMfaStatusError = GetApiV1AuthMfaStatusErrors[keyof GetApiV1AuthMfaStatusErrors];
+
+export type GetApiV1AuthMfaStatusResponses = {
+    /**
+     * OK
+     */
+    200: HandlersMfaStatusResponse;
+};
+
+export type GetApiV1AuthMfaStatusResponse = GetApiV1AuthMfaStatusResponses[keyof GetApiV1AuthMfaStatusResponses];
+
+export type PostApiV1AuthMfaTotpEnrollInitData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/totp/enroll/init';
+};
+
+export type PostApiV1AuthMfaTotpEnrollInitErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaTotpEnrollInitError = PostApiV1AuthMfaTotpEnrollInitErrors[keyof PostApiV1AuthMfaTotpEnrollInitErrors];
+
+export type PostApiV1AuthMfaTotpEnrollInitResponses = {
+    /**
+     * OK
+     */
+    200: HandlersTotpEnrollInitResponse;
+};
+
+export type PostApiV1AuthMfaTotpEnrollInitResponse = PostApiV1AuthMfaTotpEnrollInitResponses[keyof PostApiV1AuthMfaTotpEnrollInitResponses];
+
+export type PostApiV1AuthMfaTotpEnrollVerifyData = {
+    /**
+     * code
+     */
+    body: HandlersTotpVerifyRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/totp/enroll/verify';
+};
+
+export type PostApiV1AuthMfaTotpEnrollVerifyErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Locked
+     */
+    423: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaTotpEnrollVerifyError = PostApiV1AuthMfaTotpEnrollVerifyErrors[keyof PostApiV1AuthMfaTotpEnrollVerifyErrors];
+
+export type PostApiV1AuthMfaTotpEnrollVerifyResponses = {
+    /**
+     * OK
+     */
+    200: HandlersMfaSessionResponse;
+};
+
+export type PostApiV1AuthMfaTotpEnrollVerifyResponse = PostApiV1AuthMfaTotpEnrollVerifyResponses[keyof PostApiV1AuthMfaTotpEnrollVerifyResponses];
+
+export type PostApiV1AuthMfaVerifyData = {
+    /**
+     * method + code
+     */
+    body: HandlersVerifyRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/verify';
+};
+
+export type PostApiV1AuthMfaVerifyErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Locked
+     */
+    423: ResponseErrorResponse;
+};
+
+export type PostApiV1AuthMfaVerifyError = PostApiV1AuthMfaVerifyErrors[keyof PostApiV1AuthMfaVerifyErrors];
+
+export type PostApiV1AuthMfaVerifyResponses = {
+    /**
+     * OK
+     */
+    200: HandlersMfaSessionResponse;
+};
+
+export type PostApiV1AuthMfaVerifyResponse = PostApiV1AuthMfaVerifyResponses[keyof PostApiV1AuthMfaVerifyResponses];
+
+export type GetApiV1BootstrapData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/bootstrap';
+};
+
+export type GetApiV1BootstrapErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type GetApiV1BootstrapError = GetApiV1BootstrapErrors[keyof GetApiV1BootstrapErrors];
+
+export type GetApiV1BootstrapResponses = {
+    /**
+     * OK
+     */
+    200: HandlersBootstrapResponse;
+};
+
+export type GetApiV1BootstrapResponse = GetApiV1BootstrapResponses[keyof GetApiV1BootstrapResponses];
+
 export type PostApiV1ChatCompletionsData = {
     /**
      * Chat completion request
@@ -3393,6 +4515,14 @@ export type PostApiV1ChatCompletionsErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
+    /**
+     * Insufficient balance or spending cap exceeded
+     */
+    402: ResponseErrorResponse;
+    /**
+     * Model not available on current subscription tier
+     */
+    403: ResponseErrorResponse;
     /**
      * Model provider rate limit exceeded
      */
@@ -3481,89 +4611,6 @@ export type GetApiV1CreditsBalanceResponses = {
 };
 
 export type GetApiV1CreditsBalanceResponse = GetApiV1CreditsBalanceResponses[keyof GetApiV1CreditsBalanceResponses];
-
-export type PostApiV1CreditsClaimDailyData = {
-    body?: never;
-    headers?: {
-        /**
-         * IANA timezone (e.g., America/New_York)
-         */
-        'X-Timezone'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v1/credits/claim-daily';
-};
-
-export type PostApiV1CreditsClaimDailyErrors = {
-    /**
-     * Already claimed today or invalid timezone
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Daily credits not available for this app
-     */
-    403: ResponseErrorResponse;
-    /**
-     * Account not found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1CreditsClaimDailyError = PostApiV1CreditsClaimDailyErrors[keyof PostApiV1CreditsClaimDailyErrors];
-
-export type PostApiV1CreditsClaimDailyResponses = {
-    /**
-     * OK
-     */
-    200: HandlersClaimDailyCreditsResponse;
-};
-
-export type PostApiV1CreditsClaimDailyResponse = PostApiV1CreditsClaimDailyResponses[keyof PostApiV1CreditsClaimDailyResponses];
-
-export type PostApiV1CreditsClaimTaskData = {
-    /**
-     * Task to claim
-     */
-    body: HandlersClaimTaskRewardRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/credits/claim-task';
-};
-
-export type PostApiV1CreditsClaimTaskErrors = {
-    /**
-     * Invalid task type or already claimed
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1CreditsClaimTaskError = PostApiV1CreditsClaimTaskErrors[keyof PostApiV1CreditsClaimTaskErrors];
-
-export type PostApiV1CreditsClaimTaskResponses = {
-    /**
-     * OK
-     */
-    200: HandlersClaimTaskRewardResponse;
-};
-
-export type PostApiV1CreditsClaimTaskResponse = PostApiV1CreditsClaimTaskResponses[keyof PostApiV1CreditsClaimTaskResponses];
 
 export type GetApiV1CreditsPacksData = {
     body?: never;
@@ -3674,42 +4721,21 @@ export type PostApiV1CreditsRedeemTokensResponses = {
 
 export type PostApiV1CreditsRedeemTokensResponse = PostApiV1CreditsRedeemTokensResponses[keyof PostApiV1CreditsRedeemTokensResponses];
 
-export type PostApiV1CreditsSyncSnagData = {
+export type GetApiV1CuratedModelsData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/v1/credits/sync-snag';
+    url: '/api/v1/curated-models';
 };
 
-export type PostApiV1CreditsSyncSnagErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Forbidden
-     */
-    403: ResponseErrorResponse;
-    /**
-     * Too Many Requests
-     */
-    429: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1CreditsSyncSnagError = PostApiV1CreditsSyncSnagErrors[keyof PostApiV1CreditsSyncSnagErrors];
-
-export type PostApiV1CreditsSyncSnagResponses = {
+export type GetApiV1CuratedModelsResponses = {
     /**
      * OK
      */
-    200: HandlersSyncSnagResponse;
+    200: ConfigCuratedModelsResponse;
 };
 
-export type PostApiV1CreditsSyncSnagResponse = PostApiV1CreditsSyncSnagResponses[keyof PostApiV1CreditsSyncSnagResponses];
+export type GetApiV1CuratedModelsResponse = GetApiV1CuratedModelsResponses[keyof GetApiV1CuratedModelsResponses];
 
 export type GetApiV1DeveloperAppsData = {
     body?: never;
@@ -4637,6 +5663,83 @@ export type PostApiV1EmbeddingsResponses = {
 
 export type PostApiV1EmbeddingsResponse = PostApiV1EmbeddingsResponses[keyof PostApiV1EmbeddingsResponses];
 
+export type GetApiV1GuestBootstrapData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated UUID v4 identifying the guest session
+         */
+        'X-Guest-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/guest-bootstrap';
+};
+
+export type GetApiV1GuestBootstrapErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+};
+
+export type GetApiV1GuestBootstrapError = GetApiV1GuestBootstrapErrors[keyof GetApiV1GuestBootstrapErrors];
+
+export type GetApiV1GuestBootstrapResponses = {
+    /**
+     * OK
+     */
+    200: HandlersGuestBootstrapResponse;
+};
+
+export type GetApiV1GuestBootstrapResponse = GetApiV1GuestBootstrapResponses[keyof GetApiV1GuestBootstrapResponses];
+
+export type PostApiV1GuestChatCompletionsData = {
+    /**
+     * Chat request (model/tools/stream fields are ignored server-side)
+     */
+    body: LlmapiChatCompletionRequest;
+    headers: {
+        /**
+         * Client-generated UUID v4 identifying the guest session
+         */
+        'X-Guest-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/guest/chat/completions';
+};
+
+export type PostApiV1GuestChatCompletionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Payment Required
+     */
+    402: HandlersGuestLimitResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostApiV1GuestChatCompletionsError = PostApiV1GuestChatCompletionsErrors[keyof PostApiV1GuestChatCompletionsErrors];
+
+export type PostApiV1GuestChatCompletionsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersGuestChatResponse;
+};
+
+export type PostApiV1GuestChatCompletionsResponse = PostApiV1GuestChatCompletionsResponses[keyof PostApiV1GuestChatCompletionsResponses];
+
 export type GetApiV1ModelsData = {
     body?: never;
     path?: never;
@@ -4847,6 +5950,14 @@ export type PostApiV1ResponsesErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
+    /**
+     * Insufficient balance or spending cap exceeded
+     */
+    402: ResponseErrorResponse;
+    /**
+     * Model not available on current subscription tier
+     */
+    403: ResponseErrorResponse;
     /**
      * Model provider rate limit exceeded
      */
@@ -5228,75 +6339,6 @@ export type PostApiV1SubscriptionsWebhookResponses = {
 
 export type PostApiV1SubscriptionsWebhookResponse = PostApiV1SubscriptionsWebhookResponses[keyof PostApiV1SubscriptionsWebhookResponses];
 
-export type GetApiV1TasksData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/tasks';
-};
-
-export type GetApiV1TasksErrors = {
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type GetApiV1TasksError = GetApiV1TasksErrors[keyof GetApiV1TasksErrors];
-
-export type GetApiV1TasksResponses = {
-    /**
-     * OK
-     */
-    200: Array<HandlersTaskResponse>;
-};
-
-export type GetApiV1TasksResponse = GetApiV1TasksResponses[keyof GetApiV1TasksResponses];
-
-export type PostApiV1TextReferralRewardData = {
-    /**
-     * Referral reward request
-     */
-    body: ModelsReferralRewardRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/text/referral/reward';
-};
-
-export type PostApiV1TextReferralRewardErrors = {
-    /**
-     * Invalid request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Referrer or referee not found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Referral already rewarded
-     */
-    409: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1TextReferralRewardError = PostApiV1TextReferralRewardErrors[keyof PostApiV1TextReferralRewardErrors];
-
-export type PostApiV1TextReferralRewardResponses = {
-    /**
-     * OK
-     */
-    200: ModelsReferralRewardResponse;
-};
-
-export type PostApiV1TextReferralRewardResponse = PostApiV1TextReferralRewardResponses[keyof PostApiV1TextReferralRewardResponses];
-
 export type GetApiV1TextByChannelLookupData = {
     body?: never;
     path: {
@@ -5486,6 +6528,52 @@ export type GetApiV1ToolsResponses = {
 
 export type GetApiV1ToolsResponse = GetApiV1ToolsResponses[keyof GetApiV1ToolsResponses];
 
+export type GetApiV1UsageByModalityData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start of date range in RFC 3339 format (e.g. 2024-01-01T00:00:00Z). Must be used with end. Takes precedence over period.
+         */
+        start?: string;
+        /**
+         * End of date range in RFC 3339 format (e.g. 2024-01-31T23:59:59Z). Must be used with start. Takes precedence over period.
+         */
+        end?: string;
+        /**
+         * Time period. Day aliases: 7d, 30d, 90d, 180d, 365d. Durations: 10m, 30m, 1h, 6h, 12h, 24h, 72h. Default: 30d. Max: 365d.
+         */
+        period?: string;
+    };
+    url: '/api/v1/usage/by-modality';
+};
+
+export type GetApiV1UsageByModalityErrors = {
+    /**
+     * Invalid period
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1UsageByModalityError = GetApiV1UsageByModalityErrors[keyof GetApiV1UsageByModalityErrors];
+
+export type GetApiV1UsageByModalityResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUsageByModalityResponse;
+};
+
+export type GetApiV1UsageByModalityResponse = GetApiV1UsageByModalityResponses[keyof GetApiV1UsageByModalityResponses];
+
 export type GetApiV1UsageModelsData = {
     body?: never;
     path?: never;
@@ -5644,6 +6732,114 @@ export type DeleteApiV1UserApiKeysByKeyIdResponses = {
 };
 
 export type DeleteApiV1UserApiKeysByKeyIdResponse = DeleteApiV1UserApiKeysByKeyIdResponses[keyof DeleteApiV1UserApiKeysByKeyIdResponses];
+
+export type GetApiV1UserOauthGrantsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/user/oauth/grants';
+};
+
+export type GetApiV1UserOauthGrantsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1UserOauthGrantsError = GetApiV1UserOauthGrantsErrors[keyof GetApiV1UserOauthGrantsErrors];
+
+export type GetApiV1UserOauthGrantsResponses = {
+    /**
+     * OK
+     */
+    200: Array<HandlersGrantResponse>;
+};
+
+export type GetApiV1UserOauthGrantsResponse = GetApiV1UserOauthGrantsResponses[keyof GetApiV1UserOauthGrantsResponses];
+
+export type DeleteApiV1UserOauthGrantsByIdData = {
+    body?: never;
+    path: {
+        /**
+         * Grant ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/user/oauth/grants/{id}';
+};
+
+export type DeleteApiV1UserOauthGrantsByIdErrors = {
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1UserOauthGrantsByIdError = DeleteApiV1UserOauthGrantsByIdErrors[keyof DeleteApiV1UserOauthGrantsByIdErrors];
+
+export type DeleteApiV1UserOauthGrantsByIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1UserOauthGrantsByIdResponse = DeleteApiV1UserOauthGrantsByIdResponses[keyof DeleteApiV1UserOauthGrantsByIdResponses];
+
+export type PatchApiV1UserOauthGrantsByIdData = {
+    /**
+     * Update body
+     */
+    body: HandlersUpdateGrantRequest;
+    path: {
+        /**
+         * Grant ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/user/oauth/grants/{id}';
+};
+
+export type PatchApiV1UserOauthGrantsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PatchApiV1UserOauthGrantsByIdError = PatchApiV1UserOauthGrantsByIdErrors[keyof PatchApiV1UserOauthGrantsByIdErrors];
+
+export type PatchApiV1UserOauthGrantsByIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type PatchApiV1UserOauthGrantsByIdResponse = PatchApiV1UserOauthGrantsByIdResponses[keyof PatchApiV1UserOauthGrantsByIdResponses];
 
 export type PostApiV1WebhooksRevenuecatData = {
     body?: {
@@ -5815,3 +7011,204 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type GetOauthAuthorizeData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Must be 'code'
+         */
+        response_type: string;
+        /**
+         * OAuth client ID
+         */
+        client_id: string;
+        /**
+         * Callback URL (must be registered)
+         */
+        redirect_uri: string;
+        /**
+         * Space-separated scopes
+         */
+        scope?: string;
+        /**
+         * Opaque client state round-tripped to redirect_uri
+         */
+        state?: string;
+        /**
+         * PKCE code challenge
+         */
+        code_challenge: string;
+        /**
+         * PKCE method (must be 'S256')
+         */
+        code_challenge_method: string;
+    };
+    url: '/oauth/authorize';
+};
+
+export type GetOauthAuthorizeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type GetOauthAuthorizeError = GetOauthAuthorizeErrors[keyof GetOauthAuthorizeErrors];
+
+export type GetOauthConsentData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * OAuth client ID
+         */
+        client_id: string;
+        /**
+         * Callback URL
+         */
+        redirect_uri: string;
+        /**
+         * Space-separated scopes
+         */
+        scope?: string;
+        /**
+         * Opaque client state
+         */
+        state?: string;
+        /**
+         * PKCE code challenge
+         */
+        code_challenge: string;
+        /**
+         * PKCE method (S256)
+         */
+        code_challenge_method: string;
+        /**
+         * Consent reason (first_grant, revoked, scope_expansion)
+         */
+        reason?: string;
+    };
+    url: '/oauth/consent';
+};
+
+export type GetOauthConsentErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type GetOauthConsentError = GetOauthConsentErrors[keyof GetOauthConsentErrors];
+
+export type GetOauthConsentResponses = {
+    /**
+     * OK
+     */
+    200: string;
+};
+
+export type GetOauthConsentResponse = GetOauthConsentResponses[keyof GetOauthConsentResponses];
+
+export type PostOauthConsentData = {
+    /**
+     * Daily spending cap in USD
+     */
+    body?: number;
+    path?: never;
+    query?: never;
+    url: '/oauth/consent';
+};
+
+export type PostOauthConsentErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type PostOauthConsentError = PostOauthConsentErrors[keyof PostOauthConsentErrors];
+
+export type PostOauthConsentResponses = {
+    /**
+     * Approve response when Accept: application/json (deny returns ConsentDenyResponse)
+     */
+    200: HandlersConsentApproveResponse;
+};
+
+export type PostOauthConsentResponse = PostOauthConsentResponses[keyof PostOauthConsentResponses];
+
+export type PostOauthRevokeData = {
+    /**
+     * Client secret (if not using HTTP Basic auth)
+     */
+    body?: string;
+    path?: never;
+    query?: never;
+    url: '/oauth/revoke';
+};
+
+export type PostOauthRevokeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: HandlersOauthTokenError;
+};
+
+export type PostOauthRevokeError = PostOauthRevokeErrors[keyof PostOauthRevokeErrors];
+
+export type PostOauthRevokeResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostOauthRevokeResponse = PostOauthRevokeResponses[keyof PostOauthRevokeResponses];
+
+export type PostOauthTokenData = {
+    /**
+     * Narrowed scope (refresh_token grant)
+     */
+    body?: string;
+    path?: never;
+    query?: never;
+    url: '/oauth/token';
+};
+
+export type PostOauthTokenErrors = {
+    /**
+     * Bad Request
+     */
+    400: HandlersOauthTokenError;
+    /**
+     * Unauthorized
+     */
+    401: HandlersOauthTokenError;
+};
+
+export type PostOauthTokenError = PostOauthTokenErrors[keyof PostOauthTokenErrors];
+
+export type PostOauthTokenResponses = {
+    /**
+     * OK
+     */
+    200: HandlersOAuthTokenResponse;
+};
+
+export type PostOauthTokenResponse = PostOauthTokenResponses[keyof PostOauthTokenResponses];

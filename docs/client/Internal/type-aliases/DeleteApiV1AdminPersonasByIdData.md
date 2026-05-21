@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminPersonasByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:2945](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2945)
+Defined in: [src/client/types.gen.ts:3565](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3565)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2945](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:2946](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2946)
+Defined in: [src/client/types.gen.ts:3566](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3566)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2946](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:2947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2947)
+Defined in: [src/client/types.gen.ts:3567](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3567)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:2953](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2953)
+Defined in: [src/client/types.gen.ts:3573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3573)
 
 **id**
 
@@ -46,7 +46,7 @@ Persona ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:2959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2959)
+Defined in: [src/client/types.gen.ts:3579](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3579)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:2959](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/personas/{id}"`
 
-Defined in: [src/client/types.gen.ts:2960](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2960)
+Defined in: [src/client/types.gen.ts:3580](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3580)
