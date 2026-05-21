@@ -82,29 +82,71 @@ export function truncateContent(content: string): string {
 // Patch logic
 // ---------------------------------------------------------------------------
 
-/** Apply find/replace patches to a string. Returns patched content + results. */
+/** Reason a single patch did not apply. */
+export type PatchFailureReason = "empty_find" | "not_found";
+
+/** Details for a patch that did not apply, indexed against the input array. */
+export interface PatchFailure {
+  index: number;
+  find: string;
+  reason: PatchFailureReason;
+}
+
+/**
+ * Apply find/replace patches to a string atomically.
+ *
+ * Either all patches apply, or none do — when any patch fails to match,
+ * the returned `content` equals the input and `appliedCount` is 0.
+ * This prevents committing partial edits to disk (e.g. a rename that
+ * succeeds in some call sites but not others).
+ *
+ * Before declaring a `find` unmatched, the function tries one fallback:
+ * unescaping JSON whitespace literals (`\n`, `\t`, `\r` as two-character
+ * backslash sequences → real newline/tab/CR). LLMs sometimes double-escape
+ * these when emitting JSON tool arguments; the fallback recovers that
+ * case without forcing a retry round.
+ *
+ * Returned `failed` includes the full `find` string and its index in the
+ * input array so the caller can map failures back to the original patches
+ * without ambiguity.
+ */
 export function applyPatches(
   content: string,
   patches: Array<{ find: string; replace: string }>
-): { content: string; applied: string[]; failed: string[] } {
+): { content: string; appliedCount: number; failed: PatchFailure[] } {
   let result = content;
-  const applied: string[] = [];
-  const failed: string[] = [];
-  for (const patch of patches) {
+  let appliedCount = 0;
+  const failed: PatchFailure[] = [];
+
+  for (let index = 0; index < patches.length; index++) {
+    const patch = patches[index]!;
     if (!patch.find || typeof patch.find !== "string") {
-      failed.push("(empty find string)");
+      failed.push({ index, find: patch.find ?? "", reason: "empty_find" });
       continue;
     }
     if (result.includes(patch.find)) {
       // Intentionally replaces only the first match — the LLM should provide
       // enough surrounding context in "find" to target a unique location.
       result = result.replace(patch.find, () => patch.replace ?? "");
-      applied.push(patch.find.slice(0, 40));
-    } else {
-      failed.push(patch.find.slice(0, 40));
+      appliedCount++;
+      continue;
     }
+    const unescaped = patch.find
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\r/g, "\r");
+    if (unescaped !== patch.find && result.includes(unescaped)) {
+      result = result.replace(unescaped, () => patch.replace ?? "");
+      appliedCount++;
+      continue;
+    }
+    failed.push({ index, find: patch.find, reason: "not_found" });
   }
-  return { content: result, applied, failed };
+
+  if (failed.length > 0) {
+    return { content, appliedCount: 0, failed };
+  }
+  return { content: result, appliedCount, failed: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -587,7 +629,23 @@ export function createAppGenerationTools({
         const existing = await storage.getFile(conversationId, filePath);
         if (!existing) return { error: `File not found: ${filePath}. Use create_file instead.` };
 
-        const { content, applied, failed } = applyPatches(existing.content, patches);
+        const { content, appliedCount, failed } = applyPatches(existing.content, patches);
+
+        // Atomic: if any patch failed to match, the file is unchanged.
+        // Return the original content as `currentContent` and full
+        // failed-patch details so the model can fix and retry without
+        // a separate read_file round-trip.
+        if (failed.length > 0) {
+          return {
+            success: false,
+            path: filePath,
+            applied: 0,
+            failed: failed.length,
+            failedPatches: failed,
+            currentContent: truncateContent(existing.content),
+            message: `${failed.length} of ${patches.length} patches did not match. File NOT modified — read currentContent and retry the failed patches with the actual current text.`,
+          };
+        }
 
         // Syntax-check the proposed content before persisting. A patch
         // that produces broken JSX (e.g. removed a `}` but left the `{`)
@@ -599,9 +657,8 @@ export function createAppGenerationTools({
           return {
             success: false,
             path: filePath,
-            applied: applied.length,
-            failed: failed.length,
-            failedPatches: failed,
+            applied: 0,
+            failed: 0,
             syntaxError: {
               line: syntaxError.line,
               column: syntaxError.column,
@@ -613,23 +670,9 @@ export function createAppGenerationTools({
           };
         }
 
-        // Save the partially-patched file even when some patches fail so the
-        // LLM can see the current content and retry only the failed ones.
         await storage.putFile(conversationId, filePath, content);
-
-        if (failed.length > 0) {
-          return {
-            success: false,
-            path: filePath,
-            applied: applied.length,
-            failed: failed.length,
-            failedPatches: failed,
-            currentContent: truncateContent(content),
-          };
-        }
-
         const display = await triggerAppDisplay(conversationId);
-        return { success: true, path: filePath, applied: applied.length, ...display };
+        return { success: true, path: filePath, applied: appliedCount, ...display };
       } catch (err) {
         logError("patch_file failed", err instanceof Error ? err : undefined);
         return {

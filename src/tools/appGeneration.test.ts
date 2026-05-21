@@ -80,37 +80,39 @@ describe("applyPatches", () => {
   const base = "line one\nline two\nline three\n";
 
   it("applies a single patch", () => {
-    const { content, applied, failed } = applyPatches(base, [
+    const { content, appliedCount, failed } = applyPatches(base, [
       { find: "line two", replace: "line TWO" },
     ]);
     expect(content).toBe("line one\nline TWO\nline three\n");
-    expect(applied).toEqual(["line two"]);
+    expect(appliedCount).toBe(1);
     expect(failed).toEqual([]);
   });
 
   it("applies multiple patches in order", () => {
-    const { content, applied, failed } = applyPatches(base, [
+    const { content, appliedCount, failed } = applyPatches(base, [
       { find: "line one", replace: "first" },
       { find: "line three", replace: "third" },
     ]);
     expect(content).toBe("first\nline two\nthird\n");
-    expect(applied).toHaveLength(2);
-    expect(failed).toHaveLength(0);
+    expect(appliedCount).toBe(2);
+    expect(failed).toEqual([]);
   });
 
-  it("reports failed patches when find string is missing", () => {
-    const { content, applied, failed } = applyPatches(base, [
-      { find: "nonexistent", replace: "x" },
+  it("reports failed patches with full find string and index", () => {
+    const { content, appliedCount, failed } = applyPatches(base, [
+      { find: "nonexistent string here", replace: "x" },
     ]);
     expect(content).toBe(base);
-    expect(applied).toEqual([]);
-    expect(failed).toEqual(["nonexistent"]);
+    expect(appliedCount).toBe(0);
+    expect(failed).toEqual([
+      { index: 0, find: "nonexistent string here", reason: "not_found" },
+    ]);
   });
 
-  it("skips patches with empty find strings", () => {
+  it("reports patches with empty find strings", () => {
     const { content, failed } = applyPatches(base, [{ find: "", replace: "x" }]);
     expect(content).toBe(base);
-    expect(failed).toEqual(["(empty find string)"]);
+    expect(failed).toEqual([{ index: 0, find: "", reason: "empty_find" }]);
   });
 
   it("replaces only the first occurrence", () => {
@@ -119,14 +121,38 @@ describe("applyPatches", () => {
     expect(content).toBe("ccc bbb aaa");
   });
 
-  it("handles mixed success and failure", () => {
-    const { applied, failed } = applyPatches(base, [
+  it("reverts all changes when any patch fails (atomic)", () => {
+    const { content, appliedCount, failed } = applyPatches(base, [
       { find: "line one", replace: "first" },
       { find: "missing", replace: "x" },
       { find: "line three", replace: "third" },
     ]);
-    expect(applied).toHaveLength(2);
-    expect(failed).toHaveLength(1);
+    // Content stays at base — the two patches that would have matched
+    // are NOT applied because one patch in the batch failed.
+    expect(content).toBe(base);
+    expect(appliedCount).toBe(0);
+    expect(failed).toEqual([{ index: 1, find: "missing", reason: "not_found" }]);
+  });
+
+  it("tolerates JSON-double-escaped newlines in find", () => {
+    // LLMs sometimes emit `\\n` (literal backslash+n) instead of a real
+    // newline inside JSON string values. The fallback unescapes these
+    // before declaring a failure.
+    const { content, appliedCount, failed } = applyPatches(base, [
+      { find: "line one\\nline two", replace: "ONE\nTWO" },
+    ]);
+    expect(content).toBe("ONE\nTWO\nline three\n");
+    expect(appliedCount).toBe(1);
+    expect(failed).toEqual([]);
+  });
+
+  it("tolerates JSON-double-escaped tabs and carriage returns in find", () => {
+    const tabbed = "key:\tvalue\r\nnext line";
+    const { content, appliedCount } = applyPatches(tabbed, [
+      { find: "key:\\tvalue\\r\\nnext", replace: "KEY=value\nNEXT" },
+    ]);
+    expect(content).toBe("KEY=value\nNEXT line");
+    expect(appliedCount).toBe(1);
   });
 });
 
