@@ -202,6 +202,19 @@ export function snippetForFailedPatch(content: string, find: string): FileSnippe
 // Patch logic
 // ---------------------------------------------------------------------------
 
+/** Strip leading "42: " line-number prefixes from every line if (and
+ *  only if) every non-empty line carries one. Used as a fallback in
+ *  applyPatches so the model can paste numbered read_file output as
+ *  a find string without manually stripping. */
+function stripLineNumberPrefixes(s: string): string {
+  const lines = s.split("\n");
+  const prefix = /^\d+:\s/;
+  if (lines.every((l) => l === "" || prefix.test(l))) {
+    return lines.map((l) => l.replace(prefix, "")).join("\n");
+  }
+  return s;
+}
+
 /** Reason a single patch did not apply. */
 export type PatchFailureReason = "empty_find" | "not_found";
 
@@ -257,6 +270,16 @@ export function applyPatches(
       .replace(/\\r/g, "\r");
     if (unescaped !== patch.find && result.includes(unescaped)) {
       result = result.replace(unescaped, () => patch.replace ?? "");
+      appliedCount++;
+      continue;
+    }
+    // Strip leading "42: " line-number prefixes — the model may have
+    // copied directly from read_file's numbered output or from a
+    // failure snippet. Only attempt if every non-empty line has a
+    // prefix; otherwise leave the find untouched.
+    const stripped = stripLineNumberPrefixes(patch.find);
+    if (stripped !== patch.find && result.includes(stripped)) {
+      result = result.replace(stripped, () => patch.replace ?? "");
       appliedCount++;
       continue;
     }
@@ -472,7 +495,9 @@ export const PATCH_FILE_SCHEMA = {
   name: "patch_file",
   description: `Edit, modify, or update an existing file in the app project via find-and-replace. Use this instead of create_file when changing a few lines of an existing app — small edits, fixes, or component updates.
 
-Pass a "patches" array of {find, replace} objects. The "find" string must match exactly — include 2-3 lines of surrounding context to be unique.`,
+REQUIRED: you must call read_file (or create_file) for this path earlier in the conversation before calling patch_file. The tool refuses otherwise — you cannot patch a file whose current content you have not seen.
+
+Pass a "patches" array of {find, replace} objects. The "find" string must match the file exactly, character for character — include 2-3 lines of surrounding context to make the match unique. Do NOT include line-number prefixes from read_file output in your "find".`,
   arguments: {
     type: "object",
     properties: {
@@ -507,7 +532,7 @@ export const DELETE_FILE_SCHEMA = {
 export const READ_FILE_SCHEMA = {
   name: "read_file",
   description:
-    "Reads the content of a file from the app project. Use this to inspect existing files before making changes.",
+    'Reads the content of a file from the app project. Required before patch_file on any file whose content you have not just written via create_file. Returned content has "<lineNumber>: " prefixes for navigation — do not copy those prefixes into a patch_file "find" string.',
   arguments: {
     type: "object",
     properties: { path: { type: "string", description: "File path to read" } },
@@ -637,6 +662,27 @@ export function createAppGenerationTools({
     patchFailuresByConv.get(conversationId)?.delete(path);
   }
 
+  // Per-conversation set of file paths whose current content the model
+  // has seen — via a successful read_file or create_file. patch_file
+  // refuses to operate on files not in this set, mirroring Claude Code's
+  // "must Read before Edit" contract. Prevents the failure mode where
+  // the model patches against a hallucinated copy of the file.
+  const seenFilesByConv = new Map<string, Set<string>>();
+  function markFileSeen(conversationId: string, path: string): void {
+    let s = seenFilesByConv.get(conversationId);
+    if (!s) {
+      s = new Set();
+      seenFilesByConv.set(conversationId, s);
+    }
+    s.add(path);
+  }
+  function hasFileBeenSeen(conversationId: string, path: string): boolean {
+    return seenFilesByConv.get(conversationId)?.has(path) ?? false;
+  }
+  function forgetFileSeen(conversationId: string, path: string): void {
+    seenFilesByConv.get(conversationId)?.delete(path);
+  }
+
   /**
    * Invoke the host's `displayApp` callback with cached state, fold
    * the reply back into per-conversation state, AND return it to the
@@ -703,6 +749,10 @@ export function createAppGenerationTools({
         if (err) return { error: err };
 
         const paths = filesArg.map((f) => normalizePath(f.path));
+        // Model just wrote the content, so it has seen it. Subsequent
+        // patch_file calls against these paths can proceed without
+        // requiring a read_file.
+        for (const p of paths) markFileSeen(conversationId, p);
         const display = await triggerAppDisplay(conversationId);
         return { success: true, paths, ...display };
       } catch (err) {
@@ -731,6 +781,16 @@ export function createAppGenerationTools({
 
         const existing = await storage.getFile(conversationId, filePath);
         if (!existing) return { error: `File not found: ${filePath}. Use create_file instead.` };
+
+        // Read-before-patch contract: refuse if the model hasn't seen
+        // the current content of this file in this conversation (via
+        // read_file or create_file). Prevents patching against a
+        // hallucinated copy of the file.
+        if (!hasFileBeenSeen(conversationId, filePath)) {
+          return {
+            error: `Call read_file("${filePath}") first. You cannot patch a file whose current content you have not seen in this conversation.`,
+          };
+        }
 
         const { content, appliedCount, failed } = applyPatches(existing.content, patches);
 
@@ -827,6 +887,10 @@ export function createAppGenerationTools({
         const path = normalizePath(rawPath);
 
         await storage.deleteFile(conversationId, path);
+        // File no longer exists — clear "seen" state so a future
+        // create_file followed by patch_file goes through enforcement
+        // cleanly without stale carry-over.
+        forgetFileSeen(conversationId, path);
         const display = await triggerAppDisplay(conversationId);
         return { success: true, path, ...display };
       } catch (err) {
@@ -852,7 +916,21 @@ export function createAppGenerationTools({
         const file = await storage.getFile(conversationId, path);
         if (!file) return { error: `File not found: ${path}` };
 
-        return { path: file.path, content: truncateContent(file.content) };
+        // Mark this file as "seen" so subsequent patch_file calls
+        // pass the read-before-patch contract.
+        markFileSeen(conversationId, file.path);
+
+        // Number the lines so the model has unambiguous location info
+        // and so failure snippets (which use the same format) look
+        // consistent with the read output. The leading "42: " prefix
+        // is display-only — applyPatches strips it as a fallback if
+        // the model copies a numbered line into a find string.
+        const truncated = truncateContent(file.content);
+        const numbered = truncated
+          .split("\n")
+          .map((l, i) => `${i + 1}: ${l}`)
+          .join("\n");
+        return { path: file.path, content: numbered };
       } catch (err) {
         logError("read_file failed", err instanceof Error ? err : undefined);
         return {
@@ -913,14 +991,15 @@ export function buildAppSystemPrompt(): string {
 WORKFLOW:
 1. NEVER output code as text or markdown. ALWAYS use tools.
 2. To create a new app: use create_file with the "files" array to write ALL files in a single call. The preview renders automatically — there is no separate display tool to call.
-3. For ALL changes to existing files — including adding new features — use patch_file. This applies to style tweaks, text edits, AND adding new code.
+3. Before patch_file: you must have called read_file for that path in this conversation (or just created it via create_file). patch_file refuses otherwise. read_file returns numbered lines like "42: <text>" — the numbers are display-only; never include them in your patch "find".
+4. For ALL changes to existing files — including adding new features — use patch_file. This applies to style tweaks, text edits, AND adding new code.
    - To modify: find the old code, replace with new code.
    - To insert: find the code before the insertion point, replace with that code plus the new code appended.
    - To delete: find the code to remove, replace with empty string.
-   - Include 2-3 lines of surrounding context in "find" to ensure a unique match.
+   - Copy the "find" string verbatim from read_file output (minus the line-number prefix). Include 2-3 lines of surrounding context for uniqueness.
    - Use multiple patches in one call to change several locations in the same file.
-4. Only use create_file to rewrite a file when the majority of lines are changing.
-5. Keep text responses to one or two sentences.
+5. Only use create_file to rewrite a file when the majority of lines are changing.
+6. Keep text responses to one or two sentences.
 
 STRUCTURE:
 - App.js: default-export React component. Do NOT create index.js or index.html (auto-generated).

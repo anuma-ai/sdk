@@ -157,6 +157,28 @@ describe("applyPatches", () => {
     expect(content).toBe("KEY=value\nNEXT line");
     expect(appliedCount).toBe(1);
   });
+
+  it("strips leading line-number prefixes when the model copies read_file output verbatim", () => {
+    // read_file returns "<n>: <text>". If the model includes those
+    // prefixes in its find string, the stripped fallback should match.
+    const { content, appliedCount, failed } = applyPatches(base, [
+      { find: "1: line one\n2: line two", replace: "FIRST\nSECOND" },
+    ]);
+    expect(content).toBe("FIRST\nSECOND\nline three\n");
+    expect(appliedCount).toBe(1);
+    expect(failed).toEqual([]);
+  });
+
+  it("does not strip line-number prefixes when only some lines have them", () => {
+    // Don't treat lines that happen to start with digits as numbered
+    // output. The find must be ALL-numbered or none.
+    const partiallyNumbered = "1: thing one\nactual content";
+    const { content, appliedCount } = applyPatches("1: thing one\nactual content", [
+      { find: partiallyNumbered, replace: "X" },
+    ]);
+    expect(content).toBe("X");
+    expect(appliedCount).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
