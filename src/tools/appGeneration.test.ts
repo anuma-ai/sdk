@@ -107,9 +107,7 @@ describe("applyPatches", () => {
     ]);
     expect(content).toBe(base);
     expect(appliedCount).toBe(0);
-    expect(failed).toEqual([
-      { index: 0, find: "nonexistent string here", reason: "not_found" },
-    ]);
+    expect(failed).toEqual([{ index: 0, find: "nonexistent string here", reason: "not_found" }]);
   });
 
   it("reports patches with empty find strings", () => {
@@ -258,18 +256,18 @@ describe("findBestAnchor", () => {
     // both should anchor on the handler, NOT the icon — otherwise the
     // returned snippet describes the wrong region of the file.
     const reactFile = [
-      'function App() {',
-      '  return (',
-      '    <div>',
+      "function App() {",
+      "  return (",
+      "    <div>",
       '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 13l4 4L19 7" /></svg>',
-      '      <button onClick={handleSubmit}>Save</button>',
-      '    </div>',
-      '  );',
-      '}',
+      "      <button onClick={handleSubmit}>Save</button>",
+      "    </div>",
+      "  );",
+      "}",
     ].join("\n");
     const find = [
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">',
-      "  <path d=\"M12 5l7 7-7 7\" />",
+      '  <path d="M12 5l7 7-7 7" />',
       "</svg>",
       "<button onClick={handleSubmit}>",
     ].join("\n");
@@ -281,9 +279,9 @@ describe("findBestAnchor", () => {
     // the match is structurally suspect — the model probably hallucinated
     // the rest of the patch. Surface that via the low-confidence flag.
     const reactFile = [
-      'function App() {',
+      "function App() {",
       '  return <svg viewBox="0 0 24 24" fill="none"><path d="M5 13" /></svg>;',
-      '}',
+      "}",
     ].join("\n");
     const find = '<svg viewBox="0 0 24 24" fill="none">\n<path d="M99 99" />';
     expect(findBestAnchor(reactFile, find)).toEqual({ line: 2, confidence: "low" });
@@ -301,7 +299,9 @@ describe("snippetAroundLine", () => {
     const snip = snippetAroundLine(file, 10, 2, 2);
     expect(snip.startLine).toBe(8);
     expect(snip.endLine).toBe(12);
-    expect(snip.content).toBe(["8: line 8", "9: line 9", "10: line 10", "11: line 11", "12: line 12"].join("\n"));
+    expect(snip.content).toBe(
+      ["8: line 8", "9: line 9", "10: line 10", "11: line 11", "12: line 12"].join("\n")
+    );
   });
 
   it("clamps to file start", () => {

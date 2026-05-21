@@ -291,8 +291,8 @@ export function applyPatches(
   const failed: PatchFailure[] = [];
 
   for (let index = 0; index < patches.length; index++) {
-    const patch = patches[index]!;
-    if (!patch.find || typeof patch.find !== "string") {
+    const patch = patches[index];
+    if (!patch || !patch.find || typeof patch.find !== "string") {
       failed.push({ index, find: patch.find ?? "", reason: "empty_find" });
       continue;
     }
@@ -301,10 +301,7 @@ export function applyPatches(
     // number prefixes stripped. First non-empty match wins; ambiguity in
     // any one of them is reported (not silently bypassed).
     const candidates: string[] = [patch.find];
-    const unescaped = patch.find
-      .replace(/\\n/g, "\n")
-      .replace(/\\t/g, "\t")
-      .replace(/\\r/g, "\r");
+    const unescaped = patch.find.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r");
     if (unescaped !== patch.find) candidates.push(unescaped);
     const stripped = stripLineNumberPrefixes(patch.find);
     if (stripped !== patch.find && stripped !== unescaped) candidates.push(stripped);

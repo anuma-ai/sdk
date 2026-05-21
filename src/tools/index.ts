@@ -149,9 +149,13 @@ export { createGitHubTools } from "./github";
 
 // App generation tools
 export type {
+  AnchorMatch,
   AppFileRecord,
   AppFileStorage,
   CreateAppGenerationToolsOptions,
+  FileSnippet,
+  PatchFailure,
+  PatchFailureReason,
 } from "./appGeneration";
 export {
   APP_FILE_TOOL_NAMES,
