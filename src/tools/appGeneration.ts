@@ -216,28 +216,67 @@ function stripLineNumberPrefixes(s: string): string {
 }
 
 /** Reason a single patch did not apply. */
-export type PatchFailureReason = "empty_find" | "not_found";
+export type PatchFailureReason = "empty_find" | "not_found" | "ambiguous";
 
-/** Details for a patch that did not apply, indexed against the input array. */
+/** Details for a patch that did not apply, indexed against the input array.
+ *  `matchLines` is populated only for `reason: "ambiguous"` — the 1-based
+ *  line numbers where the find string starts in the file. */
 export interface PatchFailure {
   index: number;
   find: string;
   reason: PatchFailureReason;
+  matchLines?: number[];
+}
+
+/** Count non-overlapping occurrences of `needle` in `haystack`. */
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let pos = 0;
+  while (true) {
+    const idx = haystack.indexOf(needle, pos);
+    if (idx === -1) return count;
+    count++;
+    pos = idx + needle.length;
+  }
+}
+
+/** Return the 1-based line numbers where `needle` starts in `haystack`,
+ *  in document order. Non-overlapping. */
+function findMatchLines(haystack: string, needle: string): number[] {
+  if (!needle) return [];
+  const lines: number[] = [];
+  let pos = 0;
+  while (true) {
+    const idx = haystack.indexOf(needle, pos);
+    if (idx === -1) return lines;
+    // 1-based line = number of newlines before `idx`, plus 1.
+    let newlines = 0;
+    for (let i = 0; i < idx; i++) if (haystack.charCodeAt(i) === 10) newlines++;
+    lines.push(newlines + 1);
+    pos = idx + needle.length;
+  }
 }
 
 /**
  * Apply find/replace patches to a string atomically.
  *
- * Either all patches apply, or none do — when any patch fails to match,
- * the returned `content` equals the input and `appliedCount` is 0.
- * This prevents committing partial edits to disk (e.g. a rename that
- * succeeds in some call sites but not others).
+ * Either all patches apply, or none do — when any patch fails (no match,
+ * empty find, or ambiguous match), the returned `content` equals the input
+ * and `appliedCount` is 0. This prevents committing partial edits to disk
+ * (e.g. a rename that succeeds in some call sites but not others).
  *
- * Before declaring a `find` unmatched, the function tries one fallback:
- * unescaping JSON whitespace literals (`\n`, `\t`, `\r` as two-character
- * backslash sequences → real newline/tab/CR). LLMs sometimes double-escape
- * these when emitting JSON tool arguments; the fallback recovers that
- * case without forcing a retry round.
+ * A `find` must match the file exactly once. Multiple matches surface as
+ * `reason: "ambiguous"` so the model can disambiguate by adding context
+ * rather than silently editing the first occurrence.
+ *
+ * Before declaring a `find` unmatched, the function tries two fallbacks:
+ *   1. unescaping JSON whitespace literals (`\\n`, `\\t`, `\\r` as
+ *      two-character backslash sequences → real newline/tab/CR);
+ *   2. stripping leading "42: " line-number prefixes when every line of
+ *      the find carries one (the model may have copied numbered output
+ *      from read_file or a failure snippet verbatim).
+ * Ambiguity is checked against whichever variant matches.
  *
  * Returned `failed` includes the full `find` string and its index in the
  * input array so the caller can map failures back to the original patches
@@ -257,33 +296,45 @@ export function applyPatches(
       failed.push({ index, find: patch.find ?? "", reason: "empty_find" });
       continue;
     }
-    if (result.includes(patch.find)) {
-      // Intentionally replaces only the first match — the LLM should provide
-      // enough surrounding context in "find" to target a unique location.
-      result = result.replace(patch.find, () => patch.replace ?? "");
-      appliedCount++;
-      continue;
-    }
+
+    // Try the find string verbatim, then JSON-unescaped, then with line-
+    // number prefixes stripped. First non-empty match wins; ambiguity in
+    // any one of them is reported (not silently bypassed).
+    const candidates: string[] = [patch.find];
     const unescaped = patch.find
       .replace(/\\n/g, "\n")
       .replace(/\\t/g, "\t")
       .replace(/\\r/g, "\r");
-    if (unescaped !== patch.find && result.includes(unescaped)) {
-      result = result.replace(unescaped, () => patch.replace ?? "");
-      appliedCount++;
-      continue;
-    }
-    // Strip leading "42: " line-number prefixes — the model may have
-    // copied directly from read_file's numbered output or from a
-    // failure snippet. Only attempt if every non-empty line has a
-    // prefix; otherwise leave the find untouched.
+    if (unescaped !== patch.find) candidates.push(unescaped);
     const stripped = stripLineNumberPrefixes(patch.find);
-    if (stripped !== patch.find && result.includes(stripped)) {
-      result = result.replace(stripped, () => patch.replace ?? "");
-      appliedCount++;
+    if (stripped !== patch.find && stripped !== unescaped) candidates.push(stripped);
+
+    let resolved: { needle: string; count: number } | null = null;
+    for (const c of candidates) {
+      const count = countOccurrences(result, c);
+      if (count > 0) {
+        resolved = { needle: c, count };
+        break;
+      }
+    }
+
+    if (resolved === null) {
+      failed.push({ index, find: patch.find, reason: "not_found" });
       continue;
     }
-    failed.push({ index, find: patch.find, reason: "not_found" });
+
+    if (resolved.count > 1) {
+      failed.push({
+        index,
+        find: patch.find,
+        reason: "ambiguous",
+        matchLines: findMatchLines(result, resolved.needle),
+      });
+      continue;
+    }
+
+    result = result.replace(resolved.needle, () => patch.replace ?? "");
+    appliedCount++;
   }
 
   if (failed.length > 0) {
@@ -497,7 +548,10 @@ export const PATCH_FILE_SCHEMA = {
 
 REQUIRED: you must call read_file (or create_file) for this path earlier in the conversation before calling patch_file. The tool refuses otherwise — you cannot patch a file whose current content you have not seen.
 
-Pass a "patches" array of {find, replace} objects. The "find" string must match the file exactly, character for character — include 2-3 lines of surrounding context to make the match unique. Do NOT include line-number prefixes from read_file output in your "find".`,
+Pass a "patches" array of {find, replace} objects. Each "find" string must:
+  - match the file exactly, character for character;
+  - match EXACTLY ONE location — if your find appears multiple times, the patch is rejected as ambiguous. Include 2-3 lines of surrounding context to make it unique;
+  - NOT include the "<n>: " line-number prefix from read_file output.`,
   arguments: {
     type: "object",
     properties: {
@@ -813,25 +867,46 @@ export function createAppGenerationTools({
             };
           }
 
-          // First failure: attach a snippet around each failed patch's
-          // best anchor so the model can fix and retry without a separate
-          // read_file round-trip — and without re-receiving the entire
-          // file as input tokens. Snippets are omitted when only generic
-          // markup (e.g. <svg>) matched, since those would mislead.
+          // First failure: tailor the response by failure type. Ambiguous
+          // patches need the model to add context (matchLines are listed
+          // so it can see where they collide); not-found patches get a
+          // snippet around the best anchor when one exists, or a
+          // read_file nudge when nothing anchored.
           const failedPatches = failed.map((f) => {
+            if (f.reason !== "not_found") return f;
             const snippet = snippetForFailedPatch(existing.content, f.find);
             return snippet ? { ...f, snippet } : f;
           });
-          const allHaveSnippets = failedPatches.every((p) => "snippet" in p);
+
+          const hasAmbiguous = failed.some((f) => f.reason === "ambiguous");
+          const notFoundCount = failed.filter((f) => f.reason === "not_found").length;
+          const allNotFoundHaveSnippets = failedPatches.every(
+            (p) => p.reason !== "not_found" || "snippet" in p
+          );
+
+          const messageParts: string[] = [
+            `${failed.length} of ${patches.length} patches did not apply. File NOT modified.`,
+          ];
+          if (hasAmbiguous) {
+            messageParts.push(
+              `Ambiguous patches matched multiple locations (see matchLines on each) — add 2-3 more lines of surrounding context to your "find" so it uniquely identifies one target.`
+            );
+          }
+          if (notFoundCount > 0) {
+            messageParts.push(
+              allNotFoundHaveSnippets
+                ? `For patches not found: each carries a numbered snippet near the closest match in the file. Line numbers are display-only; your "find" must not include them.`
+                : `For patches not found: some carry a snippet near the closest match; for those without one, no part of your find appeared in the file — call read_file("${filePath}") to re-sync.`
+            );
+          }
+
           return {
             success: false,
             path: filePath,
             applied: 0,
             failed: failed.length,
             failedPatches,
-            message: allHaveSnippets
-              ? `${failed.length} of ${patches.length} patches did not match. File NOT modified — each failed patch carries a numbered snippet of the current file near the closest match. Line numbers are display-only; your "find" string must contain only the file text without them.`
-              : `${failed.length} of ${patches.length} patches did not match. File NOT modified — for failed patches with a snippet, the closest match is shown; for failed patches without one, no part of your find string was located in the file and you should call read_file("${filePath}") to see the current content before retrying.`,
+            message: messageParts.join(" "),
           };
         }
 
@@ -996,8 +1071,9 @@ WORKFLOW:
    - To modify: find the old code, replace with new code.
    - To insert: find the code before the insertion point, replace with that code plus the new code appended.
    - To delete: find the code to remove, replace with empty string.
-   - Copy the "find" string verbatim from read_file output (minus the line-number prefix). Include 2-3 lines of surrounding context for uniqueness.
-   - Use multiple patches in one call to change several locations in the same file.
+   - Copy the "find" string verbatim from read_file output (minus the line-number prefix).
+   - Each "find" MUST match exactly one location. Include 2-3 lines of surrounding context to make it unique — short or generic strings will fail as ambiguous.
+   - To change several distinct locations in one file, pass multiple patches in one call, each with its own unique context.
 5. Only use create_file to rewrite a file when the majority of lines are changing.
 6. Keep text responses to one or two sentences.
 

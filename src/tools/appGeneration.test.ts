@@ -118,10 +118,45 @@ describe("applyPatches", () => {
     expect(failed).toEqual([{ index: 0, find: "", reason: "empty_find" }]);
   });
 
-  it("replaces only the first occurrence", () => {
-    const repeated = "aaa bbb aaa";
-    const { content } = applyPatches(repeated, [{ find: "aaa", replace: "ccc" }]);
-    expect(content).toBe("ccc bbb aaa");
+  it("rejects ambiguous matches with line numbers (no silent first-occurrence pick)", () => {
+    // Two-line file where the find string appears on lines 1 and 3.
+    // applyPatches MUST NOT silently pick the first occurrence — it
+    // should fail the patch with reason:"ambiguous" and surface both
+    // line numbers so the model can add disambiguating context.
+    const repeated = "color: red;\nbg: blue;\ncolor: red;\n";
+    const { content, appliedCount, failed } = applyPatches(repeated, [
+      { find: "color: red;", replace: "color: green;" },
+    ]);
+    expect(content).toBe(repeated);
+    expect(appliedCount).toBe(0);
+    expect(failed).toEqual([
+      { index: 0, find: "color: red;", reason: "ambiguous", matchLines: [1, 3] },
+    ]);
+  });
+
+  it("rejects ambiguous matches even after JSON-unescape fallback", () => {
+    // The model sent "\\n" in find, which unescapes to "\n" and then
+    // matches two locations. Ambiguity wins over the escape fallback.
+    const file = "a\nx\nb\nx\nc";
+    const { content, appliedCount, failed } = applyPatches(file, [
+      { find: "\\nx", replace: "\nY" },
+    ]);
+    expect(content).toBe(file);
+    expect(appliedCount).toBe(0);
+    expect(failed[0]?.reason).toBe("ambiguous");
+    expect(failed[0]?.matchLines).toEqual([1, 3]);
+  });
+
+  it("applies cleanly when added context disambiguates", () => {
+    // Same repeated-line file as the ambiguous test, but the model
+    // included one line of surrounding context so the find is unique.
+    const repeated = "color: red;\nbg: blue;\ncolor: red;\n";
+    const { content, appliedCount, failed } = applyPatches(repeated, [
+      { find: "bg: blue;\ncolor: red;", replace: "bg: blue;\ncolor: green;" },
+    ]);
+    expect(content).toBe("color: red;\nbg: blue;\ncolor: green;\n");
+    expect(appliedCount).toBe(1);
+    expect(failed).toEqual([]);
   });
 
   it("reverts all changes when any patch fails (atomic)", () => {
