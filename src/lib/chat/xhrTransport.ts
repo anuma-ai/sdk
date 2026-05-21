@@ -80,11 +80,10 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
   };
   if (options.signal) {
     if (options.signal.aborted) {
-      // Already aborted before the request was sent. Surface this as an
-      // error item so the for-await consumer throws — matching fetch's
-      // behavior. The runToolLoop catch branch turns this into a
+      // Already aborted before the request was sent. Skip XHR setup; the
+      // async generator throws AbortError on first iteration to match
+      // fetch's behavior. The runToolLoop catch branch turns this into a
       // "Request aborted" result.
-      push({ type: "error", error: makeAbortError() });
       finished = true;
     } else {
       options.signal.addEventListener("abort", abortHandler);
@@ -164,6 +163,7 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
   }
 
   async function* createStream() {
+    if (options.signal?.aborted) throw makeAbortError();
     while (true) {
       await waitForItem();
       while (queue.length > 0) {
