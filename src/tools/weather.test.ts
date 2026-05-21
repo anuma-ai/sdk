@@ -217,19 +217,17 @@ describe("createWeatherTool", () => {
     });
 
     it("falls back to 0 for missing daily entries", async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(geoResultLondon))
-        .mockResolvedValueOnce(
-          jsonResponse({
-            current: currentWeatherData.current,
-            daily: {
-              time: ["2026-05-21"],
-              weather_code: [],
-              temperature_2m_max: [],
-              temperature_2m_min: [],
-            },
-          })
-        );
+      mockFetch.mockResolvedValueOnce(jsonResponse(geoResultLondon)).mockResolvedValueOnce(
+        jsonResponse({
+          current: currentWeatherData.current,
+          daily: {
+            time: ["2026-05-21"],
+            weather_code: [],
+            temperature_2m_max: [],
+            temperature_2m_min: [],
+          },
+        })
+      );
       const { tool } = buildTool();
       const result = (await tool.executor!({ location: "London" })) as DisplayWeatherResult;
       expect("forecast" in result && result.forecast).toEqual([
@@ -238,14 +236,12 @@ describe("createWeatherTool", () => {
     });
 
     it("marks isDay=false when is_day is 0", async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(geoResultLondon))
-        .mockResolvedValueOnce(
-          jsonResponse({
-            current: { ...currentWeatherData.current, is_day: 0 },
-            daily: currentWeatherData.daily,
-          })
-        );
+      mockFetch.mockResolvedValueOnce(jsonResponse(geoResultLondon)).mockResolvedValueOnce(
+        jsonResponse({
+          current: { ...currentWeatherData.current, is_day: 0 },
+          daily: currentWeatherData.daily,
+        })
+      );
       const { tool } = buildTool();
       const result = (await tool.executor!({ location: "London" })) as DisplayWeatherResult;
       expect("isDay" in result && result.isDay).toBe(false);
