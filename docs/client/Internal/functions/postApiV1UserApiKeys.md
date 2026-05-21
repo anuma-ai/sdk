@@ -2,7 +2,7 @@
 
 > **postApiV1UserApiKeys**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1UserApiKeysData`](../type-aliases/PostApiV1UserApiKeysData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1UserApiKeysResponses`](../type-aliases/PostApiV1UserApiKeysResponses.md), [`PostApiV1UserApiKeysErrors`](../type-aliases/PostApiV1UserApiKeysErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1357](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1357)
+Defined in: [src/client/sdk.gen.ts:1119](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1119)
 
 Create user API key
 

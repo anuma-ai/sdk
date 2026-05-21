@@ -2,7 +2,7 @@
 
 > **replaceById**(`root`: [`AnumaNode`](../interfaces/AnumaNode.md), `id`: `string`, `next`: [`AnumaNode`](../interfaces/AnumaNode.md)): `boolean`
 
-Defined in: [src/tools/slides/jsx.ts:773](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#773)
+Defined in: [src/tools/slides/jsx.ts:1099](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1099)
 
 Replace the first node with matching id in the tree. Mutates `root` in
 place. Returns true on success.

@@ -2,7 +2,7 @@
 
 > **findParentOfId**(`root`: [`AnumaNode`](../interfaces/AnumaNode.md), `id`: `string`): [`AnumaNode`](../interfaces/AnumaNode.md) | `null`
 
-Defined in: [src/tools/slides/jsx.ts:757](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#757)
+Defined in: [src/tools/slides/jsx.ts:1083](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1083)
 
 Find the parent of the node with matching id (null if root or missing).
 
