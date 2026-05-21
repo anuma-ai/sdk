@@ -79,6 +79,89 @@ export function truncateContent(content: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Snippet extraction (failure context)
+// ---------------------------------------------------------------------------
+
+/** Numbered slice of file content surrounding a point of interest. */
+export interface FileSnippet {
+  startLine: number;
+  endLine: number;
+  content: string;
+}
+
+/** Minimum line length to qualify as a fuzzy-locate anchor. Short lines
+ *  (`}`, `)`, `;`) appear everywhere and produce noisy matches. */
+const ANCHOR_MIN_LENGTH = 8;
+
+/**
+ * Locate the most likely line in `content` that the failed `find` was
+ * targeting. Strategy: take the non-trivial lines from `find` (length
+ * ≥ ANCHOR_MIN_LENGTH, contains non-whitespace), search longest-first
+ * for one that appears in `content`, and return its 1-based line number.
+ * Returns `null` when no anchor line can be found — typical for fully
+ * hallucinated patches.
+ */
+export function findBestAnchor(content: string, find: string): number | null {
+  const candidates = find
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length >= ANCHOR_MIN_LENGTH)
+    .sort((a, b) => b.length - a.length);
+
+  if (candidates.length === 0) return null;
+
+  const contentLines = content.split("\n");
+  for (const candidate of candidates) {
+    const idx = contentLines.findIndex((l) => l.includes(candidate));
+    if (idx !== -1) return idx + 1;
+  }
+  return null;
+}
+
+/**
+ * Format a region of file content with 1-based line numbers, e.g.:
+ *   42:   const foo = bar;
+ *   43:   return foo;
+ *
+ * `before` and `after` count lines around `anchorLine` (1-based). The
+ * range is clamped to the file bounds.
+ */
+export function snippetAroundLine(
+  content: string,
+  anchorLine: number,
+  before: number,
+  after: number
+): FileSnippet {
+  const lines = content.split("\n");
+  const startLine = Math.max(1, anchorLine - before);
+  const endLine = Math.min(lines.length, anchorLine + after);
+  const numbered = lines
+    .slice(startLine - 1, endLine)
+    .map((l, i) => `${startLine + i}: ${l}`)
+    .join("\n");
+  return { startLine, endLine, content: numbered };
+}
+
+/** Lines of context to include before and after the anchor in a snippet. */
+const SNIPPET_CONTEXT = 8;
+/** Lines to include in the fallback file-head snippet when no anchor matches. */
+const FALLBACK_HEAD_LINES = 30;
+
+/**
+ * Pick a focused region of the file to show alongside a failed patch.
+ * If an anchor line exists, returns ±SNIPPET_CONTEXT lines around it.
+ * Otherwise returns the first FALLBACK_HEAD_LINES lines so the model
+ * has *something* to reason about even when its `find` was fully wrong.
+ */
+export function snippetForFailedPatch(content: string, find: string): FileSnippet {
+  const anchor = findBestAnchor(content, find);
+  if (anchor !== null) {
+    return snippetAroundLine(content, anchor, SNIPPET_CONTEXT, SNIPPET_CONTEXT);
+  }
+  return snippetAroundLine(content, 1, 0, FALLBACK_HEAD_LINES - 1);
+}
+
+// ---------------------------------------------------------------------------
 // Patch logic
 // ---------------------------------------------------------------------------
 
@@ -595,18 +678,22 @@ export function createAppGenerationTools({
         const { content, appliedCount, failed } = applyPatches(existing.content, patches);
 
         // Atomic: if any patch failed to match, the file is unchanged.
-        // Return the original content as `currentContent` and full
-        // failed-patch details so the model can fix and retry without
-        // a separate read_file round-trip.
+        // Attach a snippet of the current file around each failed
+        // patch's best anchor so the model can fix and retry without a
+        // separate read_file round-trip — and without re-receiving the
+        // entire file as input tokens.
         if (failed.length > 0) {
+          const failedPatches = failed.map((f) => ({
+            ...f,
+            snippet: snippetForFailedPatch(existing.content, f.find),
+          }));
           return {
             success: false,
             path: filePath,
             applied: 0,
             failed: failed.length,
-            failedPatches: failed,
-            currentContent: truncateContent(existing.content),
-            message: `${failed.length} of ${patches.length} patches did not match. File NOT modified — read currentContent and retry the failed patches with the actual current text.`,
+            failedPatches,
+            message: `${failed.length} of ${patches.length} patches did not match. File NOT modified — each failed patch carries a numbered snippet of the current file near the closest match. Line numbers are display-only; your "find" string must contain only the file text without them.`,
           };
         }
 
@@ -627,9 +714,13 @@ export function createAppGenerationTools({
               column: syntaxError.column,
               message: syntaxError.message,
             },
-            currentContent: truncateContent(existing.content),
-            proposedContent: truncateContent(content),
-            message: `Patches produced syntax error at ${syntaxError.line}:${syntaxError.column}: ${syntaxError.message}. File NOT modified — read currentContent and retry.`,
+            proposedSnippet: snippetAroundLine(
+              content,
+              syntaxError.line,
+              SNIPPET_CONTEXT,
+              SNIPPET_CONTEXT
+            ),
+            message: `Patches produced syntax error at ${syntaxError.line}:${syntaxError.column}: ${syntaxError.message}. File NOT modified — see proposedSnippet for the broken region of the patched content, then fix and retry.`,
           };
         }
 

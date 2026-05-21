@@ -7,7 +7,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyPatches,
+  findBestAnchor,
   normalizePath,
+  snippetAroundLine,
+  snippetForFailedPatch,
   truncateContent,
   validateFileContent,
 } from "./appGeneration.js";
@@ -153,6 +156,103 @@ describe("applyPatches", () => {
     ]);
     expect(content).toBe("KEY=value\nNEXT line");
     expect(appliedCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// findBestAnchor
+// ---------------------------------------------------------------------------
+
+describe("findBestAnchor", () => {
+  const file = [
+    "function add(a, b) {",
+    "  return a + b;",
+    "}",
+    "",
+    "function multiply(a, b) {",
+    "  return a * b;",
+    "}",
+    "",
+    "export { add, multiply };",
+  ].join("\n");
+
+  it("finds the line containing a longer fragment of find", () => {
+    const find = "function multiply(a, b) {\n  return a + b; // wrong\n}";
+    expect(findBestAnchor(file, find)).toBe(5);
+  });
+
+  it("returns null when no non-trivial line in find appears in content", () => {
+    const find = "function totallyDifferent(x) {\n  return doSomething(x);\n}";
+    expect(findBestAnchor(file, find)).toBeNull();
+  });
+
+  it("returns null when every line in find is too short to anchor on", () => {
+    expect(findBestAnchor(file, "}\n)")).toBeNull();
+  });
+
+  it("prefers the longest matching line when multiple candidates exist", () => {
+    // Both "function add(a, b) {" and "}" appear, but the long one wins —
+    // and it appears at line 1.
+    const find = "function add(a, b) {\n  return WRONG;\n}";
+    expect(findBestAnchor(file, find)).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// snippetAroundLine
+// ---------------------------------------------------------------------------
+
+describe("snippetAroundLine", () => {
+  const file = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n");
+
+  it("returns numbered lines around the anchor", () => {
+    const snip = snippetAroundLine(file, 10, 2, 2);
+    expect(snip.startLine).toBe(8);
+    expect(snip.endLine).toBe(12);
+    expect(snip.content).toBe(["8: line 8", "9: line 9", "10: line 10", "11: line 11", "12: line 12"].join("\n"));
+  });
+
+  it("clamps to file start", () => {
+    const snip = snippetAroundLine(file, 1, 5, 2);
+    expect(snip.startLine).toBe(1);
+    expect(snip.endLine).toBe(3);
+  });
+
+  it("clamps to file end", () => {
+    const snip = snippetAroundLine(file, 20, 2, 10);
+    expect(snip.startLine).toBe(18);
+    expect(snip.endLine).toBe(20);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// snippetForFailedPatch
+// ---------------------------------------------------------------------------
+
+describe("snippetForFailedPatch", () => {
+  const file = [
+    "import React from 'react';",
+    "",
+    "function App() {",
+    "  const [count, setCount] = useState(0);",
+    "  return <button onClick={() => setCount(count + 1)}>{count}</button>;",
+    "}",
+    "",
+    "export default App;",
+  ].join("\n");
+
+  it("returns context around the anchor when a match is found", () => {
+    const find = "const [count, setCount] = useState(0);\nreturn <DIFFERENT />;";
+    const snip = snippetForFailedPatch(file, find);
+    expect(snip.content).toContain("4: ");
+    expect(snip.content).toContain("const [count, setCount] = useState(0);");
+  });
+
+  it("falls back to the file head when no anchor matches", () => {
+    const find = "completely unrelated content here\nthat does not match anything";
+    const snip = snippetForFailedPatch(file, find);
+    expect(snip.startLine).toBe(1);
+    expect(snip.content.startsWith("1: ")).toBe(true);
   });
 });
 
