@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
+import { runToolLoop } from "./setup.js";
 import { createMemoryVaultTool } from "../../src/lib/memoryVault/tool.js";
 import { createMemoryVaultSearchTool } from "../../src/lib/memoryVault/searchTool.js";
 import { createVaultEmbeddingCache } from "../../src/lib/memoryVault/lruCache.js";

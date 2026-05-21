@@ -14,10 +14,16 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
+import { runToolLoop } from "../setup.js";
 
-export { config, extractText, printResult, wrapTool, type ToolCallLog } from "../setup.js";
-export { runToolLoop };
+export {
+  config,
+  extractText,
+  printResult,
+  runToolLoop,
+  wrapTool,
+  type ToolCallLog,
+} from "../setup.js";
 
 /** Wrapper that times the tool loop and logs the duration. */
 export async function timedToolLoop(

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
+import { runToolLoop } from "./setup.js";
 import { createWeatherTool } from "../../src/tools/weather.js";
 import { config, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 import type { DisplayWeatherResult } from "../../src/tools/weather.js";
