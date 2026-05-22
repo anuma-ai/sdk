@@ -431,7 +431,7 @@ function validateJson(content: string): FileValidationError | null {
 // Tool name constants
 // ---------------------------------------------------------------------------
 
-/** Tool names for app file operations (create, patch, delete, read, list, audit). */
+/** Tool names for app file operations (create, patch, delete, read, list, audit, critique). */
 export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
   new Set([
     "create_file",
@@ -440,6 +440,7 @@ export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
     "read_file",
     "list_files",
     "audit_design",
+    "critique_design",
   ])
 );
 
@@ -615,6 +616,25 @@ export const AUDIT_DESIGN_SCHEMA = {
   arguments: { type: "object", properties: {}, required: [] },
 } as const;
 
+export const CRITIQUE_DESIGN_SCHEMA = {
+  name: "critique_design",
+  description:
+    "Step back and look at what you just made. Returns App.js + App.css plus a rubric of open-ended questions for you to answer honestly in your next response — about intent, hierarchy, distinctiveness, coherence, and what's weakest. This is not a checklist of rules; it's an occasion to apply taste. After answering, patch the 2-3 weakest items you identified. Call this after the initial build and after substantial design changes — complementary to audit_design (which catches mechanical/accessibility issues), where critique_design catches taste and composition.",
+  arguments: { type: "object", properties: {}, required: [] },
+} as const;
+
+/** Default open-ended questions for `critique_design`. Each is designed to
+ *  extract the model's own judgment rather than enforce a property — the
+ *  model brings the taste, the rubric only supplies the occasion. */
+export const DEFAULT_DESIGN_CRITIQUE_RUBRIC: readonly string[] = Object.freeze([
+  "What feeling does this app convey? Was that intentional, or did it default to 'polished modern productivity' because that's the safest fallback for an AI-generated React app?",
+  "If a user opens this for the first time, where does their eye land first, second, third? Is that the hierarchy you wanted? If not, what specifically is fighting it?",
+  "Name ONE detail that makes this app NOT look like generic Tailwind+React output. If you can't name one, that's the gap you need to fix — pick a place to add a signature.",
+  "Is there a piece of the design that feels added-on or inconsistent? A shadow that doesn't match its siblings, a font weight that's wrong, a color that doesn't belong to the palette?",
+  "Of all your design decisions on this app, which is the weakest? Don't be diplomatic — name it specifically with a line number if possible.",
+  "What would you cut if a senior designer told you 'this is 30% too much'? Identify the noisiest two or three rules.",
+]);
+
 // ---------------------------------------------------------------------------
 // Tool factory
 // ---------------------------------------------------------------------------
@@ -639,6 +659,16 @@ export interface CreateAppGenerationToolsOptions {
    */
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   displayApp?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
+  /**
+   * Override the open-ended rubric returned by `critique_design`. Each
+   * string is a question the model is expected to answer in its next
+   * response about the current App.js + App.css. Defaults to
+   * {@link DEFAULT_DESIGN_CRITIQUE_RUBRIC} — six questions covering
+   * intent, hierarchy, distinctiveness, coherence, the weakest decision,
+   * and what to cut. Pass a custom rubric to steer the kind of critique
+   * the model performs (e.g. brand-specific concerns).
+   */
+  designCritiqueRubric?: readonly string[];
 }
 
 /** Validate and write a batch of files. Returns an error string or null on success. */
@@ -692,6 +722,7 @@ export function createAppGenerationTools({
   storage,
   logError = (msg, err) => console.error(msg, err),
   displayApp,
+  designCritiqueRubric = DEFAULT_DESIGN_CRITIQUE_RUBRIC,
 }: CreateAppGenerationToolsOptions): ToolConfig[] {
   function requireConversationId(): string {
     const id = getConversationId();
@@ -1103,6 +1134,48 @@ export function createAppGenerationTools({
     },
   };
 
+  const critiqueDesignTool: ToolConfig = {
+    type: "function",
+    function: CRITIQUE_DESIGN_SCHEMA,
+    executor: async () => {
+      try {
+        const conversationId = requireConversationId();
+        const files = await storage.getFiles(conversationId);
+        const appJs =
+          files.find((f) => f.path === "App.js")?.content ??
+          files.find((f) => f.path === "App.jsx")?.content ??
+          "";
+        const appCss = files.find((f) => f.path === "App.css")?.content ?? "";
+        // The tool's job is to PROMPT reflection — it returns the files
+        // (so the model has them fresh) plus the rubric (the occasion).
+        // The model produces the actual critique in its next response;
+        // we don't try to evaluate design quality in code here, because
+        // that's a regression to checklist-as-prompt. Taste belongs to
+        // the model; the system supplies the moment for it to apply.
+        return {
+          instruction:
+            "Read your App.js and App.css below, then answer each of the rubric questions honestly in your next response — be specific (cite lines, name choices, don't hedge). After answering, identify the 2-3 weakest items you named and patch them now. The point is to step back from the keyboard and actually look, not to satisfy a checklist.",
+          rubric: designCritiqueRubric,
+          appJs: {
+            path: "App.js",
+            lines: appJs.split("\n").length,
+            content: appJs,
+          },
+          appCss: {
+            path: "App.css",
+            lines: appCss.split("\n").length,
+            content: appCss,
+          },
+        };
+      } catch (err) {
+        logError("critique_design failed", err instanceof Error ? err : undefined);
+        return {
+          error: `Failed to load files for critique: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    },
+  };
+
   // No standalone display_app tool — display happens automatically
   // from inside create_file / patch_file / delete_file via the
   // `displayApp` callback. Mirrors `createSlideTools`, which has no
@@ -1115,6 +1188,7 @@ export function createAppGenerationTools({
     readFileTool,
     listFilesTool,
     auditDesignTool,
+    critiqueDesignTool,
   ];
 }
 
@@ -1135,27 +1209,9 @@ export function createAppGenerationTools({
 export function buildAppSystemPrompt(): string {
   return `You are in App Builder mode. You produce polished, production-quality React apps that feel designed — not generic.
 
-DESIGN DIRECTION — before writing code, commit to your design identity.
+DESIGN: before writing code, briefly state (2-3 sentences) what you want this app to feel like — name the specific fonts, the palette in hex, and one signature detail. Be concrete: "Fraunces display + Inter body + JetBrains Mono metadata, terracotta #b75432 accent on bone #f3efe6, paper-grain texture via inline SVG noise" is the kind of specificity that anchors the build. Default to nothing: don't pick "safe modern productivity" unless the brief literally asks for utilitarian.
 
-For any new app, state a 2-3 sentence design brief naming three choices the rest of your work will respect:
-
-1. AESTHETIC. Pick one direction and stick with it through every component. Examples (coin your own when something else fits the app's purpose better):
-   - warm editorial — off-white canvas, serif display, restrained accent, tactile cards
-   - cold modernist — high contrast, geometric sans, white on dark, hairline borders
-   - playful retro — chunky shadows, bold borders, warm primaries
-   - brutalist newspaper — black serif on raw paper, hard hairlines, mono labels
-   - soft Nordic — pale palette, light sans, generous whitespace
-   - magazine spread — strong type hierarchy, italic accents, gridlike layout
-   - cozy terminal — mono-first, amber-on-black or green-on-cream
-   - neon arcade — saturated gradients, bold sans, glowing borders
-   - studio sketch — hand-drawn outlines, off-white paper, irregular borders
-   Match the aesthetic to the app's purpose and tone. Don't default to "safe modern productivity" unless the prompt explicitly calls for utilitarian — most prompts don't.
-
-2. TYPE SYSTEM. Pick a display font + body font (+ optional mono). Load Google Fonts via a <link> in a manual link tag (Google Fonts is reachable from the preview). Treat typography as a primary design tool, not an afterthought — italic accents, mono labels for metadata, varied weights, distinctive display faces. Examples: Instrument Serif + Geist + JetBrains Mono / Fraunces + Inter / Space Grotesk + IBM Plex Sans / EB Garamond + Inter / Bricolage Grotesque + Inter. System fonts are a last resort.
-
-3. ONE SIGNATURE DETAIL. The single thing that makes this app look distinctly NOT generic. Examples: an ambient radial gradient wash keyed to the accent, paper grain via inline SVG noise filter, oversized italic numerals for stats, asymmetric border radius (e.g. 4px/14px), conic-gradient on a hero element, a single hand-tuned CSS animation, mono uppercase labels with letter-spacing. Pick one. Lean in.
-
-State all three in your first text response (one sentence, before the tool call). Example: "Going with warm editorial: Instrument Serif display + Geist body + JetBrains Mono metadata, terracotta accent on bone background, with a paper-grain texture as the signature detail." Respect them through every subsequent phase of work — when the user asks for a new feature, style it in the same aesthetic, don't drift back to defaults.
+After the initial build, call critique_design to step back and look at what you made — it returns your code plus open-ended questions to evaluate honestly. Then patch the weakest items.
 
 WORKFLOW:
 1. NEVER output code as text or markdown. ALWAYS use tools.
@@ -1169,8 +1225,8 @@ WORKFLOW:
    - Each "find" MUST match exactly one location. Include 2-3 lines of surrounding context to make it unique — short or generic strings will fail as ambiguous.
    - To change several distinct locations in one file, pass multiple patches in one call, each with its own unique context.
 5. ALWAYS prefer patch_file for modifying existing files — surgical edits are easier to review, faster to apply, and preserve the surrounding code unchanged. Reserve create_file overwrites for substantial restructuring where most of the file is changing. Both operations require you to have called read_file for the path earlier in this conversation (or just created it via create_file); the tools refuse otherwise. Multi-location features (adding a field to every card, etc.) are usually best done as multiple patches in one patch_file call rather than a rewrite.
-6. After substantial changes — particularly the initial build and any redesign — call audit_design. It reports raw hex colors outside :root, CSS variables declared but unused, missing :focus-visible rules on interactive elements, icon-only buttons without aria-label, images without alt, and heading-order anti-patterns. Read the issues with line numbers, decide which are actionable, and patch them. Aim for a score of 90 or higher; anything below 80 means the design system has gaps the user will feel.
-7. Keep text responses to one or two sentences.
+6. After substantial changes — initial build, major rewrites — call critique_design first (open-ended self-evaluation: intent, hierarchy, distinctiveness, weakest decision) and then audit_design (mechanical: token use, focus states, aria-labels, alt, heading order). Patch what each surfaces. critique catches taste issues that no checklist would; audit catches mechanical issues you'd otherwise miss. Run both; act on both.
+7. Keep text responses to one or two sentences, except when responding to critique_design — there, write a substantive paragraph per rubric question.
 
 STRUCTURE:
 - App.js: default-export React component. For non-trivial apps, define several small co-located helper components above the default export (Header, CardList, Card, EditDialog, ...) rather than one giant App. Do NOT create index.js or index.html (auto-generated).

@@ -164,6 +164,8 @@ export {
   buildAppSystemPrompt,
   CREATE_FILE_SCHEMA,
   createAppGenerationTools,
+  CRITIQUE_DESIGN_SCHEMA,
+  DEFAULT_DESIGN_CRITIQUE_RUBRIC,
   DELETE_FILE_SCHEMA,
   LIST_FILES_SCHEMA,
   MapFileStorage,

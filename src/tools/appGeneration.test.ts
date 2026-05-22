@@ -10,6 +10,7 @@ import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import {
   applyPatches,
   createAppGenerationTools,
+  DEFAULT_DESIGN_CRITIQUE_RUBRIC,
   findBestAnchor,
   MapFileStorage,
   normalizePath,
@@ -579,5 +580,98 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     })) as Record<string, unknown>;
     expect(result.error).toEqual(expect.stringContaining("have not read"));
     expect(result.unreadOverwrites).toEqual(["App.js"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// critique_design tool
+// ---------------------------------------------------------------------------
+
+describe("critique_design", () => {
+  function makeTools(overrides?: Partial<Parameters<typeof createAppGenerationTools>[0]>): {
+    storage: MapFileStorage;
+    critique: ToolConfig;
+    createFile: ToolConfig;
+  } {
+    const storage = new MapFileStorage();
+    const tools = createAppGenerationTools({
+      getConversationId: () => "test-conv",
+      storage,
+      logError: () => undefined,
+      ...overrides,
+    });
+    const find = (name: string): ToolConfig => {
+      const t = tools.find((tt) => (tt.function as { name: string }).name === name);
+      if (!t) throw new Error(`tool ${name} not found`);
+      return t;
+    };
+    return { storage, critique: find("critique_design"), createFile: find("create_file") };
+  }
+
+  it("returns the current App.js + App.css alongside the rubric", async () => {
+    const { critique, createFile } = makeTools();
+    await createFile.executor!({
+      files: [
+        { path: "App.js", content: "export default function App() { return null; }\n" },
+        { path: "App.css", content: ":root { --bg: #fff; }\n" },
+      ],
+    });
+    const result = (await critique.executor!({})) as Record<string, unknown>;
+    expect(result.appJs).toMatchObject({ path: "App.js", lines: expect.any(Number) });
+    expect(result.appCss).toMatchObject({ path: "App.css", lines: expect.any(Number) });
+    expect((result.appJs as { content: string }).content).toContain("function App");
+    expect((result.appCss as { content: string }).content).toContain(":root");
+  });
+
+  it("returns the default rubric questions when no override is supplied", async () => {
+    const { critique, createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "export default function App() { return null; }\n" }],
+    });
+    const result = (await critique.executor!({})) as { rubric: readonly string[] };
+    expect(result.rubric).toEqual(DEFAULT_DESIGN_CRITIQUE_RUBRIC);
+    expect(result.rubric.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("honors a host-supplied rubric override", async () => {
+    const customRubric = [
+      "Does this app feel like the Acme brand?",
+      "Where could you push the visual identity further?",
+    ];
+    const { critique, createFile } = makeTools({ designCritiqueRubric: customRubric });
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "export default function App() { return null; }\n" }],
+    });
+    const result = (await critique.executor!({})) as { rubric: readonly string[] };
+    expect(result.rubric).toEqual(customRubric);
+  });
+
+  it("includes the instruction that nudges the model toward substantive critique + patch", async () => {
+    const { critique, createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "export default function App() { return null; }\n" }],
+    });
+    const result = (await critique.executor!({})) as { instruction: string };
+    expect(result.instruction).toEqual(expect.stringContaining("answer each"));
+    expect(result.instruction).toEqual(expect.stringContaining("patch"));
+  });
+
+  it("falls back to App.jsx when App.js is absent", async () => {
+    const { critique, createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.jsx", content: "export default function App() { return null; }\n" }],
+    });
+    const result = (await critique.executor!({})) as { appJs: { content: string } };
+    expect(result.appJs.content).toContain("function App");
+  });
+
+  it("returns empty content fields when no files exist (lets the model fail loudly)", async () => {
+    const { critique } = makeTools();
+    const result = (await critique.executor!({})) as {
+      appJs: { content: string; lines: number };
+      appCss: { content: string; lines: number };
+    };
+    expect(result.appJs.content).toBe("");
+    expect(result.appCss.content).toBe("");
   });
 });
