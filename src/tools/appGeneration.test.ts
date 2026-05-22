@@ -5,9 +5,13 @@
 
 import { describe, expect, it } from "vitest";
 
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
+
 import {
   applyPatches,
+  createAppGenerationTools,
   findBestAnchor,
+  MapFileStorage,
   normalizePath,
   snippetAroundLine,
   snippetForFailedPatch,
@@ -436,5 +440,144 @@ describe("validateFileContent", () => {
   it("normalizes case in the extension lookup", () => {
     expect(validateFileContent("App.JSX", "<div />\n")).toBeNull();
     expect(validateFileContent("BAD.TS", "const x: = 1;\n")).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// create_file: Read-before-Write contract (Claude Code-style)
+// ---------------------------------------------------------------------------
+
+describe("create_file enforces Read-before-Write for overwrites", () => {
+  function makeTools(): {
+    storage: MapFileStorage;
+    createFile: ToolConfig;
+    deleteFile: ToolConfig;
+    readFile: ToolConfig;
+  } {
+    const storage = new MapFileStorage();
+    const tools = createAppGenerationTools({
+      getConversationId: () => "test-conv",
+      storage,
+      logError: () => undefined,
+    });
+    const findTool = (name: string): ToolConfig => {
+      const t = tools.find((tt) => (tt.function as { name: string }).name === name);
+      if (!t) throw new Error(`tool ${name} not found`);
+      return t;
+    };
+    return {
+      storage,
+      createFile: findTool("create_file"),
+      deleteFile: findTool("delete_file"),
+      readFile: findTool("read_file"),
+    };
+  }
+
+  it("creates new files without requiring a prior read", async () => {
+    const { createFile, storage } = makeTools();
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "export default function App() { return null; }\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect(result.paths).toEqual(["App.js"]);
+    expect((await storage.getFile("test-conv", "App.js"))?.content).toContain("App");
+  });
+
+  it("allows overwrite of a file the model created in this conversation (write counts as read)", async () => {
+    const { createFile, storage } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    });
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 2;\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect((await storage.getFile("test-conv", "App.js"))?.content).toBe("const A = 2;\n");
+  });
+
+  it("allows overwrite after read_file", async () => {
+    const { createFile, readFile, storage } = makeTools();
+    // Simulate a file that exists in storage but wasn't created by the model.
+    (storage as MapFileStorage).getAll().set("App.js", "const A = 1;\n");
+    // Read first, then overwrite.
+    await readFile.executor!({ path: "App.js" });
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 2;\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect((await storage.getFile("test-conv", "App.js"))?.content).toBe("const A = 2;\n");
+  });
+
+  it("refuses overwrite when the file exists but the model has not read or created it", async () => {
+    const { createFile } = makeTools();
+    // File exists in storage but model has not touched it in this conversation.
+    // (e.g. host pre-populated, or a different session.)
+    const { storage } = makeTools(); // fresh conversation
+    storage.getAll().set("App.js", "pre-existing content\n");
+    const tools = createAppGenerationTools({
+      getConversationId: () => "test-conv-2",
+      storage,
+      logError: () => undefined,
+    });
+    const cf = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
+    const result = (await cf.executor!({
+      files: [{ path: "App.js", content: "new content\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBeUndefined();
+    expect(result.error).toEqual(expect.stringContaining("have not read"));
+    expect(result.error).toEqual(expect.stringContaining("read_file"));
+    expect(result.unreadOverwrites).toEqual(["App.js"]);
+    // Ensure createFile is the one we used (silences the unused-variable warning).
+    expect(createFile).toBeDefined();
+  });
+
+  it("is atomic: when any overwrite is unread, NO files are written (not even new ones)", async () => {
+    const { storage } = makeTools();
+    storage.getAll().set("App.js", "pre-existing\n");
+    const tools = createAppGenerationTools({
+      getConversationId: () => "test-conv-3",
+      storage,
+      logError: () => undefined,
+    });
+    const cf = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
+    await cf.executor!({
+      files: [
+        { path: "App.js", content: "rewrite without reading\n" }, // unread overwrite
+        { path: "App.css", content: "body {}\n" }, // new file, would be fine alone
+      ],
+    });
+    // App.js unchanged, App.css NOT created (atomic refusal).
+    expect(storage.getAll().get("App.js")).toBe("pre-existing\n");
+    expect(await storage.getFile("test-conv-3", "App.css")).toBeNull();
+  });
+
+  it("after delete_file, create_file for the same path is a fresh creation (no read needed)", async () => {
+    const { createFile, deleteFile, storage } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    });
+    await deleteFile.executor!({ path: "App.js" });
+    // After delete, App.js is gone from seen-files; recreating it is a new file.
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 2;\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect((await storage.getFile("test-conv", "App.js"))?.content).toBe("const A = 2;\n");
+  });
+
+  it("normalizes paths before checking — '/App.js' counts as same file as 'App.js'", async () => {
+    const { storage } = makeTools();
+    storage.getAll().set("App.js", "pre-existing\n");
+    const tools = createAppGenerationTools({
+      getConversationId: () => "test-conv-4",
+      storage,
+      logError: () => undefined,
+    });
+    const cf = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
+    const result = (await cf.executor!({
+      files: [{ path: "/App.js", content: "rewrite\n" }],
+    })) as Record<string, unknown>;
+    expect(result.error).toEqual(expect.stringContaining("have not read"));
+    expect(result.unreadOverwrites).toEqual(["App.js"]);
   });
 });

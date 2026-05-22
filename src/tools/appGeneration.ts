@@ -521,7 +521,9 @@ export class MapFileStorage implements AppFileStorage {
 
 export const CREATE_FILE_SCHEMA = {
   name: "create_file",
-  description: `Build a new app — a calculator, a game, a todo list, a form, a dashboard, a chart, a simulation, or another interactive demo. Writes files into the in-chat app project; the live preview renders automatically. Pass every file (App.js, App.css, package.json, ...) in a single call.`,
+  description: `Build a new app — a calculator, a game, a todo list, a form, a dashboard, a chart, a simulation, or another interactive demo. Writes files into the in-chat app project; the live preview renders automatically. Pass every file (App.js, App.css, package.json, ...) in a single call.
+
+create_file creates new files and can also overwrite existing ones for substantial restructures. For overwrites, you must have called read_file for the path earlier in this conversation (or created it via create_file in the same conversation) — the tool refuses otherwise. For incremental changes, prefer patch_file: it's easier to review and preserves surrounding code unchanged.`,
   arguments: {
     type: "object",
     properties: {
@@ -734,6 +736,7 @@ export function createAppGenerationTools({
     seenFilesByConv.get(conversationId)?.delete(path);
   }
 
+
   /**
    * Invoke the host's `displayApp` callback with cached state, fold
    * the reply back into per-conversation state, AND return it to the
@@ -786,6 +789,28 @@ export function createAppGenerationTools({
           return { error: "files array is required and must not be empty" };
         }
 
+        // Read-before-Write contract (mirrors Claude Code's Write tool):
+        // create_file can overwrite existing files, but only when the
+        // model has read them in this conversation. Drift across
+        // iterations is mitigated naturally — once the model has the
+        // file's literal content in context, it tends to preserve
+        // tokens, structure, and naming when rewriting. Without a prior
+        // read, the model would be regenerating from memory, and design
+        // drift becomes likely.
+        const normalizedPaths = filesArg.map((f) => normalizePath(f.path));
+        const existsInStorage = await Promise.all(
+          normalizedPaths.map((p) => storage.getFile(conversationId, p))
+        );
+        const unreadOverwrites = normalizedPaths.filter(
+          (p, i) => existsInStorage[i] !== null && !hasFileBeenSeen(conversationId, p)
+        );
+        if (unreadOverwrites.length > 0) {
+          return {
+            error: `Cannot overwrite files you have not read in this conversation: ${unreadOverwrites.join(", ")}. Call read_file for each first — you need the current content in context so the rewrite preserves the existing design tokens, structure, and choices. For incremental changes, prefer patch_file over create_file.`,
+            unreadOverwrites,
+          };
+        }
+
         // Validate every file's syntax before any write — atomic so a
         // single broken file doesn't leave half the project committed.
         const validationErrors = collectValidationErrors(filesArg);
@@ -801,8 +826,8 @@ export function createAppGenerationTools({
 
         const paths = filesArg.map((f) => normalizePath(f.path));
         // Model just wrote the content, so it has seen it. Subsequent
-        // patch_file calls against these paths can proceed without
-        // requiring a read_file.
+        // patch_file or create_file calls against these paths can
+        // proceed without requiring a separate read_file.
         for (const p of paths) markFileSeen(conversationId, p);
         const display = await triggerAppDisplay(conversationId);
         return { success: true, paths, ...display };
@@ -847,7 +872,16 @@ export function createAppGenerationTools({
 
         // Atomic: if any patch failed to match, the file is unchanged.
         if (failed.length > 0) {
-          const failureCount = bumpPatchFailure(conversationId, filePath);
+          // Only count toward the thrash threshold when ALL failures are
+          // "not_found" — i.e. the model is hallucinating content. Ambiguous
+          // matches mean the model is engaging with real file content but
+          // needs more surrounding context; that's productive iteration,
+          // not thrashing, so don't punish it with the read_file directive
+          // that would suppress the snippet it actually needs.
+          const allNotFound = failed.every((f) => f.reason === "not_found");
+          const failureCount = allNotFound
+            ? bumpPatchFailure(conversationId, filePath)
+            : (patchFailuresByConv.get(conversationId)?.get(filePath) ?? 0);
 
           // Repeated failure: the model is hallucinating file content.
           // Stop returning snippets (they're not helping) and demand a
@@ -960,8 +994,8 @@ export function createAppGenerationTools({
 
         await storage.deleteFile(conversationId, path);
         // File no longer exists — clear "seen" state so a future
-        // create_file followed by patch_file goes through enforcement
-        // cleanly without stale carry-over.
+        // create_file for the same path is treated as a new file
+        // (no Read-before-Write requirement on a fresh creation).
         forgetFileSeen(conversationId, path);
         const display = await triggerAppDisplay(conversationId);
         return { success: true, path, ...display };
@@ -988,8 +1022,9 @@ export function createAppGenerationTools({
         const file = await storage.getFile(conversationId, path);
         if (!file) return { error: `File not found: ${path}` };
 
-        // Mark this file as "seen" so subsequent patch_file calls
-        // pass the read-before-patch contract.
+        // Mark this file as "seen" so subsequent patch_file or
+        // create_file (overwrite) calls pass the read-before-modify
+        // contract.
         markFileSeen(conversationId, file.path);
 
         // Number the lines so the model has unambiguous location info
@@ -1093,7 +1128,7 @@ WORKFLOW:
    - Copy the "find" string verbatim from read_file output (minus the line-number prefix).
    - Each "find" MUST match exactly one location. Include 2-3 lines of surrounding context to make it unique — short or generic strings will fail as ambiguous.
    - To change several distinct locations in one file, pass multiple patches in one call, each with its own unique context.
-5. Only use create_file to rewrite a file when the majority of lines are changing.
+5. ALWAYS prefer patch_file for modifying existing files — surgical edits are easier to review, faster to apply, and preserve the surrounding code unchanged. Reserve create_file overwrites for substantial restructuring where most of the file is changing. Both operations require you to have called read_file for the path earlier in this conversation (or just created it via create_file); the tools refuse otherwise. Multi-location features (adding a field to every card, etc.) are usually best done as multiple patches in one patch_file call rather than a rewrite.
 6. Keep text responses to one or two sentences.
 
 STRUCTURE:
