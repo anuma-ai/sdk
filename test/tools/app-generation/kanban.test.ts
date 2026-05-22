@@ -119,12 +119,48 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       expect(phase1Js).toMatch(/Done/);
       // Drag-and-drop primitives present (any of the standard handlers).
       expect(phase1Js).toMatch(/draggable|onDragStart|onDragOver|onDrop/);
-      // Persistence: the system prompt tells the model to use localStorage
-      // for user-created data. Kanban cards qualify — a refresh shouldn't
-      // wipe the board. (Soft check; we'll log if missing rather than fail
-      // since the model still produces a working app without persistence.)
+
+      // ── Soft design-quality signals (log-only) ─────────────────────
+      // The DESIGN DIRECTION section of the system prompt should produce
+      // observable artifacts: design tokens declared, Google Fonts loaded,
+      // an aesthetic stated in the assistant's text, custom CSS sized
+      // appropriately. None of these fail the test on their own — they're
+      // diagnostic signals we use to measure how the prompt is shaping
+      // the output.
+      const cssVarMatches = phase1Css.match(/--[a-z][a-z0-9-]*\s*:/gi) ?? [];
+      const usesGoogleFonts = /fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(
+        `${phase1Js}\n${phase1Css}`
+      );
+      const usesModernCss =
+        /color-mix\(|oklch\(|oklab\(|conic-gradient\(|backdrop-filter|@container|feTurbulence/.test(
+          phase1Css
+        );
+      const responseLower = phase1.responseText.toLowerCase();
+      const aestheticHints = [
+        "editorial",
+        "modernist",
+        "retro",
+        "brutalist",
+        "nordic",
+        "terminal",
+        "arcade",
+        "sketch",
+        "magazine",
+        "minimal",
+        "playful",
+        "warm",
+        "cold",
+      ];
+      const namedAesthetic = aestheticHints.some((h) => responseLower.includes(h));
       const hasPersistence = /localStorage/.test(phase1Js);
-      console.log(`  Phase 1 persistence (localStorage): ${hasPersistence ? "YES" : "no"}`);
+      console.log(
+        `  Phase 1 design signals:` +
+          `\n    aesthetic named in response: ${namedAesthetic ? "YES" : "no"}` +
+          `\n    design tokens (--var) in App.css: ${cssVarMatches.length}` +
+          `\n    Google Fonts loaded: ${usesGoogleFonts ? "YES" : "no"}` +
+          `\n    modern CSS (color-mix/oklch/conic/etc): ${usesModernCss ? "YES" : "no"}` +
+          `\n    localStorage persistence: ${hasPersistence ? "YES" : "no"}`
+      );
 
       const snap1 = snapshot(store);
       console.log(
