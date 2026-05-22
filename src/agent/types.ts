@@ -88,10 +88,13 @@ interface SkillJourneyFieldBase {
   /** Server-side sanitiser cap on the value's character length. Today's gateways
    *  truncate textarea fields at 50_000 characters. */
   maxLength?: number;
-  /** Tells consumers how to extract text from an attached file into this field. */
+  /** Tells consumers how to extract text from an attached file. The resulting
+   *  text is written to the variable named by `extractedTextTarget`. */
   fileExtractionStrategy?: FileExtractionStrategy;
-  /** Variable name to write the extracted text into. When set, consumers populate
-   *  this field's value from the uploaded file rather than from typed input. */
+  /** Variable name to write the extracted text into. The extracted text is always
+   *  written to this variable — which may be the same as the field's `key` (the
+   *  file replaces typed input) or a different template variable (the file
+   *  produces a separate slot alongside typed input). */
   extractedTextTarget?: string;
 }
 

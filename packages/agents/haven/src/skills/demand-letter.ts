@@ -38,10 +38,7 @@ Use web search to verify current {{state}} statutes and remedies.`,
 - State: {{state}}
 - Issue: {{issue_description}}
 - Desired resolution: {{desired_resolution}}
-- Prior communication: {{prior_communication}}
-
-## Supporting documentation (if provided)
-{{supporting_document_text}}`,
+- Prior communication: {{prior_communication}}`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 12,

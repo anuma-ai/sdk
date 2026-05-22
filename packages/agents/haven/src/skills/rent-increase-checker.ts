@@ -35,10 +35,7 @@ Cite specific statute references and deadlines for tenant response.`,
 - Current rent: {{current_rent}}
 - Proposed new rent: {{proposed_rent}}
 - Lease type: {{lease_type}}
-- Notice received: {{notice_date}}
-
-## Rent increase notice (if provided)
-{{rent_notice_text}}`,
+- Notice received: {{notice_date}}`,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 1,
   requiredVariables: ["city", "state", "current_rent", "proposed_rent"],
