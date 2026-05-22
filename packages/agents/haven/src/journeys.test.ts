@@ -38,8 +38,8 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
   it("rent-increase-checker has correct field keys", () => {
     const ric = HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"];
     expect(ric.fields.map((f) => f.key)).toEqual([
-      "city",
       "state",
+      "city",
       "current_rent",
       "proposed_rent",
     ]);
@@ -62,9 +62,9 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
     expect(hoa.fields.map((f) => f.key)).toEqual(["state", "hoa_name", "issue_type", "hoa_notice"]);
   });
 
-  it("lease-review accepts files, rent-increase-checker does not", () => {
+  it("lease-review and rent-increase-checker both accept files", () => {
     expect(HAVEN_SKILL_JOURNEYS["housing.lease-review"].acceptsFiles).toBe(true);
-    expect(HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"].acceptsFiles).toBe(false);
+    expect(HAVEN_SKILL_JOURNEYS["housing.rent-increase-checker"].acceptsFiles).toBe(true);
   });
 
   it("required fields match the source data", () => {

@@ -38,4 +38,9 @@ Use web search to confirm the current {{state}} statute of limitations and any s
     collection_notice: "Paste the collection notice or summarize what it says.",
   },
   contextSuffix: FINANCE_MEMORY_SUFFIX,
+  iconName: "MailWarning",
+  preamble:
+    "Got it — collections response. Tell me about the notice and your state, and I'll draft a clear reply (validation request, dispute, or escalation, whichever fits).",
+  closing: "Perfect — drafting your response now. Give me a moment.",
+  requiredNudgeDefault: "I do need this one — what would you like to put?",
 };

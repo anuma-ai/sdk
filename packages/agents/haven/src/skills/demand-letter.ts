@@ -10,6 +10,12 @@ export const demandLetter: SkillConfig = {
 ## Task
 Draft a demand letter for a housing issue.
 
+## Issue
+{{issue_description}}
+
+## Supporting documentation (if provided)
+{{supporting_document_text}}
+
 ## Instructions
 1. Research {{state}} landlord-tenant law relevant to this issue
 2. Identify the specific legal violations or obligations
@@ -30,9 +36,10 @@ Use web search to verify current {{state}} statutes and remedies.`,
 - Landlord/management: {{landlord_name}}
 - Property address: {{property_address}}
 - State: {{state}}
-- Issue: {{issue_description}}
 - Desired resolution: {{desired_resolution}}
-- Prior communication: {{prior_communication}}`,
+- Prior communication: {{prior_communication}}
+
+The full issue narrative is in the system prompt above.`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 12,
@@ -52,4 +59,10 @@ Use web search to verify current {{state}} statutes and remedies.`,
       "Describe the issue you want to address — include the timeline, any prior requests, and the outcome you want.",
   },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
+  iconName: "FileText",
+  preamble:
+    "Got it — a demand letter. I'll ask a few quick questions about the situation, then draft a first version you can edit right here in chat. Let's start:",
+  closing:
+    "Perfect — drafting your letter now. Give me about 10 seconds and the first version will appear below.",
+  requiredNudgeDefault: "I do need this one to draft the letter — what would you like to put?",
 };

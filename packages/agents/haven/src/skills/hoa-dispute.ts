@@ -46,4 +46,9 @@ Use web search to verify current {{state}} HOA statutes and case law.`,
     hoa_notice: "Paste the HOA notice or violation letter you received.",
   },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
+  iconName: "Shield",
+  preamble:
+    "Got it — HOA dispute. A couple details about the HOA and the issue, then I'll draft a firm, organized response strategy.",
+  closing: "Perfect — drafting your response strategy now. Give me a moment.",
+  requiredNudgeDefault: "I do need this one — what would you like to put?",
 };

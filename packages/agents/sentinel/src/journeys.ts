@@ -1,4 +1,4 @@
-import type { SkillJourneyDefinition } from "@anuma/sdk";
+import { MULTILINE_FIELD_MAX, type SkillJourneyDefinition } from "@anuma/sdk";
 
 const US_STATES = [
   "AL",
@@ -71,16 +71,18 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
   "finance.subscription-checker": {
     title: "Subscription audit",
     description:
-      "Sentinel scans a statement or renewal list for duplicates, overlapping plans, and charges worth cancelling or disputing.",
+      "Sentinel scans a statement, renewal list, or connected-bank import to find recurring charges and cancellation targets.",
     steps: [
-      "Upload a statement or paste transactions.",
+      "Upload a statement, connect a bank, or paste transactions.",
       "Optionally call out vendors to review first.",
       "Get a clean findings summary in chat.",
     ],
     acceptsFiles: true,
-    fileLabel: "Upload a billing PDF or statement",
+    fileLabel: "Upload a billing PDF or statement (optional if you connect a bank)",
     fileHint:
-      "PDF, CSV, screenshots, or docs all work. Sentinel will inspect the attachment in chat.",
+      "Attach a PDF, CSV, screenshot, or connect a bank with Plaid to import recurring charges directly.",
+    filePrompt:
+      "Upload a billing PDF, statement, or screenshot if you have one. Or connect a bank below to pull transactions in directly. Skip if you've already pasted what you need.",
     fields: [
       {
         key: "statement_text",
@@ -89,6 +91,9 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
           "Paste transactions, renewal emails, or a list of recurring services you want Sentinel to audit.",
         helper:
           "Use this if you do not have a PDF handy, or add extra context alongside the uploaded file.",
+        chatPrompt:
+          "If you have a statement or subscription list to paste, drop it here. Skip if you're uploading instead.",
+        maxLength: MULTILINE_FIELD_MAX,
         type: "textarea",
         required: false,
       },
@@ -97,6 +102,8 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Vendors or charges to prioritize",
         placeholder: "Netflix, Apple, Amazon, duplicate gym charges",
         helper: "Optional. Sentinel will still scan everything if you leave this blank.",
+        chatPrompt:
+          "Anything specific you want me to focus on first — vendors, charge types, suspicious recent ones? Skip to have me scan everything evenly.",
         type: "text",
         required: false,
       },
@@ -138,6 +145,11 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         placeholder:
           "Describe the merchant, amount, date, why the charge is wrong, and what outcome you want.",
         helper: "The more context you provide, the sharper Sentinel can make the dispute plan.",
+        chatPrompt:
+          "What happened with this charge? Walk me through it — when you saw it, what you tried, why you think it's wrong. The more detail you share, the sharper the dispute plan.",
+        requiredNudge:
+          "I'll need at least a short description of what happened to draft the dispute — could you share?",
+        maxLength: MULTILINE_FIELD_MAX,
         type: "textarea",
         required: true,
       },
@@ -146,6 +158,8 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Merchant",
         placeholder: "Merchant name or descriptor on your statement",
         helper: "Optional if already included in the explanation above.",
+        chatPrompt:
+          "Who's the merchant (if you didn't already mention them above)? Skip if it's already clear.",
         type: "text",
         required: false,
       },
@@ -154,6 +168,8 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Charge amount",
         placeholder: "$124.00",
         helper: "Optional, but helpful for drafting the bank script.",
+        chatPrompt:
+          "How much was the charge? Helpful for the bank script, but skip if you'd rather not say.",
         type: "text",
         required: false,
       },
@@ -191,6 +207,9 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         placeholder: "Paste the letter or message from the collector.",
         helper:
           "If you upload the notice, this can stay blank unless you want to highlight specific lines.",
+        chatPrompt:
+          "Paste the collection notice here, or add any context if you're uploading the full notice below.",
+        maxLength: MULTILINE_FIELD_MAX,
         type: "textarea",
         required: false,
       },
@@ -199,14 +218,19 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Collector or agency name",
         placeholder: "Agency name",
         helper: "Optional if it is clearly visible in the uploaded notice.",
+        chatPrompt:
+          "Who's the collector or collections agency? Skip if it's clearly on the notice.",
         type: "text",
         required: false,
       },
       {
         key: "state",
-        label: "Your state",
-        placeholder: "Select your state",
+        label: "Your U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required for the statute of limitations check and state-specific debt rules.",
+        chatPrompt:
+          "What's your U.S. state? I need it for the statute of limitations and state-specific debt rules.",
+        requiredNudge: "I need your state for the statute of limitations check — which one?",
         type: "select",
         required: true,
         options: US_STATES,

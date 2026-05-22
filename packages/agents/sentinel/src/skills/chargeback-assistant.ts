@@ -37,4 +37,9 @@ Use web search to confirm current chargeback reason codes or merchant-specific d
       "Tell me about the disputed charge — merchant, amount, when it happened, and why you're disputing.",
   },
   contextSuffix: FINANCE_MEMORY_SUFFIX,
+  iconName: "AlertCircle",
+  preamble:
+    "Got it — let's build your dispute. Tell me what happened with the charge and I'll put together a plan, a script for the bank call, and the next-step checklist.",
+  closing: "Perfect — building your dispute plan and bank script now. One sec.",
+  requiredNudgeDefault: "I do need this one to build the dispute — what would you like to put?",
 };
