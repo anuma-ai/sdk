@@ -237,6 +237,29 @@ function generateAppHtml(appDir: string, title: string): string {
 </head>
 <body>
   <div id="root"></div>
+  <script>
+    // Stub for window.app.complete — the in-app LLM API. The test preview
+    // can't reach a real backend, so this returns a fake-but-plausible
+    // response so the visual preview is interactive. Production hosts
+    // replace this with a real bridge to their chat backend.
+    window.app = window.app || {};
+    window.app.complete = async function (prompt) {
+      console.info("[stub] window.app.complete called:", String(prompt).slice(0, 120));
+      // Tiny latency so loading states are visible.
+      await new Promise((r) => setTimeout(r, 400));
+      const p = String(prompt || "").toLowerCase();
+      if (p.includes("correct") || p.includes("grade") || p.includes("evaluate")) {
+        return "✓ Correct — that's the right answer. (stub response)";
+      }
+      if (p.includes("explain") || p.includes("why") || p.includes("how")) {
+        return "Here's an explanation: this is a stub response. Wire window.app.complete to a real LLM to see actual reasoning.";
+      }
+      if (p.includes("summarize") || p.includes("summary")) {
+        return "Summary: (stub response — connect to a real backend for real summaries.)";
+      }
+      return "Stub AI response. Replace window.app.complete with a real backend bridge to enable real generations.";
+    };
+  </script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   ${extraScripts ? extraScripts + "\n  " : ""}<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>

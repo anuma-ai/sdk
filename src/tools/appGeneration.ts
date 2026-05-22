@@ -1086,6 +1086,25 @@ STATE & PERSISTENCE:
 - Extract non-trivial domain logic into custom hooks (useTodos, useTimer) — separate from rendering.
 - For state shapes with several interrelated fields (cards + columns + filters + drag state), prefer useReducer over a long list of useState calls.
 
+AI CAPABILITIES — your apps can call an LLM at runtime:
+- The runtime exposes \`window.app.complete(prompt: string): Promise<string>\` — call it whenever the app needs reasoning, generation, evaluation, or natural-language understanding.
+- Use it for: AI-powered games (NPCs, hints, dynamic content), tutors that grade and explain, writing assistants, data analyzers that summarize uploads, anything where a static rules-based answer wouldn't work.
+- The call is async. Wrap it in try/catch — it can throw on network/quota errors. Surface failures gracefully in the UI ("Couldn't reach the AI just now — try again").
+- Show a loading state while awaiting. Disable inputs that depend on the response.
+- For long or complex prompts, build the prompt string with clear sections (Role / Context / Task / Format) so the response is consistent. Treat the response as untrusted user-style text — render with whitespace preserved (\`white-space: pre-wrap\`), don't dangerouslySetInnerHTML.
+- Skip the call when the answer is obvious from local state. Don't spam it; cache repeated prompts in component state when sensible.
+- Example shape:
+  \`\`\`jsx
+  const [answer, setAnswer] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const ask = async (q) => {
+    setLoading(true);
+    try { setAnswer(await window.app.complete(q)); }
+    catch (e) { setAnswer(\`Error: \${e.message}\`); }
+    finally { setLoading(false); }
+  };
+  \`\`\`
+
 CODE QUALITY — write code as a senior engineer would:
 - Handle edge cases: empty inputs, division by zero, invalid data. Show helpful error states, not crashes.
 - Use semantic HTML: proper headings, labels, buttons (not divs with onClick), form elements.
