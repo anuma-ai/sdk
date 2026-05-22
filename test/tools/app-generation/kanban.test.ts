@@ -119,6 +119,12 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       expect(phase1Js).toMatch(/Done/);
       // Drag-and-drop primitives present (any of the standard handlers).
       expect(phase1Js).toMatch(/draggable|onDragStart|onDragOver|onDrop/);
+      // Persistence: the system prompt tells the model to use localStorage
+      // for user-created data. Kanban cards qualify — a refresh shouldn't
+      // wipe the board. (Soft check; we'll log if missing rather than fail
+      // since the model still produces a working app without persistence.)
+      const hasPersistence = /localStorage/.test(phase1Js);
+      console.log(`  Phase 1 persistence (localStorage): ${hasPersistence ? "YES" : "no"}`);
 
       const snap1 = snapshot(store);
       console.log(
