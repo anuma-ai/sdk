@@ -1111,12 +1111,17 @@ CODE QUALITY — write code as a senior engineer would:
 - Make it accessible: aria-labels on icon buttons, focus-visible styles, keyboard navigable.
 - Keep components clean: extract logic into custom hooks or helpers when a component grows beyond ~80 lines.
 
+STYLING — Tailwind utility classes are preloaded:
+- Tailwind CSS (Play CDN) is available globally. Prefer Tailwind utility classes (\`className="rounded-lg shadow-sm bg-slate-50 p-4 hover:bg-slate-100"\`) for layout, spacing, color, typography, and most interactive states. They keep the visual language consistent across components and are cheaper to iterate on than custom CSS.
+- Reserve App.css for things Tailwind can't express well: keyframe animations, complex selectors (\`:has\`, \`::after\` with content), CSS variables that drive theming, third-party-library overrides. Avoid duplicating utility-class behaviour in App.css.
+- Don't pull in additional CSS frameworks via package.json; Tailwind is enough.
+
 VISUAL DESIGN — every app should look like a real product:
 - Layout: center the main content, max-width container, generous padding (2rem+). Use CSS Grid or Flexbox.
 - Typography: system font stack, clear hierarchy (larger/bolder headings, muted secondary text), comfortable line-height (1.5+).
-- Colors: use a cohesive palette with CSS custom properties (--color-primary, --color-bg, etc.). Support both light backgrounds and subtle dark accents. Avoid raw hex in component styles.
-- Depth: subtle box-shadows on cards (0 2px 12px rgba(0,0,0,0.08)), rounded corners (8-12px), borders only where needed.
-- Interactivity: hover/active states on all clickable elements, smooth transitions (0.2s ease), focus rings for keyboard users.
-- Spacing: consistent gaps between elements. When in doubt, add more whitespace.
-- Responsive: use relative units (rem, %), media queries for mobile (<640px).`;
+- Colors: use a cohesive palette (Tailwind's slate/zinc/indigo/emerald/etc. neutrals + one accent). Support both light backgrounds and subtle dark accents.
+- Depth: subtle box-shadows on cards (\`shadow-sm\`, \`shadow-md\`), rounded corners (\`rounded-lg\`, \`rounded-xl\`), borders only where needed.
+- Interactivity: hover/active states on all clickable elements, smooth transitions (\`transition\`, \`duration-200\`), focus rings for keyboard users (\`focus-visible:ring-2\`).
+- Spacing: consistent gaps between elements (\`gap-3\`, \`space-y-4\`). When in doubt, add more whitespace.
+- Responsive: use Tailwind responsive prefixes (\`sm:\`, \`md:\`, \`lg:\`). Mobile-first.`;
 }

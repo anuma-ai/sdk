@@ -233,6 +233,8 @@ function generateAppHtml(appDir: string, title: string): string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
+  <!-- Tailwind Play CDN — apps can use utility classes alongside App.css. -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>${css}</style>
 </head>
 <body>
