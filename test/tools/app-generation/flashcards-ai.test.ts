@@ -99,7 +99,7 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
         userMsg(
           [
             "Build a flashcard learning app where an AI tutor grades the user's free-form answers.",
-            "Seed it with 5 cards on the Roman Empire (e.g. \"Who was the first Roman emperor?\", \"What year did Rome fall?\", \"Name a famous Roman aqueduct\").",
+            'Seed it with 5 cards on the Roman Empire (e.g. "Who was the first Roman emperor?", "What year did Rome fall?", "Name a famous Roman aqueduct").',
             "For each card: show the question, accept a typed answer, and when the user submits, call the AI to evaluate the answer (correct / partially correct / wrong) and explain.",
             "Show a clear loading state while the AI is thinking.",
             "Track score across the session and persist progress so a refresh doesn't reset.",
@@ -138,8 +138,8 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
       conversation.push(
         userMsg(
           [
-            "Add a \"Generate new deck\" feature.",
-            "User enters a topic (e.g. \"Python list comprehensions\" or \"French Revolution\") and a desired card count (3-10).",
+            'Add a "Generate new deck" feature.',
+            'User enters a topic (e.g. "Python list comprehensions" or "French Revolution") and a desired card count (3-10).',
             "Call the AI to generate that many flashcards on the topic. Parse the response into structured cards (question + expected answer hint).",
             "Show a clear loading state while generating; let the user retry on error.",
             "After generation, the new deck replaces or extends the current set — model's choice, but explain in a one-line confirmation message.",

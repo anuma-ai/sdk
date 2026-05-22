@@ -736,7 +736,6 @@ export function createAppGenerationTools({
     seenFilesByConv.get(conversationId)?.delete(path);
   }
 
-
   /**
    * Invoke the host's `displayApp` callback with cached state, fold
    * the reply back into per-conversation state, AND return it to the

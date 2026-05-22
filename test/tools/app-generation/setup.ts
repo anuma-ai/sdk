@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { exportAppToHtml } from "../../../src/tools/appExport.js";
 import { runToolLoop } from "../setup.js";
 
 export {
@@ -134,143 +135,16 @@ export function printDiff(label: string, diffs: FileDiff[]): void {
 
 const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
-/**
- * Collect extra (non-React) dependencies from package.json and return CDN
- * script tags that expose them as UMD globals on `window`.
- *
- * esm.sh's `?bundle-deps&cjs-exports=*` mode bundles the package as a
- * self-executing UMD script that works on file:// without import maps.
- */
-function extraDepScripts(deps: Record<string, string>): string {
-  const skip = new Set(["react", "react-dom", "react-scripts"]);
-  const tags: string[] = [];
-  for (const [name, version] of Object.entries(deps)) {
-    if (skip.has(name)) continue;
-    const clean = version.replace(/^[\^~>=<]+/, "");
-    // camelCase the package name for the global variable
-    const globalName = name.replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase());
-    tags.push(
-      `<script src="https://esm.sh/${name}@${clean}?bundle-deps&no-dts"></script>` +
-        `\n  <script>window.${globalName} = window.${globalName} || {}</script>`
-    );
-  }
-  return tags.join("\n  ");
-}
-
-/**
- * Strip ES module import statements from App.js and replace them with global
- * variable access.  This lets the code run inside a Babel standalone
- * `<script type="text/babel">` block without needing import maps or ESM,
- * which means it works on file:// URLs.
- */
-function stripImports(js: string): string {
-  return (
-    js
-      // Remove CSS imports (already inlined)
-      .replace(/^import\s+['"]\.\/App\.css['"];?\s*$/gm, "")
-      // `import React, { useState, ... } from 'react'` → destructure from global
-      .replace(
-        /^import\s+React\s*,\s*\{([^}]+)\}\s*from\s*['"]react['"];?\s*$/gm,
-        (_, names: string) => `const { ${names.trim()} } = React;`
-      )
-      // `import { useState, ... } from 'react'` (no default)
-      .replace(
-        /^import\s*\{([^}]+)\}\s*from\s*['"]react['"];?\s*$/gm,
-        (_, names: string) => `const { ${names.trim()} } = React;`
-      )
-      // `import React from 'react'`
-      .replace(/^import\s+React\s+from\s*['"]react['"];?\s*$/gm, "")
-      // `import ... from 'react-dom/client'`
-      .replace(/^import\s+.*\s+from\s*['"]react-dom(?:\/.*)?['"];?\s*$/gm, "")
-      // Other named imports: `import { X, Y } from 'pkg'` → destructure from window global
-      .replace(
-        /^import\s*\{([^}]+)\}\s*from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
-        (_, names: string, pkg: string) => {
-          const globalName = pkg.replace(/[^a-zA-Z0-9]+(.)/g, (__, c: string) => c.toUpperCase());
-          return `const { ${names.trim()} } = window["${globalName}"] || {};`;
-        }
-      )
-      // Default imports: `import Foo from 'pkg'` → window global
-      .replace(
-        /^import\s+(\w+)\s+from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
-        (_, name: string, pkg: string) => {
-          const globalName = pkg.replace(/[^a-zA-Z0-9]+(.)/g, (__, c: string) => c.toUpperCase());
-          return `const ${name} = window["${globalName}"] || {};`;
-        }
-      )
-      // Strip `export default function App` → `function App`
-      .replace(/^export\s+default\s+function\s+/gm, "function ")
-      // Strip `export default App;`
-      .replace(/^export\s+default\s+\w+;\s*$/gm, "")
-  );
-}
-
-/** Generate a self-contained index.html that renders App.js in the browser. */
+/** Generate a self-contained index.html that renders App.js in the browser.
+ *  Thin wrapper around the public SDK utility — we read files from disk
+ *  and hand the contents to exportAppToHtml. */
 function generateAppHtml(appDir: string, title: string): string {
-  const cssPath = path.join(appDir, "App.css");
-  const jsPath = path.join(appDir, "App.js");
-  const pkgPath = path.join(appDir, "package.json");
-
-  const css = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, "utf-8") : "";
-  const js = fs.existsSync(jsPath) ? fs.readFileSync(jsPath, "utf-8") : "";
-
-  let deps: Record<string, string> = {};
-  if (fs.existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-      if (pkg.dependencies) deps = pkg.dependencies;
-    } catch {
-      /* ignore parse errors */
-    }
+  const filesOnDisk: Record<string, string> = {};
+  for (const name of ["App.js", "App.css", "package.json"]) {
+    const p = path.join(appDir, name);
+    if (fs.existsSync(p)) filesOnDisk[name] = fs.readFileSync(p, "utf-8");
   }
-
-  const extraScripts = extraDepScripts(deps);
-  const jsClean = stripImports(js);
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
-  <!-- Tailwind Play CDN — apps can use utility classes alongside App.css. -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>${css}</style>
-</head>
-<body>
-  <div id="root"></div>
-  <script>
-    // Stub for window.app.complete — the in-app LLM API. The test preview
-    // can't reach a real backend, so this returns a fake-but-plausible
-    // response so the visual preview is interactive. Production hosts
-    // replace this with a real bridge to their chat backend.
-    window.app = window.app || {};
-    window.app.complete = async function (prompt) {
-      console.info("[stub] window.app.complete called:", String(prompt).slice(0, 120));
-      // Tiny latency so loading states are visible.
-      await new Promise((r) => setTimeout(r, 400));
-      const p = String(prompt || "").toLowerCase();
-      if (p.includes("correct") || p.includes("grade") || p.includes("evaluate")) {
-        return "✓ Correct — that's the right answer. (stub response)";
-      }
-      if (p.includes("explain") || p.includes("why") || p.includes("how")) {
-        return "Here's an explanation: this is a stub response. Wire window.app.complete to a real LLM to see actual reasoning.";
-      }
-      if (p.includes("summarize") || p.includes("summary")) {
-        return "Summary: (stub response — connect to a real backend for real summaries.)";
-      }
-      return "Stub AI response. Replace window.app.complete with a real backend bridge to enable real generations.";
-    };
-  </script>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  ${extraScripts ? extraScripts + "\n  " : ""}<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script type="text/babel">
-${jsClean}
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
-</body>
-</html>`;
+  return exportAppToHtml({ files: filesOnDisk, title });
 }
 
 /** Write an index.html into a directory if it contains App.js (works recursively for step dirs). */

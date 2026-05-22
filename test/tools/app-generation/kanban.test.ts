@@ -178,7 +178,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
             "Show the due date below the description in a smaller, muted font.",
             "If a card's due date is today, color the date text amber.",
             "If a card is overdue (due date in the past) AND not in the Done column, give the entire card a red border and a subtle red background tint.",
-            "Include a date picker (input type=\"date\") in the add-card form and the inline edit UI.",
+            'Include a date picker (input type="date") in the add-card form and the inline edit UI.',
           ].join(" ")
         )
       );
@@ -210,7 +210,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
             "Add a filter bar at the top of the board.",
             "Show every unique tag as a small clickable chip.",
             "Clicking a chip toggles it on/off; when one or more chips are active, only cards carrying at least one of those tags appear in the columns.",
-            "When any filter is active, show a small \"Clear filters\" button next to the chip row.",
+            'When any filter is active, show a small "Clear filters" button next to the chip row.',
             "Persist the active filters in component state (no localStorage needed).",
           ].join(" ")
         )
@@ -240,9 +240,9 @@ describe("kanban project board (sophisticated build + iterate)", () => {
           [
             "Add support for multiple boards.",
             "Add a sidebar on the left listing all boards.",
-            "Seed two default boards: \"Web Redesign\" and \"API v2\". Each board has its own independent cards.",
+            'Seed two default boards: "Web Redesign" and "API v2". Each board has its own independent cards.',
             "Clicking a board in the sidebar switches the main view to that board's cards.",
-            "Add a \"+ New Board\" button at the bottom of the sidebar that prompts for a name and creates an empty board.",
+            'Add a "+ New Board" button at the bottom of the sidebar that prompts for a name and creates an empty board.',
             "Highlight the currently selected board in the sidebar.",
           ].join(" ")
         )
@@ -275,7 +275,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       conversation.push(
         userMsg(
           [
-            "Add a new \"Blocked\" column between \"In Progress\" and \"Done\".",
+            'Add a new "Blocked" column between "In Progress" and "Done".',
             "Give it a visually distinct background — a subtle amber tint — so blocked work is obvious at a glance.",
             "Cards drag in and out of Blocked like any other column.",
           ].join(" ")
@@ -307,7 +307,9 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       const readCalls = log.filter((l) => l.name === "read_file");
       const failedPatches = patchCalls.filter((l) => {
         const r =
-          typeof l.result === "string" ? JSON.parse(l.result) : (l.result as Record<string, unknown>);
+          typeof l.result === "string"
+            ? JSON.parse(l.result)
+            : (l.result as Record<string, unknown>);
         return (r as { failed?: number }).failed && (r as { failed: number }).failed > 0;
       });
 

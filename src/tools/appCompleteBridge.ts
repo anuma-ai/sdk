@@ -82,9 +82,7 @@ export interface AppCompleteBridge {
  * calls from one or more preview iframes. Returns a handle whose
  * `dispose()` removes the listener.
  */
-export function createAppCompleteBridge(
-  options: AppCompleteBridgeOptions
-): AppCompleteBridge {
+export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppCompleteBridge {
   const { complete, targetOrigin = "*", source } = options;
 
   const handler = async (event: MessageEvent): Promise<void> => {

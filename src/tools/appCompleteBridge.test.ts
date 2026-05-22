@@ -29,10 +29,7 @@ describe("createAppCompleteBridge", () => {
       });
     });
 
-    window.postMessage(
-      { type: APP_COMPLETE_REQUEST_TYPE, id: "abc", prompt: "hi" },
-      "*"
-    );
+    window.postMessage({ type: APP_COMPLETE_REQUEST_TYPE, id: "abc", prompt: "hi" }, "*");
 
     const event = await reply;
     expect(event.data).toMatchObject({
@@ -58,10 +55,7 @@ describe("createAppCompleteBridge", () => {
       });
     });
 
-    window.postMessage(
-      { type: APP_COMPLETE_REQUEST_TYPE, id: "x", prompt: "trigger" },
-      "*"
-    );
+    window.postMessage({ type: APP_COMPLETE_REQUEST_TYPE, id: "x", prompt: "trigger" }, "*");
 
     const event = await reply;
     expect(event.data).toMatchObject({
@@ -88,10 +82,7 @@ describe("createAppCompleteBridge", () => {
     const complete = vi.fn(async () => "x");
     const bridge = createAppCompleteBridge({ complete });
 
-    window.postMessage(
-      { type: APP_COMPLETE_REQUEST_TYPE, id: 123, prompt: "p" },
-      "*"
-    );
+    window.postMessage({ type: APP_COMPLETE_REQUEST_TYPE, id: 123, prompt: "p" }, "*");
     await new Promise((r) => setTimeout(r, 10));
 
     expect(complete).not.toHaveBeenCalled();
@@ -103,10 +94,7 @@ describe("createAppCompleteBridge", () => {
     const bridge = createAppCompleteBridge({ complete });
     bridge.dispose();
 
-    window.postMessage(
-      { type: APP_COMPLETE_REQUEST_TYPE, id: "z", prompt: "p" },
-      "*"
-    );
+    window.postMessage({ type: APP_COMPLETE_REQUEST_TYPE, id: "z", prompt: "p" }, "*");
     await new Promise((r) => setTimeout(r, 10));
 
     expect(complete).not.toHaveBeenCalled();
@@ -127,8 +115,6 @@ describe("APP_COMPLETE_IFRAME_SHIM_SCRIPT", () => {
     // The function-form and string-form must stay in sync; they're the
     // two ways hosts can install the shim and any drift would break
     // half the integrations.
-    expect(installAppCompleteIframeShim.toString()).toContain(
-      "APP_COMPLETE_IFRAME_SHIM_SCRIPT"
-    );
+    expect(installAppCompleteIframeShim.toString()).toContain("APP_COMPLETE_IFRAME_SHIM_SCRIPT");
   });
 });
