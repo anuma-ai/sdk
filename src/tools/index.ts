@@ -160,6 +160,7 @@ export type {
 export {
   APP_FILE_TOOL_NAMES,
   applyPatches,
+  AUDIT_DESIGN_SCHEMA,
   buildAppSystemPrompt,
   CREATE_FILE_SCHEMA,
   createAppGenerationTools,
@@ -171,6 +172,14 @@ export {
   READ_FILE_SCHEMA,
   truncateContent,
 } from "./appGeneration";
+export type {
+  AuditIssue,
+  AuditIssueType,
+  AuditResult,
+  AuditSeverity,
+  AuditTokens,
+} from "./appAudit";
+export { auditDesign } from "./appAudit";
 export type { AppCompleteBridge, AppCompleteBridgeOptions } from "./appCompleteBridge";
 export {
   APP_COMPLETE_IFRAME_SHIM_SCRIPT,

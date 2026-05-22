@@ -28,6 +28,7 @@ import { parse as babelParse } from "@babel/parser";
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { normalizePath } from "../utils/paths.js";
+import { auditDesign } from "./appAudit.js";
 
 // ---------------------------------------------------------------------------
 // Storage interface
@@ -430,9 +431,16 @@ function validateJson(content: string): FileValidationError | null {
 // Tool name constants
 // ---------------------------------------------------------------------------
 
-/** Tool names for app file operations (create, patch, delete, read, list). */
+/** Tool names for app file operations (create, patch, delete, read, list, audit). */
 export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
-  new Set(["create_file", "patch_file", "delete_file", "read_file", "list_files"])
+  new Set([
+    "create_file",
+    "patch_file",
+    "delete_file",
+    "read_file",
+    "list_files",
+    "audit_design",
+  ])
 );
 
 // ---------------------------------------------------------------------------
@@ -597,6 +605,13 @@ export const LIST_FILES_SCHEMA = {
   name: "list_files",
   description:
     "Lists all files in the app project. Returns file paths and sizes. Use this to understand the current project structure.",
+  arguments: { type: "object", properties: {}, required: [] },
+} as const;
+
+export const AUDIT_DESIGN_SCHEMA = {
+  name: "audit_design",
+  description:
+    "Inspect the current app's design coherence. Reports raw hex colors outside :root (should be tokens), CSS variables declared but unused, missing :focus-visible rules on interactive elements, icon-only buttons without aria-label, images without alt, heading-level skips, and inline styles with hardcoded colors. Returns a 0-100 score and a list of issues with line numbers. Call this after substantial changes to verify the design system is intact, then patch the actionable issues.",
   arguments: { type: "object", properties: {}, required: [] },
 } as const;
 
@@ -1069,12 +1084,38 @@ export function createAppGenerationTools({
     },
   };
 
+  const auditDesignTool: ToolConfig = {
+    type: "function",
+    function: AUDIT_DESIGN_SCHEMA,
+    executor: async () => {
+      try {
+        const conversationId = requireConversationId();
+        const files = await storage.getFiles(conversationId);
+        const map: Record<string, string> = {};
+        for (const f of files) map[f.path] = f.content;
+        return auditDesign(map);
+      } catch (err) {
+        logError("audit_design failed", err instanceof Error ? err : undefined);
+        return {
+          error: `Failed to audit design: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    },
+  };
+
   // No standalone display_app tool — display happens automatically
   // from inside create_file / patch_file / delete_file via the
   // `displayApp` callback. Mirrors `createSlideTools`, which has no
   // `display_slides` tool either; the deck viewer is opened from
   // within `plan_deck` / `add_slide` / `patch_slides`.
-  return [createFileTool, patchFileTool, deleteFileTool, readFileTool, listFilesTool];
+  return [
+    createFileTool,
+    patchFileTool,
+    deleteFileTool,
+    readFileTool,
+    listFilesTool,
+    auditDesignTool,
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -1128,7 +1169,8 @@ WORKFLOW:
    - Each "find" MUST match exactly one location. Include 2-3 lines of surrounding context to make it unique — short or generic strings will fail as ambiguous.
    - To change several distinct locations in one file, pass multiple patches in one call, each with its own unique context.
 5. ALWAYS prefer patch_file for modifying existing files — surgical edits are easier to review, faster to apply, and preserve the surrounding code unchanged. Reserve create_file overwrites for substantial restructuring where most of the file is changing. Both operations require you to have called read_file for the path earlier in this conversation (or just created it via create_file); the tools refuse otherwise. Multi-location features (adding a field to every card, etc.) are usually best done as multiple patches in one patch_file call rather than a rewrite.
-6. Keep text responses to one or two sentences.
+6. After substantial changes — particularly the initial build and any redesign — call audit_design. It reports raw hex colors outside :root, CSS variables declared but unused, missing :focus-visible rules on interactive elements, icon-only buttons without aria-label, images without alt, and heading-order anti-patterns. Read the issues with line numbers, decide which are actionable, and patch them. Aim for a score of 90 or higher; anything below 80 means the design system has gaps the user will feel.
+7. Keep text responses to one or two sentences.
 
 STRUCTURE:
 - App.js: default-export React component. For non-trivial apps, define several small co-located helper components above the default export (Header, CardList, Card, EditDialog, ...) rather than one giant App. Do NOT create index.js or index.html (auto-generated).
