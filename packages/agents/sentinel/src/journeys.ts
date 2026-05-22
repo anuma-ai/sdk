@@ -220,7 +220,8 @@ export const SENTINEL_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Collector or agency name",
         placeholder: "Agency name",
         helper: "Optional if it is clearly visible in the uploaded notice.",
-        chatPrompt: "Who's the collector or collections agency? Skip if it's clearly on the notice.",
+        chatPrompt:
+          "Who's the collector or collections agency? Skip if it's clearly on the notice.",
         type: "text",
         required: false,
       },

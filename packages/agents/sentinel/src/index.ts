@@ -20,11 +20,7 @@ const SENTINEL_MARKETPLACE: AgentMarketplaceContent = {
   primaryActionLabel: "Start guided flow",
   primaryActionKind: "guided",
   cardUseCases: ["Get a refund", "Cancel a subscription", "Dispute a charge"],
-  cardKnowledge: [
-    "Your billing history",
-    "Receipts and invoices",
-    "500+ company refund policies",
-  ],
+  cardKnowledge: ["Your billing history", "Receipts and invoices", "500+ company refund policies"],
   quickPrompts: [
     "What can I get refunded this month?",
     "Cancel my duplicate subscriptions",
@@ -56,8 +52,7 @@ const SENTINEL_MARKETPLACE: AgentMarketplaceContent = {
         items: [
           {
             title: "Gym membership charge arrived after your cancellation date",
-            detail:
-              "If you canceled before the billing cycle reset, this should be reversed.",
+            detail: "If you canceled before the billing cycle reset, this should be reversed.",
           },
         ],
       },

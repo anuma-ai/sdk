@@ -59,8 +59,7 @@ const HAVEN_MARKETPLACE: AgentMarketplaceContent = {
           },
           {
             title: "You are responsible for all appliance repairs",
-            detail:
-              "Landlords typically cover repairs for appliances they own. Worth clarifying.",
+            detail: "Landlords typically cover repairs for appliances they own. Worth clarifying.",
           },
         ],
       },
