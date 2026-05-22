@@ -54,6 +54,8 @@ const US_STATES = [
   "WY",
 ];
 
+const MULTILINE_FIELD_MAX = 50_000;
+
 function outputFormatBlock(lengthGuidance: string): string[] {
   return [
     "",
@@ -87,6 +89,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Home type",
         placeholder: "Select your home type",
         helper: "Helps Haven identify red flags specific to your housing type.",
+        chatPrompt:
+          "First, what type of place is this — apartment, house, condo? You can skip if it doesn't fit cleanly.",
         type: "select",
         required: false,
         options: [
@@ -101,9 +105,12 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       },
       {
         key: "state",
-        label: "State",
-        placeholder: "Select your state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required for state-specific lease rules.",
+        chatPrompt:
+          "Which U.S. state is the rental in? I need this for state-specific tenant protections.",
+        requiredNudge: "I need the state to apply the right tenant rules — which one?",
         type: "select",
         required: true,
         options: US_STATES,
@@ -114,6 +121,11 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         placeholder:
           "Paste lease text, key clauses, or the sections you want Haven to review first.",
         helper: "Use this instead of upload, or add context for the attached lease.",
+        chatPrompt:
+          "Now the lease. Paste the text here, or skip if you're uploading the PDF below. Adding any context you want me to focus on also helps.",
+        maxLength: MULTILINE_FIELD_MAX,
+        fileExtractionStrategy: "pdf-text",
+        extractedTextTarget: "lease_text",
         type: "textarea",
         required: false,
       },
@@ -149,34 +161,43 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     description:
       "Haven checks whether a rent increase looks lawful and drafts a negotiation plan with local context.",
     steps: [
-      "Enter your city, state, current rent, and proposed rent.",
+      "Enter your U.S. state, city, current rent, and proposed rent.",
       "Haven checks the increase and outlines leverage.",
       "Refine the reply in chat.",
     ],
-    acceptsFiles: false,
+    acceptsFiles: true,
+    fileLabel: "Upload the rent increase notice (optional)",
+    fileHint:
+      "Attach the renewal offer, notice, or lease addendum if you want Haven to quote the exact language back in the reply.",
     fields: [
+      {
+        key: "state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
+        helper: "Haven currently supports U.S. rental workflows.",
+        chatPrompt: "And which U.S. state?",
+        requiredNudge: "I need the state to know which rules apply — which one?",
+        type: "select",
+        required: true,
+        options: US_STATES,
+      },
       {
         key: "city",
         label: "City",
         placeholder: "San Francisco",
         helper: "Required for local rent rules and market context.",
+        chatPrompt: "First, what city is the rental in?",
+        requiredNudge: "I need the city for the local rent rules — what is it?",
         type: "text",
         required: true,
-      },
-      {
-        key: "state",
-        label: "State",
-        placeholder: "Select your state",
-        helper: "Required.",
-        type: "select",
-        required: true,
-        options: US_STATES,
       },
       {
         key: "current_rent",
         label: "Current rent",
         placeholder: "$2,900",
         helper: "Required.",
+        chatPrompt: "What's your current monthly rent?",
+        requiredNudge: "I need your current rent to do the math — what is it?",
         type: "text",
         required: true,
       },
@@ -185,6 +206,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Proposed rent",
         placeholder: "$3,250",
         helper: "Required.",
+        chatPrompt: "And what are they proposing to raise it to?",
+        requiredNudge: "I need the proposed new rent to compare — what's the number?",
         type: "text",
         required: true,
       },
@@ -216,13 +239,20 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       "Haven drafts a structured letter in chat.",
       "Revise tone or legal emphasis with follow-up messages.",
     ],
-    acceptsFiles: false,
+    acceptsFiles: true,
+    fileLabel: "Upload evidence or supporting documents (optional)",
+    fileHint:
+      "Attach photos, invoices, screenshots, repair requests, emails, or notices you want referenced in the draft.",
+    filePrompt:
+      "Almost done. If you have photos, invoices, emails, or notices that back up your story, drop them in. Totally optional — skip if you don't have anything handy.",
     fields: [
       {
         key: "tenant_name",
         label: "Tenant name",
         placeholder: "Jane Doe",
         helper: "Required.",
+        chatPrompt: "First — what's your full name as the tenant?",
+        requiredNudge: "I do need a name to put on the letter as the tenant — what should I use?",
         type: "text",
         required: true,
       },
@@ -231,6 +261,9 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Landlord name",
         placeholder: "Property manager or landlord",
         helper: "Required.",
+        chatPrompt: "Thanks. Who's the landlord or property manager you're writing to?",
+        requiredNudge:
+          "I'll need the landlord's name (or the property manager's) to address the letter — what should I use?",
         type: "text",
         required: true,
       },
@@ -239,6 +272,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Property address",
         placeholder: "123 Main St, Austin, TX",
         helper: "Required.",
+        chatPrompt: "Got it. What's the address of the property this is about?",
+        requiredNudge: "I do need the property address for the letter header — what is it?",
         type: "text",
         required: true,
       },
@@ -248,14 +283,18 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         placeholder: "Registered business address",
         helper:
           "The landlord or management company registered address for the demand letter header.",
+        chatPrompt:
+          "Do you have the landlord's mailing address handy? You can skip this if not — I'll still draft a usable letter.",
         type: "text",
         required: false,
       },
       {
         key: "state",
-        label: "State",
-        placeholder: "Select your state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required.",
+        chatPrompt: "Which U.S. state is the property in?",
+        requiredNudge: "I need to know the state for the legal references — which one?",
         type: "select",
         required: true,
         options: US_STATES,
@@ -265,6 +304,13 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "What needs to be fixed?",
         placeholder: "Describe the issue, timeline, prior requests, and what remedy you want.",
         helper: "Required.",
+        chatPrompt:
+          "Now the meat of it — tell me what's going on in your own words. Repairs not done, deposit withheld, harassment, whatever it is. The more detail you give me, the sharper the letter.",
+        requiredNudge:
+          "I need at least a sentence or two about what is going on so I can draft something useful — could you share?",
+        maxLength: MULTILINE_FIELD_MAX,
+        fileExtractionStrategy: "pdf-text",
+        extractedTextTarget: "supporting_document_text",
         type: "textarea",
         required: true,
       },
@@ -307,9 +353,11 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     fields: [
       {
         key: "state",
-        label: "State",
-        placeholder: "Select your state",
+        label: "U.S. state",
+        placeholder: "Select your U.S. state",
         helper: "Required.",
+        chatPrompt: "First, what U.S. state is the property in?",
+        requiredNudge: "I need the state for the HOA-law context — which one?",
         type: "select",
         required: true,
         options: US_STATES,
@@ -319,6 +367,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "HOA name",
         placeholder: "Community or association name",
         helper: "Required.",
+        chatPrompt: "What's the name of the HOA?",
+        requiredNudge: "I'll need the HOA's name for the response letter — what is it?",
         type: "text",
         required: true,
       },
@@ -327,6 +377,9 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Dispute type",
         placeholder: "Fine appeal, rule violation, maintenance dispute",
         helper: "Required.",
+        chatPrompt:
+          "What's the dispute about — fines, architectural rules, common-area complaint, something else?",
+        requiredNudge: "What is the dispute about? A short description is enough.",
         type: "text",
         required: true,
       },
@@ -335,6 +388,9 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         label: "Paste the HOA notice or your notes",
         placeholder: "Paste the notice text or summarize the dispute.",
         helper: "If the full notice is uploaded, add any extra context Haven should know.",
+        chatPrompt:
+          "Paste any HOA notice you've received, or add notes about what they're saying. Skip if you're uploading the notice below.",
+        maxLength: MULTILINE_FIELD_MAX,
         type: "textarea",
         required: false,
       },

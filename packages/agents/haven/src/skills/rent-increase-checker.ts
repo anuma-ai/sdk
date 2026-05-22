@@ -10,6 +10,14 @@ export const rentIncreaseChecker: SkillConfig = {
 ## Task
 Analyze a rent increase for legality and provide negotiation strategy.
 
+## Context
+- Location: {{city}}, {{state}}
+- Current rent: {{current_rent}}
+- Proposed rent: {{proposed_rent}}
+
+## Rent increase notice (if provided)
+{{rent_notice_text}}
+
 ## Instructions
 1. Research {{city}}, {{state}} rent control laws and local ordinances
 2. Determine if the increase is within legal limits (if rent control applies)
@@ -27,7 +35,10 @@ Cite specific statute references and deadlines for tenant response.`,
 - Current rent: {{current_rent}}
 - Proposed new rent: {{proposed_rent}}
 - Lease type: {{lease_type}}
-- Notice received: {{notice_date}}`,
+- Notice received: {{notice_date}}
+
+## Rent increase notice (if provided)
+{{rent_notice_text}}`,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 1,
   requiredVariables: ["city", "state", "current_rent", "proposed_rent"],
@@ -38,4 +49,9 @@ Cite specific statute references and deadlines for tenant response.`,
     proposed_rent: "What's the proposed new rent?",
   },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
+  iconName: "TrendingUp",
+  preamble:
+    "Got it — let's check that rent increase. Four quick numbers and locations and I can tell you whether it looks lawful, plus give you leverage for the reply.",
+  closing: "Perfect — checking the rules and the market context now. One sec.",
+  requiredNudgeDefault: "I do need this one to check the increase — what would you like to put?",
 };

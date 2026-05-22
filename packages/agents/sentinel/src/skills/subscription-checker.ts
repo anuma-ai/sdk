@@ -38,4 +38,9 @@ Use web search to confirm current pricing or competing services when the answer 
       "Paste your recent transactions or statement (a list of charges with merchant and amount works).",
   },
   contextSuffix: FINANCE_MEMORY_SUFFIX,
+  iconName: "Receipt",
+  preamble:
+    "Got it — subscription audit. Drop in a statement (or paste one), tell me if there's anything specific you want me to prioritize, and I'll find the duplicates, overlaps, and charges worth cancelling.",
+  closing: "Perfect — scanning now. Give me a moment to find the duplicates and savings.",
+  requiredNudgeDefault: "Could you share this one? It helps me run the scan.",
 };

@@ -106,6 +106,7 @@ describe("Haven skills", () => {
       proposed_rent: "$1,800",
       lease_type: "month-to-month",
       notice_date: "2026-04-01",
+      rent_notice_text: "Sample notice text",
     });
     expect(filled).toContain("Austin, TX");
     expect(filled).toContain("$1,500");
