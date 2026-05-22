@@ -1,4 +1,4 @@
-import type { SkillJourneyDefinition } from "@anuma/sdk";
+import { MULTILINE_FIELD_MAX, type SkillJourneyDefinition } from "@anuma/sdk";
 
 const US_STATES = [
   "AL",
@@ -53,8 +53,6 @@ const US_STATES = [
   "WI",
   "WY",
 ];
-
-const MULTILINE_FIELD_MAX = 50_000;
 
 function outputFormatBlock(lengthGuidance: string): string[] {
   return [

@@ -1,4 +1,4 @@
-import type { SkillJourneyDefinition } from "@anuma/sdk";
+import { MULTILINE_FIELD_MAX, type SkillJourneyDefinition } from "@anuma/sdk";
 
 const US_STATES = [
   "AL",
@@ -54,8 +54,6 @@ const US_STATES = [
   "WY",
 ];
 
-const MULTILINE_FIELD_MAX = 50_000;
-
 function outputFormatBlock(lengthGuidance: string): string[] {
   return [
     "",
@@ -83,6 +81,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     fileLabel: "Upload a lease PDF",
     fileHint:
       "If the lease is scanned or very long, upload the PDF and use the notes field to point Haven to the most important sections.",
+    fileExtractionStrategy: "pdf-text",
+    extractedTextTarget: "lease_text",
     fields: [
       {
         key: "home_type",
@@ -124,8 +124,6 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         chatPrompt:
           "Now the lease. Paste the text here, or skip if you're uploading the PDF below. Adding any context you want me to focus on also helps.",
         maxLength: MULTILINE_FIELD_MAX,
-        fileExtractionStrategy: "pdf-text",
-        extractedTextTarget: "lease_text",
         type: "textarea",
         required: false,
       },
@@ -169,6 +167,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     fileLabel: "Upload the rent increase notice (optional)",
     fileHint:
       "Attach the renewal offer, notice, or lease addendum if you want Haven to quote the exact language back in the reply.",
+    fileExtractionStrategy: "pdf-text",
+    extractedTextTarget: "rent_notice_text",
     fields: [
       {
         key: "state",
@@ -245,6 +245,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       "Attach photos, invoices, screenshots, repair requests, emails, or notices you want referenced in the draft.",
     filePrompt:
       "Almost done. If you have photos, invoices, emails, or notices that back up your story, drop them in. Totally optional — skip if you don't have anything handy.",
+    fileExtractionStrategy: "pdf-text",
+    extractedTextTarget: "supporting_document_text",
     fields: [
       {
         key: "tenant_name",
@@ -309,8 +311,6 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         requiredNudge:
           "I need at least a sentence or two about what is going on so I can draft something useful — could you share?",
         maxLength: MULTILINE_FIELD_MAX,
-        fileExtractionStrategy: "pdf-text",
-        extractedTextTarget: "supporting_document_text",
         type: "textarea",
         required: true,
       },

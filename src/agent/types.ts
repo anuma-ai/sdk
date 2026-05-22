@@ -6,6 +6,12 @@ export type AgentRuntime = "client" | "server";
  *  the actual extraction (pdf.js, OCR, etc.) is the consumer's responsibility. */
 export type FileExtractionStrategy = "pdf-text" | "csv-text" | "image-ocr";
 
+/** Character cap for multiline / textarea fields. Agent gateways (e.g. cf-tasks)
+ *  truncate values to this length before interpolating them into prompt templates.
+ *  Shared across all agent packages so a single change updates every journey
+ *  declaration simultaneously. */
+export const MULTILINE_FIELD_MAX = 50_000;
+
 /** Configuration for a single agent skill (task template). */
 export interface SkillConfig {
   /** Unique identifier. Convention: "domain.action" e.g. "housing.lease-review" */
@@ -86,16 +92,8 @@ interface SkillJourneyFieldBase {
    *  to `SkillConfig.requiredNudgeDefault` when not set. */
   requiredNudge?: string;
   /** Server-side sanitiser cap on the value's character length. Today's gateways
-   *  truncate textarea fields at 50_000 characters. */
+   *  truncate textarea fields at `MULTILINE_FIELD_MAX` characters. */
   maxLength?: number;
-  /** Tells consumers how to extract text from an attached file. The resulting
-   *  text is written to the variable named by `extractedTextTarget`. */
-  fileExtractionStrategy?: FileExtractionStrategy;
-  /** Variable name to write the extracted text into. The extracted text is always
-   *  written to this variable — which may be the same as the field's `key` (the
-   *  file replaces typed input) or a different template variable (the file
-   *  produces a separate slot alongside typed input). */
-  extractedTextTarget?: string;
 }
 
 /**
@@ -119,6 +117,19 @@ export interface SkillJourneyDefinition {
   fileHint?: string;
   /** Per-skill copy for the file upload step prompt. Only meaningful when `acceptsFiles` is true. */
   filePrompt?: string;
+  /** How consumers should derive text from an attached file. Describes extraction
+   *  only — it is **not** a file-type filter. Files outside the strategy's expected
+   *  MIME type (e.g. photos when the strategy is `pdf-text`) are still uploaded and
+   *  forwarded to the agent as attachments; they are simply not text-extracted.
+   *  The extracted text is written to the variable named by `extractedTextTarget`.
+   *  Only meaningful when `acceptsFiles` is true. */
+  fileExtractionStrategy?: FileExtractionStrategy;
+  /** Variable name to write extracted text into. May coincide with a field's `key`
+   *  (the upload replaces typed input for that field, e.g. `lease_text`) or name a
+   *  separate template variable not tied to any field (e.g. `rent_notice_text`,
+   *  `supporting_document_text`). Only meaningful when `acceptsFiles` is true and
+   *  `fileExtractionStrategy` is set. */
+  extractedTextTarget?: string;
   fields: SkillJourneyField[];
   /**
    * When true, the journey expects substantive input — at least one of an

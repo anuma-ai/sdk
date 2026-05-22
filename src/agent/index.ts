@@ -21,3 +21,4 @@ export type {
   SkillJourneyField,
   SkillJourneyFieldType,
 } from "./types";
+export { MULTILINE_FIELD_MAX } from "./types";

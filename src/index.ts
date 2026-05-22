@@ -756,7 +756,7 @@ export {
   withSseKeepalive,
 } from "./lib/sse/keepalive";
 
-// Agent types
+// Agent types + constants
 export type {
   AgentAgendaItem,
   AgentAgendaTranscript,
@@ -780,6 +780,7 @@ export type {
   SkillJourneyField,
   SkillJourneyFieldType,
 } from "./agent";
+export { MULTILINE_FIELD_MAX } from "./agent";
 
 // Pluggable logger
 export type { Logger } from "./lib/logger";
