@@ -171,6 +171,17 @@ export {
   READ_FILE_SCHEMA,
   truncateContent,
 } from "./appGeneration";
+export type {
+  AppCompleteBridge,
+  AppCompleteBridgeOptions,
+} from "./appCompleteBridge";
+export {
+  APP_COMPLETE_IFRAME_SHIM_SCRIPT,
+  APP_COMPLETE_REQUEST_TYPE,
+  APP_COMPLETE_RESPONSE_TYPE,
+  createAppCompleteBridge,
+  installAppCompleteIframeShim,
+} from "./appCompleteBridge";
 
 // Slide deck tools — now Anuma-JSX-AST native
 export type {
