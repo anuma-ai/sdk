@@ -36,9 +36,10 @@ Use web search to verify current {{state}} statutes and remedies.`,
 - Landlord/management: {{landlord_name}}
 - Property address: {{property_address}}
 - State: {{state}}
-- Issue: {{issue_description}}
 - Desired resolution: {{desired_resolution}}
-- Prior communication: {{prior_communication}}`,
+- Prior communication: {{prior_communication}}
+
+The full issue narrative is in the system prompt above.`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 12,

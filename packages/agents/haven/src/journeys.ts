@@ -122,7 +122,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
           "Paste lease text, key clauses, or the sections you want Haven to review first.",
         helper: "Use this instead of upload, or add context for the attached lease.",
         chatPrompt:
-          "Now the lease. Paste the text here, or skip if you're uploading the PDF below. Adding any context you want me to focus on also helps.",
+          "Now the lease. Paste the text here, or skip if you already uploaded the PDF. Adding any context you want me to focus on also helps.",
         maxLength: MULTILINE_FIELD_MAX,
         type: "textarea",
         required: false,
@@ -244,7 +244,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
     fileHint:
       "Attach photos, invoices, screenshots, repair requests, emails, or notices you want referenced in the draft.",
     filePrompt:
-      "Almost done. If you have photos, invoices, emails, or notices that back up your story, drop them in. Totally optional — skip if you don't have anything handy.",
+      "First — if you have photos, invoices, emails, or notices that back up your story, drop them in. Totally optional, skip if you don't have anything handy.",
     fileExtractionStrategy: "pdf-text",
     extractedTextTarget: "supporting_document_text",
     fields: [
@@ -389,7 +389,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         placeholder: "Paste the notice text or summarize the dispute.",
         helper: "If the full notice is uploaded, add any extra context Haven should know.",
         chatPrompt:
-          "Paste any HOA notice you've received, or add notes about what they're saying. Skip if you're uploading the notice below.",
+          "Paste any HOA notice you've received, or add notes about what they're saying. Skip if you already uploaded the notice.",
         maxLength: MULTILINE_FIELD_MAX,
         type: "textarea",
         required: false,
