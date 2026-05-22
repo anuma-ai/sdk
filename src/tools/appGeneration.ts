@@ -1143,6 +1143,17 @@ STATE & PERSISTENCE:
 - Extract non-trivial domain logic into custom hooks (useTodos, useTimer) — separate from rendering.
 - For state shapes with several interrelated fields (cards + columns + filters + drag state), prefer useReducer over a long list of useState calls.
 
+FILE & IMAGE UPLOAD — accepting user files at runtime:
+- Use a standard \`<input type="file">\` with an \`accept\` attribute matching your use case (\`accept="image/*"\` for any image, \`accept=".csv,text/csv"\` for CSVs, \`accept=".txt,.md,text/plain"\` for text). Add \`multiple\` when several files at once make sense.
+- For drag-and-drop: listen for \`onDragOver\` (call \`e.preventDefault()\` — without this the drop won't fire), \`onDragEnter\` / \`onDragLeave\` for visual hover state, and \`onDrop\`. Read files from \`event.dataTransfer.files\`. Drag-and-drop and the file input should coexist: power users drag, others click.
+- Read file contents with native promise-based APIs:
+  - \`file.text()\` — returns a string of the file's text content.
+  - \`file.arrayBuffer()\` — returns an ArrayBuffer for binary work (e.g. canvas-based image processing).
+  - \`URL.createObjectURL(file)\` — returns a blob URL usable as an \`<img src>\` or \`<a href download>\`. Always call \`URL.revokeObjectURL(url)\` when the URL is no longer needed (typically in a useEffect cleanup or before replacing an image), or the browser leaks memory.
+- For previews of uploaded images: \`<img src={URL.createObjectURL(file)} />\` works directly. Track the URLs in component state and revoke on unmount.
+- Persistence: \`localStorage\` cannot hold large binary content. For small thumbnails, store as data URLs via \`FileReader.readAsDataURL\` (or \`canvas.toDataURL\` after resize). For larger files, persist only metadata (filename, size, last-modified, your generated id) and prompt the user to re-upload on next visit — or use IndexedDB if you really need durable binary storage.
+- Always validate file size and type before processing. Reject files larger than what the app can reasonably hold in memory.
+
 AI CAPABILITIES — your apps can call an LLM at runtime:
 - The runtime exposes \`window.app.complete(prompt: string): Promise<string>\` — call it whenever the app needs reasoning, generation, evaluation, or natural-language understanding.
 - Use it for: AI-powered games (NPCs, hints, dynamic content), tutors that grade and explain, writing assistants, data analyzers that summarize uploads, anything where a static rules-based answer wouldn't work.
