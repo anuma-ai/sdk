@@ -758,9 +758,23 @@ export {
 
 // Agent types
 export type {
+  AgentAgendaItem,
+  AgentAgendaTranscript,
+  AgentAnalysisSection,
+  AgentAnalysisTranscript,
   AgentConfig,
+  AgentExampleConversation,
   AgentManifest,
+  AgentMarketplaceContent,
+  AgentMarketplaceFamily,
+  AgentMarketplaceTranscript,
+  AgentPrimaryActionKind,
   AgentRuntime,
+  AgentScheduleItem,
+  AgentTranscriptItem,
+  AgentTranscriptTone,
+  AgentUiMetadata,
+  FileExtractionStrategy,
   SkillConfig,
   SkillJourneyDefinition,
   SkillJourneyField,
