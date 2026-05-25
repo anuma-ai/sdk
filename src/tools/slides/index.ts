@@ -1145,7 +1145,10 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
           deck.children.push(slide);
           // Sort children by slideIndex so the on-disk order is always
           // the model's declared deck order, not the parallel-tool-call
-          // arrival order. Slides without a slideIndex sort to the end.
+          // arrival order. Every Slide has slideIndex set above; the
+          // Infinity fallback is for non-Slide string children (text
+          // nodes from parsing), which serialize-time filtering drops
+          // anyway — their relative order doesn't matter.
           deck.children.sort((a, b) => {
             const ai =
               typeof a !== "string" && typeof a.attrs.slideIndex === "number"
