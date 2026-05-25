@@ -160,9 +160,7 @@ export function shortHash(s: string): string {
     h2 ^= s.charCodeAt(s.length - 1 - i);
     h2 = Math.imul(h2, 0x85ebca6b);
   }
-  return (
-    (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).slice(0, 4)
-  );
+  return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).slice(0, 4);
 }
 
 function formatDelta(before: number, after: number, unit: string = ""): string {

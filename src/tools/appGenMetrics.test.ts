@@ -47,9 +47,9 @@ describe("summarizePhase", () => {
     const toolCalls: ToolCallRecord[] = [
       { name: "create_file", result: JSON.stringify({ failed: 99 }) },
     ];
-    expect(
-      summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).failedPatches
-    ).toBe(0);
+    expect(summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).failedPatches).toBe(
+      0
+    );
   });
 
   it("tolerates malformed patch_file results without throwing", () => {
@@ -57,9 +57,9 @@ describe("summarizePhase", () => {
       { name: "patch_file", result: "not-json-at-all" },
       { name: "patch_file", result: null },
     ];
-    expect(
-      summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).failedPatches
-    ).toBe(0);
+    expect(summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).failedPatches).toBe(
+      0
+    );
   });
 
   it("records file sizes from a Map or an object", () => {
@@ -85,12 +85,11 @@ describe("summarizePhase", () => {
 
   it("captures the errored flag", () => {
     expect(
-      summarizePhase({ label: "p", elapsedMs: 0, toolCalls: [], files: {}, errored: true })
-        .errored
+      summarizePhase({ label: "p", elapsedMs: 0, toolCalls: [], files: {}, errored: true }).errored
     ).toBe(true);
-    expect(
-      summarizePhase({ label: "p", elapsedMs: 0, toolCalls: [], files: {} }).errored
-    ).toBe(false);
+    expect(summarizePhase({ label: "p", elapsedMs: 0, toolCalls: [], files: {} }).errored).toBe(
+      false
+    );
   });
 });
 

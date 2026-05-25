@@ -156,10 +156,9 @@ export default function App() {
       tailwind: false,
     });
     const { page, errors } = await load(html, "stub.html");
-    await page.waitForFunction(
-      () => document.getElementById("out")?.textContent !== "pending",
-      { timeout: 10_000 }
-    );
+    await page.waitForFunction(() => document.getElementById("out")?.textContent !== "pending", {
+      timeout: 10_000,
+    });
     const out = await page.textContent("#out");
     // The stub's "explain" branch returns a sentence with this prefix.
     expect(out).toMatch(/Here's an explanation:/);

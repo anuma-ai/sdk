@@ -50,7 +50,7 @@ export default function App() {
       },
     });
     // The injected </style> is escaped.
-    expect(html).toContain('<\\/style>');
+    expect(html).toContain("<\\/style>");
     // Only one real </style> remains — the closing tag of the real <style> block.
     expect(html.match(/<\/style>/g)?.length).toBe(1);
   });

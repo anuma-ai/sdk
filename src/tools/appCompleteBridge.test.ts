@@ -213,7 +213,9 @@ interface ShimRequest {
  */
 function attachIframeResponder(
   iframe: HTMLIFrameElement,
-  respond: (req: ShimRequest) => { result?: string; error?: string } | Promise<{ result?: string; error?: string }>
+  respond: (
+    req: ShimRequest
+  ) => { result?: string; error?: string } | Promise<{ result?: string; error?: string }>
 ): () => void {
   const handler = async (event: MessageEvent): Promise<void> => {
     const data = event.data as { type?: unknown; id?: unknown; prompt?: unknown };
@@ -314,7 +316,10 @@ describe("appCompleteBridge round-trip (iframe shim ↔ parent)", () => {
 
     const detach = attachIframeResponder(iframe, async (req) => {
       // Post an unrelated message that happens to share the id.
-      iframe.contentWindow!.postMessage({ type: "something:else", id: req.id, result: "WRONG" }, "*");
+      iframe.contentWindow!.postMessage(
+        { type: "something:else", id: req.id, result: "WRONG" },
+        "*"
+      );
       await new Promise((r) => setTimeout(r, 5));
       return { result: `right:${req.prompt}` };
     });
@@ -349,11 +354,7 @@ describe("appCompleteBridge round-trip (iframe shim ↔ parent)", () => {
     // shim's IIFE template-strings in. Re-asserting at runtime would be
     // redundant; this test is a sentinel to fail loudly if someone
     // renames one constant but not the other.
-    expect(APP_COMPLETE_IFRAME_SHIM_SCRIPT).toContain(
-      JSON.stringify(APP_COMPLETE_REQUEST_TYPE)
-    );
-    expect(APP_COMPLETE_IFRAME_SHIM_SCRIPT).toContain(
-      JSON.stringify(APP_COMPLETE_RESPONSE_TYPE)
-    );
+    expect(APP_COMPLETE_IFRAME_SHIM_SCRIPT).toContain(JSON.stringify(APP_COMPLETE_REQUEST_TYPE));
+    expect(APP_COMPLETE_IFRAME_SHIM_SCRIPT).toContain(JSON.stringify(APP_COMPLETE_RESPONSE_TYPE));
   });
 });

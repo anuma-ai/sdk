@@ -255,7 +255,9 @@ export function writeRunMetrics(opts: {
   const previous = priors[priors.length - 1];
   if (previous) {
     try {
-      const prev = JSON.parse(fs.readFileSync(path.join(historyDir, previous), "utf-8")) as RunRecord;
+      const prev = JSON.parse(
+        fs.readFileSync(path.join(historyDir, previous), "utf-8")
+      ) as RunRecord;
       console.log(`\n${compareRuns(prev, run)}`);
     } catch (err) {
       console.log(`  (skipped diff — could not read ${previous}: ${(err as Error).message})`);
