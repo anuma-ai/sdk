@@ -15,7 +15,15 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { exportAppToHtml } from "../../../src/tools/appExport.js";
-import { runToolLoop } from "../setup.js";
+import {
+  compareRuns,
+  finalizeRun,
+  type PhaseRecord,
+  type RunRecord,
+  shortHash,
+  summarizePhase,
+} from "../../../src/tools/appGenMetrics.js";
+import { config, runToolLoop } from "../setup.js";
 
 export {
   config,
@@ -25,6 +33,15 @@ export {
   wrapTool,
   type ToolCallLog,
 } from "../setup.js";
+
+export {
+  compareRuns,
+  finalizeRun,
+  type PhaseRecord,
+  type RunRecord,
+  shortHash,
+  summarizePhase,
+} from "../../../src/tools/appGenMetrics.js";
 
 /** Wrapper that times the tool loop and logs the duration. */
 export async function timedToolLoop(
@@ -173,6 +190,67 @@ export function dumpFiles(store: FileStore, testName: string): string {
   writeAppHtml(dir, testName);
   console.log(`  Output written to ${path.relative(process.cwd(), dir)}/`);
   return dir;
+}
+
+// ---------------------------------------------------------------------------
+// Metrics persistence — pairs with src/tools/appGenMetrics.ts.
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist a benchmark's `RunRecord` to disk. Writes two files:
+ *   - `.output/{outputSubdir}/metrics.json`  (always the latest run)
+ *   - `.output/{outputSubdir}/.history/run-{finishedAt}.json`  (append-only)
+ *
+ * The latest file is what `scripts/compare-app-gen-runs.ts` reads by
+ * default; the history files let you diff arbitrary prior runs.
+ */
+export function writeRunMetrics(opts: {
+  outputSubdir: string;
+  benchmark: string;
+  scenario?: string;
+  promptHash: string;
+  startedAt: string;
+  phases: PhaseRecord[];
+}): RunRecord {
+  const run = finalizeRun({
+    benchmark: opts.benchmark,
+    scenario: opts.scenario,
+    model: config.model,
+    apiType: config.apiType,
+    promptHash: opts.promptHash,
+    startedAt: opts.startedAt,
+    phases: opts.phases,
+  });
+  const dir = path.join(OUTPUT_DIR, opts.outputSubdir);
+  fs.mkdirSync(dir, { recursive: true });
+  const payload = JSON.stringify(run, null, 2);
+  fs.writeFileSync(path.join(dir, "metrics.json"), payload, "utf-8");
+  const historyDir = path.join(dir, ".history");
+  fs.mkdirSync(historyDir, { recursive: true });
+  // Colons are filesystem-hostile on Windows + awkward in shell globs.
+  const stamp = run.finishedAt.replace(/[:.]/g, "-");
+  fs.writeFileSync(path.join(historyDir, `run-${stamp}.json`), payload, "utf-8");
+  console.log(
+    `  Metrics written to ${path.relative(process.cwd(), path.join(dir, "metrics.json"))}`
+  );
+
+  // If a previous run exists in history, print a short diff so the
+  // benchmark's terminal output shows the regression/improvement
+  // inline. Skip the just-written file itself.
+  const priors = fs
+    .readdirSync(historyDir)
+    .filter((f) => f.startsWith("run-") && f.endsWith(".json") && f !== `run-${stamp}.json`)
+    .sort();
+  const previous = priors[priors.length - 1];
+  if (previous) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(path.join(historyDir, previous), "utf-8")) as RunRecord;
+      console.log(`\n${compareRuns(prev, run)}`);
+    } catch (err) {
+      console.log(`  (skipped diff — could not read ${previous}: ${(err as Error).message})`);
+    }
+  }
+  return run;
 }
 
 /** Write a root index.html linking to all app previews. Call after all tests. */

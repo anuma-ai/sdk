@@ -30,13 +30,17 @@ import {
   diffSnapshots,
   dumpFiles,
   extractText,
+  type PhaseRecord,
   printDiff,
   printResult,
+  shortHash,
   snapshot,
+  summarizePhase,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
 
@@ -83,6 +87,23 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       const log: ToolCallLog[] = [];
       const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
       const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
+      const phases: PhaseRecord[] = [];
+      const runStartedAt = new Date().toISOString();
+      const promptHash = shortHash(SYSTEM_PROMPT);
+      let phaseLogStart = 0;
+
+      function recordPhase(label: string, elapsedMs: number, errored: boolean): void {
+        phases.push(
+          summarizePhase({
+            label,
+            elapsedMs,
+            toolCalls: log.slice(phaseLogStart),
+            files: store,
+            errored,
+          })
+        );
+        phaseLogStart = log.length;
+      }
 
       function getAppJs(): string {
         return store.get("App.js") ?? store.get("App.jsx") ?? "";
@@ -107,6 +128,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase1.result);
       expect(phase1.result.error).toBeNull();
       dumpFiles(store, "kanban/step-1-initial");
+      recordPhase("step-1-initial", phase1.result.elapsedMs, phase1.result.error !== null);
       conversation.push(assistantMsg(phase1.responseText));
 
       const phase1Js = getAppJs();
@@ -186,6 +208,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase2.result);
       expect(phase2.result.error).toBeNull();
       dumpFiles(store, "kanban/step-2-due-dates");
+      recordPhase("step-2-due-dates", phase2.result.elapsedMs, phase2.result.error !== null);
       conversation.push(assistantMsg(phase2.responseText));
 
       const phase2Js = getAppJs();
@@ -219,6 +242,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase3.result);
       expect(phase3.result.error).toBeNull();
       dumpFiles(store, "kanban/step-3-tag-filters");
+      recordPhase("step-3-tag-filters", phase3.result.elapsedMs, phase3.result.error !== null);
       conversation.push(assistantMsg(phase3.responseText));
 
       const phase3Js = getAppJs();
@@ -251,6 +275,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase4.result);
       expect(phase4.result.error).toBeNull();
       dumpFiles(store, "kanban/step-4-multi-board");
+      recordPhase("step-4-multi-board", phase4.result.elapsedMs, phase4.result.error !== null);
       conversation.push(assistantMsg(phase4.responseText));
 
       const phase4Js = getAppJs();
@@ -285,6 +310,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase5.result);
       expect(phase5.result.error).toBeNull();
       dumpFiles(store, "kanban/step-5-blocked-column");
+      recordPhase("step-5-blocked-column", phase5.result.elapsedMs, phase5.result.error !== null);
       conversation.push(assistantMsg(phase5.responseText));
 
       const phase5Js = getAppJs();
@@ -301,24 +327,14 @@ describe("kanban project board (sophisticated build + iterate)", () => {
         `  Phase 5 (blocked column): App.js=${phase5Js.length}ch (+${phase5Js.length - phase4Js.length}), App.css=${phase5Css.length}ch (+${phase5Css.length - phase4Css.length})`
       );
 
-      // ── Summary ────────────────────────────────────────────────────────────
-      const patchCalls = log.filter((l) => l.name === "patch_file");
-      const createCalls = log.filter((l) => l.name === "create_file");
-      const readCalls = log.filter((l) => l.name === "read_file");
-      const failedPatches = patchCalls.filter((l) => {
-        const r =
-          typeof l.result === "string"
-            ? JSON.parse(l.result)
-            : (l.result as Record<string, unknown>);
-        return (r as { failed?: number }).failed && (r as { failed: number }).failed > 0;
+      // ── Summary + persistence ──────────────────────────────────────────────
+      writeRunMetrics({
+        outputSubdir: "kanban",
+        benchmark: "kanban",
+        promptHash,
+        startedAt: runStartedAt,
+        phases,
       });
-
-      console.log("\n  === Kanban Summary ===");
-      console.log(`  Final App.js: ${phase5Js.length} chars`);
-      console.log(`  Final App.css: ${phase5Css.length} chars`);
-      console.log(
-        `  Tool calls: ${createCalls.length} create_file, ${patchCalls.length} patch_file (${failedPatches.length} failed at least one match), ${readCalls.length} read_file`
-      );
     }
   );
 });
