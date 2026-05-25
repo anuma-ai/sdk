@@ -118,3 +118,184 @@ describe("APP_COMPLETE_IFRAME_SHIM_SCRIPT", () => {
     expect(installAppCompleteIframeShim.toString()).toContain("APP_COMPLETE_IFRAME_SHIM_SCRIPT");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// End-to-end iframe-shim round-trip.
+//
+// The blocks above test the parent bridge and shim isolation. Real apps
+// mount the shim inside an iframe and the unit tests don't catch wire-
+// protocol drift between request and response. These tests mount a real
+// iframe, install the shim via `contentWindow.eval` (the closest happy-dom
+// gets to a <script> tag — srcdoc scripts don't execute in v20), and act
+// as the parent: capture the shim's request, post back a response, then
+// assert the iframe's `window.app.complete` promise resolves/rejects with
+// the right value.
+//
+// Why not wire up the full parent bridge here? happy-dom v20 doesn't route
+// `event.source.postMessage(...)` back to the iframe's listeners, so the
+// bridge's reply path can't be exercised in this DOM. The parent bridge's
+// behavior is covered by the in-isolation tests above; both sides import
+// the same `APP_COMPLETE_REQUEST_TYPE` / `APP_COMPLETE_RESPONSE_TYPE`
+// constants, so protocol drift is caught at compile time. A real-browser
+// (Playwright) test would be needed to exercise the bridge's reply path
+// against a real iframe.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface IframeAppWindow {
+  eval: (src: string) => unknown;
+  app?: { complete?: (p: string) => Promise<string> };
+}
+
+async function mountIframeWithShim(): Promise<{
+  iframe: HTMLIFrameElement;
+  iw: IframeAppWindow;
+}> {
+  const iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  // Give happy-dom a tick to finish initialising contentWindow.
+  await new Promise((r) => setTimeout(r, 10));
+  const iw = iframe.contentWindow as unknown as IframeAppWindow;
+  iw.eval(APP_COMPLETE_IFRAME_SHIM_SCRIPT);
+  return { iframe, iw };
+}
+
+interface ShimRequest {
+  type: string;
+  id: string;
+  prompt: string;
+}
+
+/**
+ * Wire a parent-side responder that captures requests from a specific
+ * iframe and lets the test post back responses. This stands in for the
+ * real parent bridge in happy-dom (which can't route bridge replies via
+ * `event.source.postMessage`).
+ */
+function attachIframeResponder(
+  iframe: HTMLIFrameElement,
+  respond: (req: ShimRequest) => { result?: string; error?: string } | Promise<{ result?: string; error?: string }>
+): () => void {
+  const handler = async (event: MessageEvent): Promise<void> => {
+    const data = event.data as { type?: unknown; id?: unknown; prompt?: unknown };
+    if (data?.type !== APP_COMPLETE_REQUEST_TYPE) return;
+    if (typeof data.id !== "string") return;
+    const req: ShimRequest = {
+      type: data.type as string,
+      id: data.id,
+      prompt: String(data.prompt ?? ""),
+    };
+    const out = await respond(req);
+    // Post directly to the iframe (this DOES work in happy-dom).
+    iframe.contentWindow!.postMessage(
+      { type: APP_COMPLETE_RESPONSE_TYPE, id: req.id, ...out },
+      "*"
+    );
+  };
+  window.addEventListener("message", handler);
+  return (): void => window.removeEventListener("message", handler);
+}
+
+describe("appCompleteBridge round-trip (iframe shim ↔ parent)", () => {
+  it("resolves window.app.complete with the response result", async () => {
+    const { iframe, iw } = await mountIframeWithShim();
+    const detach = attachIframeResponder(iframe, (req) => ({
+      result: `echo:${req.prompt}`,
+    }));
+
+    const result = await iw.app!.complete!("hi from iframe");
+    expect(result).toBe("echo:hi from iframe");
+
+    detach();
+    document.body.removeChild(iframe);
+  });
+
+  it("rejects with the response error message", async () => {
+    const { iframe, iw } = await mountIframeWithShim();
+    const detach = attachIframeResponder(iframe, () => ({
+      error: "upstream failure",
+    }));
+
+    await expect(iw.app!.complete!("anything")).rejects.toThrow("upstream failure");
+
+    detach();
+    document.body.removeChild(iframe);
+  });
+
+  it("correlates concurrent requests by id (no cross-talk)", async () => {
+    const { iframe, iw } = await mountIframeWithShim();
+    let counter = 0;
+    const detach = attachIframeResponder(iframe, async (req) => {
+      // Resolve out-of-order on purpose: longer prompts come back later.
+      // Without ID correlation, the shim would mismatch results with
+      // their original callers.
+      const n = ++counter;
+      await new Promise((r) => setTimeout(r, req.prompt.length));
+      return { result: `${req.prompt}#${n}` };
+    });
+
+    const [a, b, c] = await Promise.all([
+      iw.app!.complete!("short"),
+      iw.app!.complete!("medium-length"),
+      iw.app!.complete!("a-much-longer-prompt-string"),
+    ]);
+
+    expect(a.startsWith("short#")).toBe(true);
+    expect(b.startsWith("medium-length#")).toBe(true);
+    expect(c.startsWith("a-much-longer-prompt-string#")).toBe(true);
+
+    detach();
+    document.body.removeChild(iframe);
+  });
+
+  it("ignores response messages with a non-matching id", async () => {
+    const { iframe, iw } = await mountIframeWithShim();
+
+    // First post a response with the wrong id, then the right one.
+    // The shim must skip the first and resolve with the second.
+    const detach = attachIframeResponder(iframe, async (req) => {
+      iframe.contentWindow!.postMessage(
+        { type: APP_COMPLETE_RESPONSE_TYPE, id: "not-the-id", result: "WRONG" },
+        "*"
+      );
+      // Tiny delay so the wrong-id response is processed first.
+      await new Promise((r) => setTimeout(r, 5));
+      return { result: `right:${req.prompt}` };
+    });
+
+    const result = await iw.app!.complete!("p");
+    expect(result).toBe("right:p");
+
+    detach();
+    document.body.removeChild(iframe);
+  });
+
+  it("ignores messages without the response type", async () => {
+    const { iframe, iw } = await mountIframeWithShim();
+
+    const detach = attachIframeResponder(iframe, async (req) => {
+      // Post an unrelated message that happens to share the id.
+      iframe.contentWindow!.postMessage({ type: "something:else", id: req.id, result: "WRONG" }, "*");
+      await new Promise((r) => setTimeout(r, 5));
+      return { result: `right:${req.prompt}` };
+    });
+
+    const result = await iw.app!.complete!("p");
+    expect(result).toBe("right:p");
+
+    detach();
+    document.body.removeChild(iframe);
+  });
+
+  it("shim and bridge share the same request and response type constants", () => {
+    // Compile-time guarantee — these are the same imports the iframe
+    // shim's IIFE template-strings in. Re-asserting at runtime would be
+    // redundant; this test is a sentinel to fail loudly if someone
+    // renames one constant but not the other.
+    expect(APP_COMPLETE_IFRAME_SHIM_SCRIPT).toContain(
+      JSON.stringify(APP_COMPLETE_REQUEST_TYPE)
+    );
+    expect(APP_COMPLETE_IFRAME_SHIM_SCRIPT).toContain(
+      JSON.stringify(APP_COMPLETE_RESPONSE_TYPE)
+    );
+  });
+});
