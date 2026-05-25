@@ -37,6 +37,24 @@ export default function App() {
     expect(html).toContain("<style>.btn { color: red; }</style>");
   });
 
+  it("defuses `</style>` strings inside App.css so the tag can't break out", () => {
+    // If a model-generated rule contains `</style>` (e.g. inside a
+    // content: property), the raw <style> tag would close prematurely
+    // and the rest of the document would render as text or run as
+    // script. The defused sequence keeps the CSS parser happy while
+    // hiding the closing tag from the HTML raw-text scanner.
+    const html = exportAppToHtml({
+      files: {
+        "App.js": trivialApp,
+        "App.css": '.x { content: "</style>oops"; }',
+      },
+    });
+    // The injected </style> is escaped.
+    expect(html).toContain('<\\/style>');
+    // Only one real </style> remains — the closing tag of the real <style> block.
+    expect(html.match(/<\/style>/g)?.length).toBe(1);
+  });
+
   it("strips `import './App.css';` from the JS (CSS is inlined)", () => {
     const html = exportAppToHtml({
       files: { "App.js": trivialApp, "App.css": "" },

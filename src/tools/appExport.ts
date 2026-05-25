@@ -120,6 +120,12 @@ export function exportAppToHtml(options: ExportAppOptions): string {
   const jsClean = stripImports(appJs);
 
   const escapedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Defuse any literal `</style>` inside CSS: HTML's raw-text scanner only
+  // ends the <style> element on `</style` followed by a tag terminator, so
+  // inserting a backslash between `<` and `/` breaks the match without
+  // changing how the CSS parser sees the rule. Same trick the spec
+  // recommends for JSON-in-script.
+  const safeCss = appCss.replace(/<\/(style)/gi, "<\\/$1");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -127,7 +133,7 @@ export function exportAppToHtml(options: ExportAppOptions): string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapedTitle}</title>${tailwind ? `\n  <script src="https://cdn.tailwindcss.com"></script>` : ""}
-  <style>${appCss}</style>
+  <style>${safeCss}</style>
 </head>
 <body>
   <div id="root"></div>${windowAppShim ? `\n  <script>\n${windowAppShim}\n  </script>` : ""}
