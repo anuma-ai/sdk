@@ -1,7 +1,7 @@
 {
   "name": "@anuma/agents-registry",
   "version": "1.0.0",
-  "description": "Lookup helpers for Anuma agents (App Builder, Haven, Sentinel) and their skill metadata",
+  "description": "Lookup helpers for Anuma agents (Haven, Sentinel) and their skill metadata",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -35,7 +35,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@anuma/agent-app-builder": "workspace:*",
     "@anuma/agent-haven": "workspace:*",
     "@anuma/agent-sentinel": "workspace:*"
   },

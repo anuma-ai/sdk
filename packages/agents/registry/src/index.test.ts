@@ -3,13 +3,9 @@ import { describe, expect, it } from "vitest";
 import { getAgent, getAgentSkillMeta, listAgents } from "./index";
 
 describe("agents-registry", () => {
-  it("lists App Builder, Haven and Sentinel", () => {
+  it("lists Haven and Sentinel", () => {
     const ids = listAgents().map((a) => a.id);
-    expect(ids).toEqual(expect.arrayContaining(["app-builder", "haven", "sentinel"]));
-  });
-
-  it("returns the App Builder agent by id", () => {
-    expect(getAgent("app-builder")?.id).toBe("app-builder");
+    expect(ids).toEqual(expect.arrayContaining(["haven", "sentinel"]));
   });
 
   it("returns Haven skill meta", () => {

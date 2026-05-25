@@ -1318,10 +1318,9 @@ export function createAppGenerationTools({
 /**
  * App Builder agent persona prompt — canonical source for the SDK.
  *
- * Mirrors the `SENTINEL_PROMPT` / `HAVEN_PROMPT` pattern used by the
- * `@anuma/agent-sentinel` and `@anuma/agent-haven` packages: the prompt
- * lives in code, the SDK owns it, and the `@anuma/agent-app-builder`
- * package re-exports it inside an `AgentConfig` for the agent registry.
+ * Mirrors the `SENTINEL_PROMPT` / `HAVEN_PROMPT` pattern: the prompt
+ * lives in code and the SDK owns it. Imported as the App Builder
+ * persona by hosts that wire `createAppGenerationTools` directly.
  *
  * Pair with the tools returned by {@link createAppGenerationTools} —
  * `create_file`, `patch_file`, `read_file`, `delete_file`, `list_files`,
