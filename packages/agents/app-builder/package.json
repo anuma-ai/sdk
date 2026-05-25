@@ -1,7 +1,7 @@
 {
-  "name": "@anuma/agents-registry",
+  "name": "@anuma/agent-app-builder",
   "version": "1.0.0",
-  "description": "Lookup helpers for Anuma agents (App Builder, Haven, Sentinel) and their skill metadata",
+  "description": "App Builder agent — generates polished, designed React apps from natural language",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/anuma-ai/sdk.git",
-    "directory": "packages/agents/registry"
+    "directory": "packages/agents/app-builder"
   },
   "license": "ISC",
   "bugs": {
@@ -33,11 +33,6 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "publishConfig": {
     "access": "public"
-  },
-  "dependencies": {
-    "@anuma/agent-app-builder": "workspace:*",
-    "@anuma/agent-haven": "workspace:*",
-    "@anuma/agent-sentinel": "workspace:*"
   },
   "peerDependencies": {
     "@anuma/sdk": "workspace:*"

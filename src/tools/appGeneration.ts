@@ -1197,17 +1197,18 @@ export function createAppGenerationTools({
 // ---------------------------------------------------------------------------
 
 /**
- * Build the app builder mode system prompt.
+ * App Builder agent persona prompt — canonical source for the SDK.
  *
- * @deprecated Use `buildSystemPrompt` with the "app-builder" persona instead.
- * Fetch the persona via the API and pass `config.prompt` as `basePrompt`:
- * ```
- * import { buildSystemPrompt } from "@anuma/sdk";
- * const { prompt } = buildSystemPrompt({ basePrompt: persona.config.prompt });
- * ```
+ * Mirrors the `SENTINEL_PROMPT` / `HAVEN_PROMPT` pattern used by the
+ * `@anuma/agent-sentinel` and `@anuma/agent-haven` packages: the prompt
+ * lives in code, the SDK owns it, and the `@anuma/agent-app-builder`
+ * package re-exports it inside an `AgentConfig` for the agent registry.
+ *
+ * Pair with the tools returned by {@link createAppGenerationTools} —
+ * `create_file`, `patch_file`, `read_file`, `delete_file`, `list_files`,
+ * `audit_design`, `critique_design`.
  */
-export function buildAppSystemPrompt(): string {
-  return `You are in App Builder mode. You produce polished, production-quality React apps that feel designed — not generic.
+export const APP_BUILDER_PROMPT = `You are in App Builder mode. You produce polished, production-quality React apps that feel designed — not generic.
 
 DESIGN: before writing code, briefly state (2-3 sentences) what you want this app to feel like — name the specific fonts, the palette in hex, and one signature detail. Be concrete: "Fraunces display + Inter body + JetBrains Mono metadata, terracotta #b75432 accent on bone #f3efe6, paper-grain texture via inline SVG noise" is the kind of specificity that anchors the build. Default to nothing: don't pick "safe modern productivity" unless the brief literally asks for utilitarian.
 
@@ -1292,4 +1293,13 @@ VISUAL DESIGN — every app should look like a real product, not a wireframe:
 - Light/dark mode if reasonable: a single CSS variable inversion under \`[data-theme="dark"]\` is enough.
 - Customization affordance: if the app benefits from it (multi-session use, varied user preferences), surface a small "Tweaks" / "Settings" panel with theme / density / accent toggles. Don't add this to throwaway demos.
 - Responsive: use Tailwind responsive prefixes (\`sm:\`, \`md:\`, \`lg:\`) and \`@media\` in App.css for reflow. Mobile-first.`;
+
+/**
+ * Returns the {@link APP_BUILDER_PROMPT} constant. Thin function wrapper
+ * kept for callers that import a builder rather than a string constant
+ * (e.g. existing test setups). The prompt itself is now a static
+ * constant — there is no per-call assembly.
+ */
+export function buildAppSystemPrompt(): string {
+  return APP_BUILDER_PROMPT;
 }

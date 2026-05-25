@@ -158,6 +158,7 @@ export type {
   PatchFailureReason,
 } from "./appGeneration";
 export {
+  APP_BUILDER_PROMPT,
   APP_FILE_TOOL_NAMES,
   applyPatches,
   AUDIT_DESIGN_SCHEMA,

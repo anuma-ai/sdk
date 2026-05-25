@@ -1,8 +1,10 @@
 import type { AgentConfig } from "@anuma/sdk";
+import { appBuilderAgent } from "@anuma/agent-app-builder";
 import { havenAgent } from "@anuma/agent-haven";
 import { sentinelAgent } from "@anuma/agent-sentinel";
 
 const AGENTS: Record<string, AgentConfig> = {
+  "app-builder": appBuilderAgent,
   haven: havenAgent,
   sentinel: sentinelAgent,
 };
