@@ -203,6 +203,12 @@ export function dumpFiles(store: FileStore, testName: string): string {
  *
  * The latest file is what `scripts/compare-app-gen-runs.ts` reads by
  * default; the history files let you diff arbitrary prior runs.
+ *
+ * By default the inline diff against the previous run is printed to
+ * stdout (useful interactively, noisy in CI). Pass `quiet: true` or
+ * `BENCHMARK_QUIET=1` to suppress — the JSON files still land, just
+ * without the terminal echo. The "Metrics written to ..." pointer line
+ * is always printed so the file is discoverable.
  */
 export function writeRunMetrics(opts: {
   outputSubdir: string;
@@ -211,6 +217,8 @@ export function writeRunMetrics(opts: {
   promptHash: string;
   startedAt: string;
   phases: PhaseRecord[];
+  /** Suppress the inline diff print. Default: env `BENCHMARK_QUIET=1`. */
+  quiet?: boolean;
 }): RunRecord {
   const run = finalizeRun({
     benchmark: opts.benchmark,
@@ -233,6 +241,9 @@ export function writeRunMetrics(opts: {
   console.log(
     `  Metrics written to ${path.relative(process.cwd(), path.join(dir, "metrics.json"))}`
   );
+
+  const quiet = opts.quiet ?? process.env.BENCHMARK_QUIET === "1";
+  if (quiet) return run;
 
   // If a previous run exists in history, print a short diff so the
   // benchmark's terminal output shows the regression/improvement
