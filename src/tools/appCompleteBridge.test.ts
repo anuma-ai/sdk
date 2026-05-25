@@ -9,6 +9,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  APP_COMPLETE_DEFAULT_TIMEOUT_MS,
   APP_COMPLETE_IFRAME_SHIM_SCRIPT,
   APP_COMPLETE_REQUEST_TYPE,
   APP_COMPLETE_RESPONSE_TYPE,
@@ -284,6 +285,24 @@ describe("appCompleteBridge round-trip (iframe shim ↔ parent)", () => {
 
     detach();
     document.body.removeChild(iframe);
+  });
+
+  it("rejects with a timeout error when the parent never responds", async () => {
+    const { iframe, iw } = await mountIframeWithShim();
+    // Shrink the default to keep the test fast. The shim reads this from
+    // the iframe's own window object at call time, so this only affects
+    // calls originating from this iframe.
+    (iw as unknown as { APP_COMPLETE_TIMEOUT_MS?: number }).APP_COMPLETE_TIMEOUT_MS = 30;
+    // No responder attached → parent never replies.
+
+    await expect(iw.app!.complete!("hi")).rejects.toThrow(/timed out after 30ms/);
+
+    document.body.removeChild(iframe);
+  });
+
+  it("exports a sane default timeout constant", () => {
+    expect(APP_COMPLETE_DEFAULT_TIMEOUT_MS).toBeGreaterThan(1_000);
+    expect(APP_COMPLETE_IFRAME_SHIM_SCRIPT).toContain(String(APP_COMPLETE_DEFAULT_TIMEOUT_MS));
   });
 
   it("shim and bridge share the same request and response type constants", () => {

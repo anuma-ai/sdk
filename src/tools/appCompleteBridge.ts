@@ -123,6 +123,13 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
   };
 }
 
+/** Default timeout (ms) for `window.app.complete` calls inside the
+ *  iframe shim. Long enough for slow LLM completions, short enough to
+ *  surface a hung parent bridge (e.g. unmounted preview). Hosts can
+ *  override by setting `window.APP_COMPLETE_TIMEOUT_MS` in the iframe
+ *  before the first call. */
+export const APP_COMPLETE_DEFAULT_TIMEOUT_MS = 60_000;
+
 /**
  * Inline JavaScript source that installs `window.app.complete` in an
  * iframe, sending requests to the parent via postMessage. Drop into
@@ -132,6 +139,11 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
  * directly via `file://` rather than embedded in an iframe). In that
  * case, hosts can provide their own `window.app.complete` stub or
  * leave it unset.
+ *
+ * Each call has a {@link APP_COMPLETE_DEFAULT_TIMEOUT_MS} ms timeout
+ * (overridable via `window.APP_COMPLETE_TIMEOUT_MS`); on timeout the
+ * promise rejects and the message listener is removed, so a disposed
+ * parent bridge can't leave the app frozen.
  */
 export const APP_COMPLETE_IFRAME_SHIM_SCRIPT = `(function () {
   if (typeof window === "undefined" || !window.parent || window.parent === window) {
@@ -139,18 +151,28 @@ export const APP_COMPLETE_IFRAME_SHIM_SCRIPT = `(function () {
   }
   var REQUEST_TYPE = ${JSON.stringify(APP_COMPLETE_REQUEST_TYPE)};
   var RESPONSE_TYPE = ${JSON.stringify(APP_COMPLETE_RESPONSE_TYPE)};
+  var DEFAULT_TIMEOUT_MS = ${APP_COMPLETE_DEFAULT_TIMEOUT_MS};
   window.app = window.app || {};
   window.app.complete = function (prompt) {
     return new Promise(function (resolve, reject) {
       var id = "c_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      var timeoutMs = (typeof window.APP_COMPLETE_TIMEOUT_MS === "number" && window.APP_COMPLETE_TIMEOUT_MS > 0)
+        ? window.APP_COMPLETE_TIMEOUT_MS
+        : DEFAULT_TIMEOUT_MS;
+      var timer = null;
       var onMessage = function (event) {
         var data = event.data;
         if (!data || data.type !== RESPONSE_TYPE || data.id !== id) return;
         window.removeEventListener("message", onMessage);
+        if (timer !== null) { clearTimeout(timer); timer = null; }
         if (typeof data.error === "string") reject(new Error(data.error));
         else resolve(String(data.result == null ? "" : data.result));
       };
       window.addEventListener("message", onMessage);
+      timer = setTimeout(function () {
+        window.removeEventListener("message", onMessage);
+        reject(new Error("window.app.complete timed out after " + timeoutMs + "ms"));
+      }, timeoutMs);
       window.parent.postMessage({ type: REQUEST_TYPE, id: id, prompt: String(prompt) }, "*");
     });
   };

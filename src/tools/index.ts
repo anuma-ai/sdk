@@ -186,6 +186,7 @@ export type {
 export { auditDesign } from "./appAudit";
 export type { AppCompleteBridge, AppCompleteBridgeOptions } from "./appCompleteBridge";
 export {
+  APP_COMPLETE_DEFAULT_TIMEOUT_MS,
   APP_COMPLETE_IFRAME_SHIM_SCRIPT,
   APP_COMPLETE_REQUEST_TYPE,
   APP_COMPLETE_RESPONSE_TYPE,
