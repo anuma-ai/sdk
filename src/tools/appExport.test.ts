@@ -81,6 +81,22 @@ export default function App() { return null; }
     expect(html).not.toContain("https://esm.sh/react-dom@");
   });
 
+  it("rewrites mixed default + named imports of external packages to window globals", () => {
+    // Pattern `import Default, { Named } from 'pkg'` is common for libraries
+    // like chart.js, mui, etc. and must be transformed — leaving the
+    // statement intact throws a SyntaxError inside the babel-standalone
+    // script block (no ESM mode).
+    const src = `import React from 'react';
+import Chart, { defaults, registerables } from 'chart.js';
+
+export default function App() { return <div />; }
+`;
+    const html = exportAppToHtml({ files: { "App.js": src } });
+    expect(html).toContain('const Chart = window["chartJs"] || {};');
+    expect(html).toContain('const { defaults, registerables } = window["chartJs"] || {};');
+    expect(html).not.toMatch(/^import\s+Chart\s*,/m);
+  });
+
   it("rewrites named imports of external packages to window globals", () => {
     const src = `import React from 'react';
 import { Camera, X } from 'lucide-react';

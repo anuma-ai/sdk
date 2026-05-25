@@ -207,6 +207,16 @@ function stripImports(js: string): string {
       .replace(/^import\s+React\s+from\s*['"]react['"];?\s*$/gm, "")
       // `import ... from 'react-dom/client'` etc.
       .replace(/^import\s+.*\s+from\s*['"]react-dom(?:\/.*)?['"];?\s*$/gm, "")
+      // Mixed default + named imports of external packages → both forms
+      // off the same window global. e.g. `import Chart, { defaults } from 'chart.js'`.
+      // Must precede the pure-named and pure-default replacements below.
+      .replace(
+        /^import\s+(\w+)\s*,\s*\{([^}]+)\}\s*from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
+        (_, name: string, names: string, pkg: string) => {
+          const globalName = camelCasePackage(pkg);
+          return `const ${name} = window["${globalName}"] || {}; const { ${names.trim()} } = window["${globalName}"] || {};`;
+        }
+      )
       // Other named imports → destructure from window global
       .replace(
         /^import\s*\{([^}]+)\}\s*from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
