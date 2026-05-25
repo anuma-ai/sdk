@@ -13,7 +13,7 @@
  * refactor can't silently undo them.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
 import * as embeddingsModule from "../memoryEngine/embeddings";
@@ -73,9 +73,18 @@ function makePartiallyEmittingThenRejectingStream(err: Error) {
 }
 
 describe("runToolLoop streaming retry", () => {
+  // Fake timers everywhere so retry backoffs (up to 5s on the fast
+  // schedule, 30s on the rate-limit schedule) don't slow the suite or
+  // flake under CI jitter. Retry tests drive the loop via
+  // `await vi.runAllTimersAsync()` before awaiting the result.
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     mockGenerateEmbedding.mockResolvedValue([0.1]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("invokes the onStreamRetry hook for each retried attempt and reports the round / counter", async () => {
@@ -95,12 +104,15 @@ describe("runToolLoop streaming retry", () => {
       error: Error;
     }> = [];
 
-    const result = await runToolLoop({
+    const promise = runToolLoop({
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
       model: "test-model",
       token: "token",
       onStreamRetry: (e) => events.push(e),
     });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.error).toBeNull();
     expect(events).toHaveLength(2);
@@ -120,41 +132,36 @@ describe("runToolLoop streaming retry", () => {
     // on the fast schedule (~500ms). Without this differentiation, a
     // rate-limited portal sees 3 retries in 7.5s and the user-visible
     // failure surfaces despite the server having said "wait longer."
-    vi.useFakeTimers();
-    try {
-      mockCreateSseClient
-        .mockReturnValueOnce({
-          stream: makeRejectingStream(new Error("SSE failed: 429 Too Many Requests")),
-        } as never)
-        .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeRejectingStream(new Error("SSE failed: 429 Too Many Requests")),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
 
-      const events: Array<{
-        round: "initial" | number;
-        attempt: number;
-        maxAttempts: number;
-        backoffMs: number;
-        error: Error;
-      }> = [];
+    const events: Array<{
+      round: "initial" | number;
+      attempt: number;
+      maxAttempts: number;
+      backoffMs: number;
+      error: Error;
+    }> = [];
 
-      const promise = runToolLoop({
-        messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
-        model: "test-model",
-        token: "token",
-        onStreamRetry: (e) => events.push(e),
-      });
+    const promise = runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      model: "test-model",
+      token: "token",
+      onStreamRetry: (e) => events.push(e),
+    });
 
-      await vi.runAllTimersAsync();
-      const result = await promise;
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
-      expect(result.error).toBeNull();
-      expect(events).toHaveLength(1);
-      // Rate-limit schedule starts at 5000ms — well above the 500ms first
-      // step of the fast schedule, which would otherwise burn three
-      // round-trips in 7.5s against a server asking us to slow down.
-      expect(events[0]!.backoffMs).toBeGreaterThanOrEqual(5000);
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(result.error).toBeNull();
+    expect(events).toHaveLength(1);
+    // Rate-limit schedule starts at 5000ms — well above the 500ms first
+    // step of the fast schedule, which would otherwise burn three
+    // round-trips in 7.5s against a server asking us to slow down.
+    expect(events[0]!.backoffMs).toBeGreaterThanOrEqual(5000);
   });
 
   it("retries when the first attempt fails with `terminated` before any chunk emits", async () => {
@@ -162,11 +169,14 @@ describe("runToolLoop streaming retry", () => {
       .mockReturnValueOnce({ stream: makeRejectingStream(new Error("terminated")) } as never)
       .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
 
-    const result = await runToolLoop({
+    const promise = runToolLoop({
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
       model: "test-model",
       token: "token",
     });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.error).toBeNull();
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
@@ -183,12 +193,15 @@ describe("runToolLoop streaming retry", () => {
 
     const events: Array<{ round: number; attempt: number }> = [];
 
-    const result = await runToolLoop({
+    const promise = runToolLoop({
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
       model: "test-model",
       token: "token",
       onRequest: (e) => events.push({ round: e.round, attempt: e.attempt }),
     });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.error).toBeNull();
     expect(events).toEqual([
@@ -204,11 +217,14 @@ describe("runToolLoop streaming retry", () => {
       } as never)
       .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
 
-    const result = await runToolLoop({
+    const promise = runToolLoop({
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
       model: "test-model",
       token: "token",
     });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.error).toBeNull();
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
@@ -328,12 +344,15 @@ describe("runToolLoop streaming retry", () => {
       .mockReturnValueOnce({ stream: makeRejectingStream(new Error("terminated")) } as never)
       .mockReturnValueOnce({ stream: makeTextStream("recovered") } as never);
 
-    const result = await runToolLoop({
+    const promise = runToolLoop({
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
       model: "test-model",
       token: "token",
       tools: makeEchoTool(),
     });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.error).toBeNull();
     // 1 initial + 1 failing continuation + 1 recovered continuation
@@ -376,12 +395,15 @@ describe("runToolLoop streaming retry", () => {
       return { stream: makeRejectingStream(new Error("terminated")) } as never;
     });
 
-    const result = await runToolLoop({
+    const promise = runToolLoop({
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
       model: "test-model",
       token: "token",
       tools: makeEchoTool(),
     });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.error).toContain("terminated");
     // 1 initial + 3 continuation attempts before giving up
@@ -399,11 +421,14 @@ describe("runToolLoop streaming retry", () => {
       () => ({ stream: makeRejectingStream(new Error("terminated")) }) as never
     );
 
-    const result = await runToolLoop({
+    const promise = runToolLoop({
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
       model: "test-model",
       token: "token",
     });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.error).toContain("terminated");
     // STREAM_RETRY_MAX_ATTEMPTS = 3 → exactly 3 createSseClient calls.
