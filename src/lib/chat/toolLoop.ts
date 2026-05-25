@@ -124,13 +124,23 @@ function backoffForRetry(attempt: number, err: unknown): number {
   return schedule[attempt] ?? schedule[schedule.length - 1] ?? 1000;
 }
 
+/**
+ * Extract an HTTP status code from a stream error, preferring the
+ * SseError.statusCode field and falling back to a loose "SSE failed:
+ * NNN" match on the (potentially re-wrapped) message string. Returns
+ * undefined if no status can be inferred — message-only heuristics
+ * like "terminated" are handled by their respective predicates.
+ */
+function getHttpStatusCode(err: Error): number | undefined {
+  if (err instanceof SseError) return err.statusCode;
+  const match = err.message.toLowerCase().match(/sse failed: (\d+)/);
+  return match ? Number(match[1]) : undefined;
+}
+
 /** True iff `err` represents a 429 Too Many Requests response. */
 function isRateLimitedStreamError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
-  if (err instanceof SseError) return err.statusCode === 429;
-  const msg = (err.message ?? "").toLowerCase();
-  const m = msg.match(/sse failed: (\d+)/);
-  return m ? Number(m[1]) === 429 : false;
+  return getHttpStatusCode(err) === 429;
 }
 
 /**
@@ -179,21 +189,15 @@ function isRetriableStreamError(err: unknown): boolean {
   // retried anyway.
   if (err instanceof ProviderStreamError) return false;
 
-  if (err instanceof SseError) {
-    const s = err.statusCode;
-    return s === 408 || s === 429 || (s >= 500 && s < 600);
+  const code = getHttpStatusCode(err);
+  if (code !== undefined) {
+    return code === 408 || code === 429 || (code >= 500 && code < 600);
   }
 
   const msg = (err.message ?? "").toLowerCase();
   if (msg === "terminated") return true;
   if (msg.includes("econnreset") || msg.includes("etimedout")) return true;
   if (msg.includes("connection refused") || msg.includes("connect error")) return true;
-  // Plain-string "SSE failed: 5xx ..." that escaped SseError wrapping
-  const match = msg.match(/sse failed: (\d+)/);
-  if (match) {
-    const code = Number(match[1]);
-    return code === 408 || code === 429 || (code >= 500 && code < 600);
-  }
   return false;
 }
 
