@@ -11,6 +11,7 @@ import {
   applyPatches,
   createAppGenerationTools,
   DEFAULT_DESIGN_CRITIQUE_RUBRIC,
+  type FileChangeEvent,
   findBestAnchor,
   MapFileStorage,
   normalizePath,
@@ -673,5 +674,199 @@ describe("critique_design", () => {
     };
     expect(result.appJs.content).toBe("");
     expect(result.appCss.content).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// onFileChange callback — host-side hook for versioning / audit / analytics
+// ---------------------------------------------------------------------------
+
+describe("onFileChange callback", () => {
+  function makeTools(overrides?: Partial<Parameters<typeof createAppGenerationTools>[0]>): {
+    storage: MapFileStorage;
+    events: FileChangeEvent[];
+    onFileChange: (e: FileChangeEvent) => void;
+    tools: Record<string, ToolConfig>;
+  } {
+    const storage = new MapFileStorage();
+    const events: FileChangeEvent[] = [];
+    const onFileChange = (e: FileChangeEvent): void => {
+      events.push(e);
+    };
+    const tools = createAppGenerationTools({
+      getConversationId: () => "conv-1",
+      storage,
+      logError: () => undefined,
+      onFileChange,
+      ...overrides,
+    });
+    const byName: Record<string, ToolConfig> = {};
+    for (const t of tools) byName[(t.function as { name: string }).name] = t;
+    return { storage, events, onFileChange, tools: byName };
+  }
+
+  it("emits one `created` event per new file in a create_file batch", async () => {
+    const { events, tools } = makeTools();
+    await tools.create_file!.executor!({
+      files: [
+        { path: "App.js", content: "const A = 1;\n" },
+        { path: "App.css", content: ":root {}\n" },
+      ],
+    });
+    expect(events).toHaveLength(2);
+    expect(events[0]).toEqual({
+      type: "created",
+      conversationId: "conv-1",
+      path: "App.js",
+      content: "const A = 1;\n",
+      tool: "create_file",
+    });
+    expect(events[1]).toMatchObject({ type: "created", path: "App.css" });
+  });
+
+  it("emits `modified` (not `created`) when create_file overwrites an existing file", async () => {
+    const { events, tools, storage } = makeTools();
+    // Seed an existing file + mark it seen so the read-before-write
+    // contract permits the overwrite.
+    storage.getAll().set("App.js", "const A = 1;\n");
+    await tools.read_file!.executor!({ path: "App.js" });
+    events.length = 0; // ignore any reads (there are none, but just in case)
+
+    await tools.create_file!.executor!({
+      files: [{ path: "App.js", content: "const A = 2;\n" }],
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({
+      type: "modified",
+      conversationId: "conv-1",
+      path: "App.js",
+      before: "const A = 1;\n",
+      after: "const A = 2;\n",
+      tool: "create_file",
+    });
+  });
+
+  it("emits `modified` from patch_file with before/after content", async () => {
+    const { events, tools } = makeTools();
+    await tools.create_file!.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\nconst B = 2;\n" }],
+    });
+    events.length = 0;
+
+    await tools.patch_file!.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 1;", replace: "const A = 99;" }],
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({
+      type: "modified",
+      conversationId: "conv-1",
+      path: "App.js",
+      before: "const A = 1;\nconst B = 2;\n",
+      after: "const A = 99;\nconst B = 2;\n",
+      tool: "patch_file",
+    });
+  });
+
+  it("emits `deleted` with the pre-delete content", async () => {
+    const { events, tools } = makeTools();
+    await tools.create_file!.executor!({
+      files: [{ path: "App.js", content: "const X = 1;\n" }],
+    });
+    events.length = 0;
+
+    await tools.delete_file!.executor!({ path: "App.js" });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({
+      type: "deleted",
+      conversationId: "conv-1",
+      path: "App.js",
+      before: "const X = 1;\n",
+      tool: "delete_file",
+    });
+  });
+
+  it("does NOT emit for read_file or list_files (no mutation)", async () => {
+    const { events, tools } = makeTools();
+    await tools.create_file!.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    });
+    events.length = 0;
+
+    await tools.read_file!.executor!({ path: "App.js" });
+    await tools.list_files!.executor!({});
+    expect(events).toEqual([]);
+  });
+
+  it("does NOT emit when create_file fails validation", async () => {
+    const { events, tools } = makeTools();
+    const broken = "function App() { return <div>;}\n";
+    const result = (await tools.create_file!.executor!({
+      files: [{ path: "App.js", content: broken }],
+    })) as Record<string, unknown>;
+    expect(result.error).toBeTruthy();
+    expect(events).toEqual([]);
+  });
+
+  it("does NOT emit when patch_file has unmatched patches", async () => {
+    const { events, tools } = makeTools();
+    await tools.create_file!.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    });
+    events.length = 0;
+
+    const result = (await tools.patch_file!.executor!({
+      path: "App.js",
+      patches: [{ find: "totally-not-in-the-file", replace: "x" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(false);
+    expect(events).toEqual([]);
+  });
+
+  it("does NOT emit when delete_file targets a non-existent file", async () => {
+    const { events, tools } = makeTools();
+    await tools.delete_file!.executor!({ path: "ghost.js" });
+    expect(events).toEqual([]);
+  });
+
+  it("a thrown callback is logged and swallowed — the tool still succeeds", async () => {
+    const logged: string[] = [];
+    const storage = new MapFileStorage();
+    const tools = createAppGenerationTools({
+      getConversationId: () => "conv-1",
+      storage,
+      logError: (msg) => logged.push(msg),
+      onFileChange: () => {
+        throw new Error("host analytics is down");
+      },
+    });
+    const createFile = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect(logged.some((m) => m.includes("onFileChange"))).toBe(true);
+    // Underlying write still happened.
+    expect((await storage.getFile("conv-1", "App.js"))?.content).toBe("const A = 1;\n");
+  });
+
+  it("awaits async callbacks before returning the tool result", async () => {
+    const order: string[] = [];
+    const storage = new MapFileStorage();
+    const tools = createAppGenerationTools({
+      getConversationId: () => "conv-1",
+      storage,
+      logError: () => undefined,
+      onFileChange: async () => {
+        await new Promise((r) => setTimeout(r, 10));
+        order.push("callback-done");
+      },
+    });
+    const createFile = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    });
+    order.push("executor-returned");
+    expect(order).toEqual(["callback-done", "executor-returned"]);
   });
 });

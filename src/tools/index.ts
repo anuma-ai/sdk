@@ -153,6 +153,7 @@ export type {
   AppFileRecord,
   AppFileStorage,
   CreateAppGenerationToolsOptions,
+  FileChangeEvent,
   FileSnippet,
   PatchFailure,
   PatchFailureReason,

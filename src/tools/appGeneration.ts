@@ -639,6 +639,43 @@ export const DEFAULT_DESIGN_CRITIQUE_RUBRIC: readonly string[] = Object.freeze([
 // Tool factory
 // ---------------------------------------------------------------------------
 
+/**
+ * Event emitted after a successful file mutation. Hosts subscribe via
+ * the `onFileChange` option to {@link createAppGenerationTools} and
+ * attach versioning (isomorphic-git, sqlite-history, etc.), audit
+ * logs, analytics, or whatever else benefits from a per-mutation hook.
+ *
+ * Read operations (`read_file`, `list_files`) do not emit — they
+ * don't mutate state.
+ *
+ * Batch `create_file` calls fan out to one event per file, with each
+ * file getting `type: "created"` or `type: "modified"` depending on
+ * whether it existed before the write.
+ */
+export type FileChangeEvent =
+  | {
+      type: "created";
+      conversationId: string;
+      path: string;
+      content: string;
+      tool: "create_file";
+    }
+  | {
+      type: "modified";
+      conversationId: string;
+      path: string;
+      before: string;
+      after: string;
+      tool: "create_file" | "patch_file";
+    }
+  | {
+      type: "deleted";
+      conversationId: string;
+      path: string;
+      before: string;
+      tool: "delete_file";
+    };
+
 export interface CreateAppGenerationToolsOptions {
   /** Returns the current conversation ID (may be null before first message). */
   getConversationId: () => string | null;
@@ -659,6 +696,21 @@ export interface CreateAppGenerationToolsOptions {
    */
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   displayApp?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
+  /**
+   * Optional host callback fired after every successful file mutation
+   * (`create_file`, `patch_file`, `delete_file`). See
+   * {@link FileChangeEvent} for the event shape.
+   *
+   * Use this to attach versioning, audit logs, or analytics from the
+   * host side without wrapping the storage adapter. The callback is
+   * `await`ed but a thrown error is logged and swallowed — a host
+   * subsystem failure should not fail the underlying tool.
+   *
+   * Read tools (`read_file`, `list_files`) and failed mutations
+   * (validation errors, patch ambiguity, syntax errors) do not emit.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
+  onFileChange?: (event: FileChangeEvent) => Promise<void> | void;
   /**
    * Override the open-ended rubric returned by `critique_design`. Each
    * string is a question the model is expected to answer in its next
@@ -722,12 +774,28 @@ export function createAppGenerationTools({
   storage,
   logError = (msg, err) => console.error(msg, err),
   displayApp,
+  onFileChange,
   designCritiqueRubric = DEFAULT_DESIGN_CRITIQUE_RUBRIC,
 }: CreateAppGenerationToolsOptions): ToolConfig[] {
   function requireConversationId(): string {
     const id = getConversationId();
     if (!id) throw new Error("No active conversation");
     return id;
+  }
+
+  /**
+   * Invoke the host's `onFileChange` callback. Mirrors `triggerAppDisplay`
+   * in its error handling: the callback is awaited but a thrown error
+   * is logged and swallowed so a failing host hook never causes the
+   * tool to look broken to the model.
+   */
+  async function emitFileChange(event: FileChangeEvent): Promise<void> {
+    if (!onFileChange) return;
+    try {
+      await onFileChange(event);
+    } catch (err) {
+      logError("onFileChange callback failed", err instanceof Error ? err : undefined);
+    }
   }
 
   // Per-conversation display state. Mirrors `deckStateByConv` in the
@@ -874,6 +942,35 @@ export function createAppGenerationTools({
         // patch_file or create_file calls against these paths can
         // proceed without requiring a separate read_file.
         for (const p of paths) markFileSeen(conversationId, p);
+        // Fan out one onFileChange event per file. Files that existed
+        // before this batch are reported as "modified" with before/after
+        // content; new ones as "created". `existsInStorage[i]` was
+        // captured above before any write so the `before` content is
+        // the actual pre-mutation state, not a re-read of what we just
+        // wrote.
+        for (let i = 0; i < filesArg.length; i++) {
+          const path = paths[i]!;
+          const after = filesArg[i]!.content;
+          const previous = existsInStorage[i];
+          if (previous === null) {
+            await emitFileChange({
+              type: "created",
+              conversationId,
+              path,
+              content: after,
+              tool: "create_file",
+            });
+          } else {
+            await emitFileChange({
+              type: "modified",
+              conversationId,
+              path,
+              before: previous.content,
+              after,
+              tool: "create_file",
+            });
+          }
+        }
         const display = await triggerAppDisplay(conversationId);
         return { success: true, paths, ...display };
       } catch (err) {
@@ -1015,6 +1112,14 @@ export function createAppGenerationTools({
 
         await storage.putFile(conversationId, filePath, content);
         clearPatchFailure(conversationId, filePath);
+        await emitFileChange({
+          type: "modified",
+          conversationId,
+          path: filePath,
+          before: existing.content,
+          after: content,
+          tool: "patch_file",
+        });
         const display = await triggerAppDisplay(conversationId);
         return { success: true, path: filePath, applied: appliedCount, ...display };
       } catch (err) {
@@ -1037,11 +1142,25 @@ export function createAppGenerationTools({
         if (!rawPath || typeof rawPath !== "string") return { error: "path is required" };
         const path = normalizePath(rawPath);
 
+        // Capture the pre-delete content so onFileChange subscribers
+        // (versioning, audit log, rollback) get the actual bytes that
+        // were removed. Skip the fetch when no callback is wired —
+        // saves a storage round-trip in the common case.
+        const previous = onFileChange ? await storage.getFile(conversationId, path) : null;
         await storage.deleteFile(conversationId, path);
         // File no longer exists — clear "seen" state so a future
         // create_file for the same path is treated as a new file
         // (no Read-before-Write requirement on a fresh creation).
         forgetFileSeen(conversationId, path);
+        if (previous !== null) {
+          await emitFileChange({
+            type: "deleted",
+            conversationId,
+            path,
+            before: previous.content,
+            tool: "delete_file",
+          });
+        }
         const display = await triggerAppDisplay(conversationId);
         return { success: true, path, ...display };
       } catch (err) {
