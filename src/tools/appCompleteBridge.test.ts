@@ -90,6 +90,45 @@ describe("createAppCompleteBridge", () => {
     bridge.dispose();
   });
 
+  it("drops messages whose origin is not in allowedOrigins", async () => {
+    // happy-dom uses the document's origin for window.postMessage
+    // events. Pass an allowlist that excludes it; the bridge should
+    // refuse to call complete() even though the message shape is valid.
+    const complete = vi.fn(async (p: string) => p);
+    const bridge = createAppCompleteBridge({
+      complete,
+      allowedOrigins: ["https://only-this-origin.example"],
+    });
+
+    window.postMessage({ type: APP_COMPLETE_REQUEST_TYPE, id: "ok-shape", prompt: "p" }, "*");
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(complete).not.toHaveBeenCalled();
+    bridge.dispose();
+  });
+
+  it("accepts messages whose origin matches allowedOrigins", async () => {
+    // Sanity check: the allowlist isn't dropping everything — when the
+    // current origin is in it, the request still goes through.
+    const complete = vi.fn(async (p: string) => `ok:${p}`);
+    const bridge = createAppCompleteBridge({
+      complete,
+      allowedOrigins: [window.location.origin],
+    });
+
+    const reply = new Promise<MessageEvent>((resolve) => {
+      window.addEventListener("message", (e: MessageEvent) => {
+        if ((e.data as { type?: string })?.type === APP_COMPLETE_RESPONSE_TYPE) {
+          resolve(e);
+        }
+      });
+    });
+    window.postMessage({ type: APP_COMPLETE_REQUEST_TYPE, id: "allow", prompt: "x" }, "*");
+    const event = await reply;
+    expect(event.data).toMatchObject({ result: "ok:x" });
+    bridge.dispose();
+  });
+
   it("dispose stops further responses", async () => {
     const complete = vi.fn(async (p: string) => p);
     const bridge = createAppCompleteBridge({ complete });

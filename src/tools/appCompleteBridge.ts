@@ -70,6 +70,14 @@ export interface AppCompleteBridgeOptions {
    *  other window are ignored. Useful when the parent embeds multiple
    *  iframes and wants to route them differently. */
   source?: Window;
+  /** Restrict accepted `event.origin` values. When set, requests from
+   *  any other origin are silently dropped — so a cross-origin script
+   *  that gains a window handle can't trigger arbitrary `complete()`
+   *  calls and burn quota. Recommended in production. Defaults to
+   *  unconstrained (accept all origins), which is convenient for local
+   *  dev and srcdoc iframes (origin: "null") but should not be relied
+   *  on under any untrusted-origin threat model. */
+  allowedOrigins?: readonly string[];
 }
 
 export interface AppCompleteBridge {
@@ -83,10 +91,12 @@ export interface AppCompleteBridge {
  * `dispose()` removes the listener.
  */
 export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppCompleteBridge {
-  const { complete, targetOrigin = "*", source } = options;
+  const { complete, targetOrigin = "*", source, allowedOrigins } = options;
+  const allowSet = allowedOrigins ? new Set(allowedOrigins) : null;
 
   const handler = async (event: MessageEvent): Promise<void> => {
     if (source && event.source !== source) return;
+    if (allowSet && !allowSet.has(event.origin)) return;
     const data = event.data as
       | { type?: unknown; id?: unknown; prompt?: unknown }
       | null
