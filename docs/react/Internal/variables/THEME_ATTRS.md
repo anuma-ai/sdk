@@ -2,4 +2,4 @@
 
 > `const` **THEME\_ATTRS**: readonly \[`"background"`, `"slideBg"`, `"surfaceSecondary"`, `"textPrimary"`, `"textSecondary"`, `"textMuted"`, `"accent"`, `"card"`, `"border"`]
 
-Defined in: [src/tools/slides/index.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/index.ts#102)
+Defined in: [src/tools/slides/index.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/index.ts#111)

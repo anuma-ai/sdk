@@ -173,6 +173,7 @@ export type {
   AnumaChild,
   AnumaNode,
   AttrValue,
+  BuildSlideSystemPromptOptions,
   CreateSlideToolsOptions,
   FontCategory,
   FontPreset,

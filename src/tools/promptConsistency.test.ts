@@ -37,6 +37,7 @@ import {
 const KNOWN_NON_TOOL_WORDS = new Set<string>([
   // `patch_slides` operation `action` values — they share the
   // verb_noun shape with tool names but are arguments, not tools.
+  "update_element",
   "replace_element",
   "insert_element",
   "remove_element",
@@ -130,6 +131,18 @@ describe("tool prompt/schema consistency", () => {
 
   it("slide system prompt only references registered tools", () => {
     assertNoUnknownReferences("buildSlideSystemPrompt()", buildSlideSystemPrompt());
+  });
+
+  it("slide system prompt disambiguates palette names from design-system suffixes", () => {
+    // An earlier run produced plan_deck calls like "cover-statement--humanist-cream"
+    // because the "humanist cream" palette name read as a plausible system
+    // suffix. The disambiguation sentence in the LAYOUT CATALOG block is the
+    // sole guardrail against that collision — if a future trim removes it,
+    // the failure mode comes back.
+    const prompt = buildSlideSystemPrompt();
+    expect(prompt).toMatch(/Palette names .*\bnot a system\b/i);
+    expect(prompt).toMatch(/humanist cream/);
+    expect(prompt).toMatch(/paletteName/);
   });
 
   // ---------------------------------------------------------------------------

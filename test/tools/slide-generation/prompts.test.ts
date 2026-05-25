@@ -66,7 +66,11 @@ function makeMessages(userText: string): Message[] {
 describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
   const slug = modelSlug(model);
 
-  it("home gardening fundamentals (no images)", async () => {
+  // 10+ slides via plan_deck + 10 add_slide calls easily overruns
+  // the suite default (300_000ms) when the upstream LLM is slow —
+  // observed in one e2e run hitting the cutoff mid-generation. Match
+  // the heavier composition-layouts tests' 600s budget.
+  it("home gardening fundamentals (no images)", { timeout: 600_000 }, async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));

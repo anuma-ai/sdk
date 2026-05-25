@@ -111,11 +111,19 @@ function positionStyle(node: AnumaNode, parentIsFlex: boolean): string {
     const h = typeof node.attrs.h === "number" ? `height:${node.attrs.h}px;` : "";
     const grow = typeof node.attrs.grow === "number" ? `flex-grow:${node.attrs.grow};` : "";
     const shrink = typeof node.attrs.shrink === "number" ? `flex-shrink:${node.attrs.shrink};` : "";
+    // flex-basis: when grow is set without an explicit width, default basis
+    // to 0 so siblings distribute their parent's main-axis evenly regardless
+    // of content size. Without this, longer content claims more space and a
+    // 2-card row with unequal copy renders with unequal card widths.
+    const basis =
+      typeof node.attrs.grow === "number" && typeof node.attrs.w !== "number"
+        ? `flex-basis:0;`
+        : "";
     const alignSelf =
       typeof node.attrs.alignSelf === "string"
         ? `align-self:${mapAlign(node.attrs.alignSelf)};`
         : "";
-    return `position:relative;${w}${h}${grow}${shrink}${alignSelf}`;
+    return `position:relative;${w}${h}${grow}${shrink}${basis}${alignSelf}`;
   }
   const x = typeof node.attrs.x === "number" ? node.attrs.x : 0;
   const y = typeof node.attrs.y === "number" ? node.attrs.y : 0;
@@ -149,8 +157,33 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
         typeof style.fontFamily === "string"
           ? `font-family:'${style.fontFamily}',system-ui,sans-serif;`
           : "";
-      const body = node.children.filter((c): c is string => typeof c === "string").join("");
-      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${letterSpacing}${family}">${esc(body)}</div>`;
+      // Walk children: strings render as plain text, Anuma.Span children
+      // render as inline <span> with their own style overrides. Spans
+      // flow naturally within the parent text div — no separate boxes,
+      // no overflow:hidden clipping per span, no per-glyph alignment math.
+      const inner = node.children
+        .map((c) => {
+          if (typeof c === "string") return esc(c);
+          if (c.tag === "Span") {
+            const sStyle = styleObject(c);
+            const parts: string[] = [];
+            if (typeof sStyle.color === "string") parts.push(`color:${resolve(sStyle.color)}`);
+            if (sStyle.fontStyle === "italic") parts.push("font-style:italic");
+            if (typeof sStyle.fontWeight === "number")
+              parts.push(`font-weight:${sStyle.fontWeight}`);
+            if (typeof sStyle.fontFamily === "string")
+              parts.push(`font-family:'${sStyle.fontFamily}',system-ui,sans-serif`);
+            if (typeof sStyle.letterSpacing === "number")
+              parts.push(`letter-spacing:${sStyle.letterSpacing}em`);
+            const spanText = c.children
+              .filter((cc): cc is string => typeof cc === "string")
+              .join("");
+            return `<span style="${parts.join(";")}">${esc(spanText)}</span>`;
+          }
+          return "";
+        })
+        .join("");
+      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${letterSpacing}${family}">${inner}</div>`;
     }
     case "Rect": {
       const fill = node.attrs.fill ? resolve(node.attrs.fill) : "transparent";
@@ -200,11 +233,20 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
     case "Group": {
       const containerStyle = buildContainerStyle(node);
       const myIsFlex = isFlexContainer(node);
+      // Group acts as a flex container OR a styled box. Fill + cornerRadius
+      // let it double as a card surface so a flex-region item-group can
+      // paint its own background — needed for MARKETING_GRID-style card
+      // grids where each flex item IS the card.
+      const fill = node.attrs.fill ? `background:${resolve(node.attrs.fill)};` : "";
+      const radius =
+        typeof node.attrs.cornerRadius === "number"
+          ? `border-radius:${node.attrs.cornerRadius}px;`
+          : "";
       const kids = node.children
         .filter((c): c is AnumaNode => typeof c !== "string")
         .map((c) => renderNode(c, colors, myIsFlex))
         .join("\n");
-      return `<div style="${base}${containerStyle}">${kids}</div>`;
+      return `<div style="${base}${containerStyle}${fill}${radius}">${kids}</div>`;
     }
     default:
       if (isAnumaTag(node.tag)) return "";
@@ -330,13 +372,27 @@ const NEEDS_PX = new Set([
   "columnGap",
 ]);
 
+export interface RenderDeckOptions {
+  /**
+   * Suppress the default nav UI (prev/next buttons, counter, keydown
+   * handlers). The caller is then responsible for emitting its own nav
+   * markup + script — useful when the deck needs extra controls like a
+   * design-system filter, but the default nav's hard-coded `slides`
+   * NodeList would conflict with a filtered view.
+   */
+  skipNav?: boolean;
+}
+
 /** Render an Anuma deck to a self-contained HTML page with arrow-key navigation. */
-export function renderDeckToHtml(deck: AnumaNode, title?: string): string {
+export function renderDeckToHtml(
+  deck: AnumaNode,
+  title?: string,
+  options: RenderDeckOptions = {}
+): string {
   const colors = themeColors(deck);
   const bg = colors.background ?? "#000";
   const slideBg = colors.slideBg ?? "#111";
   const textPrimary = colors.textPrimary ?? "#fff";
-  const textMuted = colors.textMuted ?? "#999";
 
   const fontPreset = typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
   const preset = FONT_PRESETS[fontPreset] ?? FONT_PRESETS.default!;
@@ -361,7 +417,9 @@ export function renderDeckToHtml(deck: AnumaNode, title?: string): string {
         .filter((c): c is AnumaNode => typeof c !== "string")
         .map((c) => renderNode(c, colors, myIsFlex))
         .join("\n");
-      return `<div class="slide" data-index="${i}" style="${slideBgOverride}${containerStyle}">${kids}</div>`;
+      const slideId = typeof slide.attrs.id === "string" ? slide.attrs.id : "";
+      const idAttr = slideId ? ` data-slide-id="${esc(slideId)}"` : "";
+      return `<div class="slide" data-index="${i}"${idAttr} style="${slideBgOverride}${containerStyle}">${kids}</div>`;
     })
     .join("\n");
 
@@ -386,19 +444,66 @@ h1,h2,h3,h4{font-family:'${preset.heading}',system-ui,sans-serif}
 .slide.exit{opacity:0;transform:translateX(-40px) scale(var(--scale,1))}
 .nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;
   background:rgba(0,0,0,.55);backdrop-filter:blur(12px);padding:8px 16px;border-radius:999px;z-index:10}
-.nav button{background:none;border:none;color:${textPrimary};font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
+.nav button{background:none;border:none;color:#ffffff;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
 .nav button:hover{background:rgba(255,255,255,.12)}
 .nav button:disabled{opacity:.3;cursor:default}
 .nav button:disabled:hover{background:none}
-.nav .counter{font-size:13px;color:${textMuted};min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
+.nav .counter{font-size:13px;color:rgba(255,255,255,.7);min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
 img{display:block}
+
+/* Print: each slide → its own page, native 960×540 canvas, no chrome.
+   Use Cmd/Ctrl+P with margins=none and background-graphics=on (browser
+   defaults vary). The slide canvas is exactly the page size (10in × 5.625in
+   = 960×540 at 96dpi), so backgrounds and edge-anchored elements hit the
+   page edges as intended. */
+@page { size: 10in 5.625in; margin: 0 }
+@media print {
+  html, body { width: auto; height: auto; overflow: visible; background: ${slideBg} }
+  .viewport { position: static; width: auto; height: auto; display: block }
+  /* Force every state of .slide (incl. .active / .exit) back to native
+     size with no transform. Without !important the preview's --scale-driven
+     transform on .slide.active (set by fitScale() to match the browser
+     window) wins and the printed slide gets scaled to your screen size,
+     overflowing the page. Same for the slide.exit / pre-active states. */
+  .slide,
+  .slide.active,
+  .slide.exit {
+    position: relative !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    width: ${SLIDE_CANVAS_WIDTH}px !important;
+    height: ${SLIDE_CANVAS_HEIGHT}px !important;
+    break-after: page;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto }
+  .nav, #system-filter { display: none !important }
+}
 </style>
 </head>
 <body>
 <div class="viewport">
 ${slidesHtml}
 </div>
-<div class="nav">
+${
+  options.skipNav
+    ? `<script>
+(function(){
+  // Caller will provide its own nav; we still need fit-to-viewport sizing.
+  var W=${SLIDE_CANVAS_WIDTH},H=${SLIDE_CANVAS_HEIGHT};
+  function fitScale(){
+    var vw=window.innerWidth,vh=window.innerHeight;
+    var scale=Math.min(vw/W,vh/H);
+    document.documentElement.style.setProperty('--scale',scale);
+  }
+  fitScale();
+  window.addEventListener('resize',fitScale);
+})();
+</script>`
+    : `<div class="nav">
   <button id="prev" aria-label="Previous">←</button>
   <span class="counter" id="counter">1 / ${slides.length}</span>
   <button id="next" aria-label="Next">→</button>
@@ -435,7 +540,8 @@ ${slidesHtml}
   fitScale();
   window.addEventListener('resize',fitScale);
 })();
-</script>
+</script>`
+}
 </body>
 </html>`;
 }

@@ -90,6 +90,113 @@ function wrapSseError(error: unknown): Error {
 }
 
 /**
+ * Defaults for transport-level retry on a single streaming round. We
+ * retry ONLY when the failure happens before any chunk has been
+ * processed downstream — once data has reached the smoothers /
+ * accumulator / user callbacks, re-running the request would risk
+ * duplicated or contradictory output (the upstream LLM is stochastic;
+ * a retry would emit different content). Backoff is exponential-ish
+ * with a small cap so a real outage doesn't hang the loop for half an
+ * hour.
+ *
+ * Two schedules: rate-limited (429) gets longer backoffs because the
+ * server is telling us to slow down — retrying in 500ms three times
+ * burns round-trips and almost always fails again. We can't read the
+ * actual Retry-After header (the SSE client lives in a generated file
+ * that throws a stringified error), but a 5/15/30s schedule is a sane
+ * default for a portal that occasionally rate-limits. Transient
+ * transport failures (5xx, terminated, ECONNRESET) stay on the fast
+ * schedule so a momentary blip doesn't add seconds of latency.
+ */
+const STREAM_RETRY_MAX_ATTEMPTS = 3;
+const STREAM_RETRY_BACKOFF_MS: readonly number[] = [500, 2000, 5000];
+const RATE_LIMIT_RETRY_BACKOFF_MS: readonly number[] = [5000, 15000, 30000];
+
+/**
+ * Pick a backoff for `attempt` (0-based) based on the error's
+ * rate-limit classification. 429 errors get the longer schedule; all
+ * other retriable errors get the fast schedule.
+ */
+function backoffForRetry(attempt: number, err: unknown): number {
+  const schedule = isRateLimitedStreamError(err)
+    ? RATE_LIMIT_RETRY_BACKOFF_MS
+    : STREAM_RETRY_BACKOFF_MS;
+  return schedule[attempt] ?? schedule[schedule.length - 1] ?? 1000;
+}
+
+/** True iff `err` represents a 429 Too Many Requests response. */
+function isRateLimitedStreamError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err instanceof SseError) return err.statusCode === 429;
+  const msg = (err.message ?? "").toLowerCase();
+  const m = msg.match(/sse failed: (\d+)/);
+  return m ? Number(m[1]) === 429 : false;
+}
+
+/**
+ * Sleep for `ms` milliseconds; resolves immediately when the signal is
+ * aborted so backoff doesn't hold up a cancellation.
+ */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) return resolve();
+    const onAbort = () => {
+      clearTimeout(t);
+      resolve();
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * Predicate for "this streaming-round error is worth retrying."
+ *
+ * Conservative: includes 5xx/408/429 HTTP errors, undici's `terminated`
+ * (TCP reset / unexpected close), and Node-level network failures
+ * (ECONNRESET, ETIMEDOUT, "connect error"). Excludes abort errors
+ * (user cancelled), 4xx other than 408/429 (validation / auth — retry
+ * won't help), and ProviderStreamError (an in-band model timeout — the
+ * same prompt would likely time out the same way on a retry, so we
+ * surface the real cause instead of burning round-trips).
+ */
+function isRetriableStreamError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (isAbortError(err)) return false;
+
+  // ProviderStreamError is NOT retried: it represents an in-band error
+  // chunk emitted by the upstream provider (e.g. "the model timed out
+  // generating a response"). The same prompt is likely to time out the
+  // same way on a retry — better to surface the real cause immediately
+  // so the caller knows the failure is at the model level, not the
+  // transport. Without this explicit guard, a provider that emits
+  // `{error: "terminated"}` would build a ProviderStreamError whose
+  // message matches the undici-`terminated` heuristic below and get
+  // retried anyway.
+  if (err instanceof ProviderStreamError) return false;
+
+  if (err instanceof SseError) {
+    const s = err.statusCode;
+    return s === 408 || s === 429 || (s >= 500 && s < 600);
+  }
+
+  const msg = (err.message ?? "").toLowerCase();
+  if (msg === "terminated") return true;
+  if (msg.includes("econnreset") || msg.includes("etimedout")) return true;
+  if (msg.includes("connection refused") || msg.includes("connect error")) return true;
+  // Plain-string "SSE failed: 5xx ..." that escaped SseError wrapping
+  const match = msg.match(/sse failed: (\d+)/);
+  if (match) {
+    const code = Number(match[1]);
+    return code === 408 || code === 429 || (code >= 500 && code < 600);
+  }
+  return false;
+}
+
+/**
  * Error thrown when an upstream provider emits an in-stream error event.
  * Carries the provider's code (e.g. `"timeout"`) so callers can match
  * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
@@ -161,6 +268,29 @@ import {
 
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
+const REQUEST_PROBE_ENCODER = new TextEncoder();
+
+function measureRequest(
+  round: number,
+  attempt: number,
+  body: Record<string, unknown>,
+  messages: LlmapiMessage[],
+  tools: LlmapiChatCompletionTool[] | undefined
+): RequestEvent {
+  const bodyBytes = REQUEST_PROBE_ENCODER.encode(JSON.stringify(body)).length;
+  const messagesBytes = REQUEST_PROBE_ENCODER.encode(JSON.stringify(messages)).length;
+  const toolsBytes = tools?.length ? REQUEST_PROBE_ENCODER.encode(JSON.stringify(tools)).length : 0;
+  return {
+    round,
+    attempt,
+    messageCount: messages.length,
+    toolCount: tools?.length ?? 0,
+    bodyBytes,
+    messagesBytes,
+    toolsBytes,
+  };
+}
+
 /** Extract the text of the most recent user message. Empty string if none. */
 function extractLastUserText(messages: LlmapiMessage[]): string {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
@@ -200,6 +330,43 @@ function getToolName(tool: Record<string, unknown>): string | undefined {
 export type AutoExecutedToolResult = {
   name: string;
   result: unknown;
+};
+
+/**
+ * Information emitted immediately before each LLM request is dispatched.
+ *
+ * Useful for measuring tool-loop cost: how many round-trips a flow takes,
+ * how much of the request body is the (often-redundant) tool catalog, and
+ * how the message history grows across continuation rounds. Emitting is
+ * gated on the caller providing `onRequest`, so the serialization cost is
+ * opt-in.
+ */
+export type RequestEvent = {
+  /**
+   * 0 for the initial request; 1+ for each continuation request following a
+   * tool round. NOT unique across calls when transport-level retries fire —
+   * each retry attempt reuses the same `round` value. Pair with `attempt`
+   * to deduplicate: `attempt === 0` is the first dispatch of a round,
+   * `attempt > 0` is a retry.
+   */
+  round: number;
+  /**
+   * 0 for the first dispatch of a `round`; 1+ for each transport-level
+   * retry of the same round (see `onStreamRetry`). Use this to deduplicate
+   * `onRequest` events for per-round cost accounting — counting only
+   * `attempt === 0` gives one event per logical round.
+   */
+  attempt: number;
+  /** Number of messages in the request body. */
+  messageCount: number;
+  /** Number of tool schemas in the request body. */
+  toolCount: number;
+  /** UTF-8 byte length of the full serialized request body. */
+  bodyBytes: number;
+  /** UTF-8 byte length of the serialized messages array. */
+  messagesBytes: number;
+  /** UTF-8 byte length of the serialized tools array (0 when no tools). */
+  toolsBytes: number;
 };
 
 /** Information emitted after each tool execution round completes. */
@@ -283,10 +450,37 @@ export type RunToolLoopOptions = {
    */
   onStepFinish?: (event: StepFinishEvent) => void;
   /**
+   * Called immediately before each LLM request is dispatched, with payload
+   * size metrics. Round 0 is the initial request; round 1+ are continuation
+   * requests after a tool round. Transport-level retries (see
+   * `onStreamRetry`) fire `onRequest` again with the same `round` value —
+   * use `event.attempt` to distinguish the first dispatch (0) from retries
+   * (1+). Enabling this incurs an extra JSON.stringify pass over the
+   * request body.
+   */
+  onRequest?: (event: RequestEvent) => void;
+  /**
    * Called with partial tool call arguments as they stream in.
    * Use for live preview of artifacts (HTML, slides) being generated.
    */
   onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
+  /**
+   * Called when the streaming transport hits a transient pre-content
+   * failure and the toolLoop schedules a retry. Surfaces the round
+   * (`"initial"` or the 1-based continuation index), attempt counter,
+   * remaining cap, the underlying error, and the backoff delay so
+   * callers can log / surface UI / report metrics. Not invoked for
+   * mid-content failures (where retry is unsafe) or for the final
+   * attempt that surfaces as `result.error`. When omitted, retries
+   * fire silently.
+   */
+  onStreamRetry?: (event: {
+    round: "initial" | number;
+    attempt: number;
+    maxAttempts: number;
+    backoffMs: number;
+    error: Error;
+  }) => void;
   /**
    * Custom streaming transport. Defaults to a fetch-based SSE client.
    * React Native environments can supply an XHR-based transport since
@@ -479,6 +673,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onServerToolCall,
     onToolCallArgumentsDelta,
     onStepFinish,
+    onRequest,
+    onStreamRetry,
     transport: makeStreamingRequest = defaultTransport,
     preProcessors,
     maxConnectorCalls = 2,
@@ -615,6 +811,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       conversationId,
     });
 
+    // Populated by the retry loop below; declared out here so the rest
+    // of the function (post-stream tool execution etc.) can reach them.
+    let accumulator!: ReturnType<typeof createStreamAccumulator>;
+    let contentSmoother!: StreamSmoother;
+    let thinkingSmoother!: StreamSmoother;
+
     await safeAwait(() =>
       hooks?.beforeModelCall?.({
         runId,
@@ -626,21 +828,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       })
     );
 
-    const sseResult = makeStreamingRequest({
-      baseUrl,
-      endpoint: strategy.endpoint,
-      body: requestBody,
-      token,
-      headers,
-      signal,
-      onSseError: (error) => {
-        sseError = wrapSseError(error);
-      },
-    });
-
-    const accumulator = createStreamAccumulator(model || undefined);
     // afterModelCall must pair with each beforeModelCall — fire exactly once
     // per LLM round, on success/abort/error. Tracked here to keep exits symmetric.
+    // Transport-level retries are hidden from these hooks; observers can use
+    // `onStreamRetry` if they want per-attempt visibility.
     let afterModelCallFired = false;
     const fireAfterModelCall = async (payload: Omit<ModelCallEndEvent, "runId" | "stepIndex">) => {
       if (afterModelCallFired) return;
@@ -690,25 +881,102 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     };
 
-    const contentSmoother = new StreamSmoother((text) => {
-      if (onData) onData(text);
-    }, smoothing);
-    const thinkingSmoother = new StreamSmoother((text) => {
-      if (onThinking) onThinking(text);
-    }, smoothing);
+    // Transport-level retry: only fires when the failure happens before
+    // any chunk reached the smoothers / accumulator. Once user-visible
+    // output has started, a retry would risk duplicate or contradictory
+    // content (the LLM is stochastic), so we bail instead.
+    for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
+      sseError = null;
+      if (onRequest) onRequest(measureRequest(0, attempt, requestBody, messages, apiTools));
 
-    try {
-      for await (const chunk of sseResult.stream) {
-        // Detect mid-stream aborts here rather than after the loop. Once
-        // `xhr.onload` (or fetch's equivalent) has run, the connection
-        // closed cleanly and every byte was parsed; a late `signal.abort()`
-        // from caller cleanup must not retroactively mark a completed
-        // response as aborted.
-        if (signal?.aborted) {
-          contentSmoother.destroy();
-          thinkingSmoother.destroy();
+      const sseResult = makeStreamingRequest({
+        baseUrl,
+        endpoint: strategy.endpoint,
+        body: requestBody,
+        token,
+        headers,
+        signal,
+        onSseError: (error) => {
+          sseError = wrapSseError(error);
+        },
+      });
+
+      accumulator = createStreamAccumulator(model || undefined);
+      contentSmoother = new StreamSmoother((text) => {
+        if (onData) onData(text);
+      }, smoothing);
+      thinkingSmoother = new StreamSmoother((text) => {
+        if (onThinking) onThinking(text);
+      }, smoothing);
+
+      let chunksEmittedDownstream = false;
+      try {
+        for await (const chunk of sseResult.stream) {
+          // Detect mid-stream aborts here rather than after the loop. Once
+          // `xhr.onload` (or fetch's equivalent) has run, the connection
+          // closed cleanly and every byte was parsed; a late `signal.abort()`
+          // from caller cleanup must not retroactively mark a completed
+          // response as aborted.
+          if (signal?.aborted) {
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
+            await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
+            await fireRunError({ error: "Request aborted", stage: "model" });
+            return {
+              data: strategy.buildFinalResponse(accumulator),
+              error: "Request aborted",
+              toolsChecksum: accumulator.toolsChecksum,
+            };
+          }
+
+          if (isDoneMarker(chunk)) continue;
+
+          const providerError = extractProviderStreamError(chunk);
+          if (providerError) {
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
+            throw providerError;
+          }
+
+          if (chunk && typeof chunk === "object") {
+            const {
+              content: contentDelta,
+              thinking: thinkingDelta,
+              serverToolCall,
+              toolCallArgumentsDelta,
+            } = strategy.processStreamChunk(chunk, accumulator);
+            if (contentDelta) {
+              chunksEmittedDownstream = true;
+              contentSmoother.push(contentDelta);
+            }
+            if (thinkingDelta) {
+              chunksEmittedDownstream = true;
+              thinkingSmoother.push(thinkingDelta);
+            }
+            if (serverToolCall) {
+              chunksEmittedDownstream = true;
+              if (onServerToolCall) onServerToolCall(serverToolCall);
+            }
+            if (toolCallArgumentsDelta) {
+              chunksEmittedDownstream = true;
+              if (onToolCallArgumentsDelta) onToolCallArgumentsDelta(toolCallArgumentsDelta);
+            }
+          }
+        }
+        // An sseError set via the onSseError callback (but never thrown
+        // by the iterator itself) still represents a transport-level
+        // failure — fold it into the retry path.
+        if (sseError !== null) throw sseError as Error;
+        // Success.
+        break;
+      } catch (streamErr) {
+        contentSmoother.destroy();
+        thinkingSmoother.destroy();
+
+        if (isAbortError(streamErr) || signal?.aborted) {
           await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
-          await fireRunError({ error: "Request aborted", stage: "model" });
+          const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
+          await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
           return {
             data: strategy.buildFinalResponse(accumulator),
             error: "Request aborted",
@@ -716,55 +984,26 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           };
         }
 
-        if (isDoneMarker(chunk)) continue;
-
-        const providerError = extractProviderStreamError(chunk);
-        if (providerError) {
-          contentSmoother.destroy();
-          thinkingSmoother.destroy();
-          throw providerError;
+        const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
+        if (!chunksEmittedDownstream && !lastAttempt && isRetriableStreamError(streamErr)) {
+          const backoff = backoffForRetry(attempt, streamErr);
+          if (onStreamRetry) {
+            const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
+            onStreamRetry({
+              round: "initial",
+              attempt: attempt + 1,
+              maxAttempts: STREAM_RETRY_MAX_ATTEMPTS,
+              backoffMs: backoff,
+              error: err,
+            });
+          }
+          await sleep(backoff, signal);
+          continue;
         }
-
-        if (chunk && typeof chunk === "object") {
-          const {
-            content: contentDelta,
-            thinking: thinkingDelta,
-            serverToolCall,
-            toolCallArgumentsDelta,
-          } = strategy.processStreamChunk(chunk, accumulator);
-          if (contentDelta) contentSmoother.push(contentDelta);
-          if (thinkingDelta) thinkingSmoother.push(thinkingDelta);
-          if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
-          if (toolCallArgumentsDelta && onToolCallArgumentsDelta)
-            onToolCallArgumentsDelta(toolCallArgumentsDelta);
-        }
+        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: msg }));
+        throw streamErr;
       }
-    } catch (streamErr) {
-      if (isAbortError(streamErr) || signal?.aborted) {
-        contentSmoother.destroy();
-        thinkingSmoother.destroy();
-        await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
-        const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
-        await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
-        return {
-          data: strategy.buildFinalResponse(accumulator),
-          error: "Request aborted",
-          toolsChecksum: accumulator.toolsChecksum,
-        };
-      }
-      contentSmoother.destroy();
-      thinkingSmoother.destroy();
-      const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
-      await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: msg }));
-      throw streamErr;
-    }
-
-    if (sseError !== null) {
-      contentSmoother.destroy();
-      thinkingSmoother.destroy();
-      const err = sseError as Error;
-      await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: err.message }));
-      throw err;
     }
 
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
@@ -1181,6 +1420,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         conversationId,
       });
 
+      // Continuation rounds use the same transport-level retry as the
+      // initial request — same chunk-emission guard so we never replay
+      // a round once partial content has reached the user.
+      let contContentSmoother!: StreamSmoother;
+      let contThinkingSmoother!: StreamSmoother;
+
       stepIndex++;
       afterModelCallFired = false;
       await safeAwait(() =>
@@ -1194,40 +1439,106 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         } satisfies ModelCallStartEvent)
       );
 
-      const continuationResult = makeStreamingRequest({
-        baseUrl,
-        endpoint: strategy.endpoint,
-        body: continuationRequestBody,
-        token,
-        headers,
-        signal,
-        onSseError: (error) => {
-          sseError = wrapSseError(error);
-        },
-      });
+      for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
+        sseError = null;
+        if (onRequest)
+          onRequest(
+            measureRequest(
+              toolIteration,
+              attempt,
+              continuationRequestBody,
+              currentMessages,
+              apiTools
+            )
+          );
 
-      currentAccumulator = createStreamAccumulator(model || undefined);
+        const continuationResult = makeStreamingRequest({
+          baseUrl,
+          endpoint: strategy.endpoint,
+          body: continuationRequestBody,
+          token,
+          headers,
+          signal,
+          onSseError: (error) => {
+            sseError = wrapSseError(error);
+          },
+        });
 
-      const contContentSmoother = new StreamSmoother((text) => {
-        if (onData) onData(text);
-      }, smoothing);
-      const contThinkingSmoother = new StreamSmoother((text) => {
-        if (onThinking) onThinking(text);
-      }, smoothing);
+        currentAccumulator = createStreamAccumulator(model || undefined);
+        contContentSmoother = new StreamSmoother((text) => {
+          if (onData) onData(text);
+        }, smoothing);
+        contThinkingSmoother = new StreamSmoother((text) => {
+          if (onThinking) onThinking(text);
+        }, smoothing);
 
-      try {
-        for await (const chunk of continuationResult.stream) {
-          // See note in the initial stream loop above — the abort check
-          // belongs inside the for-await body, not after it, so a clean
-          // completion followed by a late cleanup-time abort isn't
-          // misreported as "Request aborted".
-          if (signal?.aborted) {
-            contContentSmoother.destroy();
-            contThinkingSmoother.destroy();
+        let chunksEmittedDownstream = false;
+        try {
+          for await (const chunk of continuationResult.stream) {
+            // See note in the initial stream loop above — the abort check
+            // belongs inside the for-await body, not after it, so a clean
+            // completion followed by a late cleanup-time abort isn't
+            // misreported as "Request aborted".
+            if (signal?.aborted) {
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
+              await fireAfterModelCall(
+                buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
+              );
+              await fireRunError({ error: "Request aborted", stage: "model" });
+              return {
+                data: strategy.buildFinalResponse(currentAccumulator),
+                error: "Request aborted",
+                toolsChecksum: currentAccumulator.toolsChecksum,
+              };
+            }
+
+            if (isDoneMarker(chunk)) continue;
+
+            const providerError = extractProviderStreamError(chunk);
+            if (providerError) {
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
+              throw providerError;
+            }
+
+            if (chunk && typeof chunk === "object") {
+              const {
+                content: contentDelta,
+                thinking: thinkingDelta,
+                serverToolCall,
+                toolCallArgumentsDelta: contToolCallArgsDelta,
+              } = strategy.processStreamChunk(chunk, currentAccumulator);
+              if (contentDelta) {
+                chunksEmittedDownstream = true;
+                contContentSmoother.push(contentDelta);
+              }
+              if (thinkingDelta) {
+                chunksEmittedDownstream = true;
+                contThinkingSmoother.push(thinkingDelta);
+              }
+              if (serverToolCall) {
+                chunksEmittedDownstream = true;
+                if (onServerToolCall) onServerToolCall(serverToolCall);
+              }
+              if (contToolCallArgsDelta) {
+                chunksEmittedDownstream = true;
+                if (onToolCallArgumentsDelta) onToolCallArgumentsDelta(contToolCallArgsDelta);
+              }
+            }
+          }
+          if (sseError !== null) throw sseError as Error;
+          break; // success
+        } catch (streamErr) {
+          contContentSmoother.destroy();
+          contThinkingSmoother.destroy();
+
+          if (isAbortError(streamErr) || signal?.aborted) {
             await fireAfterModelCall(
               buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
             );
-            await fireRunError({ error: "Request aborted", stage: "model" });
+            const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
+            await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
             return {
               data: strategy.buildFinalResponse(currentAccumulator),
               error: "Request aborted",
@@ -1235,59 +1546,26 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             };
           }
 
-          if (isDoneMarker(chunk)) continue;
-
-          const providerError = extractProviderStreamError(chunk);
-          if (providerError) {
-            contContentSmoother.destroy();
-            contThinkingSmoother.destroy();
-            throw providerError;
+          const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
+          if (!chunksEmittedDownstream && !lastAttempt && isRetriableStreamError(streamErr)) {
+            const backoff = backoffForRetry(attempt, streamErr);
+            if (onStreamRetry) {
+              const err = streamErr instanceof Error ? streamErr : new Error(String(streamErr));
+              onStreamRetry({
+                round: toolIteration,
+                attempt: attempt + 1,
+                maxAttempts: STREAM_RETRY_MAX_ATTEMPTS,
+                backoffMs: backoff,
+                error: err,
+              });
+            }
+            await sleep(backoff, signal);
+            continue;
           }
-
-          if (chunk && typeof chunk === "object") {
-            const {
-              content: contentDelta,
-              thinking: thinkingDelta,
-              serverToolCall,
-              toolCallArgumentsDelta: contToolCallArgsDelta,
-            } = strategy.processStreamChunk(chunk, currentAccumulator);
-            if (contentDelta) contContentSmoother.push(contentDelta);
-            if (thinkingDelta) contThinkingSmoother.push(thinkingDelta);
-            if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
-            if (contToolCallArgsDelta && onToolCallArgumentsDelta)
-              onToolCallArgumentsDelta(contToolCallArgsDelta);
-          }
+          const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+          await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator, { error: msg }));
+          throw streamErr;
         }
-      } catch (streamErr) {
-        if (isAbortError(streamErr) || signal?.aborted) {
-          contContentSmoother.destroy();
-          contThinkingSmoother.destroy();
-          await fireAfterModelCall(
-            buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
-          );
-          const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
-          await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
-          return {
-            data: strategy.buildFinalResponse(currentAccumulator),
-            error: "Request aborted",
-            toolsChecksum: currentAccumulator.toolsChecksum,
-          };
-        }
-        contContentSmoother.destroy();
-        contThinkingSmoother.destroy();
-        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
-        await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator, { error: msg }));
-        throw streamErr;
-      }
-
-      if (sseError !== null) {
-        contContentSmoother.destroy();
-        contThinkingSmoother.destroy();
-        const err = sseError as Error;
-        await fireAfterModelCall(
-          buildModelCallEndPayload(currentAccumulator, { error: err.message })
-        );
-        throw err;
       }
 
       await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);

@@ -25,6 +25,62 @@ export { config, extractText, printResult, wrapTool, type ToolCallLog } from "..
 export { runToolLoop };
 export type { StepFinishEvent };
 
+import { config as _config, requirePortalKey } from "../setup.js";
+
+// ---------------------------------------------------------------------------
+// Portal server-tool schemas (e.g. AnumaImageMCP-generate_cloud_image)
+// ---------------------------------------------------------------------------
+
+export type ServerToolSchema = {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+};
+
+let cachedServerTools: ServerToolSchema[] | null = null;
+
+/**
+ * Fetch MCP tool schemas from Portal's `/api/v1/tools` endpoint and return
+ * the ones matching the given names. Portal executes the tools server-side
+ * when the model calls them — there is no client-side executor, so these
+ * schemas have no `executor` field. Cached for the test session.
+ */
+export async function getServerToolSchemas(names: string[]): Promise<ServerToolSchema[]> {
+  if (cachedServerTools) {
+    const nameSet = new Set(names);
+    return cachedServerTools.filter((t) => nameSet.has(t.function.name));
+  }
+  const res = await fetch(`${_config.baseUrl}/api/v1/tools`, {
+    headers: { "X-API-Key": _config.portalKey },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch server tools: ${res.status}`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  // Handle both response shapes: { checksum, tools: {...} } or flat { toolName: {...} }
+  const toolsMap = ("tools" in raw && typeof raw.tools === "object" ? raw.tools : raw) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  cachedServerTools = Object.values(toolsMap).map((t) => {
+    const schema = (t.schema ?? t) as {
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    };
+    return {
+      type: "function" as const,
+      function: {
+        name: schema.name,
+        description: schema.description,
+        parameters: schema.parameters,
+      },
+    };
+  });
+  console.log(`  Fetched ${cachedServerTools.length} server tools from portal`);
+  const nameSet = new Set(names);
+  const matched = cachedServerTools.filter((t) => nameSet.has(t.function.name));
+  console.log(`  Matched ${matched.length} tool(s) for: ${names.join(", ")}`);
+  return matched;
+}
+
 /**
  * Wrapper that times the tool loop, captures per-round info via
  * `onStepFinish`, and logs the total duration. Returns the raw tool-loop
@@ -38,6 +94,10 @@ export async function timedToolLoop(
 ): Promise<
   Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number; rounds: StepFinishEvent[] }
 > {
+  // Fail fast if the e2e env wasn't provisioned — keeps the "missing
+  // key" surface in the test that needs it, instead of at module load
+  // (which would block unit-mode imports of this file).
+  requirePortalKey();
   const rounds: StepFinishEvent[] = [];
   const userOnStepFinish = options.onStepFinish;
   const start = performance.now();
@@ -153,12 +213,28 @@ const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
 /**
  * Write all files from the store to disk for inspection. If slides.jsx is
- * present and parses as a SlideDeck, also emits a self-contained `index.html`
- * you can open in a browser to visually step through the deck, and refreshes
- * the top-level .output/index.html that links to every dumped deck.
+ * present, parses as a SlideDeck, AND has at least one Slide child, also
+ * emits a self-contained `index.html` you can open in a browser to step
+ * through the deck, and refreshes the top-level `.output/index.html`
+ * with a link to it.
+ *
+ * Decks that fail to parse, or that parse but contain zero slides
+ * (common when a test errors mid-flow before any add_slide lands —
+ * e.g. an SSE 503 from the upstream LLM), get a `FAILED.txt` written
+ * with the reason and are skipped from the top-level index so they
+ * don't masquerade as passing dumps.
+ *
+ * Callers can also pass `meta.error` to mark a dump as failed even
+ * when slides are present — useful when a test made it through some
+ * add_slide calls before erroring.
  */
-export function dumpFiles(store: FileStore, testName: string): string {
-  const dir = path.join(OUTPUT_DIR, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
+export function dumpFiles(
+  store: FileStore,
+  testName: string,
+  meta?: { error?: string | null; outDir?: string }
+): string {
+  const baseDir = meta?.outDir ?? OUTPUT_DIR;
+  const dir = path.join(baseDir, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
   fs.mkdirSync(dir, { recursive: true });
   for (const [filePath, content] of store) {
     const fullPath = path.join(dir, filePath);
@@ -167,11 +243,37 @@ export function dumpFiles(store: FileStore, testName: string): string {
   }
 
   const deck = tryGetDeck(store);
-  if (deck) {
-    const html = renderDeckToHtml(deck, testName);
-    fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
-    writeOutputIndex();
+  const slideCount = deck
+    ? deck.children.filter((c) => typeof c !== "string" && c.tag === "Slide").length
+    : 0;
+  const failureReasons: string[] = [];
+  if (meta?.error) failureReasons.push(`Test reported an error: ${meta.error}`);
+  if (!deck) failureReasons.push("slides.jsx was missing or unparseable");
+  else if (slideCount === 0) failureReasons.push("Deck parsed but has zero <Anuma.Slide> children");
+
+  if (failureReasons.length > 0) {
+    fs.writeFileSync(
+      path.join(dir, "FAILED.txt"),
+      `Dump marked as failed by dumpFiles().\n\n${failureReasons.join("\n")}\n`,
+      "utf-8"
+    );
+    console.log(
+      `  Output written to ${path.relative(process.cwd(), dir)}/ (FAILED — skipped from index)`
+    );
+    return dir;
   }
+
+  // Happy path — render the deck preview and refresh the top-level index.
+  // Clear any stale FAILED.txt from a prior run that ended in the failure
+  // branch above. Without this, a fresh successful dump sits next to a
+  // leftover failure marker and reviewers can't tell whether this run
+  // passed or failed at a glance.
+  const stale = path.join(dir, "FAILED.txt");
+  if (fs.existsSync(stale)) fs.unlinkSync(stale);
+  const html = renderDeckToHtml(deck!, testName);
+  fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
+  // Only refresh the canonical .output/index.html, never a custom out dir.
+  if (baseDir === OUTPUT_DIR) writeOutputIndex();
 
   console.log(`  Output written to ${path.relative(process.cwd(), dir)}/`);
   return dir;

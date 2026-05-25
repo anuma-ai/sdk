@@ -1,6 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@5.85.0/schema.json",
   "project": ["src/**/*.ts", "src/**/*.tsx"],
+  "entry": [
+    "test/tools/slide-generation/dumpDesignSystem.ts",
+    "test/tools/slide-generation/dumpCatalog.ts"
+  ],
   "ignore": ["src/client/**"],
   "ignoreDependencies": [
     "@privy-io/react-auth",
