@@ -721,7 +721,27 @@ export interface CreateAppGenerationToolsOptions {
    * the model performs (e.g. brand-specific concerns).
    */
   designCritiqueRubric?: readonly string[];
+  /**
+   * Cap on the number of distinct conversations whose per-conversation
+   * state (read-before-write tracking, patch-failure tallies, display
+   * cache) is retained in memory. When a new conversation pushes the
+   * count over the cap, the oldest entry is evicted (FIFO by first
+   * touch).
+   *
+   * Defaults to {@link DEFAULT_MAX_CONVERSATIONS}. The factory is
+   * typically long-lived in a server process, so this prevents the
+   * maps from growing unboundedly as conversations churn. An evicted
+   * conversation that comes back will need to call `read_file` again
+   * before `patch_file` — same as a cold start.
+   *
+   * Set to a positive integer; non-positive values fall back to the
+   * default.
+   */
+  maxConversations?: number;
 }
+
+/** Default cap for {@link CreateAppGenerationToolsOptions.maxConversations}. */
+export const DEFAULT_MAX_CONVERSATIONS = 1_000;
 
 /** Validate and write a batch of files. Returns an error string or null on success. */
 async function writeBatch(
@@ -776,7 +796,32 @@ export function createAppGenerationTools({
   displayApp,
   onFileChange,
   designCritiqueRubric = DEFAULT_DESIGN_CRITIQUE_RUBRIC,
+  maxConversations,
 }: CreateAppGenerationToolsOptions): ToolConfig[] {
+  const convCap =
+    typeof maxConversations === "number" && maxConversations > 0
+      ? maxConversations
+      : DEFAULT_MAX_CONVERSATIONS;
+
+  /**
+   * Touch a per-conversation Map entry: refreshes its position to the
+   * tail of insertion order and evicts the oldest entries until the
+   * map size is within `convCap`. Insertion order on a JS Map is
+   * stable, so deleting + re-setting an existing key promotes it.
+   *
+   * Used for the maps below where `conversationId` is the outer key
+   * (`patchFailuresByConv`, `seenFilesByConv`, `appStateByConv`) so
+   * a long-running factory doesn't accumulate stale entries.
+   */
+  function touchConv<V>(map: Map<string, V>, conversationId: string, value: V): void {
+    if (map.has(conversationId)) map.delete(conversationId);
+    map.set(conversationId, value);
+    while (map.size > convCap) {
+      const oldest = map.keys().next().value;
+      if (oldest === undefined) break;
+      map.delete(oldest);
+    }
+  }
   function requireConversationId(): string {
     const id = getConversationId();
     if (!id) throw new Error("No active conversation");
@@ -819,7 +864,7 @@ export function createAppGenerationTools({
     let m = patchFailuresByConv.get(conversationId);
     if (!m) {
       m = new Map();
-      patchFailuresByConv.set(conversationId, m);
+      touchConv(patchFailuresByConv, conversationId, m);
     }
     const n = (m.get(path) ?? 0) + 1;
     m.set(path, n);
@@ -839,7 +884,7 @@ export function createAppGenerationTools({
     let s = seenFilesByConv.get(conversationId);
     if (!s) {
       s = new Set();
-      seenFilesByConv.set(conversationId, s);
+      touchConv(seenFilesByConv, conversationId, s);
     }
     s.add(path);
   }
@@ -878,7 +923,7 @@ export function createAppGenerationTools({
       const newId = typeof r.interaction_id === "string" ? r.interaction_id : undefined;
       const newTitle = typeof r.title === "string" ? r.title : undefined;
       if (newId) {
-        appStateByConv.set(conversationId, {
+        touchConv(appStateByConv, conversationId, {
           interactionId: newId,
           title: newTitle ?? cached?.title ?? hint?.title ?? "App",
         });

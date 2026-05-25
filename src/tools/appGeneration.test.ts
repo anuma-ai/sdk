@@ -549,6 +549,45 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     expect(result.error).toBeUndefined();
   });
 
+  it("evicts oldest conversation state when maxConversations cap is exceeded", async () => {
+    // Long-running factory + low cap → confirm that read-before-write
+    // state for the LEAST RECENTLY USED conversation is dropped when
+    // a new one pushes the map over the cap. Evicted conversation
+    // must then re-read before it can patch — same as cold start.
+    const storage = new MapFileStorage();
+    storage.getAll().set("App.js", "const A = 1;\n");
+    let convId = "conv-1";
+    const tools = createAppGenerationTools({
+      getConversationId: () => convId,
+      storage,
+      logError: () => undefined,
+      maxConversations: 2,
+    });
+    const findTool = (name: string): ToolConfig =>
+      tools.find((t) => (t.function as { name: string }).name === name)!;
+    const readFile = findTool("read_file");
+    const patchFile = findTool("patch_file");
+
+    // Conv-1: read so we may patch
+    await readFile.executor!({ path: "App.js" });
+
+    // Two more conversations bump the cap and evict conv-1 (FIFO).
+    convId = "conv-2";
+    await readFile.executor!({ path: "App.js" });
+    convId = "conv-3";
+    await readFile.executor!({ path: "App.js" });
+
+    // Back to conv-1 — its seen-state should be gone, so patch_file
+    // refuses with the read-before-write error.
+    convId = "conv-1";
+    const result = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 1;", replace: "const A = 2;" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBeUndefined();
+    expect(String(result.error)).toMatch(/read_file/);
+  });
+
   it("allows overwrite after read_file", async () => {
     const { createFile, readFile, storage } = makeTools();
     // Simulate a file that exists in storage but wasn't created by the model.
