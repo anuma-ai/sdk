@@ -1188,8 +1188,12 @@ export function createAppGenerationTools({
 
         // Mark this file as "seen" so subsequent patch_file or
         // create_file (overwrite) calls pass the read-before-modify
-        // contract.
-        markFileSeen(conversationId, file.path);
+        // contract. Use the locally-normalized `path` (not
+        // `file.path`) so the key matches what `hasFileBeenSeen`
+        // checks — third-party storage adapters may return a
+        // differently-shaped `path` than the one they were queried
+        // with, which would silently break the contract.
+        markFileSeen(conversationId, path);
 
         // Number the lines so the model has unambiguous location info
         // and so failure snippets (which use the same format) look

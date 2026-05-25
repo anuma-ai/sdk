@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest";
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 import {
+  type AppFileRecord,
+  type AppFileStorage,
   applyPatches,
   createAppGenerationTools,
   DEFAULT_DESIGN_CRITIQUE_RUBRIC,
@@ -495,6 +497,56 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     })) as Record<string, unknown>;
     expect(result.success).toBe(true);
     expect((await storage.getFile("test-conv", "App.js"))?.content).toBe("const A = 2;\n");
+  });
+
+  it("marks files seen by their normalized request path, not the storage-returned path", async () => {
+    // Third-party AppFileStorage adapters may return a differently
+    // shaped `path` than the one they were queried with (e.g. an
+    // absolute path, or a workspace-prefixed key). The read-before-
+    // write contract must key off the path the model asked for so
+    // that subsequent patch_file / create_file lookups hit the same
+    // slot. Regression test for the bug where markFileSeen used
+    // `file.path` instead of the normalized local `path`.
+    class PathShiftingStorage implements AppFileStorage {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      getFile(_convId: string, p: string): Promise<AppFileRecord | null> {
+        return Promise.resolve({ path: `/workspace/${p}`, content: "const A = 1;\n" });
+      }
+      getFiles(): Promise<AppFileRecord[]> {
+        return Promise.resolve([]);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      putFile(_convId: string, _p: string, _c: string): Promise<void> {
+        return Promise.resolve();
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      putFiles(
+        _convId: string,
+        _files: Array<{ path: string; content: string }>
+      ): Promise<void> {
+        return Promise.resolve();
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      deleteFile(_convId: string, _p: string): Promise<void> {
+        return Promise.resolve();
+      }
+    }
+    const tools = createAppGenerationTools({
+      getConversationId: () => "shift-conv",
+      storage: new PathShiftingStorage(),
+      logError: () => undefined,
+    });
+    const readFile = tools.find((t) => (t.function as { name: string }).name === "read_file")!;
+    const createFile = tools.find((t) => (t.function as { name: string }).name === "create_file")!;
+
+    await readFile.executor!({ path: "App.js" });
+    // After read_file, the model is allowed to overwrite App.js even
+    // though storage hands back `/workspace/App.js`.
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 2;\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
   });
 
   it("allows overwrite after read_file", async () => {
