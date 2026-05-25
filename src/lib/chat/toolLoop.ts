@@ -150,12 +150,11 @@ function isRateLimitedStreamError(err: unknown): boolean {
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve) => {
     if (signal?.aborted) return resolve();
-    let t: ReturnType<typeof setTimeout>;
     const onAbort = () => {
       clearTimeout(t);
       resolve();
     };
-    t = setTimeout(() => {
+    const t = setTimeout(() => {
       signal?.removeEventListener("abort", onAbort);
       resolve();
     }, ms);
