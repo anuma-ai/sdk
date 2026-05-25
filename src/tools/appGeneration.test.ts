@@ -520,10 +520,7 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
         return Promise.resolve();
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      putFiles(
-        _convId: string,
-        _files: Array<{ path: string; content: string }>
-      ): Promise<void> {
+      putFiles(_convId: string, _files: Array<{ path: string; content: string }>): Promise<void> {
         return Promise.resolve();
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
