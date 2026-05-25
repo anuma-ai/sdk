@@ -31,13 +31,17 @@ import {
   diffSnapshots,
   dumpFiles,
   extractText,
+  type PhaseRecord,
   printDiff,
   printResult,
+  shortHash,
   snapshot,
+  summarizePhase,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
 
@@ -84,6 +88,22 @@ describe("photo gallery (file upload benchmark)", () => {
       const log: ToolCallLog[] = [];
       const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
       const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
+      const phases: PhaseRecord[] = [];
+      const runStartedAt = new Date().toISOString();
+      const promptHash = shortHash(SYSTEM_PROMPT);
+      let phaseLogStart = 0;
+      function recordPhase(label: string, elapsedMs: number, errored: boolean): void {
+        phases.push(
+          summarizePhase({
+            label,
+            elapsedMs,
+            toolCalls: log.slice(phaseLogStart),
+            files: store,
+            errored,
+          })
+        );
+        phaseLogStart = log.length;
+      }
 
       function getAppJs(): string {
         return store.get("App.js") ?? store.get("App.jsx") ?? "";
@@ -109,6 +129,7 @@ describe("photo gallery (file upload benchmark)", () => {
       printResult(phase1.result);
       expect(phase1.result.error).toBeNull();
       dumpFiles(store, "photo-gallery/step-1-upload-grid");
+      recordPhase("step-1-upload-grid", phase1.result.elapsedMs, phase1.result.error !== null);
       conversation.push(assistantMsg(phase1.responseText));
 
       const phase1Js = getAppJs();
@@ -152,6 +173,7 @@ describe("photo gallery (file upload benchmark)", () => {
       printResult(phase2.result);
       expect(phase2.result.error).toBeNull();
       dumpFiles(store, "photo-gallery/step-2-css-filters");
+      recordPhase("step-2-css-filters", phase2.result.elapsedMs, phase2.result.error !== null);
       conversation.push(assistantMsg(phase2.responseText));
 
       const phase2Js = getAppJs();
@@ -171,17 +193,14 @@ describe("photo gallery (file upload benchmark)", () => {
         `  Phase 2: App.js=${phase2Js.length}ch (+${phase2Js.length - phase1Js.length}), App.css=${phase2Css.length}ch (+${phase2Css.length - phase1Css.length})`
       );
 
-      // ── Summary ────────────────────────────────────────────────────────────
-      const patchCalls = log.filter((l) => l.name === "patch_file");
-      const createCalls = log.filter((l) => l.name === "create_file");
-      const readCalls = log.filter((l) => l.name === "read_file");
-
-      console.log("\n  === Photo Gallery Summary ===");
-      console.log(`  Final App.js: ${phase2Js.length} chars`);
-      console.log(`  Final App.css: ${phase2Css.length} chars`);
-      console.log(
-        `  Tool calls: ${createCalls.length} create_file, ${patchCalls.length} patch_file, ${readCalls.length} read_file`
-      );
+      // ── Summary + persistence ──────────────────────────────────────────────
+      writeRunMetrics({
+        outputSubdir: "photo-gallery",
+        benchmark: "photo-gallery",
+        promptHash,
+        startedAt: runStartedAt,
+        phases,
+      });
     }
   );
 });
