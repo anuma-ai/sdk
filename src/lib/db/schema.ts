@@ -10,6 +10,7 @@ import type { Class } from "@nozbe/watermelondb/types";
 
 import { AppFile } from "./appFiles/models";
 import { Conversation, ConversationSummary, Message } from "./chat/models";
+import { Entity, MemoryEntity } from "./entities/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
@@ -48,8 +49,11 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v25: Added saved_tools table for user-saved display apps exposed as LLM tools
  * - v26: Added app_files table for LLM-generated app source files (HTML/CSS/JS)
  * - v27: Added tool_call_events column to history for reconstructing tool call history
+ * - v28: Added source_chunk_ids, proof_count, source columns to memory_vault for auto-extraction provenance and supersession tracking
+ * - v29: Added entity + memory_entity tables for the W5 knowledge-graph retrieval lane
+ * - v30: Added event_time_start, event_time_end, event_time_kind columns to memory_vault for the W6 temporal retrieval lane
  */
-export const SDK_SCHEMA_VERSION = 27;
+export const SDK_SCHEMA_VERSION = 30;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -174,6 +178,34 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "user_id", type: "string", isOptional: true, isIndexed: true },
         { name: "embedding", type: "string", isOptional: true },
+        { name: "source_chunk_ids", type: "string", isOptional: true },
+        { name: "proof_count", type: "number", isOptional: true },
+        { name: "source", type: "string", isOptional: true },
+        // W6 temporal lane — when the event in this memory occurred. point
+        // (event_time_start set, end null), range (both set), ongoing
+        // (start set, end null + kind='ongoing'), or none (both null).
+        { name: "event_time_start", type: "number", isOptional: true, isIndexed: true },
+        { name: "event_time_end", type: "number", isOptional: true },
+        { name: "event_time_kind", type: "string", isOptional: true },
+      ],
+    }),
+    // Entity table — canonical names extracted from auto-extraction (W5).
+    tableSchema({
+      name: "entity",
+      columns: [
+        { name: "canonical_name", type: "string", isIndexed: true },
+        { name: "kind", type: "string", isOptional: true },
+        { name: "created_at", type: "number" },
+        { name: "updated_at", type: "number" },
+      ],
+    }),
+    // Many-to-many join: which memories reference which entities.
+    tableSchema({
+      name: "memory_entity",
+      columns: [
+        { name: "memory_id", type: "string", isIndexed: true },
+        { name: "entity_id", type: "string", isIndexed: true },
+        { name: "created_at", type: "number" },
       ],
     }),
     // Vault folder organization
@@ -296,6 +328,8 @@ export const sdkSchema = appSchema({
  * - v24 → v25: Added `saved_tools` table for user-saved display apps exposed as LLM tools
  * - v25 → v26: Added `app_files` table for LLM-generated app source files (HTML/CSS/JS)
  * - v26 → v27: Added `tool_call_events` column to history for reconstructing tool call history
+ * - v27 → v28: Added `source_chunk_ids`, `proof_count`, `source` columns to memory_vault for auto-extraction provenance and supersession tracking
+ * - v28 → v29: Added `entity` + `memory_entity` tables for W5 knowledge-graph retrieval lane
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -645,6 +679,66 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v27 -> v28: Added source_chunk_ids, proof_count, source columns to memory_vault for
+    // auto-extraction provenance (which conversation message(s) produced the memory) and
+    // supersession tracking (how many times this fact has been re-observed).
+    {
+      toVersion: 28,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "source_chunk_ids", type: "string", isOptional: true },
+            { name: "proof_count", type: "number", isOptional: true },
+            { name: "source", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v28 -> v29: Added entity + memory_entity tables for the W5 knowledge-graph
+    // retrieval lane. Auto-extraction populates these on the write path; the
+    // ranker uses them to surface topically-related memories that pure semantic
+    // search misses (composite-query lift).
+    {
+      toVersion: 29,
+      steps: [
+        createTable({
+          name: "entity",
+          columns: [
+            { name: "canonical_name", type: "string", isIndexed: true },
+            { name: "kind", type: "string", isOptional: true },
+            { name: "created_at", type: "number" },
+            { name: "updated_at", type: "number" },
+          ],
+        }),
+        createTable({
+          name: "memory_entity",
+          columns: [
+            { name: "memory_id", type: "string", isIndexed: true },
+            { name: "entity_id", type: "string", isIndexed: true },
+            { name: "created_at", type: "number" },
+          ],
+        }),
+      ],
+    },
+    // v29 -> v30: Added event_time_start, event_time_end, event_time_kind
+    // columns to memory_vault for the W6 temporal retrieval lane. Auto-
+    // extraction emits resolved event times; the ranker uses them to filter
+    // and boost memories whose event-time overlaps the query's resolved time
+    // window, RRF-fused alongside semantic + BM25 + graph.
+    {
+      toVersion: 30,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "event_time_start", type: "number", isOptional: true, isIndexed: true },
+            { name: "event_time_end", type: "number", isOptional: true },
+            { name: "event_time_kind", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -672,6 +766,8 @@ export const sdkModelClasses: Class<Model>[] = [
   Project,
   VaultMemory,
   VaultFolder,
+  Entity,
+  MemoryEntity,
   Media,
   ModelPreference,
   UserPreference,

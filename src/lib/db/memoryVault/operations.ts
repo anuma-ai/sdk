@@ -45,6 +45,17 @@ async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Prom
 }
 
 function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
+  let sourceChunkIds: string[] | null = null;
+  if (memory.sourceChunkIds) {
+    try {
+      const parsed = JSON.parse(memory.sourceChunkIds) as unknown;
+      if (Array.isArray(parsed)) {
+        sourceChunkIds = parsed.filter((s): s is string => typeof s === "string");
+      }
+    } catch {
+      sourceChunkIds = null;
+    }
+  }
   return {
     uniqueId: memory.id,
     content: memory.content,
@@ -52,6 +63,12 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     folderId: memory.folderId ?? null,
     userId: memory.userId ?? null,
     embedding: memory.embedding ?? null,
+    sourceChunkIds,
+    proofCount: memory.proofCount ?? null,
+    source: memory.source ?? null,
+    eventTimeStart: memory.eventTimeStart ?? null,
+    eventTimeEnd: memory.eventTimeEnd ?? null,
+    eventTimeKind: memory.eventTimeKind ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -96,10 +113,102 @@ export async function createVaultMemoryOp(
       if (opts.embedding !== undefined) {
         record._setRaw("embedding", opts.embedding);
       }
+      if (opts.sourceChunkIds !== undefined) {
+        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+      }
+      record._setRaw("proof_count", opts.proofCount ?? 1);
+      record._setRaw("source", opts.source ?? "manual");
+      if (opts.eventTime) {
+        record._setRaw("event_time_start", opts.eventTime.start ?? null);
+        record._setRaw("event_time_end", opts.eventTime.end ?? null);
+        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
     });
   });
 
   return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * W6 temporal lane read — fetch memories whose event-time overlaps the
+ * given window. "Overlap" means:
+ *   - point/ongoing: event_time_start ∈ [windowStart, windowEnd)
+ *   - range:         memory range ∩ window non-empty
+ *
+ * Returns a thin shape with just the fields needed for the temporal
+ * ranker — uniqueId, eventTimeStart, eventTimeEnd, eventTimeKind. Caller
+ * scores overlap via {@link scoreEventTimeOverlap} and folds into RRF.
+ *
+ * Uses the indexed `event_time_start` column for the cheap point/ongoing
+ * filter; range overlap is then post-filtered in JS (rare; range
+ * memories are < 5% of typical vaults).
+ */
+export async function getMemoriesByEventTimeOp(
+  ctx: VaultMemoryOperationsContext,
+  windowStart: number,
+  windowEnd: number
+): Promise<
+  Array<{
+    uniqueId: string;
+    eventTimeStart: number;
+    eventTimeEnd: number | null;
+    eventTimeKind: string | null;
+  }>
+> {
+  // Fast path: any memory whose event_time_start is in [start, end) is a
+  // candidate. Range memories starting BEFORE the window may still
+  // overlap (range ends inside window) — pull those by start <= windowEnd
+  // and filter in JS.
+  const records = await ctx.vaultMemoryCollection
+    .query(
+      Q.where("is_deleted", false),
+      Q.where("event_time_start", Q.notEq(null)),
+      Q.where("event_time_start", Q.lte(windowEnd))
+    )
+    .fetch();
+
+  const out: Array<{
+    uniqueId: string;
+    eventTimeStart: number;
+    eventTimeEnd: number | null;
+    eventTimeKind: string | null;
+  }> = [];
+  for (const r of records) {
+    const start = r.eventTimeStart;
+    if (start === null) continue;
+    const end = r.eventTimeEnd ?? null;
+    const kind = r.eventTimeKind ?? null;
+    // Point/ongoing: only keep if start is inside window.
+    if (kind !== "range") {
+      if (kind === "ongoing") {
+        // Ongoing memories: start before windowEnd is a hit.
+        if (start < windowEnd) {
+          out.push({
+            uniqueId: r.id,
+            eventTimeStart: start,
+            eventTimeEnd: end,
+            eventTimeKind: kind,
+          });
+        }
+      } else {
+        if (start >= windowStart && start < windowEnd) {
+          out.push({
+            uniqueId: r.id,
+            eventTimeStart: start,
+            eventTimeEnd: end,
+            eventTimeKind: kind,
+          });
+        }
+      }
+      continue;
+    }
+    // Range: overlap if [start, end] ∩ [windowStart, windowEnd) is non-empty.
+    const memEnd = end ?? start;
+    if (memEnd >= windowStart && start < windowEnd) {
+      out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
+    }
+  }
+  return out;
 }
 
 export async function createVaultMemoriesBatchOp(
@@ -134,6 +243,16 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("is_deleted", false);
         if (optionsArray[i].embedding !== undefined) {
           record._setRaw("embedding", optionsArray[i].embedding);
+        }
+        if (opts.sourceChunkIds !== undefined) {
+          record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+        }
+        record._setRaw("proof_count", opts.proofCount ?? 1);
+        record._setRaw("source", opts.source ?? "manual");
+        if (opts.eventTime) {
+          record._setRaw("event_time_start", opts.eventTime.start ?? null);
+          record._setRaw("event_time_end", opts.eventTime.end ?? null);
+          record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
         }
       })
     );
@@ -233,6 +352,15 @@ export async function updateVaultMemoryOp(
         }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
+        }
+        if (opts.sourceChunkIds !== undefined) {
+          r._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+        }
+        if (opts.proofCount !== undefined) {
+          r._setRaw("proof_count", opts.proofCount);
+        }
+        if (opts.source !== undefined) {
+          r._setRaw("source", opts.source);
         }
       });
     });
