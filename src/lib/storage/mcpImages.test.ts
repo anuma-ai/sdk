@@ -163,4 +163,16 @@ describe("extractMCPImageUrls", () => {
       { url: v2, model: "veo-3.1", mediaType: "video" },
     ]);
   });
+
+  it("dedupes a video URL repeated across videos[] and url fields", () => {
+    const url = `https://${MCP_DOMAIN}/same.mp4`;
+    const events = [
+      {
+        name: "AnumaMediaMCP-anuma_create_video",
+        output: JSON.stringify({ model: "veo-3.1", videos: [{ video_url: url }], url }),
+      },
+    ];
+    const result = extractMCPImageUrls("", events, MCP_DOMAIN);
+    expect(result).toEqual([{ url, model: "veo-3.1", mediaType: "video" }]);
+  });
 });

@@ -98,12 +98,17 @@ export function extractMCPImageUrls(
           };
           const model = output.model || "video";
           // Video tools return a `videos: [{ video_url }]` array; fall back to
-          // single videoUrl/url for resilience.
+          // single videoUrl/url for resilience. Dedupe so a response that
+          // repeats a URL across fields doesn't create two records.
           const videoUrls = [
-            ...(output.videos?.map((v) => v.video_url) ?? []),
-            output.videoUrl,
-            output.url,
-          ].filter((u): u is string => Boolean(u));
+            ...new Set(
+              [
+                ...(output.videos?.map((v) => v.video_url) ?? []),
+                output.videoUrl,
+                output.url,
+              ].filter((u): u is string => Boolean(u))
+            ),
+          ];
           for (const url of videoUrls) {
             urls.push({ url, model, mediaType: "video" });
           }

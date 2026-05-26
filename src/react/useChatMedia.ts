@@ -175,10 +175,13 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               const isVideo = extractedKind === "video";
               const extension =
                 urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || (isVideo ? "mp4" : "png");
-              // Trust the blob's reported type; fall back to a kind-appropriate
-              // mime so a video never gets stamped image/* (which would route it
-              // back into the image library).
-              const mimeType = blob.type || `${isVideo ? "video" : "image"}/${extension}`;
+              // Object storage often serves generic `application/octet-stream`,
+              // which would later resolve to `document`. Ignore that (and empty)
+              // and derive a kind-appropriate mime so the record's media_type
+              // stays correct.
+              const reportedType =
+                blob.type && blob.type !== "application/octet-stream" ? blob.type : "";
+              const mimeType = reportedType || `${isVideo ? "video" : "image"}/${extension}`;
               const namePrefix = isVideo ? "mcp-video" : "mcp-image";
               const fileName = `${namePrefix}-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
@@ -206,7 +209,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
 
         // 3. Collect mediaOptions from successful downloads
         results.forEach((result, i) => {
-          const { url, model } = urls[i];
+          const { url, model, mediaType: extractedKind } = urls[i];
 
           if (result.status === "fulfilled") {
             const { mediaId, fileName, mimeType, size, dimensions } = result.value;
@@ -217,9 +220,11 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               conversationId,
               name: fileName,
               mimeType,
-              // Derive from the actual mime so videos land in the video library
-              // and become reachable by the video player's OPFS fallback.
-              mediaType: getMediaTypeFromMime(mimeType),
+              // Trust the kind resolved at extraction (by tool name / extension)
+              // over the mime — object storage can return a generic
+              // `application/octet-stream` that would otherwise mark a video as
+              // a document and bounce it out of the video library / fallback.
+              mediaType: extractedKind,
               size,
               role: "assistant",
               model,
