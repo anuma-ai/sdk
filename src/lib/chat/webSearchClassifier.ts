@@ -15,26 +15,8 @@ import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import type { PromptPreProcessor } from "./preProcessor";
+import { cosineSimilarity } from "./preProcessorMath";
 import { noSearchCentroid, searchCentroid } from "./webSearchCentroids";
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    // Dimension mismatch — likely centroids generated with a different
-    // embedding model than the one now in use. Returning 0 makes the
-    // classifier fall back to "no search" rather than producing NaN.
-    return 0;
-  }
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
 
 export interface WebSearchClassification {
   /** Whether the prompt likely needs a web search. */

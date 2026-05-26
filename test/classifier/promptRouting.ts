@@ -23,8 +23,10 @@
 import "dotenv/config";
 import { describe, expect, it } from "vitest";
 
-import { createPricePreProcessor } from "../../src/lib/chat/priceClassifier.js";
+import { createCryptoPricePreProcessor } from "../../src/lib/chat/cryptoPriceClassifier.js";
 import type { PromptPreProcessor } from "../../src/lib/chat/preProcessor.js";
+import { createStockPricePreProcessor } from "../../src/lib/chat/stockPriceClassifier.js";
+import { createWeatherPreProcessor } from "../../src/lib/chat/weatherClassifier.js";
 import { createWebSearchPreProcessor } from "../../src/lib/chat/webSearchClassifier.js";
 import { generateEmbeddings } from "../../src/lib/memoryEngine/embeddings.js";
 
@@ -65,13 +67,40 @@ const PRE_PROCESSORS: PreProcessorUnderTest[] = [
     },
   },
   {
-    name: "price",
-    // ↑ note: this also covers stocks and FX, not just crypto.
+    name: "cryptoPrice",
     minAccuracy: 0.7,
     makeObserver: () => {
       let triggered = false;
-      const processor = createPricePreProcessor({
-        fetchPriceData: async () => {
+      const processor = createCryptoPricePreProcessor({
+        fetchCryptoPriceData: async () => {
+          triggered = true;
+          return "";
+        },
+      });
+      return { processor, didTrigger: () => triggered };
+    },
+  },
+  {
+    name: "stockPrice",
+    minAccuracy: 0.7,
+    makeObserver: () => {
+      let triggered = false;
+      const processor = createStockPricePreProcessor({
+        fetchStockPriceData: async () => {
+          triggered = true;
+          return "";
+        },
+      });
+      return { processor, didTrigger: () => triggered };
+    },
+  },
+  {
+    name: "weather",
+    minAccuracy: 0.7,
+    makeObserver: () => {
+      let triggered = false;
+      const processor = createWeatherPreProcessor({
+        fetchWeatherData: async () => {
           triggered = true;
           return "";
         },
@@ -102,15 +131,15 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "What happened in the world today?", shouldTrigger: ["webSearch"] },
   { text: "Any breaking news right now?", shouldTrigger: ["webSearch"] },
 
-  // Financial — both webSearch (timely) and price (price/quote)
-  { text: "What is Bitcoin's price right now?", shouldTrigger: ["webSearch", "price"] },
-  { text: "How is the S&P 500 performing today?", shouldTrigger: ["webSearch", "price"] },
+  // Financial — webSearch (timely) + the appropriate price classifier
+  { text: "What is Bitcoin's price right now?", shouldTrigger: ["webSearch", "cryptoPrice"] },
+  { text: "How is the S&P 500 performing today?", shouldTrigger: ["webSearch", "stockPrice"] },
   {
     text: "What's the current exchange rate for USD to EUR?",
-    shouldTrigger: ["webSearch", "price"],
+    shouldTrigger: ["webSearch", "stockPrice"],
   },
-  { text: "How much is Nvidia stock worth?", shouldTrigger: ["webSearch", "price"] },
-  { text: "What's the market cap of Apple?", shouldTrigger: ["webSearch", "price"] },
+  { text: "How much is Nvidia stock worth?", shouldTrigger: ["webSearch", "stockPrice"] },
+  { text: "What's the market cap of Apple?", shouldTrigger: ["webSearch", "stockPrice"] },
   // Gas-fee query is current-data (web search) but not strictly a price quote.
   { text: "What are Ethereum gas fees right now?", shouldTrigger: ["webSearch"] },
 
@@ -121,11 +150,11 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "When is the next UFC fight?", shouldTrigger: ["webSearch"] },
   { text: "Who's leading the Tour de France?", shouldTrigger: ["webSearch"] },
 
-  // Weather
-  { text: "What's the weather in San Francisco today?", shouldTrigger: ["webSearch"] },
-  { text: "Will it rain in New York this weekend?", shouldTrigger: ["webSearch"] },
-  { text: "What's the UV index in Miami right now?", shouldTrigger: ["webSearch"] },
-  { text: "Is there a flood warning in Houston?", shouldTrigger: ["webSearch"] },
+  // Weather — both webSearch (any current info) and the dedicated weather classifier
+  { text: "What's the weather in San Francisco today?", shouldTrigger: ["webSearch", "weather"] },
+  { text: "Will it rain in New York this weekend?", shouldTrigger: ["webSearch", "weather"] },
+  { text: "What's the UV index in Miami right now?", shouldTrigger: ["webSearch", "weather"] },
+  { text: "Is there a flood warning in Houston?", shouldTrigger: ["webSearch", "weather"] },
 
   // Local search
   { text: "Find Italian restaurants near me", shouldTrigger: ["webSearch"] },
@@ -167,18 +196,43 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "When is the next presidential debate?", shouldTrigger: ["webSearch"] },
 
   // Edge cases — short / terse but still search-worthy
-  { text: "Ethereum price", shouldTrigger: ["webSearch", "price"] },
-  { text: "weather tomorrow", shouldTrigger: ["webSearch"] },
+  { text: "Ethereum price", shouldTrigger: ["webSearch", "cryptoPrice"] },
+  { text: "weather tomorrow", shouldTrigger: ["webSearch", "weather"] },
   { text: "election results 2026", shouldTrigger: ["webSearch"] },
   { text: "flights to Tokyo", shouldTrigger: ["webSearch"] },
   { text: "Lakers score", shouldTrigger: ["webSearch"] },
 
-  // ── Price-specific (also commonly trigger webSearch) ─────────
-  { text: "What is the ZETA token price?", shouldTrigger: ["webSearch", "price"] },
-  { text: "Show me the BTC chart", shouldTrigger: ["webSearch", "price"] },
-  { text: "How much is Solana worth in USD?", shouldTrigger: ["webSearch", "price"] },
-  { text: "Tesla stock price", shouldTrigger: ["webSearch", "price"] },
-  { text: "DOGE market cap", shouldTrigger: ["webSearch", "price"] },
+  // ── Crypto-price-specific (also commonly trigger webSearch) ─────────
+  { text: "What is the ZETA token price?", shouldTrigger: ["webSearch", "cryptoPrice"] },
+  { text: "Show me the BTC chart", shouldTrigger: ["webSearch", "cryptoPrice"] },
+  { text: "How much is Solana worth in USD?", shouldTrigger: ["webSearch", "cryptoPrice"] },
+  { text: "DOGE market cap", shouldTrigger: ["webSearch", "cryptoPrice"] },
+
+  // ── Stock-price-specific (also commonly trigger webSearch) ─────────
+  { text: "Tesla stock price", shouldTrigger: ["webSearch", "stockPrice"] },
+  { text: "What is NVDA trading at", shouldTrigger: ["webSearch", "stockPrice"] },
+  { text: "USD to JPY exchange rate today", shouldTrigger: ["webSearch", "stockPrice"] },
+  { text: "Show me the QQQ ETF price", shouldTrigger: ["webSearch", "stockPrice"] },
+
+  // ── Weather-specific (also commonly trigger webSearch) ─────────
+  { text: "Forecast for Tokyo tomorrow", shouldTrigger: ["webSearch", "weather"] },
+  { text: "What's the air quality in Delhi", shouldTrigger: ["webSearch", "weather"] },
+  { text: "Will it snow in Aspen this weekend", shouldTrigger: ["webSearch", "weather"] },
+
+  // ── Ambiguous: "gold price" can mean a gold-pegged token (PAXG, XAUT) OR a
+  // commodity quote (XAU/USD, GLD ETF). Both classifiers should fire; the LLM
+  // receives both contexts and decides what's relevant.
+  //
+  // Known-flaky on accuracy: this prompt depends on the embedding model + the
+  // crypto/stock corpora keeping gold-adjacent phrases in both YES sets. If
+  // this test starts failing because one side stopped firing, the fix is to
+  // (a) check whether the embedding model has changed, then (b) add more
+  // gold-token / gold-spot phrases to the relevant generation script and
+  // regenerate centroids — not to relax the assertion.
+  {
+    text: "What is the price of gold today?",
+    shouldTrigger: ["webSearch", "cryptoPrice", "stockPrice"],
+  },
 
   // Edge cases — questions that look general but need current data
   { text: "Is TikTok banned in the US?", shouldTrigger: ["webSearch"] },

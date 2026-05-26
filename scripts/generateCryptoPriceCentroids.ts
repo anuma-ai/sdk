@@ -1,12 +1,11 @@
 /**
- * One-time script to generate centroid vectors for the price classifier
- * (covers crypto, stocks, and FX queries).
+ * One-time script to generate centroid vectors for the crypto-price classifier.
  *
  * Embeds the reference phrases, averages each class into a single centroid,
- * and writes the result to src/lib/chat/priceCentroids.ts.
+ * and writes the result to src/lib/chat/cryptoPriceCentroids.ts.
  *
  * Usage:
- *   PORTAL_API_KEY=... npx tsx scripts/generatePriceCentroids.ts
+ *   PORTAL_API_KEY=... npx tsx scripts/generateCryptoPriceCentroids.ts
  */
 
 import "dotenv/config";
@@ -16,14 +15,16 @@ import { resolve } from "path";
 import { BASE_URL } from "../src/clientConfig";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
 
-const PRICE_PHRASES = [
-  // Direct price queries — crypto
+const CRYPTO_PRICE_PHRASES = [
+  // Direct price queries
   "What is the current price of Bitcoin",
   "How much is Ethereum worth right now",
   "Show me the ZETA price",
   "What is BTC trading at",
   "Current Solana price in USD",
   "How much is one Cardano coin",
+  "What's the price of $BTC",
+  "$ETH price today",
 
   // Price + change / movement
   "Is Bitcoin up or down today",
@@ -31,6 +32,8 @@ const PRICE_PHRASES = [
   "What is the 7-day change for SOL",
   "Show the price chart for ZETA over the last month",
   "Is the crypto market up or down right now",
+  "Has BTC pumped today",
+  "How much did ETH drop this week",
 
   // Market data / valuation
   "What is the market cap of Ethereum",
@@ -38,6 +41,8 @@ const PRICE_PHRASES = [
   "What is the trading volume for SOL today",
   "What is the circulating supply of ZETA",
   "What is the all-time high for Bitcoin",
+  "Total Value Locked in DeFi",
+  "Fully diluted valuation of Solana",
 
   // Token / ticker direct
   "BTC price",
@@ -46,29 +51,24 @@ const PRICE_PHRASES = [
   "DOGE market cap",
   "Solana valuation",
   "Polygon trading volume",
+  "Avalanche price",
+  "Polkadot price now",
 
-  // Stocks (also a price query, treat the same way)
-  "What is the current Nvidia stock price",
-  "How is Apple stock performing today",
-  "Show me the S&P 500 right now",
-  "What is the Dow Jones at today",
-  "Tesla stock price now",
-  "MSFT after-hours price",
+  // L1/L2/DeFi-flavored price queries
+  "What's the price of L1 tokens today",
+  "Show me top L2 token prices",
+  "DeFi token prices",
+  "Memecoin prices today",
 
-  // FX
-  "What is the current USD to EUR exchange rate",
-  "How much is one British pound in dollars",
-  "What is the JPY to USD rate today",
-
-  // Mixed phrasings
+  // Conversational crypto price queries
   "How much does one Bitcoin cost in USD right now",
   "Compare ETH and BTC prices over the last week",
   "What's the dollar value of 100 ZETA",
-  "Is now a good time to check the price of Solana",
   "Latest crypto prices",
+  "Top movers in crypto today",
 ];
 
-const NO_PRICE_PHRASES = [
+const NO_CRYPTO_PRICE_PHRASES = [
   // Crypto adjacent but NOT price
   "Explain how Bitcoin mining works",
   "What is the difference between proof-of-stake and proof-of-work",
@@ -77,6 +77,42 @@ const NO_PRICE_PHRASES = [
   "How do I bridge tokens from Ethereum to Solana",
   "What is a rollup and how does it work",
   "Explain MEV and front-running",
+  "What is account abstraction",
+
+  // Stock / FX queries — must NOT trigger crypto classifier
+  // (Many examples mirroring the crypto YES corpus structure with stock tickers)
+  "What is the current Nvidia stock price",
+  "How is Apple stock performing today",
+  "Show me the S&P 500 right now",
+  "What is the Dow Jones at today",
+  "Tesla stock price now",
+  "MSFT after-hours price",
+  "USD to EUR exchange rate",
+  "How much is one British pound in dollars",
+  "What is NVDA trading at",
+  "What is the current price of Tesla shares",
+  "How much is one share of Apple worth",
+  "Show me the AMZN chart",
+  "What's the 7-day change for GOOGL",
+  "Is Nvidia up or down today",
+  "Market cap of Microsoft",
+  "Trading volume for SPY today",
+  "All-time high for Apple stock",
+  "Tesla stock chart over the last month",
+  "What's the price of $NVDA",
+  "$AAPL price today",
+  "QQQ ETF price",
+  "Latest stock prices",
+  "Top movers in the stock market",
+  "USD to JPY rate today",
+  "EUR/USD live rate",
+  "What is the price of gold today",
+  "Spot price of silver",
+  "Oil price right now",
+  "Dividend yield of MSFT",
+  "P/E ratio of NVDA",
+  "S&P 500 close yesterday",
+  "Pre-market movers",
 
   // General programming / engineering
   "Write a Python function that checks if a number is prime",
@@ -96,26 +132,23 @@ const NO_PRICE_PHRASES = [
 
   // Translation / language
   "Translate 'good morning' into Japanese",
-  "What is the grammatical structure of this sentence",
 
   // Math / physics / general knowledge
   "What is the derivative of x squared",
   "Explain how gravity works",
   "What year did World War 2 end",
   "How does photosynthesis work",
-  "What is the speed of light",
 
   // Personal / advice
   "Help me draft a resignation letter",
   "Give me tips for a job interview",
-  "How should I structure my resume",
 
   // Conversational
   "Hello how are you",
   "Thank you for your help",
   "Can you explain that again",
 
-  // News / current events that are NOT price (web-search territory, not crypto-price)
+  // Other current-data web searches that aren't crypto prices
   "What did Elon Musk tweet about today",
   "Who won the Super Bowl this year",
   "What is the weather in Tokyo tomorrow",
@@ -156,24 +189,24 @@ async function main() {
   }
 
   console.log(`Using baseUrl: ${baseUrl}`);
-  console.log("Embedding price phrases...");
-  const priceEmbeddings = await generateEmbeddings(PRICE_PHRASES, { apiKey, baseUrl });
+  console.log("Embedding crypto-price phrases...");
+  const priceEmbeddings = await generateEmbeddings(CRYPTO_PRICE_PHRASES, { apiKey, baseUrl });
 
-  console.log("Embedding no-price phrases...");
-  const noPriceEmbeddings = await generateEmbeddings(NO_PRICE_PHRASES, { apiKey, baseUrl });
+  console.log("Embedding no-crypto-price phrases...");
+  const noPriceEmbeddings = await generateEmbeddings(NO_CRYPTO_PRICE_PHRASES, { apiKey, baseUrl });
 
-  const priceCentroid = averageVectors(priceEmbeddings);
-  const noPriceCentroid = averageVectors(noPriceEmbeddings);
+  const cryptoPriceCentroid = averageVectors(priceEmbeddings);
+  const noCryptoPriceCentroid = averageVectors(noPriceEmbeddings);
 
-  console.log(`Dimensions: ${priceCentroid.length}`);
+  console.log(`Dimensions: ${cryptoPriceCentroid.length}`);
 
   const output = `/**
- * Pre-computed centroid vectors for the price classifier (crypto, stocks, FX).
+ * Pre-computed centroid vectors for the crypto-price classifier.
  *
- * Generated by: npx tsx scripts/generatePriceCentroids.ts
+ * Generated by: npx tsx scripts/generateCryptoPriceCentroids.ts
  *
- * priceCentroid: average embedding of phrases representing "needs price data" intent.
- * noPriceCentroid: average embedding of phrases representing "no price needed" intent.
+ * cryptoPriceCentroid: average embedding of phrases representing "needs crypto price data" intent.
+ * noCryptoPriceCentroid: average embedding of phrases representing "no crypto price needed" intent.
  *
  * At runtime the classifier only needs to embed the user prompt and compute
  * two cosine similarities — no reference phrase embedding calls needed.
@@ -184,13 +217,13 @@ async function main() {
    cosine-similarity noise floor at 4096 dimensions. */
 
 // prettier-ignore
-export const priceCentroid: number[] = ${JSON.stringify(priceCentroid)};
+export const cryptoPriceCentroid: number[] = ${JSON.stringify(cryptoPriceCentroid)};
 
 // prettier-ignore
-export const noPriceCentroid: number[] = ${JSON.stringify(noPriceCentroid)};
+export const noCryptoPriceCentroid: number[] = ${JSON.stringify(noCryptoPriceCentroid)};
 `;
 
-  const outPath = resolve(__dirname, "../src/lib/chat/priceCentroids.ts");
+  const outPath = resolve(__dirname, "../src/lib/chat/cryptoPriceCentroids.ts");
   writeFileSync(outPath, output, "utf-8");
   console.log(`Written to ${outPath}`);
 }
