@@ -106,6 +106,8 @@ export async function rerankPairs(query: string, items: RerankerItem[]): Promise
 /**
  * Pre-warm the reranker model. Call this at startup to avoid the cold-start
  * delay on the first user-facing rerank call. Safe to call multiple times.
+ *
+ * @public
  */
 export async function preloadReranker(): Promise<void> {
   await getModel();

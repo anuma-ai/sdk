@@ -256,8 +256,12 @@ describe("extractAndRetain", () => {
       { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) } }
     );
 
-    expect(result.candidates).toHaveLength(2);
+    // Candidates and results stay length-aligned: only the survivor of the
+    // mid-batch retain failure is returned, so consumers can safely pair
+    // candidates[i] with results[i].
+    expect(result.candidates).toHaveLength(1);
     expect(result.results).toHaveLength(1);
+    expect(result.candidates[0].content).toBe("fact 2");
     expect(result.results[0].memoryId).toBe("id2");
   });
 

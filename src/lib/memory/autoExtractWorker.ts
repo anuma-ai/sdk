@@ -26,17 +26,20 @@ import {
 import type { RetainContext } from "./retain.js";
 import type { RetainResult } from "./types.js";
 
+/** @public */
 export interface MemoryExtractedEvent {
   candidate: ExtractedCandidate;
   result: RetainResult;
   conversationId?: string;
 }
 
+/** @public */
 export interface TurnSkippedEvent {
   reason: "in-flight" | "no-messages";
   conversationId?: string;
 }
 
+/** @public */
 export interface TurnCompleteEvent {
   candidates: ExtractedCandidate[];
   results: RetainResult[];
@@ -44,6 +47,7 @@ export interface TurnCompleteEvent {
   conversationId?: string;
 }
 
+/** @public */
 export interface CreateAutoExtractorOptions {
   retainCtx: RetainContext;
   extract: ExtractFactsOptions;
@@ -61,6 +65,7 @@ export interface CreateAutoExtractorOptions {
   onError?: (error: Error, conversationId?: string) => void;
 }
 
+/** @public */
 export interface AutoExtractor {
   /**
    * Kick off extraction for the most recent turn. Returns immediately
@@ -106,10 +111,9 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
         });
 
-        // Pair candidates with retain results positionally — extractAndRetain
-        // preserves order and one result per candidate that survived
-        // confidence filtering. Some candidates may have no result if their
-        // retain call threw; we just don't fire onMemoryExtracted for those.
+        // extractAndRetain returns candidates and results length-aligned:
+        // entries appear only when their retain() write succeeded, so
+        // candidates[i] always pairs with results[i].
         for (let i = 0; i < results.length; i++) {
           options.onMemoryExtracted?.({
             candidate: candidates[i],

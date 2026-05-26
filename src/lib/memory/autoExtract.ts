@@ -202,6 +202,10 @@ export async function extractAndRetain(
   const candidates = await extractFacts(messages, options.extract);
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
+  // Track succeeded candidates separately so `candidates[i]` and `results[i]`
+  // stay length-aligned. Pushing to both arrays only on retain success keeps
+  // consumers' positional pairing correct even when a write fails mid-batch.
+  const succeededCandidates: ExtractedCandidate[] = [];
   const results: RetainResult[] = [];
   for (const candidate of filtered) {
     try {
@@ -212,6 +216,7 @@ export async function extractAndRetain(
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
       });
+      succeededCandidates.push(candidate);
       results.push(result);
 
       // W5 — link entities to the freshly persisted memory. Best-effort:
@@ -228,7 +233,7 @@ export async function extractAndRetain(
     }
   }
 
-  return { candidates: filtered, results };
+  return { candidates: succeededCandidates, results };
 }
 
 // ---------------------------------------------------------------------------

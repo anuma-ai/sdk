@@ -484,6 +484,8 @@ export function rankByEntityOverlap(
  *   the CE without introducing the ranking-violation regressions that
  *   higher weights cause; CE's lexical bias on temporal queries dominates
  *   above ~0.3).
+ *
+ * @public
  */
 export async function rankFusedVaultMemoriesAsync(
   query: string,

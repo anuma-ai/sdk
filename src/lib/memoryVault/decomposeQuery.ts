@@ -59,6 +59,7 @@ Examples:
 
 Output strict JSON. No prose.`;
 
+/** @public */
 export interface DecomposedQuery {
   mode: "specific" | "composite";
   subQueries: string[];

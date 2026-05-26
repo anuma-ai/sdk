@@ -161,7 +161,7 @@ export async function getMemoriesByEventTimeOp(
   // and filter in JS.
   const records = await ctx.vaultMemoryCollection
     .query(
-      Q.where("is_deleted", false),
+      ...baseVaultConditions(ctx),
       Q.where("event_time_start", Q.notEq(null)),
       Q.where("event_time_start", Q.lte(windowEnd))
     )
