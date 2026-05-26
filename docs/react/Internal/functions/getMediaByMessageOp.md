@@ -2,7 +2,7 @@
 
 > **getMediaByMessageOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `messageId`: `string`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:507](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#507)
+Defined in: [src/lib/db/media/operations.ts:562](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#562)
 
 Get media by message.
 
