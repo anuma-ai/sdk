@@ -65,6 +65,11 @@ import {
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
 import {
+  createRecallTool as createRecallToolBase,
+  type RecallToolCallbacks,
+  type RecallToolOptions,
+} from "../lib/memory";
+import {
   createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
@@ -73,7 +78,9 @@ import {
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
+  createVaultEmbeddingCache,
   type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
 } from "../lib/memoryVault";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
@@ -287,6 +294,16 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   /** Create a memory vault tool pre-configured with hook's vault context and encryption. */
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
 
+  /**
+   * Create the unified recall tool — single chat-completion tool that
+   * searches both vault facts and conversation chunks via recall().
+   * Replaces the legacy createMemoryEngineTool / vault search pair.
+   */
+  createRecallTool: (
+    toolOptions?: RecallToolOptions,
+    callbacks?: RecallToolCallbacks
+  ) => ToolConfig;
+
   /** Get all vault memories for context injection. */
   getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
 
@@ -370,7 +387,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
-    preProcessors,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -649,6 +665,36 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [vaultCtx]
   );
 
+  /** Shared embedding cache for vault memories on the recall path. */
+  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
+
+  /**
+   * Create the unified recall tool — fact + chunk fused via RRF in one
+   * tool. Replaces createMemoryEngineTool / createMemoryVaultSearchTool.
+   */
+  const createRecallTool = useCallback(
+    (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for recall tool");
+      }
+      return createRecallToolBase(
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+          // entityCtx is intentionally omitted on Expo for now — the
+          // W5 graph lane is a no-op without it (recall falls through
+          // to fact + chunk lanes). Wire it up when the Expo client
+          // grows an entity-extraction surface.
+        },
+        toolOptions,
+        callbacks
+      );
+    },
+    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel]
+  );
+
   /**
    * Get all vault memories (for injecting as context into messages)
    */
@@ -682,7 +728,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     apiType,
-    preProcessors,
   });
 
   /**
@@ -1522,6 +1567,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getMessages,
     createMemoryEngineTool,
     createMemoryVaultTool,
+    createRecallTool,
     getVaultMemories,
     deleteVaultMemory,
     flushQueue,

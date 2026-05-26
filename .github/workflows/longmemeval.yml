@@ -11,6 +11,8 @@ on:
           - both
           - engine
           - vault
+          - recall
+          - ensemble
       variant:
         description: "Dataset variant"
         required: true
@@ -28,6 +30,7 @@ on:
         options:
           - cerebras/qwen-3-235b-a22b-instruct-2507
           - fireworks/accounts/fireworks/models/kimi-k2p5
+          - fireworks/accounts/fireworks/models/kimi-k2p6
           - fireworks/accounts/fireworks/models/deepseek-v3p2
           - fireworks/accounts/fireworks/models/glm-5
           - grok/grok-4-1-fast-non-reasoning
@@ -54,6 +57,73 @@ on:
         required: false
         type: string
         default: "100"
+      rerank:
+        description: "Vault: enable cross-encoder rerank"
+        required: false
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+      decompose:
+        description: "Vault: query decomposition for composite questions"
+        required: false
+        type: choice
+        default: "llm"
+        options:
+          - "llm"
+          - "off"
+      consolidate:
+        description: "Vault: LLM-based consolidation at retain time (cross-session dedup)"
+        required: false
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+      chunk_source:
+        description: "Vault: max chars per session when building chunk source (default 12000)"
+        required: false
+        type: string
+        default: ""
+      excerpt_cap:
+        description: "Vault: max chars per excerpt emitted to answer LLM (default 8000)"
+        required: false
+        type: string
+        default: ""
+      recall_types:
+        description: "Recall strategy: lanes to query (fact | chunk | fact-chunk, default fact-chunk)"
+        required: false
+        type: choice
+        default: "fact-chunk"
+        options:
+          - "fact-chunk"
+          - "fact"
+          - "chunk"
+      recall_emit:
+        description: "Recall strategy: emission style (rrf | blocks, default rrf)"
+        required: false
+        type: choice
+        default: "rrf"
+        options:
+          - "rrf"
+          - "blocks"
+      recall_lane_mode:
+        description: "Recall strategy: fused (one call) | per-lane (separate fact + chunk calls). Default fused."
+        required: false
+        type: choice
+        default: "fused"
+        options:
+          - "fused"
+          - "per-lane"
+      include_unsupported:
+        description: "Include temporal-reasoning + knowledge-update categories (skipped by default). Required to measure W6 temporal lane impact."
+        required: false
+        type: choice
+        default: "false"
+        options:
+          - "false"
+          - "true"
 
 jobs:
   resolve-strategies:
@@ -105,11 +175,37 @@ jobs:
           EVAL_VARIANT: ${{ inputs.variant }}
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
+          # Free-form string inputs go through env vars (not ${{ }}) so
+          # the shell tokenizes after substitution, blocking command
+          # injection via the workflow_dispatch UI.
+          INPUTS_CHUNK_SOURCE: ${{ inputs.chunk_source }}
+          INPUTS_EXCERPT_CAP: ${{ inputs.excerpt_cap }}
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
           args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency ${{ inputs.concurrency }} --output results.json"
           if [ -n "$EVAL_MAX" ]; then
             args="$args --max $EVAL_MAX"
+          fi
+          if [ "${{ matrix.strategy }}" = "vault" ]; then
+            args="$args --rerank=${{ inputs.rerank }} --decompose=${{ inputs.decompose }} --consolidate=${{ inputs.consolidate }}"
+            if [ -n "$INPUTS_CHUNK_SOURCE" ]; then
+              args="$args --chunk-source=$INPUTS_CHUNK_SOURCE"
+            fi
+            if [ -n "$INPUTS_EXCERPT_CAP" ]; then
+              args="$args --excerpt-cap=$INPUTS_EXCERPT_CAP"
+            fi
+          fi
+          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_types }}" ]; then
+            args="$args --recall-types=${{ inputs.recall_types }}"
+          fi
+          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_emit }}" ]; then
+            args="$args --recall-emit=${{ inputs.recall_emit }}"
+          fi
+          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_lane_mode }}" ]; then
+            args="$args --recall-lane-mode=${{ inputs.recall_lane_mode }}"
+          fi
+          if [ "${{ inputs.include_unsupported }}" = "true" ]; then
+            args="$args --include-unsupported"
           fi
           pnpm eval:longmemeval $args
 

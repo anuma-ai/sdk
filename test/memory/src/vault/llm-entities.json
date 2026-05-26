@@ -1,0 +1,478 @@
+{
+  "API documentation is auto-generated from OpenAPI specs using Redoc": [
+    "api documentation",
+    "openapi",
+    "redoc"
+  ],
+  "API latency target is under 100ms at p99": ["100ms", "api latency", "p99"],
+  "Alex is the tech lead for the Ingest team, responsible for the data pipeline": [
+    "alex",
+    "data pipeline",
+    "ingest",
+    "tech lead"
+  ],
+  "Allergic to shellfish": ["shellfish"],
+  "Attended Strange Loop 2024 and KubeCon 2025, plans to go to RustConf 2026": [
+    "kubecon 2025",
+    "rustconf 2026",
+    "strange loop 2024"
+  ],
+  "Auth uses JWTs with 15-minute access tokens and 7-day refresh tokens": [
+    "access token",
+    "auth",
+    "jwt",
+    "refresh token"
+  ],
+  "Avoids ORMs for complex queries — prefers raw SQL with query builders": [
+    "complex query",
+    "orm",
+    "query builder",
+    "raw sql"
+  ],
+  "Background jobs run on BullMQ backed by the same Redis instance used for caching": [
+    "background job",
+    "bullmq",
+    "caching",
+    "redis"
+  ],
+  "Base salary is $185,000 with a 15% annual bonus target": [
+    "$185,000",
+    "15% annual bonus",
+    "base salary"
+  ],
+  "BigQuery is used for analytics and data warehouse queries": [
+    "analytics",
+    "bigquery",
+    "data warehouse"
+  ],
+  "Birthday tradition is to take the day off and go hiking with Jordan": ["hiking", "jordan"],
+  "Born on March 15, 1992": ["march 15, 1992"],
+  "Building a side project: a CLI tool for managing dotfiles across machines": [
+    "cli tool",
+    "dotfiles",
+    "side project"
+  ],
+  "CI/CD runs on GitHub Actions with a 15-minute timeout": ["ci/cd", "github actions"],
+  "Can the user eat peanuts?": ["peanut"],
+  "Can the user help review a Go service?": ["go"],
+  "Can the user safely eat lobster?": ["lobster"],
+  "Code reviews require at least one approval before merge": ["approval", "code review"],
+  "Completed Advent of Code 2024, all 25 days in Rust": ["25 days", "advent of code 2024", "rust"],
+  "Database connection pooling uses PgBouncer with a max of 50 connections per service": [
+    "50 connections",
+    "database connection pooling",
+    "pgbouncer"
+  ],
+  "Database migrations managed by Prisma Migrate, run in CI before deploy": [
+    "ci",
+    "database migration",
+    "deploy",
+    "prisma migrate"
+  ],
+  "Deploys happen weekly on Thursdays after QA sign-off": [
+    "qa sign-off",
+    "thursday",
+    "weekly deployment"
+  ],
+  "Deploys to AWS us-west-2 region, with disaster recovery in us-east-1": [
+    "aws",
+    "disaster recovery",
+    "us-east-1",
+    "us-west-2"
+  ],
+  "Describe the team's development workflow": ["development workflow"],
+  "Did the user recently move?": ["recent move", "relocation"],
+  "Dislikes meeting invites without agendas — will decline them": ["agenda", "meeting invite"],
+  "Does the user have any accessibility needs?": ["accessibility need"],
+  "Does the user prefer writing long-form documentation?": [],
+  "Drinks oat milk lattes, no coffee after 2pm": ["2pm", "coffee", "oat milk latte"],
+  "Drinks three cups of coffee a day, prefers pour-over": [
+    "coffee",
+    "pour-over",
+    "three cups a day"
+  ],
+  "Drives a 2021 Tesla Model 3, mostly for weekend trips": ["2021", "tesla model 3"],
+  "Dyslexic — appreciates clear visual hierarchy and large fonts in docs": [
+    "documentation",
+    "dyslexic",
+    "large font",
+    "visual hierarchy"
+  ],
+  "Email is alex@example.com, prefers Slack for work comms": ["alex@example.com", "slack"],
+  "End-to-end tests use Cypress with Chrome-only testing": [
+    "chrome",
+    "cypress",
+    "end-to-end testing"
+  ],
+  "Enjoys hiking in Marin County on weekends": ["hiking", "marin county"],
+  "Error tracking uses Sentry with a 1% sample rate in production": ["sentry"],
+  "Fan of mechanical keyboards, currently using a Keychron Q1 with tactile switches": [
+    "keychron q1",
+    "mechanical keyboard",
+    "tactile switch"
+  ],
+  "Favorite book is Designing Data-Intensive Applications by Martin Kleppmann": [
+    "designing data-intensive applications",
+    "martin kleppmann"
+  ],
+  "Feature flags managed through LaunchDarkly": ["feature flag", "launchdarkly"],
+  "Follows AI/ML developments, especially on-device inference and small language models": [
+    "ai",
+    "ml",
+    "on-device inference",
+    "small language model"
+  ],
+  "Follows the TypeScript and Deno ecosystems closely": ["deno", "typescript"],
+  "Frontend state management uses Redux with Redux Toolkit": [
+    "frontend",
+    "redux",
+    "redux toolkit",
+    "state management"
+  ],
+  "Give me an overview of the user's development environment setup": ["development environment"],
+  "Got promoted to Staff Engineer in November 2025, new base salary is $210,000": [
+    "$210,000",
+    "base salary",
+    "november 2025",
+    "staff engineer"
+  ],
+  "Graduated from UC Berkeley with a BS in Computer Science in 2014": [
+    "2014",
+    "bs",
+    "computer science",
+    "uc berkeley"
+  ],
+  "GraphQL is NOT used — team decided REST is simpler for their use case": ["graphql", "rest"],
+  "Has a brother named Ethan who works in finance in New York": ["ethan", "finance", "new york"],
+  "Has a golden retriever named Biscuit": ["biscuit", "golden retriever"],
+  "Has a mild peanut intolerance — not an allergy, just gets stomach cramps": [
+    "peanut intolerance",
+    "stomach cramp"
+  ],
+  "Has a secondary monitor in portrait mode for reading docs": [
+    "document",
+    "portrait mode",
+    "secondary monitor"
+  ],
+  "How are application errors captured and reported?": ["application error", "error reporting"],
+  "How are background tasks processed?": ["background task"],
+  "How are infrastructure resources provisioned?": ["infrastructure provisioning"],
+  "How are logs collected and shipped?": ["log collection", "log shipping"],
+  "How do external clients communicate with the API?": ["api", "external client"],
+  "How does the team ensure code changes don't bypass review?": ["code review"],
+  "How does the team handle secret rotation?": ["secret rotation"],
+  "How does the team handle security?": ["security"],
+  "How does the team manage feature rollouts?": ["feature rollout"],
+  "How does the team run browser tests?": ["browser test", "browser testing"],
+  "How does the user feel about synchronous communication?": ["synchronous communication"],
+  "How is the API documented?": ["api documentation"],
+  "How many monthly active users does the product have?": [],
+  "How often does the team deploy?": ["deployment frequency"],
+  "Interested in WebGPU and GPU-accelerated web applications": [
+    "gpu-accelerated web application",
+    "webgpu"
+  ],
+  "Interested in distributed systems and consensus algorithms like Raft": [
+    "consensus algorithm",
+    "distributed systems",
+    "raft"
+  ],
+  "Interested in local-first software and CRDTs": ["crdt", "local-first software"],
+  "Is the user a manager?": [],
+  "Is the user available during Tokyo business hours?": ["tokyo"],
+  "Keeps a brag document updated quarterly for performance reviews": [
+    "brag document",
+    "performance review",
+    "quarterly"
+  ],
+  "Learning Rust for systems programming and WebAssembly": [
+    "rust",
+    "systems programming",
+    "webassembly"
+  ],
+  "Listens to lo-fi hip hop and jazz while coding": ["jazz", "lo-fi hip hop"],
+  "Lives in Portland, Oregon": ["portland, oregon"],
+  "Lives in San Francisco, works remotely three days a week": ["remote work", "san francisco"],
+  "Logging uses structured JSON logs shipped to Datadog via Fluentd": [
+    "datadog",
+    "fluentd",
+    "logging",
+    "structured json log"
+  ],
+  "Maintains a small open-source CLI tool for JSON schema validation": [
+    "json schema validation",
+    "open-source cli tool"
+  ],
+  "Migrated from Redux to Zustand in Q3 2025 for simpler state management": [
+    "q3 2025",
+    "redux",
+    "state management",
+    "zustand"
+  ],
+  "Monitoring stack is Datadog for metrics and PagerDuty for alerting": ["datadog", "pagerduty"],
+  "Morning person, most productive between 7am and 10am": [
+    "10am",
+    "7am",
+    "7am-10am",
+    "morning person"
+  ],
+  "My name is Alex Chen": ["alex chen"],
+  "Node.js services run on version 20 LTS": ["node.js"],
+  "On-call rotation is weekly, team of 5 engineers": ["on-call rotation"],
+  "OpenTelemetry is being evaluated for distributed tracing but not yet in production": [
+    "distributed tracing",
+    "opentelemetry"
+  ],
+  "Partner's name is Jordan, they are an architect": ["architect", "jordan"],
+  "Plays chess online — rated around 1600 ELO on Lichess": ["1600 elo", "chess", "lichess"],
+  "Prefers async communication over meetings — Slack threads over calls": [
+    "async communication",
+    "call",
+    "slack thread"
+  ],
+  "Prefers bullet-point summaries over long paragraphs": ["bullet-point summary", "paragraph"],
+  "Prefers dark mode in all editors and terminals": ["dark mode", "editor", "terminal"],
+  "Prefers explicit error handling over try-catch-swallow patterns": [
+    "explicit error handling",
+    "try-catch-swallow pattern"
+  ],
+  "Prefers podcasts over video — favorites are Changelog and Software Engineering Daily": [
+    "changelog",
+    "podcast",
+    "software engineering daily"
+  ],
+  "Prefers tabs over spaces, 2-space width": ["2-space width", "space", "tab"],
+  "Primary language is TypeScript, also writes Go for performance-critical services": [
+    "go",
+    "performance-critical service",
+    "typescript"
+  ],
+  "REST API for external clients, gRPC for internal service-to-service communication": [
+    "grpc",
+    "rest api",
+    "service-to-service communication"
+  ],
+  "Rate limiting is 100 requests per second per API key": ["api key", "rate limiting"],
+  "Reading through the MIT 6.824 distributed systems course materials": [
+    "course material",
+    "distributed systems",
+    "mit 6.824"
+  ],
+  "Recently started learning piano, practicing 30 minutes daily": ["30 minutes daily", "piano"],
+  "Redis is used for session caching and rate limiting": [
+    "rate limiting",
+    "redis",
+    "session caching"
+  ],
+  "Relocated from Portland to San Francisco in November 2025": [
+    "november 2025",
+    "portland",
+    "san francisco"
+  ],
+  "Replaced Cypress with Playwright in August 2025 for cross-browser support": [
+    "august 2025",
+    "cross-browser support",
+    "cypress",
+    "playwright"
+  ],
+  "Rewrote the data pipeline from Python/Celery to Go in Q3 2025 for better throughput": [
+    "celery",
+    "data pipeline",
+    "go",
+    "python",
+    "q3 2025"
+  ],
+  "Runs a home lab with a 3-node Kubernetes cluster on Intel NUCs": [
+    "3-node kubernetes cluster",
+    "home lab",
+    "intel nuc"
+  ],
+  "S3 for file storage with CloudFront CDN in front": ["cdn", "cloudfront", "s3"],
+  "SLA for the data pipeline is 99.9% uptime with a 5-minute ingestion latency target": [
+    "5-minute ingestion latency",
+    "99.9% uptime",
+    "data pipeline",
+    "sla"
+  ],
+  "Secrets managed through AWS Secrets Manager, rotated quarterly": [
+    "aws secrets manager",
+    "secrets"
+  ],
+  "Senior backend engineer at Nimbus Labs, joined in 2023": [
+    "2023",
+    "nimbus labs",
+    "senior backend engineer"
+  ],
+  "Should I schedule a meeting with the user at 3pm PT?": ["3pm pt"],
+  "Speaks English and Mandarin fluently, learning Japanese": ["english", "japanese", "mandarin"],
+  "Sprint cycles are 2 weeks, planning on Mondays": ["planning", "sprint cycle"],
+  "Summarize the user's communication preferences": ["communication preference"],
+  "Switched from coffee to matcha in September 2025 for health reasons": [
+    "coffee",
+    "matcha",
+    "september 2025"
+  ],
+  "Switched to continuous deployment in October 2025 — every merged PR auto-deploys": [
+    "auto-deploy",
+    "continuous deployment",
+    "october 2025",
+    "pull request"
+  ],
+  "Takes melatonin to help with sleep, usually in bed by 11pm": ["11pm", "melatonin", "sleep"],
+  "Team uses Slack for internal comms, with a #deployments channel for release notifications": [
+    "#deployments",
+    "slack"
+  ],
+  "Team uses trunk-based development — short-lived feature branches merged daily": [
+    "feature branch",
+    "trunk-based development"
+  ],
+  "Tell me about the user as a person": [],
+  "Tell me about the user's testing approach": ["testing approach"],
+  "Testing philosophy: integration tests for critical paths, unit tests for business logic": [
+    "business logic",
+    "integration test",
+    "unit test"
+  ],
+  "The data pipeline was originally written in Python using Celery for task orchestration": [
+    "celery",
+    "data pipeline",
+    "python",
+    "task orchestration"
+  ],
+  "The product has around 50k monthly active users as of December 2025": [
+    "50k monthly active user",
+    "december 2025"
+  ],
+  "The team adopted Conventional Commits in mid-2025 for automated changelog generation": [
+    "automated changelog generation",
+    "conventional commits",
+    "mid-2025"
+  ],
+  "The team has a strict no-hotfix policy — all changes go through the normal PR flow": [
+    "no-hotfix policy",
+    "pr flow"
+  ],
+  "Timezone is US Pacific (PT)": ["pt", "us pacific"],
+  "Uses 1Password for password management": ["1password", "password management"],
+  "Uses Docker for local development, Kubernetes in production": ["docker", "kubernetes"],
+  "Uses Linear for issue tracking and project management": [
+    "issue tracking",
+    "linear",
+    "project management"
+  ],
+  "Uses PostgreSQL 15 with read replicas for the main product database": [
+    "postgresql 15",
+    "product database",
+    "read replica"
+  ],
+  "Uses Prisma as the ORM for TypeScript services": ["orm", "prisma", "typescript"],
+  "Uses Terraform for infrastructure, Terragrunt for environment separation": [
+    "terraform",
+    "terragrunt"
+  ],
+  "Uses a standing desk and takes a walk every 90 minutes": ["90 minutes", "standing desk", "walk"],
+  "Uses tmux with a custom config for terminal multiplexing": [
+    "custom config",
+    "terminal multiplexing",
+    "tmux"
+  ],
+  "Uses vim keybindings everywhere — VS Code, IntelliJ, browser": [
+    "browser",
+    "intellij",
+    "vim",
+    "vs code"
+  ],
+  "Uses vitest for unit tests and Playwright for end-to-end tests": [
+    "end-to-end test",
+    "playwright",
+    "unit test",
+    "vitest"
+  ],
+  "Vegetarian since 2020, but eats fish occasionally": ["2020", "fish", "vegetarian"],
+  "Volunteers as a mentor at a local coding bootcamp on Saturday mornings": [
+    "coding bootcamp",
+    "mentor",
+    "saturday morning"
+  ],
+  "Wants to build a personal knowledge management tool someday": ["personal knowledge management"],
+  "Wears glasses, prescription is -3.5 in both eyes": ["glasses", "prescription -3.5"],
+  "What CI/CD platform is used?": [],
+  "What E2E testing tool does the team use?": ["end-to-end testing tool"],
+  "What ORM does the team use?": [],
+  "What are the user's hobbies and interests outside of work?": ["hobby", "interest"],
+  "What beverage does the user prefer now?": ["preferred beverage"],
+  "What branching strategy does the team follow?": ["branching strategy"],
+  "What caching layer is used for sessions?": ["caching layer", "session store"],
+  "What car does the user drive?": [],
+  "What city is the user based in now?": ["city", "current city"],
+  "What commit message convention does the team follow?": ["commit message convention"],
+  "What conferences has the user attended?": [],
+  "What containerization setup is used for local dev?": [
+    "containerization setup",
+    "local development"
+  ],
+  "What data store is NOT used for real-time transactional queries?": [],
+  "What database connection pooling does the team use?": ["database connection pooling"],
+  "What database does the team use?": [],
+  "What database is used for analytics?": ["analytics database"],
+  "What database is used for real-time transactional queries?": ["transactional database"],
+  "What did the user use before switching to matcha?": ["matcha"],
+  "What distributed computing topics interest the user?": ["distributed computing"],
+  "What distributed systems knowledge does the user have?": ["distributed system"],
+  "What does the user do for exercise?": ["exercise"],
+  "What does the user do to give back to the community?": ["community contribution"],
+  "What does the user drink in the morning?": ["morning beverage"],
+  "What does the user listen to while working?": ["music"],
+  "What does the user's data pipeline look like?": ["data pipeline"],
+  "What does the user's observability setup look like?": ["observability"],
+  "What does the user's workspace look like?": ["workspace"],
+  "What foods should the user avoid?": ["food"],
+  "What happens when someone gets paged?": ["on-call paging"],
+  "What health-related things should I know about the user?": ["health"],
+  "What infrastructure and cloud services does the team use?": ["cloud service", "infrastructure"],
+  "What is Alex's compensation?": ["alex", "compensation"],
+  "What is the API latency target?": [],
+  "What is the current frontend state management approach?": [
+    "frontend state management",
+    "state management approach"
+  ],
+  "What is the data pipeline SLA?": ["data pipeline sla"],
+  "What is the data pipeline built with?": ["data pipeline"],
+  "What is the deployment cadence?": ["deployment cadence"],
+  "What is the deployment region?": [],
+  "What is the user's chess rating?": [],
+  "What is the user's current job title?": [],
+  "What is the user's current salary?": ["salary"],
+  "What is the user's educational and career background?": ["career", "education"],
+  "What is the user's food allergy, not intolerance?": ["food allergy", "food intolerance"],
+  "What is the user's food allergy?": ["food allergy"],
+  "What is the user's name?": [],
+  "What is the user's preferred formatting for documents?": ["document formatting"],
+  "What is the user's side project?": ["side project"],
+  "What is the user's tech stack?": ["tech stack"],
+  "What keyboard does the user use?": [],
+  "What language is the data pipeline written in?": ["data pipeline", "language"],
+  "What languages does the user speak?": [],
+  "What makes the user most productive?": ["productivity"],
+  "What monitoring tools are used?": [],
+  "What musical instrument is the user learning?": ["musical instrument"],
+  "What open source projects does the user maintain?": ["open source project"],
+  "What pet does the user have?": [],
+  "What project management tool does the team use?": [],
+  "What queue system handles async jobs?": ["async job", "queue system"],
+  "What rate limits apply to the API?": ["api", "rate limit"],
+  "What side projects and open source work does the user do?": ["open source", "side project"],
+  "What state management library does the frontend use?": ["frontend", "state management library"],
+  "What technology does the team explicitly NOT use?": ["technology"],
+  "What testing changes happened in 2025?": ["2025", "testing change"],
+  "What testing framework is used for unit tests?": ["testing framework", "unit test"],
+  "What text editor keybindings does the user prefer?": ["keybinding", "text editor"],
+  "What tracing solution is the team evaluating?": ["tracing solution"],
+  "What was the old state management before the migration?": ["migration", "old state management"],
+  "When did the team switch to continuous deployment?": ["continuous deployment"],
+  "Where did the user go to college?": [],
+  "Where does the user currently live?": ["current location", "residence"],
+  "Where does the user hike?": ["hiking location"],
+  "Would the user prefer a video call or a Slack thread?": ["slack", "slack thread", "video call"]
+}

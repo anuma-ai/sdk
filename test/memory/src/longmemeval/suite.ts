@@ -11,6 +11,12 @@ import { join } from "node:path";
 import { createWriteStream } from "node:fs";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
+import { type StorageOperationsContext } from "../../../../src/lib/db/chat/operations.js";
+import { Conversation, Message } from "../../../../src/lib/db/chat/models.js";
+import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memoryVault/operations.js";
+import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
+import { Entity, MemoryEntity } from "../../../../src/lib/db/entities/models.js";
+import { type EntityOperationsContext } from "../../../../src/lib/db/entities/operations.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -26,6 +32,8 @@ import { getCacheDirectory } from "./dataset.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { processEntryMemoryEngine } from "./memoryEngineStrategy.js";
 import { processEntryMemoryVault } from "./memoryVaultStrategy.js";
+import { processEntryEnsemble } from "./ensembleStrategy.js";
+import { processEntryRecall } from "./recallStrategy.js";
 
 declare const global: typeof globalThis;
 declare const require: any;
@@ -47,12 +55,12 @@ console.warn = (...args: any[]) => {
 export interface ExtractedMemory {
   sessionIndex: number;
   sessionId: string;
-  type: "identity" | "preference" | "project" | "skill" | "constraint";
-  namespace: string;
-  key: string;
-  value: string;
-  rawEvidence: string;
+  content: string;
+  kind: "state" | "event";
+  occurredAt: string | null;
   confidence: number;
+  /** Named entities (people, places, things). Drives the W5 graph lane. */
+  entities: string[];
   embedding?: number[];
 }
 
@@ -117,6 +125,37 @@ export async function setupDatabase(): Promise<Database> {
     adapter,
     modelClasses: sdkModelClasses,
   });
+}
+
+// ── DB context constructors (shared by strategies) ──
+
+export function createVaultContext(db: Database): VaultMemoryOperationsContext {
+  return {
+    database: db,
+    vaultMemoryCollection: db.collections.get<VaultMemory>("memory_vault"),
+    walletAddress: undefined,
+    signMessage: undefined,
+    embeddedWalletSigner: undefined,
+  };
+}
+
+export function createEntityContext(db: Database): EntityOperationsContext {
+  return {
+    database: db,
+    entityCollection: db.collections.get<Entity>("entity"),
+    memoryEntityCollection: db.collections.get<MemoryEntity>("memory_entity"),
+  };
+}
+
+export function createStorageContext(db: Database): StorageOperationsContext {
+  return {
+    database: db,
+    messagesCollection: db.collections.get<Message>("history"),
+    conversationsCollection: db.collections.get<Conversation>("conversations"),
+    walletAddress: undefined,
+    signMessage: undefined,
+    embeddedWalletSigner: undefined,
+  };
 }
 
 // ── JSON extraction ──
@@ -191,10 +230,22 @@ export async function callChatCompletion(
   toolCalls?: Array<{ id: string; function: { name: string; arguments: string } }>;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }> {
-  const maxAttempts = 3;
+  const maxAttempts = 6;
   let lastStatus: number | null = null;
   let lastError: unknown;
   let emptyRetryUsed = false;
+
+  // Exponential backoff with jitter for transient errors. 429s hit hard
+  // at concurrency=100 — Fireworks rate limits have tightened since the
+  // March 11 baseline run (which had zero 429s in its logs). Linear
+  // 250ms*N backoff was too short: bursts had every worker retry into
+  // the same rate window and fail.
+  const backoffMs = (attempt: number, status: number | null): number => {
+    const base = status === 429 ? 1000 : 250;
+    const exp = base * 2 ** (attempt - 1);
+    const jitter = Math.random() * 0.4 * exp; // ±20% to avoid thundering herd
+    return Math.min(15_000, exp + jitter);
+  };
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -230,7 +281,7 @@ export async function callChatCompletion(
       if (!response.ok) {
         lastStatus = response.status;
         if (attempt < maxAttempts) {
-          await sleep(250 * attempt);
+          await sleep(backoffMs(attempt, response.status));
           continue;
         }
         throw new Error(`Chat completion failed: ${response.status}`);
@@ -256,7 +307,7 @@ export async function callChatCompletion(
 
       if (!content && !toolCalls && !emptyRetryUsed && attempt < maxAttempts) {
         emptyRetryUsed = true;
-        await sleep(250 * attempt);
+        await sleep(backoffMs(attempt, null));
         continue;
       }
 
@@ -264,7 +315,7 @@ export async function callChatCompletion(
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {
-        await sleep(250 * attempt);
+        await sleep(backoffMs(attempt, lastStatus));
         continue;
       }
     }
@@ -330,83 +381,156 @@ export async function extractMemoriesFromSession(
   session: LongMemEvalSession,
   sessionIndex: number,
   sessionId: string,
-  api: ApiConfig
+  api: ApiConfig,
+  observationDate?: string
 ): Promise<ExtractedMemory[]> {
   const conversationText = session.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
+  const obsDate = observationDate ?? new Date().toISOString().split("T")[0];
 
-  const extractionPrompt = `You are a memory extraction system. Extract durable user memories from this chat conversation.
+  // Extraction prompt — adapted from Mem0 (contextual richness, absolute
+  // dates, preserve specifics) + Hindsight's `fact_kind: event | conversation`
+  // split. Designed to fix three failure modes we observed on LongMemEval:
+  // (1) over-aggregation duplicating the same logical fact 4× across sessions,
+  // (2) awkward boolean key-value shapes burying the actual fact in
+  // `rawEvidence`, (3) under-extraction of episodic events ("went to bed at
+  // 2 AM the night before doctor's appointment") because the prior prompt
+  // only asked for "durable" facts.
+  const extractionPrompt = `You extract memories from a chat conversation for a personal memory system. The user will return tomorrow, next week, or next year and ask questions that depend on these memories.
 
-CRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, just pure JSON.
-
-Only extract clear, factual statements about the user that might be relevant for future conversations.
-Focus on: identity facts, preferences, projects, skills, constraints, and personal information.
-
+Observation date: ${obsDate}
 Conversation:
 ${conversationText}
 
-Response format:
+OUTPUT — strict JSON, no prose, no markdown:
 {
   "items": [
     {
-      "type": "identity|preference|project|skill|constraint",
-      "namespace": "category",
-      "key": "attribute_name",
-      "value": "the value",
-      "rawEvidence": "exact quote from conversation",
-      "confidence": 0.0-1.0
+      "content": "<self-contained natural-language sentence, 15–80 words, present-tense, third-person>",
+      "kind": "state" | "event",
+      "occurredAt": "<ISO date YYYY-MM-DD if kind is event, otherwise null>",
+      "confidence": 0.0-1.0,
+      "entities": ["<named entities mentioned: people, places, things, brands; skip generic nouns>"]
     }
   ]
 }
 
-If no memories to extract, return: {"items": []}`;
+If no memories worth keeping, return {"items": []}.
 
-  try {
-    const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": api.apiKey,
-      },
-      body: JSON.stringify({
-        model: api.llmModel,
-        messages: [{ role: "user", content: extractionPrompt }],
-        temperature: 0,
-        max_tokens: 2000,
-      }),
-    });
+WHAT TO EXTRACT — facts about the user themselves.
 
-    if (!response.ok) return [];
+- "state" — durable: identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
+- "event" — dated occurrences: meals eaten, trips taken, meetings, bedtimes, purchases, doctor visits, things "I did yesterday".
 
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    const content = data.choices[0]?.message?.content || "{}";
-    const jsonStr = extractJsonFromResponse(content);
+Casual topics ARE extractable. Pet names, what they ate for breakfast, a friend's birthday, what time they went to bed, the route they took to work.
 
-    const parsed = JSON.parse(jsonStr) as {
-      items: Array<{
-        type: string;
-        namespace: string;
-        key: string;
-        value: string;
-        rawEvidence: string;
-        confidence: number;
-      }>;
-    };
+WHAT NOT TO EXTRACT:
 
-    return (parsed.items || []).map((item) => ({
-      sessionIndex,
-      sessionId,
-      type: item.type as ExtractedMemory["type"],
-      namespace: item.namespace || "general",
-      key: item.key || "unknown",
-      value: item.value || "",
-      rawEvidence: item.rawEvidence || "",
-      confidence: item.confidence || 0.5,
-    }));
-  } catch {
-    return [];
+- Greetings, filler ("got it", "ok"), confirmations of the assistant's reply
+- Hypotheticals ("if I were to move to Tokyo…")
+- Pure search/task requests with no durable answer ("draft an email", "what's the weather")
+- Facts about other people that don't connect to the user or the conversation
+- Facts already implied by other extracted memories (consolidate, don't duplicate)
+
+CONTENT RULES:
+
+- Self-contained natural-language sentences, NEVER key-value or boolean shapes. NOT "has_favorite_yoga_pants: true". INSTEAD "User has a favorite pair of yoga pants worn to the gym last Thursday".
+- Preserve specifics verbatim — proper nouns, brand names, quantities, addresses, exact prices, exact times. Do NOT generalize "Mochi the corgi" into "user's dog".
+- ONE MEMORY PER DISTINCT FACT. If the conversation mentions the user's aunt's twins named Ava and Lily born in April, that is ONE memory ("User's aunt has newborn twin girls Ava and Lily, born April 2026"), not four overlapping facets.
+- Resolve relative dates against the Observation Date above. "Last Thursday" + Observation Date ${obsDate} → an absolute date. Never write "yesterday" or "recently".
+- Coreference: if the user mentions "my partner" then later says "Sara", combine — write "User's partner is Sara". Use the most complete identifier.
+- 15–80 words. Long enough to be self-contained for retrieval; short enough to be one fact.
+
+Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.7 for inferred. Below 0.5: skip.`;
+
+  // Same exponential-backoff retry pattern as callChatCompletion. Extraction
+  // hits the LLM under high concurrency, so 429s here will silently empty the
+  // vault for that session — much costlier than a missing answer because the
+  // memory is gone for *every* downstream search. Retry hard before giving up.
+  const maxAttempts = 6;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": api.apiKey,
+        },
+        body: JSON.stringify({
+          model: api.llmModel,
+          messages: [{ role: "user", content: extractionPrompt }],
+          temperature: 0,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        if (attempt < maxAttempts && (response.status === 429 || response.status >= 500)) {
+          const base = response.status === 429 ? 1000 : 250;
+          const exp = base * 2 ** (attempt - 1);
+          await sleep(Math.min(15_000, exp + Math.random() * 0.4 * exp));
+          continue;
+        }
+        console.warn(
+          `Extraction failed (session ${sessionId}): HTTP ${response.status} after ${attempt} attempts`
+        );
+        return [];
+      }
+
+      const data = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
+      const content = data.choices[0]?.message?.content || "{}";
+      const jsonStr = extractJsonFromResponse(content);
+
+      const parsed = JSON.parse(jsonStr) as {
+        items?: Array<{
+          content?: string;
+          kind?: string;
+          occurredAt?: string | null;
+          confidence?: number;
+          entities?: unknown;
+        }>;
+      };
+
+      return (parsed.items ?? [])
+        .map((item) => {
+          const content = (item.content ?? "").trim();
+          if (!content) return null;
+          const kind = item.kind === "event" ? "event" : "state";
+          const occurredAt =
+            kind === "event" && typeof item.occurredAt === "string" ? item.occurredAt : null;
+          const confidence = typeof item.confidence === "number" ? item.confidence : 0.7;
+          // Defensive parse — older bench runs / models without graph-lane
+          // awareness may omit entities or return non-array shapes.
+          const entities = Array.isArray(item.entities)
+            ? item.entities.filter((e): e is string => typeof e === "string" && e.trim().length > 0)
+            : [];
+          return {
+            sessionIndex,
+            sessionId,
+            content,
+            kind,
+            occurredAt,
+            confidence,
+            entities,
+          } satisfies ExtractedMemory;
+        })
+        .filter((m): m is ExtractedMemory => m !== null);
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts) {
+        const exp = 250 * 2 ** (attempt - 1);
+        await sleep(Math.min(15_000, exp + Math.random() * 0.4 * exp));
+        continue;
+      }
+    }
   }
+  console.warn(
+    `Extraction failed (session ${sessionId}) after ${maxAttempts} attempts:`,
+    lastError
+  );
+  return [];
 }
 
 // ── Progress logging ──
@@ -461,7 +585,7 @@ function aggregateSummary(
   results: LongMemEvalResult[],
   latencies: number[],
   options: LongMemEvalOptions,
-  strategy: "memory-engine" | "memory-vault"
+  strategy: "memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"
 ): LongMemEvalSummary {
   const byQuestionType: LongMemEvalSummary["byQuestionType"] = {} as any;
   for (const type of [
@@ -554,10 +678,10 @@ export async function runLongMemEval(
 
   const strategy = options.strategy || "both";
   const llmModel = options.llmModel || api.llmModel;
-  const strategies: Array<"memory-engine" | "memory-vault"> =
+  const strategies: Array<"memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"> =
     strategy === "both"
       ? ["memory-engine", "memory-vault"]
-      : [strategy as "memory-engine" | "memory-vault"];
+      : [strategy as "memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"];
 
   const concurrency = options.concurrency ?? 1;
 
@@ -612,12 +736,48 @@ export async function runLongMemEval(
             options.maxSessions,
             embeddingCache
           );
+        } else if (strat === "memory-ensemble") {
+          result = await processEntryEnsemble(
+            entry,
+            { ...api, llmModel },
+            options.verbose || false,
+            options.maxSessions,
+            {
+              rerank: options.rerank,
+              decompose: options.decompose,
+              consolidate: options.consolidate,
+            }
+          );
+        } else if (strat === "memory-recall") {
+          result = await processEntryRecall(
+            entry,
+            { ...api, llmModel },
+            options.verbose || false,
+            options.maxSessions,
+            {
+              rerank: options.rerank,
+              decompose: options.decompose,
+              consolidate: options.consolidate,
+              chunkSourceMaxChars: options.chunkSourceMaxChars,
+              excerptMaxChars: options.excerptMaxChars,
+              recallTypes: options.recallTypes,
+              recallEmit: options.recallEmit,
+              recallLaneMode: options.recallLaneMode,
+            }
+          );
         } else {
           result = await processEntryMemoryVault(
             entry,
             { ...api, llmModel },
             options.verbose || false,
-            options.maxSessions
+            options.maxSessions,
+            {
+              rerank: options.rerank,
+              decompose: options.decompose,
+              consolidate: options.consolidate,
+              chunkSourceMaxChars: options.chunkSourceMaxChars,
+              excerptMaxChars: options.excerptMaxChars,
+            }
           );
         }
 

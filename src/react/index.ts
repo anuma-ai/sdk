@@ -292,6 +292,60 @@ export {
   type VaultSaveOperation,
   type VaultSearchResult,
 } from "../lib/memoryVault";
+
+// Unified memory API surface — recall + retain + auto-extraction.
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+  reflect,
+  retain,
+} from "../lib/memory";
+
+// Entity / memory_entity tables — the W5 graph-lane storage that
+// auto-extraction writes to and the recall graph lane reads from.
+export {
+  Entity as EntityModel,
+  MemoryEntity as MemoryEntityModel,
+} from "../lib/db/entities/models";
+export {
+  backfillMemoryEntityUserIdsOp,
+  type EntityOperationsContext,
+  getMemoriesByEntityNamesOp,
+  linkMemoryEntitiesOp,
+} from "../lib/db/entities/operations";
+export type { CreateEntityOptions, EntityKind, StoredEntity } from "../lib/db/entities/types";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";
 

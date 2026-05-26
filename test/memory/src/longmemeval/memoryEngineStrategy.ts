@@ -7,36 +7,20 @@
  * createMemoryEngineTool.
  */
 
-import type { Database } from "@nozbe/watermelondb";
-import {
-  createConversationOp,
-  createMessageOp,
-  type StorageOperationsContext,
-} from "../../../../src/lib/db/chat/operations.js";
-import { Message, Conversation } from "../../../../src/lib/db/chat/models.js";
+import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
-import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
+import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";
 import {
-  setupDatabase,
-  selectSessions,
   callChatCompletion,
-  evaluateAnswer,
-  saveTranscript,
-  logProgress,
   clearProgress,
+  createStorageContext,
+  evaluateAnswer,
+  logProgress,
+  saveTranscript,
+  selectSessions,
+  setupDatabase,
 } from "./suite.js";
-
-function createStorageContext(db: Database): StorageOperationsContext {
-  return {
-    database: db,
-    messagesCollection: db.collections.get<Message>("history"),
-    conversationsCollection: db.collections.get<Conversation>("conversations"),
-    walletAddress: undefined,
-    signMessage: undefined,
-    embeddedWalletSigner: undefined,
-  } as StorageOperationsContext;
-}
 
 /**
  * Process a single LongMemEval entry using the Memory Engine strategy.

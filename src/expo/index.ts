@@ -219,6 +219,11 @@ export {
   quantizeEmbedding,
 } from "../lib/memoryEngine";
 
+// Unified recall surface — the single chat-completion tool that fuses
+// vault facts and conversation chunks via recall().
+export type { RecallToolCallbacks, RecallToolOptions } from "../lib/memory";
+export { createRecallTool, RECALL_MAX_LIMIT, RECALL_TOOL_NAME } from "../lib/memory";
+
 // Notion OAuth primitives (platform-agnostic, no browser globals)
 export type {
   NotionAuthUrlParams,

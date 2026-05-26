@@ -190,6 +190,12 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 
 ***
 
+### createRecallTool
+
+Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
+
+***
+
 ### createVaultFolderOp
 
 Re-exports [createVaultFolderOp](../react/Internal/functions/createVaultFolderOp.md)
@@ -469,6 +475,30 @@ Re-exports [QueueManager](../react/Internal/classes/QueueManager.md)
 ### QueueStatus
 
 Re-exports [QueueStatus](../react/Internal/interfaces/QueueStatus.md)
+
+***
+
+### RECALL\_MAX\_LIMIT
+
+Re-exports [RECALL\_MAX\_LIMIT](../react/Internal/variables/RECALL_MAX_LIMIT.md)
+
+***
+
+### RECALL\_TOOL\_NAME
+
+Re-exports [RECALL\_TOOL\_NAME](../react/Internal/variables/RECALL_TOOL_NAME.md)
+
+***
+
+### RecallToolCallbacks
+
+Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallbacks.md)
+
+***
+
+### RecallToolOptions
+
+Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md)
 
 ***
 

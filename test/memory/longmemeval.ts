@@ -32,7 +32,23 @@ import type {
   LongMemEvalStrategy,
   LongMemEvalSummary,
   LongMemEvalComparisonSummary,
+  RecallEmit,
+  RecallLaneMode,
+  RecallTypes,
 } from "./src/longmemeval/types.js";
+
+function parseRecallTypes(raw: string): RecallTypes {
+  if (raw === "fact" || raw === "chunk") return raw;
+  return "fact-chunk";
+}
+
+function parseRecallEmit(raw: string): RecallEmit {
+  return raw === "blocks" ? "blocks" : "rrf";
+}
+
+function parseRecallLaneMode(raw: string): RecallLaneMode {
+  return raw === "per-lane" ? "per-lane" : "fused";
+}
 
 const { values: args } = parseArgs({
   options: {
@@ -54,6 +70,14 @@ const { values: args } = parseArgs({
     "cache-dir": { type: "boolean", default: false },
     stats: { type: "boolean", default: false },
     help: { type: "boolean", default: false, short: "h" },
+    rerank: { type: "string" },
+    decompose: { type: "string" },
+    consolidate: { type: "string" },
+    "chunk-source": { type: "string" },
+    "excerpt-cap": { type: "string" },
+    "recall-types": { type: "string" },
+    "recall-emit": { type: "string" },
+    "recall-lane-mode": { type: "string" },
   },
 });
 
@@ -172,6 +196,10 @@ async function main(): Promise<void> {
     strategy = "memory-engine";
   } else if (rawStrategy === "vault" || rawStrategy === "memory-vault") {
     strategy = "memory-vault";
+  } else if (rawStrategy === "recall" || rawStrategy === "memory-recall") {
+    strategy = "memory-recall";
+  } else if (rawStrategy === "ensemble" || rawStrategy === "memory-ensemble") {
+    strategy = "memory-ensemble";
   } else if (rawStrategy === "both" || !rawStrategy) {
     strategy = "both";
   }
@@ -191,6 +219,26 @@ async function main(): Promise<void> {
     output: args.output,
     skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],
     concurrency: args.concurrency ? parseInt(args.concurrency, 10) : undefined,
+    ...(args.rerank !== undefined && { rerank: args.rerank !== "false" }),
+    ...(args.decompose !== undefined && {
+      decompose: args.decompose === "off" ? "off" : "llm",
+    }),
+    ...(args.consolidate !== undefined && { consolidate: args.consolidate !== "false" }),
+    ...(args["chunk-source"] !== undefined && {
+      chunkSourceMaxChars: parseInt(args["chunk-source"], 10),
+    }),
+    ...(args["excerpt-cap"] !== undefined && {
+      excerptMaxChars: parseInt(args["excerpt-cap"], 10),
+    }),
+    ...(args["recall-types"] !== undefined && {
+      recallTypes: parseRecallTypes(args["recall-types"]),
+    }),
+    ...(args["recall-emit"] !== undefined && {
+      recallEmit: parseRecallEmit(args["recall-emit"]),
+    }),
+    ...(args["recall-lane-mode"] !== undefined && {
+      recallLaneMode: parseRecallLaneMode(args["recall-lane-mode"]),
+    }),
   };
 
   try {

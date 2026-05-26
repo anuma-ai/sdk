@@ -305,6 +305,47 @@ export {
   type VaultSearchResult,
 } from "../lib/memoryVault";
 
+// ── Unified Memory API (recall / retain / reflect) ──
+
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+  reflect,
+  retain,
+} from "../lib/memory";
+
 // ── Server Tools ──
 
 export type {
@@ -316,19 +357,13 @@ export type {
   ToolMatchOptions,
   ToolMatchResult,
 } from "../lib/tools";
-export type { SelectServerToolsForPromptOptions, ServerToolsFilterFunction } from "../lib/tools";
 export {
   clearServerToolsCache,
-  createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
-  DEFAULT_EXCLUDED_SERVER_TOOLS,
-  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
-  defaultServerToolsFilter,
   findMatchingTools,
   getCachedServerTools,
   getServerTools,
   getToolsChecksum,
-  selectServerToolsForPrompt,
   shouldRefreshTools,
 } from "../lib/tools";
 
