@@ -14,6 +14,7 @@ import { resolve } from "path";
 
 import { BASE_URL } from "../src/clientConfig";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
+import { averageVectors } from "./lib/centroids";
 
 const CRYPTO_PRICE_PHRASES = [
   // Direct price queries
@@ -59,6 +60,16 @@ const CRYPTO_PRICE_PHRASES = [
   "Show me top L2 token prices",
   "DeFi token prices",
   "Memecoin prices today",
+
+  // Gold-pegged / commodity-backed tokens — gold is genuinely ambiguous
+  // (gold-token vs gold-spot), so the crypto centroid should fire alongside
+  // the stock centroid on gold queries.
+  "PAXG price",
+  "What is the PAX Gold token worth",
+  "XAUT price today",
+  "Tether Gold price",
+  "Price of gold-backed tokens",
+  "What is the price of gold today",
 
   // Conversational crypto price queries
   "How much does one Bitcoin cost in USD right now",
@@ -106,7 +117,6 @@ const NO_CRYPTO_PRICE_PHRASES = [
   "Top movers in the stock market",
   "USD to JPY rate today",
   "EUR/USD live rate",
-  "What is the price of gold today",
   "Spot price of silver",
   "Oil price right now",
   "Dividend yield of MSFT",
@@ -155,30 +165,6 @@ const NO_CRYPTO_PRICE_PHRASES = [
   "Find Italian restaurants near me",
 ];
 
-function averageVectors(vectors: number[][]): number[] {
-  if (vectors.length === 0) {
-    throw new Error("averageVectors: received an empty vector list");
-  }
-  const dim = vectors[0].length;
-  for (let i = 1; i < vectors.length; i++) {
-    if (vectors[i].length !== dim) {
-      throw new Error(
-        `averageVectors: dimension mismatch — vectors[0] has ${dim} dims, vectors[${i}] has ${vectors[i].length}`
-      );
-    }
-  }
-  const avg = new Array(dim).fill(0);
-  for (const v of vectors) {
-    for (let i = 0; i < dim; i++) {
-      avg[i] += v[i];
-    }
-  }
-  for (let i = 0; i < dim; i++) {
-    avg[i] /= vectors.length;
-  }
-  return avg;
-}
-
 async function main() {
   const apiKey = process.env.PORTAL_API_KEY;
   const baseUrl = process.env.ANUMA_API_URL || BASE_URL;
@@ -210,11 +196,14 @@ async function main() {
  *
  * At runtime the classifier only needs to embed the user prompt and compute
  * two cosine similarities — no reference phrase embedding calls needed.
+ *
+ * Note: depending on which floats land in this regen, ESLint's
+ * \`no-loss-of-precision\` rule may fire on the literal array below. If lint
+ * complains, add \`/* eslint-disable no-loss-of-precision *\\/\` above the
+ * \`export const\` line — but don't add it pre-emptively, because the
+ * \`reportUnusedDisableDirectives\` check will then fail when the regen happens
+ * to produce safe floats.
  */
-
-/* eslint-disable no-loss-of-precision -- floats serialized via JSON.stringify
-   may exceed JS Number precision in the last digit; that loss is below the
-   cosine-similarity noise floor at 4096 dimensions. */
 
 // prettier-ignore
 export const cryptoPriceCentroid: number[] = ${JSON.stringify(cryptoPriceCentroid)};

@@ -14,6 +14,7 @@ import { resolve } from "path";
 
 import { BASE_URL } from "../src/clientConfig";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
+import { averageVectors } from "./lib/centroids";
 
 const STOCK_PRICE_PHRASES = [
   // Direct stock price queries
@@ -156,30 +157,6 @@ const NO_STOCK_PRICE_PHRASES = [
   "What is the weather in Tokyo tomorrow",
   "Find Italian restaurants near me",
 ];
-
-function averageVectors(vectors: number[][]): number[] {
-  if (vectors.length === 0) {
-    throw new Error("averageVectors: received an empty vector list");
-  }
-  const dim = vectors[0].length;
-  for (let i = 1; i < vectors.length; i++) {
-    if (vectors[i].length !== dim) {
-      throw new Error(
-        `averageVectors: dimension mismatch — vectors[0] has ${dim} dims, vectors[${i}] has ${vectors[i].length}`
-      );
-    }
-  }
-  const avg = new Array(dim).fill(0);
-  for (const v of vectors) {
-    for (let i = 0; i < dim; i++) {
-      avg[i] += v[i];
-    }
-  }
-  for (let i = 0; i < dim; i++) {
-    avg[i] /= vectors.length;
-  }
-  return avg;
-}
 
 async function main() {
   const apiKey = process.env.PORTAL_API_KEY;
