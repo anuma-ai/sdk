@@ -2,7 +2,7 @@
 
 > **deleteMediaByMessageOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `messageId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:801](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#801)
+Defined in: [src/lib/db/media/operations.ts:822](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#822)
 
 Delete all media for a message (when message is deleted).
 Clears source\_url, removes files from OPFS, but keeps all metadata.

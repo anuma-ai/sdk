@@ -14,7 +14,7 @@ import type {
   StoredMedia,
   UpdateMediaOptions,
 } from "./types";
-import { generateMediaId, getMediaTypeFromMime } from "./types";
+import { generateMediaId } from "./types";
 
 /**
  * Delete a file from OPFS if supported, silently ignoring errors.
@@ -322,19 +322,31 @@ export async function updateMediaMessageIdBatchOp(
   return results.length;
 }
 
+/** Video file extensions used to recognize misclassified records by name. */
+const VIDEO_EXTENSIONS = ["mp4", "webm", "mov"];
+
+/** Extract a lowercased file extension from a media name, if any. */
+function extensionFromName(name: string | undefined): string | null {
+  return name?.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? null;
+}
+
 /**
  * Recovery migration: relink videos that were mistakenly stored as images.
  *
  * Earlier builds captured MCP video URLs via the image-extraction fallback and
- * created StoredMedia records with `media_type = "image"` even though the bytes
- * (and `mime_type`) are video. Those records hold the video in encrypted OPFS
- * but never surface in the video player's fallback or the Videos library tab.
+ * created StoredMedia records with `media_type = "image"`. Those records hold
+ * the video in encrypted OPFS but never surface in the video player's fallback
+ * or the Videos library tab.
  *
- * `mime_type` is a plaintext column and is already correct (e.g. "video/mp4"),
- * so we can find the affected rows by querying `media_type = "image"` with a
- * `video/` mime and flip `media_type` to the value derived from the mime.
+ * The stored `mime_type` is an unreliable signal — object storage often served
+ * a generic `application/octet-stream`, and the old path also stamped
+ * `image/<ext>` when the blob type was empty. The reliable plaintext signal is
+ * the generated `name` (`mcp-image-*.<ext>`, where `<ext>` comes from the source
+ * URL). So we match `media_type = "image"` rows whose mime is `video/*` OR whose
+ * name carries a video extension, flip them to video, and repair the mime so it
+ * stays correct.
  *
- * Idempotent: once flipped, rows no longer match the image+video/ filter.
+ * Idempotent: once flipped to `video`, rows no longer match the filter.
  *
  * @returns number of records relinked
  */
@@ -348,7 +360,10 @@ export async function relinkMisclassifiedVideosOp(
       Q.where("wallet_address", walletAddress),
       Q.where("is_deleted", false),
       Q.where("media_type", "image"),
-      Q.where("mime_type", Q.like("video/%"))
+      Q.or(
+        Q.where("mime_type", Q.like("video/%")),
+        ...VIDEO_EXTENSIONS.map((ext) => Q.where("name", Q.like(`%.${ext}`)))
+      )
     )
     .fetch();
 
@@ -362,7 +377,13 @@ export async function relinkMisclassifiedVideosOp(
     await ctx.database.batch(
       ...results.map((media) =>
         media.prepareUpdate((m) => {
-          m._setRaw("media_type", getMediaTypeFromMime(media.mimeType));
+          m._setRaw("media_type", "video");
+          // Repair a generic/incorrect mime (e.g. application/octet-stream or
+          // image/mp4) so getMediaTypeFromMime keeps resolving to video.
+          if (!media.mimeType?.toLowerCase().startsWith("video/")) {
+            const ext = extensionFromName(media.name) ?? "mp4";
+            m._setRaw("mime_type", `video/${ext}`);
+          }
           // Realign the display name prefix (mcp-image-* -> mcp-video-*).
           if (typeof media.name === "string") {
             m._setRaw("name", media.name.replace(/^mcp-image-/, "mcp-video-"));

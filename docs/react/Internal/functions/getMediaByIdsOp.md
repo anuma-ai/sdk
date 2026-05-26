@@ -2,7 +2,7 @@
 
 > **getMediaByIdsOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaIds`: `string`\[], `includeDeleted`: `boolean`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:585](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#585)
+Defined in: [src/lib/db/media/operations.ts:606](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#606)
 
 Get media by an array of media IDs.
 Useful for fetching media using the fileIds array stored in messages.

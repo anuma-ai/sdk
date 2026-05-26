@@ -86,6 +86,48 @@ describe("relinkMisclassifiedVideosOp", () => {
     expect(await mediaTypeOf(db, "real-image")).toBe("image");
   });
 
+  it("catches videos with a generic/wrong mime via the name extension", async () => {
+    // Old path stored these mimes even though the bytes are video.
+    await insertMedia(db, {
+      mediaId: "octet",
+      mediaType: "image",
+      mimeType: "application/octet-stream",
+      name: "mcp-image-1.mp4",
+    });
+    await insertMedia(db, {
+      mediaId: "image-mp4",
+      mediaType: "image",
+      mimeType: "image/mp4",
+      name: "mcp-image-2.webm",
+    });
+
+    const count = await relinkMisclassifiedVideosOp({ database: db }, WALLET);
+
+    expect(count).toBe(2);
+    expect(await mediaTypeOf(db, "octet")).toBe("video");
+    expect(await mediaTypeOf(db, "image-mp4")).toBe("video");
+  });
+
+  it("repairs a generic mime to a video/<ext> so it stays classified as video", async () => {
+    await insertMedia(db, {
+      mediaId: "octet",
+      mediaType: "image",
+      mimeType: "application/octet-stream",
+      name: "mcp-image-3.mp4",
+    });
+
+    await relinkMisclassifiedVideosOp({ database: db }, WALLET);
+
+    const [record] = await db
+      .get<Media>("media")
+      .query()
+      .fetch()
+      .then((rs) => rs.filter((r) => r.mediaId === "octet"));
+    expect(record!.mimeType).toBe("video/mp4");
+    // Idempotent on a second pass (already video).
+    expect(await relinkMisclassifiedVideosOp({ database: db }, WALLET)).toBe(0);
+  });
+
   it("renames the mcp-image- prefix to mcp-video-", async () => {
     await insertMedia(db, {
       mediaId: "v1",

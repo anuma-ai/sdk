@@ -2,20 +2,24 @@
 
 > **relinkMisclassifiedVideosOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#341)
+Defined in: [src/lib/db/media/operations.ts:353](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#353)
 
 Recovery migration: relink videos that were mistakenly stored as images.
 
 Earlier builds captured MCP video URLs via the image-extraction fallback and
-created StoredMedia records with `media_type = "image"` even though the bytes
-(and `mime_type`) are video. Those records hold the video in encrypted OPFS
-but never surface in the video player's fallback or the Videos library tab.
+created StoredMedia records with `media_type = "image"`. Those records hold
+the video in encrypted OPFS but never surface in the video player's fallback
+or the Videos library tab.
 
-`mime_type` is a plaintext column and is already correct (e.g. "video/mp4"),
-so we can find the affected rows by querying `media_type = "image"` with a
-`video/` mime and flip `media_type` to the value derived from the mime.
+The stored `mime_type` is an unreliable signal — object storage often served
+a generic `application/octet-stream`, and the old path also stamped
+`image/<ext>` when the blob type was empty. The reliable plaintext signal is
+the generated `name` (`mcp-image-*.<ext>`, where `<ext>` comes from the source
+URL). So we match `media_type = "image"` rows whose mime is `video/*` OR whose
+name carries a video extension, flip them to video, and repair the mime so it
+stays correct.
 
-Idempotent: once flipped, rows no longer match the image+video/ filter.
+Idempotent: once flipped to `video`, rows no longer match the filter.
 
 ## Parameters
 

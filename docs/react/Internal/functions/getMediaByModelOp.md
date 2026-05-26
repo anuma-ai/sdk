@@ -2,7 +2,7 @@
 
 > **getMediaByModelOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `model`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:661](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#661)
+Defined in: [src/lib/db/media/operations.ts:682](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#682)
 
 Get media by AI model.
 
