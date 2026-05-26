@@ -129,4 +129,38 @@ describe("extractMCPImageUrls", () => {
     const result = extractMCPImageUrls(content, undefined, MCP_DOMAIN);
     expect(result[0].mediaType).toBe("image");
   });
+
+  it("classifies .webm and .mov content URLs as video", () => {
+    const webm = `https://${MCP_DOMAIN}/clip.webm?sig=a`;
+    const mov = `https://${MCP_DOMAIN}/clip.mov?sig=b`;
+    expect(extractMCPImageUrls(webm, undefined, MCP_DOMAIN)[0].mediaType).toBe("video");
+    expect(extractMCPImageUrls(mov, undefined, MCP_DOMAIN)[0].mediaType).toBe("video");
+  });
+
+  it("classifies mixed image + video content URLs independently", () => {
+    const content = `![img](${MCP_URL_1}) and a clip ${MCP_VIDEO_URL}`;
+    const result = extractMCPImageUrls(content, undefined, MCP_DOMAIN);
+    const byUrl = Object.fromEntries(result.map((r) => [r.url, r.mediaType]));
+    expect(byUrl[MCP_URL_1]).toBe("image");
+    expect(byUrl[MCP_VIDEO_URL]).toBe("video");
+  });
+
+  it("extracts multiple videos from a video tool videos[] array", () => {
+    const v1 = `https://${MCP_DOMAIN}/a.mp4`;
+    const v2 = `https://${MCP_DOMAIN}/b.mp4`;
+    const events = [
+      {
+        name: "AnumaMediaMCP-anuma_create_video",
+        output: JSON.stringify({
+          model: "veo-3.1",
+          videos: [{ video_url: v1 }, { video_url: v2 }],
+        }),
+      },
+    ];
+    const result = extractMCPImageUrls("", events, MCP_DOMAIN);
+    expect(result).toEqual([
+      { url: v1, model: "veo-3.1", mediaType: "video" },
+      { url: v2, model: "veo-3.1", mediaType: "video" },
+    ]);
+  });
 });
