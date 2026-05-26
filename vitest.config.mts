@@ -11,5 +11,9 @@ export default defineConfig({
       // runs on every change instead of only with the heavy e2e suite.
       "test/tools/slide-generation/dumpFiles.test.ts",
     ],
+    // Browser tests need Playwright's Chromium binary and ~3-5s per case.
+    // Skipped by default so `vitest run` stays fast; run via
+    // `pnpm test:browser` (which uses vitest.browser.config.mts).
+    exclude: ["**/node_modules/**", "**/dist/**", "**/*.browser.test.ts"],
   },
 });

@@ -92,8 +92,8 @@
   ],
   "scripts": {
     "spec": "openapi-ts && node scripts/patch-generated-client.mjs",
-    "test": "vitest run --exclude '**/*.browser.test.ts'",
-    "test:browser": "vitest run browser.test",
+    "test": "vitest run",
+    "test:browser": "vitest run --config vitest.browser.config.mts",
     "build": "tsup",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
