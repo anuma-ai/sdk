@@ -26,6 +26,7 @@ export {
   getMediaBySourceUrlOp,
   hardDeleteMediaOp,
   mediaToStored,
+  relinkMisclassifiedVideosOp,
   updateMediaMessageIdBatchOp,
   updateMediaOp,
 } from "./operations";

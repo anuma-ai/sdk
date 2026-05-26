@@ -14,7 +14,7 @@ import type {
   StoredMedia,
   UpdateMediaOptions,
 } from "./types";
-import { generateMediaId } from "./types";
+import { generateMediaId, getMediaTypeFromMime } from "./types";
 
 /**
  * Delete a file from OPFS if supported, silently ignoring errors.
@@ -263,6 +263,7 @@ export async function updateMediaOp(
     await media.update((m) => {
       if (options.name !== undefined) m._setRaw("name", options.name);
       if (options.messageId !== undefined) m._setRaw("message_id", options.messageId);
+      if (options.mediaType !== undefined) m._setRaw("media_type", options.mediaType);
       if (options.sourceUrl !== undefined) m._setRaw("source_url", options.sourceUrl);
       if (options.dimensions !== undefined)
         m._setRaw("dimensions", JSON.stringify(options.dimensions));
@@ -312,6 +313,60 @@ export async function updateMediaMessageIdBatchOp(
       ...results.map((media) =>
         media.prepareUpdate((m) => {
           m._setRaw("message_id", messageId);
+          m._setRaw("updated_at", now);
+        })
+      )
+    );
+  });
+
+  return results.length;
+}
+
+/**
+ * Recovery migration: relink videos that were mistakenly stored as images.
+ *
+ * Earlier builds captured MCP video URLs via the image-extraction fallback and
+ * created StoredMedia records with `media_type = "image"` even though the bytes
+ * (and `mime_type`) are video. Those records hold the video in encrypted OPFS
+ * but never surface in the video player's fallback or the Videos library tab.
+ *
+ * `mime_type` is a plaintext column and is already correct (e.g. "video/mp4"),
+ * so we can find the affected rows by querying `media_type = "image"` with a
+ * `video/` mime and flip `media_type` to the value derived from the mime.
+ *
+ * Idempotent: once flipped, rows no longer match the image+video/ filter.
+ *
+ * @returns number of records relinked
+ */
+export async function relinkMisclassifiedVideosOp(
+  ctx: MediaOperationsContext,
+  walletAddress: string
+): Promise<number> {
+  const mediaCollection = ctx.database.get<Media>("media");
+  const results = await mediaCollection
+    .query(
+      Q.where("wallet_address", walletAddress),
+      Q.where("is_deleted", false),
+      Q.where("media_type", "image"),
+      Q.where("mime_type", Q.like("video/%"))
+    )
+    .fetch();
+
+  if (results.length === 0) {
+    return 0;
+  }
+
+  const now = Date.now();
+
+  await ctx.database.write(async () => {
+    await ctx.database.batch(
+      ...results.map((media) =>
+        media.prepareUpdate((m) => {
+          m._setRaw("media_type", getMediaTypeFromMime(media.mimeType));
+          // Realign the display name prefix (mcp-image-* -> mcp-video-*).
+          if (typeof media.name === "string") {
+            m._setRaw("name", media.name.replace(/^mcp-image-/, "mcp-video-"));
+          }
           m._setRaw("updated_at", now);
         })
       )

@@ -220,6 +220,7 @@ export {
   type MediaRole,
   mediaToStored,
   type MediaType,
+  relinkMisclassifiedVideosOp,
   searchMediaOp,
   type StoredMedia,
   updateMediaMessageIdBatchOp,

@@ -2745,9 +2745,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // They remain valid for 3 days (presigned) and let the LLM
       // reference images for editing. No permanent data loss.
 
-      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      // Resolve image model: prefer user-provided, fall back to MCP tool response.
+      // Filter to image-kind results so a video tool's model doesn't leak in.
       const resolvedImageModel =
-        imageModel || extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain)[0]?.model;
+        imageModel ||
+        extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain).find(
+          (u) => u.mediaType === "image"
+        )?.model;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {

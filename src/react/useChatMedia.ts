@@ -154,7 +154,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         const mediaOptions: CreateMediaOptions[] = [];
 
         const results = await Promise.allSettled(
-          urls.map(async ({ url }) => {
+          urls.map(async ({ url, mediaType: extractedKind }) => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
@@ -165,18 +165,25 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               });
 
               if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status}`);
+                throw new Error(`Failed to fetch media: ${response.status}`);
               }
 
               const blob = await response.blob();
 
               const mediaId = generateMediaId();
               const urlPath = url.split("?")[0] ?? url;
-              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
-              const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
+              const isVideo = extractedKind === "video";
+              const extension =
+                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || (isVideo ? "mp4" : "png");
+              // Trust the blob's reported type; fall back to a kind-appropriate
+              // mime so a video never gets stamped image/* (which would route it
+              // back into the image library).
+              const mimeType = blob.type || `${isVideo ? "video" : "image"}/${extension}`;
+              const namePrefix = isVideo ? "mcp-video" : "mcp-image";
+              const fileName = `${namePrefix}-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              const dimensions = await getImageDimensions(blob);
+              // Dimensions probe is image-only; skip for video.
+              const dimensions = isVideo ? undefined : await getImageDimensions(blob);
 
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
@@ -210,7 +217,9 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               conversationId,
               name: fileName,
               mimeType,
-              mediaType: "image",
+              // Derive from the actual mime so videos land in the video library
+              // and become reachable by the video player's OPFS fallback.
+              mediaType: getMediaTypeFromMime(mimeType),
               size,
               role: "assistant",
               model,
@@ -219,7 +228,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
             });
           } else {
             getLogger().warn(
-              "[extractAndStoreEncryptedMCPImages] Failed to download image:",
+              "[extractAndStoreEncryptedMCPImages] Failed to download media:",
               url,
               result.reason
             );
