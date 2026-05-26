@@ -107,8 +107,9 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
     const reply = event.source as Window | null;
     if (!reply) return;
 
+    const prompt = typeof data.prompt === "string" ? data.prompt : "";
     try {
-      const result = await complete(String(data.prompt ?? ""));
+      const result = await complete(prompt);
       reply.postMessage(
         { type: APP_COMPLETE_RESPONSE_TYPE, id: data.id, result: String(result) },
         targetOrigin
@@ -125,10 +126,13 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
     }
   };
 
-  window.addEventListener("message", handler);
+  const listener = (event: MessageEvent): void => {
+    void handler(event);
+  };
+  window.addEventListener("message", listener);
   return {
     dispose(): void {
-      window.removeEventListener("message", handler);
+      window.removeEventListener("message", listener);
     },
   };
 }
@@ -198,6 +202,6 @@ export function installAppCompleteIframeShim(): void {
   // Function constructor runs the script in the global scope of the
   // iframe — same effect as a `<script>` tag, but available to hosts
   // that import this module as ES code.
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call
   new Function(APP_COMPLETE_IFRAME_SHIM_SCRIPT)();
 }

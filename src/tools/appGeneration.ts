@@ -709,7 +709,6 @@ export interface CreateAppGenerationToolsOptions {
    * Read tools (`read_file`, `list_files`) and failed mutations
    * (validation errors, patch ambiguity, syntax errors) do not emit.
    */
-  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   onFileChange?: (event: FileChangeEvent) => Promise<void> | void;
   /**
    * Override the open-ended rubric returned by `critique_design`. Each
@@ -994,8 +993,8 @@ export function createAppGenerationTools({
         // the actual pre-mutation state, not a re-read of what we just
         // wrote.
         for (let i = 0; i < filesArg.length; i++) {
-          const path = paths[i]!;
-          const after = filesArg[i]!.content;
+          const path = paths[i];
+          const after = filesArg[i].content;
           const previous = existsInStorage[i];
           if (previous === null) {
             await emitFileChange({

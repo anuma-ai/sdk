@@ -47,7 +47,7 @@ export interface PhaseRecord {
 
 /** Final, persisted record for a benchmark run. */
 export interface RunRecord {
-  schemaVersion: typeof SCHEMA_VERSION;
+  schemaVersion: number;
   /** Top-level benchmark identifier, e.g. "kanban". */
   benchmark: string;
   /** Optional scenario when one benchmark file has multiple `it` blocks. */
@@ -86,7 +86,8 @@ export function summarizePhase(opts: {
   const failedPatches = opts.toolCalls.filter((c) => {
     if (c.name !== "patch_file") return false;
     try {
-      const r = typeof c.result === "string" ? JSON.parse(c.result) : c.result;
+      const r: unknown =
+        typeof c.result === "string" ? JSON.parse(c.result) : c.result;
       const failed = (r as { failed?: number } | null)?.failed;
       return typeof failed === "number" && failed > 0;
     } catch {
@@ -95,11 +96,9 @@ export function summarizePhase(opts: {
   }).length;
 
   const files: Record<string, number> = {};
-  if (opts.files instanceof Map) {
-    for (const [p, c] of opts.files) files[p] = c.length;
-  } else {
-    for (const [p, c] of Object.entries(opts.files)) files[p] = c.length;
-  }
+  const fileEntries: Iterable<[string, string]> =
+    opts.files instanceof Map ? opts.files : Object.entries(opts.files);
+  for (const [p, c] of fileEntries) files[p] = c.length;
 
   return {
     label: opts.label,

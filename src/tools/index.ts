@@ -149,6 +149,25 @@ export { createGitHubTools } from "./github";
 
 // App generation tools
 export type {
+  AuditIssue,
+  AuditIssueType,
+  AuditResult,
+  AuditSeverity,
+  AuditTokens,
+} from "./appAudit";
+export { auditDesign } from "./appAudit";
+export type { AppCompleteBridge, AppCompleteBridgeOptions } from "./appCompleteBridge";
+export {
+  APP_COMPLETE_DEFAULT_TIMEOUT_MS,
+  APP_COMPLETE_IFRAME_SHIM_SCRIPT,
+  APP_COMPLETE_REQUEST_TYPE,
+  APP_COMPLETE_RESPONSE_TYPE,
+  createAppCompleteBridge,
+  installAppCompleteIframeShim,
+} from "./appCompleteBridge";
+export type { ExportAppOptions } from "./appExport";
+export { APP_COMPLETE_STUB_SCRIPT, exportAppToHtml } from "./appExport";
+export type {
   AnchorMatch,
   AppFileRecord,
   AppFileStorage,
@@ -177,25 +196,6 @@ export {
   READ_FILE_SCHEMA,
   truncateContent,
 } from "./appGeneration";
-export type {
-  AuditIssue,
-  AuditIssueType,
-  AuditResult,
-  AuditSeverity,
-  AuditTokens,
-} from "./appAudit";
-export { auditDesign } from "./appAudit";
-export type { AppCompleteBridge, AppCompleteBridgeOptions } from "./appCompleteBridge";
-export {
-  APP_COMPLETE_DEFAULT_TIMEOUT_MS,
-  APP_COMPLETE_IFRAME_SHIM_SCRIPT,
-  APP_COMPLETE_REQUEST_TYPE,
-  APP_COMPLETE_RESPONSE_TYPE,
-  createAppCompleteBridge,
-  installAppCompleteIframeShim,
-} from "./appCompleteBridge";
-export type { ExportAppOptions } from "./appExport";
-export { APP_COMPLETE_STUB_SCRIPT, exportAppToHtml } from "./appExport";
 
 // Slide deck tools — now Anuma-JSX-AST native
 export type {

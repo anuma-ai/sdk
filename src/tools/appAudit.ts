@@ -113,8 +113,8 @@ function extractTokens(appCss: string): AuditTokens {
   for (const blockMatch of appCss.matchAll(/:root\s*\{([\s\S]*?)\}/g)) {
     const body = blockMatch[1] ?? "";
     for (const decl of body.matchAll(/--([\w-]+)\s*:\s*([^;]+);?/g)) {
-      const name = decl[1]!;
-      const value = decl[2]!.trim();
+      const name = decl[1];
+      const value = decl[2].trim();
       const key = `--${name}`;
       if (seen.has(key)) continue;
       seen.add(key);
