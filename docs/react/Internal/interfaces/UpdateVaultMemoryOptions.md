@@ -26,27 +26,24 @@ JSON-stringified embedding vector to persist, or null to clear stale embedding
 
 > `optional` **eventTime**: `object`
 
-Defined in: [src/lib/db/memoryVault/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#71)
+Defined in: [src/lib/db/memoryVault/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#76)
 
-W6 temporal lane — when the event in this memory occurred.
+W6 temporal lane — write the event-time fields on update. Use during
+auto-merge to preserve (or refine) the original event-time signal when
+a new observation lands on an existing fact. Omit to leave the
+existing values untouched.
 
 **end**
 
 > **end**: `number` | `null`
 
-Unix ms timestamp of event end (range only).
-
 **kind**
 
 > **kind**: `"point"` | `"range"` | `"ongoing"` | `null`
 
-Kind: 'point' | 'range' | 'ongoing' | null (or omit).
-
 **start**
 
 > **start**: `number` | `null`
-
-Unix ms timestamp of event start (or point).
 
 ***
 

@@ -17,6 +17,7 @@
  * fire a "Anuma is remembering: <fact>" toast on each accepted fact.
  */
 
+import type { EntityOperationsContext } from "../db/entities/operations.js";
 import {
   type AutoExtractMessage,
   extractAndRetain,
@@ -55,6 +56,13 @@ export interface CreateAutoExtractorOptions {
   minConfidence?: number;
   /** How many recent messages to feed the extractor. Default 6. */
   windowSize?: number;
+  /**
+   * Entity / memory_entity write context — when provided, each retained
+   * candidate's `entities[]` is persisted via `linkMemoryEntitiesOp`,
+   * populating the W5 graph retrieval lane. Without this the lane stays
+   * empty and recall's graph fusion is a no-op.
+   */
+  entityCtx?: EntityOperationsContext;
   /** Per-fact event — fires once per memory written. */
   onMemoryExtracted?: (event: MemoryExtractedEvent) => void;
   /** Per-turn event — fires once after the whole pipeline finishes. */
@@ -109,6 +117,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         const { candidates, results } = await extractAndRetain(window, options.retainCtx, {
           extract: options.extract,
           ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
+          ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
         });
 
         // extractAndRetain returns candidates and results length-aligned:

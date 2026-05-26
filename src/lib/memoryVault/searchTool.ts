@@ -547,8 +547,10 @@ export async function rankFusedVaultMemoriesAsync(
     recency: options?.recency,
   });
 
-  if (v2Ranked.length === 0) return [];
-
+  // Don't short-circuit on empty V2: queries that only match the W5
+  // (entityRanking) or W6 (temporalRanking) lanes still need to surface
+  // their hits. The side-lane fusion below pulls candidates straight
+  // from `items` when they're absent from the V2 head.
   let combined: VaultSearchResult[];
   let tailSlice: VaultSearchResult[] = [];
 
@@ -717,6 +719,12 @@ export async function rankComposite(
      * Build with {@link rankByEntityOverlap}.
      */
     entityRanking?: string[];
+    /**
+     * W6 — pre-built temporal-overlap ranking of memory IDs whose
+     * event-time intersects the resolved query window. Added as a
+     * top-N RRF facet so temporal hits survive composite decomposition.
+     */
+    temporalRanking?: string[];
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -755,6 +763,10 @@ export async function rankComposite(
   // doesn't dominate when the query has many shared entities).
   if (options?.entityRanking && options.entityRanking.length > 0) {
     perFacetRankings.push(options.entityRanking.slice(0, perFacetTopN));
+  }
+  // W6 — temporal lane facet, same truncation rule.
+  if (options?.temporalRanking && options.temporalRanking.length > 0) {
+    perFacetRankings.push(options.temporalRanking.slice(0, perFacetTopN));
   }
 
   // Stage 2 — RRF fusion across facet rankings.
@@ -889,6 +901,8 @@ export interface VaultSearchResult {
   uniqueId: string;
   content: string;
   similarity: number;
+  /** Optional — surfaced by the rankers so downstream `RankedMemory` carries
+   * real timestamps. Omitted when an item lacks the field upstream. */
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -978,6 +992,24 @@ export async function searchVaultMemoriesWithSize(
     }
   }
 
+  // The rankers below all return bare {uniqueId, content, similarity}
+  // — they're pure functions over EmbeddedItem and don't carry the
+  // memory's timestamps. Stamp createdAt/updatedAt on the way out so
+  // downstream RankedMemory metadata is correct.
+  const timestampById = new Map(
+    memories.map((m) => [m.uniqueId, { createdAt: m.createdAt, updatedAt: m.updatedAt }])
+  );
+  const stampTimestamps = (out: {
+    results: VaultSearchResult[];
+    vaultSize: number;
+  }): { results: VaultSearchResult[]; vaultSize: number } => {
+    out.results = out.results.map((r) => {
+      const ts = timestampById.get(r.uniqueId);
+      return ts ? { ...r, createdAt: ts.createdAt, updatedAt: ts.updatedAt } : r;
+    });
+    return out;
+  };
+
   const useFusion = searchOptions?.useFusion ?? true;
 
   // Composite path — LLM decomposes the query into sub-queries, embeds them,
@@ -998,8 +1030,10 @@ export async function searchVaultMemoriesWithSize(
         ...(searchOptions.rerankTopN !== undefined && {
           rerankTopN: searchOptions.rerankTopN,
         }),
+        ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
+        ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
       });
-      return { results: composite, vaultSize: memories.length };
+      return stampTimestamps({ results: composite, vaultSize: memories.length });
     }
     // mode === "specific" — fall through to V2/V2+CE below.
   }
@@ -1015,7 +1049,7 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
-    return { results, vaultSize: memories.length };
+    return stampTimestamps({ results, vaultSize: memories.length });
   }
 
   if (useFusion) {
@@ -1025,7 +1059,7 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
-    return { results, vaultSize: memories.length };
+    return stampTimestamps({ results, vaultSize: memories.length });
   }
 
   const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
@@ -1033,7 +1067,7 @@ export async function searchVaultMemoriesWithSize(
     minSimilarity,
   });
 
-  return { results, vaultSize: memories.length };
+  return stampTimestamps({ results, vaultSize: memories.length });
 }
 
 /**

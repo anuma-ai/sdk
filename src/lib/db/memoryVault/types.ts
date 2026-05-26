@@ -67,13 +67,15 @@ export interface UpdateVaultMemoryOptions {
   proofCount?: number;
   /** Set source ("manual" | "auto-extracted" | "capsule"). */
   source?: string;
-  /** W6 temporal lane — when the event in this memory occurred. */
+  /**
+   * W6 temporal lane — write the event-time fields on update. Use during
+   * auto-merge to preserve (or refine) the original event-time signal when
+   * a new observation lands on an existing fact. Omit to leave the
+   * existing values untouched.
+   */
   eventTime?: {
-    /** Unix ms timestamp of event start (or point). */
     start: number | null;
-    /** Unix ms timestamp of event end (range only). */
     end: number | null;
-    /** Kind: 'point' | 'range' | 'ongoing' | null (or omit). */
     kind: "point" | "range" | "ongoing" | null;
   };
 }
