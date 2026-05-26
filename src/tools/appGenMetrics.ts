@@ -86,8 +86,7 @@ export function summarizePhase(opts: {
   const failedPatches = opts.toolCalls.filter((c) => {
     if (c.name !== "patch_file") return false;
     try {
-      const r: unknown =
-        typeof c.result === "string" ? JSON.parse(c.result) : c.result;
+      const r: unknown = typeof c.result === "string" ? JSON.parse(c.result) : c.result;
       const failed = (r as { failed?: number } | null)?.failed;
       return typeof failed === "number" && failed > 0;
     } catch {
