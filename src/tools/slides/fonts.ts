@@ -117,6 +117,12 @@ export const FONT_LIBRARY: FontSpec[] = [
     feel: "geometric slab serif — retro, sturdy",
     weights: "400;700",
   },
+  {
+    name: "Source Serif 4",
+    category: "serif-body",
+    feel: "institutional Adobe serif — corporate reports, white papers, formal documents",
+    weights: "400;500;600;700",
+  },
 
   // ── SANS BODY (and general-purpose headings) ───────────────────────────
   {
@@ -171,13 +177,13 @@ export const FONT_LIBRARY: FontSpec[] = [
     name: "Raleway",
     category: "sans-body",
     feel: "thin elegant sans — fashion, boutique",
-    weights: "400;500;600;700",
+    weights: "300;400;500;600;700",
   },
   {
     name: "Nunito",
     category: "sans-body",
-    feel: "rounded friendly sans — softer, approachable",
-    weights: "400;600;700",
+    feel: "rounded friendly sans — softer, approachable; pairs well with script accents",
+    weights: "400;500;600;700",
   },
   {
     name: "Ubuntu",
@@ -200,8 +206,8 @@ export const FONT_LIBRARY: FontSpec[] = [
   {
     name: "Work Sans",
     category: "sans-body",
-    feel: "slightly industrial sans — clean editorial",
-    weights: "400;500;600;700",
+    feel: "slightly industrial sans — clean editorial; full weight range for Swiss/Bauhaus contrast",
+    weights: "300;400;500;600;700;800;900",
   },
   {
     name: "Rubik",
@@ -288,6 +294,12 @@ export const FONT_LIBRARY: FontSpec[] = [
     category: "mono",
     feel: "readable monospace — labels, eyebrows, code-feel chrome",
     weights: "400;500;700",
+  },
+  {
+    name: "IBM Plex Mono",
+    category: "mono",
+    feel: "IBM corporate monospace — institutional precision, board decks",
+    weights: "400;500;600;700",
   },
 
   // ── ACCENT (use for ONE word or a signature, not body copy) ────────────

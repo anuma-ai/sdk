@@ -47,10 +47,8 @@ function textNode(id: string, text: string, extras: Record<string, unknown> = {}
       y: 162,
       w: 768,
       h: 54,
-      fontSize: 43,
       fontRole: "heading",
-      fontWeight: 700,
-      color: "textPrimary",
+      style: { fontSize: 43, fontWeight: 700, color: "textPrimary" },
       ...(extras as Record<string, string | number | boolean>),
     },
     children: [text],
@@ -116,12 +114,12 @@ describe("parseJsx", () => {
     );
   });
 
-  it("rejects nested elements inside Text", () => {
+  it("rejects nested non-inline elements inside Text", () => {
     expect(() =>
       parseJsx(
         `<Anuma.Text id="t" x={0} y={0} w={10} h={10}><Anuma.Rect id="r" x={0} y={0} w={1} h={1} /></Anuma.Text>`
       )
-    ).toThrow(/cannot contain nested elements/);
+    ).toThrow(/can only contain text and inline/);
   });
 
   it("parses numeric, string, and negative attr values", () => {
@@ -136,7 +134,7 @@ describe("parseJsx", () => {
 
   it("collapses Text body whitespace with React-like rules", () => {
     const node = parseJsx(`
-      <Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={18} fontRole="body" fontWeight={400} color="textPrimary">
+      <Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontSize: 18, fontWeight: 400, color: "textPrimary" }}>
         Hello World
       </Anuma.Text>
     `);
@@ -176,6 +174,70 @@ describe("parseJsx", () => {
     const style = node.attrs.style as Record<string, number>;
     expect(style.letterSpacing).toBe(-0.04);
   });
+
+  it("rejects lowercase typos in style keys with a suggestion", () => {
+    // React silently ignores `fontsize`, leaving the element to render
+    // at the default font size — an invisible bug. The parser should
+    // reject it with a hint pointing at `fontSize`.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontsize: 43 }}>Hi</Anuma.Text>`
+      )
+    ).toThrow(/fontsize.*fontSize/i);
+  });
+
+  it("rejects entirely unknown style keys", () => {
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ frobnicate: 12 }}>Hi</Anuma.Text>`
+      )
+    ).toThrow(/Unknown CSS-in-JS style key/);
+  });
+
+  it("rejects top-level visual-styling props on <Anuma.Text> in strict mode — they belong in style={{}}", () => {
+    // Repro of the e2e bug where insert_slide produced an invisible slide:
+    // model emits top-level fontSize/color/fontWeight, renderer reads
+    // styles only from style={{}} → falls back to defaults (18px white)
+    // → invisible on any light background. Strict mode catches this.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent" fontWeight={600}>Hi</Anuma.Text>`,
+        { strict: true }
+      )
+    ).toThrow(/Top-level "fontSize.*belong inside style/);
+  });
+
+  it("rejects top-level fontSize on <Anuma.Span> in strict mode too", () => {
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20}><Anuma.Span fontWeight={700}>bold</Anuma.Span> tail</Anuma.Text>`,
+        { strict: true }
+      )
+    ).toThrow(/Top-level "fontWeight.*belong inside style/);
+  });
+
+  it("lenient mode (default) accepts top-level styling props so stored decks load", () => {
+    // Stored-deck parses on disk-load must NOT throw on legacy non-conforming
+    // JSX, otherwise tightening the validator retroactively breaks every
+    // tool call on those decks. Strict checks are opt-in.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={12} color="accent">Hi</Anuma.Text>`
+      )
+    ).not.toThrow();
+  });
+
+  it("accepts layout-controlling props that overlap with style keys (gap, padding) at top level on Group even in strict mode", () => {
+    // gap and padding are in STYLE_ALLOWED_KEYS, but Group reads them at
+    // top level for flex layout. The reject set is narrowed to TEXT-style
+    // keys only to preserve this.
+    expect(() =>
+      parseJsx(
+        `<Anuma.Group id="row" x={0} y={0} w={500} h={60} layout="row" gap={16} padding={24}><Anuma.Text id="t" x={0} y={0} w={100} h={20}>A</Anuma.Text></Anuma.Group>`,
+        { strict: true }
+      )
+    ).not.toThrow();
+  });
 });
 
 describe("serializeJsx", () => {
@@ -183,8 +245,8 @@ describe("serializeJsx", () => {
     const t = textNode("title", "Welcome");
     const s = serializeJsx(t);
     expect(s).toContain(`x={96}`);
-    expect(s).toContain(`fontSize={43}`);
-    expect(s).toContain(`color="textPrimary"`);
+    expect(s).toContain(`style={{ fontSize: 43`);
+    expect(s).toContain(`color: "textPrimary"`);
     expect(s).toContain(`>Welcome</Anuma.Text>`);
   });
 
@@ -208,6 +270,26 @@ describe("serializeJsx", () => {
     const deck = deckNode();
     const s = serializeJsx(deck);
     expect(s.split("\n").length).toBeGreaterThan(1);
+  });
+
+  it("preserves inline Anuma.Span children inside Anuma.Text on round-trip", () => {
+    const source = `<Anuma.Text id="hero" x={0} y={0} w={500} h={75} fontRole="heading" style={{ fontSize: 57 }}>Why <Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span></Anuma.Text>`;
+    const node = parseJsx(source);
+    const s = serializeJsx(node);
+    // The Span must survive serialization (this is the bug).
+    expect(s).toContain(
+      `<Anuma.Span style={{ fontStyle: "italic", color: "#B85A2E" }}>now.</Anuma.Span>`
+    );
+    // The trailing space before the Span must be preserved (as raw text or
+    // wrapped {"Why "} — both parse back identically).
+    expect(s).toMatch(/(>Why |\{"Why "\})/);
+    // Round-trip preserves the parsed children.
+    const reparsed = parseJsx(s);
+    expect(reparsed.children).toHaveLength(2);
+    expect(reparsed.children[0]).toBe("Why ");
+    expect(
+      typeof reparsed.children[1] === "object" && (reparsed.children[1] as { tag: string }).tag
+    ).toBe("Span");
   });
 
   it("emits object-valued attrs as style={{ key: value, ... }}", () => {
@@ -263,8 +345,7 @@ describe("round-trip", () => {
             w: 96,
             h: 96,
             name: "bolt",
-            color: "accent",
-            fontSize: 80,
+            style: { color: "accent", fontSize: 80 },
           },
           children: [],
         },

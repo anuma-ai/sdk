@@ -1,0 +1,184 @@
+/**
+ * Compile the design-system proposal sketch and dump the result to HTML
+ * for visual review.
+ *
+ * Renders every (composition × design system) pair in one deck so you can
+ * arrow-key through and see how each composition looks across visual
+ * identities. Validation results print to the terminal: budget per slot
+ * and any default content that exceeds it.
+ *
+ * Wired against the PROPOSAL surface (src/tools/slides/designSystem.ts).
+ * Does not touch the live tool flow.
+ *
+ * Run:
+ *   pnpm exec tsx test/tools/slide-generation/dumpDesignSystem.ts
+ *
+ * Output:
+ *   test/tools/slide-generation/.output/design-system/index.html
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+
+import {
+  ALL_COMPOSITIONS,
+  ALL_SYSTEMS,
+  compile,
+  describeComposition,
+  validateComposition,
+  type DesignSystem,
+  type LayoutComposition,
+} from "../../../src/tools/slides/designSystem.js";
+import { FONT_PRESETS, parseJsx } from "../../../src/tools/slides/index.js";
+import { PALETTES } from "../../../src/tools/slides/palettes.js";
+import { renderDeckToHtml } from "./renderHtml.js";
+
+const OUT_DIR = path.resolve(__dirname, ".output", "design-system");
+
+// The deck wrapper supplies one fontPreset and one palette. editorial-warm
+// reads heading/body fonts from the preset; techno-bold uses literal font
+// strings and literal hex colors, so it ignores the preset and palette
+// entirely. That lets us put every system into one deck without conflict.
+const palette = PALETTES.find((p) => p.name === "warm editorial")!;
+const fontPreset = FONT_PRESETS[palette.fontPreset] ?? FONT_PRESETS.default!;
+
+// Use the live registry from designSystem.ts directly — one source of
+// truth for which compositions and systems exist. Adding a new entry
+// in designSystem.ts now shows up in the dump automatically.
+const compositions: LayoutComposition[] = ALL_COMPOSITIONS;
+const baseSystems: Array<{ name: string; system: DesignSystem }> = ALL_SYSTEMS;
+const systems: Array<{ name: string; system: DesignSystem }> = baseSystems;
+
+// Build one deck with every (composition × system) pair, grouped by
+// composition so two adjacent slides are the same layout in different
+// visual identities — easy to flip between.
+const slides: string[] = [];
+for (const composition of compositions) {
+  for (const { name, system } of systems) {
+    slides.push(compile(composition, system, fontPreset, `${composition.name}--${name}`));
+  }
+}
+
+const deckAttrs = [
+  `fontPreset="${palette.fontPreset}"`,
+  ...Object.entries(palette.colors).map(([k, v]) => `${k}="${v}"`),
+].join("\n  ");
+
+const deckJsx = `<Anuma.Deck
+  ${deckAttrs}
+>
+${slides.join("\n")}
+</Anuma.Deck>`;
+
+const deck = parseJsx(deckJsx);
+
+fs.mkdirSync(OUT_DIR, { recursive: true });
+// skipNav: true → we'll inject our own filter-aware nav below. The shared
+// renderer's default nav captures `.slide` into a static NodeList at load
+// time, which makes filtering by design system impossible to retrofit.
+const baseHtml = renderDeckToHtml(
+  deck,
+  `${compositions.length} compositions × ${systems.length} design systems`,
+  { skipNav: true }
+);
+
+const systemOptions = systems.map((s) => `<option value="${s.name}">${s.name}</option>`).join("");
+const filterAndNav = `
+<div id="system-filter" style="position:fixed;top:16px;left:16px;z-index:11;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(12px);color:#fff;
+  padding:8px 12px;border-radius:999px;font-family:system-ui,sans-serif;font-size:13px;display:flex;gap:8px;align-items:center">
+  <label for="system-select">design system</label>
+  <select id="system-select" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2);
+    border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit;cursor:pointer">
+    <option value="__all__">all</option>
+    ${systemOptions}
+  </select>
+</div>
+<div class="nav">
+  <button id="prev" aria-label="Previous">←</button>
+  <span class="counter" id="counter">1 / 1</span>
+  <button id="next" aria-label="Next">→</button>
+</div>
+<script>
+(function(){
+  var select=document.getElementById('system-select');
+  var allSlides=Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var counter=document.getElementById('counter');
+  var prev=document.getElementById('prev');
+  var next=document.getElementById('next');
+  var visible=allSlides.slice();
+  var cur=0;
+  function filterBySystem(){
+    var sys=select.value;
+    visible=allSlides.filter(function(s){
+      if(sys==='__all__')return true;
+      var id=s.getAttribute('data-slide-id')||'';
+      return id.endsWith('--'+sys);
+    });
+    allSlides.forEach(function(s){
+      s.style.display='none';
+      s.classList.remove('active','exit');
+    });
+    visible.forEach(function(s,i){
+      s.style.display='';
+      if(i===0)s.classList.add('active');
+    });
+    cur=0;
+    counter.textContent='1 / '+visible.length;
+    prev.disabled=true;
+    next.disabled=visible.length<=1;
+  }
+  function show(idx){
+    if(idx<0||idx>=visible.length||idx===cur)return;
+    visible[cur].classList.remove('active');
+    visible[cur].classList.add('exit');
+    visible[idx].classList.remove('exit');
+    visible[idx].classList.add('active');
+    cur=idx;
+    counter.textContent=(cur+1)+' / '+visible.length;
+    prev.disabled=cur===0;
+    next.disabled=cur===visible.length-1;
+  }
+  select.addEventListener('change',filterBySystem);
+  prev.addEventListener('click',function(){show(cur-1);});
+  next.addEventListener('click',function(){show(cur+1);});
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowLeft')show(cur-1);
+    else if(e.key==='ArrowRight')show(cur+1);
+  });
+  filterBySystem();
+})();
+</script>
+`;
+const html = baseHtml.replace("</body>", filterAndNav + "</body>");
+const outPath = path.join(OUT_DIR, "index.html");
+fs.writeFileSync(outPath, html, "utf-8");
+
+// Print the LLM-facing slot-budget recipe and validation issues for each
+// composition × design system pair. Option 3 from the content-overflow
+// discussion — the constraints are surfaced to the prompt boundary.
+function reportPair(composition: LayoutComposition, label: string, system: DesignSystem): void {
+  console.log(`\n══════════ ${composition.name} × ${label} ══════════`);
+  console.log(describeComposition(composition, system, fontPreset));
+  const issues = validateComposition(composition, system, fontPreset);
+  if (issues.length === 0) {
+    console.log(`\n  ✓ All default content fits.`);
+  } else {
+    console.log(`\n  ⚠ ${issues.length} slot(s) overflow with default content:`);
+    for (const i of issues) {
+      console.log(`    - ${i.id} [${i.role}]: ${i.issue}`);
+      console.log(`      text: ${JSON.stringify(i.text)}`);
+    }
+  }
+}
+
+for (const composition of compositions) {
+  for (const { name, system } of baseSystems) {
+    reportPair(composition, name, system);
+  }
+}
+
+console.log(
+  `\nCompiled ${compositions.length} compositions × ${systems.length} systems ` +
+    `= ${slides.length} slides → ${path.relative(process.cwd(), outPath)}`
+);

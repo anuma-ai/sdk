@@ -756,16 +756,31 @@ export {
   withSseKeepalive,
 } from "./lib/sse/keepalive";
 
-// Agent types
+// Agent types + constants
 export type {
+  AgentAgendaItem,
+  AgentAgendaTranscript,
+  AgentAnalysisSection,
+  AgentAnalysisTranscript,
   AgentConfig,
+  AgentExampleConversation,
   AgentManifest,
+  AgentMarketplaceContent,
+  AgentMarketplaceFamily,
+  AgentMarketplaceTranscript,
+  AgentPrimaryActionKind,
   AgentRuntime,
+  AgentScheduleItem,
+  AgentTranscriptItem,
+  AgentTranscriptTone,
+  AgentUiMetadata,
+  FileExtractionStrategy,
   SkillConfig,
   SkillJourneyDefinition,
   SkillJourneyField,
   SkillJourneyFieldType,
 } from "./agent";
+export { MULTILINE_FIELD_MAX } from "./agent";
 
 // Pluggable logger
 export type { Logger } from "./lib/logger";

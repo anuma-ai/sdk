@@ -1211,7 +1211,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         kind: "text",
         x: 6,
         y: 34,
-        w: 38,
+        w: 36,
         h: 3.5,
         text: "CLASSICAL",
         fontSize: 1.4,
@@ -1227,7 +1227,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         kind: "text",
         x: 6,
         y: 39,
-        w: 38,
+        w: 36,
         h: 18,
         text: "A pair of gloves in two boxes.",
         fontSize: 3.4,
@@ -1242,7 +1242,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         kind: "text",
         x: 6,
         y: 58,
-        w: 38,
+        w: 36,
         h: 24,
         text: "The answer was decided at the factory. Opening the box reveals it.",
         fontSize: 1.8,
@@ -1256,9 +1256,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
         id: "mid_line",
         kind: "shape",
         shape: "line",
-        x: 45,
+        x: 44,
         y: 50,
-        w: 10,
+        w: 12,
         h: 0,
         stroke: "border",
         strokeWidth: 1,
@@ -1266,9 +1266,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
       {
         id: "mid_label",
         kind: "text",
-        x: 42,
+        x: 40,
         y: 53,
-        w: 16,
+        w: 20,
         h: 3.5,
         text: "— 12,000 KM —",
         fontSize: 1.3,
@@ -1283,9 +1283,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
       {
         id: "right_label",
         kind: "text",
-        x: 56,
+        x: 58,
         y: 34,
-        w: 38,
+        w: 36,
         h: 3.5,
         text: "QUANTUM",
         fontSize: 1.4,
@@ -1299,9 +1299,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
       {
         id: "right_heading",
         kind: "text",
-        x: 56,
+        x: 58,
         y: 39,
-        w: 38,
+        w: 36,
         h: 18,
         text: "Two entangled particles, one state.",
         fontSize: 3.4,
@@ -1314,9 +1314,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
       {
         id: "right_body",
         kind: "text",
-        x: 56,
+        x: 58,
         y: 58,
-        w: 38,
+        w: 36,
         h: 24,
         text: "Before measurement neither has a value. Measuring creates one and fixes the other, instantly.",
         fontSize: 1.8,
@@ -3375,6 +3375,22 @@ function renderLayoutRecipesImpl(templates: LayoutTemplate[]): string {
 // ---------------------------------------------------------------------------
 // LayoutEl -> JSX string (with percent -> pixel conversion)
 // ---------------------------------------------------------------------------
+
+/**
+ * Render a single named layout's elements as a `<Anuma.Slide>` JSX string,
+ * with the catalog template's pixel coordinates baked in. Returns null
+ * when the name isn't found. Used by tooling that needs to inspect each
+ * layout in isolation (e.g. the catalog HTML dump).
+ *
+ * `prefix` is optional raw JSX inserted before the layout's own elements
+ * inside the Slide — convenient for overlaying labels.
+ */
+export function renderLayoutSlideJsx(name: string, prefix?: string): string | null {
+  const template = LAYOUT_TEMPLATES.find((t) => t.name === name);
+  if (!template) return null;
+  const body = elementsToJsx(template.elements);
+  return `<Anuma.Slide id="${name}">\n${prefix ? prefix + "\n" : ""}${body}\n</Anuma.Slide>`;
+}
 
 /** Render a list of layout elements as JSX fragments, one per block. */
 function elementsToJsx(elements: LayoutEl[]): string {

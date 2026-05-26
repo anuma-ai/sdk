@@ -4,6 +4,12 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     globals: true,
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: [
+      "src/**/*.{test,spec}.{ts,tsx}",
+      // dumpFiles is test infrastructure (lives under test/) but doesn't
+      // need PORTAL_API_KEY — include it in the fast unit suite so it
+      // runs on every change instead of only with the heavy e2e suite.
+      "test/tools/slide-generation/dumpFiles.test.ts",
+    ],
   },
 });

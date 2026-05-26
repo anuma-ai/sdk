@@ -46,24 +46,33 @@ export type { FontCategory, FontSpec } from "./fonts";
 export { buildFontsUrl, FONT_LIBRARY, getFontByName, isKnownFont } from "./fonts";
 export type { LegacyDeckJson } from "./legacy";
 export { convertLegacyDeckJson, isLegacyDeckJson } from "./legacy";
-import type { AnumaNode } from "./jsx";
+import {
+  compositionSlideBackground,
+  IMAGE_PLACEHOLDER_SENTINEL,
+  listCompositionDescriptions,
+  listCompositionLayoutNames,
+  listDesignSystemNames,
+  renderCompositionLayoutRecipe,
+  renderDesignSystemCatalog,
+  resolveCompositionLayout,
+  validateSlotContent,
+} from "./designSystem";
+import type { AnumaNode, AttrValue } from "./jsx";
 import {
   AnumaJsxError,
+  checkNoTopLevelStyles,
   getId,
   insertChild,
+  isTextBodyTag,
   parseJsx,
   removeById,
   replaceById,
   serializeJsx,
+  stripImagesWithSrcSubstring,
   updateAttrs,
+  validateStyleObject,
   walk,
 } from "./jsx";
-import {
-  getLayoutByName,
-  renderLayoutCatalog,
-  renderLayoutRecipes,
-  renderSharedHeader,
-} from "./layouts";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
 
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag } from "./jsx";
@@ -112,6 +121,8 @@ export const THEME_ATTRS = [
 ] as const;
 
 export type ThemeAttr = (typeof THEME_ATTRS)[number];
+
+const THEME_ATTR_SET = new Set<ThemeAttr>(THEME_ATTRS);
 
 // ---------------------------------------------------------------------------
 // Font presets
@@ -193,11 +204,17 @@ export type LayoutMode = (typeof LAYOUT_MODES)[number];
 
 export const READ_SLIDES_SCHEMA = {
   name: "read_slides",
-  description:
-    "Returns the current slide deck as an <Anuma.Deck> JSX document. Use this before patch_slides to see what needs changing.",
+  description: `Get the current slide deck. Defaults to a compact summary — slide ids, layout names, element ids per slide, and short text previews — typically 5-10× smaller than the full deck JSX. Use the summary to LOCATE the slide(s) you want to edit, then call patch_slides with the ids you found. When you need to see a slide's full JSX (e.g. to copy an existing style block, or to inspect element geometry before patching), pass slideIds: ["s4"] and read_slides will include the full JSX of just those slides alongside the summary. Do NOT request slideIds you don't need to read — every slide you list pays full token cost.`,
   arguments: {
     type: "object",
-    properties: {},
+    properties: {
+      slideIds: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Optional list of slide ids to return in full JSX form (alongside the summary). Use sparingly — only ask for slides you must inspect to write a patch. Omit entirely for the cheap summary-only response.",
+      },
+    },
   },
 } as const;
 
@@ -208,11 +225,12 @@ export const PATCH_SLIDES_SCHEMA = {
 The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
 
 Operations (set 'action' and the fields noted):
-- replace_element: { slideId, elementId, jsx } — replace a matched element with a new content-element JSX fragment (e.g. <Anuma.Text …>…</Anuma.Text>).
+- update_element: { slideId, elementId, attrs?, text? } — surgically patch ONE element WITHOUT rewriting it. Use 'attrs' for x/y/w/h moves and style tweaks (deep-merges; passing { style: { fontSize: 24 } } keeps every other style key intact). Use 'text' to rename or rewrite the element's text body — only the child string changes, every attr and style key is preserved exactly. Either field works alone or together. PREFER THIS for any edit that doesn't change the element's tag. Renames, recolors, moves, resizes all belong here. ~10× fewer output tokens than replace_element and you can't accidentally degrade the original styling.
+- replace_element: { slideId, elementId, jsx } — replace a matched element with a new content-element JSX fragment. Use ONLY when the element's TAG changes (e.g. swapping a <Anuma.Text> for an <Anuma.Image>). For text rename / styling changes / position changes use update_element instead — replace_element forces you to rewrite every attr from scratch and is the easiest place to silently lose design-system styling.
 - insert_element: { slideId, jsx, afterElementId? } — insert a new content-element JSX fragment. Appends to the end when afterElementId is omitted.
 - remove_element: { slideId, elementId }.
 - replace_slide: { slideId, jsx } — replace an entire <Anuma.Slide> with a new JSX fragment (root must be <Anuma.Slide>).
-- insert_slide: { jsx, afterSlideId? } — insert a new <Anuma.Slide>. Appends to the end when afterSlideId is omitted.
+- insert_slide: { jsx, layout, afterSlideId? } — insert a new <Anuma.Slide>. 'layout' is REQUIRED: pass the compound "<composition>--<system>" name pattern used by the existing slides. The executor validates the slide's slot content against the recipe and REJECTS the op if layout is missing — same contract as add_slide. To match the deck visually: call read_slides with slideIds:[an existing slide id] to copy its element structure, then keep the same "--<system>" suffix in the layout name. Appends to the end when afterSlideId is omitted.
 - remove_slide: { slideId }.
 - update_theme: { set: { fontPreset?, colors? } } — structured partial patch for theme metadata (no tree shape to rewrite).`,
   arguments: {
@@ -232,6 +250,7 @@ Operations (set 'action' and the fields noted):
             action: {
               type: "string",
               enum: [
+                "update_element",
                 "replace_element",
                 "insert_element",
                 "remove_element",
@@ -248,7 +267,20 @@ Operations (set 'action' and the fields noted):
             },
             elementId: {
               type: "string",
-              description: "Target element id (for replace_element and remove_element)",
+              description:
+                "Target element id (for update_element, replace_element, and remove_element)",
+            },
+            attrs: {
+              type: "object",
+              properties: {},
+              additionalProperties: true,
+              description:
+                "For update_element: partial attrs to merge onto the existing element (e.g. { x: 100, y: 60 } moves it). When 'style' is an object, its keys merge with the existing style — other style keys are preserved.",
+            },
+            text: {
+              type: "string",
+              description:
+                "For update_element: replace the element's text body. Only the child string changes; every attr and style key is preserved. Use this for renames and copy-rewrites — replace_element rewrites the whole element from scratch and is the easiest way to drop the recipe's design-system styling. Pass alongside attrs to combine a text edit with a position/style nudge.",
             },
             jsx: {
               type: "string",
@@ -258,6 +290,11 @@ Operations (set 'action' and the fields noted):
             afterSlideId: {
               type: "string",
               description: "Insert new slide after this id. Omit to append at the end.",
+            },
+            layout: {
+              type: "string",
+              description:
+                'For insert_slide: the compound "<composition>--<system>" layout name (same form as add_slide). Always pass this so insert_slide can validate the new slide\'s slot structure against the recipe and reject off-template JSX.',
             },
             afterElementId: {
               type: "string",
@@ -288,9 +325,10 @@ Call this FIRST — once — to set up the theme, title, slide count, and layout
   - fontPreset: one of the font-preset keys
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
   - slideCount: how many slides the deck will have (commit to a concrete number)
-  - layouts: the subset of layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list.
+  - layouts: the subset of compound "<composition>--<system>" layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list, and every name must share the same "--<system>" suffix.
+  - accent: a 6-digit hex — the brand accent color for the deck. Set it to a hex that fits this deck's specific brand or topic. Skip ONLY for genuinely brand-ambiguous topics.
 
-The result contains the full <Anuma.*> element recipes ONLY for the layouts you named in \`layouts\`, plus the shared header pattern, <Anuma.*> tag schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
+The result contains the full <Anuma.*> element recipes ONLY for the layouts you named in \`layouts\`, plus <Anuma.*> tag schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
 
 After plan_deck, call add_slide ONCE PER SLIDE, in order, passing the slide as a <Anuma.Slide> JSX fragment, until you've appended slideCount slides. Each add_slide call reports how many slides remain, so you can track progress.
 
@@ -329,7 +367,13 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         items: { type: "string" },
         minItems: 1,
         description:
-          "Layout names (from the LAYOUT CATALOG) you plan to use across this deck. Pick a small, well-matched subset — typically 3–8 layouts for a deck of 10 slides. Each add_slide call must use a layout from this list; picking a layout outside it is rejected. Names are short kebab-case (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').",
+          "Compound layout names (from the LAYOUT CATALOG) you plan to use across this deck. Pick a small, well-matched subset — typically 3–8 layouts for a deck of 10 slides. Each name must be of the form '<composition>--<system>' (e.g. 'cover-split-portrait--editorial-warm'); every entry must share the same '--<system>' suffix so the deck stays in one visual identity. Each add_slide call must use a layout from this list; picking a layout outside it is rejected.",
+      },
+      accent: {
+        type: "string",
+        pattern: "^#[0-9A-Fa-f]{6}$",
+        description:
+          "Brand accent color as a 6-digit hex. Almost every deck should set this. Pick a hex that fits this deck's specific brand or topic — what a designer would pick for THIS deck, not a generic industry default. Omit only when the topic is genuinely brand-ambiguous (internal status update, generic example).",
       },
     },
     required: ["title", "fontPreset", "paletteName", "slideCount", "layouts"],
@@ -338,25 +382,31 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
 
 export const ADD_SLIDE_SCHEMA = {
   name: "add_slide",
-  description: `Append ONE slide to the deck as a <Anuma.Slide> JSX fragment. Call this repeatedly after plan_deck, once per slide, in order, until you've added slideCount slides. The deck re-renders inline after each add_slide so the viewer updates in-place.
+  description: `Append ONE slide to the deck as a <Anuma.Slide> JSX fragment. Call this once per slide after plan_deck, in order, until you've added slideCount slides. The deck re-renders inline after each add_slide so the viewer updates in-place.
 
-The response reports: (a) how many slides remain to reach the planned slideCount, (b) which layouts you've used so far and how many times — use this to diversify your layout choices.
+The response reports: (a) how many slides remain to reach the planned slideCount, (b) which layouts you've used so far and how many times.
 
-IMPORTANT: Call add_slide ONE AT A TIME (sequentially, one call per assistant turn). Do NOT emit multiple add_slide tool calls in parallel in a single turn — they will be serialized but the ordering feedback is easier to reason about when you wait for each result before the next call.
+BATCHING: Prefer to emit ALL add_slide calls in a single assistant turn (as parallel tool calls) once plan_deck has returned. The deck plan already tells you the layouts and slideCount, so you can design every slide up-front and call add_slide N times in one turn. This cuts the number of LLM round-trips from N+1 to 2. Parallel calls don't see each other's per-call layout-usage feedback inside the same turn — that's fine because the layout subset is fixed at plan_deck time. Only fall back to serial calls if you genuinely need to react to each result before designing the next slide.
 
 Example slideJsx:
   <Anuma.Slide id="cover">
     <Anuma.Text id="title" x={96} y={216} w={768} h={108} fontSize={58} fontRole="heading" fontWeight={700} color="textPrimary" align="center">Welcome</Anuma.Text>
   </Anuma.Slide>
 
-Include the shared header pattern on every content slide (skip on cover + section-dark chapter breaks).`,
+Each composition recipe already defines its own chrome (header/footer slots) — copy the recipe verbatim and fill the role-tagged slots; do not invent a separate "header pattern".`,
   arguments: {
     type: "object",
     properties: {
+      slideIndex: {
+        type: "integer",
+        description:
+          "1-based position of this slide in the deck (1 = cover, slideCount = last). REQUIRED when emitting multiple add_slide calls in parallel in one turn (the recommended pattern) — without it the parallel calls land in non-deterministic order. Resubmitting with the same slideIndex overwrites the slide at that position; omit only for serial single-slide flows.",
+        minimum: 1,
+      },
       layout: {
         type: "string",
         description:
-          "Name of the layout you're using for this slide — must be an exact kebab-case name from the LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered'). Rejected with a helpful error if unknown.",
+          "Name of the layout you're using for this slide — must be an exact compound '<composition>--<system>' name from the LAYOUT CATALOG (e.g. 'cover-split-portrait--editorial-warm'). Rejected with a helpful error if unknown.",
       },
       slideJsx: {
         type: "string",
@@ -387,6 +437,15 @@ export interface CreateSlideToolsOptions {
   /** Optional error logger. Defaults to a no-op. */
   logError?: (message: string, error?: Error) => void;
   /**
+   * Set to true when the host has bound an image-generation tool (e.g.
+   * AnumaImageMCP-generate_cloud_image) to the same loop as these slide
+   * tools. plan_deck's recipe text adapts: when false (the default),
+   * the recipe tells the model the only valid path is attached:N or
+   * removing the element; when true, AnumaImageMCP is advertised as an
+   * option. Avoids leaking a tool name the model can't actually call.
+   */
+  hasImageGenerator?: boolean;
+  /**
    * Host-supplied hook that emits a deck-display UI interaction. Called
    * automatically from inside `plan_deck`, `add_slide`, and `patch_slides`;
    * its return value is merged into the tool result so the model (and the
@@ -401,6 +460,148 @@ export interface CreateSlideToolsOptions {
    */
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   displaySlides?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
+}
+
+/**
+ * Build a compact, model-friendly summary of the deck. Typical output is
+ * 5-10× smaller than the full deck JSX, which is the win on large decks:
+ * the model can locate the slide / element to edit from this without
+ * paying the input-token cost of every element's style block.
+ *
+ * Format (per slide):
+ *   Slide <n> (<id>) — <layout>
+ *     elements: id1, id2, ...
+ *     text: id1="preview...", id3="preview..."
+ *
+ * Includes deck-level metadata (fontPreset, palette) so the model has
+ * theme context without an extra round-trip.
+ */
+function summarizeDeck(deck: AnumaNode): string {
+  const lines: string[] = [];
+  // Deck-level metadata first — fontPreset + every color token the
+  // model might reference when patching.
+  const meta: string[] = [];
+  for (const k of [
+    "fontPreset",
+    "background",
+    "slideBg",
+    "textPrimary",
+    "textSecondary",
+    "textMuted",
+    "accent",
+    "card",
+    "border",
+    "surfaceSecondary",
+  ]) {
+    const v = deck.attrs[k];
+    if (typeof v === "string") meta.push(`${k}="${v}"`);
+  }
+  lines.push("DECK SUMMARY");
+  if (meta.length > 0) lines.push(`<Anuma.Deck ${meta.join(" ")}>`);
+  let n = 0;
+  for (const child of deck.children) {
+    if (typeof child === "string") continue;
+    if (child.tag !== "Slide") continue;
+    n++;
+    const slideId = typeof child.attrs.id === "string" ? child.attrs.id : `(no-id-${n})`;
+    const layout =
+      typeof child.attrs.compositionName === "string"
+        ? child.attrs.compositionName
+        : typeof child.attrs.layout === "string"
+          ? child.attrs.layout
+          : "(layout unknown)";
+    lines.push("");
+    lines.push(`Slide ${n} (${slideId}) — ${layout}`);
+    // Element-id roll-up (one line). The model uses these for patch_slides
+    // targeting. Group / region containers get an "items: N" suffix so
+    // flex regions are scannable without dumping every inner slot id.
+    const elementSummaries: string[] = [];
+    const textPreviews: string[] = [];
+    for (const el of child.children) {
+      if (typeof el === "string") continue;
+      const id = getId(el);
+      if (id === undefined) continue;
+      if (el.tag === "Group" && Array.isArray(el.children)) {
+        const items = el.children.filter((c) => typeof c !== "string" && c.tag === "Group").length;
+        elementSummaries.push(items > 0 ? `${id}(group, ${items} items)` : id);
+        continue;
+      }
+      elementSummaries.push(id);
+      if (el.tag === "Text") {
+        const text = joinTextBody(el).trim();
+        if (text) {
+          const preview = text.length > 60 ? `${text.slice(0, 57)}...` : text;
+          textPreviews.push(`${id}=${JSON.stringify(preview)}`);
+        }
+      }
+    }
+    if (elementSummaries.length > 0) {
+      lines.push(`  elements: ${elementSummaries.join(", ")}`);
+    }
+    if (textPreviews.length > 0) {
+      lines.push(`  text: ${textPreviews.join(", ")}`);
+    }
+  }
+  lines.push("");
+  lines.push(
+    n === 0
+      ? "(no slides in this deck yet)"
+      : `${n} slide(s) total. Call read_slides with slideIds:[…] to get full JSX for any slide you need to patch.`
+  );
+  return lines.join("\n");
+}
+
+/**
+ * Cascade theme-color changes through the deck tree. Recipes bake hex
+ * literals into every element's `style.color`, `fill`, `stroke`, and
+ * Slide `background` at compile time (for portability — slide JSX is
+ * self-contained without needing the deck wrapper at render time). The
+ * downside is that update_theme alone changes nothing visible: the deck
+ * attr flips but every slide still references the old hex.
+ *
+ * This walker rewrites every literal hex in `swap` (case-insensitive
+ * lookup) to its new value. Covers Text.style.color, shape fill/stroke,
+ * Slide.background. Doesn't touch theme-token strings ("accent",
+ * "textPrimary", etc.) — those resolve from the deck attrs at render
+ * time and already pick up the new value via updateAttrs above.
+ */
+function cascadeColorSwaps(deck: AnumaNode, swap: Map<string, string>): void {
+  function lookup(v: unknown): string | undefined {
+    if (typeof v !== "string") return undefined;
+    return swap.get(v) ?? swap.get(v.toLowerCase());
+  }
+  walk(deck, (node) => {
+    // Slide / container background attr.
+    const bg = lookup(node.attrs.background);
+    if (bg !== undefined) node.attrs.background = bg;
+    // Shape primitives: fill + stroke as top-level attrs.
+    const fill = lookup(node.attrs.fill);
+    if (fill !== undefined) node.attrs.fill = fill;
+    const stroke = lookup(node.attrs.stroke);
+    if (stroke !== undefined) node.attrs.stroke = stroke;
+    // Text / Group style block.
+    const style = node.attrs.style;
+    if (style && typeof style === "object" && !Array.isArray(style)) {
+      const s = style as Record<string, unknown>;
+      for (const k of ["color", "background", "backgroundColor", "borderColor"]) {
+        const next = lookup(s[k]);
+        if (next !== undefined) s[k] = next;
+      }
+    }
+  });
+}
+
+/** Concatenate string children + the bodies of inline Span children. */
+function joinTextBody(node: AnumaNode): string {
+  const parts: string[] = [];
+  for (const c of node.children) {
+    if (typeof c === "string") {
+      parts.push(c);
+    } else if (Array.isArray(c.children)) {
+      parts.push(joinTextBody(c));
+    }
+  }
+  return parts.join("");
 }
 
 /**
@@ -535,6 +736,7 @@ export function createSlideTools({
   storage,
   logError = () => {},
   displaySlides,
+  hasImageGenerator = false,
 }: CreateSlideToolsOptions): SlideToolSet {
   function requireConversationId(): string {
     const id = getConversationId();
@@ -563,6 +765,14 @@ export function createSlideTools({
      * guessing at geometry.
      */
     plannedLayouts: string[];
+    /** plan_deck's fontPreset — required to compute composition slot budgets. */
+    fontPreset: string;
+    /**
+     * Optional accent color override (hex) the model passed at plan_deck.
+     * Persisted so future recipes / patch flows can reapply it. Undefined
+     * = use each system's curated default.
+     */
+    accent?: string;
     layoutUsage: Record<string, number>;
   }
   const deckStateByConv = new Map<string, DeckState>();
@@ -626,15 +836,27 @@ export function createSlideTools({
           };
         }
 
+        // Optional accent override — a single 6-digit hex string. The
+        // dark-surface variant is auto-derived inside applyAccent().
+        let accent: string | undefined;
+        if (args.accent !== undefined && args.accent !== null && args.accent !== "") {
+          if (typeof args.accent !== "string" || !/^#[0-9A-Fa-f]{6}$/.test(args.accent)) {
+            return {
+              error: `accent must be a 6-digit hex color (e.g. '#16A34A'); got ${JSON.stringify(args.accent)}.`,
+            };
+          }
+          accent = args.accent.toUpperCase();
+        }
+
         // Validate and dedupe the layouts list. Each name must resolve in
         // the LAYOUT CATALOG — bad names are rejected as a batch with a
         // helpful hint. We only ship recipes for these layouts, and
         // add_slide later refuses to use anything outside this set.
         const layoutsRaw = args.layouts;
         if (!Array.isArray(layoutsRaw) || layoutsRaw.length === 0) {
+          const sample = listCompositionLayoutNames().slice(0, 3);
           return {
-            error:
-              "layouts is required and must be a non-empty array of layout names from the LAYOUT CATALOG (e.g. ['cover-bottom', 'text-bullets', 'takeaways-numbered']).",
+            error: `layouts is required and must be a non-empty array of composition layout names (e.g. ${JSON.stringify(sample)}).`,
           };
         }
         const plannedLayouts: string[] = [];
@@ -644,7 +866,7 @@ export function createSlideTools({
           if (typeof raw !== "string" || !raw) continue;
           if (seenLayouts.has(raw)) continue;
           seenLayouts.add(raw);
-          if (!getLayoutByName(raw)) {
+          if (!resolveCompositionLayout(raw)) {
             badLayouts.push(raw);
             continue;
           }
@@ -652,12 +874,13 @@ export function createSlideTools({
         }
         if (badLayouts.length > 0) {
           return {
-            error: `Unknown layout name(s) in layouts: ${badLayouts.map((n) => JSON.stringify(n)).join(", ")}. Use short kebab-case names from the LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').`,
+            error: `Unknown layout name(s) in layouts: ${badLayouts.map((n) => JSON.stringify(n)).join(", ")}. Use a compound composition--system name from the LAYOUT CATALOG (e.g. 'cover-split-portrait--editorial-warm'). Bare composition names without a system suffix are rejected.`,
           };
         }
         if (plannedLayouts.length === 0) {
           return {
-            error: "layouts must contain at least one valid layout name from the LAYOUT CATALOG.",
+            error:
+              "layouts must contain at least one valid composition layout name (e.g. 'cover-split-portrait--editorial-warm').",
           };
         }
 
@@ -688,6 +911,10 @@ export function createSlideTools({
         // Initialize an empty deck with the chosen theme. The <Anuma.Deck>
         // root carries `fontPreset` + the nine palette colour tokens as
         // attrs — these are the theme, there's no nested theme object.
+        // If the model passed an accent override, swap the palette's accent
+        // token with it so palette-driven systems (editorial-warm) inherit
+        // the override too — their roles resolve color from the deck's
+        // `accent` attr at render time.
         const deck: AnumaNode = {
           tag: "Deck",
           attrs: {
@@ -698,7 +925,7 @@ export function createSlideTools({
             textPrimary: palette.colors.textPrimary,
             textSecondary: palette.colors.textSecondary,
             textMuted: palette.colors.textMuted,
-            accent: palette.colors.accent,
+            accent: accent ?? palette.colors.accent,
             card: palette.colors.card,
             border: palette.colors.border,
           },
@@ -718,6 +945,8 @@ export function createSlideTools({
           title,
           slideCount,
           plannedLayouts,
+          fontPreset,
+          accent,
           layoutUsage: {},
         });
 
@@ -725,7 +954,7 @@ export function createSlideTools({
 
 Theme: ${palette.name} (fontPreset: ${fontPreset})
 Palette colors (already applied to theme.colors):
-${renderPaletteColors(palette)}
+${renderPaletteColors(accent ? { ...palette, colors: { ...palette.colors, accent } } : palette)}
 Planned slide count: ${slideCount} (call add_slide exactly ${slideCount} times).
 
 COORDINATE SYSTEM — container-relative pixels on a 960×540 slide canvas.
@@ -737,18 +966,25 @@ COORDINATE SYSTEM — container-relative pixels on a 960×540 slide canvas.
 ELEMENT TAGS — every slide child is one of these <Anuma.*> elements (numeric attrs use {…}, string attrs quoted):
 ${renderElementKinds()}
 
-SHARED HEADER PATTERN — place on every content slide (skip on cover and chapter-break):
-${renderSharedHeader()}
-
 LAYOUT RECIPES — JSX recipes for the ${plannedLayouts.length} layout(s) you named in plan_deck. Each add_slide call must pick one of these; copy the element geometry and substitute your text:
 
-${renderLayoutRecipes(plannedLayouts)}
+${plannedLayouts
+  .map((name) =>
+    renderCompositionLayoutRecipe(
+      name,
+      FONT_PRESETS[fontPreset],
+      accent ? { base: accent } : undefined,
+      hasImageGenerator
+    )
+  )
+  .filter((r): r is string => r !== null)
+  .join("\n\n")}
 
 FONT LIBRARY — the theme already applies the fontPreset pairing (${fontPreset}) to every <Anuma.Text> element by default. Override per-element by setting fontFamily on <Anuma.Text> to any name from this library — reach for a display face on a hero title, or an accent script for a single signature word. Do NOT use accent fonts for body copy. Names validated on write; typos are rejected with a hint.
 
 ${renderFontLibrary()}
 
-NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_slide takes { layout: "<layout-name>", slideJsx: "<Anuma.Slide …>…</Anuma.Slide>" } and reports how many slides remain and which layouts you've used so far — use that feedback to keep layouts varied across the deck.`;
+NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes { slideIndex: <1..${slideCount}>, layout: "<layout-name>", slideJsx: "<Anuma.Slide …>…</Anuma.Slide>" }. Pass the correct slideIndex on every call so the deck ends up in the order you intend — parallel tool calls otherwise land in non-deterministic order. The response reports how many slides remain and which layouts you've used so far — use that feedback to keep layouts varied across the deck.`;
 
         return {
           content,
@@ -771,13 +1007,20 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         const conversationId = requireConversationId();
         const layout = typeof args.layout === "string" ? args.layout : "";
         const slideJsx = typeof args.slideJsx === "string" ? args.slideJsx : "";
+        const slideIndexRaw = args.slideIndex;
+        const slideIndex =
+          typeof slideIndexRaw === "number" && Number.isInteger(slideIndexRaw) && slideIndexRaw >= 1
+            ? slideIndexRaw
+            : null;
 
         if (!layout) {
-          return { error: "layout is required (short kebab-case name from LAYOUT CATALOG)" };
-        }
-        if (!getLayoutByName(layout)) {
           return {
-            error: `Unknown layout '${layout}'. Use the short kebab-case name from LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').`,
+            error: "layout is required (compound composition--system name from LAYOUT CATALOG)",
+          };
+        }
+        if (!resolveCompositionLayout(layout)) {
+          return {
+            error: `Unknown layout '${layout}'. Use a compound composition--system name from the LAYOUT CATALOG (e.g. 'cover-split-portrait--editorial-warm'). Bare composition names without a system suffix are rejected.`,
           };
         }
         const priorState = deckStateByConv.get(conversationId);
@@ -791,11 +1034,34 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         }
         let slide: AnumaNode;
         try {
-          slide = parseJsx(slideJsx);
+          slide = parseJsx(slideJsx, { strict: true });
         } catch (err) {
           const msg = err instanceof AnumaJsxError ? err.message : String(err);
-          return { error: `Invalid slideJsx: ${msg}` };
+          // Re-attach the recipe so the model retries with the right shape
+          // in the same round instead of inferring the shape from memory.
+          // Carry the deck's stored accent and host's image-generator
+          // capability so the recipe matches what the model would have
+          // received from plan_deck.
+          const state = deckStateByConv.get(conversationId);
+          const preset = FONT_PRESETS[state?.fontPreset ?? "default"] ?? FONT_PRESETS.default;
+          const accentOverride = state?.accent ? { base: state.accent } : undefined;
+          const recipe = renderCompositionLayoutRecipe(
+            layout,
+            preset,
+            accentOverride,
+            hasImageGenerator
+          );
+          const hint = recipe ? `\n\nRecipe for "${layout}" — copy this shape:\n\n${recipe}` : "";
+          return { error: `Invalid slideJsx: ${msg}${hint}` };
         }
+        // Recipe image slots ship with src="REPLACE_WITH_IMAGE_OR_REMOVE"
+        // (see designSystem.ts → IMAGE_PLACEHOLDER_SENTINEL). If the
+        // model copies them verbatim, drop just those <Anuma.Image>
+        // elements rather than rejecting the whole slide — a slide with
+        // its images stripped is more useful than no slide at all. The
+        // count is surfaced in the success message so the model still
+        // sees the friction and can do better on the next slide.
+        const strippedImageCount = stripImagesWithSrcSubstring(slide, IMAGE_PLACEHOLDER_SENTINEL);
         if (slide.tag !== "Slide") {
           return {
             error: `Invalid slideJsx: root must be <Anuma.Slide>, got <Anuma.${slide.tag}>`,
@@ -803,6 +1069,46 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         }
         const fontError = validateFontFamilies(slide);
         if (fontError) return { error: fontError };
+
+        // Slot-budget check: reject content that overflows the slot's char
+        // budget so the model retries tighter copy instead of silently
+        // clipping at render time (e.g. a single-line hero box filling
+        // with a 2-line string and losing the second line under
+        // overflow:hidden). The layout is guaranteed resolvable here —
+        // validation rejected unknown names above.
+        const compositionResolved = resolveCompositionLayout(layout)!;
+        const presetName = priorState?.fontPreset ?? "default";
+        const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default;
+        const slotIssues = validateSlotContent(
+          compositionResolved.composition,
+          compositionResolved.system,
+          fontPreset,
+          slide
+        );
+        if (slotIssues.length > 0) {
+          const list = slotIssues
+            .map(
+              (i) =>
+                `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`
+            )
+            .join("\n");
+          return {
+            error: `Content overflows the layout's slot budget — shorten the copy in these slots and resubmit add_slide for this slide:\n${list}\nSingle-line slots must fit on one line. Multi-line slots have a total-char ceiling (charsPerLine × maxLines).`,
+          };
+        }
+
+        // Force the composition's expected slide background regardless of
+        // whether the model copied it from the recipe. compositions with a
+        // "dark" surface use text colors that read against a dark ground
+        // (e.g. color="slideBg" for the cover hero) — if the slide ends
+        // up on the deck's light slideBg those lines render invisible.
+        const expectedBg = compositionSlideBackground(
+          compositionResolved.composition,
+          compositionResolved.system
+        );
+        if (expectedBg && typeof slide.attrs.background !== "string") {
+          slide.attrs.background = expectedBg;
+        }
 
         // Serialize the read-modify-write so parallel add_slide tool calls
         // in a single assistant turn don't race on slides.jsx.
@@ -812,10 +1118,48 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
             return { error: "No slides.jsx found. Call plan_deck first." };
           }
           const deck = parseJsx(file.content);
+          // A retry for the same slideIndex must replace, not duplicate.
+          if (slideIndex !== null) {
+            const sameIdx = deck.children.findIndex(
+              (c) =>
+                typeof c !== "string" &&
+                c.tag === "Slide" &&
+                typeof c.attrs.slideIndex === "number" &&
+                c.attrs.slideIndex === slideIndex
+            );
+            if (sameIdx >= 0) deck.children.splice(sameIdx, 1);
+          }
+          // Existing slide count after any retry-replacement removal.
+          const existingSlideCount = deck.children.filter(
+            (c) => typeof c !== "string" && c.tag === "Slide"
+          ).length;
+          // Auto-assign the next position when the model omits slideIndex
+          // (serial flows that rely on append order). Explicit indices
+          // win for parallel batches.
+          const finalIndex = slideIndex ?? existingSlideCount + 1;
+          slide.attrs.slideIndex = finalIndex;
+          slide.attrs.compositionName = layout;
           // Rewrite duplicate ids before merging so tree-wide id lookups
           // outside the tool (editor sidebar, renderer, etc.) stay safe.
           const renames = dedupeIds(collectIds(deck), slide);
           deck.children.push(slide);
+          // Sort children by slideIndex so the on-disk order is always
+          // the model's declared deck order, not the parallel-tool-call
+          // arrival order. Every Slide has slideIndex set above; the
+          // Infinity fallback is for non-Slide string children (text
+          // nodes from parsing), which serialize-time filtering drops
+          // anyway — their relative order doesn't matter.
+          deck.children.sort((a, b) => {
+            const ai =
+              typeof a !== "string" && typeof a.attrs.slideIndex === "number"
+                ? a.attrs.slideIndex
+                : Number.POSITIVE_INFINITY;
+            const bi =
+              typeof b !== "string" && typeof b.attrs.slideIndex === "number"
+                ? b.attrs.slideIndex
+                : Number.POSITIVE_INFINITY;
+            return ai - bi;
+          });
           await storage.putFile(conversationId, SLIDES_FILE_PATH, serializeJsx(deck));
 
           // Update deck state: bump layout usage, compute remaining.
@@ -847,15 +1191,24 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
           }
 
           // Build a short usage hint the model can act on without reading
-          // the whole conversation back.
+          // the whole conversation back. While the deck is in progress,
+          // also list which plan layouts haven't been used yet so the
+          // model has a concrete target rather than just a count it can
+          // ignore.
           const usage = state?.layoutUsage ?? {};
           const usageSummary = Object.entries(usage)
             .map(([name, count]) => `${name}×${count}`)
             .join(", ");
+          const plannedLayouts = state?.plannedLayouts ?? [];
+          const unused = plannedLayouts.filter((n) => !(n in usage));
+          const varietyHint =
+            unused.length > 0
+              ? ` Unused from your plan: ${unused.join(", ")} — prefer one of these for the next slide.`
+              : "";
 
           const baseMessage =
             typeof remaining === "number" && remaining > 0
-              ? `Appended slide ${totalSlides} (${layout}). ${remaining} more to go (layouts so far: ${usageSummary}).`
+              ? `Appended slide ${totalSlides} (${layout}). ${remaining} more to go (layouts so far: ${usageSummary}).${varietyHint}`
               : typeof remaining === "number" && remaining === 0
                 ? `Appended slide ${totalSlides} (${layout}). Deck is complete (layouts used: ${usageSummary}).`
                 : `Appended slide ${totalSlides} (${layout}).`;
@@ -863,14 +1216,19 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
             renames.length > 0
               ? ` Renamed duplicate ids: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}.`
               : "";
+          const strippedNote =
+            strippedImageCount > 0
+              ? ` Auto-stripped ${strippedImageCount} unfilled <Anuma.Image> element(s) (src still held the recipe sentinel). For future slides: either fill src with a real URL (attached:N or an image-generation tool's output) or omit the element from the JSX entirely.`
+              : "";
           return {
             success: true,
             slideIndex: totalSlides - 1,
             totalSlides,
             remaining,
             layoutUsage: usage,
+            ...(strippedImageCount > 0 ? { strippedImageCount } : {}),
             ...(renames.length > 0 ? { renamedIds: renames } : {}),
-            message: baseMessage + renameNote,
+            message: baseMessage + renameNote + strippedNote,
             ...(display && typeof display === "object" ? display : {}),
           };
         });
@@ -886,13 +1244,41 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
   const readSlidesTool: ToolConfig = {
     type: "function",
     function: READ_SLIDES_SCHEMA,
-    executor: async () => {
+    executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
         const file = await storage.getFile(conversationId, SLIDES_FILE_PATH);
         if (!file) return { error: "No slides.jsx found." };
-        // Stored content is already the canonical <Anuma.Deck> JSX — return verbatim.
-        return { content: file.content };
+        const requestedIds = Array.isArray(args.slideIds)
+          ? (args.slideIds as unknown[]).filter((s): s is string => typeof s === "string")
+          : [];
+        // Parse the stored deck once. The summarizer walks it for the
+        // compact representation; the full-JSX path slices specific
+        // slides from the same parse. parseJsx is the bottleneck on
+        // very large decks but it's still O(N) on the deck size.
+        const deck = parseJsx(file.content);
+        const summary = summarizeDeck(deck);
+        if (requestedIds.length === 0) {
+          // Default path: cheap summary only. Typical edits read this,
+          // patch via slot ids learned here, and never need full JSX.
+          return { content: summary };
+        }
+        const requestedFullJsx: string[] = [];
+        const missingIds: string[] = [];
+        for (const sid of requestedIds) {
+          const slide = findSlideById(deck, sid);
+          if (slide) {
+            requestedFullJsx.push(`--- ${sid} (full JSX) ---\n${serializeJsx(slide)}`);
+          } else {
+            missingIds.push(sid);
+          }
+        }
+        const parts: string[] = [summary];
+        if (requestedFullJsx.length > 0) parts.push("", ...requestedFullJsx);
+        if (missingIds.length > 0) {
+          parts.push("", `Note: slide(s) not found: ${missingIds.join(", ")}`);
+        }
+        return { content: parts.join("\n") };
       } catch (err) {
         logError("read_slides failed", err instanceof Error ? err : undefined);
         return {
@@ -915,7 +1301,10 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
           jsx?: string;
           afterSlideId?: string;
           afterElementId?: string;
+          layout?: string;
           set?: Record<string, unknown>;
+          attrs?: Record<string, unknown>;
+          text?: string;
         }>;
 
         if (!Array.isArray(operations) || operations.length === 0) {
@@ -932,10 +1321,164 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
           const deck = parseJsx(file.content);
           const results: string[] = [];
 
+          // Build a recipe hint to attach to JSX-parse error messages.
+          // The model often skips reading existing slide JSX before
+          // emitting replacement / insertion JSX, so when its JSX gets
+          // rejected we hand it the recipe inline — the right shape
+          // arrives in the same round instead of the model having to
+          // first call read_slides({slideIds:[…]}) and retry.
+          const deckFontPresetName =
+            typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
+          const deckFontPreset = FONT_PRESETS[deckFontPresetName] ?? FONT_PRESETS.default;
+          // Pass the deck's stored accent so error-recovery recipes show
+          // the model's chosen hue instead of the system's default — and
+          // forward hasImageGenerator so image notes match what the host
+          // actually supports.
+          const deckAccent =
+            typeof deck.attrs.accent === "string" ? { base: deck.attrs.accent } : undefined;
+          const recipeHint = (layout: string | undefined): string => {
+            if (!layout) return "";
+            const recipe = renderCompositionLayoutRecipe(
+              layout,
+              deckFontPreset,
+              deckAccent,
+              hasImageGenerator
+            );
+            return recipe ? `\n\nRecipe for "${layout}" — copy this shape:\n\n${recipe}` : "";
+          };
+          const slideLayoutAttr = (slide: AnumaNode | null): string | undefined => {
+            const v = slide?.attrs.compositionName;
+            return typeof v === "string" ? v : undefined;
+          };
+
           for (const op of operations) {
             const slideNode = op.slideId !== undefined ? findSlideById(deck, op.slideId) : null;
 
             switch (op.action) {
+              case "update_element": {
+                // Surgical patch — no JSX rewrite needed. Cuts the model's
+                // output token cost by ~10× vs replace_element. Accepts:
+                //   - attrs: partial attr/style merge (move / resize / restyle)
+                //   - text:  replace the element's text body, keeping ALL attrs
+                // At least one of the two must be present. Validates the
+                // merged shape before committing so a typo'd fontFamily can't
+                // slip through (mirrors add_slide's check).
+                if (!slideNode) {
+                  results.push(`update_element: slide ${op.slideId} not found`);
+                  break;
+                }
+                if (typeof op.elementId !== "string" || !op.elementId) {
+                  results.push("update_element: elementId is required");
+                  break;
+                }
+                const hasAttrs =
+                  op.attrs !== undefined &&
+                  op.attrs !== null &&
+                  typeof op.attrs === "object" &&
+                  !Array.isArray(op.attrs);
+                const hasText = typeof op.text === "string";
+                if (op.attrs !== undefined && !hasAttrs) {
+                  results.push("update_element: attrs must be an object when provided");
+                  break;
+                }
+                if (!hasAttrs && !hasText) {
+                  results.push(
+                    "update_element: pass attrs (for style/position) or text (for text-body rewrite) — at least one is required"
+                  );
+                  break;
+                }
+                let elementNode: AnumaNode | null = null;
+                walk(slideNode, (n) => {
+                  if (getId(n) === op.elementId) {
+                    elementNode = n;
+                    return false;
+                  }
+                });
+                if (!elementNode) {
+                  results.push(
+                    `update_element: element ${op.elementId} not found in slide ${op.slideId}`
+                  );
+                  break;
+                }
+                // Reassert the type — narrowed inside the walk closure but
+                // TypeScript's CFA loses that across the boundary.
+                const target = elementNode as AnumaNode;
+                const incoming = hasAttrs ? (op.attrs as Record<string, unknown>) : {};
+                // Reject top-level styling props on the incoming attrs —
+                // parity with the JSX parser. Catches `attrs: { fontSize: 12 }`
+                // before it lands at top level (where renderers ignore it).
+                try {
+                  checkNoTopLevelStyles(target.tag, incoming);
+                } catch (err) {
+                  const msg = err instanceof AnumaJsxError ? err.message : String(err);
+                  results.push(`update_element: ${msg}`);
+                  break;
+                }
+                const merged: Record<string, unknown> = { ...target.attrs };
+                let styleErr: string | null = null;
+                for (const [key, value] of Object.entries(incoming)) {
+                  if (
+                    key === "style" &&
+                    value &&
+                    typeof value === "object" &&
+                    !Array.isArray(value)
+                  ) {
+                    const incomingStyle = value as Record<string, unknown>;
+                    // Reject style keys outside the allowlist before merging
+                    // so a typo like `fontsize` can't reach the tree — parity
+                    // with the jsx parser, which validates the same set for
+                    // add_slide / replace_element / insert_element.
+                    styleErr = validateStyleObject(incomingStyle);
+                    if (styleErr) break;
+                    const existing =
+                      (target.attrs.style as Record<string, unknown> | undefined) ?? {};
+                    merged.style = { ...existing, ...incomingStyle };
+                  } else {
+                    merged[key] = value;
+                  }
+                }
+                if (styleErr) {
+                  results.push(`update_element: ${styleErr}`);
+                  break;
+                }
+                // Validate the proposed merge before committing. Build a
+                // throwaway node with the merged attrs so a font typo
+                // doesn't half-apply and leave the element in a broken state.
+                // The merged map is typed as Record<string, unknown> here
+                // because the schema accepts additionalProperties; we cast
+                // to the tree's AttrValue map only after the font check
+                // (the validator only inspects fontFamily strings).
+                const mergedAttrs = merged as Record<string, AttrValue>;
+                const probe: AnumaNode = { ...target, attrs: mergedAttrs };
+                const fontErr = validateFontFamilies(probe);
+                if (fontErr) {
+                  results.push(`update_element: ${fontErr}`);
+                  break;
+                }
+                if (hasText && !isTextBodyTag(target.tag)) {
+                  // Container tags (Group, flex-region wrappers, etc.) serialize
+                  // by filtering string children out of their child list, so
+                  // setting `children` to `[op.text]` would silently erase
+                  // every inner element. Reject up-front and tell the caller
+                  // to use replace_element when they really want to rewrite
+                  // a container's contents.
+                  results.push(
+                    `update_element: text op is only valid on text-body tags (got <Anuma.${target.tag}>). Use replace_element to rewrite a container.`
+                  );
+                  break;
+                }
+                target.attrs = mergedAttrs;
+                if (hasText) {
+                  // Replace ONLY the text body. Existing inline children
+                  // (e.g. <Anuma.Span> accent runs) are also overwritten —
+                  // that's intentional for a "rewrite the text" op. If the
+                  // caller needs to preserve inline spans, replace_element
+                  // is the right path.
+                  target.children = [op.text as string];
+                }
+                results.push(`updated ${op.slideId}/${op.elementId}`);
+                break;
+              }
               case "replace_element": {
                 if (!slideNode) {
                   results.push(`replace_element: slide ${op.slideId} not found`);
@@ -951,10 +1494,12 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                 }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`replace_element: invalid jsx: ${msg}`);
+                  results.push(
+                    `replace_element: invalid jsx: ${msg}${recipeHint(slideLayoutAttr(slideNode))}`
+                  );
                   break;
                 }
                 if (next.tag === "Deck" || next.tag === "Slide") {
@@ -963,6 +1508,10 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   );
                   break;
                 }
+                // Strip sentinel-laced <Anuma.Image> elements — same
+                // policy as add_slide: a partial subtree without
+                // unfilled placeholders is more useful than a rejection.
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`replace_element: ${fontErr}`);
@@ -986,9 +1535,13 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`replace_element: element ${op.elementId} not found`);
                   break;
                 }
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `replaced ${op.slideId}/${op.elementId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `replaced ${op.slideId}/${op.elementId} (${noteParts.join("; ")})`
                     : `replaced ${op.slideId}/${op.elementId}`
                 );
                 break;
@@ -1004,10 +1557,12 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                 }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`insert_element: invalid jsx: ${msg}`);
+                  results.push(
+                    `insert_element: invalid jsx: ${msg}${recipeHint(slideLayoutAttr(slideNode))}`
+                  );
                   break;
                 }
                 if (next.tag === "Deck" || next.tag === "Slide") {
@@ -1016,6 +1571,7 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   );
                   break;
                 }
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`insert_element: ${fontErr}`);
@@ -1024,9 +1580,13 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                 const renames = dedupeIds(collectIds(deck), next);
                 insertChild(slideNode, next, op.afterElementId);
                 const newId = getId(next) ?? "<no-id>";
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `inserted ${newId} into ${op.slideId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `inserted ${newId} into ${op.slideId} (${noteParts.join("; ")})`
                     : `inserted ${newId} into ${op.slideId}`
                 );
                 break;
@@ -1058,10 +1618,12 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                 }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`replace_slide: invalid jsx: ${msg}`);
+                  results.push(
+                    `replace_slide: invalid jsx: ${msg}${recipeHint(slideLayoutAttr(slideNode))}`
+                  );
                   break;
                 }
                 if (next.tag !== "Slide") {
@@ -1070,6 +1632,7 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   );
                   break;
                 }
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`replace_slide: ${fontErr}`);
@@ -1084,14 +1647,37 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`replace_slide: slide ${op.slideId} not found`);
                   break;
                 }
+                // Inherit layout-shaping attrs from the old slide when the new
+                // JSX omits them. compositionName drives `read_slides` compact
+                // summaries; background protects dark-surface compositions
+                // whose text tokens (color="slideBg" etc.) expect a dark
+                // ground. Models rewriting slide content tend to ship fresh
+                // JSX without these, which would leave the slide showing
+                // "(layout unknown)" or rendering invisible text.
+                if (
+                  typeof next.attrs.compositionName !== "string" &&
+                  typeof oldSlide.attrs.compositionName === "string"
+                ) {
+                  next.attrs.compositionName = oldSlide.attrs.compositionName;
+                }
+                if (
+                  typeof next.attrs.background !== "string" &&
+                  typeof oldSlide.attrs.background === "string"
+                ) {
+                  next.attrs.background = oldSlide.attrs.background;
+                }
                 const renames = dedupeIds(collectIds(deck, oldSlide), next);
                 if (!replaceById(deck, op.slideId, next)) {
                   results.push(`replace_slide: slide ${op.slideId} not found`);
                   break;
                 }
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `replaced slide ${op.slideId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `replaced slide ${op.slideId} (${noteParts.join("; ")})`
                     : `replaced slide ${op.slideId}`
                 );
                 break;
@@ -1101,29 +1687,97 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push("insert_slide: missing jsx");
                   break;
                 }
+                // layout is REQUIRED — same contract as add_slide. Without
+                // it the model invents off-template JSX (wrong attr
+                // placement, plain HTML where Anuma primitives belong)
+                // and overflowing copy slips through validateSlotContent.
+                // The previous "optional + hint" form let the model
+                // ignore the hint and ship broken slides; rejecting
+                // outright forces a retry with a real layout.
+                if (typeof op.layout !== "string" || !op.layout) {
+                  results.push(
+                    "insert_slide: layout is required — pass the same compound \"<composition>--<system>\" name used by the existing deck (call read_slides to see slide ids and their layouts). Without layout the executor can't validate the slide's slot budgets and the slide ships off-template."
+                  );
+                  break;
+                }
+                const resolved = resolveCompositionLayout(op.layout);
+                if (!resolved) {
+                  results.push(
+                    `insert_slide: unknown layout ${JSON.stringify(op.layout)}. Use one of the catalog's compound "<composition>--<system>" names.`
+                  );
+                  break;
+                }
                 let next: AnumaNode;
                 try {
-                  next = parseJsx(op.jsx);
+                  next = parseJsx(op.jsx, { strict: true });
                 } catch (err) {
                   const msg = err instanceof AnumaJsxError ? err.message : String(err);
-                  results.push(`insert_slide: invalid jsx: ${msg}`);
+                  results.push(`insert_slide: invalid jsx: ${msg}${recipeHint(op.layout)}`);
                   break;
                 }
                 if (next.tag !== "Slide") {
                   results.push(`insert_slide: root must be <Anuma.Slide>, got <Anuma.${next.tag}>`);
                   break;
                 }
+                // Cold-start: when the conversation has no in-memory state
+                // (e.g. patching a deck from a previous session), fall back
+                // to the deck's stored fontPreset before "default". Without
+                // this, slot-budget validation runs against Inter while the
+                // deck is actually rendered with Playfair / Source Serif /
+                // etc., so overflow checks become unreliable in both
+                // directions.
+                const state = deckStateByConv.get(conversationId);
+                const presetName =
+                  state?.fontPreset ??
+                  (typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default");
+                const fontPreset = FONT_PRESETS[presetName] ?? FONT_PRESETS.default;
+                const slotIssues = validateSlotContent(
+                  resolved.composition,
+                  resolved.system,
+                  fontPreset,
+                  next
+                );
+                if (slotIssues.length > 0) {
+                  const list = slotIssues
+                    .map(
+                      (i) =>
+                        `  - ${i.id} [${i.role}]: ${i.issue}\n    you wrote: ${JSON.stringify(i.text.trim())}`
+                    )
+                    .join("\n");
+                  results.push(
+                    `insert_slide: Content overflows the layout's slot budget — shorten the copy in these slots and resubmit:\n${list}`
+                  );
+                  break;
+                }
+                const stripped = stripImagesWithSrcSubstring(next, IMAGE_PLACEHOLDER_SENTINEL);
                 const fontErr = validateFontFamilies(next);
                 if (fontErr) {
                   results.push(`insert_slide: ${fontErr}`);
                   break;
                 }
+                next.attrs.compositionName = op.layout;
+                // Force the composition's expected slide background when the
+                // model omits it — same defensive fill as add_slide. Without
+                // this, dark-surface compositions land on the deck's default
+                // light slideBg and any text colored `slideBg` becomes
+                // near-invisible.
+                const expectedBg = compositionSlideBackground(
+                  resolved.composition,
+                  resolved.system
+                );
+                if (expectedBg && typeof next.attrs.background !== "string") {
+                  next.attrs.background = expectedBg;
+                }
                 const renames = dedupeIds(collectIds(deck), next);
                 insertChild(deck, next, op.afterSlideId);
                 const newId = getId(next) ?? "<no-id>";
+                const noteParts: string[] = [];
+                if (renames.length > 0)
+                  noteParts.push(`renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}`);
+                if (stripped > 0) noteParts.push(`stripped ${stripped} unfilled <Anuma.Image>`);
                 results.push(
-                  renames.length > 0
-                    ? `inserted slide ${newId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                  noteParts.length > 0
+                    ? `inserted slide ${newId} (${noteParts.join("; ")})`
                     : `inserted slide ${newId}`
                 );
                 break;
@@ -1160,9 +1814,73 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                     colors?: Record<string, unknown>;
                     [key: string]: unknown;
                   };
+                  // Reject unknown color keys against the THEME_ATTRS
+                  // allowlist before mutating. Without this, a typo like
+                  // `accen` for `accent` would silently land on
+                  // `deck.attrs` via updateAttrs and the model would think
+                  // the patch succeeded while the deck color stayed put.
+                  const unknownKey = [
+                    ...Object.keys(flatPatch),
+                    ...Object.keys(nestedColors ?? {}),
+                  ].find((k) => k !== "fontPreset" && !THEME_ATTR_SET.has(k as ThemeAttr));
+                  if (unknownKey !== undefined) {
+                    results.push(
+                      `update_theme: unknown key ${JSON.stringify(unknownKey)}. Valid color keys: ${THEME_ATTRS.join(", ")} (or "fontPreset").`
+                    );
+                    break;
+                  }
+                  // Snapshot the pre-update color attrs so we can rewrite
+                  // their literal hex values throughout the slide tree
+                  // after the update — recipes bake hex into every
+                  // element's style.color / fill / stroke at compile time,
+                  // so without this cascade, `update_theme` would change
+                  // the deck-level attr but leave all slide content stuck
+                  // on the old value (invisible no-op edit).
+                  const colorKeys: string[] = [];
+                  for (const key of Object.keys(flatPatch)) {
+                    if (key === "fontPreset") continue;
+                    colorKeys.push(key);
+                  }
+                  if (nestedColors && typeof nestedColors === "object") {
+                    for (const key of Object.keys(nestedColors)) colorKeys.push(key);
+                  }
+                  const oldByKey: Record<string, string> = {};
+                  for (const key of colorKeys) {
+                    const v = deck.attrs[key];
+                    if (typeof v === "string") oldByKey[key] = v;
+                  }
                   updateAttrs(deck, flatPatch);
                   if (nestedColors && typeof nestedColors === "object") {
                     updateAttrs(deck, nestedColors);
+                  }
+                  // Propagate fontPreset into the in-memory session state.
+                  // Without this, subsequent insert_slide / add_slide calls
+                  // resolve their slot-budget validation against the
+                  // original plan_deck preset — the deck renders with
+                  // Playfair Display but content was sized for Inter,
+                  // and overflow checks become meaningless.
+                  if (typeof nextFontPreset === "string") {
+                    const sessionState = deckStateByConv.get(conversationId);
+                    if (sessionState) sessionState.fontPreset = nextFontPreset;
+                  }
+                  // Build a hex→hex swap map: only keys whose value actually
+                  // changed AND whose old value is a hex literal (model
+                  // already used the token form? then there's nothing to
+                  // rewrite — the renderer handles it).
+                  const swap = new Map<string, string>();
+                  for (const key of colorKeys) {
+                    const before = oldByKey[key];
+                    const after = deck.attrs[key];
+                    if (typeof before !== "string" || typeof after !== "string") continue;
+                    if (before === after) continue;
+                    if (!/^#[0-9A-Fa-f]{3,8}$/.test(before)) continue;
+                    swap.set(before.toLowerCase(), after);
+                    // Cover the un-lowercased variant too in case the
+                    // recipe emitted mixed-case hex.
+                    swap.set(before, after);
+                  }
+                  if (swap.size > 0) {
+                    cascadeColorSwaps(deck, swap);
                   }
                 }
                 results.push("updated theme");
@@ -1231,23 +1949,41 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
  *
  * Instructs the LLM to call plan_deck once (picks title + palette +
  * fontPreset, initializes an empty slides.jsx, returns the full layout
- * recipes + element-type schemas + shared header + palette hex values),
+ * recipes + element-type schemas + palette hex values),
  * then call add_slide once per slide to append. Per-slide rounds keep
  * each tool-call stream small so slow / reasoning-heavy models can finish
  * within portal per-provider timeout ceilings.
  */
-export function buildSlideSystemPrompt(): string {
+export interface BuildSlideSystemPromptOptions {
+  /**
+   * Set to true when the host has bound an image-generation tool (e.g.
+   * AnumaImageMCP-generate_cloud_image) to the same loop. The IMAGES
+   * section adapts: when false (the default) it tells the model the
+   * only valid path is attached:N or removing the element; when true,
+   * AnumaImageMCP is advertised as an option. Mirrors the same flag on
+   * `CreateSlideToolsOptions` — host should pass the same value to both.
+   */
+  hasImageGenerator?: boolean;
+}
+
+export function buildSlideSystemPrompt(options: BuildSlideSystemPromptOptions = {}): string {
+  const { hasImageGenerator = false } = options;
   const fontTable = Object.entries(FONT_PRESETS)
     .map(([name, p]) => `  ${name}: heading="${p.heading}", body="${p.body}"`)
     .join("\n");
+  const imageSourceClause = hasImageGenerator
+    ? `Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaImageMCP-generate_cloud_image). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`
+    : `Allowed image sources: "attached:N" strings (user-attached images) only — you have no image-generation tool bound. NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`;
 
   return `You are a presentation design assistant. You produce polished slide decks as React-compatible JSX with positioned <Anuma.*> elements.
 
-WORKFLOW (initialize then add slides one at a time):
-1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–19) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the JSX recipes for ONLY the layouts you named, plus the SHARED HEADER, element-tag schemas, coordinate-system notes, and palette hex values.
-2. APPEND — call add_slide N times with { layout: "<name>", slideJsx: "<Anuma.Slide id=\\"...\\">…children…</Anuma.Slide>" }. layout MUST be one of the names you passed to plan_deck; using anything else is rejected. Each response reports (a) how many slides remain and (b) which layouts you've used so far. Use that feedback to keep layouts varied within your planned subset.
+WORKFLOW (initialize then add all slides at once):
+1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–19) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the JSX recipes for ONLY the layouts you named, plus element-tag schemas, coordinate-system notes, and palette hex values.
+2. APPEND — in your next assistant turn, emit all N add_slide calls in parallel (one per slide) with { slideIndex: <1-based position>, layout: "<name>", slideJsx: "<Anuma.Slide id=\\"...\\">…children…</Anuma.Slide>" }. Pass slideIndex = 1 for the cover, 2 for the second slide, and so on through slideCount. WITHOUT slideIndex the parallel calls land in the deck in non-deterministic order. Design every slide up-front from the plan_deck recipes and dispatch them together — this cuts round-trips from N+1 to 2. layout MUST be one of the names you passed to plan_deck; using anything else is rejected.
 
-For edits to an existing deck: read_slides (returns the deck as <Anuma.Deck> JSX) → patch_slides (replace_element / insert_element / remove_element / replace_slide / insert_slide / remove_slide / update_theme). No plan_deck needed for edits.
+For edits to an existing deck: read_slides → patch_slides. By default read_slides returns a COMPACT SUMMARY (slide ids, layout names, element ids per slide, short text previews) — that's almost always enough to locate what to change. Use the ids from the summary to patch_slides directly. Only call read_slides with slideIds: ["s4"] when you must see a specific slide's full JSX (e.g. to copy a style block, or to inspect element geometry before a position-sensitive patch). For most edits — change text, recolor, move things — the summary alone is enough; requesting full slide JSX you don't need pays the input-token cost for no reason. Patch ops: update_element / replace_element / insert_element / remove_element / replace_slide / insert_slide / remove_slide / update_theme. No plan_deck needed for edits.
+
+RESPONSE STYLE — after the tool calls complete, keep your closing message to ONE short sentence ("Done." or "Renamed across 5 slides." is ideal). The deck re-renders inline so the user already sees the changes; do NOT recap which slides changed, list operations, or summarize the deck contents in prose. Long post-tool summaries are the single biggest source of latency in this flow — keep them out.
 
 JSX VOCABULARY — two families of tags, mix freely:
 
@@ -1255,21 +1991,13 @@ JSX VOCABULARY — two families of tags, mix freely:
   - <Anuma.Deck> / <Anuma.Slide> / <Anuma.Screen> — containers with canvas semantics.
   - <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line> — SVG shape abstractions (fill / stroke / strokeWidth / cornerRadius as attrs, not style).
 
-Plain HTML tags (allowlisted) for everything else:
-  - Structure: div, span, section, article, header, footer, main, aside, nav, figure, figcaption.
-  - Text: h1–h6, p, a, strong, em, code, pre, blockquote, small, sub, sup, mark, hr, br.
-  - Lists: ul, ol, li, dl, dt, dd.
-  - Interactive / form: button, input, textarea, select, option, optgroup, label, fieldset, legend, form, progress, meter.
-  - Tabular: table, thead, tbody, tfoot, tr, th, td, caption, colgroup, col.
-  - Media: img, picture, source, video, audio, track, canvas.
-  - SVG: svg, path, rect, circle, ellipse, line, polygon, polyline, g, defs, use, symbol, text, tspan, mask, clipPath, linearGradient, radialGradient, stop.
-  Forbidden (safety): script, iframe, link, style, meta, object, embed, head, body, noscript. Event-handler attrs (onClick, onChange, etc.) are also rejected.
+Plain HTML for everything else — standard structural, text, list, form, table, media, and SVG tags (h1–h6, p, div, span, ul/ol/li, table/tr/td, button, input, img, svg, path, …). Forbidden: script, iframe, link, style, meta, object, embed, head, body, noscript, plus all event-handler attrs (onClick, onChange, etc.).
 
 WHEN TO REACH FOR EACH:
   - Use <Anuma.Slide> / <Anuma.Screen> as the root for each slide / app screen.
   - Use <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line> for decorative shapes.
-  - Use plain HTML for every piece of content: headings, paragraphs, buttons, inputs, images, lists, tables. The LLM and downstream code are most fluent with these.
-  - For flex layout, use <div style={{ display: "flex", flexDirection: "row", gap: 16, padding: 24 }}>…</div>. No custom layout attrs needed.
+  - Use plain HTML for every piece of content: headings, paragraphs, buttons, inputs, images, lists, tables.
+  - For flex layout, use <Anuma.Group layout="row" gap={16} padding={24}>…</Anuma.Group> (see LAYOUT MODES below).
 
 ATTRIBUTES:
   - Numeric attrs use JSX expressions: x={96}. String attrs are quoted.
@@ -1278,11 +2006,7 @@ ATTRIBUTES:
       <h1 x={58} y={162} w={844} h={54} style={{ fontSize: 43, fontWeight: 700, color: "textPrimary", textAlign: "center" }}>Welcome</h1>
     Color strings inside style accept theme tokens (textPrimary, accent, slideBg, textMuted, border, card, surfaceSecondary) OR hex/rgb literals.
   - Shape fill/stroke (on <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line>) ALSO accept theme tokens: fill="accent" or fill="#10b981".
-
-COORDINATE SYSTEM — every position is container-relative pixels on a 960×540 slide canvas.
-- Child (x, y) is the pixel offset from the parent's top-left. (w, h) are pixel dimensions.
-- Content area: x=58–902, y=49–491 (standard padding ≈ 58px horizontal, 49px vertical).
-- fontSize is pixels: 43 ≈ large heading, 18 ≈ body, 13 ≈ mono eyebrow.
+  - <Anuma.Group> also accepts fill and cornerRadius to act as a card surface (useful when a flex-region item IS the card).
 
 TEXT BUDGETS — each layout recipe reports a "Text budgets" line listing the max-character estimate per text slot, derived from the slot's box width × height at the chosen font size. Treat the numbers as a soft target: write copy that fits well under the limit. Overflowing text gets line-clamped with an ellipsis at render time, so going over the budget loses information. When in doubt, write tighter. Slot ids in the budget line match the recipe's <Anuma.Text id="..."> attributes.
 
@@ -1294,29 +2018,21 @@ LAYOUT MODES — containers (Deck, Slide, Group) default to absolute positioning
 
 Never output code as text. Always use tools. Keep text responses to one or two sentences.
 
-LAYOUT CATALOG — each entry is "short-name — description". Pick one when writing each slide's elements:
+LAYOUT CATALOG — every layout is formed by combining a composition (the content shape) with a design system (the visual identity). The layout name you pass to plan_deck and add_slide MUST be the compound form "<composition>--<system>". Bare composition names like "cover-split-portrait" without a system suffix are REJECTED. Across the whole deck pick ONE design system and apply it to every composition (don't mix "--${listDesignSystemNames().join('" and "--')}" in the same deck).
 
-${renderLayoutCatalog()}
+Available compositions (pick by content shape):
+${listCompositionDescriptions()
+  .map((c) => `- ${c.name} — ${c.description}`)
+  .join("\n")}
 
-LAYOUT PICKER — match content shape to a template, don't default to grids:
-- Sequence through time (seasons, phases, steps, months) → timeline-horizontal, timeline-numbered, or timeline-table.
-- Rows with the same schema (plant × zone × note; year × event × note) → table or timeline-table.
-- Single memorable number → stats-large or stats-inline.
-- Single memorable statement → focus-statement.
-- Mega-number paired with what-it-unlocks → focus-number-list.
-- Two-panel contrast (classical vs quantum, before vs after) → compare-two-panel.
-- Two-column comparison with enumerated steps/items (old way vs new way, before/after process) → compare-lists.
-- Case study / product profile / review by attribute (big title + body + 6 key-value rows) → profile-spec.
-- Character / persona study with parallel facets (want/need/flaw/fate, or what/why/how/for-whom) → profile-quadrant.
-- Three-way taxonomy / tier comparison in plain text (no boxes, no grids) → text-three-col.
-- Brand palette / color system / category legend with colored chips → palette-swatches.
-- 3-part outline / steps 01/02/03 / feature rundown → agenda-cards.
-- Closing summary with "take three things with you" → takeaways-numbered.
-- Running prose explanation → text-prose or text-two-col.
-- Short list ≤ 6 items with short descriptions → text-bullets — reach for this before cells.
-- Memorable quote / proverb → quote-offset or quote-centered.
-- 3–6 categorical cards with no natural order → stats-cells or list-hairline — last resort, not the default.
-- Image-forward visual → hero-split or hero-overlay.
+Available design systems (pick ONE for the whole deck — match the deck's register / industry to a system's use case):
+${renderDesignSystemCatalog()}
+
+Form layout names by joining a composition with a design system using "--" (e.g. "cover-split-portrait--editorial-warm"). plan_deck and add_slide reject unknown combinations.
+
+The "--<system>" suffix is the design-system name from the list above (${listDesignSystemNames().join(", ")}) — NOT a palette name. Palette names (from CHOOSING A PALETTE below) go in the separate \`paletteName\` arg; they are never valid as layout suffixes even when they look similar (e.g. the palette "humanist cream" is not a system; the closest system is "editorial-warm").
+
+Recipes are fully styled — copy verbatim and substitute slot text only.
 
 Layout variety: add_slide reports usage counts after each call. Prefer layouts you haven't used yet; use a layout more than twice only for structural repetition like chapter-break slides.
 
@@ -1328,10 +2044,14 @@ CHOOSING A PALETTE — don't default to dark grey + orange. Pick the register th
 
 ${renderPaletteNames()}
 
+CHOOSING AN ACCENT (plan_deck.accent) — set \`accent\` to a 6-digit hex that fits the deck's specific brand or topic. Pick the color a designer would pick for THIS deck, not a generic industry default. Omit only when the topic is genuinely brand-ambiguous (e.g. an internal status update).
+
 IMAGES:
-- Do NOT use web search or arbitrary URLs. Only "attached:N" strings (user-attached images) or URLs from AnumaImageMCP-generate_cloud_image (generate 1–2 max first).
-- Most decks should be text-only. If no images are available, omit image elements entirely.
-- With images: generate them FIRST, then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
+- ${imageSourceClause}
+- Most decks should be text-only. Layout recipes ship <Anuma.Image> elements with src="REPLACE_WITH_IMAGE_OR_REMOVE"; if you leave the sentinel in, add_slide auto-strips just those <Anuma.Image> elements and accepts the rest of the slide (the response.message will tell you how many were stripped). The slide ships, but with empty image slots — better to handle it deliberately.
+- When you have FEWER real image sources than image slots in your chosen layouts, REMOVE the unfilled <Anuma.Image> elements from the slide JSX yourself. Do NOT re-use one image URL across many slots, and do NOT generate one image per slot — generate 1–2 images max and drop the rest of the image elements deliberately. The deck reads fine without them.
+- NEVER substitute decorative shapes for a removed image. Do NOT add <Anuma.Rect>, <Anuma.Circle>, <Anuma.Line>, or background-filled <Anuma.Group> elements to fill the slot's space. The composition is designed to read correctly with the image slot empty — the typography or content on the other side of the slide carries it. If a layout leaves too much empty space without an image, pick a different layout (one without an image slot, e.g. cover-statement instead of cover-split-portrait) — don't invent decoration. Picking the wrong layout is a fixable mistake; inventing custom shape compositions is not.
+- With images: generate them FIRST (1–2 max), then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
 
 ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.
 

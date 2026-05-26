@@ -36,4 +36,9 @@ Use web search to verify current {{state}} landlord-tenant law statutes. Be spec
       "Paste the lease text you want reviewed. If it's long, send the most important sections.",
   },
   contextSuffix: HOUSING_MEMORY_SUFFIX,
+  iconName: "FileSearch",
+  preamble:
+    "Got it — lease review. Tell me a couple things about your housing and paste in (or upload) the lease, and I'll flag the red flags clause by clause.",
+  closing: "Perfect — reviewing the lease now. Give me a moment and I'll surface the red flags.",
+  requiredNudgeDefault: "I do need this one for the review — what would you like to put?",
 };

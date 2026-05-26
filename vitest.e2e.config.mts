@@ -9,6 +9,17 @@ export default defineConfig({
       "test/tools/googleAuth.ts",
       "test/tools/**/setup.ts",
       "test/tools/**/tools.ts",
+      // Pure unit test for dumpFiles — runs under the main vitest config.
+      "test/tools/slide-generation/dumpFiles.test.ts",
+      // Probe / timing tests are measurement / analysis tools, not
+      // regression checks — their assertions are weak ("the run
+      // completed") and they burn LLM time printing per-round telemetry
+      // that's only useful when someone is actively investigating
+      // perf. Run them via `pnpm perf:slides` (vitest.perf.config.mts)
+      // when you need the numbers; otherwise skip.
+      "test/tools/slide-generation/requestProbe.test.ts",
+      "test/tools/slide-generation/editProbe.test.ts",
+      "test/tools/slide-generation/deckEditingTimings.test.ts",
     ],
     testTimeout: 300_000,
     hookTimeout: 120_000,
