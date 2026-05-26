@@ -101,6 +101,14 @@ export async function retain(
           content: existing.content,
           proofCount: newProofCount,
           sourceChunkIds: mergedSourceIds,
+          ...(options.eventTime !== undefined &&
+            options.eventTime !== null && {
+              eventTime: {
+                start: options.eventTime.start,
+                end: options.eventTime.end,
+                kind: options.eventTime.kind,
+              },
+            }),
         });
         return {
           action: "merge",
@@ -209,6 +217,14 @@ async function tryConsolidate(
       content: existing.content,
       proofCount: newProofCount,
       sourceChunkIds: mergedSourceIds,
+      ...(options.eventTime !== undefined &&
+        options.eventTime !== null && {
+          eventTime: {
+            start: options.eventTime.start,
+            end: options.eventTime.end,
+            kind: options.eventTime.kind,
+          },
+        }),
     });
     return {
       action: "merge",
@@ -234,6 +250,14 @@ async function tryConsolidate(
       proofCount: newProofCount,
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
+      ...(options.eventTime !== undefined &&
+        options.eventTime !== null && {
+          eventTime: {
+            start: options.eventTime.start,
+            end: options.eventTime.end,
+            kind: options.eventTime.kind,
+          },
+        }),
     });
     return {
       action: "update",

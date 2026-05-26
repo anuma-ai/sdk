@@ -273,11 +273,17 @@ export function rankVaultMemories(
     filtered.sort((a, b) => b.similarity - a.similarity);
   }
 
-  return filtered.slice(0, limit).map((r) => ({
-    uniqueId: r.uniqueId,
-    content: r.content,
-    similarity: r.similarity,
-  }));
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  return filtered.slice(0, limit).map((r) => {
+    const item = itemById.get(r.uniqueId);
+    return {
+      uniqueId: r.uniqueId,
+      content: r.content,
+      similarity: r.similarity,
+      createdAt: item?.updatedAt, // Use updatedAt as proxy for createdAt when available
+      updatedAt: item?.updatedAt,
+    };
+  });
 }
 
 /**
@@ -369,6 +375,8 @@ export function rankFusedVaultMemories(
       uniqueId: item.id,
       content: item.content,
       similarity: Math.min(minSimilarity, bm25 / 50),
+      createdAt: item.updatedAt,
+      updatedAt: item.updatedAt,
     });
   }
 
@@ -411,7 +419,13 @@ export function rankFusedVaultMemories(
         if (seen.has(id)) continue;
         const it = itemById.get(id);
         if (!it) continue;
-        combined.push({ uniqueId: id, content: it.content, similarity: fused.get(id) ?? 0 });
+        combined.push({
+          uniqueId: id,
+          content: it.content,
+          similarity: fused.get(id) ?? 0,
+          createdAt: it.updatedAt,
+          updatedAt: it.updatedAt,
+        });
         seen.add(id);
       }
     }
@@ -559,6 +573,8 @@ export async function rankFusedVaultMemoriesAsync(
         uniqueId: r.uniqueId,
         content: r.content,
         similarity: v2 * (1 + ceWeight * ce),
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
       };
     });
     combined.sort((a, b) => b.similarity - a.similarity);
@@ -599,7 +615,13 @@ export async function rankFusedVaultMemoriesAsync(
         if (seen.has(id)) continue;
         const it = itemById.get(id);
         if (!it) continue;
-        fusedHead.push({ uniqueId: id, content: it.content, similarity: fused.get(id) ?? 0 });
+        fusedHead.push({
+          uniqueId: id,
+          content: it.content,
+          similarity: fused.get(id) ?? 0,
+          createdAt: it.updatedAt,
+          updatedAt: it.updatedAt,
+        });
         seen.add(id);
       }
     }
@@ -619,11 +641,17 @@ export async function rankFusedVaultMemoriesAsync(
     }));
     const picked = applyMMR(mmrCandidates, limit, lambda);
     const pickedIds = new Set(picked.map((p) => p.id));
-    const pickedResults: VaultSearchResult[] = picked.map((p) => ({
-      uniqueId: p.id,
-      content: p.content,
-      similarity: p.score,
-    }));
+    const resultMap = new Map(combined.map((r) => [r.uniqueId, r]));
+    const pickedResults: VaultSearchResult[] = picked.map((p) => {
+      const orig = resultMap.get(p.id);
+      return {
+        uniqueId: p.id,
+        content: p.content,
+        similarity: p.score,
+        createdAt: orig?.createdAt,
+        updatedAt: orig?.updatedAt,
+      };
+    });
     // For benchmark + temporal-margin analysis, callers that want the
     // long tail must pass `limit: items.length`. The function respects
     // limit strictly so production callers (tool executor) get exactly
@@ -732,13 +760,22 @@ export async function rankComposite(
   // Stage 2 — RRF fusion across facet rankings.
   const fused = rrfFuse(perFacetRankings, options?.rrfK);
   const itemById = new Map(items.map((i) => [i.id, i]));
-  let combined: VaultSearchResult[] = Array.from(fused.entries())
-    .map(([id, score]) => {
+  const mappedResults: (VaultSearchResult | null)[] = Array.from(fused.entries()).map(
+    ([id, score]) => {
       const item = itemById.get(id);
       if (!item) return null;
-      return { uniqueId: id, content: item.content, similarity: score };
-    })
-    .filter((r): r is VaultSearchResult => r !== null);
+      return {
+        uniqueId: id,
+        content: item.content,
+        similarity: score,
+        createdAt: item.updatedAt,
+        updatedAt: item.updatedAt,
+      };
+    }
+  );
+  let combined: VaultSearchResult[] = mappedResults.filter(
+    (r): r is VaultSearchResult => r !== null
+  );
   combined.sort((a, b) => b.similarity - a.similarity);
 
   // Bench parity: append items absent from any facet's top-N so the
@@ -746,7 +783,13 @@ export async function rankComposite(
   const fusedIds = new Set(combined.map((r) => r.uniqueId));
   for (const item of items) {
     if (!fusedIds.has(item.id)) {
-      combined.push({ uniqueId: item.id, content: item.content, similarity: 0 });
+      combined.push({
+        uniqueId: item.id,
+        content: item.content,
+        similarity: 0,
+        createdAt: item.updatedAt,
+        updatedAt: item.updatedAt,
+      });
     }
   }
 
@@ -846,6 +889,8 @@ export interface VaultSearchResult {
   uniqueId: string;
   content: string;
   similarity: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 /**
@@ -923,7 +968,13 @@ export async function searchVaultMemoriesWithSize(
   for (const m of memories) {
     const embedding = cache.get(m.content);
     if (embedding) {
-      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding, updatedAt: m.updatedAt });
+      embeddedItems.push({
+        id: m.uniqueId,
+        content: m.content,
+        embedding,
+        updatedAt: m.updatedAt,
+        proofCount: m.proofCount,
+      });
     }
   }
 

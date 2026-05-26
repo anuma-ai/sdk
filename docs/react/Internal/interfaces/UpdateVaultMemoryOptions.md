@@ -22,6 +22,34 @@ JSON-stringified embedding vector to persist, or null to clear stale embedding
 
 ***
 
+### eventTime?
+
+> `optional` **eventTime**: `object`
+
+Defined in: [src/lib/db/memoryVault/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#71)
+
+W6 temporal lane — when the event in this memory occurred.
+
+**end**
+
+> **end**: `number` | `null`
+
+Unix ms timestamp of event end (range only).
+
+**kind**
+
+> **kind**: `"point"` | `"range"` | `"ongoing"` | `null`
+
+Kind: 'point' | 'range' | 'ongoing' | null (or omit).
+
+**start**
+
+> **start**: `number` | `null`
+
+Unix ms timestamp of event start (or point).
+
+***
+
 ### folderId?
 
 > `optional` **folderId**: `string` | `null`

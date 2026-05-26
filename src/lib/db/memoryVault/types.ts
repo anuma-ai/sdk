@@ -67,4 +67,13 @@ export interface UpdateVaultMemoryOptions {
   proofCount?: number;
   /** Set source ("manual" | "auto-extracted" | "capsule"). */
   source?: string;
+  /** W6 temporal lane — when the event in this memory occurred. */
+  eventTime?: {
+    /** Unix ms timestamp of event start (or point). */
+    start: number | null;
+    /** Unix ms timestamp of event end (range only). */
+    end: number | null;
+    /** Kind: 'point' | 'range' | 'ongoing' | null (or omit). */
+    kind: "point" | "range" | "ongoing" | null;
+  };
 }

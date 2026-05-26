@@ -362,6 +362,11 @@ export async function updateVaultMemoryOp(
         if (opts.source !== undefined) {
           r._setRaw("source", opts.source);
         }
+        if (opts.eventTime !== undefined) {
+          r._setRaw("event_time_start", opts.eventTime.start ?? null);
+          r._setRaw("event_time_end", opts.eventTime.end ?? null);
+          r._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+        }
       });
     });
 

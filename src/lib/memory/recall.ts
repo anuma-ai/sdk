@@ -201,8 +201,8 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     content: r.content,
     score: r.similarity,
     scoreBreakdown: { cosine: r.similarity },
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
+    createdAt: r.createdAt ?? new Date(0),
+    updatedAt: r.updatedAt ?? new Date(0),
   };
 }
 
