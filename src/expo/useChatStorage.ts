@@ -1058,6 +1058,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           data: result.data,
           error: null,
           skipped: true,
+          piiMatches: result.piiMatches,
         };
       }
 
@@ -1271,6 +1272,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
+      const piiMatches = (result as { piiMatches?: import("../lib/pii/redactor").PiiMatch[] })
+        .piiMatches;
 
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
@@ -1338,6 +1341,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               error: null, // Treat as success to the caller
               userMessage: storedUserMessage,
               assistantMessage: storedAssistantMessage,
+              piiMatches,
             };
           } catch {
             // Storage failed for abort - don't set error field on stored messages
@@ -1458,6 +1462,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        piiMatches: piiMatches && piiMatches.length > 0 ? piiMatches : undefined,
         uniqueId: assistantUniqueId,
       };
 
@@ -1489,6 +1494,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
+        piiMatches,
       };
     },
     [

@@ -12,7 +12,7 @@ import type {
 } from "../../../client";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
-import type { PiiRedactor } from "../../pii/redactor";
+import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
@@ -145,6 +145,8 @@ export interface StoredMessage {
   feedback?: MessageFeedback;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /** PII matches detected and redacted in the user's message for this exchange */
+  piiMatches?: PiiMatch[];
 }
 
 export interface ActivityPhase {
@@ -281,6 +283,8 @@ export interface CreateMessageOptions {
   parentMessageId?: string;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /** PII matches detected and redacted during this request — stored for UI indicators */
+  piiMatches?: PiiMatch[];
   /**
    * Optional pre-generated unique ID for this message.
    * When provided, used as the WatermelonDB record ID instead of auto-generating one.
@@ -750,6 +754,8 @@ export interface BaseSendMessageSuccessResult {
   error: null;
   userMessage: StoredMessage;
   assistantMessage: StoredMessage;
+  /** PII matches detected and redacted in the outbound messages for this request */
+  piiMatches?: PiiMatch[];
 }
 
 export interface BaseSendMessageSkippedResult {
@@ -759,6 +765,8 @@ export interface BaseSendMessageSkippedResult {
   assistantMessage?: undefined;
   /** Indicates this was a skipStorage request - no messages were persisted */
   skipped: true;
+  /** PII matches detected and redacted in the outbound messages for this request */
+  piiMatches?: PiiMatch[];
 }
 
 export interface BaseSendMessageErrorResult {
@@ -766,6 +774,8 @@ export interface BaseSendMessageErrorResult {
   error: string;
   userMessage?: StoredMessage;
   assistantMessage?: undefined;
+  /** PII matches detected and redacted in the outbound messages for this request */
+  piiMatches?: PiiMatch[];
 }
 
 export type BaseSendMessageWithStorageResult =

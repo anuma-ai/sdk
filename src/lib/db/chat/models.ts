@@ -3,6 +3,7 @@ import { date, field, json, text } from "@nozbe/watermelondb/decorators";
 import type { Associations } from "@nozbe/watermelondb/Model";
 
 import type { LlmapiToolCallEvent } from "../../../client";
+import type { PiiMatch } from "../../pii/redactor";
 import type {
   ActivityPhase,
   ChatCompletionUsage,
@@ -48,6 +49,8 @@ export class Message extends Model {
   @text("feedback") feedback?: MessageFeedback;
   @json("tool_call_events", (raw: unknown) => raw as LlmapiToolCallEvent[])
   toolCallEvents?: LlmapiToolCallEvent[];
+  @json("pii_matches", (raw: unknown) => raw as PiiMatch[])
+  piiMatches?: PiiMatch[];
 }
 
 export class Conversation extends Model {

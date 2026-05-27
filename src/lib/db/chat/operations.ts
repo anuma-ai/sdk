@@ -47,6 +47,7 @@ function messageToStoredRaw(message: Message): StoredMessage {
   const chunksRaw = message._getRaw("chunks");
   const thoughtProcessRaw = message._getRaw("thought_process");
   const toolCallEventsRaw = message._getRaw("tool_call_events");
+  const piiMatchesRaw = message._getRaw("pii_matches");
 
   return {
     uniqueId: message.id,
@@ -73,6 +74,7 @@ function messageToStoredRaw(message: Message): StoredMessage {
     parentMessageId: message.parentMessageId,
     feedback: message.feedback || null,
     toolCallEvents: parseJsonField(toolCallEventsRaw),
+    piiMatches: parseJsonField(piiMatchesRaw),
   };
 }
 
@@ -535,6 +537,13 @@ export async function createMessageOp(
             ? encryptedOpts.toolCallEvents
             : JSON.stringify(encryptedOpts.toolCallEvents);
         msg._setRaw("tool_call_events", tceValue);
+      }
+      if (encryptedOpts.piiMatches) {
+        const piiValue =
+          typeof encryptedOpts.piiMatches === "string"
+            ? encryptedOpts.piiMatches
+            : JSON.stringify(encryptedOpts.piiMatches);
+        msg._setRaw("pii_matches", piiValue);
       }
     });
   });

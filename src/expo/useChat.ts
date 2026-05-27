@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
+import type { PiiMatch } from "../lib/pii/redactor";
 import {
   type ApiType,
   type AutoExecutedToolResult,
@@ -54,12 +55,16 @@ type SendMessageResult =
       toolsChecksum?: string;
       /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
+      /** PII matches detected and redacted in the outbound messages for this request */
+      piiMatches?: PiiMatch[];
     }
   | {
       data: RunToolLoopResult["data"] | null;
       error: string;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** PII matches detected and redacted in the outbound messages for this request */
+      piiMatches?: PiiMatch[];
     };
 
 /**

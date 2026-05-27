@@ -2,7 +2,7 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
 import { addColumns, schemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
 
 export const chatStorageSchema = appSchema({
-  version: 7,
+  version: 8,
   tables: [
     tableSchema({
       name: "history",
@@ -26,6 +26,7 @@ export const chatStorageSchema = appSchema({
         { name: "error", type: "string", isOptional: true },
         { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
         { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
+        { name: "pii_matches", type: "string", isOptional: true }, // JSON stringified PiiMatch[]
       ],
     }),
     tableSchema({
@@ -94,6 +95,15 @@ export const chatStorageMigrations = schemaMigrations({
         addColumns({
           table: "history",
           columns: [{ name: "image_model", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    {
+      toVersion: 8,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "pii_matches", type: "string", isOptional: true }],
         }),
       ],
     },

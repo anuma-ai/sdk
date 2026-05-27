@@ -124,6 +124,7 @@ import {
   shouldRefreshTools,
   type ToolSet,
 } from "../lib/tools";
+import type { PiiMatch } from "../lib/pii/redactor";
 import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
@@ -710,6 +711,13 @@ export interface SendMessageWithStorageArgs extends BaseSendMessageWithStorageAr
    * to avoid race conditions with React state updates.
    */
   conversationId?: string;
+
+  /**
+   * Per-request PII redaction. When set, outbound messages are scanned
+   * for PII and placeholders replace sensitive data before reaching the
+   * LLM. Original text is preserved in storage.
+   */
+  piiRedaction?: boolean | import("../lib/pii/redactor").PiiRedactor;
 }
 
 /**
@@ -724,6 +732,8 @@ export type SendMessageWithStorageResult =
       assistantMessage: StoredMessage;
       /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
       autoExecutedToolResults?: { name: string; result: unknown }[];
+      /** PII matches detected and redacted in the outbound messages for this request */
+      piiMatches?: PiiMatch[];
     }
   | {
       data: ApiResponse;
@@ -732,12 +742,16 @@ export type SendMessageWithStorageResult =
       assistantMessage?: undefined;
       /** Indicates this was a skipStorage request - no messages were persisted */
       skipped: true;
+      /** PII matches detected and redacted in the outbound messages for this request */
+      piiMatches?: PiiMatch[];
     }
   | {
       data: null;
       error: string;
       userMessage?: StoredMessage;
       assistantMessage?: undefined;
+      /** PII matches detected and redacted in the outbound messages for this request */
+      piiMatches?: PiiMatch[];
     };
 
 /**
@@ -986,7 +1000,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     mcpR2Domain = MCP_R2_DOMAIN,
     preProcessors,
-    piiRedaction,
+    piiRedaction: piiRedactionHookLevel,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1510,7 +1524,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onToolCallArgumentsDelta,
     apiType,
     preProcessors,
-    piiRedaction,
+    piiRedaction: piiRedactionHookLevel,
   });
 
   /**
@@ -1965,6 +1979,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         conversationId: explicitConversationId,
         parentMessageId,
         assistantUniqueId,
+        piiRedaction,
       } = args;
 
       // Helper to resolve thought process from callback or static value
@@ -2087,6 +2102,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           imageModel,
           apiType: effectiveApiType,
           conversationId: explicitConversationId ?? currentConversationId ?? undefined,
+          piiRedaction: piiRedaction ?? piiRedactionHookLevel,
         });
 
         if (result.error || !result.data) {
@@ -2107,6 +2123,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           data: result.data,
           error: null,
           skipped: true,
+          piiMatches: result.piiMatches,
         };
       }
 
@@ -2566,9 +2583,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         onThinking,
         apiType: requestApiType,
         conversationId: convId,
+        piiRedaction: piiRedaction ?? piiRedactionHookLevel,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
+      const piiMatches = (result as { piiMatches?: PiiMatch[] }).piiMatches;
 
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
@@ -2640,6 +2659,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               error: null, // Treat as success to the caller
               userMessage: storedUserMessage,
               assistantMessage: storedAssistantMessage,
+              piiMatches,
             };
           } catch {
             // Storage failed for abort - don't set error field on stored messages
@@ -2772,6 +2792,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        piiMatches: piiMatches && piiMatches.length > 0 ? piiMatches : undefined,
         // Pre-allocated ID from consumer — when provided, both the in-flight streaming
         // placeholder and this persisted message share the same React key, preventing
         // the unmount/remount flash when streaming completes.
@@ -2887,6 +2908,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         autoExecutedToolResults: (result as Record<string, unknown>).autoExecutedToolResults as
           | { name: string; result: unknown }[]
           | undefined,
+        piiMatches,
       };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting stable refs and config values that don't change identity
