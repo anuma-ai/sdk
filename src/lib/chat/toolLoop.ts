@@ -1010,7 +1010,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       }
     }
 
-    await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
+    // Only the terminal text response gets the paced typewriter drain. When the
+    // round emitted tool calls (the agentic loop will continue), flush instantly:
+    // paced-draining large tool args/results at the smoother's char rate blocked
+    // the loop for tens of seconds per round — the dominant multi-round latency.
+    if (accumulator.toolCalls.size > 0) {
+      contentSmoother.flush();
+      thinkingSmoother.flush();
+    } else {
+      await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
+    }
     await fireAfterModelCall(buildModelCallEndPayload(accumulator));
 
     const response = strategy.buildFinalResponse(accumulator);
@@ -1337,8 +1346,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         });
       }
 
-      // Drain thinking smoother before continuation to avoid interleaved output
-      await thinkingSmoother.drain();
+      // Flush (don't paced-drain) the diagnostic thinking stream before
+      // continuation. Tool args/results pushed here can be tens of KB (e.g. a
+      // slide's full JSX, or plan_deck's recipe), and paced-draining them at the
+      // smoother's char rate would block the loop for tens of seconds per round.
+      thinkingSmoother.flush();
 
       // Accumulate this round's successful results for the main return path.
       // Multi-round flows (e.g. plan_deck + add_slide × N) need every round's
@@ -1572,7 +1584,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
+      // Same rule as the initial round: paced drain only for the terminal
+      // response; flush instantly while the tool loop will continue.
+      if (currentAccumulator.toolCalls.size > 0) {
+        contContentSmoother.flush();
+        contThinkingSmoother.flush();
+      } else {
+        await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
+      }
       await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator));
     }
 
