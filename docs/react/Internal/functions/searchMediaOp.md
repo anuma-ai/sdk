@@ -2,7 +2,7 @@
 
 > **searchMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `query`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:709](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#709)
+Defined in: [src/lib/db/media/operations.ts:738](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#738)
 
 Search media by name.
 Handles both encrypted and plaintext names:

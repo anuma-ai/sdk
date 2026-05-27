@@ -322,12 +322,14 @@ export async function updateMediaMessageIdBatchOp(
   return results.length;
 }
 
-/** Video file extensions used to recognize misclassified records by name. */
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov"];
+const VIDEO_MIME_RE = /^video\//i;
+/** Mimes the old path produced for videos when blob.type was empty (`image/<urlext>`). */
+const IMAGE_VIDEO_MIMES = VIDEO_EXTENSIONS.map((ext) => `image/${ext}`);
 
-/** Extract a lowercased file extension from a media name, if any. */
-function extensionFromName(name: string | undefined): string | null {
-  return name?.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? null;
+/** Extract a lowercased video extension from a URL or filename, if present. */
+function videoExtensionOf(value: string | undefined | null): string | null {
+  return value?.match(/\.(mp4|webm|mov)(?:[?#]|$)/i)?.[1]?.toLowerCase() ?? null;
 }
 
 /**
@@ -338,15 +340,17 @@ function extensionFromName(name: string | undefined): string | null {
  * the video in encrypted OPFS but never surface in the video player's fallback
  * or the Videos library tab.
  *
- * The stored `mime_type` is an unreliable signal — object storage often served
- * a generic `application/octet-stream`, and the old path also stamped
- * `image/<ext>` when the blob type was empty. The reliable plaintext signal is
- * the generated `name` (`mcp-image-*.<ext>`, where `<ext>` comes from the source
- * URL). So we match `media_type = "image"` rows whose mime is `video/*` OR whose
- * name carries a video extension, flip them to video, and repair the mime so it
- * stays correct.
+ * `name`/`source_url` are encrypted at rest, so they can't be matched with SQL.
+ * Detection works off the plaintext `mime_type`:
+ *  - `video/*` — blob type was correct
+ *  - `image/{mp4,webm,mov}` — blob type was empty, stamped `image/<urlext>`
+ *  - `application/octet-stream` — generic; ambiguous in plaintext, so we decrypt
+ *    the record and confirm a video extension on `sourceUrl`/`name` before
+ *    flipping (avoids turning real documents/images into video).
  *
- * Idempotent: once flipped to `video`, rows no longer match the filter.
+ * Confirmed rows are flipped to `video` and their mime repaired to `video/<ext>`
+ * so they stay classified correctly. Idempotent: once `video`, rows fall out of
+ * the `media_type = "image"` candidate set.
  *
  * @returns number of records relinked
  */
@@ -355,38 +359,63 @@ export async function relinkMisclassifiedVideosOp(
   walletAddress: string
 ): Promise<number> {
   const mediaCollection = ctx.database.get<Media>("media");
-  const results = await mediaCollection
+  const candidates = await mediaCollection
     .query(
       Q.where("wallet_address", walletAddress),
       Q.where("is_deleted", false),
       Q.where("media_type", "image"),
       Q.or(
         Q.where("mime_type", Q.like("video/%")),
-        ...VIDEO_EXTENSIONS.map((ext) => Q.where("name", Q.like(`%.${ext}`)))
+        ...IMAGE_VIDEO_MIMES.map((m) => Q.where("mime_type", m)),
+        Q.where("mime_type", "application/octet-stream")
       )
     )
     .fetch();
 
-  if (results.length === 0) {
+  if (candidates.length === 0) {
+    return 0;
+  }
+
+  // Resolve each candidate to a video extension (or null if not actually video).
+  const toRelink: { media: Media; ext: string }[] = [];
+  for (const media of candidates) {
+    const mime = media.mimeType?.toLowerCase() ?? "";
+    if (VIDEO_MIME_RE.test(mime)) {
+      toRelink.push({ media, ext: mime.split("/")[1] || "mp4" });
+      continue;
+    }
+    if (IMAGE_VIDEO_MIMES.includes(mime)) {
+      toRelink.push({ media, ext: mime.split("/")[1] || "mp4" });
+      continue;
+    }
+    // application/octet-stream — decrypt to inspect the real source URL / name.
+    const stored = await mediaToStored(
+      media,
+      ctx.walletAddress,
+      ctx.signMessage,
+      ctx.embeddedWalletSigner
+    );
+    const ext = videoExtensionOf(stored.sourceUrl) ?? videoExtensionOf(stored.name);
+    if (ext) {
+      toRelink.push({ media, ext });
+    }
+  }
+
+  if (toRelink.length === 0) {
     return 0;
   }
 
   const now = Date.now();
-
   await ctx.database.write(async () => {
     await ctx.database.batch(
-      ...results.map((media) =>
+      ...toRelink.map(({ media, ext }) =>
         media.prepareUpdate((m) => {
           m._setRaw("media_type", "video");
-          // Repair a generic/incorrect mime (e.g. application/octet-stream or
-          // image/mp4) so getMediaTypeFromMime keeps resolving to video.
-          if (!media.mimeType?.toLowerCase().startsWith("video/")) {
-            const ext = extensionFromName(media.name) ?? "mp4";
+          // Repair a non-video mime so getMediaTypeFromMime keeps resolving to
+          // video. `name` is encrypted, so leave it — media_type drives the
+          // library tab and the OPFS fallback.
+          if (!VIDEO_MIME_RE.test(media.mimeType?.toLowerCase() ?? "")) {
             m._setRaw("mime_type", `video/${ext}`);
-          }
-          // Realign the display name prefix (mcp-image-* -> mcp-video-*).
-          if (typeof media.name === "string") {
-            m._setRaw("name", media.name.replace(/^mcp-image-/, "mcp-video-"));
           }
           m._setRaw("updated_at", now);
         })
@@ -394,7 +423,7 @@ export async function relinkMisclassifiedVideosOp(
     );
   });
 
-  return results.length;
+  return toRelink.length;
 }
 
 /**
