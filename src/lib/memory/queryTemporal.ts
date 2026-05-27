@@ -269,9 +269,7 @@ export function scoreEventTimeOverlap(
     return memoryStart >= window.start && memoryStart < window.end ? 1 : 0;
   }
 
-  // Ongoing: started before window end and (if it has a non-null end)
-  // hasn't already ended before the window starts. Mirrors the
-  // admission predicate in getMemoriesByEventTimeOp.
+  // Mirrors the admission predicate in getMemoriesByEventTimeOp.
   if (memoryKind === "ongoing") {
     const ongoingEnd = memoryEnd ?? Number.POSITIVE_INFINITY;
     return memoryStart < window.end && ongoingEnd >= window.start ? 1 : 0;

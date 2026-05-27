@@ -2,14 +2,7 @@
 
 > **createMemoryVaultSearchTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `ToolConfig`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1096](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1096)
-
-Creates a memory vault search tool for use with chat completions.
-
-The tool allows the LLM to search through vault memories using semantic
-similarity. Vault entries should have their embeddings pre-computed in the
-cache (via preEmbedVaultMemories or eagerEmbedContent). Any missing
-embeddings are computed on the fly as a fallback.
+Defined in: [src/lib/memoryVault/searchTool.ts:1101](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1101)
 
 ## Parameters
 

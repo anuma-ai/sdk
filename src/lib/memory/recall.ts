@@ -221,10 +221,13 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
  * `rankByEntityOverlap` for callers that want the score directly.
  */
 async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise<string[]> {
-  if (!ctx.entityCtx) return [];
+  // Fall back to vaultCtx.entityCtx so callers don't have to thread the
+  // graph-lane context twice (it's also where cascade-delete wiring lives).
+  const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
+  if (!entityCtx) return [];
   const queryEntities = extractQueryEntities(query);
   if (queryEntities.length === 0) return [];
-  const memoryToEntities = await getMemoriesByEntityNamesOp(ctx.entityCtx, queryEntities);
+  const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, queryEntities);
   if (memoryToEntities.size === 0) return [];
   // Sort by shared-entity count descending. Ties broken arbitrarily by
   // map insertion order — RRF rank-quantization makes fine ties moot.

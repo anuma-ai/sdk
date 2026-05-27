@@ -44,10 +44,7 @@ export interface TurnSkippedEvent {
 export interface TurnCompleteEvent {
   candidates: ExtractedCandidate[];
   results: RetainResult[];
-  /** Count of candidates whose retain() threw and didn't make it into
-   * `results`. Non-zero here is the only signal consumers get that the
-   * turn was partially or fully unsuccessful — `onError` only fires on
-   * pipeline-level throws, not per-candidate write failures. */
+  /** Per-candidate retain() failures. `onError` only fires on pipeline throws. */
   failedCount: number;
   durationMs: number;
   conversationId?: string;

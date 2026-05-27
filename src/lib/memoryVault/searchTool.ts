@@ -961,12 +961,8 @@ export async function searchVaultMemoriesWithSize(
     }
   }
 
-  // Build items for the pure ranking function. Memories without an
-  // embedding (typically just-written rows whose embedding job hasn't
-  // run yet) get an empty-vector placeholder — cosine returns 0 against
-  // any query so they don't surface via the cosine lane, but they're
-  // still admissible candidates for the W5/W6 side lanes (entity /
-  // temporal hits don't need embeddings).
+  // Missing embeddings → []; cosine returns 0 (lane no-op), but W5/W6
+  // side lanes can still admit the row.
   const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
     id: m.uniqueId,
     content: m.content,
@@ -1087,6 +1083,15 @@ export async function searchVaultMemories(
  * cache (via preEmbedVaultMemories or eagerEmbedContent). Any missing
  * embeddings are computed on the fly as a fallback.
  *
+/** Numbered "[N] (id: …, similarity: …)\n<content>" rendering shared by the
+ * chat-tool's recall-delegated and useFusion:false branches. */
+function formatVaultHits(hits: Array<{ id: string; content: string; score: number }>): string {
+  return hits
+    .map((h, i) => `[${i + 1}] (id: ${h.id}, similarity: ${h.score.toFixed(2)})\n${h.content}`)
+    .join("\n\n");
+}
+
+/**
  * @param vaultCtx - Vault operations context for database access
  * @param embeddingOptions - Options for embedding generation (auth, base URL)
  * @param cache - Pre-populated embedding cache
@@ -1154,16 +1159,9 @@ export function createMemoryVaultSearchTool(
             : searchOptions?.rerank
               ? "mid"
               : "low";
-        const folderId =
-          searchOptions?.folderId !== undefined
-            ? searchOptions.folderId
-            : argFolderId !== undefined
-              ? argFolderId
-              : undefined;
+        const folderId = searchOptions?.folderId ?? argFolderId;
 
-        // Legacy `useFusion: false` opt-out: callers explicitly asking
-        // for the cosine-only ranker don't want recall()'s fusion
-        // pipeline. Fall back to the direct search to honor that.
+        // useFusion:false callers want cosine-only — skip recall's fusion.
         if (searchOptions?.useFusion === false) {
           const legacy = await searchVaultMemories(query, vaultCtx, embeddingOptions, cache, {
             limit: requestLimit,
@@ -1175,26 +1173,15 @@ export function createMemoryVaultSearchTool(
           if (legacy.length === 0) {
             return "No relevant memories found in the vault.";
           }
-          return legacy
-            .map(
-              (r, i) =>
-                `[${i + 1}] (id: ${r.uniqueId}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`
-            )
-            .join("\n\n");
+          return formatVaultHits(
+            legacy.map((r) => ({ id: r.uniqueId, content: r.content, score: r.similarity }))
+          );
         }
 
         const { recall } = await import("../memory/recall.js");
         const result = await recall(
           query,
-          {
-            vaultCtx,
-            embeddingOptions,
-            vaultCache: cache,
-            // Propagate the graph-lane context if the caller attached one
-            // to the vault ctx (cascade-delete wiring lives there). Without
-            // this, the chat-tool path silently skips the W5 lane.
-            ...(vaultCtx.entityCtx && { entityCtx: vaultCtx.entityCtx }),
-          },
+          { vaultCtx, embeddingOptions, vaultCache: cache },
           {
             types: ["fact"],
             limit: requestLimit,
@@ -1222,13 +1209,13 @@ export function createMemoryVaultSearchTool(
           return "No relevant memories found in the vault.";
         }
 
-        const formatted = result.memories
-          .map(
-            (m, i) =>
-              `[${i + 1}] (id: ${m.id}, similarity: ${(m.scoreBreakdown?.cosine ?? m.score).toFixed(2)})\n${m.content}`
-          )
-          .join("\n\n");
-
+        const formatted = formatVaultHits(
+          result.memories.map((m) => ({
+            id: m.id,
+            content: m.content,
+            score: m.scoreBreakdown?.cosine ?? m.score,
+          }))
+        );
         return `Found ${result.memories.length} vault memories:\n\n${formatted}`;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
