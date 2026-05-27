@@ -51,13 +51,12 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
   const remaining = [...candidates];
   const selected: T[] = [];
 
-  // Running max-sim against the selected set, indexed parallel to
-  // `remaining`. Updated incrementally each round: when a new item is
-  // selected we just fold its similarity to each surviving candidate
-  // into the running max — O(n) per round instead of recomputing
-  // max-sim against the full selected set every iteration (which would
-  // be O(k · n · dim) per round and O(k² · n · dim) overall).
-  const maxSimVs: number[] = Array.from({ length: remaining.length }, () => -Infinity);
+  // Running max-cosine against the selected set, parallel to `remaining`.
+  // Folded incrementally per round to stay O(k·n·dim) overall instead of
+  // O(k²·n·dim). Embeddingless candidates have no diversity signal — pin
+  // them to 0 so they're judged on relevance alone, never -Infinity
+  // (which would make their MMR score blow up after the first pick).
+  const maxSimVs: number[] = remaining.map((r) => (r.embedding.length === 0 ? 0 : -Infinity));
 
   while (selected.length < k && remaining.length > 0) {
     let bestIdx = 0;
@@ -65,10 +64,6 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
 
     for (let i = 0; i < remaining.length; i++) {
       const cand = remaining[i];
-      // Initialize maxSim at -Infinity so an anti-correlated candidate
-      // (cosine close to -1 with everything selected) gets the *biggest*
-      // possible diversity reward, not a flat 0 baseline that under-
-      // rewards real diversity.
       const maxSim = selected.length === 0 ? 0 : maxSimVs[i];
       const mmrScore = lambda * cand.score - (1 - lambda) * maxSim;
       if (mmrScore > bestScore) {

@@ -19,13 +19,9 @@
  * abstract user questions. See `tasks/hackathon/...` for the rationale.
  */
 
-import { getLogger } from "../logger.js";
+import { callPortalJsonCompletion } from "../memory/portalLlm.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
-const DEFAULT_BASE_URL =
-  (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) ||
-  "https://portal.anuma-dev.ai";
-const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_SUB_QUERIES = 5;
 
 const SYSTEM_PROMPT = `You classify a memory query and, if needed, decompose it into concrete sub-queries.
@@ -77,10 +73,6 @@ interface DecomposeQueryOptions {
   fetchFn?: typeof fetch;
 }
 
-interface ChoicesResponse {
-  choices?: Array<{ message?: { content?: string } }>;
-}
-
 /**
  * Classify + decompose. On any failure (network, malformed JSON,
  * schema violation) returns a safe fallback that treats the query as
@@ -95,72 +87,18 @@ export async function decomposeQuery(
   const trimmed = query.trim();
   if (trimmed.length === 0) return fallback;
 
-  const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
-  const model = options.model ?? DEFAULT_MODEL;
-  const fetchImpl = options.fetchFn ?? fetch;
+  const parsed = await callPortalJsonCompletion({
+    apiKey: options.apiKey,
+    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+    model: options.model ?? DEFAULT_MODEL,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage: trimmed,
+    tag: "memory/decompose",
+    ...(options.fetchFn && { fetchFn: options.fetchFn }),
+  });
+  if (parsed === null) return fallback;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  let response: Response;
-  try {
-    response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: { "x-api-key": options.apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: trimmed },
-        ],
-        response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    getLogger().warn("[memory/decompose] fetch failed, treating query as specific", err);
-    return fallback;
-  }
-  clearTimeout(timer);
-
-  if (!response.ok) {
-    getLogger().warn(
-      "[memory/decompose] portal returned",
-      response.status,
-      "— treating query as specific"
-    );
-    return fallback;
-  }
-
-  let body: ChoicesResponse;
-  try {
-    body = (await response.json()) as ChoicesResponse;
-  } catch (err) {
-    getLogger().warn("[memory/decompose] response body parse failed", err);
-    return fallback;
-  }
-
-  const content = body.choices?.[0]?.message?.content ?? "";
-  if (!content) {
-    getLogger().warn("[memory/decompose] portal response had no completion content");
-    return fallback;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch (err) {
-    getLogger().warn("[memory/decompose] completion was not valid JSON", err);
-    return fallback;
-  }
-
-  const result = validate(parsed, trimmed);
-  if (!result) {
-    getLogger().warn("[memory/decompose] completion violated schema, treating as specific");
-    return fallback;
-  }
-  return result;
+  return validate(parsed, trimmed) ?? fallback;
 }
 
 function validate(parsed: unknown, originalQuery: string): DecomposedQuery | null {

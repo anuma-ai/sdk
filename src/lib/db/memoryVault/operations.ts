@@ -192,11 +192,8 @@ export async function getMemoriesByEventTimeOp(
     // Point/ongoing: only keep if start is inside window.
     if (kind !== "range") {
       if (kind === "ongoing") {
-        // Ongoing memories: started before the window and still running
-        // by the window's start. If the LLM ever emits a non-null `end`
-        // for an ongoing event, treat it as the moment it stopped being
-        // ongoing — an "ongoing" that ended before the window is no
-        // longer overlapping it.
+        // Overlap window if started before windowEnd and (if it has a
+        // non-null end) hasn't ended before windowStart.
         const ongoingEnd = end ?? Number.POSITIVE_INFINITY;
         if (start < windowEnd && ongoingEnd >= windowStart) {
           out.push({

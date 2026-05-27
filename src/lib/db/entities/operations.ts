@@ -31,14 +31,11 @@ function entityToStored(e: Entity): StoredEntity {
 }
 
 /**
- * Batch resolve-or-create a set of canonical names. All reads + creates
- * happen inside one `database.write()` so concurrent extraction turns can't
- * each race a check-then-create — without this, two turns observing the
- * same brand-new entity name would both miss and both insert, inflating
- * `rankByEntityOverlap`'s shared-count with duplicate IDs.
+ * Batch resolve-or-create a set of canonical names. Read + create run
+ * inside one `database.write()` so concurrent turns can't race a
+ * check-then-create on the same brand-new name.
  *
  * Names are deduplicated and normalized (lower-trim) before lookup.
- * Returns entities in input order, one per unique normalized name.
  */
 async function upsertEntitiesOp(
   ctx: EntityOperationsContext,
@@ -80,13 +77,11 @@ export async function linkMemoryEntitiesOp(
   memoryId: string,
   entityNames: string[]
 ): Promise<StoredEntity[]> {
-  const unique = Array.from(new Set(entityNames.map(normalizeName).filter((n) => n.length > 0)));
-  if (unique.length === 0) return [];
+  if (entityNames.length === 0) return [];
 
-  const byName = await upsertEntitiesOp(ctx, unique);
-  const entities = unique
-    .map((name) => byName.get(name))
-    .filter((e): e is StoredEntity => e !== undefined);
+  const byName = await upsertEntitiesOp(ctx, entityNames);
+  const entities = Array.from(byName.values());
+  if (entities.length === 0) return [];
 
   // Skip pairs that already exist.
   const existingLinks = await ctx.memoryEntityCollection

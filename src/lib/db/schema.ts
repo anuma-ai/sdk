@@ -741,12 +741,8 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v30 -> v31: Added user_id column to memory_entity so the W5 graph lane
-    // can be scoped per user in a multi-user server context. Without it
-    // getMemoriesByEntityNamesOp returns memory IDs from every user who
-    // tagged a matching entity; isolation was previously load-bearing on
-    // a downstream itemById filter (one filter between this and a cross-
-    // user data leak).
+    // v30 -> v31: Added user_id to memory_entity so the W5 graph lane is
+    // scoped per user in multi-user server deployments.
     {
       toVersion: 31,
       steps: [

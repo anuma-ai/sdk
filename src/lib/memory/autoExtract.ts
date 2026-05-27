@@ -15,11 +15,11 @@
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
+import { callPortalJsonCompletion } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainResult } from "./types.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
-const DEFAULT_BASE_URL = "https://portal.anuma-dev.ai";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 
@@ -119,62 +119,16 @@ export async function extractFacts(
   if (messages.length === 0) return [];
 
   const transcript = messages.map((m) => `[${m.id}] ${m.role}: ${m.content}`).join("\n");
-  const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
-  const model = options.model ?? DEFAULT_MODEL;
-  const fetchImpl = options.fetchFn ?? fetch;
-
-  let response: Response;
-  try {
-    response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "x-api-key": options.apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-  } catch (err) {
-    // Network error: don't block the chat path. Caller treats this as
-    // "no facts extracted this turn".
-    getLogger().warn("[memory/extract] fetch failed; skipping extraction this turn", err);
-    return [];
-  }
-  if (!response.ok) {
-    getLogger().warn("[memory/extract] portal returned", response.status, "— skipping extraction");
-    return [];
-  }
-
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch (err) {
-    getLogger().warn("[memory/extract] response body parse failed", err);
-    return [];
-  }
-
-  const content = extractContent(body);
-  if (!content) {
-    getLogger().warn("[memory/extract] portal response had no completion content");
-    return [];
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch (err) {
-    getLogger().warn("[memory/extract] completion was not valid JSON", err);
-    return [];
-  }
+  const parsed = await callPortalJsonCompletion({
+    apiKey: options.apiKey,
+    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+    model: options.model ?? DEFAULT_MODEL,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
+    tag: "memory/extract",
+    ...(options.fetchFn && { fetchFn: options.fetchFn }),
+  });
+  if (parsed === null) return [];
 
   return validateCandidates(parsed, new Set(messages.map((m) => m.id)));
 }
@@ -213,9 +167,8 @@ export async function extractAndRetain(
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
-  // Track succeeded candidates separately so `candidates[i]` and `results[i]`
-  // stay length-aligned. Pushing to both arrays only on retain success keeps
-  // consumers' positional pairing correct even when a write fails mid-batch.
+  // Both arrays grow only on success so consumers can safely pair
+  // candidates[i] with results[i] after a mid-batch retain failure.
   const succeededCandidates: ExtractedCandidate[] = [];
   const results: RetainResult[] = [];
   let failedWrites = 0;
@@ -242,12 +195,8 @@ export async function extractAndRetain(
         }
       }
     } catch (err) {
-      // One bad write shouldn't kill the rest of the batch — but the
-      // upstream worker only observes the `onError` callback for the
-      // outer await, which never throws because we catch it here. Log
-      // each per-candidate failure so a consistently broken write path
-      // (DB locked, quota, encryption error) is visible instead of
-      // looking like a successful but empty `onTurnComplete`.
+      // Log per-candidate so a consistently broken write path is visible
+      // — the worker's outer onError can't see what we've caught here.
       failedWrites++;
       log.warn("[memory/extract] retain failed for one candidate", err);
     }
@@ -262,15 +211,6 @@ export async function extractAndRetain(
 // ---------------------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------------------
-
-function extractContent(body: unknown): string | null {
-  if (typeof body !== "object" || body === null) return null;
-  const choices = (body as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || choices.length === 0) return null;
-  const first = choices[0] as { message?: { content?: unknown } };
-  const content = first?.message?.content;
-  return typeof content === "string" ? content : null;
-}
 
 function validateCandidates(parsed: unknown, validIds: Set<string>): ExtractedCandidate[] {
   if (typeof parsed !== "object" || parsed === null) return [];
@@ -330,17 +270,9 @@ function parseEventTime(raw: unknown): ExtractedCandidate["eventTime"] {
 }
 
 /**
- * Parse an LLM-emitted event date to Unix ms.
- *
- * The W6 query lane builds windows in the user's *local* timezone via
- * `new Date(y, m, d)`, so date-only strings (`YYYY-MM-DD`) must also
- * resolve to local midnight here — otherwise `Date.parse` would treat
- * them as UTC midnight and the resulting timestamp could fall outside
- * the local-midnight query window for non-UTC users (e.g. a UTC-8 user
- * asking about "May 23" against an event stored at 2026-05-23T00:00Z
- * which is 2026-05-22T16:00 local).
- *
- * Full ISO strings with an explicit time / offset are parsed as-is.
+ * Date-only "YYYY-MM-DD" → local midnight, matching the query-window
+ * basis in queryTemporal. ISO strings with an explicit time / offset
+ * fall through to `Date.parse`.
  */
 function parseEventDate(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;

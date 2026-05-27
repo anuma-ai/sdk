@@ -32,21 +32,9 @@
  * silently swallow a write.
  */
 
-import { getLogger } from "../logger.js";
+import { callPortalJsonCompletion } from "./portalLlm.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
-/**
- * Fallback portal base URL. Production callers should pass `baseUrl` via
- * `ConsolidateOptions` (typically threaded from app config /
- * environment); this is here so unit tests and quick scripts don't have
- * to plumb a base URL through. `process.env.ANUMA_PORTAL_BASE_URL`
- * overrides at module-load time for server-side deployments that don't
- * route through the SDK's option plumbing.
- */
-const DEFAULT_BASE_URL =
-  (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) ||
-  "https://portal.anuma-dev.ai";
-const REQUEST_TIMEOUT_MS = 20_000;
 
 const SYSTEM_PROMPT = `You consolidate a new memory against existing memories from the same user.
 
@@ -119,84 +107,24 @@ export async function consolidateMemory(
   if (trimmed.length === 0) return fallback;
   if (candidates.length === 0) return fallback;
 
-  const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
-  const model = options.model ?? DEFAULT_MODEL;
-  const fetchImpl = options.fetchFn ?? fetch;
-
   const candidateText = candidates
     .map((c, i) => `[${i + 1}] (id: ${c.id}, sim: ${c.similarity.toFixed(2)})\n  ${c.content}`)
     .join("\n");
   const userMessage = `New memory:\n  ${trimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  const log = getLogger();
-  let response: Response;
-  try {
-    response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: { "x-api-key": options.apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMessage },
-        ],
-        response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    log.warn("[memory/consolidate] fetch failed, falling back to create", err);
-    return fallback;
-  }
-  clearTimeout(timer);
-
-  if (!response.ok) {
-    log.warn("[memory/consolidate] portal returned", response.status, "— falling back to create");
-    return fallback;
-  }
-
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch (err) {
-    log.warn("[memory/consolidate] response body parse failed", err);
-    return fallback;
-  }
-
-  const content = extractContent(body);
-  if (!content) {
-    log.warn("[memory/consolidate] portal response had no completion content");
-    return fallback;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch (err) {
-    log.warn("[memory/consolidate] completion was not valid JSON", err);
-    return fallback;
-  }
+  const parsed = await callPortalJsonCompletion({
+    apiKey: options.apiKey,
+    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+    model: options.model ?? DEFAULT_MODEL,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage,
+    tag: "memory/consolidate",
+    ...(options.fetchFn && { fetchFn: options.fetchFn }),
+  });
+  if (parsed === null) return fallback;
 
   const validIds = new Set(candidates.map((c) => c.id));
-  const result = validate(parsed, trimmed, validIds);
-  if (!result) {
-    log.warn("[memory/consolidate] completion violated schema, falling back to create");
-    return fallback;
-  }
-  return result;
-}
-
-function extractContent(body: unknown): string | null {
-  if (typeof body !== "object" || body === null) return null;
-  const choices = (body as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || choices.length === 0) return null;
-  const first = choices[0] as { message?: { content?: unknown } };
-  const c = first?.message?.content;
-  return typeof c === "string" ? c : null;
+  return validate(parsed, trimmed, validIds) ?? fallback;
 }
 
 function validate(
