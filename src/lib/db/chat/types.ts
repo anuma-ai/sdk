@@ -12,6 +12,7 @@ import type {
 } from "../../../client";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
@@ -418,6 +419,15 @@ export interface BaseUseChatStorageOptions {
    * a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Enable client-side PII redaction. When enabled, outbound messages are
+   * scanned for personally identifiable information and replaced with tagged
+   * placeholders before reaching the LLM provider.
+   *
+   * - `true`: create a fresh redactor per request
+   * - `PiiRedactor` instance: share state across requests in a conversation
+   */
+  piiRedaction?: boolean | PiiRedactor;
 }
 
 /**
