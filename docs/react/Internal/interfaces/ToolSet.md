@@ -1,6 +1,6 @@
 # ToolSet
 
-Defined in: [src/lib/tools/serverTools.ts:833](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#833)
+Defined in: [src/lib/tools/serverTools.ts:811](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#811)
 
 A tool set defines a group of tools that work together. When any "anchor"
 tool in the set is matched semantically (with a score at or above
@@ -25,7 +25,7 @@ matches stripped on activation.
 
 > `optional` **anchorMinSimilarity**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:849](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#849)
+Defined in: [src/lib/tools/serverTools.ts:827](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#827)
 
 Minimum similarity an anchor must reach to activate the set.
 Prevents false activation on prompts where the anchor barely passes
@@ -37,7 +37,7 @@ the global minSimilarity threshold. Default: 0.60
 
 > **anchors**: `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:843](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#843)
+Defined in: [src/lib/tools/serverTools.ts:821](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#821)
 
 Tools that trigger the set when selected. If any anchor appears in the
 semantic match results with a score at or above `anchorMinSimilarity`,
@@ -49,7 +49,7 @@ all members are pulled in.
 
 > **members**: `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:837](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#837)
+Defined in: [src/lib/tools/serverTools.ts:815](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#815)
 
 All tool names in the set
 
@@ -59,6 +59,6 @@ All tool names in the set
 
 > **name**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:835](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#835)
+Defined in: [src/lib/tools/serverTools.ts:813](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#813)
 
 Human-readable name for logging/debugging

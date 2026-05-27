@@ -14,6 +14,7 @@ import { rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import { cosineSimilarity } from "../memoryEngine/vector";
 import { scoreBM25 } from "./bm25";
 import { decomposeQuery } from "./decomposeQuery";
 
@@ -78,23 +79,6 @@ export interface MemoryVaultSearchOptions {
    * pass-through from `recall()` when the query has a temporal phrase.
    */
   temporalRanking?: string[];
-}
-
-/**
- * Compute cosine similarity between two vectors.
- */
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
 }
 
 /**

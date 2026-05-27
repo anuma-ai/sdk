@@ -1,6 +1,6 @@
 # VaultSearchResult
 
-Defined in: [src/lib/memoryVault/searchTool.ts:900](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#900)
+Defined in: [src/lib/memoryVault/searchTool.ts:884](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#884)
 
 A single vault search result with its similarity score.
 
@@ -10,7 +10,7 @@ A single vault search result with its similarity score.
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:902](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#902)
+Defined in: [src/lib/memoryVault/searchTool.ts:886](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#886)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:902](https://github.com/anuma-ai/
 
 > `optional` **createdAt**: `Date`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:906](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#906)
+Defined in: [src/lib/memoryVault/searchTool.ts:890](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#890)
 
 Optional — surfaced by the rankers so downstream `RankedMemory` carries
 real timestamps. Omitted when an item lacks the field upstream.
@@ -29,7 +29,7 @@ real timestamps. Omitted when an item lacks the field upstream.
 
 > **similarity**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:903](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#903)
+Defined in: [src/lib/memoryVault/searchTool.ts:887](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#887)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:903](https://github.com/anuma-ai/
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:901](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#901)
+Defined in: [src/lib/memoryVault/searchTool.ts:885](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#885)
 
 ***
 
@@ -45,4 +45,4 @@ Defined in: [src/lib/memoryVault/searchTool.ts:901](https://github.com/anuma-ai/
 
 > `optional` **updatedAt**: `Date`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:907](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#907)
+Defined in: [src/lib/memoryVault/searchTool.ts:891](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#891)
