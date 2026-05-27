@@ -248,7 +248,42 @@ function extractProviderStreamError(chunk: unknown): ProviderStreamError | null 
   }
   return null;
 }
+import type { PiiMatch } from "../pii/redactor";
 import { PiiRedactor } from "../pii/redactor";
+
+/**
+ * Replace PII placeholders (e.g. [EMAIL_1]) with original values in API
+ * response text so the client stores and displays de-anonymized content.
+ * Mutates the response in-place and returns it for chaining.
+ */
+function deAnonymizeResponseData(response: ApiResponse, redactor: PiiRedactor | undefined): void {
+  if (!redactor) return;
+  const deAnon = (s: string) => redactor.deAnonymize(s);
+
+  if ("output" in response && Array.isArray(response.output)) {
+    for (const item of response.output) {
+      if (Array.isArray(item?.content)) {
+        for (const part of item.content) {
+          if (typeof part?.text === "string") {
+            part.text = deAnon(part.text);
+          }
+        }
+      }
+    }
+  } else if ("choices" in response && Array.isArray(response.choices)) {
+    for (const choice of response.choices) {
+      const msg = choice?.message;
+      if (!msg?.content) continue;
+      if (Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (typeof (part as { text?: string })?.text === "string") {
+            (part as { text: string }).text = deAnon((part as { text: string }).text);
+          }
+        }
+      }
+    }
+  }
+}
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
@@ -540,6 +575,8 @@ export type RunToolLoopResult =
       toolsChecksum?: string;
       /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
+      /** PII matches detected and redacted in the outbound messages for this request. */
+      piiMatches?: PiiMatch[];
     }
   | {
       data: ApiResponse | null;
@@ -548,6 +585,8 @@ export type RunToolLoopResult =
       statusCode?: number;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** PII matches detected and redacted in the outbound messages for this request. */
+      piiMatches?: PiiMatch[];
     };
 
 /** Options passed to a streaming transport function. */
@@ -807,6 +846,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   }
 
   // PII redaction: resolve the redactor instance and transform messages
+  // eslint-disable-next-line no-console
+  console.log("[PII-DEBUG] piiRedaction:", piiRedaction, "type:", typeof piiRedaction);
   const redactor =
     piiRedaction === true
       ? new PiiRedactor()
@@ -814,9 +855,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         ? piiRedaction
         : undefined;
 
+  let piiMatches: PiiMatch[] | undefined;
   if (redactor) {
     const result = redactor.redactMessages(messages);
+    // eslint-disable-next-line no-console
+    console.log("[PII-DEBUG] Redacted", result.matches.length, "items");
     messages = result.messages;
+    if (result.matches.length > 0) piiMatches = result.matches;
   }
 
   // Wrap onData to de-anonymize placeholders in streaming response chunks
@@ -958,10 +1003,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             thinkingSmoother.destroy();
             await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
             await fireRunError({ error: "Request aborted", stage: "model" });
+            const abortResp = strategy.buildFinalResponse(accumulator);
+            deAnonymizeResponseData(abortResp, redactor);
             return {
-              data: strategy.buildFinalResponse(accumulator),
+              data: abortResp,
               error: "Request aborted",
               toolsChecksum: accumulator.toolsChecksum,
+              piiMatches,
             };
           }
 
@@ -1013,10 +1061,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
           const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
           await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
+          const abortResp2 = strategy.buildFinalResponse(accumulator);
+          deAnonymizeResponseData(abortResp2, redactor);
           return {
-            data: strategy.buildFinalResponse(accumulator),
+            data: abortResp2,
             error: "Request aborted",
             toolsChecksum: accumulator.toolsChecksum,
+            piiMatches,
           };
         }
 
@@ -1407,6 +1458,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // If ALL tools have skipContinuation, return early
       if (continueResults.length === 0) {
         const skipResponse = strategy.buildFinalResponse(currentAccumulator);
+        deAnonymizeResponseData(skipResponse, redactor);
         if (onFinish) onFinish(skipResponse);
         await fireRunEnd({
           finalContent: currentAccumulator.content,
@@ -1417,6 +1469,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           error: null,
           toolsChecksum: currentAccumulator.toolsChecksum,
           autoExecutedToolResults: accumulatedToolResults,
+          piiMatches,
         };
       }
 
@@ -1534,10 +1587,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
               );
               await fireRunError({ error: "Request aborted", stage: "model" });
+              const contAbortResp = strategy.buildFinalResponse(currentAccumulator);
+              deAnonymizeResponseData(contAbortResp, redactor);
               return {
-                data: strategy.buildFinalResponse(currentAccumulator),
+                data: contAbortResp,
                 error: "Request aborted",
                 toolsChecksum: currentAccumulator.toolsChecksum,
+                piiMatches,
               };
             }
 
@@ -1587,10 +1643,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             );
             const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
             await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
+            const contAbortResp2 = strategy.buildFinalResponse(currentAccumulator);
+            deAnonymizeResponseData(contAbortResp2, redactor);
             return {
-              data: strategy.buildFinalResponse(currentAccumulator),
+              data: contAbortResp2,
               error: "Request aborted",
               toolsChecksum: currentAccumulator.toolsChecksum,
+              piiMatches,
             };
           }
 
@@ -1638,6 +1697,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     // Build final response from the last accumulator
     if (toolIteration > 0) {
       const finalResponse = strategy.buildFinalResponse(currentAccumulator);
+      deAnonymizeResponseData(finalResponse, redactor);
       if (onFinish) onFinish(finalResponse);
       await fireRunEnd({
         finalContent: currentAccumulator.content,
@@ -1648,9 +1708,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
         autoExecutedToolResults: accumulatedToolResults,
+        piiMatches,
       };
     }
 
+    deAnonymizeResponseData(response, redactor);
     if (onFinish) onFinish(response);
     await fireRunEnd({
       finalContent: accumulator.content,
@@ -1660,6 +1722,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       data: response,
       error: null,
       toolsChecksum: accumulator.toolsChecksum,
+      piiMatches,
     };
   } catch (err) {
     if (isAbortError(err)) {
