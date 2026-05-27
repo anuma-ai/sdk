@@ -18,7 +18,13 @@ import type {
   LlmapiMessage,
   LlmapiResponseResponse,
 } from "@anuma/sdk";
-import { type AutoExecutedToolResult, runToolLoop, type ToolConfig } from "@anuma/sdk/server";
+import {
+  type ApiType,
+  type AutoExecutedToolResult,
+  runToolLoop,
+  type StreamingTransport,
+  type ToolConfig,
+} from "@anuma/sdk/server";
 import { CONNECTOR_ERROR_MARKER } from "@anuma/sdk/tools";
 
 import { createPortalClient } from "./createPortalClient.js";
@@ -50,6 +56,27 @@ export interface AgentRequestOpts {
   toolFactories?: Array<(portalClient: PortalClient) => ToolConfig[]>;
   /** Override portal client opts (test injection). */
   portalClientOpts?: PortalClientOpts;
+  /**
+   * Override the streaming transport runToolLoop uses to talk to the
+   * portal's chat completion API. Production code never sets this — it's
+   * the injection point e2e tests use to stub LLM behavior without a real
+   * portal in the loop. Forwarded verbatim to runToolLoop's
+   * `transport` option.
+   */
+  transport?: StreamingTransport;
+  /**
+   * Optional portal base URL forwarded to runToolLoop for chat completions.
+   * Defaults to runToolLoop's own default. Setting this without a stub
+   * `transport` will hit the real portal.
+   */
+  portalBaseUrl?: string;
+  /**
+   * Optional override for the LLM API strategy ("responses" | "completions" | "auto").
+   * Production callers don't set this — the default ("auto") picks the right
+   * endpoint for the model. Tests use "completions" with the stub transport
+   * to feed OpenAI-style streaming chunks.
+   */
+  apiType?: ApiType;
 }
 
 /** Minimal usage summary lifted off the LLM response. */
@@ -230,6 +257,9 @@ export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResp
     token: grant.bearer,
     tools,
     headers: { "X-Anuma-Surface": "agent" },
+    ...(opts.portalBaseUrl ? { baseUrl: opts.portalBaseUrl } : undefined),
+    ...(opts.transport ? { transport: opts.transport } : undefined),
+    ...(opts.apiType ? { apiType: opts.apiType } : undefined),
   });
 
   if (loopResult.error !== null) {
