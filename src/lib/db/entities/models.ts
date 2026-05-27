@@ -31,5 +31,11 @@ export class MemoryEntity extends Model {
 
   @text("memory_id") memoryId!: string;
   @text("entity_id") entityId!: string;
+  /**
+   * User-scope for the W5 graph lane. Optional because client-side
+   * (single-user) deployments may leave it null; server-side multi-user
+   * deployments must set it so retrieval can filter cross-user IDs.
+   */
+  @field("user_id") userId!: string | null;
   @readonly @date("created_at") createdAt!: Date;
 }

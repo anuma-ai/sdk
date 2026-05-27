@@ -2,12 +2,18 @@ import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { Entity, MemoryEntity } from "./models";
-import type { CreateEntityOptions, StoredEntity } from "./types";
+import type { StoredEntity } from "./types";
 
 export interface EntityOperationsContext {
   database: Database;
   entityCollection: Collection<Entity>;
   memoryEntityCollection: Collection<MemoryEntity>;
+  /**
+   * Optional user-scope. When provided, `linkMemoryEntitiesOp` stamps
+   * `user_id` on new memory_entity rows and `getMemoriesByEntityNamesOp`
+   * filters lookups by it. Leave undefined for single-user clients.
+   */
+  userId?: string;
 }
 
 function normalizeName(name: string): string {
@@ -25,38 +31,43 @@ function entityToStored(e: Entity): StoredEntity {
 }
 
 /**
- * Get an entity by canonical name (lowercased), or null. Used by the
- * write path to dedup before inserting.
+ * Batch resolve-or-create a set of canonical names. All reads + creates
+ * happen inside one `database.write()` so concurrent extraction turns can't
+ * each race a check-then-create — without this, two turns observing the
+ * same brand-new entity name would both miss and both insert, inflating
+ * `rankByEntityOverlap`'s shared-count with duplicate IDs.
+ *
+ * Names are deduplicated and normalized (lower-trim) before lookup.
+ * Returns entities in input order, one per unique normalized name.
  */
-async function getEntityByNameOp(
+async function upsertEntitiesOp(
   ctx: EntityOperationsContext,
-  name: string
-): Promise<StoredEntity | null> {
-  const normalized = normalizeName(name);
-  if (!normalized) return null;
-  const matches = await ctx.entityCollection.query(Q.where("canonical_name", normalized)).fetch();
-  const first = matches[0];
-  return first ? entityToStored(first) : null;
-}
+  names: string[]
+): Promise<Map<string, StoredEntity>> {
+  const unique = Array.from(new Set(names.map(normalizeName).filter((n) => n.length > 0)));
+  const out = new Map<string, StoredEntity>();
+  if (unique.length === 0) return out;
 
-/**
- * Create an entity, or return the existing one if `canonicalName` already exists.
- * Idempotent — safe to call repeatedly with the same name.
- */
-async function upsertEntityOp(
-  ctx: EntityOperationsContext,
-  opts: CreateEntityOptions
-): Promise<StoredEntity> {
-  const existing = await getEntityByNameOp(ctx, opts.canonicalName);
-  if (existing) return existing;
+  return await ctx.database.write(async () => {
+    const existing = await ctx.entityCollection
+      .query(Q.where("canonical_name", Q.oneOf(unique)))
+      .fetch();
+    for (const e of existing) out.set(e.canonicalName, entityToStored(e));
 
-  const created = await ctx.database.write(async () => {
-    return ctx.entityCollection.create((record) => {
-      record._setRaw("canonical_name", normalizeName(opts.canonicalName));
-      if (opts.kind !== undefined) record._setRaw("kind", opts.kind);
-    });
+    const missing = unique.filter((n) => !out.has(n));
+    if (missing.length === 0) return out;
+
+    const prepared = missing.map((name) =>
+      ctx.entityCollection.prepareCreate((record) => {
+        record._setRaw("canonical_name", name);
+      })
+    );
+    await ctx.database.batch(...prepared);
+    for (const record of prepared) {
+      out.set(record.canonicalName, entityToStored(record));
+    }
+    return out;
   });
-  return entityToStored(created);
 }
 
 /**
@@ -72,11 +83,10 @@ export async function linkMemoryEntitiesOp(
   const unique = Array.from(new Set(entityNames.map(normalizeName).filter((n) => n.length > 0)));
   if (unique.length === 0) return [];
 
-  // Resolve / create each entity.
-  const entities: StoredEntity[] = [];
-  for (const name of unique) {
-    entities.push(await upsertEntityOp(ctx, { canonicalName: name }));
-  }
+  const byName = await upsertEntitiesOp(ctx, unique);
+  const entities = unique
+    .map((name) => byName.get(name))
+    .filter((e): e is StoredEntity => e !== undefined);
 
   // Skip pairs that already exist.
   const existingLinks = await ctx.memoryEntityCollection
@@ -87,17 +97,57 @@ export async function linkMemoryEntitiesOp(
   const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
   if (toCreate.length === 0) return entities;
 
+  const userId = ctx.userId;
   await ctx.database.write(async () => {
     const prepared = toCreate.map((e) =>
       ctx.memoryEntityCollection.prepareCreate((record) => {
         record._setRaw("memory_id", memoryId);
         record._setRaw("entity_id", e.uniqueId);
+        if (userId !== undefined) record._setRaw("user_id", userId);
       })
     );
     await ctx.database.batch(...prepared);
   });
 
   return entities;
+}
+
+/**
+ * Cascade delete: drop every memory_entity row pointing at the given
+ * memory IDs. Vault delete ops call this so the W5 graph lane doesn't
+ * keep returning IDs for memories that have been soft-deleted (and so
+ * memory_entity doesn't grow unbounded).
+ */
+export async function unlinkMemoryEntitiesOp(
+  ctx: EntityOperationsContext,
+  memoryIds: readonly string[]
+): Promise<void> {
+  if (memoryIds.length === 0) return;
+  const links = await ctx.memoryEntityCollection
+    .query(Q.where("memory_id", Q.oneOf(Array.from(memoryIds))))
+    .fetch();
+  if (links.length === 0) return;
+  await ctx.database.write(async () => {
+    await ctx.database.batch(...links.map((l) => l.prepareDestroyPermanently()));
+  });
+}
+
+/**
+ * Bulk cascade delete: drop every memory_entity row for the given user.
+ * Used by `deleteAllVaultMemoriesForUserOp`. No-op when `userId` is
+ * absent (single-user clients use `unlinkMemoryEntitiesOp` keyed by
+ * memory IDs instead).
+ */
+export async function unlinkAllMemoryEntitiesForUserOp(
+  ctx: EntityOperationsContext,
+  userId: string
+): Promise<void> {
+  if (!userId) return;
+  const links = await ctx.memoryEntityCollection.query(Q.where("user_id", userId)).fetch();
+  if (links.length === 0) return;
+  await ctx.database.write(async () => {
+    await ctx.database.batch(...links.map((l) => l.prepareDestroyPermanently()));
+  });
 }
 
 /**
@@ -113,6 +163,10 @@ export async function linkMemoryEntitiesOp(
  *
  * Names are normalized (lowercased, trimmed). Empty input returns an
  * empty map. Names that don't exist as entities contribute nothing.
+ *
+ * Multi-user safety: when `ctx.userId` is set, results are filtered to
+ * memory_entity rows whose `user_id` matches. Without this filter the
+ * lane returns IDs from every user who tagged a matching entity.
  */
 export async function getMemoriesByEntityNamesOp(
   ctx: EntityOperationsContext,
@@ -127,9 +181,11 @@ export async function getMemoriesByEntityNamesOp(
   if (entityRows.length === 0) return new Map();
 
   const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
-  const links = await ctx.memoryEntityCollection
-    .query(Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id))))
-    .fetch();
+  const linkConditions = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
+  if (ctx.userId !== undefined) {
+    linkConditions.push(Q.where("user_id", ctx.userId));
+  }
+  const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
 
   // memoryId → Set<entity name> the memory matched.
   const out = new Map<string, Set<string>>();

@@ -12,6 +12,11 @@
  *  - Relative week:   "this week", "last week", "next week"
  *  - Relative month:  "this month", "last month", "next month"
  *  - Numeric offset:  "in 3 days", "3 days ago", "2 weeks from now"
+ *
+ * Timezone basis: windows are constructed via the local `Date(y,m,d)`
+ * constructor (local midnight). The write side (auto-extracted
+ * eventTime) shares the same basis so the day after "May 23" doesn't
+ * land before May 23's window for non-UTC users.
  *  - Day-of-week:     "Tuesday", "next Friday", "last Monday"
  *  - Absolute date:   "May 23", "May 23 2026", "2026-05-23"
  *  - Range:           "between X and Y", "from X to Y"
@@ -25,9 +30,6 @@
  * setting `now` (defaults to `Date.now()`); test fixtures should pass
  * an explicit `now` to keep determinism.
  */
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * DAY_MS;
 
 interface TemporalWindow {
   /** Inclusive start of the window in Unix ms. */
@@ -66,13 +68,30 @@ function startOfDay(ts: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
+/**
+ * DST-safe day arithmetic. `startOfDay(now) + n * DAY_MS` lands at 23:00
+ * or 01:00 of the wrong local calendar day across spring-forward / fall-
+ * back boundaries because the fixed 86.4M-ms constant ignores variable-
+ * length days. Use the `Date(y,m,d)` constructor instead — it normalizes
+ * to local midnight at the target calendar day regardless of DST.
+ */
+function addDays(ts: number, days: number): number {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days).getTime();
+}
+
+function addMonths(ts: number, months: number): number {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth() + months, d.getDate()).getTime();
+}
+
 function startOfWeek(ts: number): number {
   // Monday-start week (matches consumer-app convention; Sunday-start is
   // also defensible — pick one and stay consistent for the demo). Shift
   // so that Monday is day 0.
   const d = new Date(startOfDay(ts));
   const offset = (d.getDay() + 6) % 7;
-  return d.getTime() - offset * DAY_MS;
+  return addDays(d.getTime(), -offset);
 }
 
 function startOfMonth(ts: number): number {
@@ -83,6 +102,13 @@ function startOfMonth(ts: number): number {
 function startOfNextMonth(ts: number): number {
   const d = new Date(ts);
   return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+}
+
+/** End-of-day for a calendar day (start of the *following* calendar day,
+ * exclusive). Uses the local-midnight basis so windows align with how
+ * dates are stored on the write side (see `autoExtract`). */
+function endOfDay(dayStart: number): number {
+  return addDays(dayStart, 1);
 }
 
 /**
@@ -100,23 +126,23 @@ export function parseQueryTimeWindow(
   // ── 1. Relative day ─────────────────────────────────────────────────
   for (const [phrase, offset] of Object.entries(RELATIVE_DAY)) {
     if (q.includes(phrase)) {
-      const day = startOfDay(now) + offset * DAY_MS;
-      return { start: day, end: day + DAY_MS, matchedPhrase: phrase };
+      const day = addDays(startOfDay(now), offset);
+      return { start: day, end: endOfDay(day), matchedPhrase: phrase };
     }
   }
 
   // ── 2. Relative week ────────────────────────────────────────────────
   if (/\bthis week\b/.test(q)) {
     const start = startOfWeek(now);
-    return { start, end: start + WEEK_MS, matchedPhrase: "this week" };
+    return { start, end: addDays(start, 7), matchedPhrase: "this week" };
   }
   if (/\blast week\b/.test(q)) {
-    const start = startOfWeek(now) - WEEK_MS;
-    return { start, end: start + WEEK_MS, matchedPhrase: "last week" };
+    const start = addDays(startOfWeek(now), -7);
+    return { start, end: addDays(start, 7), matchedPhrase: "last week" };
   }
   if (/\bnext week\b/.test(q)) {
-    const start = startOfWeek(now) + WEEK_MS;
-    return { start, end: start + WEEK_MS, matchedPhrase: "next week" };
+    const start = addDays(startOfWeek(now), 7);
+    return { start, end: addDays(start, 7), matchedPhrase: "next week" };
   }
 
   // ── 3. Relative month ───────────────────────────────────────────────
@@ -137,30 +163,34 @@ export function parseQueryTimeWindow(
     return { start, end, matchedPhrase: "next month" };
   }
 
-  // ── 4. Numeric offset: "in N days", "N days ago", "N weeks from now" ─
-  const inMatch = /\bin\s+(\d+)\s+(day|days|week|weeks|month|months)\b/.exec(q);
-  if (inMatch) {
-    const n = parseInt(inMatch[1], 10);
-    const unit = inMatch[2];
-    const delta = unit.startsWith("day")
-      ? n * DAY_MS
+  // ── 4. Numeric offset: "in N days", "N days from now", "N days ago" ──
+  // Day/week deltas use the `addDays` helper so DST transitions don't
+  // misalign the resulting calendar day. Month deltas use the local
+  // Date(y,m+n,d) constructor for the same reason.
+  const futureMatch =
+    /\b(?:in\s+(\d+)\s+(day|days|week|weeks|month|months)|(\d+)\s+(day|days|week|weeks|month|months)\s+from\s+now)\b/.exec(
+      q
+    );
+  if (futureMatch) {
+    const n = parseInt(futureMatch[1] ?? futureMatch[3], 10);
+    const unit = futureMatch[2] ?? futureMatch[4];
+    const start = unit.startsWith("day")
+      ? addDays(startOfDay(now), n)
       : unit.startsWith("week")
-        ? n * WEEK_MS
-        : n * 30 * DAY_MS;
-    const day = startOfDay(now) + delta;
-    return { start: day, end: day + DAY_MS, matchedPhrase: inMatch[0] };
+        ? addDays(startOfDay(now), n * 7)
+        : addMonths(startOfDay(now), n);
+    return { start, end: endOfDay(start), matchedPhrase: futureMatch[0] };
   }
   const agoMatch = /\b(\d+)\s+(day|days|week|weeks|month|months)\s+ago\b/.exec(q);
   if (agoMatch) {
     const n = parseInt(agoMatch[1], 10);
     const unit = agoMatch[2];
-    const delta = unit.startsWith("day")
-      ? n * DAY_MS
+    const start = unit.startsWith("day")
+      ? addDays(startOfDay(now), -n)
       : unit.startsWith("week")
-        ? n * WEEK_MS
-        : n * 30 * DAY_MS;
-    const day = startOfDay(now) - delta;
-    return { start: day, end: day + DAY_MS, matchedPhrase: agoMatch[0] };
+        ? addDays(startOfDay(now), -n * 7)
+        : addMonths(startOfDay(now), -n);
+    return { start, end: endOfDay(start), matchedPhrase: agoMatch[0] };
   }
 
   // ── 5. Day-of-week with optional "next" / "last" ────────────────────
@@ -174,18 +204,30 @@ export function parseQueryTimeWindow(
     let delta = targetDow - todayDow;
     if (modifier === "next") delta = delta <= 0 ? delta + 7 : delta;
     else if (modifier === "last") delta = delta >= 0 ? delta - 7 : delta;
-    // "this Tuesday" — closest upcoming or current
-    const day = todayStart + delta * DAY_MS;
-    return { start: day, end: day + DAY_MS, matchedPhrase: dowMatch[0] };
+    // "this <weekday>" → closest upcoming OR today. Without the
+    // delta+=7 nudge a past day in the same week would resolve into
+    // the past (e.g. asking on Wednesday for "this Monday" would
+    // return Monday two days ago, which contradicts the colloquial
+    // English reading of "this <day>" as the upcoming/current day).
+    else if (delta < 0) delta += 7;
+    const day = addDays(todayStart, delta);
+    return { start: day, end: endOfDay(day), matchedPhrase: dowMatch[0] };
   }
 
   // ── 6. Absolute date — "May 23 2026" / "May 23" / "2026-05-23" ──────
-  // ISO YYYY-MM-DD
+  // ISO YYYY-MM-DD. Build via the local-midnight Date(y,m-1,d)
+  // constructor so the query window shares a basis with the write side
+  // (autoExtract emits eventTime via the same local-midnight
+  // construction). `Date.parse("YYYY-MM-DD")` is spec'd as UTC midnight
+  // and would otherwise drift the window by the user's UTC offset.
   const isoMatch = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(q);
   if (isoMatch) {
-    const ms = Date.parse(isoMatch[0]);
-    if (Number.isFinite(ms)) {
-      return { start: ms, end: ms + DAY_MS, matchedPhrase: isoMatch[0] };
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    const start = new Date(year, month - 1, day).getTime();
+    if (Number.isFinite(start)) {
+      return { start, end: endOfDay(start), matchedPhrase: isoMatch[0] };
     }
   }
   // "May 23 2026" or "May 23"
@@ -198,7 +240,7 @@ export function parseQueryTimeWindow(
     const yearStr = monthDayMatch[3];
     const year = yearStr ? parseInt(yearStr, 10) : new Date(now).getFullYear();
     const start = new Date(year, monthIdx, day).getTime();
-    return { start, end: start + DAY_MS, matchedPhrase: monthDayMatch[0] };
+    return { start, end: endOfDay(start), matchedPhrase: monthDayMatch[0] };
   }
 
   // ── 7. Month-only — "in May", "in May 2026" ─────────────────────────

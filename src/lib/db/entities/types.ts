@@ -1,3 +1,4 @@
+/** @public */
 export type EntityKind = "person" | "place" | "thing" | "concept" | "other";
 
 export interface StoredEntity {
@@ -8,6 +9,7 @@ export interface StoredEntity {
   updatedAt: Date;
 }
 
+/** @public */
 export interface CreateEntityOptions {
   canonicalName: string;
   kind?: EntityKind | (string & {});

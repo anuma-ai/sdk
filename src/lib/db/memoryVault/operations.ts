@@ -2,6 +2,11 @@ import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils";
+import {
+  type EntityOperationsContext,
+  unlinkAllMemoryEntitiesForUserOp,
+  unlinkMemoryEntitiesOp,
+} from "../entities/operations";
 import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
 import type {
@@ -18,6 +23,12 @@ export interface VaultMemoryOperationsContext {
   embeddedWalletSigner?: EmbeddedWalletSignerFn;
   /** When set, operations scope to this user (server-side multi-user). */
   userId?: string;
+  /**
+   * When set, vault delete ops cascade to memory_entity rows pointing at
+   * the deleted memories. Without this the W5 graph lane keeps returning
+   * IDs of soft-deleted memories and the join table grows unbounded.
+   */
+  entityCtx?: EntityOperationsContext;
 }
 
 /** Returns true if the record belongs to the context user (or if no user scoping is active). */
@@ -181,8 +192,13 @@ export async function getMemoriesByEventTimeOp(
     // Point/ongoing: only keep if start is inside window.
     if (kind !== "range") {
       if (kind === "ongoing") {
-        // Ongoing memories: start before windowEnd is a hit.
-        if (start < windowEnd) {
+        // Ongoing memories: started before the window and still running
+        // by the window's start. If the LLM ever emits a non-null `end`
+        // for an ongoing event, treat it as the moment it stopped being
+        // ongoing — an "ongoing" that ended before the window is no
+        // longer overlapping it.
+        const ongoingEnd = end ?? Number.POSITIVE_INFINITY;
+        if (start < windowEnd && ongoingEnd >= windowStart) {
           out.push({
             uniqueId: r.id,
             eventTimeStart: start,
@@ -395,6 +411,17 @@ export async function deleteVaultMemoryOp(
       });
     });
 
+    // W5 cascade: drop the join rows so the graph lane doesn't keep
+    // returning IDs of soft-deleted memories. Best-effort — a failure
+    // here doesn't roll back the vault delete.
+    if (ctx.entityCtx) {
+      try {
+        await unlinkMemoryEntitiesOp(ctx.entityCtx, [id]);
+      } catch {
+        // Auxiliary cleanup — leave the cascade to the next sweep.
+      }
+    }
+
     return true;
   } catch {
     return false;
@@ -438,6 +465,24 @@ export async function deleteAllVaultMemoriesForUserOp(
     );
     await ctx.database.batch(...prepared);
   });
+
+  // W5 cascade: drop every join row for this user in one pass. Falls
+  // back to per-memory unlink when the entity context lacks user_id
+  // scoping (single-user clients).
+  if (ctx.entityCtx) {
+    try {
+      if (ctx.entityCtx.userId !== undefined) {
+        await unlinkAllMemoryEntitiesForUserOp(ctx.entityCtx, userId);
+      } else {
+        await unlinkMemoryEntitiesOp(
+          ctx.entityCtx,
+          records.map((r) => r.id)
+        );
+      }
+    } catch {
+      // Auxiliary cleanup — leave the cascade to the next sweep.
+    }
+  }
 
   return records.length;
 }

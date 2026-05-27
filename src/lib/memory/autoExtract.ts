@@ -14,6 +14,7 @@
  */
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
+import { getLogger } from "../logger.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainResult } from "./types.js";
 
@@ -142,27 +143,36 @@ export async function extractFacts(
         response_format: { type: "json_object" },
       }),
     });
-  } catch {
+  } catch (err) {
     // Network error: don't block the chat path. Caller treats this as
     // "no facts extracted this turn".
+    getLogger().warn("[memory/extract] fetch failed; skipping extraction this turn", err);
     return [];
   }
-  if (!response.ok) return [];
+  if (!response.ok) {
+    getLogger().warn("[memory/extract] portal returned", response.status, "— skipping extraction");
+    return [];
+  }
 
   let body: unknown;
   try {
     body = await response.json();
-  } catch {
+  } catch (err) {
+    getLogger().warn("[memory/extract] response body parse failed", err);
     return [];
   }
 
   const content = extractContent(body);
-  if (!content) return [];
+  if (!content) {
+    getLogger().warn("[memory/extract] portal response had no completion content");
+    return [];
+  }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
-  } catch {
+  } catch (err) {
+    getLogger().warn("[memory/extract] completion was not valid JSON", err);
     return [];
   }
 
@@ -202,11 +212,13 @@ export async function extractAndRetain(
   const candidates = await extractFacts(messages, options.extract);
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
+  const log = getLogger();
   // Track succeeded candidates separately so `candidates[i]` and `results[i]`
   // stay length-aligned. Pushing to both arrays only on retain success keeps
   // consumers' positional pairing correct even when a write fails mid-batch.
   const succeededCandidates: ExtractedCandidate[] = [];
   const results: RetainResult[] = [];
+  let failedWrites = 0;
   for (const candidate of filtered) {
     try {
       const result = await retain(candidate.content, retainCtx, {
@@ -224,13 +236,24 @@ export async function extractAndRetain(
       if (options.entityCtx && candidate.entities.length > 0) {
         try {
           await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities);
-        } catch {
+        } catch (err) {
           // Entity linking is auxiliary — don't kill the rest of the batch.
+          log.warn("[memory/extract] linkMemoryEntitiesOp failed", err);
         }
       }
-    } catch {
-      // One bad write shouldn't kill the rest of the batch.
+    } catch (err) {
+      // One bad write shouldn't kill the rest of the batch — but the
+      // upstream worker only observes the `onError` callback for the
+      // outer await, which never throws because we catch it here. Log
+      // each per-candidate failure so a consistently broken write path
+      // (DB locked, quota, encryption error) is visible instead of
+      // looking like a successful but empty `onTurnComplete`.
+      failedWrites++;
+      log.warn("[memory/extract] retain failed for one candidate", err);
     }
+  }
+  if (failedWrites > 0) {
+    log.warn(`[memory/extract] ${failedWrites} of ${filtered.length} candidates failed to retain`);
   }
 
   return { candidates: succeededCandidates, results };
@@ -306,12 +329,32 @@ function parseEventTime(raw: unknown): ExtractedCandidate["eventTime"] {
   return { kind: kindRaw, start, end };
 }
 
+/**
+ * Parse an LLM-emitted event date to Unix ms.
+ *
+ * The W6 query lane builds windows in the user's *local* timezone via
+ * `new Date(y, m, d)`, so date-only strings (`YYYY-MM-DD`) must also
+ * resolve to local midnight here — otherwise `Date.parse` would treat
+ * them as UTC midnight and the resulting timestamp could fall outside
+ * the local-midnight query window for non-UTC users (e.g. a UTC-8 user
+ * asking about "May 23" against an event stored at 2026-05-23T00:00Z
+ * which is 2026-05-22T16:00 local).
+ *
+ * Full ISO strings with an explicit time / offset are parsed as-is.
+ */
 function parseEventDate(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();
   if (trimmed.length === 0) return null;
-  // YYYY-MM-DD or full ISO. Date.parse handles both; reject on NaN.
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (dateOnlyMatch) {
+    const year = parseInt(dateOnlyMatch[1], 10);
+    const month = parseInt(dateOnlyMatch[2], 10);
+    const day = parseInt(dateOnlyMatch[3], 10);
+    const ms = new Date(year, month - 1, day).getTime();
+    return Number.isFinite(ms) ? ms : null;
+  }
   const ms = Date.parse(trimmed);
   return Number.isFinite(ms) ? ms : null;
 }

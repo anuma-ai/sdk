@@ -52,8 +52,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v28: Added source_chunk_ids, proof_count, source columns to memory_vault for auto-extraction provenance and supersession tracking
  * - v29: Added entity + memory_entity tables for the W5 knowledge-graph retrieval lane
  * - v30: Added event_time_start, event_time_end, event_time_kind columns to memory_vault for the W6 temporal retrieval lane
+ * - v31: Added user_id column to memory_entity for multi-user server-side scoping of the W5 graph retrieval lane
  */
-export const SDK_SCHEMA_VERSION = 30;
+export const SDK_SCHEMA_VERSION = 31;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -205,6 +206,7 @@ export const sdkSchema = appSchema({
       columns: [
         { name: "memory_id", type: "string", isIndexed: true },
         { name: "entity_id", type: "string", isIndexed: true },
+        { name: "user_id", type: "string", isOptional: true, isIndexed: true },
         { name: "created_at", type: "number" },
       ],
     }),
@@ -736,6 +738,21 @@ export const sdkMigrations = schemaMigrations({
             { name: "event_time_end", type: "number", isOptional: true },
             { name: "event_time_kind", type: "string", isOptional: true },
           ],
+        }),
+      ],
+    },
+    // v30 -> v31: Added user_id column to memory_entity so the W5 graph lane
+    // can be scoped per user in a multi-user server context. Without it
+    // getMemoriesByEntityNamesOp returns memory IDs from every user who
+    // tagged a matching entity; isolation was previously load-bearing on
+    // a downstream itemById filter (one filter between this and a cross-
+    // user data leak).
+    {
+      toVersion: 31,
+      steps: [
+        addColumns({
+          table: "memory_entity",
+          columns: [{ name: "user_id", type: "string", isOptional: true, isIndexed: true }],
         }),
       ],
     },

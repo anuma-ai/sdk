@@ -51,19 +51,25 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
   const remaining = [...candidates];
   const selected: T[] = [];
 
+  // Running max-sim against the selected set, indexed parallel to
+  // `remaining`. Updated incrementally each round: when a new item is
+  // selected we just fold its similarity to each surviving candidate
+  // into the running max — O(n) per round instead of recomputing
+  // max-sim against the full selected set every iteration (which would
+  // be O(k · n · dim) per round and O(k² · n · dim) overall).
+  const maxSimVs: number[] = Array.from({ length: remaining.length }, () => -Infinity);
+
   while (selected.length < k && remaining.length > 0) {
     let bestIdx = 0;
     let bestScore = -Infinity;
 
     for (let i = 0; i < remaining.length; i++) {
       const cand = remaining[i];
-      let maxSim = 0;
-      for (const s of selected) {
-        if (cand.embedding.length > 0 && s.embedding.length > 0) {
-          const sim = cosineSimilarity(cand.embedding, s.embedding);
-          if (sim > maxSim) maxSim = sim;
-        }
-      }
+      // Initialize maxSim at -Infinity so an anti-correlated candidate
+      // (cosine close to -1 with everything selected) gets the *biggest*
+      // possible diversity reward, not a flat 0 baseline that under-
+      // rewards real diversity.
+      const maxSim = selected.length === 0 ? 0 : maxSimVs[i];
       const mmrScore = lambda * cand.score - (1 - lambda) * maxSim;
       if (mmrScore > bestScore) {
         bestScore = mmrScore;
@@ -71,8 +77,22 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
       }
     }
 
-    selected.push(remaining[bestIdx]);
+    const picked = remaining[bestIdx];
+    selected.push(picked);
     remaining.splice(bestIdx, 1);
+    maxSimVs.splice(bestIdx, 1);
+
+    // Fold the newly-selected item's similarity into the running max
+    // for each remaining candidate. Items without embeddings on either
+    // side contribute nothing — they keep their existing maxSim.
+    if (picked.embedding.length > 0) {
+      for (let i = 0; i < remaining.length; i++) {
+        const r = remaining[i];
+        if (r.embedding.length === 0) continue;
+        const sim = cosineSimilarity(r.embedding, picked.embedding);
+        if (sim > maxSimVs[i]) maxSimVs[i] = sim;
+      }
+    }
   }
 
   return selected;

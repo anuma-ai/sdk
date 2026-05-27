@@ -29,7 +29,12 @@ let modelPromise: Promise<ModelHandle> | null = null;
 
 async function getModel(): Promise<ModelHandle> {
   if (!modelPromise) {
-    modelPromise = (async () => {
+    // Cache the in-flight load, but clear the cache on rejection so a
+    // transient failure (offline, mid-download abort, corrupt cache)
+    // doesn't brick the reranker for the rest of the process lifetime.
+    // Without this `.catch(() => null)`, every later `rerankPairs` /
+    // `preloadReranker` re-throws the same stale rejection forever.
+    const load = (async () => {
       const transformers = (await import("@huggingface/transformers")) as unknown as {
         AutoTokenizer: AnyClass;
         AutoModelForSequenceClassification: AnyClass;
@@ -40,6 +45,10 @@ async function getModel(): Promise<ModelHandle> {
       ]);
       return { tokenizer, model };
     })();
+    modelPromise = load;
+    load.catch(() => {
+      if (modelPromise === load) modelPromise = null;
+    });
   }
   return modelPromise;
 }
@@ -91,11 +100,29 @@ export async function rerankPairs(query: string, items: RerankerItem[]): Promise
   const logits = output.logits;
   const data = Array.from(logits.data as Iterable<number>);
 
-  // logits shape: [batchSize, 1] for a 1-class scorer. Flatten to scores.
-  const scores: number[] = [];
-  const stride = logits.dims[1] ?? 1;
+  // logits shape: row-major [batchSize, numLabels].
+  //  - 1-class scorer (ms-marco-MiniLM-L-6-v2 default): single relevance
+  //    logit per pair, take column 0.
+  //  - 2-class CE: column 1 is the relevance logit (column 0 is the
+  //    "not relevant" class). Picking column 0 would silently invert the
+  //    ranking — defend against the misuse explicitly rather than the
+  //    previous `stride = dims[1] ?? 1` heuristic.
+  // Also assert the batch dimension matches the input size — a padded or
+  // truncated batch from a buggy tokenizer call would otherwise shift
+  // every score by one with no error.
+  const batchDim = logits.dims[0] ?? 0;
+  const numLabels = logits.dims[1] ?? 1;
+  if (batchDim !== items.length) {
+    throw new Error(`reranker: model returned batch dim ${batchDim} for ${items.length} pairs`);
+  }
+  const relevanceCol = numLabels === 2 ? 1 : 0;
+  const scores: number[] = Array.from({ length: items.length }, () => 0);
   for (let i = 0; i < items.length; i++) {
-    scores.push(sigmoid(data[i * stride]));
+    const logit = data[i * numLabels + relevanceCol];
+    // NaN / undefined → sigmoid would return NaN and corrupt the sort
+    // ordering (implementation-defined). Surface the score as 0 (least
+    // relevant) so the candidate sinks rather than randomly bubbling up.
+    scores[i] = Number.isFinite(logit) ? sigmoid(logit) : 0;
   }
 
   return items

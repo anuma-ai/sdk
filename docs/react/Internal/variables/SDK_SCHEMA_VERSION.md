@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `30` = `30`
+> `const` **SDK\_SCHEMA\_VERSION**: `31` = `31`
 
-Defined in: [src/lib/db/schema.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#56)
+Defined in: [src/lib/db/schema.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#57)
 
 Current combined schema version for all SDK storage modules.
 
@@ -37,3 +37,4 @@ Version history:
 * v28: Added source\_chunk\_ids, proof\_count, source columns to memory\_vault for auto-extraction provenance and supersession tracking
 * v29: Added entity + memory\_entity tables for the W5 knowledge-graph retrieval lane
 * v30: Added event\_time\_start, event\_time\_end, event\_time\_kind columns to memory\_vault for the W6 temporal retrieval lane
+* v31: Added user\_id column to memory\_entity for multi-user server-side scoping of the W5 graph retrieval lane

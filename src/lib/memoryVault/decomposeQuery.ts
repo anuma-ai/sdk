@@ -19,8 +19,12 @@
  * abstract user questions. See `tasks/hackathon/...` for the rationale.
  */
 
+import { getLogger } from "../logger.js";
+
 const DEFAULT_MODEL = "openai/gpt-5-mini";
-const DEFAULT_BASE_URL = "https://portal.anuma-dev.ai";
+const DEFAULT_BASE_URL =
+  (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) ||
+  "https://portal.anuma-dev.ai";
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_SUB_QUERIES = 5;
 
@@ -113,32 +117,50 @@ export async function decomposeQuery(
       }),
       signal: controller.signal,
     });
-  } catch {
+  } catch (err) {
     clearTimeout(timer);
+    getLogger().warn("[memory/decompose] fetch failed, treating query as specific", err);
     return fallback;
   }
   clearTimeout(timer);
 
-  if (!response.ok) return fallback;
+  if (!response.ok) {
+    getLogger().warn(
+      "[memory/decompose] portal returned",
+      response.status,
+      "— treating query as specific"
+    );
+    return fallback;
+  }
 
   let body: ChoicesResponse;
   try {
     body = (await response.json()) as ChoicesResponse;
-  } catch {
+  } catch (err) {
+    getLogger().warn("[memory/decompose] response body parse failed", err);
     return fallback;
   }
 
   const content = body.choices?.[0]?.message?.content ?? "";
-  if (!content) return fallback;
+  if (!content) {
+    getLogger().warn("[memory/decompose] portal response had no completion content");
+    return fallback;
+  }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
-  } catch {
+  } catch (err) {
+    getLogger().warn("[memory/decompose] completion was not valid JSON", err);
     return fallback;
   }
 
-  return validate(parsed, trimmed) ?? fallback;
+  const result = validate(parsed, trimmed);
+  if (!result) {
+    getLogger().warn("[memory/decompose] completion violated schema, treating as specific");
+    return fallback;
+  }
+  return result;
 }
 
 function validate(parsed: unknown, originalQuery: string): DecomposedQuery | null {
