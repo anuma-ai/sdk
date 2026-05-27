@@ -6,6 +6,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
+import type { PiiRedactor } from "../../pii/redactor";
 import type { PromptPreProcessor } from "../preProcessor";
 import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
@@ -262,6 +263,18 @@ export type BaseUseChatOptions = {
    * or write a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Enable client-side PII redaction. When enabled, outbound messages are
+   * scanned for personally identifiable information (emails, phone numbers,
+   * SSNs, credit cards, API keys, addresses) and matches are replaced with
+   * tagged placeholders before reaching the LLM provider. Streaming
+   * responses are de-anonymized automatically.
+   *
+   * - `true`: create a fresh redactor per request
+   * - `PiiRedactor` instance: share state across requests in a conversation
+   *   (recommended — keeps placeholder numbering consistent)
+   */
+  piiRedaction?: boolean | PiiRedactor;
 };
 
 /**
