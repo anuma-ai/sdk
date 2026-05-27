@@ -17,6 +17,7 @@ export type {
   PortalClient,
   PortalClientOpts,
   ToolError,
+  ToolErrorInfo,
 } from "./types.js";
 
 export { AuthError, ConnectorNotConnectedError } from "./errors.js";
@@ -29,3 +30,11 @@ export { createPortalClient } from "./createPortalClient.js";
 
 export { createConnectorTokenGetter } from "./createConnectorTokenGetter.js";
 export type { ConnectorTokenGetterOpts } from "./createConnectorTokenGetter.js";
+
+export { denyInteractive, extractConnectorToolErrors, runAgentRequest } from "./runAgentRequest.js";
+export type {
+  AgentConfigLike,
+  AgentRequestOpts,
+  AgentResponse,
+  UsageSummary,
+} from "./runAgentRequest.js";

@@ -97,17 +97,22 @@ export interface IncomingRequest {
  * `__anuma_connector_error_v1` payload; other tool failures may surface
  * here in the future.
  */
+/**
+ * Open shape so future tool-execution errors can lift into the same union
+ * without breaking consumers. Connector errors populate `provider` +
+ * `connectUrl`; other errors carry a `message`.
+ */
+export interface ToolErrorInfo {
+  code: string;
+  provider?: string;
+  connectUrl?: string;
+  missingScopes?: string[];
+  required?: string;
+  message?: string;
+}
+
 export interface ToolError {
   toolName: string;
   callId: string;
-  error:
-    | {
-        code: MintError["code"];
-        provider?: string;
-        connectUrl?: string;
-        missingScopes?: string[];
-        required?: string;
-        message?: string;
-      }
-    | { code: string; message: string };
+  error: ToolErrorInfo;
 }
