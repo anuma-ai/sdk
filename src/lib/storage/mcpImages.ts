@@ -39,7 +39,7 @@ const VIDEO_TOOL_NAMES = new Set([
 ]);
 
 /** Video file extensions — used to classify URLs the fallback regex captures. */
-const VIDEO_EXTENSION_RE = /\.(mp4|webm|mov)(?:\?|$)/i;
+const VIDEO_EXTENSION_RE = /\.(mp4|webm|mov)(?:[?#]|$)/i;
 
 /** Classify a URL by file extension. Defaults to image. */
 function classifyUrl(url: string): ExtractedMediaKind {

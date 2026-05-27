@@ -137,6 +137,11 @@ describe("extractMCPImageUrls", () => {
     expect(extractMCPImageUrls(mov, undefined, MCP_DOMAIN)[0].mediaType).toBe("video");
   });
 
+  it("classifies a video URL with a # fragment as video", () => {
+    const url = `https://${MCP_DOMAIN}/clip.mp4#t=10`;
+    expect(extractMCPImageUrls(url, undefined, MCP_DOMAIN)[0].mediaType).toBe("video");
+  });
+
   it("classifies mixed image + video content URLs independently", () => {
     const content = `![img](${MCP_URL_1}) and a clip ${MCP_VIDEO_URL}`;
     const result = extractMCPImageUrls(content, undefined, MCP_DOMAIN);
