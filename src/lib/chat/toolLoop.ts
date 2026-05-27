@@ -248,6 +248,7 @@ function extractProviderStreamError(chunk: unknown): ProviderStreamError | null 
   }
   return null;
 }
+import { PiiRedactor } from "../pii/redactor";
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
@@ -511,6 +512,16 @@ export type RunToolLoopOptions = {
    */
   maxConnectorCalls?: number;
   /**
+   * When enabled, scans outbound messages for personally identifiable
+   * information (emails, phone numbers, SSNs, credit cards, API keys,
+   * addresses) and replaces them with tagged placeholders before they
+   * reach the LLM provider. Streaming responses are de-anonymized so the
+   * user sees original values. Pass `true` for default detection or a
+   * `PiiRedactor` instance to share state across calls in the same
+   * conversation.
+   */
+  piiRedaction?: boolean | PiiRedactor;
+  /**
    * Lifecycle hooks for observability (telemetry, tracing, UI surfaces).
    * All hooks are optional. Errors thrown by a hook are swallowed so a
    * buggy observer can't crash the loop. Hooks are awaited synchronously
@@ -683,6 +694,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     preProcessors,
     maxConnectorCalls = 2,
     hooks: hooksOption,
+    piiRedaction,
   } = options;
   // Accept a single listener or an array — array form is composed into a
   // single dispatcher so the rest of the loop can stay shape-agnostic.
@@ -793,6 +805,26 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       console.warn("[runToolLoop] pre-processor stage failed:", err);
     }
   }
+
+  // PII redaction: resolve the redactor instance and transform messages
+  const redactor =
+    piiRedaction === true
+      ? new PiiRedactor()
+      : piiRedaction instanceof PiiRedactor
+        ? piiRedaction
+        : undefined;
+
+  if (redactor) {
+    const result = redactor.redactMessages(messages);
+    messages = result.messages;
+  }
+
+  // Wrap onData to de-anonymize placeholders in streaming response chunks
+  const originalOnData = onData;
+  const wrappedOnData =
+    redactor && originalOnData
+      ? (chunk: string) => originalOnData(redactor.deAnonymize(chunk))
+      : originalOnData;
 
   try {
     let sseError: Error | null = null;
@@ -907,7 +939,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       accumulator = createStreamAccumulator(model || undefined);
       contentSmoother = new StreamSmoother((text) => {
-        if (onData) onData(text);
+        if (wrappedOnData) wrappedOnData(text);
       }, smoothing);
       thinkingSmoother = new StreamSmoother((text) => {
         if (onThinking) onThinking(text);
@@ -1482,7 +1514,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
         currentAccumulator = createStreamAccumulator(model || undefined);
         contContentSmoother = new StreamSmoother((text) => {
-          if (onData) onData(text);
+          if (wrappedOnData) wrappedOnData(text);
         }, smoothing);
         contThinkingSmoother = new StreamSmoother((text) => {
           if (onThinking) onThinking(text);
@@ -1599,7 +1631,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (connectorLimitHit) {
       const tip =
         "\n\n> **Tip:** Switch to a **Thinking model** for more detailed results with connectors like Notion, Google Calendar, and Drive.\n";
-      if (onData) onData(tip);
+      if (wrappedOnData) wrappedOnData(tip);
       currentAccumulator.content += tip;
     }
 

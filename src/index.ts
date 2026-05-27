@@ -824,3 +824,8 @@ export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memory
 // until a conversation is actually rendered.
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
+
+// PII redaction — client-side detection and anonymization of personally
+// identifiable information before prompts leave the device.
+export type { PiiMatch, RedactionResult, MessageRedactionResult, PiiCategory } from "./lib/pii";
+export { PiiRedactor, PII_PATTERNS } from "./lib/pii";
