@@ -846,8 +846,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   }
 
   // PII redaction: resolve the redactor instance and transform messages
-  // eslint-disable-next-line no-console
-  console.log("[PII-DEBUG] piiRedaction:", piiRedaction, "type:", typeof piiRedaction);
   const redactor =
     piiRedaction === true
       ? new PiiRedactor()
@@ -858,8 +856,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   let piiMatches: PiiMatch[] | undefined;
   if (redactor) {
     const result = redactor.redactMessages(messages);
-    // eslint-disable-next-line no-console
-    console.log("[PII-DEBUG] Redacted", result.matches.length, "items");
     messages = result.messages;
     if (result.matches.length > 0) piiMatches = result.matches;
   }
