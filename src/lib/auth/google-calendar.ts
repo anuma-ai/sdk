@@ -1,17 +1,25 @@
 /**
- * Google Calendar OAuth 2.0 Authorization Code Flow
+ * Google Calendar OAuth 2.0 Authorization Code Flow — **LEGACY (v1) MODULE**.
  *
- * Uses the portal backend for token exchange.
- * The backend handles the client secret - client only sends auth code.
+ * As of the connector-vault rollout (`.claude-docs/connecters/DESIGN.md`),
+ * Google refresh tokens live server-side on the portal. New code obtains a
+ * Calendar access token via:
  *
- * This implementation requests calendar scopes to access the user's calendar:
- * - calendar.readonly: Read access to calendar events
- * - calendar.events: Create, update, and delete events
+ * ```ts
+ * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
+ * const getToken = createConnectorTokenGetter(portalClient, "gcalendar");
+ * ```
  *
- * Token storage supports wallet-based encryption via AES-GCM.
- * When a walletAddress is provided and an encryption key is available,
- * tokens are encrypted before being persisted to localStorage.
- * Falls back to sessionStorage (plain JSON) when no wallet is available.
+ * The functions in this file remain published with their original
+ * signatures so existing consumers keep compiling and the legacy
+ * `/auth/oauth/google-calendar/{exchange,refresh,revoke}` portal endpoints
+ * keep working through the transition window (≈2 release cycles per the
+ * design). Each export is annotated `@deprecated` with the recommended
+ * replacement.
+ *
+ * TODO(connector-vault): once the consumer migrates and the legacy
+ * endpoints sunset (PR 4 in the plan), collapse this module to a thin
+ * re-export over `createConnectorTokenGetter`.
  */
 
 import type { Client } from "../../client/client";

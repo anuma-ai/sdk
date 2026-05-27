@@ -1,11 +1,21 @@
 /**
- * Dropbox OAuth 2.0 Authorization Code Flow
+ * Dropbox OAuth 2.0 Authorization Code Flow — **LEGACY (v1) MODULE**.
  *
- * Flow:
- * 1. Redirect user to Dropbox authorization URL
- * 2. User authorizes and is redirected back with authorization code
- * 3. Exchange code on backend for access + refresh tokens
- * 4. Use refresh token to get new access tokens silently
+ * As of the connector-vault rollout (`.claude-docs/connecters/DESIGN.md`),
+ * Dropbox tokens live server-side on the portal. New code should use:
+ *
+ * ```ts
+ * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
+ * const getToken = createConnectorTokenGetter(portalClient, "dropbox");
+ * ```
+ *
+ * Dropbox migrates silently per the design (rotation-aware import via
+ * POST /api/v1/connectors/import). The functions in this file remain
+ * published with their original signatures so the backup pipeline keeps
+ * compiling through the transition.
+ *
+ * TODO(connector-vault): collapse to a thin wrapper once the backup
+ * pipeline migrates to the portal mint path.
  */
 
 import type { Client } from "../../../client/client";
