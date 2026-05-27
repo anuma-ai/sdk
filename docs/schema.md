@@ -206,7 +206,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
-| v31 | Added `user_id` to `memory_entity` |
+| v31 | Added `user_id` to `memory_entity`; `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;` |
 | v30 | Added `event_time_start`, `event_time_end`, `event_time_kind` to `memory_vault` |
 | v29 | Added `entity` table; Added `memory_entity` table |
 | v28 | Added `source_chunk_ids`, `proof_count`, `source` to `memory_vault` |

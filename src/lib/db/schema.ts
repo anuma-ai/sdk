@@ -742,7 +742,9 @@ export const sdkMigrations = schemaMigrations({
       ],
     },
     // v30 -> v31: Added user_id to memory_entity so the W5 graph lane is
-    // scoped per user in multi-user server deployments.
+    // scoped per user in multi-user server deployments. Backfills user_id
+    // on pre-v31 rows from the parent memory_vault row so existing links
+    // don't vanish from user-scoped queries.
     {
       toVersion: 31,
       steps: [
@@ -750,6 +752,9 @@ export const sdkMigrations = schemaMigrations({
           table: "memory_entity",
           columns: [{ name: "user_id", type: "string", isOptional: true, isIndexed: true }],
         }),
+        unsafeExecuteSql(
+          `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;`
+        ),
       ],
     },
   ],

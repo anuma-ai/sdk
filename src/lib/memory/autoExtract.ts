@@ -160,7 +160,11 @@ export async function extractAndRetain(
      */
     entityCtx?: EntityOperationsContext;
   }
-): Promise<{ candidates: ExtractedCandidate[]; results: RetainResult[] }> {
+): Promise<{
+  candidates: ExtractedCandidate[];
+  results: RetainResult[];
+  failedCount: number;
+}> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
   const candidates = await extractFacts(messages, options.extract);
@@ -205,7 +209,7 @@ export async function extractAndRetain(
     log.warn(`[memory/extract] ${failedWrites} of ${filtered.length} candidates failed to retain`);
   }
 
-  return { candidates: succeededCandidates, results };
+  return { candidates: succeededCandidates, results, failedCount: failedWrites };
 }
 
 // ---------------------------------------------------------------------------

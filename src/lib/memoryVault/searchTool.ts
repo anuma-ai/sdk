@@ -961,20 +961,19 @@ export async function searchVaultMemoriesWithSize(
     }
   }
 
-  // Build embedded items for the pure ranking function
-  const embeddedItems: EmbeddedItem[] = [];
-  for (const m of memories) {
-    const embedding = cache.get(m.content);
-    if (embedding) {
-      embeddedItems.push({
-        id: m.uniqueId,
-        content: m.content,
-        embedding,
-        updatedAt: m.updatedAt,
-        proofCount: m.proofCount,
-      });
-    }
-  }
+  // Build items for the pure ranking function. Memories without an
+  // embedding (typically just-written rows whose embedding job hasn't
+  // run yet) get an empty-vector placeholder — cosine returns 0 against
+  // any query so they don't surface via the cosine lane, but they're
+  // still admissible candidates for the W5/W6 side lanes (entity /
+  // temporal hits don't need embeddings).
+  const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
+    id: m.uniqueId,
+    content: m.content,
+    embedding: cache.get(m.content) ?? [],
+    updatedAt: m.updatedAt,
+    proofCount: m.proofCount,
+  }));
 
   // The rankers below all return bare {uniqueId, content, similarity}
   // — they're pure functions over EmbeddedItem and don't carry the
@@ -1162,6 +1161,28 @@ export function createMemoryVaultSearchTool(
               ? argFolderId
               : undefined;
 
+        // Legacy `useFusion: false` opt-out: callers explicitly asking
+        // for the cosine-only ranker don't want recall()'s fusion
+        // pipeline. Fall back to the direct search to honor that.
+        if (searchOptions?.useFusion === false) {
+          const legacy = await searchVaultMemories(query, vaultCtx, embeddingOptions, cache, {
+            limit: requestLimit,
+            minSimilarity,
+            useFusion: false,
+            ...(folderId !== undefined && { folderId }),
+            ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
+          });
+          if (legacy.length === 0) {
+            return "No relevant memories found in the vault.";
+          }
+          return legacy
+            .map(
+              (r, i) =>
+                `[${i + 1}] (id: ${r.uniqueId}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`
+            )
+            .join("\n\n");
+        }
+
         const { recall } = await import("../memory/recall.js");
         const result = await recall(
           query,
@@ -1169,6 +1190,10 @@ export function createMemoryVaultSearchTool(
             vaultCtx,
             embeddingOptions,
             vaultCache: cache,
+            // Propagate the graph-lane context if the caller attached one
+            // to the vault ctx (cascade-delete wiring lives there). Without
+            // this, the chat-tool path silently skips the W5 lane.
+            ...(vaultCtx.entityCtx && { entityCtx: vaultCtx.entityCtx }),
           },
           {
             types: ["fact"],

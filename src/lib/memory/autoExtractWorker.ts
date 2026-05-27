@@ -44,6 +44,11 @@ export interface TurnSkippedEvent {
 export interface TurnCompleteEvent {
   candidates: ExtractedCandidate[];
   results: RetainResult[];
+  /** Count of candidates whose retain() threw and didn't make it into
+   * `results`. Non-zero here is the only signal consumers get that the
+   * turn was partially or fully unsuccessful — `onError` only fires on
+   * pipeline-level throws, not per-candidate write failures. */
+  failedCount: number;
   durationMs: number;
   conversationId?: string;
 }
@@ -114,11 +119,15 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
 
     void (async () => {
       try {
-        const { candidates, results } = await extractAndRetain(window, options.retainCtx, {
-          extract: options.extract,
-          ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
-          ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
-        });
+        const { candidates, results, failedCount } = await extractAndRetain(
+          window,
+          options.retainCtx,
+          {
+            extract: options.extract,
+            ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
+            ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
+          }
+        );
 
         // extractAndRetain returns candidates and results length-aligned:
         // entries appear only when their retain() write succeeded, so
@@ -133,6 +142,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         options.onTurnComplete?.({
           candidates,
           results,
+          failedCount,
           durationMs: Date.now() - t0,
           conversationId,
         });

@@ -40,10 +40,10 @@ interface TemporalWindow {
   matchedPhrase: string;
 }
 
-const RELATIVE_DAY_ENTRIES: ReadonlyArray<[string, number]> = [
-  ["today", 0],
-  ["yesterday", -1],
-  ["tomorrow", 1],
+const RELATIVE_DAY_ENTRIES: ReadonlyArray<[RegExp, string, number]> = [
+  [/\btoday\b/, "today", 0],
+  [/\byesterday\b/, "yesterday", -1],
+  [/\btomorrow\b/, "tomorrow", 1],
 ];
 
 const DOW_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -140,8 +140,8 @@ export function parseQueryTimeWindow(
   const q = query.toLowerCase();
 
   // ── 1. Relative day ─────────────────────────────────────────────────
-  for (const [phrase, offset] of RELATIVE_DAY_ENTRIES) {
-    if (q.includes(phrase)) {
+  for (const [pattern, phrase, offset] of RELATIVE_DAY_ENTRIES) {
+    if (pattern.test(q)) {
       const day = addDays(startOfDay(now), offset);
       return { start: day, end: endOfDay(day), matchedPhrase: phrase };
     }
@@ -269,9 +269,12 @@ export function scoreEventTimeOverlap(
     return memoryStart >= window.start && memoryStart < window.end ? 1 : 0;
   }
 
-  // Ongoing: started before window end, still going. Full overlap.
+  // Ongoing: started before window end and (if it has a non-null end)
+  // hasn't already ended before the window starts. Mirrors the
+  // admission predicate in getMemoriesByEventTimeOp.
   if (memoryKind === "ongoing") {
-    return memoryStart < window.end ? 1 : 0;
+    const ongoingEnd = memoryEnd ?? Number.POSITIVE_INFINITY;
+    return memoryStart < window.end && ongoingEnd >= window.start ? 1 : 0;
   }
 
   // Range: compute overlap fraction.

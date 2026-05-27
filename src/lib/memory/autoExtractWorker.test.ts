@@ -26,7 +26,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("createAutoExtractor", () => {
   it("schedules extraction async — returns true immediately", () => {
-    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [] });
+    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [], failedCount: 0 });
     const extractor = createAutoExtractor(baseOptions);
     const scheduled = extractor.processTurn(messages, "conv1");
     expect(scheduled).toBe(true);
@@ -40,7 +40,7 @@ describe("createAutoExtractor", () => {
   });
 
   it("skips when a previous turn is still in-flight", async () => {
-    let resolve!: (v: { candidates: never[]; results: never[] }) => void;
+    let resolve!: (v: { candidates: never[]; results: never[]; failedCount: number }) => void;
     vi.mocked(extractAndRetain).mockImplementation(
       () =>
         new Promise((r) => {
@@ -54,7 +54,7 @@ describe("createAutoExtractor", () => {
     expect(extractor.processTurn(messages, "c2")).toBe(false);
     expect(onSkipped).toHaveBeenCalledWith({ reason: "in-flight", conversationId: "c2" });
 
-    resolve({ candidates: [], results: [] });
+    resolve({ candidates: [], results: [], failedCount: 0 });
   });
 
   it("fires onMemoryExtracted once per retained fact", async () => {
@@ -79,6 +79,7 @@ describe("createAutoExtractor", () => {
         { action: "create", memoryId: "id1", proofCount: 1 },
         { action: "merge", memoryId: "id2", targetId: "id2", proofCount: 3 },
       ],
+      failedCount: 0,
     });
     const onMemoryExtracted = vi.fn();
     const onTurnComplete = vi.fn();
@@ -120,7 +121,7 @@ describe("createAutoExtractor", () => {
     vi.mocked(extractAndRetain).mockImplementation(
       () =>
         new Promise((r) => {
-          resolve = () => r({ candidates: [], results: [] });
+          resolve = () => r({ candidates: [], results: [], failedCount: 0 });
         })
     );
     const extractor = createAutoExtractor(baseOptions);
@@ -133,7 +134,7 @@ describe("createAutoExtractor", () => {
   });
 
   it("respects windowSize — only sends the last N messages", async () => {
-    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [] });
+    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [], failedCount: 0 });
     const longHistory: AutoExtractMessage[] = Array.from({ length: 20 }, (_, i) => ({
       id: `m${i}`,
       role: i % 2 === 0 ? "user" : "assistant",
