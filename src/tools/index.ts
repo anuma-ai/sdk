@@ -180,6 +180,7 @@ export type {
   FileSnippet,
   PatchFailure,
   PatchFailureReason,
+  VerifyAppResult,
 } from "./appGeneration";
 export {
   APP_BUILDER_PROMPT,
@@ -199,6 +200,7 @@ export {
   PATCH_FILE_SCHEMA,
   READ_FILE_SCHEMA,
   truncateContent,
+  VERIFY_APP_SCHEMA,
 } from "./appGeneration";
 
 // Slide deck tools — now Anuma-JSX-AST native

@@ -1031,3 +1031,110 @@ describe("create_file result splits new writes from overwrites", () => {
     expect(result.note).toEqual(expect.stringContaining("Overwrote 1"));
   });
 });
+
+// ---------------------------------------------------------------------------
+// verify_app tool — host-runtime verification hook
+// ---------------------------------------------------------------------------
+
+describe("verify_app tool", () => {
+  function makeTools(overrides?: Partial<Parameters<typeof createAppGenerationTools>[0]>): {
+    storage: MapFileStorage;
+    verify: ToolConfig;
+    logged: string[];
+  } {
+    const logged: string[] = [];
+    const storage = new MapFileStorage();
+    const tools = createAppGenerationTools({
+      getConversationId: () => "test-conv",
+      storage,
+      logError: (msg) => logged.push(msg),
+      ...overrides,
+    });
+    const t = tools.find((tt) => (tt.function as { name: string }).name === "verify_app");
+    if (!t) throw new Error("verify_app tool not in registered tools");
+    return { storage, verify: t, logged };
+  }
+
+  it("returns a graceful no-op result when the host did not wire verifyApp", async () => {
+    const { verify } = makeTools();
+    const result = (await verify.executor!({})) as Record<string, unknown>;
+    expect(result.rendered).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.note).toEqual(expect.stringContaining("did not wire"));
+  });
+
+  it("forwards the host's success result verbatim (rendered: true, no errors)", async () => {
+    const { verify } = makeTools({
+      verifyApp: async () => ({ rendered: true, errors: [] }),
+    });
+    const result = (await verify.executor!({})) as Record<string, unknown>;
+    expect(result.rendered).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.note).toBeUndefined();
+  });
+
+  it("forwards the host's failure result with errors", async () => {
+    const { verify } = makeTools({
+      verifyApp: async () => ({
+        rendered: false,
+        errors: [
+          "The requested module 'lucide-react' does not provide an export named 'LayoutKanban'",
+          "Cannot read properties of undefined (reading 'map')",
+        ],
+      }),
+    });
+    const result = (await verify.executor!({})) as Record<string, unknown>;
+    expect(result.rendered).toBe(false);
+    expect(result.errors).toHaveLength(2);
+    expect((result.errors as string[])[0]).toMatch(/LayoutKanban/);
+  });
+
+  it("propagates the host's `note` so the model can disambiguate degenerate results", async () => {
+    const { verify } = makeTools({
+      verifyApp: async () => ({
+        rendered: true,
+        errors: [],
+        note: "Sandpack still compiling — preview not yet mounted.",
+      }),
+    });
+    const result = (await verify.executor!({})) as Record<string, unknown>;
+    expect(result.note).toEqual(expect.stringContaining("still compiling"));
+  });
+
+  it("coerces a malformed host return shape into the expected structure", async () => {
+    const { verify } = makeTools({
+      verifyApp: (async () => ({
+        // Host returned wrong types — should be coerced, not crash.
+        rendered: 1,
+        errors: "single error string (should be array)",
+        note: 42,
+      })) as unknown as () => Promise<import("./appGeneration.js").VerifyAppResult>,
+    });
+    const result = (await verify.executor!({})) as Record<string, unknown>;
+    expect(result.rendered).toBe(true); // Number 1 coerces to true.
+    expect(result.errors).toEqual([]); // Non-array becomes empty list.
+    expect(result.note).toBe("42"); // Stringified.
+  });
+
+  it("catches a thrown host hook and returns a useful failure (not silent)", async () => {
+    const { verify, logged } = makeTools({
+      verifyApp: async () => {
+        throw new Error("Sandpack iframe disconnected");
+      },
+    });
+    const result = (await verify.executor!({})) as Record<string, unknown>;
+    expect(result.rendered).toBe(false);
+    expect(result.errors).toEqual([expect.stringContaining("Sandpack iframe disconnected")]);
+    expect(result.note).toEqual(expect.stringContaining("verifier itself errored"));
+    // The host-hook throw is logged, not swallowed silently.
+    expect(logged.some((m) => m.includes("verifyApp hook threw"))).toBe(true);
+  });
+
+  it("is included in APP_FILE_TOOL_NAMES (so allowlists pick it up)", async () => {
+    // Cross-module assertion: the schema name in this test file must
+    // match what the tool registers. If verify_app is renamed, both
+    // places must move together.
+    const { APP_FILE_TOOL_NAMES } = await import("./appGeneration.js");
+    expect(APP_FILE_TOOL_NAMES.has("verify_app")).toBe(true);
+  });
+});

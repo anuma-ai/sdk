@@ -431,7 +431,8 @@ function validateJson(content: string): FileValidationError | null {
 // Tool name constants
 // ---------------------------------------------------------------------------
 
-/** Tool names for app file operations (create, patch, delete, read, list, audit, critique). */
+/** Tool names for app file operations (create, patch, delete, read, list,
+ *  audit, critique, verify). */
 export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
   new Set([
     "create_file",
@@ -441,6 +442,7 @@ export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
     "list_files",
     "audit_design",
     "critique_design",
+    "verify_app",
   ])
 );
 
@@ -623,6 +625,13 @@ export const CRITIQUE_DESIGN_SCHEMA = {
   arguments: { type: "object", properties: {}, required: [] },
 } as const;
 
+export const VERIFY_APP_SCHEMA = {
+  name: "verify_app",
+  description:
+    "Ask the host runtime whether the current app actually mounts. The host's bundler / preview iframe (e.g. Sandpack in a chat UI) is already compiling and running your code; this tool collects whatever errors that runtime captured — hallucinated imports, syntax the bundler rejects, undefined components, runtime crashes — and returns them. Use this after substantial changes and before declaring done. If `rendered` is false or `errors` is non-empty, fix every error before doing anything else. If the host did not wire a runtime verifier, the tool returns `{ rendered: true, errors: [] }` with a `note` explaining — degrade to audit_design + critique_design in that case.",
+  arguments: { type: "object", properties: {}, required: [] },
+} as const;
+
 /** Default open-ended questions for `critique_design`. Each is designed to
  *  extract the model's own judgment rather than enforce a property — the
  *  model brings the taste, the rubric only supplies the occasion. */
@@ -638,6 +647,31 @@ export const DEFAULT_DESIGN_CRITIQUE_RUBRIC: readonly string[] = Object.freeze([
 // ---------------------------------------------------------------------------
 // Tool factory
 // ---------------------------------------------------------------------------
+
+/**
+ * Result returned by the host's `verifyApp` hook (and surfaced as the
+ * `verify_app` tool's response to the model). Same shape regardless of
+ * how the host implements verification — Sandpack error state, an
+ * iframe error listener, a headless browser in a benchmark, etc.
+ *
+ * `rendered`: did the React app actually mount in the host's runtime?
+ *   True when the preview is showing content; false when the runtime
+ *   reported a fatal failure or never mounted within the host's wait
+ *   window.
+ *
+ * `errors`: human-readable error messages captured by the runtime. One
+ *   per distinct error. Order is host-defined; usually chronological.
+ *
+ * `note`: optional explanation when the result is degenerate — host
+ *   didn't wire the hook, hook is wired but the preview isn't mounted
+ *   yet, etc. Lets the model interpret the result correctly without
+ *   silently treating "no errors" as success.
+ */
+export interface VerifyAppResult {
+  rendered: boolean;
+  errors: string[];
+  note?: string;
+}
 
 /**
  * Event emitted after a successful file mutation. Hosts subscribe via
@@ -696,6 +730,22 @@ export interface CreateAppGenerationToolsOptions {
    */
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   displayApp?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
+  /**
+   * Optional host callback that runs the generated app in whatever
+   * runtime the host has available (Sandpack iframe in a chat UI, a
+   * headless browser in a benchmark, etc.) and reports back whether
+   * the app mounted plus any errors the runtime captured.
+   *
+   * When wired, the SDK exposes a `verify_app` tool the model can call
+   * after substantial changes; the tool's executor invokes this hook
+   * and returns the result to the model. When NOT wired, the tool
+   * still exists but returns `{ rendered: true, errors: [], note: … }`
+   * so the model degrades gracefully to audit/critique-only feedback.
+   *
+   * Same host-hook pattern as `displayApp` and `onFileChange` — the
+   * SDK never executes anything itself.
+   */
+  verifyApp?: () => Promise<VerifyAppResult>;
   /**
    * Optional host callback fired after every successful file mutation
    * (`create_file`, `patch_file`, `delete_file`). See
@@ -793,6 +843,7 @@ export function createAppGenerationTools({
   storage,
   logError = (msg, err) => console.error(msg, err),
   displayApp,
+  verifyApp,
   onFileChange,
   designCritiqueRubric = DEFAULT_DESIGN_CRITIQUE_RUBRIC,
   maxConversations,
@@ -1364,6 +1415,46 @@ export function createAppGenerationTools({
     },
   };
 
+  const verifyAppTool: ToolConfig = {
+    type: "function",
+    function: VERIFY_APP_SCHEMA,
+    executor: async (): Promise<VerifyAppResult> => {
+      if (!verifyApp) {
+        // Host didn't wire the runtime verifier. The tool exists so
+        // the prompt can refer to it unconditionally; the model
+        // degrades to audit/critique-only feedback when the host
+        // doesn't ship runtime introspection.
+        return {
+          rendered: true,
+          errors: [],
+          note: "This host did not wire verify_app — runtime introspection is unavailable in this environment. Rely on audit_design and critique_design for feedback. Do not interpret the empty errors list as proof the app runs.",
+        };
+      }
+      try {
+        const result = await verifyApp();
+        // Defensive: hosts may return malformed results. Coerce to
+        // the expected shape so the model always sees a stable
+        // structure even when the host's implementation is buggy.
+        return {
+          rendered: Boolean(result?.rendered),
+          errors: Array.isArray(result?.errors)
+            ? result.errors.map((e) => String(e))
+            : [],
+          ...(result?.note ? { note: String(result.note) } : {}),
+        };
+      } catch (err) {
+        logError("verifyApp hook threw", err instanceof Error ? err : undefined);
+        return {
+          rendered: false,
+          errors: [
+            `Host verifyApp hook threw: ${err instanceof Error ? err.message : String(err)}`,
+          ],
+          note: "The runtime verifier itself errored — treat the app as unverified, not as healthy.",
+        };
+      }
+    },
+  };
+
   // No standalone display_app tool — display happens automatically
   // from inside create_file / patch_file / delete_file via the
   // `displayApp` callback. Mirrors `createSlideTools`, which has no
@@ -1377,6 +1468,7 @@ export function createAppGenerationTools({
     listFilesTool,
     auditDesignTool,
     critiqueDesignTool,
+    verifyAppTool,
   ];
 }
 
@@ -1405,7 +1497,8 @@ WORKFLOW:
 3. patch_file requires read_file for that path earlier in the conversation (or create_file in the same conversation, which counts). read_file output is numbered "42: <text>" — the prefix is display-only; never copy it into "find". Each "find" must match exactly one location — include 2-3 lines of surrounding context. Pass multiple patches per call to change distinct locations.
 4. Prefer patch_file for changes to existing files — surgical, reviewable, preserves surrounding code. Reserve create_file overwrites for substantial restructuring. Inserts: find the line before, replace with that line + the new line. Deletes: empty replace.
 5. After substantial changes, call critique_design first (taste, hierarchy, distinctiveness, weakest decision) and then audit_design (mechanical: tokens, focus states, aria-labels, alt, heading order). Patch what each surfaces. critique catches taste issues no checklist would; audit catches mechanics you'd miss. Run both; act on both.
-6. Keep responses to a sentence or two. Exception: when responding to critique_design, write a substantive paragraph per rubric question.
+6. Before declaring done, call verify_app. The host's preview runtime reports whether your app actually mounted and surfaces any errors it captured — hallucinated imports, syntax the bundler rejected, undefined components, runtime crashes. If \`rendered\` is false or \`errors\` is non-empty, fix every error before the next message. If the response includes a \`note\` that verify_app isn't wired in this host, skip — audit + critique are your feedback in that case.
+7. Keep responses to a sentence or two. Exception: when responding to critique_design, write a substantive paragraph per rubric question.
 
 STRUCTURE:
 - App.js: default-export React component. For non-trivial apps, define small co-located helpers (Header, CardList, Card, EditDialog, …) above the default export rather than one giant App.
