@@ -2,7 +2,7 @@
 
 > **getRecentMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:723](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#723)
+Defined in: [src/lib/db/media/operations.ts:718](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#718)
 
 Get recent media for library homepage.
 

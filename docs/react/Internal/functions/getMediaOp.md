@@ -2,7 +2,7 @@
 
 > **getMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `filters`: [`MediaFilterOptions`](../interfaces/MediaFilterOptions.md)): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:494](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#494)
+Defined in: [src/lib/db/media/operations.ts:489](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#489)
 
 Get all media for a user with optional filters.
 
