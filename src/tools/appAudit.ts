@@ -689,10 +689,10 @@ function findOrphanedClasses(appJs: string, appCss: string): AuditIssue[] {
   orphaned.sort();
   return [
     {
-      severity: "info",
+      severity: "warn",
       path: "App.js",
       type: "orphaned-class",
-      message: `JSX uses class name(s) with no matching selector in App.css: ${orphaned.join(", ")}. These render as plain HTML — check for typos, recently-renamed wrappers, or stale code from before a refactor.`,
+      message: `JSX uses class name(s) with no matching selector in App.css: ${orphaned.join(", ")}. These render unstyled — for each, either add the rule to App.css, fix the typo, or remove from JSX. Most common cause: a wrapper class renamed in JSX without updating CSS rules. Patch before shipping.`,
     },
   ];
 }

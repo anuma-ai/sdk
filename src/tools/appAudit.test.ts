@@ -455,7 +455,7 @@ body { background: var(--bg); color: var(--ink); }
     const result = auditDesign({ "App.js": js, "App.css": css });
     const orphans = findIssue(result, "orphaned-class");
     expect(orphans).toHaveLength(1);
-    expect(orphans[0].severity).toBe("info");
+    expect(orphans[0].severity).toBe("warn");
     expect(orphans[0].message).toMatch(/app-shell/);
     expect(orphans[0].message).not.toMatch(/sidebar/); // sidebar IS in CSS
     expect(orphans[0].message).not.toMatch(/main/); //   main IS in CSS
