@@ -39,6 +39,11 @@ export interface PhaseRecord {
   toolCalls: Record<string, number>;
   /** Number of patch_file calls that reported `failed > 0`. */
   failedPatches: number;
+  /** Number of files overwritten via create_file (existed in storage
+   *  before the call). High and rising overwrite counts mean the model
+   *  is rewriting where patch_file would have been smaller — the
+   *  read-before-write contract permits this but doesn't measure it. */
+  overwrites: number;
   /** File-store snapshot after the phase, keyed by path → byte length. */
   files: Record<string, number>;
   /** Whether the model errored out of the tool loop in this phase. */
@@ -64,6 +69,7 @@ export interface RunRecord {
   totals: {
     toolCalls: Record<string, number>;
     failedPatches: number;
+    overwrites: number;
   };
 }
 
@@ -94,6 +100,22 @@ export function summarizePhase(opts: {
     }
   }).length;
 
+  // Sum `overwritten[].length` across all create_file successes. Each
+  // call's result carries the per-call subset of paths that already
+  // existed — overwrites are a soft signal that the model could have
+  // used patch_file for a smaller, more reviewable diff.
+  let overwrites = 0;
+  for (const c of opts.toolCalls) {
+    if (c.name !== "create_file") continue;
+    try {
+      const r: unknown = typeof c.result === "string" ? JSON.parse(c.result) : c.result;
+      const arr = (r as { overwritten?: unknown } | null)?.overwritten;
+      if (Array.isArray(arr)) overwrites += arr.length;
+    } catch {
+      // Malformed result — leave count alone.
+    }
+  }
+
   const files: Record<string, number> = {};
   const fileEntries: Iterable<[string, string]> =
     opts.files instanceof Map ? opts.files : Object.entries(opts.files);
@@ -104,6 +126,7 @@ export function summarizePhase(opts: {
     elapsedMs: opts.elapsedMs,
     toolCalls: counts,
     failedPatches,
+    overwrites,
     files,
     errored: opts.errored ?? false,
   };
@@ -122,11 +145,13 @@ export function finalizeRun(opts: {
   const totals = {
     toolCalls: {} as Record<string, number>,
     failedPatches: 0,
+    overwrites: 0,
   };
   let totalElapsedMs = 0;
   for (const p of opts.phases) {
     totalElapsedMs += p.elapsedMs;
     totals.failedPatches += p.failedPatches;
+    totals.overwrites += p.overwrites;
     for (const [name, count] of Object.entries(p.toolCalls)) {
       totals.toolCalls[name] = (totals.toolCalls[name] ?? 0) + count;
     }
@@ -209,6 +234,9 @@ export function compareRuns(before: RunRecord, after: RunRecord): string {
   lines.push(
     `  ${"failedPatches".padEnd(18)} ${formatDelta(before.totals.failedPatches, after.totals.failedPatches)}`
   );
+  lines.push(
+    `  ${"overwrites".padEnd(18)} ${formatDelta(before.totals.overwrites, after.totals.overwrites)}`
+  );
   lines.push("");
 
   lines.push("per-phase:");
@@ -229,6 +257,7 @@ export function compareRuns(before: RunRecord, after: RunRecord): string {
     lines.push(`  ${label}:`);
     lines.push(`    elapsed:       ${formatDelta(bp.elapsedMs, ap.elapsedMs, "ms")}`);
     lines.push(`    failedPatches: ${formatDelta(bp.failedPatches, ap.failedPatches)}`);
+    lines.push(`    overwrites:    ${formatDelta(bp.overwrites, ap.overwrites)}`);
     const allFiles = new Set([...Object.keys(bp.files), ...Object.keys(ap.files)]);
     for (const f of [...allFiles].sort()) {
       const bsize = bp.files[f] ?? 0;

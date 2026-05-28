@@ -958,3 +958,76 @@ describe("onFileChange callback", () => {
     expect(order).toEqual(["callback-done", "executor-returned"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// create_file split — created vs overwritten + soft patch_file nudge
+// ---------------------------------------------------------------------------
+
+describe("create_file result splits new writes from overwrites", () => {
+  function makeTools(): {
+    storage: MapFileStorage;
+    createFile: ToolConfig;
+    readFile: ToolConfig;
+  } {
+    const storage = new MapFileStorage();
+    const tools = createAppGenerationTools({
+      getConversationId: () => "test-conv",
+      storage,
+      logError: () => undefined,
+    });
+    const find = (name: string): ToolConfig => {
+      const t = tools.find((tt) => (tt.function as { name: string }).name === name);
+      if (!t) throw new Error(`tool ${name} not found`);
+      return t;
+    };
+    return { storage, createFile: find("create_file"), readFile: find("read_file") };
+  }
+
+  it("populates `created` with new files and leaves `overwritten` empty", async () => {
+    const { createFile } = makeTools();
+    const result = (await createFile.executor!({
+      files: [
+        { path: "App.js", content: "const A = 1;\n" },
+        { path: "App.css", content: ":root {}\n" },
+      ],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect(result.created).toEqual(["App.js", "App.css"]);
+    expect(result.overwritten).toEqual([]);
+    expect(result.note).toBeUndefined();
+    // `paths` (the union) still works for back-compat consumers.
+    expect(result.paths).toEqual(["App.js", "App.css"]);
+  });
+
+  it("populates `overwritten` with existing paths and adds the patch_file nudge", async () => {
+    const { createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    });
+    const result = (await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 2;\n" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(true);
+    expect(result.created).toEqual([]);
+    expect(result.overwritten).toEqual(["App.js"]);
+    expect(result.note).toEqual(expect.stringContaining("prefer patch_file"));
+    expect(result.note).toEqual(expect.stringContaining("App.js"));
+  });
+
+  it("partitions a mixed batch — new and existing — into the two arrays", async () => {
+    const { createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.js", content: "const A = 1;\n" }],
+    });
+    const result = (await createFile.executor!({
+      files: [
+        { path: "App.js", content: "const A = 2;\n" },
+        { path: "App.css", content: "body {}\n" },
+        { path: "package.json", content: '{"name":"x"}\n' },
+      ],
+    })) as Record<string, unknown>;
+    expect(result.created).toEqual(["App.css", "package.json"]);
+    expect(result.overwritten).toEqual(["App.js"]);
+    expect(result.note).toEqual(expect.stringContaining("Overwrote 1"));
+  });
+});

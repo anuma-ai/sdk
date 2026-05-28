@@ -62,6 +62,37 @@ describe("summarizePhase", () => {
     );
   });
 
+  it("sums create_file overwrites across calls", () => {
+    const toolCalls: ToolCallRecord[] = [
+      // Pure new write — should contribute 0.
+      {
+        name: "create_file",
+        result: JSON.stringify({ created: ["App.js", "App.css"], overwritten: [] }),
+      },
+      // Mixed batch — should contribute 1.
+      {
+        name: "create_file",
+        result: { created: ["package.json"], overwritten: ["App.js"] },
+      },
+      // Bulk overwrite — should contribute 2.
+      { name: "create_file", result: { created: [], overwritten: ["App.js", "App.css"] } },
+      // Unrelated tool — ignored.
+      { name: "patch_file", result: { overwritten: ["nope"] } },
+    ];
+    expect(summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).overwrites).toBe(
+      3
+    );
+  });
+
+  it("tolerates malformed create_file results without throwing", () => {
+    const toolCalls: ToolCallRecord[] = [
+      { name: "create_file", result: "not-json-at-all" },
+      { name: "create_file", result: null },
+      { name: "create_file", result: JSON.stringify({ overwritten: "not-an-array" }) },
+    ];
+    expect(summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).overwrites).toBe(0);
+  });
+
   it("records file sizes from a Map or an object", () => {
     const fromMap = summarizePhase({
       label: "p1",
@@ -94,7 +125,7 @@ describe("summarizePhase", () => {
 });
 
 describe("finalizeRun", () => {
-  it("sums elapsed and tool counts across phases", () => {
+  it("sums elapsed, tool counts, failed patches, and overwrites across phases", () => {
     const run = finalizeRun({
       benchmark: "kanban",
       model: "anthropic/claude-opus-4-7",
@@ -107,6 +138,7 @@ describe("finalizeRun", () => {
           elapsedMs: 1000,
           toolCalls: { create_file: 2, patch_file: 1 },
           failedPatches: 0,
+          overwrites: 1,
           files: { "App.js": 100 },
           errored: false,
         },
@@ -115,6 +147,7 @@ describe("finalizeRun", () => {
           elapsedMs: 2000,
           toolCalls: { patch_file: 3, read_file: 1 },
           failedPatches: 1,
+          overwrites: 2,
           files: { "App.js": 200 },
           errored: false,
         },
@@ -125,6 +158,7 @@ describe("finalizeRun", () => {
     expect(run.totalElapsedMs).toBe(3000);
     expect(run.totals.toolCalls).toEqual({ create_file: 2, patch_file: 4, read_file: 1 });
     expect(run.totals.failedPatches).toBe(1);
+    expect(run.totals.overwrites).toBe(3);
     expect(run.benchmark).toBe("kanban");
     // finishedAt is set to "now" — just sanity-check it's a valid ISO string.
     expect(new Date(run.finishedAt).toString()).not.toBe("Invalid Date");
@@ -160,6 +194,7 @@ const baseRun: RunRecord = {
       elapsedMs: 300_000,
       toolCalls: { create_file: 2, patch_file: 1 },
       failedPatches: 0,
+      overwrites: 0,
       files: { "App.js": 1000, "App.css": 500 },
       errored: false,
     },
@@ -168,11 +203,12 @@ const baseRun: RunRecord = {
       elapsedMs: 300_000,
       toolCalls: { patch_file: 3 },
       failedPatches: 1,
+      overwrites: 0,
       files: { "App.js": 1500, "App.css": 500 },
       errored: false,
     },
   ],
-  totals: { toolCalls: { create_file: 2, patch_file: 4 }, failedPatches: 1 },
+  totals: { toolCalls: { create_file: 2, patch_file: 4 }, failedPatches: 1, overwrites: 0 },
 };
 
 describe("compareRuns", () => {
@@ -197,12 +233,29 @@ describe("compareRuns", () => {
   it("shows positive and negative deltas for tool counts", () => {
     const after: RunRecord = {
       ...baseRun,
-      totals: { toolCalls: { create_file: 5, patch_file: 2 }, failedPatches: 0 },
+      totals: { toolCalls: { create_file: 5, patch_file: 2 }, failedPatches: 0, overwrites: 0 },
     };
     const out = compareRuns(baseRun, after);
     expect(out).toMatch(/create_file.*\(\+3\)/);
     expect(out).toMatch(/patch_file.*\(-2\)/);
     expect(out).toMatch(/failedPatches.*\(-1\)/);
+  });
+
+  it("surfaces the overwrites delta in totals and per-phase", () => {
+    const after: RunRecord = {
+      ...baseRun,
+      phases: [
+        { ...baseRun.phases[0], overwrites: 1 },
+        { ...baseRun.phases[1], overwrites: 2 },
+      ],
+      totals: { ...baseRun.totals, overwrites: 3 },
+    };
+    const out = compareRuns(baseRun, after);
+    // Totals row.
+    expect(out).toMatch(/overwrites\s+0 → 3\s+\(\+3\)/);
+    // Per-phase row.
+    expect(out).toMatch(/overwrites:\s+0 → 1\s+\(\+1\)/);
+    expect(out).toMatch(/overwrites:\s+0 → 2\s+\(\+2\)/);
   });
 
   it("flags phases added or removed", () => {
@@ -216,6 +269,7 @@ describe("compareRuns", () => {
           elapsedMs: 0,
           toolCalls: {},
           failedPatches: 0,
+          overwrites: 0,
           files: {},
           errored: false,
         },

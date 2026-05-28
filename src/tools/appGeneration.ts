@@ -986,6 +986,15 @@ export function createAppGenerationTools({
         // patch_file or create_file calls against these paths can
         // proceed without requiring a separate read_file.
         for (const p of paths) markFileSeen(conversationId, p);
+        // Split paths into fresh writes vs. overwrites of existing files.
+        // The overwrite signal nudges the model toward patch_file for
+        // incremental changes — read-before-write only ensures the model
+        // saw the content; it doesn't enforce that patch was the better
+        // tool. Surfacing the count both in the immediate tool result
+        // (so the model self-corrects) and via metrics summary (so we
+        // can measure rewrite rate run-over-run).
+        const created: string[] = [];
+        const overwritten: string[] = [];
         // Fan out one onFileChange event per file. Files that existed
         // before this batch are reported as "modified" with before/after
         // content; new ones as "created". `existsInStorage[i]` was
@@ -997,6 +1006,7 @@ export function createAppGenerationTools({
           const after = filesArg[i].content;
           const previous = existsInStorage[i];
           if (previous === null) {
+            created.push(path);
             await emitFileChange({
               type: "created",
               conversationId,
@@ -1005,6 +1015,7 @@ export function createAppGenerationTools({
               tool: "create_file",
             });
           } else {
+            overwritten.push(path);
             await emitFileChange({
               type: "modified",
               conversationId,
@@ -1016,7 +1027,17 @@ export function createAppGenerationTools({
           }
         }
         const display = await triggerAppDisplay(conversationId);
-        return { success: true, paths, ...display };
+        const result: Record<string, unknown> = {
+          success: true,
+          paths,
+          created,
+          overwritten,
+          ...display,
+        };
+        if (overwritten.length > 0) {
+          result.note = `Overwrote ${overwritten.length} existing file(s): ${overwritten.join(", ")}. For incremental changes, prefer patch_file — smaller diffs are easier to review and preserve more of the existing structure.`;
+        }
+        return result;
       } catch (err) {
         logError("create_file failed", err instanceof Error ? err : undefined);
         return {
