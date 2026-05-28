@@ -93,6 +93,20 @@ describe("createConnectorTokenGetter", () => {
     expect(source.mintConnectorToken).toHaveBeenCalledTimes(2);
   });
 
+  test("returns null and clears cache when mint throws (portal unreachable)", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({ ok: true, accessToken: "recovered", expiresAt: 200_000 });
+    const source: ConnectorTokenSource = { mintConnectorToken: fn };
+    const getToken = createConnectorTokenGetter(source, "gmail", { now: () => 1_000 });
+
+    expect(await getToken()).toBeNull();
+    // Cache must not have been populated — second call retries.
+    expect(await getToken()).toBe("recovered");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
   test("forwards mint errors to onNotConnected when supplied", async () => {
     const source = tokenSource([
       {

@@ -11,6 +11,11 @@
  * - On mint failure (`MintResult.ok === false`), the cache is left untouched;
  *   the failure is forwarded to `onNotConnected` (when applicable) or
  *   surfaced as `null` so the tool factory can emit a connector error.
+ * - A thrown mint call (portal unreachable, all retries exhausted) is
+ *   swallowed and surfaced as `null` too — the closure's documented
+ *   contract is `() => Promise<string | null>`, and letting a network
+ *   error bubble would crash the tool executor instead of letting it
+ *   emit the canonical `__anuma_connector_error_v1` result.
  *
  * Two tool calls in the same request reuse the same `PortalClient` instance,
  * and so share this cache — that's where the "2 calls = 1 mint" caching
@@ -92,7 +97,16 @@ export function createConnectorTokenGetter(
       return cached.accessToken;
     }
 
-    const result = await client.mintConnectorToken(provider);
+    let result: ConnectorMintResult;
+    try {
+      result = await client.mintConnectorToken(provider);
+    } catch {
+      // Portal unreachable or all retries exhausted. Honor the
+      // `() => Promise<string | null>` contract — the tool factory will
+      // surface a structured connector error from the null return.
+      cached = null;
+      return null;
+    }
     if (result.ok) {
       cached = { accessToken: result.accessToken, expiresAt: result.expiresAt };
       return result.accessToken;
