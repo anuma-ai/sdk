@@ -26,6 +26,7 @@ export type AuditIssueType =
   | "focus-not-keyed"
   | "low-contrast"
   | "off-scale-spacing"
+  | "orphaned-class"
   | "missing-aria-label"
   | "missing-alt"
   | "heading-order";
@@ -567,6 +568,135 @@ function findOffScaleSpacing(appCss: string, tokens: AuditTokens): AuditIssue[] 
   return issues;
 }
 
+/** Heuristics for "is this className token a Tailwind utility / variant?" —
+ *  Tailwind classes are JIT-injected at runtime via the Play CDN and never
+ *  appear in App.css, so they always look orphaned. We have to detect and
+ *  skip them. Conservative: any token containing `:` (variant prefix like
+ *  `hover:bg-red-500`), `[` (arbitrary-value syntax like `bg-[var(--bg)]`),
+ *  or matching one of the well-known Tailwind base prefixes is treated as
+ *  utility. A handful of bare keywords (`flex`, `grid`, `hidden`, etc.)
+ *  are also Tailwind primitives. Imperfect but covers the common cases. */
+const TAILWIND_PREFIX_RE =
+  /^(bg|text|p|m|px|py|pt|pb|pl|pr|mx|my|mt|mb|ml|mr|w|h|min-w|min-h|max-w|max-h|gap|space|border|rounded|shadow|ring|outline|opacity|z|top|right|bottom|left|inset|translate|rotate|scale|skew|origin|transition|duration|ease|delay|animate|cursor|select|resize|list|appearance|pointer-events|overflow|scroll|snap|object|items|justify|content|self|place|col|row|order|font|leading|tracking|decoration|whitespace|break|indent|align|fill|stroke|grid-cols|grid-rows|aspect|backdrop|filter|blur|brightness|contrast|grayscale|hue-rotate|invert|saturate|sepia|isolate|backface)-/;
+const TAILWIND_BARE_WORDS = new Set([
+  "flex",
+  "grid",
+  "table",
+  "block",
+  "inline",
+  "hidden",
+  "static",
+  "relative",
+  "absolute",
+  "fixed",
+  "sticky",
+  "transform",
+  "transition",
+  "italic",
+  "uppercase",
+  "lowercase",
+  "capitalize",
+  "underline",
+  "overline",
+  "no-underline",
+  "antialiased",
+  "truncate",
+  "container",
+  "group",
+  "peer",
+]);
+
+function looksTailwind(token: string): boolean {
+  if (!token) return true;
+  if (token.includes(":")) return true; // variant prefix (hover:, md:, etc.)
+  if (token.includes("[")) return true; // arbitrary-value syntax
+  if (token.includes("/")) return true; // size/opacity syntax (text-base/7, w-1/2)
+  if (TAILWIND_BARE_WORDS.has(token)) return true;
+  return TAILWIND_PREFIX_RE.test(token);
+}
+
+/** Known library-injected class names that won't appear in App.css and
+ *  aren't the model's responsibility (e.g., lucide-react adds `lucide`
+ *  and `lucide-camera` to every icon SVG). */
+function looksLibraryInjected(token: string): boolean {
+  return token === "lucide" || token.startsWith("lucide-");
+}
+
+/** Pull every static className token out of App.js. Handles three shapes:
+ *  literal `className="foo bar"`, template `className={\`foo bar\`}`,
+ *  and grouped string-only template (no interpolation). Dynamic
+ *  interpolations are stripped — we keep only the static-literal segments
+ *  so we don't false-positive on runtime-only class names. */
+function extractClassNamesFromJsx(appJs: string): Set<string> {
+  const out = new Set<string>();
+  // className="..." or className='...'
+  for (const m of appJs.matchAll(/\bclassName\s*=\s*["']([^"']+)["']/g)) {
+    for (const c of m[1].split(/\s+/)) if (c) out.add(c);
+  }
+  // className={`...`} — replace ${…} with a NUL sentinel so tokens that
+  // had a dynamic suffix/prefix (e.g. `btn--${variant}`) drop out
+  // entirely. Without this the static fragment `btn--` would be added
+  // and flagged as orphaned even though it's a runtime concatenation.
+  for (const m of appJs.matchAll(/\bclassName\s*=\s*\{\s*`([^`]+)`\s*\}/g)) {
+    const stripped = m[1].replace(/\$\{[^}]*\}/g, "\x00");
+    for (const c of stripped.split(/\s+/)) {
+      if (c && !c.includes("\x00")) out.add(c);
+    }
+  }
+  // className={"foo bar"} or className={'foo bar'} — bare string in expression.
+  for (const m of appJs.matchAll(/\bclassName\s*=\s*\{\s*["']([^"']+)["']\s*\}/g)) {
+    for (const c of m[1].split(/\s+/)) if (c) out.add(c);
+  }
+  return out;
+}
+
+/** Pull every class selector out of App.css. Matches `.foo` anywhere
+ *  in the stylesheet, including inside compound selectors (`.parent
+ *  .child`, `.foo.bar`, `.foo:hover`). Ignores `.foo` appearing inside
+ *  strings / comments because those are syntactically rare in CSS. */
+function extractClassNamesFromCss(appCss: string): Set<string> {
+  const out = new Set<string>();
+  // Strip /* … */ comments before matching.
+  const stripped = appCss.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const m of stripped.matchAll(/\.([a-zA-Z_][a-zA-Z0-9_-]*)/g)) {
+    out.add(m[1]);
+  }
+  return out;
+}
+
+/** Flag class names used in JSX that have no matching selector in App.css.
+ *  Catches "model renamed a wrapper class but forgot to add the CSS
+ *  rule" — exactly the failure mode where a kanban app rendered as
+ *  blank because the new `.app-shell` wrapper had no `display: flex`
+ *  rule and its children fell vertically. Tailwind utilities and
+ *  known library-injected names are skipped. Severity `info` — the
+ *  check is soft because dynamic class names will produce false
+ *  positives no static analysis can eliminate. */
+function findOrphanedClasses(appJs: string, appCss: string): AuditIssue[] {
+  if (!appJs || !appCss) return [];
+  const jsxClasses = extractClassNamesFromJsx(appJs);
+  if (jsxClasses.size === 0) return [];
+  const cssClasses = extractClassNamesFromCss(appCss);
+
+  const orphaned: string[] = [];
+  for (const cls of jsxClasses) {
+    if (looksTailwind(cls)) continue;
+    if (looksLibraryInjected(cls)) continue;
+    if (cssClasses.has(cls)) continue;
+    orphaned.push(cls);
+  }
+  if (orphaned.length === 0) return [];
+  orphaned.sort();
+  return [
+    {
+      severity: "info",
+      path: "App.js",
+      type: "orphaned-class",
+      message: `JSX uses class name(s) with no matching selector in App.css: ${orphaned.join(", ")}. These render as plain HTML — check for typos, recently-renamed wrappers, or stale code from before a refactor.`,
+    },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Score + main entrypoint
 // ---------------------------------------------------------------------------
@@ -617,6 +747,7 @@ export function auditDesign(files: Record<string, string>): AuditResult {
     ...findFocusNotKeyed(appCss, tokens),
     ...findLowContrast(appCss),
     ...findOffScaleSpacing(appCss, tokens),
+    ...findOrphanedClasses(appJs, appCss),
     ...findMissingAriaLabels(appJs),
     ...findMissingAlt(appJs),
     ...findHeadingOrder(appJs),

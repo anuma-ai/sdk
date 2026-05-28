@@ -433,4 +433,112 @@ body { background: var(--bg); color: var(--ink); }
     const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
     expect(findIssue(result, "off-scale-spacing")).toHaveLength(0);
   });
+
+  it("flags JSX class names that don't appear in App.css", () => {
+    // Models renaming a wrapper class in JSX but forgetting to add the
+    // corresponding CSS rule is exactly the failure mode that broke
+    // kanban step-5 — the page rendered blank because the new
+    // `.app-shell` had no `display: flex` rule.
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
+.app-root { display: flex; }
+.sidebar { width: 220px; }
+.main { flex: 1; }
+`;
+    const js = `function App() {
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">Boards</aside>
+      <div className="main">content</div>
+    </div>
+  );
+}`;
+    const result = auditDesign({ "App.js": js, "App.css": css });
+    const orphans = findIssue(result, "orphaned-class");
+    expect(orphans).toHaveLength(1);
+    expect(orphans[0].severity).toBe("info");
+    expect(orphans[0].message).toMatch(/app-shell/);
+    expect(orphans[0].message).not.toMatch(/sidebar/); // sidebar IS in CSS
+    expect(orphans[0].message).not.toMatch(/main/); //   main IS in CSS
+  });
+
+  it("does NOT flag Tailwind utility classes (CDN-injected, never in App.css)", () => {
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }`;
+    const js = `function App() {
+  return (
+    <div className="flex items-center justify-between p-4 gap-2">
+      <h1 className="text-2xl font-bold text-white">Title</h1>
+      <button className="bg-red-500 hover:bg-red-600 rounded-lg px-3 py-1">go</button>
+      <span className="bg-[var(--accent)] text-[14px]">arbitrary value</span>
+    </div>
+  );
+}`;
+    const result = auditDesign({ "App.js": js, "App.css": css });
+    expect(findIssue(result, "orphaned-class")).toHaveLength(0);
+  });
+
+  it("does NOT flag known library-injected class names (lucide, lucide-*)", () => {
+    // lucide-react renders SVGs with `class="lucide lucide-camera"` at
+    // runtime. The model never declares these in CSS — they're not its
+    // responsibility.
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }`;
+    const js = `function App() {
+  return (
+    <div className="lucide lucide-camera">icon</div>
+  );
+}`;
+    const result = auditDesign({ "App.js": js, "App.css": css });
+    expect(findIssue(result, "orphaned-class")).toHaveLength(0);
+  });
+
+  it("skips orphaned-class check when App.css is empty (Tailwind-only app)", () => {
+    const js = `function App() { return <div className="card">x</div>; }`;
+    const result = auditDesign({ "App.js": js, "App.css": "" });
+    expect(findIssue(result, "orphaned-class")).toHaveLength(0);
+  });
+
+  it("ignores dynamic interpolations in template literal className", () => {
+    // Static `btn` is in CSS, but `btn--${variant}` produces classes the
+    // regex can't statically resolve — we strip the interpolation and
+    // only check the static text. No false positive on `btn--`.
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
+.btn { background: var(--accent); }
+.btn--primary { color: white; }`;
+    const js = `function App({ variant }) {
+  return <button className={\`btn btn--\${variant}\`}>x</button>;
+}`;
+    const result = auditDesign({ "App.js": js, "App.css": css });
+    expect(findIssue(result, "orphaned-class")).toHaveLength(0);
+  });
+
+  it("detects BEM-style class names used in JSX but missing from CSS", () => {
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
+.card { padding: 8px; }
+.card__title { font-weight: 600; }`;
+    const js = `function App() {
+  return (
+    <div className="card">
+      <h2 className="card__title">x</h2>
+      <p className="card__subtitle">y</p>
+    </div>
+  );
+}`;
+    const result = auditDesign({ "App.js": js, "App.css": css });
+    const orphans = findIssue(result, "orphaned-class");
+    expect(orphans).toHaveLength(1);
+    expect(orphans[0].message).toMatch(/card__subtitle/);
+  });
+
+  it("ignores CSS-comment-only class declarations when matching", () => {
+    // A class commented out in App.css must NOT count as "declared" —
+    // the model would think the class exists when it doesn't.
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
+/* .legacy { display: none; } */`;
+    const js = `function App() {
+  return <div className="legacy">x</div>;
+}`;
+    const result = auditDesign({ "App.js": js, "App.css": css });
+    const orphans = findIssue(result, "orphaned-class");
+    expect(orphans).toHaveLength(1);
+    expect(orphans[0].message).toMatch(/legacy/);
+  });
 });
