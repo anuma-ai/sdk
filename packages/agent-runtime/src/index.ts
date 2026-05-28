@@ -20,7 +20,7 @@ export type {
   ToolErrorInfo,
 } from "./types.js";
 
-export { AuthError, ConnectorNotConnectedError } from "./errors.js";
+export { AuthError } from "./errors.js";
 export type { AuthErrorSubtype } from "./errors.js";
 
 export { extractGrantContext } from "./extractGrantContext.js";

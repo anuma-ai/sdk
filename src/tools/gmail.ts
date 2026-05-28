@@ -106,6 +106,25 @@ interface GmailSendResponse {
 }
 
 const GMAIL_BASE_URL = "https://gmail.googleapis.com/gmail/v1/users/me";
+const FETCH_TIMEOUT_MS = 30_000;
+
+/**
+ * Bare `fetch` would hang the agent loop indefinitely if Gmail goes
+ * unresponsive — mirror the GitHub tool's pattern and abort at 30s.
+ */
+async function gmailFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function gmailTimeoutError(operation: string): string {
+  return `Error: Gmail API request timed out after ${FETCH_TIMEOUT_MS / 1000}s while trying to ${operation}.`;
+}
 
 function findHeader(headers: GmailHeader[] | undefined, name: string): string | undefined {
   if (!headers) return undefined;
@@ -228,9 +247,17 @@ async function searchGmailMessages(
     q: args.query,
     maxResults: String(args.maxResults ?? 10),
   });
-  const response = await fetch(`${GMAIL_BASE_URL}/messages?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  let response: Response;
+  try {
+    response = await gmailFetch(`${GMAIL_BASE_URL}/messages?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return gmailTimeoutError("search messages");
+    }
+    throw err;
+  }
   if (!response.ok) {
     const connectorError = maybeConnectorError(response.status);
     if (connectorError) return connectorError;
@@ -252,10 +279,18 @@ async function getGmailMessage(
   args: GmailGetMessageArgs
 ): Promise<GmailMessageDetail | string> {
   const params = new URLSearchParams({ format: args.format ?? "full" });
-  const response = await fetch(
-    `${GMAIL_BASE_URL}/messages/${encodeURIComponent(args.messageId)}?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
+  let response: Response;
+  try {
+    response = await gmailFetch(
+      `${GMAIL_BASE_URL}/messages/${encodeURIComponent(args.messageId)}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return gmailTimeoutError("fetch message");
+    }
+    throw err;
+  }
   if (!response.ok) {
     const connectorError = maybeConnectorError(response.status);
     if (connectorError) return connectorError;
@@ -320,14 +355,22 @@ async function sendGmailMessage(
   args: GmailSendMessageArgs
 ): Promise<{ id: string; threadId: string } | string> {
   const raw = encodeBase64Url(buildRfc822(args));
-  const response = await fetch(`${GMAIL_BASE_URL}/messages/send`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ raw }),
-  });
+  let response: Response;
+  try {
+    response = await gmailFetch(`${GMAIL_BASE_URL}/messages/send`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ raw }),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return gmailTimeoutError("send message");
+    }
+    throw err;
+  }
   if (!response.ok) {
     const connectorError = maybeConnectorError(response.status);
     if (connectorError) return connectorError;
