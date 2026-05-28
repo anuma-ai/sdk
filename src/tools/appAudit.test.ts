@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { auditDesign } from "./appAudit.js";
+import { auditDesign, contrastRatio } from "./appAudit.js";
 
 function findIssue(result: ReturnType<typeof auditDesign>, type: string) {
   return result.issues.filter((i) => i.type === type);
@@ -260,5 +260,177 @@ body { background: var(--bg); }
 `;
     const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
     expect(findIssue(result, "raw-color")).toHaveLength(0);
+  });
+
+  // ---------------------------------------------------------------------
+  // Semantic checks: contrast math, focus rings keyed to tokens,
+  // spacing-scale adherence. The presence-based checks above catch "did
+  // the model declare a focus rule"; these catch "did the model use the
+  // system or game it with a one-off hardcoded value".
+  // ---------------------------------------------------------------------
+
+  it("contrastRatio computes WCAG luminance ratio correctly", () => {
+    // Black on white: 21:1 (max).
+    expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 0);
+    // #888 mid-grey on white: ~3.5:1 (a known AA-failing pairing).
+    expect(contrastRatio([136, 136, 136], [255, 255, 255])).toBeCloseTo(3.54, 1);
+    // Same color: 1:1.
+    expect(contrastRatio([100, 100, 100], [100, 100, 100])).toBeCloseTo(1, 5);
+  });
+
+  it("flags low-contrast --ink / --bg as a warn (fails AA but >= 3:1)", () => {
+    const css = `:root {
+  --bg: #ffffff;
+  --ink: #888888;
+  --accent: #b75432;
+}
+body { background: var(--bg); color: var(--ink); }
+.tag { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    const lc = findIssue(result, "low-contrast");
+    expect(lc).toHaveLength(1);
+    expect(lc[0].severity).toBe("warn");
+    expect(lc[0].message).toMatch(/3\.5/);
+    expect(lc[0].message).toMatch(/AA/);
+  });
+
+  it("escalates low-contrast to error when below 3:1", () => {
+    const css = `:root {
+  --bg: #ffffff;
+  --ink: #cccccc;
+  --accent: #b75432;
+}
+body { background: var(--bg); color: var(--ink); }
+.tag { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    const lc = findIssue(result, "low-contrast");
+    expect(lc).toHaveLength(1);
+    expect(lc[0].severity).toBe("error");
+  });
+
+  it("does not flag low-contrast when AA passes (>= 4.5:1)", () => {
+    const css = `:root { --bg: #ffffff; --ink: #111111; --accent: #b75432; }
+body { background: var(--bg); color: var(--ink); }
+.tag { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "low-contrast")).toHaveLength(0);
+  });
+
+  it("skips low-contrast check when --ink / --bg aren't simple hex", () => {
+    const css = `:root {
+  --bg: oklch(98% 0 0);
+  --ink: oklch(15% 0 0);
+  --accent: #b75432;
+}
+body { background: var(--bg); color: var(--ink); }
+.tag { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "low-contrast")).toHaveLength(0);
+  });
+
+  it("flags :focus-visible rules with hardcoded colors instead of design tokens", () => {
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
+.btn:focus-visible { outline: 2px solid #ff0000; }
+body { background: var(--bg); color: var(--ink); }
+.tag { background: var(--accent); }
+`;
+    const js = `function App() {
+  return (
+    <div>
+      <button>a</button>
+      <button>b</button>
+      <input value="x" />
+    </div>
+  );
+}`;
+    const result = auditDesign({ "App.js": js, "App.css": css });
+    const fk = findIssue(result, "focus-not-keyed");
+    expect(fk).toHaveLength(1);
+    expect(fk[0].severity).toBe("warn");
+    expect(fk[0].message).toMatch(/var\(--accent\)|design token/);
+  });
+
+  it("does not flag :focus-visible when it references any design token via var()", () => {
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
+.btn:focus-visible { outline: 2px solid var(--accent); }
+.input:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+body { background: var(--bg); color: var(--ink); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "focus-not-keyed")).toHaveLength(0);
+  });
+
+  it("skips focus-not-keyed when no color tokens are declared (different concern)", () => {
+    const css = `.btn:focus-visible { outline: 2px solid red; }`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "focus-not-keyed")).toHaveLength(0);
+  });
+
+  it("flags padding / margin / gap that doesn't match the declared spacing scale", () => {
+    const css = `:root {
+  --bg: #fff;
+  --ink: #111;
+  --accent: #b75432;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+}
+body { background: var(--bg); color: var(--ink); }
+.card { padding: 17px; gap: 8px; }
+.btn { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    const off = findIssue(result, "off-scale-spacing");
+    expect(off).toHaveLength(1);
+    expect(off[0].message).toMatch(/17px/);
+    expect(off[0].message).toMatch(/8px/); // mentions a scale value
+  });
+
+  it("does not flag off-scale-spacing when the value matches the scale", () => {
+    const css = `:root {
+  --bg: #fff;
+  --ink: #111;
+  --accent: #b75432;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+}
+body { background: var(--bg); color: var(--ink); }
+.card { padding: 8px 12px; }
+.btn { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "off-scale-spacing")).toHaveLength(0);
+  });
+
+  it("does not flag off-scale-spacing when the declaration uses var() or calc()", () => {
+    const css = `:root {
+  --bg: #fff;
+  --ink: #111;
+  --accent: #b75432;
+  --space-1: 4px;
+  --space-2: 8px;
+}
+body { background: var(--bg); color: var(--ink); }
+.card { padding: var(--space-2); margin: calc(var(--space-2) * 2); }
+.btn { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "off-scale-spacing")).toHaveLength(0);
+  });
+
+  it("skips off-scale-spacing entirely when no spacing scale is declared", () => {
+    const css = `:root { --bg: #fff; --ink: #111; --accent: #b75432; }
+body { background: var(--bg); color: var(--ink); }
+.card { padding: 17px; gap: 13px; margin: 9px; }
+.btn { background: var(--accent); }
+`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "off-scale-spacing")).toHaveLength(0);
   });
 });
