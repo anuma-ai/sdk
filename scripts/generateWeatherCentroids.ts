@@ -164,11 +164,14 @@ async function main() {
  *
  * At runtime the classifier only needs to embed the user prompt and compute
  * two cosine similarities — no reference phrase embedding calls needed.
+ *
+ * Note: depending on which floats land in this regen, ESLint's
+ * \`no-loss-of-precision\` rule may fire on the literal array below. If lint
+ * complains, add \`/* eslint-disable no-loss-of-precision *\\/\` above the
+ * \`export const\` line — but don't add it pre-emptively, because the
+ * \`reportUnusedDisableDirectives\` check will then fail when the regen happens
+ * to produce safe floats.
  */
-
-/* eslint-disable no-loss-of-precision -- floats serialized via JSON.stringify
-   may exceed JS Number precision in the last digit; that loss is below the
-   cosine-similarity noise floor at 4096 dimensions. */
 
 // prettier-ignore
 export const weatherCentroid: number[] = ${JSON.stringify(weatherCentroid)};
