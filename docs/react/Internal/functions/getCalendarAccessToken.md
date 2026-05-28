@@ -2,7 +2,7 @@
 
 > **getCalendarAccessToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#442)
+Defined in: [src/lib/auth/google-calendar.ts:450](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#450)
 
 Get a valid access token, refreshing if necessary
 

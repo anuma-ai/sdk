@@ -2,7 +2,7 @@
 
 > **startDriveAuth**(`clientId`: `string`, `callbackPath`: `string`): `Promise`<`never`>
 
-Defined in: [src/lib/auth/google-drive.ts:509](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#509)
+Defined in: [src/lib/auth/google-drive.ts:520](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#520)
 
 Start the OAuth flow - redirects to Google
 

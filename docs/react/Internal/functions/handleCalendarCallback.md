@@ -2,7 +2,7 @@
 
 > **handleCalendarCallback**(`callbackPath`: `string`, `apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:324](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#324)
+Defined in: [src/lib/auth/google-calendar.ts:332](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#332)
 
 Handle the OAuth callback - exchange code for tokens via backend
 
