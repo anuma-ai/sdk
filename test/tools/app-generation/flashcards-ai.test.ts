@@ -43,6 +43,7 @@ import {
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  closeSharedBrowser,
   writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
@@ -80,7 +81,10 @@ async function runTurn(messages: Message[], tools: any[], maxRounds = 8) {
 }
 
 describe("AI flashcard tutor (window.app.complete benchmark)", () => {
-  afterAll(() => writeIndex());
+  afterAll(async () => {
+    writeIndex();
+    await closeSharedBrowser();
+  });
 
   it.skipIf(!ENABLED)(
     "builds a flashcard app that uses window.app.complete for grading and content generation",

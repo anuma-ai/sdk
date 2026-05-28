@@ -29,6 +29,7 @@ import {
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  closeSharedBrowser,
   writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
@@ -107,7 +108,10 @@ async function runTurn(messages: Message[], tools: any[], maxRounds = 5) {
 }
 
 describe("precision-updates", () => {
-  afterAll(() => writeIndex());
+  afterAll(async () => {
+    writeIndex();
+    await closeSharedBrowser();
+  });
 
   it("change button color — should modify only color-related CSS lines", async () => {
     const store = createFileStore();

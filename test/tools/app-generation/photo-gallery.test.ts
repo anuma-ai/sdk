@@ -41,6 +41,7 @@ import {
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  closeSharedBrowser,
   writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
@@ -78,7 +79,10 @@ async function runTurn(messages: Message[], tools: any[], maxRounds = 20) {
 }
 
 describe("photo gallery (file upload benchmark)", () => {
-  afterAll(() => writeIndex());
+  afterAll(async () => {
+    writeIndex();
+    await closeSharedBrowser();
+  });
 
   it.skipIf(!ENABLED)(
     "builds a photo gallery with file upload, drag-and-drop, and CSS filters",

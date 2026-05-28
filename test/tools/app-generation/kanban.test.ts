@@ -40,6 +40,7 @@ import {
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  closeSharedBrowser,
   writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
@@ -77,7 +78,10 @@ async function runTurn(messages: Message[], tools: any[], maxRounds = 30) {
 }
 
 describe("kanban project board (sophisticated build + iterate)", () => {
-  afterAll(() => writeIndex());
+  afterAll(async () => {
+    writeIndex();
+    await closeSharedBrowser();
+  });
 
   it.skipIf(!ENABLED)(
     "builds and iteratively enhances a kanban board across five phases",

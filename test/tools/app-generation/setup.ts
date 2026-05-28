@@ -318,3 +318,158 @@ ${links.join("\n")}
   fs.writeFileSync(path.join(OUTPUT_DIR, "index.html"), html, "utf-8");
   console.log(`  Index written to ${path.relative(process.cwd(), OUTPUT_DIR)}/index.html`);
 }
+
+// ---------------------------------------------------------------------------
+// Playwright-backed verify_app implementation for benchmarks.
+//
+// The SDK's `verifyApp` host hook is normally wired by the chat app to its
+// Sandpack iframe. In benchmarks there's no Sandpack — we substitute a
+// headless Chromium that loads the current file store as `exportAppToHtml`
+// output and reports back whatever the browser captured.
+//
+// Catches the entire class of "Sonnet wrote code that doesn't run" — bad
+// imports, syntax the bundler rejects, runtime crashes after mount, etc.
+// — by actually running the code and listening for pageerror, console.error,
+// and the runtime overlay we ship inside exportAppToHtml.
+//
+// Browser is launched lazily on first verify call and reused across all
+// subsequent calls within the same vitest run. Each benchmark `afterAll`s
+// `closeSharedBrowser()` to release it.
+// ---------------------------------------------------------------------------
+
+type BrowserType = import("playwright").Browser;
+let sharedBrowser: BrowserType | null = null;
+let browserInitPromise: Promise<BrowserType | null> | null = null;
+
+async function getSharedBrowser(): Promise<BrowserType | null> {
+  if (sharedBrowser) return sharedBrowser;
+  if (browserInitPromise) return browserInitPromise;
+  browserInitPromise = (async () => {
+    try {
+      const { chromium } = await import("playwright");
+      if (!chromium.executablePath()) return null;
+      sharedBrowser = await chromium.launch();
+      return sharedBrowser;
+    } catch {
+      // Playwright not installed or Chromium binary missing — verifier
+      // degrades to the SDK's "host did not wire" fallback.
+      return null;
+    }
+  })();
+  return browserInitPromise;
+}
+
+/** Close the shared browser if it was launched. Call from each benchmark's
+ *  `afterAll` so process exit doesn't dangle a Chromium subprocess. */
+export async function closeSharedBrowser(): Promise<void> {
+  if (sharedBrowser) {
+    const b = sharedBrowser;
+    sharedBrowser = null;
+    browserInitPromise = null;
+    await b.close();
+  }
+}
+
+/**
+ * Build a `verifyApp` implementation closed over the given file store.
+ * Loads the current state via `exportAppToHtml`, navigates a fresh page
+ * to it, races a successful `#root` populate against the runtime
+ * overlay's appearance, returns the structured result.
+ *
+ * Returns `null` when Playwright isn't available — caller can pass
+ * undefined to `createAppGenerationTools`, which already degrades the
+ * `verify_app` tool to the "not wired" branch.
+ */
+export function createPlaywrightVerifier(
+  store: FileStore
+): () => Promise<{ rendered: boolean; errors: string[]; note?: string }> {
+  return async () => {
+    const browser = await getSharedBrowser();
+    if (!browser) {
+      return {
+        rendered: true,
+        errors: [],
+        note: "Playwright is not installed in this benchmark environment — verify_app is a no-op here.",
+      };
+    }
+    if (!store.has("App.js") && !store.has("App.jsx")) {
+      return {
+        rendered: false,
+        errors: [],
+        note: "No App.js / App.jsx in the file store yet — write the app first, then verify.",
+      };
+    }
+    const files: Record<string, string> = {};
+    for (const [p, c] of store) files[p] = c;
+    const html = exportAppToHtml({ files, windowAppShim: "" });
+
+    const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    page.on("console", (msg) => {
+      if (msg.type() === "error") errors.push(`console.error: ${msg.text()}`);
+    });
+
+    try {
+      await page.setContent(html, { waitUntil: "load" });
+      // Race: did the React app mount, or did the runtime overlay paint?
+      // The overlay is the explicit "I failed to mount" sentinel from
+      // appExport.ts; checking for it directly gives us a fast-fail path
+      // before the 10s rendered-timeout would expire.
+      const outcome = await Promise.race([
+        page
+          .waitForSelector('[data-anuma-error-overlay]', { timeout: 8000 })
+          .then(() => "overlay" as const)
+          .catch(() => null),
+        page
+          .waitForFunction(
+            () => {
+              const root = document.getElementById("root");
+              if (!root) return false;
+              // Treat the overlay itself as not-rendered.
+              if (root.querySelector("[data-anuma-error-overlay]")) return false;
+              return root.childNodes.length > 0;
+            },
+            { timeout: 8000 }
+          )
+          .then(() => "rendered" as const)
+          .catch(() => null),
+      ]);
+
+      if (outcome === "rendered") {
+        return { rendered: true, errors };
+      }
+      if (outcome === "overlay") {
+        // Pull the overlay's text — it's the error list painted by
+        // RUNTIME_ERROR_OVERLAY_SCRIPT — so the model sees the literal
+        // failure rather than a generic "did not mount."
+        const overlayText = await page
+          .locator('[data-anuma-error-overlay]')
+          .textContent()
+          .catch(() => null);
+        const overlayErrors = overlayText
+          ? overlayText
+              .replace(/Runtime error.*?did not mount/i, "")
+              .replace(/Common causes:[\s\S]*$/, "")
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
+        const merged = [...new Set([...errors, ...overlayErrors])];
+        return {
+          rendered: false,
+          errors: merged.length ? merged : ["app failed to mount; no error message captured"],
+        };
+      }
+      // Neither outcome resolved — timeout.
+      return {
+        rendered: false,
+        errors: errors.length
+          ? errors
+          : ["app did not mount within 8s and no runtime error was captured"],
+      };
+    } finally {
+      await page.close();
+    }
+  };
+}

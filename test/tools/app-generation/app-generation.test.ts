@@ -22,6 +22,7 @@ import {
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  closeSharedBrowser,
   writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
@@ -76,7 +77,10 @@ function makeMessages(userText: string, systemPrompt?: string) {
 }
 
 describe("app-generation", () => {
-  afterAll(() => writeIndex());
+  afterAll(async () => {
+    writeIndex();
+    await closeSharedBrowser();
+  });
 
   it("generates a multi-file React app with batch create_file", async () => {
     const store = createFileStore();
