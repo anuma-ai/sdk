@@ -112,6 +112,45 @@ export const RUNTIME_ERROR_OVERLAY_SCRIPT = `// Runtime error overlay — surfac
   }
 })();`;
 
+/**
+ * Baseline CSS that defines what the model can assume about the preview
+ * environment — applied before `App.css` in both `exportAppToHtml`'s
+ * standalone output and the chat host's Sandpack iframe template.
+ *
+ * Why this exists: the model writes CSS targeting component classes
+ * (`.app-shell`, `.card`) but rarely resets the surrounding `html` /
+ * `body` chrome. In environments without a preflight (Sandpack's bare
+ * iframe), browser defaults leak through — the visible symptom is the
+ * 8 px `body` margin everyone notices, but the same root cause produces
+ * `content-box` sizing surprises, Times-serif fallback on stray text
+ * outside styled wrappers, and `<img>` baseline gaps. Tailwind's
+ * preflight solves it at scale in environments that bundle Tailwind;
+ * we provide the minimal equivalent for environments that don't.
+ *
+ * Design rules:
+ *
+ *   - Only fix actual leaks (rules that surface as visible bugs).
+ *     Don't ship a maximal reset like normalize.css — every entry here
+ *     should be defensible as "the model would have to fight this
+ *     default anyway."
+ *   - Loaded BEFORE the model's `App.css`. CSS specificity ties go to
+ *     the later-loaded rule, so the model's CSS still wins on every
+ *     property it sets. The baseline only provides defaults for what
+ *     the model didn't set.
+ *   - Stays in sync between `exportAppToHtml` (standalone download)
+ *     and the host's Sandpack template (chat preview). Single source
+ *     of truth so the two environments render identically.
+ */
+export const APP_PREVIEW_BASELINE_CSS = `*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; min-height: 100%; }
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+img, picture, video, canvas, svg { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; }`;
+
 /** Stub for `window.app.complete` that returns canned responses based on
  *  keyword detection. Used when no real LLM backend is available — keeps
  *  the visual preview interactive enough to demo. The default value of
@@ -209,6 +248,7 @@ export function exportAppToHtml(options: ExportAppOptions): string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapedTitle}</title>${tailwind ? `\n  <script src="https://cdn.tailwindcss.com"></script>` : ""}
+  <style>${APP_PREVIEW_BASELINE_CSS}</style>
   <style>${safeCss}</style>
   <script type="importmap">
 ${importMap}

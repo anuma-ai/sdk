@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   APP_COMPLETE_IFRAME_SHIM_SCRIPT,
   APP_COMPLETE_STUB_SCRIPT,
+  APP_PREVIEW_BASELINE_CSS,
   exportAppToHtml,
   RUNTIME_ERROR_OVERLAY_SCRIPT,
 } from "./index.js";
@@ -68,8 +69,13 @@ export default function App() {
         "App.css": '.x { content: "</style>oops"; }',
       },
     });
+    // The injected `</style>` from App.css must be escaped.
     expect(html).toContain("<\\/style>");
-    expect(html.match(/<\/style>/g)?.length).toBe(1);
+    // Exactly two real closing `</style>` tags survive — one for the
+    // APP_PREVIEW_BASELINE_CSS block, one for the App.css block. The
+    // escaped `</style>` injected via the model's content shouldn't
+    // count as a real tag.
+    expect(html.match(/<\/style>/g)?.length).toBe(2);
   });
 
   it("strips `import './App.css';` from the JS (CSS is inlined)", () => {
@@ -276,5 +282,30 @@ export default App;
     expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*import\s/m);
     expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*export\s/m);
     expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*await\s/m);
+  });
+
+  it("injects APP_PREVIEW_BASELINE_CSS before the user's App.css", () => {
+    // The model's CSS must override the baseline on equal specificity,
+    // which means the baseline has to load FIRST. If a future refactor
+    // accidentally moves App.css before the baseline, the model's body
+    // colors / fonts would be silently undone — this test catches that.
+    const html = exportAppToHtml({
+      files: { "App.js": trivialApp, "App.css": "body { margin: 100px; }" },
+    });
+    const baselineIdx = html.indexOf(APP_PREVIEW_BASELINE_CSS);
+    const appCssIdx = html.indexOf("body { margin: 100px; }");
+    expect(baselineIdx).toBeGreaterThan(0);
+    expect(appCssIdx).toBeGreaterThan(0);
+    expect(baselineIdx).toBeLessThan(appCssIdx);
+  });
+
+  it("APP_PREVIEW_BASELINE_CSS resets the leaks we actually care about", () => {
+    // Sanity-check the contents so a refactor doesn't silently delete
+    // the rules that fix the body-margin / box-sizing / serif-fallback
+    // leaks. If a baseline rule is dropped, the model's apps regress
+    // visually in environments without Tailwind preflight.
+    expect(APP_PREVIEW_BASELINE_CSS).toMatch(/box-sizing:\s*border-box/);
+    expect(APP_PREVIEW_BASELINE_CSS).toMatch(/body[^{]*\{[^}]*margin:\s*0/);
+    expect(APP_PREVIEW_BASELINE_CSS).toMatch(/font-family:[^;]*system-ui/);
   });
 });

@@ -168,6 +168,7 @@ export {
 export type { ExportAppOptions } from "./appExport";
 export {
   APP_COMPLETE_STUB_SCRIPT,
+  APP_PREVIEW_BASELINE_CSS,
   exportAppToHtml,
   RUNTIME_ERROR_OVERLAY_SCRIPT,
 } from "./appExport";

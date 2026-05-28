@@ -316,6 +316,43 @@ export default function App() {
     expect(errors, errors.join("\n")).toEqual([]);
   }, 30_000);
 
+  it("preview environment ships a baseline reset — body margin is 0, box-sizing is border-box", async () => {
+    // Sandpack-style bare iframes have no Tailwind preflight, so every
+    // browser default leaks unless we ship a baseline. The visible
+    // symptom is the 8 px body margin; the same fix also resolves
+    // content-box surprises and Times-serif fallback. This test would
+    // fail if the baseline were dropped from exportAppToHtml's template
+    // or if App.css were loaded before it (model rules overriding the
+    // baseline on equal specificity).
+    const app = `import React from 'react';
+export default function App() {
+  return <div id="x">x</div>;
+}
+`;
+    const html = exportAppToHtml({
+      files: { "App.js": app },
+      tailwind: false, // Force the path where the baseline is the only reset.
+      windowAppShim: "",
+    });
+    const { page } = await load(html, "baseline.html");
+    await page.waitForSelector("#x", { timeout: 15_000 });
+    const computed = await page.evaluate(() => {
+      const body = document.body;
+      const x = document.getElementById("x")!;
+      const cs = getComputedStyle(body);
+      return {
+        bodyMargin: cs.margin,
+        bodyBoxSizing: getComputedStyle(x).boxSizing,
+        bodyFontFamily: cs.fontFamily,
+      };
+    });
+    expect(computed.bodyMargin).toBe("0px");
+    expect(computed.bodyBoxSizing).toBe("border-box");
+    // Just sanity-check it's NOT the browser default Times serif. The
+    // exact stack varies by OS so don't assert the full string.
+    expect(computed.bodyFontFamily.toLowerCase()).not.toMatch(/times/);
+  }, 30_000);
+
   it("does NOT paint the overlay when the React app mounts successfully", async () => {
     // Regression guard: a working app produces zero overlay even if
     // unrelated noise lands on console.error or a non-fatal warning
