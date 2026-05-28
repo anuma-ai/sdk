@@ -1,3 +1,4 @@
+import type { StreamingTransport, StreamingTransportResult } from "@anuma/sdk/server";
 import { createGmailTools } from "@anuma/sdk/tools";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
@@ -337,5 +338,55 @@ describe("agent-runtime e2e", () => {
 
     expect(result.toolErrors).toHaveLength(0);
     expect(stub.mintCount).toBe(1);
+  });
+
+  test("prepends the agent system prompt to the LLM request", async () => {
+    stub = await startStubPortal({
+      grants: { [HAVEN_BEARER]: havenGrant },
+      credentials: { [havenGrant.userAddress]: [] },
+    });
+
+    // Capture the request body the loop sends; one-shot assistant reply.
+    const requestBodies: Array<Record<string, unknown>> = [];
+    const transport: StreamingTransport = (options): StreamingTransportResult => {
+      requestBodies.push(options.body);
+      const stream = (async function* () {
+        yield {
+          id: "chunk-1",
+          choices: [{ index: 0, delta: { content: "Hello from Haven." } }],
+        };
+        yield {
+          id: "chunk-2",
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+        };
+      })();
+      return { stream };
+    };
+
+    const inputMessages = [
+      { role: "user" as const, content: [{ type: "text" as const, text: "hi" }] },
+    ];
+    const result = await runAgentRequest({
+      request: mockReq(HAVEN_BEARER),
+      agent: havenAgent,
+      messages: inputMessages,
+      portalClientOpts: { baseUrl: stub.url, maxRetries: 1, retryBaseMs: 1 },
+      transport,
+      apiType: "completions",
+    });
+
+    const sentMessages = requestBodies[0].messages as Array<{
+      role: string;
+      content: Array<{ type: string; text: string }>;
+    }>;
+    expect(sentMessages[0]).toEqual({
+      role: "system",
+      content: [{ type: "text", text: havenAgent.prompt }],
+    });
+    expect(sentMessages[1]).toEqual(inputMessages[0]);
+    // The caller-facing message history should NOT include the synthesized
+    // system prompt — only the messages the caller submitted plus the
+    // assistant reply.
+    expect(result.messages[0]).toEqual(inputMessages[0]);
   });
 });

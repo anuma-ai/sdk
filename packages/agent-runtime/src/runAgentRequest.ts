@@ -131,7 +131,8 @@ export function extractConnectorToolErrors(
 ): ToolError[] {
   if (!toolResults) return [];
   const errors: ToolError[] = [];
-  for (const entry of toolResults) {
+  for (let idx = 0; idx < toolResults.length; idx++) {
+    const entry = toolResults[idx];
     if (typeof entry.result !== "string") continue;
     let parsed: unknown;
     try {
@@ -141,9 +142,12 @@ export function extractConnectorToolErrors(
       continue;
     }
     if (!isConnectorErrorPayload(parsed)) continue;
+    // `callId` mirrors the synthesized tool_call_id used in
+    // `buildResponseMessages` (`call_<idx>`), so consumers can correlate
+    // a `ToolError` back to its tool-role message in `AgentResponse.messages`.
     errors.push({
       toolName: entry.name,
-      callId: "",
+      callId: `call_${idx}`,
       error: {
         code: parsed.code,
         provider: parsed.provider,
@@ -251,8 +255,16 @@ export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResp
 
   const tools = (opts.toolFactories ?? []).flatMap((factory) => factory(portal));
 
+  // Prepend the agent's system prompt so every LLM call carries the
+  // agent persona. Callers may also include their own system messages
+  // — those are preserved verbatim after this one.
+  const loopMessages: LlmapiMessage[] = [
+    { role: "system", content: [{ type: "text", text: opts.agent.prompt }] },
+    ...opts.messages,
+  ];
+
   const loopResult = await runToolLoop({
-    messages: opts.messages,
+    messages: loopMessages,
     model: opts.agent.model.default,
     token: grant.bearer,
     tools,

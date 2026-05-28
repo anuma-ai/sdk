@@ -18,5 +18,5 @@ export type {
   ConnectorTokenSource,
 } from "./client.js";
 export { createConnectorTokenGetter } from "./client.js";
-export type { ConnectorErrorCode, ConnectorErrorPayload } from "./errors.js";
+export type { ConnectorErrorCode } from "./errors.js";
 export { buildConnectorErrorResult, CONNECTOR_ERROR_MARKER } from "./errors.js";

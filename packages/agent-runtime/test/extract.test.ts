@@ -14,7 +14,9 @@ describe("extractConnectorToolErrors", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]).toEqual({
       toolName: "gmail_search_messages",
-      callId: "",
+      // Synthesized from the tool-result index so it matches the
+      // `tool_call_id` on the corresponding tool-role message.
+      callId: "call_0",
       error: {
         code: "connector_not_connected",
         provider: "gmail",
@@ -23,6 +25,30 @@ describe("extractConnectorToolErrors", () => {
         required: undefined,
       },
     });
+  });
+
+  test("assigns each error a callId matching its tool-result index", () => {
+    const a = buildConnectorErrorResult("connector_not_connected", "gmail", "u1");
+    const b = buildConnectorErrorResult("scope_not_covered", "gdrive", "u2");
+    const errors = extractConnectorToolErrors([
+      { name: "gmail_search_messages", result: a },
+      { name: "gdrive_search", result: b },
+    ]);
+    expect(errors).toHaveLength(2);
+    expect(errors[0].callId).toBe("call_0");
+    expect(errors[1].callId).toBe("call_1");
+  });
+
+  test("preserves the result index even when non-error entries sit between connector errors", () => {
+    const err = buildConnectorErrorResult("connector_not_connected", "gmail", "u1");
+    const errors = extractConnectorToolErrors([
+      { name: "noise", result: "plain text" },
+      { name: "gmail_search_messages", result: err },
+    ]);
+    expect(errors).toHaveLength(1);
+    // Index 1 in the input array — not 0 — so consumers can correlate
+    // back to the matching tool-role message.
+    expect(errors[0].callId).toBe("call_1");
   });
 
   test("skips results without the canonical marker", () => {

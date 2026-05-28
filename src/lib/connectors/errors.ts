@@ -23,8 +23,10 @@ export type ConnectorErrorCode =
 /** Marker key that distinguishes a connector error from any other tool JSON. */
 export const CONNECTOR_ERROR_MARKER = "__anuma_connector_error_v1" as const;
 
-/** Shape produced by `buildConnectorErrorResult`. */
-export interface ConnectorErrorPayload {
+/** Shape produced by `buildConnectorErrorResult`. Internal — consumers
+ *  should treat the canonical JSON as opaque and rely on
+ *  `extractConnectorToolErrors` to parse it. */
+interface ConnectorErrorPayload {
   __anuma_connector_error_v1: true;
   code: ConnectorErrorCode;
   provider: string;

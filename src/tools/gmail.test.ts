@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { createGmailTools } from "./gmail.js";
+import { connectorMintErrorToToolResult, createGmailTools } from "./gmail.js";
 
 type ToolResult = unknown;
 
@@ -124,6 +124,29 @@ describe("createGmailTools", () => {
     })) as string;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     expect(parsed.code).toBe("connector_not_connected");
+  });
+
+  test("connectorMintErrorToToolResult uses the supplied provider for variants without one", () => {
+    const raw = connectorMintErrorToToolResult(
+      { code: "insufficient_scope", required: "connector:gdrive:read" },
+      "gdrive"
+    );
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect(parsed).toEqual({
+      __anuma_connector_error_v1: true,
+      code: "insufficient_scope",
+      provider: "gdrive",
+    });
+  });
+
+  test("connectorMintErrorToToolResult preserves the embedded provider for variants that carry one", () => {
+    const raw = connectorMintErrorToToolResult(
+      { code: "connector_not_connected", provider: "gmail", connectUrl: "https://x/connect" },
+      "ignored"
+    );
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect(parsed.provider).toBe("gmail");
+    expect(parsed.connect_url).toBe("https://x/connect");
   });
 
   test("surfaces non-connector Gmail errors as raw error strings", async () => {

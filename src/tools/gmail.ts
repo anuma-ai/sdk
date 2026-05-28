@@ -120,13 +120,16 @@ function decodeBase64Url(data: string): string {
   const withPad = padded + "=".repeat(padLen);
   if (typeof atob === "function") {
     try {
-      return decodeURIComponent(escape(atob(withPad)));
+      // Decode bytes via TextDecoder — `escape`/`unescape` are deprecated and
+      // missing from Web Workers in some environments.
+      const binary = atob(withPad);
+      const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
     } catch {
       return atob(withPad);
     }
   }
   // Node fallback for server agents — Buffer is always available there.
-
   return globalThis.Buffer ? globalThis.Buffer.from(withPad, "base64").toString("utf-8") : withPad;
 }
 
@@ -189,20 +192,27 @@ function maybeConnectorError(status: number): string | null {
  * `onNotConnected` opt is the place to translate `ConnectorMintError`. Exported
  * so future tool factories can share the helper without duplicating the
  * code → error-string mapping.
+ *
+ * @param err      The mint error returned by the portal client.
+ * @param provider Logical provider name (`"gmail"`, `"gdrive"`, ...) used for
+ *                 error variants that don't carry their own provider field
+ *                 (`insufficient_scope`, `upstream_unavailable`, `unknown`).
+ *                 Required so non-Gmail tool factories don't emit
+ *                 `provider: "gmail"` by accident.
  */
-export function connectorMintErrorToToolResult(err: ConnectorMintError): string {
+export function connectorMintErrorToToolResult(err: ConnectorMintError, provider: string): string {
   switch (err.code) {
     case "connector_not_connected":
       return buildConnectorErrorResult("connector_not_connected", err.provider, err.connectUrl);
     case "scope_not_covered":
       return buildConnectorErrorResult("scope_not_covered", err.provider, err.connectUrl);
     case "insufficient_scope":
-      return buildConnectorErrorResult("insufficient_scope", GMAIL_PROVIDER);
+      return buildConnectorErrorResult("insufficient_scope", provider);
     case "upstream_unavailable":
-      return buildConnectorErrorResult("upstream_unavailable", GMAIL_PROVIDER);
+      return buildConnectorErrorResult("upstream_unavailable", provider);
     case "unknown":
     default:
-      return buildConnectorErrorResult("upstream_unavailable", GMAIL_PROVIDER);
+      return buildConnectorErrorResult("upstream_unavailable", provider);
   }
 }
 
@@ -275,10 +285,12 @@ function buildRfc822(args: GmailSendMessageArgs): string {
 
 function encodeBase64Url(input: string): string {
   if (typeof btoa === "function") {
-    return btoa(unescape(encodeURIComponent(input)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+    // TextEncoder is the standard replacement for the deprecated `unescape`
+    // trick; emits the correct UTF-8 bytes before base64 encoding.
+    const bytes = new TextEncoder().encode(input);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
   return globalThis.Buffer
     ? globalThis.Buffer.from(input, "utf-8")
