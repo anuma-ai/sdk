@@ -166,7 +166,11 @@ export {
   installAppCompleteIframeShim,
 } from "./appCompleteBridge";
 export type { ExportAppOptions } from "./appExport";
-export { APP_COMPLETE_STUB_SCRIPT, exportAppToHtml } from "./appExport";
+export {
+  APP_COMPLETE_STUB_SCRIPT,
+  exportAppToHtml,
+  RUNTIME_ERROR_OVERLAY_SCRIPT,
+} from "./appExport";
 export type {
   AnchorMatch,
   AppFileRecord,

@@ -235,4 +235,76 @@ export default function App() {
     expect(svgCount).toBe(3);
     expect(errors, errors.join("\n")).toEqual([]);
   }, 45_000);
+
+  it("runtime error overlay surfaces hallucinated import names instead of leaving a blank page", async () => {
+    // This is exactly the kanban regression the user found by opening
+    // the file: model imports an icon that doesn't exist
+    // (`LayoutKanban` is not in lucide-react 0.263.1). Without the
+    // overlay, the module fails to load, React never mounts, the
+    // preview is a blank rectangle in whatever color the body has.
+    // With the overlay, the user sees a visible banner naming the
+    // failure.
+    const app = `import React from 'react';
+import { LayoutKanban } from 'lucide-react';
+export default function App() {
+  return <div id="hello"><LayoutKanban /></div>;
+}
+`;
+    const pkg = JSON.stringify({
+      dependencies: {
+        react: "^18.2.0",
+        "react-dom": "^18.2.0",
+        "lucide-react": "^0.263.1",
+      },
+    });
+    const html = exportAppToHtml({
+      files: { "App.js": app, "package.json": pkg },
+      tailwind: false,
+      windowAppShim: "",
+    });
+    // Don't reuse the standard `load` helper here — it surfaces page
+    // errors as test failures, but this test expects an error.
+    const file = `${workDir}/overlay-fail.html`;
+    require("node:fs").writeFileSync(file, html, "utf-8");
+    const page = await browser.newPage();
+    // Silence the expected pageerror so it doesn't pollute the
+    // run output — we'll verify the overlay rendered instead.
+    page.on("pageerror", () => undefined);
+    await page.goto(`file://${file}`);
+    // The overlay schedules itself for 3 s after load — give it a beat
+    // longer to settle.
+    await page.waitForSelector("[data-anuma-error-overlay]", { timeout: 8000 });
+    const text = await page.textContent("[data-anuma-error-overlay]");
+    expect(text).toMatch(/Runtime error/);
+    expect(text).toMatch(/LayoutKanban/);
+    // Sanity: the original React tree never mounted; the only thing
+    // in #root is the overlay itself.
+    const rootChildren = await page.locator("#root > *").count();
+    expect(rootChildren).toBe(1);
+  }, 30_000);
+
+  it("does NOT paint the overlay when the React app mounts successfully", async () => {
+    // Regression guard: a working app produces zero overlay even if
+    // unrelated noise lands on console.error or a non-fatal warning
+    // fires. The check is "is #root empty after the grace period?".
+    const app = `import React from 'react';
+export default function App() {
+  // Fire and forget — a warning should not trigger the overlay.
+  console.warn("benign warning");
+  return <h1 id="ok">mounted</h1>;
+}
+`;
+    const html = exportAppToHtml({
+      files: { "App.js": app },
+      tailwind: false,
+      windowAppShim: "",
+    });
+    const { page } = await load(html, "overlay-pass.html");
+    await page.waitForSelector("#ok", { timeout: 15_000 });
+    // Wait past the overlay's 3s grace window so we'd notice if it
+    // mis-fires.
+    await page.waitForTimeout(3500);
+    const overlayCount = await page.locator("[data-anuma-error-overlay]").count();
+    expect(overlayCount).toBe(0);
+  }, 30_000);
 });

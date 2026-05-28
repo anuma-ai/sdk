@@ -44,11 +44,79 @@
  * ```
  */
 
+/**
+ * Inline JS that buffers any `error` / `unhandledrejection` event on the
+ * window and, if `#root` is still empty after the React app has had time
+ * to mount, paints a visible error banner into the page. Without this,
+ * an unhandled import or render error leaves the user staring at the
+ * body background color with no indication of what went wrong (the
+ * exact failure mode we just shipped: ESM `LayoutKanban` did not
+ * exist; React never mounted; preview was a blank navy rectangle).
+ *
+ * Buffer-then-check pattern: errors are recorded as they fire, but the
+ * overlay only paints when `#root.childNodes.length === 0` after a
+ * load+grace window. That means errors thrown by a successfully-
+ * mounted app (e.g. user clicks a button that throws) never trigger
+ * the overlay — they belong in the console and the app handles its
+ * own UI. The grace covers Babel-standalone compilation time + ESM
+ * resolver round-trips, which empirically takes 1-3s.
+ *
+ * Written in ES5 with no fancy syntax — runs in a plain `<script>`
+ * (not module mode), so even very old browsers parse it.
+ */
+export const RUNTIME_ERROR_OVERLAY_SCRIPT = `// Runtime error overlay — surfaces a visible banner when the app fails
+// to mount. See RUNTIME_ERROR_OVERLAY_SCRIPT docstring for design.
+(function () {
+  var errors = [];
+  function record(label, message) {
+    errors.push(label + ": " + message);
+  }
+  window.addEventListener("error", function (e) {
+    record("Error", (e.error && e.error.message) || e.message || String(e));
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    var msg = (e.reason && (e.reason.message || String(e.reason))) || "unknown";
+    record("Unhandled rejection", msg);
+  });
+  function paint() {
+    var root = document.getElementById("root");
+    if (!root) return;
+    if (root.childNodes.length > 0) return;
+    if (errors.length === 0) return;
+    var box = document.createElement("div");
+    box.setAttribute("data-anuma-error-overlay", "");
+    box.style.cssText = "position:fixed;inset:0;background:#1a0c0c;color:#ffb4b4;font:14px/1.5 ui-monospace,Menlo,monospace;padding:24px;overflow:auto;z-index:99999";
+    var h = document.createElement("h2");
+    h.textContent = "Runtime error — the React app did not mount";
+    h.style.cssText = "color:#ff8080;margin:0 0 16px;font-size:16px;font-weight:600";
+    box.appendChild(h);
+    for (var i = 0; i < errors.length; i++) {
+      var p = document.createElement("p");
+      p.textContent = errors[i];
+      p.style.cssText = "margin:0 0 10px;white-space:pre-wrap;font-family:inherit";
+      box.appendChild(p);
+    }
+    var hint = document.createElement("p");
+    hint.textContent = "Common causes: an imported export name that doesn't exist in the package, a syntax error in App.js, a missing dependency in package.json, or a network failure loading a CDN module.";
+    hint.style.cssText = "margin:18px 0 0;color:#a08080;font-size:12px;line-height:1.55";
+    box.appendChild(hint);
+    root.appendChild(box);
+  }
+  function schedule() {
+    setTimeout(paint, 3000);
+  }
+  if (document.readyState === "complete") {
+    schedule();
+  } else {
+    window.addEventListener("load", schedule);
+  }
+})();`;
+
 /** Stub for `window.app.complete` that returns canned responses based on
  *  keyword detection. Used when no real LLM backend is available — keeps
  *  the visual preview interactive enough to demo. The default value of
  *  `ExportAppOptions.windowAppShim`. */
-export const APP_COMPLETE_STUB_SCRIPT = `// Offline stub for window.app.complete — returns canned responses so the
+export const APP_COMPLETE_STUB_SCRIPT =`// Offline stub for window.app.complete — returns canned responses so the
 // preview is interactive without a real backend. Replace by passing
 // windowAppShim to exportAppToHtml (e.g. APP_COMPLETE_IFRAME_SHIM_SCRIPT
 // for parent-iframe postMessage bridging) or by overwriting at runtime.
@@ -147,7 +215,10 @@ ${importMap}
   </script>
 </head>
 <body>
-  <div id="root"></div>${windowAppShim ? `\n  <script>\n${windowAppShim}\n  </script>` : ""}
+  <div id="root"></div>
+  <script>
+${RUNTIME_ERROR_OVERLAY_SCRIPT}
+  </script>${windowAppShim ? `\n  <script>\n${windowAppShim}\n  </script>` : ""}
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="text/babel" data-type="module" data-presets="react">
 ${jsClean}

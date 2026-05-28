@@ -11,6 +11,7 @@ import {
   APP_COMPLETE_IFRAME_SHIM_SCRIPT,
   APP_COMPLETE_STUB_SCRIPT,
   exportAppToHtml,
+  RUNTIME_ERROR_OVERLAY_SCRIPT,
 } from "./index.js";
 
 describe("exportAppToHtml", () => {
@@ -219,5 +220,26 @@ export default App;
     expect(APP_COMPLETE_STUB_SCRIPT).toContain("window.app");
     expect(APP_COMPLETE_STUB_SCRIPT).toContain("complete");
     expect(APP_COMPLETE_STUB_SCRIPT.length).toBeGreaterThan(100);
+  });
+
+  it("includes the runtime error overlay inline in the body", () => {
+    const html = exportAppToHtml({ files: { "App.js": trivialApp } });
+    // The overlay constant lands literally in the output.
+    expect(html).toContain(RUNTIME_ERROR_OVERLAY_SCRIPT);
+    // Sentinel attribute so the browser smoke test can find the
+    // injected overlay element by query selector.
+    expect(html).toContain('data-anuma-error-overlay');
+    // Both error sources are wired.
+    expect(html).toContain('"error"');
+    expect(html).toContain('"unhandledrejection"');
+  });
+
+  it("RUNTIME_ERROR_OVERLAY_SCRIPT is plain ES5 with no module syntax", () => {
+    // The overlay runs in a regular `<script>` (not module mode) so
+    // it has to parse in every browser. Catch a regression where
+    // someone adds `import` / `export` / `await` at top level.
+    expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*import\s/m);
+    expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*export\s/m);
+    expect(RUNTIME_ERROR_OVERLAY_SCRIPT).not.toMatch(/^\s*await\s/m);
   });
 });
