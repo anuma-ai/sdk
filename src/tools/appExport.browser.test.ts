@@ -283,6 +283,39 @@ export default function App() {
     expect(rootChildren).toBe(1);
   }, 30_000);
 
+  it("hooks-only import works at runtime (auto-prepended React default)", async () => {
+    // The benchmark sweep just surfaced this regression via the
+    // overlay: Sonnet routinely writes `import { useState } from
+    // "react"` without the default React import, and Babel-
+    // standalone's classic JSX runtime needs `React` in scope. The
+    // exporter auto-prepends; this test proves the prepend is enough
+    // to make a hooks-only App.js mount and react to clicks.
+    const app = `import { useState } from 'react';
+import './App.css';
+
+export default function App() {
+  const [n, setN] = useState(0);
+  return (
+    <div>
+      <h1 id="value">{n}</h1>
+      <button id="inc" onClick={() => setN(n + 1)}>+</button>
+    </div>
+  );
+}
+`;
+    const html = exportAppToHtml({
+      files: { "App.js": app, "App.css": "" },
+      tailwind: false,
+      windowAppShim: "",
+    });
+    const { page, errors } = await load(html, "hooks-only.html");
+    await page.waitForSelector("#value", { timeout: 15_000 });
+    expect(await page.textContent("#value")).toBe("0");
+    await page.click("#inc");
+    expect(await page.textContent("#value")).toBe("1");
+    expect(errors, errors.join("\n")).toEqual([]);
+  }, 30_000);
+
   it("does NOT paint the overlay when the React app mounts successfully", async () => {
     // Regression guard: a working app produces zero overlay even if
     // unrelated noise lands on console.error or a non-fatal warning

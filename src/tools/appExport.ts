@@ -274,17 +274,31 @@ function stripVersionRange(v: string): string {
  *     a trailing `export default App;`, so the boot line we append at
  *     the end of the script can reference `App` as a local binding
  *     (defaults aren't exposed by their own identifier in module scope
- *     when written as `export default function() {}`).
+ *     when written as `export default function() {}`);
+ *   - ensure `React` is imported. Babel-standalone's `react` preset
+ *     defaults to the classic JSX runtime, which compiles `<div />` to
+ *     `React.createElement(...)` and requires `React` to be in scope.
+ *     Modern apps that only `import { useState } from "react"` would
+ *     throw `React is not defined` without this. Prepend a default
+ *     React import iff none is already present.
  */
 function normalizeForModule(js: string): string {
-  return (
-    js
-      // Strip CSS imports — content is already inlined in <style>.
-      .replace(/^import\s+['"]\.\/App\.css['"];?\s*$/gm, "")
-      // `export default function App` → `function App` (keep the name
-      // available as a local binding for the boot line below).
-      .replace(/^export\s+default\s+function\s+/gm, "function ")
-      // Drop a trailing `export default App;` style line.
-      .replace(/^export\s+default\s+\w+;\s*$/gm, "")
-  );
+  let out = js
+    // Strip CSS imports — content is already inlined in <style>.
+    .replace(/^import\s+['"]\.\/App\.css['"];?\s*$/gm, "")
+    // `export default function App` → `function App` (keep the name
+    // available as a local binding for the boot line below).
+    .replace(/^export\s+default\s+function\s+/gm, "function ")
+    // Drop a trailing `export default App;` style line.
+    .replace(/^export\s+default\s+\w+;\s*$/gm, "");
+
+  // Add `import React from "react";` at the top iff the source doesn't
+  // already bring React into scope under that identifier. Anchored on
+  // `^` so we don't catch the substring inside a named-import list.
+  const hasReactDefault =
+    /^import\s+React\b/m.test(out) || /^import\s+\*\s+as\s+React\s+from/m.test(out);
+  if (!hasReactDefault) {
+    out = `import React from "react";\n${out}`;
+  }
+  return out;
 }

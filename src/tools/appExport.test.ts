@@ -95,6 +95,41 @@ export default function App() { return null; }
     expect(html).toContain("import React, { useState, useEffect } from 'react';");
   });
 
+  it("prepends `import React from \"react\"` when the model only imports hooks", () => {
+    // Modern apps commonly write `import { useState } from "react"` without
+    // bringing React itself into scope. Babel-standalone's classic JSX
+    // runtime needs `React` in scope to compile <div /> → React.createElement,
+    // so the exporter has to ensure the default import is present.
+    const src = `import { useState, useEffect } from 'react';
+export default function App() {
+  return <div>{useState(0)[0]}</div>;
+}
+`;
+    const html = exportAppToHtml({ files: { "App.js": src } });
+    expect(html).toContain('import React from "react";');
+    expect(html).toContain("import { useState, useEffect } from 'react';");
+  });
+
+  it("does NOT double-import React when the model already wrote `import React from`", () => {
+    const src = `import React from 'react';
+export default function App() { return <div />; }
+`;
+    const html = exportAppToHtml({ files: { "App.js": src } });
+    // Match both possible quote styles — single (from source) and
+    // double (from the prepend). We expect exactly one occurrence.
+    const matches = html.match(/import React from ['"]react['"]/g) ?? [];
+    expect(matches.length).toBe(1);
+  });
+
+  it("recognises `import React, { ... }` as a React default import", () => {
+    const src = `import React, { useState } from 'react';
+export default function App() { return <div />; }
+`;
+    const html = exportAppToHtml({ files: { "App.js": src } });
+    const matches = html.match(/import React/g) ?? [];
+    expect(matches.length).toBe(1);
+  });
+
   it("adds every non-react package.json dep to the importmap with ?external=react", () => {
     const pkg = JSON.stringify({
       dependencies: {
