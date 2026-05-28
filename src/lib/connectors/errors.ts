@@ -31,30 +31,49 @@ interface ConnectorErrorPayload {
   code: ConnectorErrorCode;
   provider: string;
   connect_url?: string;
+  missing_scopes?: string[];
+  required?: string;
+}
+
+/**
+ * Optional extras emitted alongside the core fields. Kept loose so the
+ * helper signature stays small and tool factories can opt into the
+ * fields they have available.
+ */
+interface ConnectorErrorExtras {
+  /** For `scope_not_covered`: scopes still missing from the user's grant. */
+  missingScopes?: string[];
+  /** For `insufficient_scope`: the required scope identifier. */
+  required?: string;
 }
 
 /**
  * Build the canonical connector-error JSON string. Every connector tool
  * factory uses this helper so the marker convention is impossible to forget.
  *
- * Note: `connect_url` is always serialized — when omitted, it is emitted as
- * `undefined`, which `JSON.stringify` drops, leaving the key absent. That
- * matches the shape the post-loop parser expects.
+ * Note: omitted optional fields are emitted as `undefined`, which
+ * `JSON.stringify` drops, leaving the key absent — matching the shape the
+ * post-loop parser expects.
  *
- * @param code     One of the recognized {@link ConnectorErrorCode} values.
- * @param provider Logical provider name (`"gmail"`, `"gdrive"`, etc.).
+ * @param code       One of the recognized {@link ConnectorErrorCode} values.
+ * @param provider   Logical provider name (`"gmail"`, `"gdrive"`, etc.).
  * @param connectUrl Optional connect URL surfaced to the user via the LLM reply.
+ * @param extras     Optional `missingScopes` / `required` fields lifted by the
+ *                   runtime parser into `ToolErrorInfo`.
  */
 export function buildConnectorErrorResult(
   code: ConnectorErrorCode,
   provider: string,
-  connectUrl?: string
+  connectUrl?: string,
+  extras?: ConnectorErrorExtras
 ): string {
   const payload: ConnectorErrorPayload = {
     __anuma_connector_error_v1: true,
     code,
     provider,
     connect_url: connectUrl,
+    missing_scopes: extras?.missingScopes,
+    required: extras?.required,
   };
   return JSON.stringify(payload);
 }

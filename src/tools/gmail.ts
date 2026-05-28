@@ -205,9 +205,13 @@ export function connectorMintErrorToToolResult(err: ConnectorMintError, provider
     case "connector_not_connected":
       return buildConnectorErrorResult("connector_not_connected", err.provider, err.connectUrl);
     case "scope_not_covered":
-      return buildConnectorErrorResult("scope_not_covered", err.provider, err.connectUrl);
+      return buildConnectorErrorResult("scope_not_covered", err.provider, err.connectUrl, {
+        missingScopes: err.missingScopes,
+      });
     case "insufficient_scope":
-      return buildConnectorErrorResult("insufficient_scope", provider);
+      return buildConnectorErrorResult("insufficient_scope", provider, undefined, {
+        required: err.required,
+      });
     case "upstream_unavailable":
       return buildConnectorErrorResult("upstream_unavailable", provider);
     case "unknown":
@@ -272,11 +276,21 @@ async function getGmailMessage(
   };
 }
 
+/**
+ * Strip CR / LF / NUL from header values. RFC 822 separates headers with
+ * CRLF, so a value carrying its own CRLF lets a caller inject a fresh
+ * header (e.g. an extra `Bcc:` line). Tool arguments are model-generated
+ * and reachable via prompt injection — never trust them verbatim.
+ */
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n\0]+/g, " ").trim();
+}
+
 function buildRfc822(args: GmailSendMessageArgs): string {
-  const lines = [`To: ${args.to}`];
-  if (args.cc) lines.push(`Cc: ${args.cc}`);
-  if (args.bcc) lines.push(`Bcc: ${args.bcc}`);
-  lines.push(`Subject: ${args.subject}`);
+  const lines = [`To: ${sanitizeHeaderValue(args.to)}`];
+  if (args.cc) lines.push(`Cc: ${sanitizeHeaderValue(args.cc)}`);
+  if (args.bcc) lines.push(`Bcc: ${sanitizeHeaderValue(args.bcc)}`);
+  lines.push(`Subject: ${sanitizeHeaderValue(args.subject)}`);
   lines.push("Content-Type: text/plain; charset=UTF-8");
   lines.push("");
   lines.push(args.body);

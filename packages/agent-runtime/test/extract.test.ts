@@ -51,6 +51,27 @@ describe("extractConnectorToolErrors", () => {
     expect(errors[0].callId).toBe("call_1");
   });
 
+  test("surfaces missingScopes from scope_not_covered payloads", () => {
+    const result = buildConnectorErrorResult(
+      "scope_not_covered",
+      "gdrive",
+      "https://portal.example/connectors/gdrive/connect?ticket=t2",
+      { missingScopes: ["https://www.googleapis.com/auth/drive.readonly"] }
+    );
+    const errors = extractConnectorToolErrors([{ name: "gdrive_search", result }]);
+    expect(errors[0].error.missingScopes).toEqual([
+      "https://www.googleapis.com/auth/drive.readonly",
+    ]);
+  });
+
+  test("surfaces required from insufficient_scope payloads", () => {
+    const result = buildConnectorErrorResult("insufficient_scope", "gmail", undefined, {
+      required: "connector:gmail:send",
+    });
+    const errors = extractConnectorToolErrors([{ name: "gmail_send_message", result }]);
+    expect(errors[0].error.required).toBe("connector:gmail:send");
+  });
+
   test("skips results without the canonical marker", () => {
     const errors = extractConnectorToolErrors([
       { name: "noise", result: JSON.stringify({ code: "connector_not_connected" }) },

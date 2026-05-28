@@ -136,6 +136,7 @@ describe("createGmailTools", () => {
       __anuma_connector_error_v1: true,
       code: "insufficient_scope",
       provider: "gdrive",
+      required: "connector:gdrive:read",
     });
   });
 
@@ -220,5 +221,31 @@ describe("createGmailTools", () => {
     expect(decoded).toContain("To: ada@example.com");
     expect(decoded).toContain("Subject: hi");
     expect(decoded).toContain("let's chat");
+  });
+
+  test("gmail_send_message strips CRLF from header values to block header injection", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-2", threadId: "t2" }));
+    const tools = createGmailTools(
+      async () => "good-token",
+      async () => null
+    );
+    await runExecutor(tools.gmail_send_message, {
+      to: "ada@example.com",
+      // A prompt-injection style payload that tries to splice an extra header.
+      subject: "hello\r\nBcc: evil@attacker.com",
+      body: "hi",
+    });
+    const [, init] = fetchMock.mock.calls[0];
+    const sent = JSON.parse((init as RequestInit).body as string) as { raw: string };
+    const decoded = Buffer.from(sent.raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString(
+      "utf-8"
+    );
+    // Header lines and body are separated by a blank line. Each header
+    // must occupy one line — if sanitization failed, the injected CRLF
+    // would split the Subject into a fresh `Bcc:` line.
+    const headerBlock = decoded.split("\r\n\r\n", 1)[0];
+    const headerLines = headerBlock.split("\r\n");
+    expect(headerLines.some((line) => line.startsWith("Bcc:"))).toBe(false);
+    expect(headerLines).toContain("Subject: hello Bcc: evil@attacker.com");
   });
 });
