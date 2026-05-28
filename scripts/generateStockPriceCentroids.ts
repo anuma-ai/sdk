@@ -15,6 +15,7 @@ import { resolve } from "path";
 import { BASE_URL } from "../src/clientConfig";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
 import { averageVectors } from "./lib/centroids";
+import { GENERIC_NEGATIVE_PHRASES } from "./lib/genericNegatives";
 
 const STOCK_PRICE_PHRASES = [
   // Direct stock price queries
@@ -116,40 +117,8 @@ const NO_STOCK_PRICE_PHRASES = [
   "What does an IPO process look like",
   "Why did the 2008 financial crisis happen",
 
-  // General programming / engineering
-  "Write a Python function that checks if a number is prime",
-  "Refactor this code to use async/await",
-  "Why is my React component re-rendering",
-  "How do I configure a Postgres connection pool",
-
-  // Reasoning / analysis
-  "Summarize the article I pasted above",
-  "What are the pros and cons of microservices",
-  "Explain the differences between TCP and UDP",
-
-  // Creative
-  "Write me a short poem about the ocean",
-  "Generate 5 startup name ideas",
-  "Tell me a joke about programming",
-
-  // Translation / language
-  "Translate 'good morning' into Japanese",
-  "What is the grammatical structure of this sentence",
-
-  // Math / physics / general knowledge
-  "What is the derivative of x squared",
-  "Explain how gravity works",
-  "What year did World War 2 end",
-  "How does photosynthesis work",
-
-  // Personal / advice
-  "Help me draft a resignation letter",
-  "Give me tips for a job interview",
-
-  // Conversational
-  "Hello how are you",
-  "Thank you for your help",
-  "Can you explain that again",
+  // Generic out-of-domain negatives shared with other classifiers.
+  ...GENERIC_NEGATIVE_PHRASES,
 
   // Other current-data web searches
   "What did Elon Musk tweet about today",

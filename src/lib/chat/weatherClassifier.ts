@@ -16,6 +16,7 @@ import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import type { PromptPreProcessor } from "./preProcessor";
+import { wrapAsUserText } from "./preProcessor";
 import { cosineSimilarity } from "./preProcessorMath";
 import { noWeatherCentroid, weatherCentroid } from "./weatherCentroids";
 
@@ -120,13 +121,8 @@ export function createWeatherPreProcessor(
     if (!classification.needsWeather || !options.fetchWeatherData) return;
     const results = await options.fetchWeatherData(prompt, { signal });
     if (typeof results === "string") {
-      if (!results) return;
-      return [
-        {
-          role: "user",
-          content: [{ type: "text", text: `Weather data:\n${results}` }],
-        },
-      ];
+      const wrapped = wrapAsUserText("Weather data:", results);
+      return wrapped.length === 0 ? undefined : wrapped;
     }
     if (results.length === 0) return;
     return results;

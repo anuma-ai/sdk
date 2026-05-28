@@ -15,6 +15,7 @@ import { resolve } from "path";
 import { BASE_URL } from "../src/clientConfig";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
 import { averageVectors } from "./lib/centroids";
+import { GENERIC_NEGATIVE_PHRASES } from "./lib/genericNegatives";
 
 const CRYPTO_PRICE_PHRASES = [
   // Direct price queries
@@ -61,15 +62,18 @@ const CRYPTO_PRICE_PHRASES = [
   "DeFi token prices",
   "Memecoin prices today",
 
-  // Gold-pegged / commodity-backed tokens — gold is genuinely ambiguous
-  // (gold-token vs gold-spot), so the crypto centroid should fire alongside
-  // the stock centroid on gold queries.
+  // Commodity-backed tokens (gold, silver) — these are genuinely ambiguous
+  // (token vs spot), so the crypto centroid should fire alongside the stock
+  // centroid on bare "price of gold/silver" queries.
   "PAXG price",
   "What is the PAX Gold token worth",
   "XAUT price today",
   "Tether Gold price",
   "Price of gold-backed tokens",
   "What is the price of gold today",
+  "Price of silver tokens",
+  "Silver-backed token price",
+  "What is the price of silver today",
 
   // Conversational crypto price queries
   "How much does one Bitcoin cost in USD right now",
@@ -124,39 +128,8 @@ const NO_CRYPTO_PRICE_PHRASES = [
   "S&P 500 close yesterday",
   "Pre-market movers",
 
-  // General programming / engineering
-  "Write a Python function that checks if a number is prime",
-  "Refactor this code to use async/await",
-  "Why is my React component re-rendering",
-  "How do I configure a Postgres connection pool",
-
-  // Reasoning / analysis
-  "Summarize the article I pasted above",
-  "What are the pros and cons of microservices",
-  "Explain the differences between TCP and UDP",
-
-  // Creative
-  "Write me a short poem about the ocean",
-  "Generate 5 startup name ideas",
-  "Tell me a joke about programming",
-
-  // Translation / language
-  "Translate 'good morning' into Japanese",
-
-  // Math / physics / general knowledge
-  "What is the derivative of x squared",
-  "Explain how gravity works",
-  "What year did World War 2 end",
-  "How does photosynthesis work",
-
-  // Personal / advice
-  "Help me draft a resignation letter",
-  "Give me tips for a job interview",
-
-  // Conversational
-  "Hello how are you",
-  "Thank you for your help",
-  "Can you explain that again",
+  // Generic out-of-domain negatives shared with other classifiers.
+  ...GENERIC_NEGATIVE_PHRASES,
 
   // Other current-data web searches that aren't crypto prices
   "What did Elon Musk tweet about today",

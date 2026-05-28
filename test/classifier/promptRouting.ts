@@ -138,7 +138,11 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "What's the current exchange rate for USD to EUR?", shouldTrigger: ["stockPrice"] },
   { text: "How much is Nvidia stock worth?", shouldTrigger: ["stockPrice"] },
   { text: "What's the market cap of Apple?", shouldTrigger: ["stockPrice"] },
-  // Gas-fee query is current-data (web search) but not strictly a price quote.
+  // Gas fees are current data the SDK has no dedicated processor for — falls
+  // back to webSearch by design. If/when we add an on-chain gas/network-stats
+  // pre-processor, relabel this and move the phrase out of webSearch's YES
+  // corpus so we stop spending search calls on it. Until then this label
+  // documents the known gap rather than a misclassification.
   { text: "What are Ethereum gas fees right now?", shouldTrigger: ["webSearch"] },
 
   // Sports
@@ -217,21 +221,30 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "What's the air quality in Delhi", shouldTrigger: ["weather"] },
   { text: "Will it snow in Aspen this weekend", shouldTrigger: ["weather"] },
 
-  // ── Ambiguous: "gold price" can mean a gold-pegged token (PAXG, XAUT) OR a
-  // commodity quote (XAU/USD, GLD ETF). Both data classifiers should fire; the
-  // LLM receives both contexts and decides what's relevant. No webSearch — pure
-  // data query, just ambiguous about asset class.
+  // ── Genuinely-ambiguous asset-class queries.
+  // Gold and silver both exist as crypto-pegged tokens (PAXG/XAUT for gold,
+  // various PAX Silver / SLVR-style tokens for silver) AND as traditional
+  // commodities (XAU/XAG spot, GLD/SLV ETFs). The pure-data query
+  // doesn't disambiguate, so both classifiers should fire and the LLM
+  // picks the relevant context.
   //
-  // Known-flaky on accuracy: this prompt depends on the embedding model + the
-  // crypto/stock corpora keeping gold-adjacent phrases in both YES sets. If
-  // this test starts failing because one side stopped firing, the fix is to
-  // (a) check whether the embedding model has changed, then (b) add more
-  // gold-token / gold-spot phrases to the relevant generation script and
-  // regenerate centroids — not to relax the assertion.
-  {
-    text: "What is the price of gold today?",
-    shouldTrigger: ["cryptoPrice", "stockPrice"],
-  },
+  // Multiple variants here on purpose — a single gold prompt was too
+  // brittle (Tanmay's call); regressions need more than one prompt to
+  // catch them.
+  //
+  // Known-flaky on accuracy: these depend on the embedding model + the
+  // crypto/stock corpora keeping commodity-adjacent phrases in both YES
+  // sets. If a prompt stops triggering one side, the fix is to (a) check
+  // whether the embedding model has changed, then (b) add more pegged-
+  // token / spot phrases to the relevant generation script and
+  // regenerate — not to relax the assertion.
+  { text: "What is the price of gold today?", shouldTrigger: ["cryptoPrice", "stockPrice"] },
+  { text: "Show me the price of silver", shouldTrigger: ["cryptoPrice", "stockPrice"] },
+
+  // Commodities without notable crypto representation — stock-only.
+  // Listed explicitly to document why they're NOT in the ambiguous bucket.
+  { text: "Spot price of platinum", shouldTrigger: ["stockPrice"] },
+  { text: "Oil price today", shouldTrigger: ["stockPrice"] },
 
   // Edge cases — questions that look general but need current data
   { text: "Is TikTok banned in the US?", shouldTrigger: ["webSearch"] },

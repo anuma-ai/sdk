@@ -17,6 +17,7 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cryptoPriceCentroid, noCryptoPriceCentroid } from "./cryptoPriceCentroids";
 import type { PromptPreProcessor } from "./preProcessor";
+import { wrapAsUserText } from "./preProcessor";
 import { cosineSimilarity } from "./preProcessorMath";
 
 export interface CryptoPriceClassification {
@@ -125,13 +126,8 @@ export function createCryptoPricePreProcessor(
     if (!classification.needsCryptoPrice || !options.fetchCryptoPriceData) return;
     const results = await options.fetchCryptoPriceData(prompt, { signal });
     if (typeof results === "string") {
-      if (!results) return;
-      return [
-        {
-          role: "user",
-          content: [{ type: "text", text: `Current crypto prices:\n${results}` }],
-        },
-      ];
+      const wrapped = wrapAsUserText("Current crypto prices:", results);
+      return wrapped.length === 0 ? undefined : wrapped;
     }
     if (results.length === 0) return;
     return results;
