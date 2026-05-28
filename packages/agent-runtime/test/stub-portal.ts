@@ -25,13 +25,13 @@ export interface StubGrant {
   scopes: string[];
 }
 
-export interface StubCredential {
+interface StubCredential {
   oauthApp: string;
   externalAccount?: string;
   grantedScopes: string[];
 }
 
-export type MintBehavior =
+type MintBehavior =
   | { kind: "ok"; accessToken: string; expiresIn?: number }
   | { kind: "connector_not_connected"; provider: string; connectUrl: string }
   | {
@@ -43,7 +43,7 @@ export type MintBehavior =
   | { kind: "insufficient_scope"; required: string }
   | { kind: "upstream_5xx"; count: number };
 
-export interface StubPortalConfig {
+interface StubPortalConfig {
   /** bearer → grant */
   grants?: Record<string, StubGrant>;
   /** user_address → connector credentials */

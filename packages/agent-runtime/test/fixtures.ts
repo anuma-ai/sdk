@@ -42,17 +42,17 @@ export function mockReq(bearer: string): IncomingRequest {
  * request. The transport returns an async iterable that yields the
  * planned chunks immediately and ends.
  */
-export interface ToolCallPlan {
+interface ToolCallPlan {
   kind: "tool_call";
   toolName: string;
   args?: Record<string, unknown>;
   toolCallId?: string;
 }
-export interface AssistantPlan {
+interface AssistantPlan {
   kind: "assistant";
   content: string;
 }
-export type LlmPlan = ToolCallPlan | AssistantPlan;
+type LlmPlan = ToolCallPlan | AssistantPlan;
 
 function chunksForPlan(plan: LlmPlan): unknown[] {
   if (plan.kind === "assistant") {
