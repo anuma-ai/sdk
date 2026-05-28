@@ -3,6 +3,7 @@ import { Q } from "@nozbe/watermelondb";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { deleteEncryptedFile, isOPFSSupported } from "../../storage";
+import { VIDEO_EXTENSIONS, videoExtensionOf } from "../../storage/mcpImages";
 import { decryptMediaFields, encryptMediaFields } from "./encryption";
 import { Media } from "./models";
 import type {
@@ -322,15 +323,9 @@ export async function updateMediaMessageIdBatchOp(
   return results.length;
 }
 
-const VIDEO_EXTENSIONS = ["mp4", "webm", "mov"];
 const VIDEO_MIME_RE = /^video\//i;
 /** Mimes the old path produced for videos when blob.type was empty (`image/<urlext>`). */
 const IMAGE_VIDEO_MIMES = VIDEO_EXTENSIONS.map((ext) => `image/${ext}`);
-
-/** Extract a lowercased video extension from a URL or filename, if present. */
-function videoExtensionOf(value: string | undefined | null): string | null {
-  return value?.match(/\.(mp4|webm|mov)(?:[?#]|$)/i)?.[1]?.toLowerCase() ?? null;
-}
 
 /**
  * Recovery migration: relink videos that were mistakenly stored as images.

@@ -58,7 +58,7 @@ interface UseChatMediaResult {
     address: string,
     conversationId: string,
     toolCallEvents?: LlmapiToolCallEvent[]
-  ) => Promise<{ fileIds: string[]; cleanedContent: string }>;
+  ) => Promise<{ fileIds: string[]; cleanedContent: string; imageModel?: string }>;
 
   /**
    * Persist user-attached files. When OPFS + encryption are available,
@@ -71,6 +71,36 @@ interface UseChatMediaResult {
     address: string,
     conversationId: string
   ) => Promise<string[]>;
+}
+
+/** Kind-dependent metadata for a downloaded MCP media blob. */
+interface ResolvedMediaMeta {
+  isVideo: boolean;
+  extension: string;
+  mimeType: string;
+  namePrefix: string;
+}
+
+/**
+ * Resolve the storage metadata for a downloaded MCP blob from its extracted
+ * kind, URL, and reported blob mime. Centralizes the image-vs-video branching
+ * so adding a new kind-dependent field is a one-line change here.
+ */
+function resolveMediaMeta(
+  extractedKind: "image" | "video",
+  urlPath: string,
+  reportedType: string
+): ResolvedMediaMeta {
+  const isVideo = extractedKind === "video";
+  // Extension defaults to mp4/png only as a last resort, when the URL itself
+  // carries no extension to read it from.
+  const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || (isVideo ? "mp4" : "png");
+  return {
+    isVideo,
+    extension,
+    mimeType: reportedType || `${isVideo ? "video" : "image"}/${extension}`,
+    namePrefix: isVideo ? "mcp-video" : "mcp-image",
+  };
 }
 
 /**
@@ -139,14 +169,20 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
     ): Promise<{
       fileIds: string[];
       cleanedContent: string;
+      imageModel?: string;
     }> => {
       try {
         // 1. Extract image URLs using pure function
         const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
+        // Resolve the image model once here so the caller doesn't have to walk
+        // the tool events a second time. Image-kind only, so a video tool's
+        // model sentinel never leaks into the message's imageModel.
+        const imageModel = urls.find((u) => u.mediaType === "image")?.model;
+
         // No MCP images found — return content as-is (presigned URLs stay for inline rendering)
         if (urls.length === 0) {
-          return { fileIds: [], cleanedContent: content };
+          return { fileIds: [], cleanedContent: content, imageModel };
         }
 
         // 2. Download images → get mediaIds
@@ -172,17 +208,17 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
 
               const mediaId = generateMediaId();
               const urlPath = url.split("?")[0] ?? url;
-              const isVideo = extractedKind === "video";
-              const extension =
-                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || (isVideo ? "mp4" : "png");
               // Object storage often serves generic `application/octet-stream`,
               // which would later resolve to `document`. Ignore that (and empty)
               // and derive a kind-appropriate mime so the record's media_type
               // stays correct.
               const reportedType =
                 blob.type && blob.type !== "application/octet-stream" ? blob.type : "";
-              const mimeType = reportedType || `${isVideo ? "video" : "image"}/${extension}`;
-              const namePrefix = isVideo ? "mcp-video" : "mcp-image";
+              const { isVideo, extension, mimeType, namePrefix } = resolveMediaMeta(
+                extractedKind,
+                urlPath,
+                reportedType
+              );
               const fileName = `${namePrefix}-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
               // Dimensions probe is image-only; skip for video.
@@ -268,11 +304,11 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               }
             }
             // Return original content to avoid orphaned __SDKFILE__ placeholders
-            return { fileIds: [], cleanedContent: content };
+            return { fileIds: [], cleanedContent: content, imageModel };
           }
         }
 
-        return { fileIds: createdMediaIds, cleanedContent };
+        return { fileIds: createdMediaIds, cleanedContent, imageModel };
       } catch {
         // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
         // so the LLM can still reference them for editing even if OPFS storage fails.

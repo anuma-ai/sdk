@@ -38,8 +38,20 @@ const VIDEO_TOOL_NAMES = new Set([
   "fal_generate_video",
 ]);
 
-/** Video file extensions — used to classify URLs the fallback regex captures. */
-const VIDEO_EXTENSION_RE = /\.(mp4|webm|mov)(?:[?#]|$)/i;
+/**
+ * Single source of truth for video file extensions. Adding a new format here
+ * updates classification everywhere (extraction, fallback, and the relink
+ * recovery op in db/media/operations.ts which imports this list + helper).
+ */
+export const VIDEO_EXTENSIONS = ["mp4", "webm", "mov"] as const;
+
+/** Matches a video extension at the end of a path, before a query/fragment. */
+const VIDEO_EXTENSION_RE = new RegExp(`\\.(${VIDEO_EXTENSIONS.join("|")})(?:[?#]|$)`, "i");
+
+/** Extract the lowercased video extension from a URL/filename, or null. */
+export function videoExtensionOf(value: string | undefined | null): string | null {
+  return value?.match(VIDEO_EXTENSION_RE)?.[1]?.toLowerCase() ?? null;
+}
 
 /** Classify a URL by file extension. Defaults to image. */
 function classifyUrl(url: string): ExtractedMediaKind {
@@ -131,7 +143,10 @@ export function extractMCPImageUrls(
         if (!seen.has(normalized)) {
           seen.add(normalized);
           const mediaType = classifyUrl(normalized);
-          urls.push({ url: normalized, model: mediaType, mediaType });
+          // Content fallback has no tool output, so there's no real model.
+          // Use the legacy "image" sentinel for both kinds (the `model` field is
+          // an image-model hint, not a kind — `mediaType` carries the real kind).
+          urls.push({ url: normalized, model: "image", mediaType });
         }
       }
     }
