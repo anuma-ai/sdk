@@ -90,6 +90,14 @@ export interface ExportAppOptions {
 /**
  * Compile an app-generation output (App.js + App.css + package.json) into
  * a single self-contained HTML file. See module docstring for examples.
+ *
+ * Loader strategy: native ESM via `<script type="importmap">` resolves
+ * every package name (react, react-dom/client, plus whatever's in
+ * package.json) to an esm.sh URL. Babel-standalone runs the App.js
+ * source as `<script type="text/babel" data-type="module">` so JSX is
+ * compiled to JS but imports stay as ES-module imports — the browser
+ * resolves them through the importmap. No window globals, no UMD
+ * sequencing, no per-package compatibility wrappers.
  */
 export function exportAppToHtml(options: ExportAppOptions): string {
   const {
@@ -116,8 +124,8 @@ export function exportAppToHtml(options: ExportAppOptions): string {
     }
   }
 
-  const extraScripts = extraDepScripts(deps);
-  const jsClean = stripImports(appJs);
+  const importMap = buildImportMap(deps);
+  const jsClean = normalizeForModule(appJs);
 
   const escapedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   // Defuse any literal `</style>` inside CSS: HTML's raw-text scanner only
@@ -134,114 +142,78 @@ export function exportAppToHtml(options: ExportAppOptions): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapedTitle}</title>${tailwind ? `\n  <script src="https://cdn.tailwindcss.com"></script>` : ""}
   <style>${safeCss}</style>
+  <script type="importmap">
+${importMap}
+  </script>
 </head>
 <body>
   <div id="root"></div>${windowAppShim ? `\n  <script>\n${windowAppShim}\n  </script>` : ""}
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>${
-    extraScripts ? `\n  ${extraScripts}` : ""
-  }
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script type="text/babel">
+  <script type="text/babel" data-type="module" data-presets="react">
 ${jsClean}
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+import { createRoot as __anumaCreateRoot } from "react-dom/client";
+__anumaCreateRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>`;
 }
 
 /**
- * Collect package.json deps and produce CDN `<script>` tags that load
- * each as a UMD global on `window`. esm.sh's `?bundle-deps&no-dts` mode
- * emits a self-executing UMD bundle that works on `file://` without
- * import maps. Used together with {@link stripImports} which rewrites
- * `import X from "pkg"` to `const X = window["pkg"];`.
+ * Build the `<script type="importmap">` JSON body covering React + every
+ * non-React package.json dep. Each non-React dep gets `?external=react`
+ * so the dep's own React reference resolves through our same import map
+ * to the same React instance — without this, lucide-react etc. would
+ * bundle their own React via esm.sh and crash on `Invalid hook call`.
  *
- * React and react-dom are skipped — those load from unpkg in the
- * surrounding template directly.
+ * `react-scripts` is skipped — it's a CRA build tool, not a runtime dep.
+ * `react` and `react-dom` are always present even when package.json
+ * omits them; the App.js the model writes always imports from them.
  */
-function extraDepScripts(deps: Record<string, string>): string {
+function buildImportMap(deps: Record<string, string>): string {
+  const reactVersion = stripVersionRange(deps.react ?? "^18.2.0");
+  const reactDomVersion = stripVersionRange(deps["react-dom"] ?? "^18.2.0");
+  const imports: Record<string, string> = {
+    react: `https://esm.sh/react@${reactVersion}`,
+    "react-dom": `https://esm.sh/react-dom@${reactDomVersion}?external=react`,
+    "react-dom/client": `https://esm.sh/react-dom@${reactDomVersion}/client?external=react`,
+  };
   const skip = new Set(["react", "react-dom", "react-scripts"]);
-  const tags: string[] = [];
   for (const [name, version] of Object.entries(deps)) {
     if (skip.has(name)) continue;
-    const clean = version.replace(/^[\^~>=<]+/, "");
-    const globalName = camelCasePackage(name);
-    tags.push(
-      `<script src="https://esm.sh/${name}@${clean}?bundle-deps&no-dts"></script>` +
-        `\n  <script>window.${globalName} = window.${globalName} || {}</script>`
-    );
+    const clean = stripVersionRange(version);
+    imports[name] = `https://esm.sh/${name}@${clean}?external=react`;
   }
-  return tags.join("\n  ");
+  return JSON.stringify({ imports }, null, 2)
+    .split("\n")
+    .map((l) => `  ${l}`)
+    .join("\n");
 }
 
-/** Convert `lucide-react` → `lucideReact`. Same scheme used by stripImports. */
-function camelCasePackage(name: string): string {
-  return name.replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase());
+function stripVersionRange(v: string): string {
+  return v.replace(/^[\^~>=<]+/, "").trim();
 }
 
 /**
- * Rewrite ES module import statements in `App.js` so the code runs inside
- * a `<script type="text/babel">` block without import maps or ESM:
+ * Lightly normalize App.js for inclusion in a `<script type="text/babel"
+ * data-type="module">` block. We keep `import` statements intact —
+ * the importmap resolves them — and just:
  *
- *   - `import './App.css'` is stripped (CSS is inlined into the `<style>`).
- *   - `import React, { useState } from "react"` becomes
- *     `const { useState } = React;` (React is a UMD global).
- *   - `import { foo } from "lucide-react"` becomes
- *     `const { foo } = window["lucideReact"];` (any other package is
- *     loaded as UMD via {@link extraDepScripts}).
- *   - `export default function App` becomes `function App` and the
- *     trailing `export default App;` is dropped, so the global App
- *     identifier is referenceable by the boot line.
+ *   - drop `import './App.css'` (CSS is already inlined in the <style> block);
+ *   - convert `export default function App` → `function App`, and strip
+ *     a trailing `export default App;`, so the boot line we append at
+ *     the end of the script can reference `App` as a local binding
+ *     (defaults aren't exposed by their own identifier in module scope
+ *     when written as `export default function() {}`).
  */
-function stripImports(js: string): string {
+function normalizeForModule(js: string): string {
   return (
     js
-      // Remove CSS imports (already inlined in <style>).
+      // Strip CSS imports — content is already inlined in <style>.
       .replace(/^import\s+['"]\.\/App\.css['"];?\s*$/gm, "")
-      // `import React, { useState, ... } from 'react'` → destructure from global
-      .replace(
-        /^import\s+React\s*,\s*\{([^}]+)\}\s*from\s*['"]react['"];?\s*$/gm,
-        (_, names: string) => `const { ${names.trim()} } = React;`
-      )
-      // `import { useState, ... } from 'react'` (no default)
-      .replace(
-        /^import\s*\{([^}]+)\}\s*from\s*['"]react['"];?\s*$/gm,
-        (_, names: string) => `const { ${names.trim()} } = React;`
-      )
-      // `import React from 'react'`
-      .replace(/^import\s+React\s+from\s*['"]react['"];?\s*$/gm, "")
-      // `import ... from 'react-dom/client'` etc.
-      .replace(/^import\s+.*\s+from\s*['"]react-dom(?:\/.*)?['"];?\s*$/gm, "")
-      // Mixed default + named imports of external packages → both forms
-      // off the same window global. e.g. `import Chart, { defaults } from 'chart.js'`.
-      // Must precede the pure-named and pure-default replacements below.
-      .replace(
-        /^import\s+(\w+)\s*,\s*\{([^}]+)\}\s*from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
-        (_, name: string, names: string, pkg: string) => {
-          const globalName = camelCasePackage(pkg);
-          return `const ${name} = window["${globalName}"] || {}; const { ${names.trim()} } = window["${globalName}"] || {};`;
-        }
-      )
-      // Other named imports → destructure from window global
-      .replace(
-        /^import\s*\{([^}]+)\}\s*from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
-        (_, names: string, pkg: string) => {
-          const globalName = camelCasePackage(pkg);
-          return `const { ${names.trim()} } = window["${globalName}"] || {};`;
-        }
-      )
-      // Default imports of external packages → window global
-      .replace(
-        /^import\s+(\w+)\s+from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
-        (_, name: string, pkg: string) => {
-          const globalName = camelCasePackage(pkg);
-          return `const ${name} = window["${globalName}"] || {};`;
-        }
-      )
-      // Strip `export default function App` → `function App`
+      // `export default function App` → `function App` (keep the name
+      // available as a local binding for the boot line below).
       .replace(/^export\s+default\s+function\s+/gm, "function ")
-      // Strip `export default App;`
+      // Drop a trailing `export default App;` style line.
       .replace(/^export\s+default\s+\w+;\s*$/gm, "")
   );
 }

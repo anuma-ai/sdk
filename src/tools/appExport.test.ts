@@ -1,8 +1,8 @@
 /**
  * Unit tests for the standalone HTML export. Validates that
- * exportAppToHtml inlines CSS, strips local imports, maps deps to
- * esm.sh, includes the configured window.app shim, and produces
- * working markup. No browser or LLM in the loop.
+ * exportAppToHtml inlines CSS, builds the importmap, keeps App.js
+ * imports intact, and produces working markup. No browser or LLM in
+ * the loop — for runtime rendering checks see appExport.browser.test.ts.
  */
 
 import { describe, expect, it } from "vitest";
@@ -22,12 +22,35 @@ export default function App() {
 }
 `;
 
+  /** Pull the JSON body out of the importmap script tag. */
+  function readImportMap(html: string): Record<string, string> {
+    const m = html.match(/<script type="importmap">([\s\S]*?)<\/script>/);
+    if (!m) throw new Error("no importmap in html");
+    return (JSON.parse(m[1]) as { imports: Record<string, string> }).imports;
+  }
+
   it("produces a single HTML document with App.js inlined", () => {
     const html = exportAppToHtml({ files: { "App.js": trivialApp } });
     expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
     expect(html).toContain("<title>App</title>");
     expect(html).toContain("function App() {");
-    expect(html).toContain("ReactDOM.createRoot");
+    // Boot line uses the new module-friendly mount.
+    expect(html).toContain('__anumaCreateRoot(document.getElementById("root")).render(<App />)');
+  });
+
+  it("loads Babel-standalone in module mode for JSX-in-ESM", () => {
+    const html = exportAppToHtml({ files: { "App.js": trivialApp } });
+    expect(html).toContain('<script type="text/babel" data-type="module" data-presets="react">');
+  });
+
+  it("includes an importmap with react / react-dom / react-dom/client by default", () => {
+    const html = exportAppToHtml({ files: { "App.js": trivialApp } });
+    const imports = readImportMap(html);
+    expect(imports.react).toMatch(/^https:\/\/esm\.sh\/react@/);
+    expect(imports["react-dom"]).toMatch(/^https:\/\/esm\.sh\/react-dom@/);
+    expect(imports["react-dom/client"]).toMatch(
+      /^https:\/\/esm\.sh\/react-dom@[^/]+\/client\?external=react$/
+    );
   });
 
   it("inlines App.css inside a <style> block", () => {
@@ -38,20 +61,13 @@ export default function App() {
   });
 
   it("defuses `</style>` strings inside App.css so the tag can't break out", () => {
-    // If a model-generated rule contains `</style>` (e.g. inside a
-    // content: property), the raw <style> tag would close prematurely
-    // and the rest of the document would render as text or run as
-    // script. The defused sequence keeps the CSS parser happy while
-    // hiding the closing tag from the HTML raw-text scanner.
     const html = exportAppToHtml({
       files: {
         "App.js": trivialApp,
         "App.css": '.x { content: "</style>oops"; }',
       },
     });
-    // The injected </style> is escaped.
     expect(html).toContain("<\\/style>");
-    // Only one real </style> remains — the closing tag of the real <style> block.
     expect(html.match(/<\/style>/g)?.length).toBe(1);
   });
 
@@ -63,59 +79,60 @@ export default function App() {
     expect(html).not.toContain('import "./App.css"');
   });
 
-  it("rewrites `import React from 'react'` so React loads from UMD", () => {
+  it("keeps `import React from 'react'` intact — importmap resolves it", () => {
     const html = exportAppToHtml({ files: { "App.js": trivialApp } });
-    // The React UMD bundle is loaded via <script src=...>; the App.js
-    // import line itself is stripped.
-    expect(html).toContain("react@18/umd/react.development.js");
-    expect(html).not.toMatch(/^import\s+React\s+from\s*['"]react['"]/m);
+    expect(html).toContain("import React from 'react';");
+    // No UMD script tags — the old loader is gone.
+    expect(html).not.toContain("react@18/umd/react.development.js");
   });
 
-  it("destructures named React imports from the UMD global", () => {
+  it("keeps named React imports as-is in the module body", () => {
     const src = `import React, { useState, useEffect } from 'react';
 export default function App() { return null; }
 `;
     const html = exportAppToHtml({ files: { "App.js": src } });
-    expect(html).toContain("const { useState, useEffect } = React;");
+    expect(html).toContain("import React, { useState, useEffect } from 'react';");
   });
 
-  it("maps package.json deps to esm.sh CDN scripts as UMD globals", () => {
+  it("adds every non-react package.json dep to the importmap with ?external=react", () => {
     const pkg = JSON.stringify({
       dependencies: {
         react: "^18.2.0",
         "react-dom": "^18.2.0",
         "lucide-react": "^0.400.0",
+        "framer-motion": "^11.0.0",
       },
     });
     const html = exportAppToHtml({
       files: { "App.js": trivialApp, "package.json": pkg },
     });
-    // React + react-dom are skipped because the template handles them.
-    // lucide-react gets an esm.sh script + a window global initializer.
-    expect(html).toContain("https://esm.sh/lucide-react@0.400.0?bundle-deps&no-dts");
-    expect(html).toContain("window.lucideReact = window.lucideReact || {}");
-    // Skipped — should NOT show up as an esm.sh script.
-    expect(html).not.toContain("https://esm.sh/react@");
-    expect(html).not.toContain("https://esm.sh/react-dom@");
+    const imports = readImportMap(html);
+    expect(imports["lucide-react"]).toBe("https://esm.sh/lucide-react@0.400.0?external=react");
+    expect(imports["framer-motion"]).toBe("https://esm.sh/framer-motion@11.0.0?external=react");
   });
 
-  it("rewrites mixed default + named imports of external packages to window globals", () => {
-    // Pattern `import Default, { Named } from 'pkg'` is common for libraries
-    // like chart.js, mui, etc. and must be transformed — leaving the
-    // statement intact throws a SyntaxError inside the babel-standalone
-    // script block (no ESM mode).
-    const src = `import React from 'react';
-import Chart, { defaults, registerables } from 'chart.js';
-
-export default function App() { return <div />; }
-`;
-    const html = exportAppToHtml({ files: { "App.js": src } });
-    expect(html).toContain('const Chart = window["chartJs"] || {};');
-    expect(html).toContain('const { defaults, registerables } = window["chartJs"] || {};');
-    expect(html).not.toMatch(/^import\s+Chart\s*,/m);
+  it("picks up react / react-dom versions from package.json when supplied", () => {
+    const pkg = JSON.stringify({ dependencies: { react: "^19.0.0", "react-dom": "^19.0.0" } });
+    const html = exportAppToHtml({
+      files: { "App.js": trivialApp, "package.json": pkg },
+    });
+    const imports = readImportMap(html);
+    expect(imports.react).toBe("https://esm.sh/react@19.0.0");
+    expect(imports["react-dom"]).toBe("https://esm.sh/react-dom@19.0.0?external=react");
   });
 
-  it("rewrites named imports of external packages to window globals", () => {
+  it("skips `react-scripts` in the importmap (build-time, not runtime)", () => {
+    const pkg = JSON.stringify({
+      dependencies: { react: "^18.2.0", "react-dom": "^18.2.0", "react-scripts": "^5.0.1" },
+    });
+    const html = exportAppToHtml({
+      files: { "App.js": trivialApp, "package.json": pkg },
+    });
+    const imports = readImportMap(html);
+    expect(imports["react-scripts"]).toBeUndefined();
+  });
+
+  it("keeps external-package imports intact in the module body", () => {
     const src = `import React from 'react';
 import { Camera, X } from 'lucide-react';
 import Slider from 'rc-slider';
@@ -123,8 +140,8 @@ import Slider from 'rc-slider';
 export default function App() { return <Camera />; }
 `;
     const html = exportAppToHtml({ files: { "App.js": src } });
-    expect(html).toContain('const { Camera, X } = window["lucideReact"] || {};');
-    expect(html).toContain('const Slider = window["rcSlider"] || {};');
+    expect(html).toContain("import { Camera, X } from 'lucide-react';");
+    expect(html).toContain("import Slider from 'rc-slider';");
   });
 
   it("uses the offline stub for window.app.complete by default", () => {
@@ -184,18 +201,17 @@ export default function App() { return <Camera />; }
       files: { "App.js": trivialApp, "package.json": "{not json" },
     });
     expect(html).toContain("function App()");
-    // No esm.sh script — bad JSON yielded no deps.
-    expect(html).not.toContain("esm.sh");
+    // No extra non-react packages — importmap still has the defaults though.
+    const imports = readImportMap(html);
+    expect(Object.keys(imports).sort()).toEqual(["react", "react-dom", "react-dom/client"]);
   });
 
-  it("strips `export default function App` and `export default App;` so the global is referenceable", () => {
+  it("strips `export default function App` and `export default App;` so the boot line can reference App", () => {
     const src = `function App() { return null; }
 export default App;
 `;
     const html = exportAppToHtml({ files: { "App.js": src } });
-    // Boot line still references App.
-    expect(html).toContain('ReactDOM.createRoot(document.getElementById("root")).render(<App />)');
-    // export default App; is gone.
+    expect(html).toContain('__anumaCreateRoot(document.getElementById("root")).render(<App />)');
     expect(html).not.toMatch(/^export\s+default\s+App\s*;\s*$/m);
   });
 

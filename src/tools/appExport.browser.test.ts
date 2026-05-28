@@ -165,14 +165,14 @@ export default function App() {
     expect(errors, errors.join("\n")).toEqual([]);
   }, 30_000);
 
-  it("import-stripping survives common variants the model writes", async () => {
-    // Each line below is a real shape the system prompt produces. If
-    // any one of these survives unstripped, Babel will error out
-    // because `import` isn't valid inside <script type="text/babel">.
+  it("import-map mode resolves every shape of React import without stripping", async () => {
+    // Each line below is a real shape the system prompt produces.
+    // Under the new module-mode exporter, imports pass through to the
+    // import map — Babel only rewrites JSX. We verify the page mounts,
+    // hooks work, and no module resolution errors land in the console.
     const app = `import React, { useState, useEffect, useRef } from 'react';
 import { useMemo } from 'react';
-import ReactDOM from 'react-dom';
-import { createRoot } from 'react-dom/client';
+import { createRoot as roo } from 'react-dom/client';
 import './App.css';
 
 export default function App() {
@@ -180,6 +180,9 @@ export default function App() {
   const m = useMemo(() => n * 2, [n]);
   const ref = useRef(null);
   useEffect(() => {}, []);
+  // Touch the alias import so an unused-import elimination wouldn't
+  // hide a regression where react-dom/client failed to resolve.
+  if (typeof roo !== "function") throw new Error("createRoot did not resolve");
   return <div id="m" ref={ref}>{m}</div>;
 }
 `;
@@ -193,4 +196,43 @@ export default function App() {
     expect(await page.textContent("#m")).toBe("84");
     expect(errors, errors.join("\n")).toEqual([]);
   }, 30_000);
+
+  it("non-react package.json dep loads and its named imports work at runtime", async () => {
+    // This is the case the old UMD-loader silently broke and the user
+    // hit on the kanban output: lucide-react names destructured into
+    // `undefined`, every <Icon /> blew up the React tree, page
+    // rendered a blank background. With importmaps + `?external=react`
+    // on each dep, lucide-react resolves and renders real <svg>s.
+    const app = `import React from 'react';
+import { Camera, X, Plus } from 'lucide-react';
+
+export default function App() {
+  return (
+    <div id="container">
+      <Camera id="cam" />
+      <X id="x" />
+      <Plus id="plus" />
+    </div>
+  );
+}
+`;
+    const pkg = JSON.stringify({
+      dependencies: {
+        react: "^18.2.0",
+        "react-dom": "^18.2.0",
+        "lucide-react": "^0.263.1",
+      },
+    });
+    const html = exportAppToHtml({
+      files: { "App.js": app, "package.json": pkg },
+      tailwind: false,
+      windowAppShim: "",
+    });
+    const { page, errors } = await load(html, "lucide.html");
+    await page.waitForSelector("#container svg", { timeout: 15_000 });
+    // All three icons should render as real <svg> nodes.
+    const svgCount = await page.locator("#container svg").count();
+    expect(svgCount).toBe(3);
+    expect(errors, errors.join("\n")).toEqual([]);
+  }, 45_000);
 });
