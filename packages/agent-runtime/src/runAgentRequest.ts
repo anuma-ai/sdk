@@ -227,7 +227,7 @@ function buildResponseMessages(
     });
     for (let idx = 0; idx < toolResults.length; idx++) {
       const tr = toolResults[idx];
-      const content = typeof tr.result === "string" ? tr.result : JSON.stringify(tr.result);
+      const content = typeof tr.result === "string" ? tr.result : (JSON.stringify(tr.result) ?? "");
       out.push({
         role: "tool",
         tool_call_id: `call_${idx}`,
