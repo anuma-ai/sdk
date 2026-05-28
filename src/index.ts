@@ -738,6 +738,7 @@ export {
 } from "./client";
 export {
   applyToolSets,
+  BUILT_IN_TOOL_SETS,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
   DEFAULT_EXCLUDED_SERVER_TOOLS,

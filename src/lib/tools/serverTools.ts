@@ -853,7 +853,28 @@ export interface ToolSet {
 export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   {
     name: "app-generation",
-    members: ["create_file", "patch_file", "delete_file", "read_file", "list_files"],
+    // Must stay in sync with APP_FILE_TOOL_NAMES in src/tools/appGeneration.ts.
+    // If a new app-gen tool ships there but isn't added here, semantic
+    // selection will exclude it on every request — the model literally
+    // doesn't see it. The quality tools (audit_design / critique_design /
+    // verify_app) are non-obvious to a user prompt ("build me a kanban")
+    // and rely entirely on set expansion to reach the model.
+    members: [
+      "create_file",
+      "patch_file",
+      "delete_file",
+      "read_file",
+      "list_files",
+      "audit_design",
+      "critique_design",
+      "verify_app",
+    ],
+    // Anchors stay limited to the primary entry-point tools. Users phrase
+    // app intent as "build / make / fix" → semantic match on create_file
+    // or patch_file → full set pulled in. The quality tools fire later in
+    // the workflow and don't anchor on their own; including them as
+    // anchors would risk pulling the set in on unrelated "audit my code"
+    // prompts that have nothing to do with app generation.
     anchors: ["create_file", "patch_file"],
     // Set above the global filter floor (0.53). The floor says "this tool
     // might be relevant"; anchoring says "this is an app-building
