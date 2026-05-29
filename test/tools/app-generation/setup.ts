@@ -193,6 +193,73 @@ export function dumpFiles(store: FileStore, testName: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Debug trace — full request/response/tool-call record for a multi-turn run.
+// ---------------------------------------------------------------------------
+
+/** One turn of a debug trace: what was asked, what the model did, what it produced. */
+export interface DebugTraceStep {
+  step: number;
+  /** Short slug, e.g. "1-generate" / "2-style" / "3-feature". */
+  label: string;
+  /** The user prompt for this turn. */
+  userPrompt: string;
+  request: {
+    /** Conversation shape sent this turn (system / user / assistant …). */
+    messageRoles: string[];
+    messageCount: number;
+    /** Tool names available to the model this turn. */
+    toolsAvailable: string[];
+  };
+  response: {
+    text: string;
+    elapsedMs: number;
+    error: string | null;
+    toolCallCount: number;
+  };
+  /** Every tool call this turn — name, args (the generated code / patches), result. */
+  toolCalls: Array<{ name: string; args: unknown; result: unknown }>;
+  /** File store after this turn (path → content). */
+  files: Record<string, string>;
+  /** Per-step output dir (files + index.html) written by dumpFiles. */
+  outputDir: string;
+}
+
+/**
+ * Write a full request/response/tool-call/output trace for a multi-turn app-gen
+ * run — for seeing exactly how generation + edits flow and debugging where they
+ * break. Emits two files under `.output/<outputSubdir>/`:
+ *   - `system-prompt.txt` — the system prompt sent every turn. Inspect it to
+ *     confirm the App Builder guidance (incl. the window.app.complete contract)
+ *     is present.
+ *   - `trace.json` — per-turn user prompt, conversation shape, tool calls with
+ *     their args (the generated code/patches) and results, response text,
+ *     timing, errors, and the file snapshot.
+ * Per-step file outputs + index.html are written separately via `dumpFiles`.
+ */
+export function writeDebugTrace(
+  outputSubdir: string,
+  systemPrompt: string,
+  steps: DebugTraceStep[]
+): void {
+  const dir = path.join(OUTPUT_DIR, outputSubdir.replace(/[^a-zA-Z0-9-_/]/g, "_"));
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "system-prompt.txt"), systemPrompt, "utf-8");
+  const trace = {
+    systemPrompt: {
+      chars: systemPrompt.length,
+      hash: shortHash(systemPrompt),
+      mentionsWindowAppComplete: systemPrompt.includes("window.app.complete"),
+      savedTo: "system-prompt.txt",
+    },
+    steps,
+  };
+  fs.writeFileSync(path.join(dir, "trace.json"), JSON.stringify(trace, null, 2), "utf-8");
+  console.log(
+    `  Debug trace: ${path.relative(process.cwd(), dir)}/trace.json (${steps.length} turns) + system-prompt.txt`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Metrics persistence — pairs with src/tools/appGenMetrics.ts.
 // ---------------------------------------------------------------------------
 
