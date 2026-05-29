@@ -81,8 +81,8 @@ const SENTINEL_UI_METADATA: AgentUiMetadata = {
 };
 
 const SENTINEL_FIRST_TIME_DISCLAIMER = [
-  "Anuma is not a law firm. {{agent_name}} is an AI tool. It does not provide legal advice, and using it does not create an attorney-client relationship.",
-  "{{agent_name}} helps you prepare documents and take action based on information you provide. Results depend on the accuracy of your inputs and on applicable law in your jurisdiction, which varies. Anuma makes no guarantee of any particular outcome.",
+  "Anuma is not a financial advisory firm. {{agent_name}} is an AI tool. It does not provide financial advice, and using it does not create a financial advisor-client relationship.",
+  "{{agent_name}} helps you review billing information, prepare disputes, and take action based on information you provide. Results depend on the accuracy of your inputs, merchant policies, and the details of your accounts. Anuma makes no guarantee of any particular outcome.",
   "Documents you upload are processed to generate your results. See our Privacy Policy for details.",
 ].join("\n\n");
 

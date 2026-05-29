@@ -268,7 +268,7 @@ export interface AgentConfig {
   /** UI metadata (color, icon, example conversations) for renderer fallbacks. */
   uiMetadata?: AgentUiMetadata;
   /** One-time disclaimer shown in a popup the first time a user opens
-   *  a chat with this agent. Plain text; consumers split on `\n` for paragraphs.
+   *  a chat with this agent. Plain text; consumers split on `\n\n` for paragraphs.
    *  May include `{{agent_name}}` placeholder. */
   firstTimeDisclaimer?: string;
 
