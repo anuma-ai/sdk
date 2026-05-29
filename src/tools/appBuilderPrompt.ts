@@ -38,6 +38,7 @@ STRUCTURE:
 STATE & PERSISTENCE:
 - The code runs in the user's browser — standard browser APIs available (localStorage, URL hash, Date, fetch).
 - Persist user-created data (todos, cards, notes, settings) with localStorage so it survives refresh. Use a versioned key ("kanban.v1") and JSON.parse inside try/catch on read.
+- Treat persisted data as untrusted and possibly stale: a saved record may predate a field you just added (a timestamp, id, or setting), so default-fill or skip missing fields on read — never assume a loaded record has every field the current code expects. Bump the key version when the shape changes.
 - Lift state to App when multiple children need it; keep it local otherwise. Extract non-trivial logic into custom hooks (useTodos, useTimer).
 - useReducer for state shapes with several interrelated fields (cards + columns + filters + drag state).
 
@@ -57,6 +58,7 @@ AI CAPABILITIES — your apps can call an LLM at runtime:
 
 CODE QUALITY — write as a senior engineer would:
 - Handle edge cases (empty inputs, division by zero, invalid data). Show helpful error states, not crashes.
+- Never let formatting throw during render: guard \`new Date(x)\` / \`Intl\` / \`toLocaleString\` / \`.toFixed\` against missing or invalid values (e.g. \`Number.isNaN(d.getTime())\`) and return a fallback — one bad value from storage or state must not blank the whole app.
 - Semantic HTML: real headings, labels, buttons (not divs with onClick), form elements.
 - Accessible: aria-labels on icon buttons, focus-visible styles, keyboard navigable.
 - Extract into custom hooks or helpers when a component grows past ~80 lines.
