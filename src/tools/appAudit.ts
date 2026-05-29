@@ -398,7 +398,11 @@ export function contrastRatio(a: [number, number, number], b: [number, number, n
  *  units) or null if the token isn't declared or appears multiple times
  *  with conflicting values. */
 function getTokenValue(appCss: string, tokenName: string): string | null {
-  const re = new RegExp(`--${tokenName.replace(/^--/, "")}\\s*:\\s*([^;]+);`, "g");
+  // `;?` so the final declaration in a block (no trailing semicolon) is still
+  // matched; `[^;}]` stops the capture at a `}` as a safety net. Mirrors the
+  // pattern `extractTokens` already uses — without this the last token in
+  // `:root` was silently invisible to contrast/spacing checks.
+  const re = new RegExp(`--${tokenName.replace(/^--/, "")}\\s*:\\s*([^;}]+);?`, "g");
   let value: string | null = null;
   for (const blockMatch of appCss.matchAll(/:root\s*\{([\s\S]*?)\}/g)) {
     const body = blockMatch[1] ?? "";

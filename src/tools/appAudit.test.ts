@@ -541,4 +541,36 @@ body { background: var(--bg); color: var(--ink); }
     expect(orphans).toHaveLength(1);
     expect(orphans[0].message).toMatch(/legacy/);
   });
+
+  // ---------------------------------------------------------------------
+  // getTokenValue: match the LAST declaration in :root even without a
+  // trailing semicolon. The old `([^;]+);` regex required a `;`, so a
+  // final token (`--bg:#fff` with no `;` before `}`) was invisible to
+  // the contrast / spacing checks.
+  // ---------------------------------------------------------------------
+
+  it("detects low-contrast when fg/bg tokens are the final :root declaration without a trailing semicolon", () => {
+    // --bg is the LAST declaration and has NO trailing semicolon before }.
+    // --ink #888 on --bg #fff is ~3.5:1 — fails AA body text. Against the
+    // old `([^;]+);` regex, --bg would never match (no `;`), getTokenValue
+    // would return null, and findLowContrast would skip entirely.
+    const css = `:root { --ink:#888; --bg:#fff }`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    const lc = findIssue(result, "low-contrast");
+    expect(lc).toHaveLength(1);
+    expect(lc[0].severity).toBe("warn");
+    expect(lc[0].message).toMatch(/3\.5/);
+  });
+
+  it("positive control: the same low-contrast pairing is flagged WITH a trailing semicolon (parity)", () => {
+    // Same tokens, but --bg now ends in `;`. This already worked under the
+    // old regex; the no-semicolon case above must reach the same result.
+    const css = `:root { --ink:#888; --bg:#fff; }`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    const lc = findIssue(result, "low-contrast");
+    expect(lc).toHaveLength(1);
+    expect(lc[0].severity).toBe("warn");
+    expect(lc[0].message).toMatch(/3\.5/);
+  });
+
 });
