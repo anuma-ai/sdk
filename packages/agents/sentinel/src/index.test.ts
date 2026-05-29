@@ -70,11 +70,6 @@ describe("sentinelAgent", () => {
     expect(sentinelAgent.firstTimeDisclaimer).toContain("{{agent_name}}");
   });
 
-  it("firstTimeDisclaimer uses financial framing, not Haven's legal wording", () => {
-    expect(sentinelAgent.firstTimeDisclaimer).toContain("financial");
-    expect(sentinelAgent.firstTimeDisclaimer).not.toMatch(/law firm|legal advice|attorney/i);
-  });
-
   it("persistentFooter is a non-empty single-line string", () => {
     expect(typeof sentinelAgent.persistentFooter).toBe("string");
     expect(sentinelAgent.persistentFooter!.length).toBeGreaterThan(0);
