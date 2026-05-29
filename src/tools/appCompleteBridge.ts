@@ -63,8 +63,12 @@ export interface AppCompleteBridgeOptions {
    *  with the response. May throw / reject; the error message is
    *  forwarded to the iframe. */
   complete: (prompt: string) => Promise<string>;
-  /** Origin to send the postMessage response to. Defaults to "*".
-   *  Set this in production to the iframe's expected origin. */
+  /** Origin to send the postMessage response to. When unset, the reply is
+   *  targeted at the requesting frame's own `event.origin` so a document that
+   *  later replaces the source window can't read it — falling back to "*"
+   *  only for opaque origins (sandboxed / srcdoc iframes, which serialize to
+   *  "null" and can't be targeted by string). Set explicitly to pin a known
+   *  origin in production. */
   targetOrigin?: string;
   /** Filter messages by source window. When set, requests from any
    *  other window are ignored. Useful when the parent embeds multiple
@@ -85,14 +89,32 @@ export interface AppCompleteBridge {
   dispose(): void;
 }
 
+/** Warn at most once per process that a bridge was created without any origin
+ *  or source-window restriction. Module-scoped flag keeps it from spamming
+ *  hosts that mount/unmount previews repeatedly. */
+let warnedWideOpenBridge = false;
+function warnWideOpenBridge(): void {
+  if (warnedWideOpenBridge) return;
+  warnedWideOpenBridge = true;
+  console.warn(
+    "[anuma] createAppCompleteBridge: no `allowedOrigins` or `source` set — the bridge will run complete() for postMessage requests from ANY origin and any window can read the result. Pass `allowedOrigins` (or `source` for srcdoc/sandboxed previews) to restrict callers in production."
+  );
+}
+
 /**
  * Install a parent-side bridge that responds to `window.app.complete`
  * calls from one or more preview iframes. Returns a handle whose
  * `dispose()` removes the listener.
  */
 export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppCompleteBridge {
-  const { complete, targetOrigin = "*", source, allowedOrigins } = options;
+  const { complete, targetOrigin, source, allowedOrigins } = options;
   const allowSet = allowedOrigins ? new Set(allowedOrigins) : null;
+
+  // Wide-open posture (no origin allowlist, no source-window filter) means any
+  // frame that can postMessage this window can drive the host's `complete()`
+  // and read its output. Legitimate for local dev / single trusted preview,
+  // but warn once so it isn't shipped to production unnoticed.
+  if (!allowSet && !source) warnWideOpenBridge();
 
   const handler = async (event: MessageEvent): Promise<void> => {
     if (source && event.source !== source) return;
@@ -107,12 +129,18 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
     const reply = event.source as Window | null;
     if (!reply) return;
 
+    // Target the reply at the requester's own origin unless the host pinned
+    // one. Opaque origins (sandboxed/srcdoc iframes) serialize to "null" and
+    // can't be used as a postMessage targetOrigin, so fall back to "*" there.
+    const replyOrigin =
+      targetOrigin ?? (event.origin && event.origin !== "null" ? event.origin : "*");
+
     const prompt = typeof data.prompt === "string" ? data.prompt : "";
     try {
       const result = await complete(prompt);
       reply.postMessage(
         { type: APP_COMPLETE_RESPONSE_TYPE, id: data.id, result: String(result) },
-        targetOrigin
+        replyOrigin
       );
     } catch (err) {
       reply.postMessage(
@@ -121,7 +149,7 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
           id: data.id,
           error: err instanceof Error ? err.message : String(err),
         },
-        targetOrigin
+        replyOrigin
       );
     }
   };

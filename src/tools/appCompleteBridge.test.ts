@@ -141,6 +141,164 @@ describe("createAppCompleteBridge", () => {
   });
 });
 
+describe("createAppCompleteBridge reply targeting", () => {
+  // These tests dispatch a MessageEvent whose `source` is a window-like
+  // object with a postMessage spy, so we can inspect the targetOrigin the
+  // bridge passes to the reply. `window.postMessage` (used elsewhere) routes
+  // back to the same window and can't carry a foreign origin, so we
+  // construct the event directly. An `allowedOrigins` allowlist that
+  // includes the requester keeps the message accepted (and keeps the
+  // wide-open warning quiet).
+  function dispatchRequest(opts: {
+    origin: string;
+    spy: ReturnType<typeof vi.fn>;
+    id?: string;
+    prompt?: string;
+  }): void {
+    const source = { postMessage: opts.spy } as unknown as Window;
+    const event = new MessageEvent("message", {
+      data: {
+        type: APP_COMPLETE_REQUEST_TYPE,
+        id: opts.id ?? "req-1",
+        prompt: opts.prompt ?? "hi",
+      },
+      origin: opts.origin,
+      source,
+    });
+    window.dispatchEvent(event);
+  }
+
+  it("targets the reply at the requester's own origin by default", async () => {
+    const complete = vi.fn(async (p: string) => `echo:${p}`);
+    const bridge = createAppCompleteBridge({
+      complete,
+      allowedOrigins: ["https://child.example"],
+    });
+
+    const spy = vi.fn();
+    dispatchRequest({ origin: "https://child.example", spy, prompt: "hi" });
+    // Let the async handler resolve complete() and post the reply.
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const [message, replyOrigin] = spy.mock.calls[0];
+    // The fix: reply origin is the requester's, NOT the old hardcoded "*".
+    expect(replyOrigin).toBe("https://child.example");
+    expect(replyOrigin).not.toBe("*");
+    expect(message).toMatchObject({
+      type: APP_COMPLETE_RESPONSE_TYPE,
+      id: "req-1",
+      result: "echo:hi",
+    });
+    bridge.dispose();
+  });
+
+  it('falls back to "*" for an opaque ("null") origin', async () => {
+    const complete = vi.fn(async (p: string) => `echo:${p}`);
+    // Sandboxed/srcdoc iframes serialize their origin to "null", which
+    // can't be used as a postMessage targetOrigin; the bridge must fall
+    // back to "*" rather than passing the literal "null" through.
+    const bridge = createAppCompleteBridge({ complete, allowedOrigins: ["null"] });
+
+    const spy = vi.fn();
+    dispatchRequest({ origin: "null", spy });
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const replyOrigin = spy.mock.calls[0][1];
+    expect(replyOrigin).toBe("*");
+    bridge.dispose();
+  });
+
+  it("uses an explicit targetOrigin over the requester's origin", async () => {
+    const complete = vi.fn(async (p: string) => `echo:${p}`);
+    const bridge = createAppCompleteBridge({
+      complete,
+      targetOrigin: "https://pin.example",
+      allowedOrigins: ["https://child.example"],
+    });
+
+    const spy = vi.fn();
+    dispatchRequest({ origin: "https://child.example", spy });
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const replyOrigin = spy.mock.calls[0][1];
+    // A pinned targetOrigin wins over the requester's own origin.
+    expect(replyOrigin).toBe("https://pin.example");
+    bridge.dispose();
+  });
+
+  it("targets error-path replies at the requester's origin too", async () => {
+    const complete = vi.fn(async () => {
+      throw new Error("boom");
+    });
+    const bridge = createAppCompleteBridge({
+      complete,
+      allowedOrigins: ["https://child.example"],
+    });
+
+    const spy = vi.fn();
+    dispatchRequest({ origin: "https://child.example", spy });
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const [message, replyOrigin] = spy.mock.calls[0];
+    expect(replyOrigin).toBe("https://child.example");
+    expect(message).toMatchObject({
+      type: APP_COMPLETE_RESPONSE_TYPE,
+      id: "req-1",
+      error: "boom",
+    });
+    bridge.dispose();
+  });
+});
+
+describe("createAppCompleteBridge wide-open warning", () => {
+  it("does not warn when allowedOrigins is set", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bridge = createAppCompleteBridge({
+      complete: vi.fn(async () => "x"),
+      allowedOrigins: ["https://x.example"],
+    });
+    // The `!allowSet && !source` guard is false here, so no warning fires —
+    // independent of whether the module-global warn-once flag has tripped.
+    expect(warnSpy).not.toHaveBeenCalled();
+    bridge.dispose();
+    warnSpy.mockRestore();
+  });
+
+  it("does not warn when source is set", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bridge = createAppCompleteBridge({
+      complete: vi.fn(async () => "x"),
+      source: window,
+    });
+    expect(warnSpy).not.toHaveBeenCalled();
+    bridge.dispose();
+    warnSpy.mockRestore();
+  });
+
+  it("warns exactly once for wide-open creations (fresh module)", async () => {
+    // The warn-once flag is module-global, so reset modules and re-import to
+    // start from a clean (un-warned) state, then confirm two wide-open
+    // creations produce exactly one warning.
+    vi.resetModules();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const mod = await import("./appCompleteBridge.js");
+
+    const b1 = mod.createAppCompleteBridge({ complete: vi.fn(async () => "x") });
+    const b2 = mod.createAppCompleteBridge({ complete: vi.fn(async () => "x") });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain("[anuma] createAppCompleteBridge");
+
+    b1.dispose();
+    b2.dispose();
+    warnSpy.mockRestore();
+  });
+});
+
 describe("APP_COMPLETE_IFRAME_SHIM_SCRIPT", () => {
   it("does nothing when there is no parent window", () => {
     // In the test environment, window.parent === window, so the IIFE
