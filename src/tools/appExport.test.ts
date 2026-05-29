@@ -78,6 +78,62 @@ export default function App() {
     expect(html.match(/<\/style>/g)?.length).toBe(2);
   });
 
+  it("defuses `</script>` in App.js so the model's source can't close the babel script early", () => {
+    // App.js is interpolated into `<script type="text/babel">`. A literal
+    // `</script>` in the source (e.g. inside a string) would otherwise end
+    // the script element, the app never mounts, and — since nothing throws —
+    // the runtime overlay never paints, leaving a silent blank page. The
+    // marker is unique because the output legitimately contains real
+    // `</script>` closing tags elsewhere.
+    const html = exportAppToHtml({
+      files: {
+        "App.js": `export default function App(){ const s = "MARK</script>END"; return null; }`,
+      },
+    });
+    // The model's `</script>` is escaped so it can't break out.
+    expect(html).toContain("MARK<\\/script>END");
+    // The raw, un-escaped form must not survive.
+    expect(html).not.toContain("MARK</script>END");
+  });
+
+  it("defuses `</script>` in a custom windowAppShim the same way", () => {
+    // The shim is interpolated into its own `<script>` block; a literal
+    // `</script>` would close it early just like App.js.
+    const html = exportAppToHtml({
+      files: { "App.js": trivialApp },
+      windowAppShim: `window.x = "SHIM</script>Z";`,
+    });
+    expect(html).toContain("SHIM<\\/script>Z");
+    expect(html).not.toContain("SHIM</script>Z");
+  });
+
+  it("keeps a plain App.js (no `</script>`) intact through normalization", () => {
+    // The App.js defuse must not corrupt ordinary code: a plain app still
+    // round-trips and reaches the boot line.
+    const html = exportAppToHtml({ files: { "App.js": trivialApp } });
+    expect(html).toContain("function App() {");
+    expect(html).toContain('__anumaCreateRoot(document.getElementById("root")).render(<App />)');
+  });
+
+  it("escapes `<` in importmap JSON so a malicious dep name can't break out of the script", () => {
+    // A package.json dependency *name* containing `</script>` must not close
+    // the `<script type="importmap">` block. `<` is escaped to its JSON
+    // unicode form, which round-trips through JSON.parse so the resolved
+    // import map is unchanged for legitimate names.
+    const html = exportAppToHtml({
+      files: {
+        "App.js": trivialApp,
+        "package.json": JSON.stringify({ dependencies: { "evil</script>x": "1.0.0" } }),
+      },
+    });
+    // The escaped unicode form is present; the raw breakout sequence is not.
+    expect(html).toContain("\\u003c/script>");
+    expect(html).not.toContain("evil</script>x");
+    // The importmap is still valid JSON and still maps react.
+    const imports = readImportMap(html);
+    expect(imports.react).toMatch(/^https:\/\/esm\.sh\/react@/);
+  });
+
   it("strips `import './App.css';` from the JS (CSS is inlined)", () => {
     const html = exportAppToHtml({
       files: { "App.js": trivialApp, "App.css": "" },
@@ -101,7 +157,7 @@ export default function App() { return null; }
     expect(html).toContain("import React, { useState, useEffect } from 'react';");
   });
 
-  it("prepends `import React from \"react\"` when the model only imports hooks", () => {
+  it('prepends `import React from "react"` when the model only imports hooks', () => {
     // Modern apps commonly write `import { useState } from "react"` without
     // bringing React itself into scope. Babel-standalone's classic JSX
     // runtime needs `React` in scope to compile <div /> → React.createElement,
@@ -269,7 +325,7 @@ export default App;
     expect(html).toContain(RUNTIME_ERROR_OVERLAY_SCRIPT);
     // Sentinel attribute so the browser smoke test can find the
     // injected overlay element by query selector.
-    expect(html).toContain('data-anuma-error-overlay');
+    expect(html).toContain("data-anuma-error-overlay");
     // Both error sources are wired.
     expect(html).toContain('"error"');
     expect(html).toContain('"unhandledrejection"');

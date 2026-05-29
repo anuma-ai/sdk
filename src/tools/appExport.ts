@@ -155,7 +155,7 @@ button, input, select, textarea { font: inherit; }`;
  *  keyword detection. Used when no real LLM backend is available — keeps
  *  the visual preview interactive enough to demo. The default value of
  *  `ExportAppOptions.windowAppShim`. */
-export const APP_COMPLETE_STUB_SCRIPT =`// Offline stub for window.app.complete — returns canned responses so the
+export const APP_COMPLETE_STUB_SCRIPT = `// Offline stub for window.app.complete — returns canned responses so the
 // preview is interactive without a real backend. Replace by passing
 // windowAppShim to exportAppToHtml (e.g. APP_COMPLETE_IFRAME_SHIM_SCRIPT
 // for parent-iframe postMessage bridging) or by overwriting at runtime.
@@ -232,7 +232,14 @@ export function exportAppToHtml(options: ExportAppOptions): string {
   }
 
   const importMap = buildImportMap(deps);
-  const jsClean = normalizeForModule(appJs);
+  // App.js is model-authored. A literal `</script>` anywhere in it (a string
+  // like "<script>…</script>", an HTML-as-text demo, a code-display snippet)
+  // would otherwise close the <script type="text/babel"> element early — the
+  // app never mounts and, since nothing throws, the runtime overlay never
+  // paints, leaving a silent blank page. Defuse the same way as `</style>`
+  // below. `<\/script>` in JS source is identical to `</script>` at runtime.
+  const safeJs = defuseScriptClose(normalizeForModule(appJs));
+  const safeShim = defuseScriptClose(windowAppShim);
 
   const escapedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   // Defuse any literal `</style>` inside CSS: HTML's raw-text scanner only
@@ -258,10 +265,10 @@ ${importMap}
   <div id="root"></div>
   <script>
 ${RUNTIME_ERROR_OVERLAY_SCRIPT}
-  </script>${windowAppShim ? `\n  <script>\n${windowAppShim}\n  </script>` : ""}
+  </script>${windowAppShim ? `\n  <script>\n${safeShim}\n  </script>` : ""}
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="text/babel" data-type="module" data-presets="react">
-${jsClean}
+${safeJs}
 import { createRoot as __anumaCreateRoot } from "react-dom/client";
 __anumaCreateRoot(document.getElementById("root")).render(<App />);
   </script>
@@ -294,7 +301,12 @@ function buildImportMap(deps: Record<string, string>): string {
     const clean = stripVersionRange(version);
     imports[name] = `https://esm.sh/${name}@${clean}?external=react`;
   }
+  // Escape `<` as its JSON unicode form so a package.json dependency *name*
+  // containing `</script>` can't break out of the <script type="importmap">
+  // block. `<` round-trips through JSON.parse back to `<`, so the import
+  // map the browser builds is unchanged for legitimate names.
   return JSON.stringify({ imports }, null, 2)
+    .replace(/</g, "\\u003c")
     .split("\n")
     .map((l) => `  ${l}`)
     .join("\n");
@@ -302,6 +314,14 @@ function buildImportMap(deps: Record<string, string>): string {
 
 function stripVersionRange(v: string): string {
   return v.replace(/^[\^~>=<]+/, "").trim();
+}
+
+/** Defuse a literal `</script>` so model- or host-authored JS can't close the
+ *  enclosing `<script>` element early. `<\/script>` is identical to
+ *  `</script>` once the JS source executes, so runtime behaviour is unchanged.
+ *  Mirror of the `</style>` trick applied to inlined CSS. */
+function defuseScriptClose(js: string): string {
+  return js.replace(/<\/(script)/gi, "<\\/$1");
 }
 
 /**
