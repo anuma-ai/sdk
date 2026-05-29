@@ -138,14 +138,22 @@ function decodeBase64Url(data: string): string {
   const padLen = (4 - (padded.length % 4)) % 4;
   const withPad = padded + "=".repeat(padLen);
   if (typeof atob === "function") {
+    let binary: string;
     try {
-      // Decode bytes via TextDecoder — `escape`/`unescape` are deprecated and
-      // missing from Web Workers in some environments.
-      const binary = atob(withPad);
+      binary = atob(withPad);
+    } catch {
+      // Malformed base64 from upstream — tool executors never throw on
+      // these paths, so surface an empty body instead.
+      return "";
+    }
+    try {
+      // Decode bytes via TextDecoder — `escape`/`unescape` are deprecated
+      // and missing from Web Workers in some environments.
       const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
       return new TextDecoder().decode(bytes);
     } catch {
-      return atob(withPad);
+      // TextDecoder unavailable — return the raw decoded byte string.
+      return binary;
     }
   }
   // Node fallback for server agents — Buffer is always available there.

@@ -201,6 +201,35 @@ describe("createGmailTools", () => {
     expect(result.body).toBe(bodyText);
   });
 
+  test("gmail_get_message does not throw when payload is malformed base64", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: "m2",
+        threadId: "t2",
+        snippet: "",
+        payload: {
+          headers: [{ name: "Subject", value: "Garbled" }],
+          // Contains a `*` — invalid base64 / base64url. `atob` rejects it
+          // with "Invalid character"; the executor must surface a result
+          // instead of letting the throw escape.
+          parts: [{ mimeType: "text/plain", body: { data: "not***valid***b64" } }],
+        },
+      })
+    );
+    const tools = createGmailTools(
+      async () => "good-token",
+      async () => null
+    );
+    const result = (await runExecutor(tools.gmail_get_message, {
+      messageId: "m2",
+    })) as { subject?: string; body?: string };
+    expect(result.subject).toBe("Garbled");
+    // Body is undefined because extractPlainTextBody treats an empty decoded
+    // string as "no body" — the load-bearing assertion is that we got a
+    // structured result at all instead of a thrown executor.
+    expect(result.body).toBeUndefined();
+  });
+
   test("gmail_send_message posts a base64url-encoded RFC822 message", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
     const tools = createGmailTools(
