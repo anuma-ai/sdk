@@ -705,13 +705,14 @@ Use for live preview of artifacts (HTML, slides) being generated.
 
 > `optional` **preProcessors**: `PromptPreProcessor`\[]
 
-Defined in: [src/lib/db/chat/types.ts:420](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#420)
+Defined in: [src/lib/db/chat/types.ts:421](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#421)
 
 Pre-processors run after the last user message is received but before
 the first LLM request. Each receives the prompt text and a shared
 embedding (computed once per request) and may return messages to
 enrich the conversation. Forwarded to the underlying `useChat` hook.
-See `createWebSearchPreProcessor`, `createPricePreProcessor`, or write
+See `createWebSearchPreProcessor`, `createCryptoPricePreProcessor`,
+`createStockPricePreProcessor`, `createWeatherPreProcessor`, or write
 a custom one matching `PromptPreProcessor`.
 
 **Inherited from**

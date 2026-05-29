@@ -258,8 +258,10 @@ export type BaseUseChatOptions = {
    * Pre-processors run after the last user message is received but before the
    * first LLM request. Each receives the prompt text and a shared embedding
    * (computed once per request) and may return messages to enrich the
-   * conversation. See `createWebSearchPreProcessor`, `createPricePreProcessor`,
-   * or write a custom one matching `PromptPreProcessor`.
+   * conversation. See `createWebSearchPreProcessor`,
+   * `createCryptoPricePreProcessor`, `createStockPricePreProcessor`,
+   * `createWeatherPreProcessor`, or write a custom one matching
+   * `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
 };

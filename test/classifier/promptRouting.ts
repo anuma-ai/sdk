@@ -23,8 +23,10 @@
 import "dotenv/config";
 import { describe, expect, it } from "vitest";
 
-import { createPricePreProcessor } from "../../src/lib/chat/priceClassifier.js";
+import { createCryptoPricePreProcessor } from "../../src/lib/chat/cryptoPriceClassifier.js";
 import type { PromptPreProcessor } from "../../src/lib/chat/preProcessor.js";
+import { createStockPricePreProcessor } from "../../src/lib/chat/stockPriceClassifier.js";
+import { createWeatherPreProcessor } from "../../src/lib/chat/weatherClassifier.js";
 import { createWebSearchPreProcessor } from "../../src/lib/chat/webSearchClassifier.js";
 import { generateEmbeddings } from "../../src/lib/memoryEngine/embeddings.js";
 
@@ -65,13 +67,40 @@ const PRE_PROCESSORS: PreProcessorUnderTest[] = [
     },
   },
   {
-    name: "price",
-    // ↑ note: this also covers stocks and FX, not just crypto.
+    name: "cryptoPrice",
     minAccuracy: 0.7,
     makeObserver: () => {
       let triggered = false;
-      const processor = createPricePreProcessor({
-        fetchPriceData: async () => {
+      const processor = createCryptoPricePreProcessor({
+        fetchCryptoPriceData: async () => {
+          triggered = true;
+          return "";
+        },
+      });
+      return { processor, didTrigger: () => triggered };
+    },
+  },
+  {
+    name: "stockPrice",
+    minAccuracy: 0.7,
+    makeObserver: () => {
+      let triggered = false;
+      const processor = createStockPricePreProcessor({
+        fetchStockPriceData: async () => {
+          triggered = true;
+          return "";
+        },
+      });
+      return { processor, didTrigger: () => triggered };
+    },
+  },
+  {
+    name: "weather",
+    minAccuracy: 0.7,
+    makeObserver: () => {
+      let triggered = false;
+      const processor = createWeatherPreProcessor({
+        fetchWeatherData: async () => {
           triggered = true;
           return "";
         },
@@ -102,16 +131,18 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "What happened in the world today?", shouldTrigger: ["webSearch"] },
   { text: "Any breaking news right now?", shouldTrigger: ["webSearch"] },
 
-  // Financial — both webSearch (timely) and price (price/quote)
-  { text: "What is Bitcoin's price right now?", shouldTrigger: ["webSearch", "price"] },
-  { text: "How is the S&P 500 performing today?", shouldTrigger: ["webSearch", "price"] },
-  {
-    text: "What's the current exchange rate for USD to EUR?",
-    shouldTrigger: ["webSearch", "price"],
-  },
-  { text: "How much is Nvidia stock worth?", shouldTrigger: ["webSearch", "price"] },
-  { text: "What's the market cap of Apple?", shouldTrigger: ["webSearch", "price"] },
-  // Gas-fee query is current-data (web search) but not strictly a price quote.
+  // Financial — pure data queries route only to the dedicated price classifier.
+  // Web search would just add noisy news context the user didn't ask for.
+  { text: "What is Bitcoin's price right now?", shouldTrigger: ["cryptoPrice"] },
+  { text: "How is the S&P 500 performing today?", shouldTrigger: ["stockPrice"] },
+  { text: "What's the current exchange rate for USD to EUR?", shouldTrigger: ["stockPrice"] },
+  { text: "How much is Nvidia stock worth?", shouldTrigger: ["stockPrice"] },
+  { text: "What's the market cap of Apple?", shouldTrigger: ["stockPrice"] },
+  // Gas fees are current data the SDK has no dedicated processor for — falls
+  // back to webSearch by design. If/when we add an on-chain gas/network-stats
+  // pre-processor, relabel this and move the phrase out of webSearch's YES
+  // corpus so we stop spending search calls on it. Until then this label
+  // documents the known gap rather than a misclassification.
   { text: "What are Ethereum gas fees right now?", shouldTrigger: ["webSearch"] },
 
   // Sports
@@ -121,11 +152,11 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "When is the next UFC fight?", shouldTrigger: ["webSearch"] },
   { text: "Who's leading the Tour de France?", shouldTrigger: ["webSearch"] },
 
-  // Weather
-  { text: "What's the weather in San Francisco today?", shouldTrigger: ["webSearch"] },
-  { text: "Will it rain in New York this weekend?", shouldTrigger: ["webSearch"] },
-  { text: "What's the UV index in Miami right now?", shouldTrigger: ["webSearch"] },
-  { text: "Is there a flood warning in Houston?", shouldTrigger: ["webSearch"] },
+  // Weather — pure data queries route only to the weather classifier.
+  { text: "What's the weather in San Francisco today?", shouldTrigger: ["weather"] },
+  { text: "Will it rain in New York this weekend?", shouldTrigger: ["weather"] },
+  { text: "What's the UV index in Miami right now?", shouldTrigger: ["weather"] },
+  { text: "Is there a flood warning in Houston?", shouldTrigger: ["weather"] },
 
   // Local search
   { text: "Find Italian restaurants near me", shouldTrigger: ["webSearch"] },
@@ -167,18 +198,53 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "When is the next presidential debate?", shouldTrigger: ["webSearch"] },
 
   // Edge cases — short / terse but still search-worthy
-  { text: "Ethereum price", shouldTrigger: ["webSearch", "price"] },
-  { text: "weather tomorrow", shouldTrigger: ["webSearch"] },
+  { text: "Ethereum price", shouldTrigger: ["cryptoPrice"] },
+  { text: "weather tomorrow", shouldTrigger: ["weather"] },
   { text: "election results 2026", shouldTrigger: ["webSearch"] },
   { text: "flights to Tokyo", shouldTrigger: ["webSearch"] },
   { text: "Lakers score", shouldTrigger: ["webSearch"] },
 
-  // ── Price-specific (also commonly trigger webSearch) ─────────
-  { text: "What is the ZETA token price?", shouldTrigger: ["webSearch", "price"] },
-  { text: "Show me the BTC chart", shouldTrigger: ["webSearch", "price"] },
-  { text: "How much is Solana worth in USD?", shouldTrigger: ["webSearch", "price"] },
-  { text: "Tesla stock price", shouldTrigger: ["webSearch", "price"] },
-  { text: "DOGE market cap", shouldTrigger: ["webSearch", "price"] },
+  // ── Crypto-price-specific (pure data, no webSearch) ─────────
+  { text: "What is the ZETA token price?", shouldTrigger: ["cryptoPrice"] },
+  { text: "Show me the BTC chart", shouldTrigger: ["cryptoPrice"] },
+  { text: "How much is Solana worth in USD?", shouldTrigger: ["cryptoPrice"] },
+  { text: "DOGE market cap", shouldTrigger: ["cryptoPrice"] },
+
+  // ── Stock-price-specific (pure data, no webSearch) ─────────
+  { text: "Tesla stock price", shouldTrigger: ["stockPrice"] },
+  { text: "What is NVDA trading at", shouldTrigger: ["stockPrice"] },
+  { text: "USD to JPY exchange rate today", shouldTrigger: ["stockPrice"] },
+  { text: "Show me the QQQ ETF price", shouldTrigger: ["stockPrice"] },
+
+  // ── Weather-specific (pure data, no webSearch) ─────────
+  { text: "Forecast for Tokyo tomorrow", shouldTrigger: ["weather"] },
+  { text: "What's the air quality in Delhi", shouldTrigger: ["weather"] },
+  { text: "Will it snow in Aspen this weekend", shouldTrigger: ["weather"] },
+
+  // ── Genuinely-ambiguous asset-class queries.
+  // Gold and silver both exist as crypto-pegged tokens (PAXG/XAUT for gold,
+  // various PAX Silver / SLVR-style tokens for silver) AND as traditional
+  // commodities (XAU/XAG spot, GLD/SLV ETFs). The pure-data query
+  // doesn't disambiguate, so both classifiers should fire and the LLM
+  // picks the relevant context.
+  //
+  // Multiple variants here on purpose — a single gold prompt was too
+  // brittle (Tanmay's call); regressions need more than one prompt to
+  // catch them.
+  //
+  // Known-flaky on accuracy: these depend on the embedding model + the
+  // crypto/stock corpora keeping commodity-adjacent phrases in both YES
+  // sets. If a prompt stops triggering one side, the fix is to (a) check
+  // whether the embedding model has changed, then (b) add more pegged-
+  // token / spot phrases to the relevant generation script and
+  // regenerate — not to relax the assertion.
+  { text: "What is the price of gold today?", shouldTrigger: ["cryptoPrice", "stockPrice"] },
+  { text: "Show me the price of silver", shouldTrigger: ["cryptoPrice", "stockPrice"] },
+
+  // Commodities without notable crypto representation — stock-only.
+  // Listed explicitly to document why they're NOT in the ambiguous bucket.
+  { text: "Spot price of platinum", shouldTrigger: ["stockPrice"] },
+  { text: "Oil price today", shouldTrigger: ["stockPrice"] },
 
   // Edge cases — questions that look general but need current data
   { text: "Is TikTok banned in the US?", shouldTrigger: ["webSearch"] },
