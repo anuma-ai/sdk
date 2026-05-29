@@ -1155,3 +1155,102 @@ describe("verify_app tool", () => {
     expect(APP_FILE_TOOL_NAMES.has("verify_app")).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// patch_file thrash gating — not_found streak vs. ambiguous failures
+// ---------------------------------------------------------------------------
+
+describe("patch_file thrash gating", () => {
+  // Reuses the executor-driving harness from the read-before-write / LRU
+  // eviction tests above: MapFileStorage + a fixed conversation id, then
+  // mark the file seen via read_file so patch_file's read-before-write
+  // contract is satisfied.
+  function makeTools(seedContent: string): {
+    storage: MapFileStorage;
+    readFile: ToolConfig;
+    patchFile: ToolConfig;
+  } {
+    const storage = new MapFileStorage();
+    storage.getAll().set("App.js", seedContent);
+    const tools = createAppGenerationTools({
+      getConversationId: () => "thrash-conv",
+      storage,
+      logError: () => undefined,
+    });
+    const findTool = (name: string): ToolConfig => {
+      const t = tools.find((tt) => (tt.function as { name: string }).name === name);
+      if (!t) throw new Error(`tool ${name} not found`);
+      return t;
+    };
+    return { storage, readFile: findTool("read_file"), patchFile: findTool("patch_file") };
+  }
+
+  it("an ambiguous failure does NOT inherit a prior not_found streak's STOP directive", async () => {
+    // "const A = 1;" appears twice -> ambiguous. "NOPE" never appears ->
+    // not_found, used to drive the failure counter up to threshold.
+    const { readFile, patchFile } = makeTools("const A = 1;\nconst A = 1;\n");
+    await readFile.executor!({ path: "App.js" }); // satisfy read-before-write
+
+    // Drive PATCH_FAILURE_THRESHOLD (=2) consecutive not_found failures so
+    // the failure counter is at/over threshold and the NEXT not_found WOULD
+    // emit the STOP directive.
+    const stop = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "NOPE", replace: "x" }],
+    })) as Record<string, unknown>;
+    const stop2 = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "NOPE", replace: "x" }],
+    })) as Record<string, unknown>;
+    // Sanity: by the second failure the STOP directive is in force, proving
+    // the counter is at/over threshold for the next not_found.
+    expect(String(stop2.message)).toContain("STOP retrying patches");
+    expect(String(stop.message)).not.toContain("STOP retrying patches");
+
+    // Now an AMBIGUOUS patch. It must get the tailored ambiguous response
+    // (matchLines + "add context"), NOT the inherited STOP directive.
+    const result = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 1;", replace: "const A = 2;" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(false);
+    expect(String(result.message)).not.toContain("STOP retrying patches");
+    // Tailored ambiguous message mentions adding surrounding context.
+    expect(String(result.message)).toContain("context");
+    const failedPatches = result.failedPatches as Array<{
+      reason: string;
+      matchLines?: number[];
+    }>;
+    expect(failedPatches).toHaveLength(1);
+    expect(failedPatches[0]?.reason).toBe("ambiguous");
+    expect(failedPatches[0]?.matchLines).toEqual([1, 2]);
+  });
+
+  it("read_file resets the thrash counter — the next not_found is first-failure, not STOP", async () => {
+    // No duplicate needed here: every patch is not_found ("NOPE").
+    const { readFile, patchFile } = makeTools("const A = 1;\nconst B = 2;\n");
+    await readFile.executor!({ path: "App.js" }); // satisfy read-before-write
+
+    // Drive enough not_found failures to trigger the STOP directive.
+    await patchFile.executor!({ path: "App.js", patches: [{ find: "NOPE", replace: "x" }] });
+    const stop = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "NOPE", replace: "x" }],
+    })) as Record<string, unknown>;
+    expect(String(stop.message)).toContain("STOP retrying patches");
+
+    // Re-read the file: this clears the failure streak.
+    await readFile.executor!({ path: "App.js" });
+
+    // One more not_found patch. Because the streak was cleared, this is
+    // the FIRST-FAILURE treatment, NOT the immediate STOP directive.
+    const result = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "NOPE", replace: "x" }],
+    })) as Record<string, unknown>;
+    expect(result.success).toBe(false);
+    expect(String(result.message)).not.toContain("STOP retrying patches");
+    // First-failure message: the "did not apply / File NOT modified" framing.
+    expect(String(result.message)).toContain("File NOT modified");
+  });
+});

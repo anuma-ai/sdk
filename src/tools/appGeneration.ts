@@ -1149,8 +1149,11 @@ export function createAppGenerationTools({
           // Repeated failure: the model is hallucinating file content.
           // Stop returning snippets (they're not helping) and demand a
           // read_file. Keep the full failed-find strings so the model
-          // can compare them against the read result.
-          if (failureCount >= PATCH_FAILURE_THRESHOLD) {
+          // can compare them against the read result. Gate on `allNotFound`
+          // too: an ambiguous failure must never inherit a prior not_found
+          // streak's STOP directive — that would suppress the matchLines
+          // guidance the model needs (see the productive-iteration note above).
+          if (allNotFound && failureCount >= PATCH_FAILURE_THRESHOLD) {
             return {
               success: false,
               path: filePath,
@@ -1315,6 +1318,11 @@ export function createAppGenerationTools({
         // differently-shaped `path` than the one they were queried
         // with, which would silently break the contract.
         markFileSeen(conversationId, path);
+        // Reading re-syncs the model with the file, which is exactly what the
+        // thrash-detection STOP directive asks for — so clear the failure
+        // streak. Otherwise the next not_found would re-fire STOP immediately
+        // even though the model just complied by reading.
+        clearPatchFailure(conversationId, path);
 
         // Number the lines so the model has unambiguous location info
         // and so failure snippets (which use the same format) look
@@ -1442,9 +1450,7 @@ export function createAppGenerationTools({
         // structure even when the host's implementation is buggy.
         return {
           rendered: Boolean(result?.rendered),
-          errors: Array.isArray(result?.errors)
-            ? result.errors.map((e) => String(e))
-            : [],
+          errors: Array.isArray(result?.errors) ? result.errors.map((e) => String(e)) : [],
           ...(result?.note ? { note: String(result.note) } : {}),
         };
       } catch (err) {
