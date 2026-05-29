@@ -326,7 +326,12 @@ export function applyPatches(
         index,
         find: patch.find,
         reason: "ambiguous",
-        matchLines: findMatchLines(result, resolved.needle),
+        // Report line numbers against the ORIGINAL content, not the
+        // mid-batch `result`. The whole call reverts atomically on any
+        // failure, so the model re-reads the original file — line numbers
+        // computed against a partially-mutated buffer would be off by the
+        // size of an earlier applied patch's edit.
+        matchLines: findMatchLines(content, resolved.needle),
       });
       continue;
     }

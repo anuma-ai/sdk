@@ -178,6 +178,23 @@ describe("applyPatches", () => {
     expect(failed).toEqual([{ index: 1, find: "missing", reason: "not_found" }]);
   });
 
+  it("reports ambiguous matchLines against the ORIGINAL content, not the mid-batch buffer", () => {
+    // An earlier patch in the same batch inserts a line, shifting every
+    // following line down by one in the mutated working buffer. A later
+    // patch is ambiguous (DUP appears twice). Because the WHOLE call
+    // reverts atomically, the model re-reads the ORIGINAL file — so the
+    // reported matchLines must reference original positions [3, 5], NOT
+    // the post-insert positions [4, 6] of the buffer that gets discarded.
+    const original = "A\nB\nDUP\nC\nDUP\n"; // DUP on original lines 3 and 5
+    const { content, appliedCount, failed } = applyPatches(original, [
+      { find: "A\nB\n", replace: "A\nB\nINSERTED\n" }, // applies, shifts later lines +1
+      { find: "DUP", replace: "X" }, // ambiguous: 2 matches
+    ]);
+    expect(content).toBe(original); // atomic revert
+    expect(appliedCount).toBe(0);
+    expect(failed).toEqual([{ index: 1, find: "DUP", reason: "ambiguous", matchLines: [3, 5] }]);
+  });
+
   it("tolerates JSON-double-escaped newlines in find", () => {
     // LLMs sometimes emit `\\n` (literal backslash+n) instead of a real
     // newline inside JSON string values. The fallback unescapes these
