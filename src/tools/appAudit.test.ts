@@ -573,4 +573,47 @@ body { background: var(--bg); color: var(--ink); }
     expect(lc[0].message).toMatch(/3\.5/);
   });
 
+  // ---------------------------------------------------------------------
+  // findFocusNotKeyed: now walks leaf rule blocks linearly instead of the
+  // quadratic `([^{}]*:focus-visible[^{}]*)\{([^{}]*)\}` regex. Correctness
+  // must be preserved, nested at-rules must still be visited, and a large
+  // brace-sparse input must not hang.
+  // ---------------------------------------------------------------------
+
+  it("flags a hardcoded :focus-visible color via the leaf-block walker", () => {
+    const css = `:root{--accent:#06f}
+.btn:focus-visible { outline: 2px solid #f00; }`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    const fk = findIssue(result, "focus-not-keyed");
+    expect(fk).toHaveLength(1);
+    expect(fk[0].severity).toBe("warn");
+  });
+
+  it("does not flag a :focus-visible rule that references a design token via var()", () => {
+    const css = `:root{--accent:#06f}
+.btn:focus-visible { outline: 2px solid var(--accent); }`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(findIssue(result, "focus-not-keyed")).toHaveLength(0);
+  });
+
+  it("still flags a hardcoded :focus-visible rule nested inside an @media at-rule", () => {
+    // The leaf-block walker must descend into at-rule wrappers and inspect
+    // the rule inside, not treat the @media block as one opaque leaf.
+    const css = `:root{--accent:#06f}
+@media (min-width: 1px){ .x:focus-visible { outline: 2px solid #f00; } }`;
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    const fk = findIssue(result, "focus-not-keyed");
+    expect(fk).toHaveLength(1);
+    expect(fk[0].severity).toBe("warn");
+  });
+
+  it("does not hang on large brace-sparse input containing :focus-visible (no catastrophic backtracking)", () => {
+    // The old regex backtracked quadratically on input with ':focus-visible'
+    // followed by a long run of non-brace characters and no closing brace.
+    // The linear scan returns immediately. We only assert completion + shape,
+    // not a duration (flaky).
+    const css = ":root{--accent:#06f}\n:focus-visible " + "a ".repeat(60000);
+    const result = auditDesign({ "App.js": "function App(){return null}", "App.css": css });
+    expect(Array.isArray(result.issues)).toBe(true);
+  });
 });

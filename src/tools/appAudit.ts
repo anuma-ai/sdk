@@ -479,30 +479,70 @@ function findFocusNotKeyed(appCss: string, tokens: AuditTokens): AuditIssue[] {
   // check covers it.
   if (tokens.colors.length === 0) return [];
 
+  // Cheap exit: nothing to flag if there's no focus-visible rule at all.
+  // Also keeps the scan below off the hot path for the common case.
+  if (!appCss.includes(":focus-visible")) return [];
+
   const issues: AuditIssue[] = [];
-  // Match each block whose selector list contains `:focus-visible`. The
-  // selector list runs up to `{`; we look backward from the brace to
-  // confirm `:focus-visible` is in scope. Brace-counting keeps us out of
-  // nested at-rules.
-  const re = /([^{}]*:focus-visible[^{}]*)\{([^{}]*)\}/g;
-  for (const m of appCss.matchAll(re)) {
-    const body = m[2] ?? "";
-    const hasColorProperty = /\b(outline|border|box-shadow|background|color|fill|stroke)\b/.test(
-      body
-    );
-    if (!hasColorProperty) continue;
+  // Walk rule blocks in a single linear pass instead of the regex
+  // `([^{}]*:focus-visible[^{}]*)\{([^{}]*)\}`, which backtracks
+  // quadratically on large brace-sparse input and could hang the audit.
+  // We only inspect *leaf* blocks (no nested `{`), matching the old
+  // regex's `[^{}]` body and keeping us out of `@media`/at-rule wrappers.
+  for (const block of leafRuleBlocks(appCss)) {
+    if (!block.selector.includes(":focus-visible")) continue;
+    const body = block.body;
+    const colorProp = body.match(/\b(outline|border|box-shadow|background|color|fill|stroke)\b/);
+    if (!colorProp) continue;
     const referencesVar = /var\(\s*--[\w-]+/.test(body);
     if (referencesVar) continue;
-    const lineNumber = lineOfIndex(appCss, m.index ?? 0);
     issues.push({
       severity: "warn",
       path: "App.css",
-      line: lineNumber,
+      line: lineOfIndex(appCss, block.selectorStart),
       type: "focus-not-keyed",
-      message: `:focus-visible rule declares ${body.match(/\b(outline|border|box-shadow|background|color|fill|stroke)\b/)?.[0] ?? "color-bearing"} properties but doesn't reference any design token. Use var(--accent) so focus rings track the design system instead of drifting.`,
+      message: `:focus-visible rule declares ${colorProp[0]} properties but doesn't reference any design token. Use var(--accent) so focus rings track the design system instead of drifting.`,
     });
   }
   return issues;
+}
+
+/** A leaf CSS rule block — one whose body contains no nested `{…}`. Yielded by
+ *  {@link leafRuleBlocks}. `selectorStart` is the source index where the
+ *  selector text begins (for line attribution). */
+interface LeafRuleBlock {
+  selector: string;
+  body: string;
+  selectorStart: number;
+}
+
+/** Iterate the leaf rule blocks of a stylesheet in a single O(n) pass. A
+ *  brace stack tracks nesting so at-rule wrappers (`@media { … }`) are skipped
+ *  while the rules inside them are still visited. Tolerates unbalanced braces
+ *  (malformed model output) without throwing. */
+function leafRuleBlocks(css: string): LeafRuleBlock[] {
+  const blocks: LeafRuleBlock[] = [];
+  const stack: Array<{ selectorStart: number; bodyStart: number; hasChild: boolean }> = [];
+  let segStart = 0;
+  for (let i = 0; i < css.length; i++) {
+    const ch = css[i];
+    if (ch === "{") {
+      if (stack.length > 0) stack[stack.length - 1].hasChild = true;
+      stack.push({ selectorStart: segStart, bodyStart: i + 1, hasChild: false });
+      segStart = i + 1;
+    } else if (ch === "}") {
+      const frame = stack.pop();
+      if (frame && !frame.hasChild) {
+        blocks.push({
+          selector: css.slice(frame.selectorStart, frame.bodyStart - 1),
+          body: css.slice(frame.bodyStart, i),
+          selectorStart: frame.selectorStart,
+        });
+      }
+      segStart = i + 1;
+    }
+  }
+  return blocks;
 }
 
 /** Numeric value of a `--space-*` token (or similar) declared in :root.
