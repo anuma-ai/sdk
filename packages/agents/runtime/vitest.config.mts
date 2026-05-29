@@ -8,9 +8,9 @@ export default defineConfig({
     // `@anuma/sdk/tools`) — list the subpaths explicitly so each resolves
     // to its own source entrypoint, no `pnpm build` required.
     alias: {
-      "@anuma/sdk/server": path.resolve(__dirname, "../../src/server/index.ts"),
-      "@anuma/sdk/tools": path.resolve(__dirname, "../../src/tools/index.ts"),
-      "@anuma/sdk": path.resolve(__dirname, "../../src/index.ts"),
+      "@anuma/sdk/server": path.resolve(__dirname, "../../../src/server/index.ts"),
+      "@anuma/sdk/tools": path.resolve(__dirname, "../../../src/tools/index.ts"),
+      "@anuma/sdk": path.resolve(__dirname, "../../../src/index.ts"),
     },
   },
   test: {

@@ -24,7 +24,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/anuma-ai/sdk.git",
-    "directory": "packages/agent-runtime"
+    "directory": "packages/agents/runtime"
   },
   "license": "ISC",
   "bugs": {
