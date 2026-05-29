@@ -2730,6 +2730,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Extract and store MCP images using encrypted OPFS with media records
       // Skip file/media storage when encryption key isn't ready (queue window is 1-3s during signup)
       let assistantFileIds: string[] = [];
+      // MCP image model resolved from the tool events. In the common path it
+      // comes back from extractAndStoreEncryptedMCPImages so the events are
+      // only walked once.
+      let mcpImageModel: string | undefined;
 
       if (walletAddress && isEncryptionReady()) {
         const result = await extractAndStoreEncryptedMCPImages(
@@ -2740,14 +2744,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
+        mcpImageModel = result.imageModel;
+      } else {
+        // When encryption isn't ready, leave R2 URLs in content (valid 3 days,
+        // presigned). Media isn't stored, but still resolve the image-model
+        // hint for the message record. Image-kind only, so a video tool's
+        // model sentinel doesn't leak in.
+        mcpImageModel = extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain).find(
+          (u) => u.mediaType === "image"
+        )?.model;
       }
-      // When encryption isn't ready, leave R2 URLs in content.
-      // They remain valid for 3 days (presigned) and let the LLM
-      // reference images for editing. No permanent data loss.
 
-      // Resolve image model: prefer user-provided, fall back to MCP tool response
-      const resolvedImageModel =
-        imageModel || extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain)[0]?.model;
+      // Resolve image model: prefer user-provided, fall back to MCP tool response.
+      const resolvedImageModel = imageModel || mcpImageModel;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
