@@ -748,6 +748,7 @@ export {
   selectServerSideTools,
   type SelectServerSideToolsOptions,
   type ToolSet,
+  toolSetSystemPrompts,
 } from "./lib/tools";
 
 // SSE idle-keepalive wrapper for the generated SSE client

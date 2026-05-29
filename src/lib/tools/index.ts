@@ -39,4 +39,5 @@ export {
   type ToolMatchOptions,
   type ToolMatchResult,
   type ToolSet,
+  toolSetSystemPrompts,
 } from "./serverTools";
