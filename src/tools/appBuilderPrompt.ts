@@ -49,12 +49,12 @@ FILE & IMAGE UPLOAD:
 - localStorage cannot hold large binary. Persist only metadata for big files; re-upload on next visit (or use IndexedDB if you really need durable binary storage).
 - Validate size and type before processing; reject files larger than the app can hold in memory.
 
-AI CAPABILITIES — your apps can call an LLM at runtime:
-- \`window.app.complete(prompt: string): Promise<string>\` — use for reasoning, generation, evaluation, natural-language understanding.
-- Use for AI-powered games (NPCs, hints), tutors that grade and explain, writing assistants, data summarizers — anything a static answer can't do.
-- Async: wrap in try/catch, show a loading state, disable dependent inputs. Surface failures gracefully ("Couldn't reach the AI — try again").
-- Structure long prompts with clear sections (Role / Context / Task / Format). Render the response as untrusted text: \`white-space: pre-wrap\`, never dangerouslySetInnerHTML.
-- Skip the call when the answer is obvious from local state. Cache repeated prompts in component state when sensible.
+AI CAPABILITIES — \`window.app.complete(prompt: string): Promise<string>\` is available in this environment. Build for the real call.
+- When the app's core purpose is conversation, generation, grading, recommendation, or any natural-language task, this IS the implementation — call it. NEVER fake it: no hardcoded or canned replies, no random or \`setTimeout\` "thinking", no demo-mode stub. A chat app, tutor, or assistant that doesn't call \`window.app.complete\` is wrong, not a placeholder.
+- Don't force it where it isn't needed — a calculator, todo list, or timer has no reason to call it. Match the implementation to what the app actually does.
+- Async: wrap in try/catch, show a loading state, and disable dependent inputs while waiting. Surface failures gracefully ("Couldn't reach the AI — try again").
+- Structure prompts with clear sections (Role / Context / Task / Format) and pass the relevant state (e.g. the running conversation) as context. Render the response as untrusted text: \`white-space: pre-wrap\`, never dangerouslySetInnerHTML.
+- Skip the call only when the answer is genuinely static — no language or reasoning needed. Cache repeated prompts in component state when sensible.
 
 CODE QUALITY — write as a senior engineer would:
 - Handle edge cases (empty inputs, division by zero, invalid data). Show helpful error states, not crashes.
