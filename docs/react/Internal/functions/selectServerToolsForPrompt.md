@@ -2,7 +2,7 @@
 
 > **selectServerToolsForPrompt**(`options`: [`SelectServerToolsForPromptOptions`](../interfaces/SelectServerToolsForPromptOptions.md)): `Promise`<[`ServerTool`](../interfaces/ServerTool.md)\[]>
 
-Defined in: [src/lib/tools/serverTools.ts:1177](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1177)
+Defined in: [src/lib/tools/serverTools.ts:1198](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1198)
 
 Select server-side tools for a prompt using the same path
 `useChatStorage` runs internally. Use this anywhere outside the chat
