@@ -194,6 +194,21 @@ export const APP_COMPLETE_IFRAME_SHIM_SCRIPT = `(function () {
   var REQUEST_TYPE = ${JSON.stringify(APP_COMPLETE_REQUEST_TYPE)};
   var RESPONSE_TYPE = ${JSON.stringify(APP_COMPLETE_RESPONSE_TYPE)};
   var DEFAULT_TIMEOUT_MS = ${APP_COMPLETE_DEFAULT_TIMEOUT_MS};
+  // Post a request up the ancestor chain (parent, grandparent, … up to top).
+  // The host bridge listens on whichever ancestor frame it's mounted in, so
+  // this works whether the preview is a direct child of the host (one iframe)
+  // or nested inside a bundler frame (two iframes — the immediate parent is
+  // the bundler, the host is the grandparent). Posting to each ancestor rather
+  // than just window.top can't overshoot a host that is itself embedded, and
+  // frames without an anuma bridge ignore the typed message, so the extra
+  // deliveries are harmless.
+  function postUp(message) {
+    var w = window;
+    for (var i = 0; i < 10 && w.parent && w.parent !== w; i++) {
+      try { w.parent.postMessage(message, "*"); } catch (e) {}
+      w = w.parent;
+    }
+  }
   window.app = window.app || {};
   window.app.complete = function (prompt) {
     return new Promise(function (resolve, reject) {
@@ -215,9 +230,13 @@ export const APP_COMPLETE_IFRAME_SHIM_SCRIPT = `(function () {
         window.removeEventListener("message", onMessage);
         reject(new Error("window.app.complete timed out after " + timeoutMs + "ms"));
       }, timeoutMs);
-      window.parent.postMessage({ type: REQUEST_TYPE, id: id, prompt: String(prompt) }, "*");
+      postUp({ type: REQUEST_TYPE, id: id, prompt: String(prompt) });
     });
   };
+  // Announce readiness so the install can be confirmed from the preview
+  // frame's console — window.app.complete lives only in the iframe, never the
+  // top page, so "undefined" in the top-page console is expected, not a bug.
+  try { console.info("[anuma] window.app.complete ready"); } catch (e) {}
 })();`;
 
 /**
