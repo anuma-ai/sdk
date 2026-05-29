@@ -171,6 +171,9 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
       cleanedContent: string;
       imageModel?: string;
     }> => {
+      // Hoisted so the outer catch can still return it. Resolved before any
+      // throwable async call, so a downstream failure keeps the model metadata.
+      let imageModel: string | undefined;
       try {
         // 1. Extract image URLs using pure function
         const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
@@ -178,7 +181,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         // Resolve the image model once here so the caller doesn't have to walk
         // the tool events a second time. Image-kind only, so a video tool's
         // model sentinel never leaks into the message's imageModel.
-        const imageModel = urls.find((u) => u.mediaType === "image")?.model;
+        imageModel = urls.find((u) => u.mediaType === "image")?.model;
 
         // No MCP images found — return content as-is (presigned URLs stay for inline rendering)
         if (urls.length === 0) {
@@ -312,7 +315,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
       } catch {
         // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
         // so the LLM can still reference them for editing even if OPFS storage fails.
-        return { fileIds: [], cleanedContent: content };
+        return { fileIds: [], cleanedContent: content, imageModel };
       }
     },
     [mediaCtx, getImageDimensions, mcpR2Domain]
