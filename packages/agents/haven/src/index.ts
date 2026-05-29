@@ -100,6 +100,15 @@ const HAVEN_UI_METADATA: AgentUiMetadata = {
   ],
 };
 
+const HAVEN_FIRST_TIME_DISCLAIMER = [
+  "Anuma is not a law firm. {{agent_name}} is an AI tool. It does not provide legal advice, and using it does not create an attorney-client relationship.",
+  "{{agent_name}} helps you prepare documents and take action based on information you provide. Results depend on the accuracy of your inputs and on applicable law in your jurisdiction, which varies. Anuma makes no guarantee of any particular outcome.",
+  "Documents you upload are processed to generate your results. See our Privacy Policy for details.",
+].join("\n\n");
+
+const HAVEN_PERSISTENT_FOOTER =
+  "{{agent_name}} is an AI. This is not legal advice. There is no attorney-client relationship. Results vary by jurisdiction. Learn more.";
+
 /** Haven housing agent configuration. */
 export const havenAgent: AgentConfig = {
   id: "haven",
@@ -129,4 +138,6 @@ export const havenAgent: AgentConfig = {
     "{{agent_name}} will guide you step by step, ask for documents when needed, and then open the result directly in chat so you can keep refining it.",
   marketplace: HAVEN_MARKETPLACE,
   uiMetadata: HAVEN_UI_METADATA,
+  firstTimeDisclaimer: HAVEN_FIRST_TIME_DISCLAIMER,
+  persistentFooter: HAVEN_PERSISTENT_FOOTER,
 };

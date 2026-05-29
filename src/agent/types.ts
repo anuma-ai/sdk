@@ -267,4 +267,13 @@ export interface AgentConfig {
   marketplace?: AgentMarketplaceContent;
   /** UI metadata (color, icon, example conversations) for renderer fallbacks. */
   uiMetadata?: AgentUiMetadata;
+  /** One-time disclaimer shown in a popup the first time a user opens
+   *  a chat with this agent. Plain text; consumers split on `\n\n` for paragraphs.
+   *  May include `{{agent_name}}` placeholder. */
+  firstTimeDisclaimer?: string;
+
+  /** Persistent one-line disclaimer rendered under the chat input
+   *  whenever this agent's chat is open. May include `{{agent_name}}`
+   *  placeholder. */
+  persistentFooter?: string;
 }
