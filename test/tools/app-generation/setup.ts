@@ -418,7 +418,7 @@ export function createPlaywrightVerifier(
       // before the 10s rendered-timeout would expire.
       const outcome = await Promise.race([
         page
-          .waitForSelector('[data-anuma-error-overlay]', { timeout: 8000 })
+          .waitForSelector("[data-anuma-error-overlay]", { timeout: 8000 })
           .then(() => "overlay" as const)
           .catch(() => null),
         page
@@ -444,7 +444,7 @@ export function createPlaywrightVerifier(
         // RUNTIME_ERROR_OVERLAY_SCRIPT — so the model sees the literal
         // failure rather than a generic "did not mount."
         const overlayText = await page
-          .locator('[data-anuma-error-overlay]')
+          .locator("[data-anuma-error-overlay]")
           .textContent()
           .catch(() => null);
         const overlayErrors = overlayText

@@ -79,9 +79,7 @@ describe("summarizePhase", () => {
       // Unrelated tool — ignored.
       { name: "patch_file", result: { overwritten: ["nope"] } },
     ];
-    expect(summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).overwrites).toBe(
-      3
-    );
+    expect(summarizePhase({ label: "p1", elapsedMs: 0, toolCalls, files: {} }).overwrites).toBe(3);
   });
 
   it("tolerates malformed create_file results without throwing", () => {
