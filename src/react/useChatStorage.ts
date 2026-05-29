@@ -123,6 +123,7 @@ import {
   type ServerTool,
   shouldRefreshTools,
   type ToolSet,
+  toolSetSystemPrompts,
 } from "../lib/tools";
 import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
@@ -149,6 +150,30 @@ function getToolName(t: LlmapiChatCompletionTool): string {
 function getToolDescription(t: LlmapiChatCompletionTool): string {
   const fn = t.function as Record<string, unknown> | undefined;
   return (fn?.description as string) || (t.description as string) || getToolName(t);
+}
+
+/**
+ * Build the tool-set guidance to inject for a request: the `systemPrompt` of
+ * every tool set whose tools ended up selected (e.g. the App Builder prompt
+ * when app-gen tools are pulled in — by an explicit force-include OR an
+ * implicit semantic match). Returned as one string for useChat's `toolGuidance`
+ * channel, which adds it as a separate system message (additive — composes with
+ * the persona, doesn't replace it). `undefined` when no selected set carries a
+ * prompt, so non-app turns are unaffected.
+ */
+function computeToolGuidance(
+  selectedServerTools: ServerTool[],
+  selectedClientTools: LlmapiChatCompletionTool[] | undefined,
+  extraToolSets: ToolSet[]
+): string | undefined {
+  const names = [
+    ...selectedServerTools.map((t) => t.name),
+    ...(selectedClientTools ?? []).map(getToolName),
+  ].filter(Boolean);
+  const toolSets =
+    extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
+  const prompts = toolSetSystemPrompts(names, toolSets);
+  return prompts.length > 0 ? prompts.join("\n\n") : undefined;
 }
 
 /**
@@ -2075,6 +2100,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           headers,
           memoryContext,
           searchContext,
+          toolGuidance: computeToolGuidance(
+            filteredServerTools,
+            filteredClientTools,
+            extraToolSets ?? []
+          ),
           temperature,
           maxOutputTokens,
           tools: mergedTools,
@@ -2552,6 +2582,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryContext,
         searchContext,
         fileContext: fileContextForRequest,
+        toolGuidance: computeToolGuidance(
+          filteredServerTools,
+          filteredClientTools,
+          extraToolSets ?? []
+        ),
         // Responses API options
         temperature,
         maxOutputTokens,
