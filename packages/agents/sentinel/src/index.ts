@@ -80,6 +80,14 @@ const SENTINEL_UI_METADATA: AgentUiMetadata = {
   ],
 };
 
+const SENTINEL_FIRST_TIME_DISCLAIMER = [
+  "Anuma is not a law firm. {{agent_name}} is an AI tool. It does not provide legal advice, and using it does not create an attorney-client relationship.",
+  "{{agent_name}} helps you prepare documents and take action based on information you provide. Results depend on the accuracy of your inputs and on applicable law in your jurisdiction, which varies. Anuma makes no guarantee of any particular outcome.",
+  "Documents you upload are processed to generate your results. See our Privacy Policy for details.",
+].join("\n\n");
+
+const SENTINEL_PERSISTENT_FOOTER = "{{agent_name}} is an AI. This is not financial advice.";
+
 /** Sentinel finance agent configuration. */
 export const sentinelAgent: AgentConfig = {
   id: "sentinel",
@@ -110,4 +118,6 @@ export const sentinelAgent: AgentConfig = {
     "{{agent_name}} will help you audit charges, build disputes, and organize evidence before moving everything into chat.",
   marketplace: SENTINEL_MARKETPLACE,
   uiMetadata: SENTINEL_UI_METADATA,
+  firstTimeDisclaimer: SENTINEL_FIRST_TIME_DISCLAIMER,
+  persistentFooter: SENTINEL_PERSISTENT_FOOTER,
 };
