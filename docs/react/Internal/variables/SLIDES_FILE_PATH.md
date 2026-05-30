@@ -2,6 +2,6 @@
 
 > `const` **SLIDES\_FILE\_PATH**: `"slides.jsx"` = `"slides.jsx"`
 
-Defined in: [src/tools/slides/index.ts:426](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/index.ts#426)
+Defined in: [src/tools/slides/index.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/index.ts#368)
 
 Canonical storage path for the slide deck, relative to a conversation.

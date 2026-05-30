@@ -7,6 +7,7 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
+import { SLIDE_BUILDER_PROMPT } from "../../tools/slides/slidePrompt";
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
@@ -900,6 +901,15 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   },
   {
     name: "slides",
+    // Appended to the base prompt (not replacing it) whenever this set
+    // activates, so the slide design persona — layout catalog, palettes, font
+    // presets — rides in with the slide tools via the same semantic selection
+    // that includes them, exactly like app-generation above. SLIDE_BUILDER_PROMPT
+    // lives in a dependency-free module (../../tools/slides/slidePrompt), the
+    // same pattern as APP_BUILDER_PROMPT, so attaching it here doesn't pull the
+    // @babel-bearing slide runtime into the lib bundle. Collected by
+    // toolSetSystemPrompts.
+    systemPrompt: SLIDE_BUILDER_PROMPT,
     members: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
     anchors: ["plan_deck", "patch_slides"],
     // Match the client-tool floor (0.53). Short colloquial prompts like

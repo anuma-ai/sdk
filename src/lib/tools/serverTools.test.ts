@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
+import { SLIDE_BUILDER_PROMPT } from "../../tools/slides/slidePrompt";
 import { BUILT_IN_TOOL_SETS, type ToolSet, toolSetSystemPrompts } from "./serverTools";
 
 describe("toolSetSystemPrompts", () => {
@@ -29,8 +30,14 @@ describe("toolSetSystemPrompts", () => {
     expect(toolSetSystemPrompts(["create_file", "patch_file"])).toEqual([APP_BUILDER_PROMPT]);
   });
 
-  it("skips sets that carry no systemPrompt (e.g. slides today)", () => {
-    expect(toolSetSystemPrompts(["plan_deck"])).toEqual([]);
+  it("attaches SLIDE_BUILDER_PROMPT to the built-in slides set", () => {
+    const slidesSet = BUILT_IN_TOOL_SETS.find((s) => s.name === "slides");
+    expect(slidesSet?.systemPrompt).toBe(SLIDE_BUILDER_PROMPT);
+  });
+
+  it("returns the slide-builder prompt when a slides anchor is selected", () => {
+    expect(toolSetSystemPrompts(["plan_deck"])).toEqual([SLIDE_BUILDER_PROMPT]);
+    expect(toolSetSystemPrompts(["patch_slides"])).toEqual([SLIDE_BUILDER_PROMPT]);
   });
 
   it("preserves toolSets order and skips promptless sets with a custom list", () => {

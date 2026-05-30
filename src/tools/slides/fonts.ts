@@ -395,3 +395,70 @@ export function buildFontsUrl(names: string[], extraSlugs: string[] = []): strin
   }
   return `https://fonts.googleapis.com/css2?${slugs.map((s) => `family=${s}`).join("&")}&display=swap`;
 }
+
+// ---------------------------------------------------------------------------
+// Font presets — named heading/body pairings the deck picks from. Lives here
+// (a dependency-free module) rather than in slides/index.ts so the slide
+// persona builder and the lib tool-set layer can import them without pulling
+// in index.ts's @babel/parser-bearing JSX dependencies.
+// ---------------------------------------------------------------------------
+
+export interface FontPreset {
+  heading: string;
+  body: string;
+  /** Semicolon-separated weights, e.g. "400;500;700". */
+  weights: string;
+  /** Google Fonts family slug (for building a stylesheet URL). */
+  slug: string;
+}
+
+export const FONT_PRESETS: Record<string, FontPreset> = {
+  default: {
+    heading: "Inter",
+    body: "Inter",
+    weights: "400;500;600;700",
+    slug: "Inter:wght@400;500;600;700",
+  },
+  editorial: {
+    heading: "Playfair Display",
+    body: "Source Sans 3",
+    weights: "400;600;700",
+    slug: "Playfair+Display:wght@700&family=Source+Sans+3:wght@400;600",
+  },
+  geometric: {
+    heading: "Montserrat",
+    body: "Source Sans 3",
+    weights: "400;600;700",
+    slug: "Montserrat:wght@600;700&family=Source+Sans+3:wght@400;600",
+  },
+  humanist: {
+    heading: "Lora",
+    body: "Inter",
+    weights: "400;500;600;700",
+    slug: "Lora:wght@600;700&family=Inter:wght@400;500",
+  },
+  bold: {
+    heading: "Space Grotesk",
+    body: "Inter",
+    weights: "400;500;700",
+    slug: "Space+Grotesk:wght@500;700&family=Inter:wght@400;500",
+  },
+  elegant: {
+    heading: "DM Serif Display",
+    body: "DM Sans",
+    weights: "400;500;700",
+    slug: "DM+Serif+Display&family=DM+Sans:wght@400;500",
+  },
+  clean: {
+    heading: "Plus Jakarta Sans",
+    body: "Plus Jakarta Sans",
+    weights: "400;500;600;700",
+    slug: "Plus+Jakarta+Sans:wght@400;500;600;700",
+  },
+  techno: {
+    heading: "JetBrains Mono",
+    body: "Inter",
+    weights: "400;500;700",
+    slug: "JetBrains+Mono:wght@500;700&family=Inter:wght@400;500",
+  },
+};
