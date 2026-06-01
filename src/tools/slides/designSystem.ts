@@ -1,21 +1,22 @@
 /**
- * DesignSystem — proposal sketch for decoupling layout composition from
- * visual style.
+ * DesignSystem — the layer that decouples layout composition from visual
+ * style. This is the live slide layout system: it is wired into the slide
+ * tool (src/tools/slides/index.ts) and the model-facing prompt
+ * (src/tools/slides/slidePrompt.ts).
  *
- * The current layouts.ts encodes three things together: where elements go
- * (composition), what each element is for (content roles), and how each
- * element looks (style — fontFamily/fontSize/color/weight). The result is
- * that every cover slide looks the same regardless of the deck's intent.
+ * The earlier template system fused three things into each fixed template:
+ * where elements go (composition), what each element is for (content roles),
+ * and how each element looks (style — fontFamily/fontSize/color/weight). The
+ * result was that every cover slide looked the same regardless of the deck's
+ * intent.
  *
- * This file proposes splitting style out into a separate "design system"
- * layer. A layout becomes a role-tagged compositional skeleton; a design
- * system maps roles → concrete styles. The same composition rendered with
- * different design systems produces visually distinct decks.
+ * This layer splits style out into a separate "design system": a layout is a
+ * role-tagged compositional skeleton; a design system maps roles → concrete
+ * styles. The same composition rendered with different design systems
+ * produces visually distinct decks.
  *
- * Status: PROPOSAL. Not wired into the live tool flow. See
- * test/tools/slide-generation/dumpDesignSystem.ts for a working
- * demonstration that compiles one composition through the editorial-warm
- * system and dumps it to HTML for inspection.
+ * See test/tools/slide-generation/dumpDesignSystem.ts for a visual-review
+ * harness that compiles every composition × design system pair to HTML.
  */
 
 // ---------------------------------------------------------------------------

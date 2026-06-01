@@ -1,14 +1,13 @@
 /**
- * Compile the design-system proposal sketch and dump the result to HTML
- * for visual review.
+ * Compile the design system and dump the result to HTML for visual review.
  *
  * Renders every (composition × design system) pair in one deck so you can
  * arrow-key through and see how each composition looks across visual
  * identities. Validation results print to the terminal: budget per slot
  * and any default content that exceeds it.
  *
- * Wired against the PROPOSAL surface (src/tools/slides/designSystem.ts).
- * Does not touch the live tool flow.
+ * Wired against the live design-system surface (src/tools/slides/designSystem.ts).
+ * This is a dev/review script — running it does not touch the live tool flow.
  *
  * Run:
  *   pnpm exec tsx test/tools/slide-generation/dumpDesignSystem.ts

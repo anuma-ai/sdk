@@ -9,7 +9,7 @@
  *
  * This file replaces the three inline slide-JSON examples that previously
  * lived in the system prompt — the examples duplicated layout geometry that
- * was already in `./layouts.ts`, and their inline slides tended to peg
+ * the layout layer already encoded, and their inline slides tended to peg
  * models onto those specific three recipes.
  */
 
