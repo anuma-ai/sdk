@@ -91,11 +91,20 @@ export function extractQueryEntities(query: string): string[] {
   const matches = query.matchAll(ENTITY_REGEX);
   const seen = new Set<string>();
   for (const match of matches) {
-    const canonical = normalizeEntityName(match[0]);
-    if (!canonical) continue;
-    if (STOPWORDS.has(canonical)) continue;
-    if (canonical.split(/\s+/).every((w) => STOPWORDS.has(w))) continue;
-    seen.add(canonical);
+    const surface = normalizeEntityName(match[0]);
+    if (!surface) continue;
+    // Emit both the multi-word canonical AND each token. The write side
+    // (LLM-driven `entities[]`) is non-deterministic: the same name may
+    // be stored as one entry ("Jean-Luc Picard") on one extraction and
+    // as separate tokens (["Jean-Luc", "Picard"]) on another. Querying
+    // for every variant recovers parity at modest cost.
+    const candidates = surface.includes(" ") ? [surface, ...surface.split(/\s+/)] : [surface];
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      if (STOPWORDS.has(candidate)) continue;
+      if (candidate.split(/\s+/).every((w) => STOPWORDS.has(w))) continue;
+      seen.add(candidate);
+    }
   }
   return [...seen];
 }

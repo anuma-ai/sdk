@@ -276,21 +276,17 @@ function parseEventTime(raw: unknown): ExtractedCandidate["eventTime"] {
 }
 
 /**
- * LLM-emitted event date → Unix ms at local midnight of the calendar day
- * the LLM intended. Normalizing the calendar day (rather than the
- * absolute instant) is what matches the query-window basis in
- * queryTemporal — a fact dated "2026-05-23" must land in the same
- * calendar-day window the user's "what happened May 23" query builds.
+ * LLM-emitted event date → Unix ms.
  *
- * Accepts:
- *  - number (Unix ms) — passed through unchanged
- *  - "YYYY-MM-DD" — local midnight of that day
- *  - any ISO string Date.parse handles ("2026-05-23T00:00:00Z",
- *    "2026-05-23T15:30:00+02:00") — the absolute instant is parsed,
- *    then re-normalized to local midnight of the *local* calendar day
- *    it falls on. This collapses the UTC/local mismatch that would
- *    otherwise drift a Z-suffixed event outside its own query window
- *    for non-UTC users.
+ * Date-only "YYYY-MM-DD" strings resolve to local midnight (matching the
+ * query-window basis in queryTemporal). ISO strings with an explicit
+ * time/offset pass through `Date.parse` as the absolute instant — we
+ * deliberately don't snap them to local midnight, because that would
+ * shift the calendar day backward for west-of-UTC users on instants
+ * near UTC midnight, and would silently break parity with any rows
+ * already stored from this code path. Consumers who care about
+ * calendar-day matching should ask the LLM for date-only output via
+ * the system prompt.
  */
 function parseEventDate(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
@@ -305,9 +301,6 @@ function parseEventDate(raw: unknown): number | null {
     const ms = new Date(year, month - 1, day).getTime();
     return Number.isFinite(ms) ? ms : null;
   }
-  const parsed = Date.parse(trimmed);
-  if (!Number.isFinite(parsed)) return null;
-  // Snap to local midnight of the day the absolute instant falls on.
-  const d = new Date(parsed);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const ms = Date.parse(trimmed);
+  return Number.isFinite(ms) ? ms : null;
 }

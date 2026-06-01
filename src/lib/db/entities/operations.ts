@@ -1,6 +1,5 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
-import type { Clause } from "@nozbe/watermelondb/QueryDescription";
 
 import type { Entity, MemoryEntity } from "./models";
 import { normalizeEntityName as normalizeName, type StoredEntity } from "./types";
@@ -145,18 +144,27 @@ export async function unlinkAllMemoryEntitiesForUserOp(
 
 /**
  * Backfill `memory_entity.user_id` from the parent vault row's user_id.
- * Idempotent — only touches rows where user_id is null. Use this on web
- * (LokiJS) where the v31 schema migration's `unsafeExecuteSql` backfill
- * runs as a no-op; native SQLite migrations already filled these.
+ * Idempotent — only touches rows where user_id is null.
  *
- * Best-effort: call once on app start after the SDK opens the DB. A
- * vault row that's missing (deleted, race) is skipped silently.
+ * Why this exists: the v31 schema migration backfills via
+ * `unsafeExecuteSql`, which is a no-op on the LokiJS (web) adapter. Native
+ * SQLite installs have already been filled by the migration; web installs
+ * upgrading through v31 keep `user_id=null` on every pre-existing
+ * `memory_entity` row until this helper runs.
+ *
+ * Consumers wiring an `EntityOperationsContext` with `userId` set are
+ * obliged to call this once on first use — `getMemoriesByEntityNamesOp`
+ * strictly filters by `user_id`, so unstamped rows are otherwise
+ * invisible to the W5 graph lane.
  *
  * @public
  */
 export async function backfillMemoryEntityUserIdsOp(
   ctx: EntityOperationsContext,
-  vaultMemoryCollection: { find: (id: string) => Promise<{ userId?: string | null } | null> }
+  // Structural-minimal interface mirroring WatermelonDB's Collection.find,
+  // which THROWS on missing ID (it does not return null). The try/catch
+  // below is therefore load-bearing — don't simplify to a null check.
+  vaultMemoryCollection: { find: (id: string) => Promise<{ userId?: string | null }> }
 ): Promise<number> {
   const unstamped = await ctx.memoryEntityCollection.query(Q.where("user_id", null)).fetch();
   if (unstamped.length === 0) return 0;
@@ -165,12 +173,13 @@ export async function backfillMemoryEntityUserIdsOp(
   for (const link of unstamped) {
     try {
       const parent = await vaultMemoryCollection.find(String(link.memoryId));
-      const userId = parent?.userId;
+      const userId = parent.userId;
       if (typeof userId === "string" && userId.length > 0) {
         toUpdate.push({ link, userId });
       }
     } catch {
-      // Parent missing — leave the orphan as-is; cascade will collect.
+      // Parent record missing (deleted, never existed) — leave the
+      // orphan link for the cascade-delete sweep to collect.
     }
   }
   if (toUpdate.length === 0) return 0;
@@ -214,13 +223,14 @@ export async function getMemoriesByEntityNamesOp(
   if (entityRows.length === 0) return new Map();
 
   const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
-  const linkConditions: Clause[] = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
+  const linkConditions: Q.Clause[] = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
   if (ctx.userId !== undefined) {
-    // Tolerate user_id=null so pre-v31 rows still surface on the LokiJS
-    // adapter (where the v31 SQL backfill is a no-op). The downstream
-    // `itemById` filter built from user-scoped `getAllVaultMemoriesOp`
-    // still drops cross-user IDs.
-    linkConditions.push(Q.or(Q.where("user_id", ctx.userId), Q.where("user_id", null)));
+    // Strict user-scope. Pre-v31 rows have user_id=null and are filtered
+    // out by this clause until `backfillMemoryEntityUserIdsOp` runs; the
+    // SDK init paths (react/expo useChatStorage) invoke that helper once
+    // per session. Tolerating null here would leak cross-user rows in
+    // any future consumer that bypasses the downstream itemById join.
+    linkConditions.push(Q.where("user_id", ctx.userId));
   }
   const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
 

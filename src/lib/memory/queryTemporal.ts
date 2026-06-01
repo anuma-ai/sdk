@@ -115,13 +115,14 @@ function shiftByUnit(base: number, n: number, unit: string): number {
   return addMonths(base, n);
 }
 
-/** Window size in days for a numeric-offset phrase. "3 weeks ago" should
- * resolve to a 7-day window starting at the target Monday, not a single
- * day — matching the "this week"/"last week" branches' 7-day windows. */
-function windowDaysForUnit(unit: string): number {
-  if (unit.startsWith("week")) return 7;
-  if (unit.startsWith("month")) return 30;
-  return 1;
+/** End-of-window for a numeric-offset phrase. Days → next-day midnight;
+ * weeks → +7 days from the start; months → +1 calendar month (matches the
+ * 31-day "last month" / "next month" branches and avoids the off-by-end-of-
+ * month miss a fixed 30-day window would introduce). */
+function endOfOffsetWindow(start: number, unit: string): number {
+  if (unit.startsWith("week")) return addDays(start, 7);
+  if (unit.startsWith("month")) return addMonths(start, 1);
+  return endOfDay(start);
 }
 
 // Hoisted regexes — parseQueryTimeWindow is called on every recall, so
@@ -194,14 +195,14 @@ export function parseQueryTimeWindow(
     const n = parseInt(futureMatch[1] ?? futureMatch[3], 10);
     const unit = futureMatch[2] ?? futureMatch[4];
     const start = shiftByUnit(startOfDay(now), n, unit);
-    return { start, end: addDays(start, windowDaysForUnit(unit)), matchedPhrase: futureMatch[0] };
+    return { start, end: endOfOffsetWindow(start, unit), matchedPhrase: futureMatch[0] };
   }
   const agoMatch = PAST_OFFSET_RE.exec(q);
   if (agoMatch) {
     const n = parseInt(agoMatch[1], 10);
     const unit = agoMatch[2];
     const start = shiftByUnit(startOfDay(now), -n, unit);
-    return { start, end: addDays(start, windowDaysForUnit(unit)), matchedPhrase: agoMatch[0] };
+    return { start, end: endOfOffsetWindow(start, unit), matchedPhrase: agoMatch[0] };
   }
 
   // ── 5. Day-of-week with optional "next" / "last" ────────────────────

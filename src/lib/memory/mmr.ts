@@ -41,9 +41,14 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
 
   // Running max-cosine against the selected set, parallel to `remaining`.
   // Folded incrementally per round to stay O(k·n·dim) overall instead of
-  // O(k²·n·dim). Init at 0: no diversity penalty yet, and the first pick
-  // is unaffected (cosine is in [-1, 1] so any later fold replaces 0).
-  const maxSimVs: number[] = Array.from({ length: remaining.length }, () => 0);
+  // O(k²·n·dim).
+  //  - Embedded candidates start at -Infinity so the running-max can pick
+  //    up genuinely-opposing items (negative cosine): an anti-correlated
+  //    candidate then gets a *positive* diversity bonus, which is the
+  //    canonical MMR behavior.
+  //  - Embeddingless candidates pin at 0 so an empty-vector cosine doesn't
+  //    blow up their mmrScore via (1-λ)·(-∞) = +∞ after the first pick.
+  const maxSimVs: number[] = remaining.map((r) => (r.embedding.length === 0 ? 0 : -Infinity));
 
   while (selected.length < k && remaining.length > 0) {
     let bestIdx = 0;
@@ -51,7 +56,10 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
 
     for (let i = 0; i < remaining.length; i++) {
       const cand = remaining[i];
-      const mmrScore = lambda * cand.score - (1 - lambda) * maxSimVs[i];
+      // First pick has nothing to fold against yet — apply a 0 penalty so
+      // the round-0 selection is pure relevance.
+      const maxSim = selected.length === 0 ? 0 : maxSimVs[i];
+      const mmrScore = lambda * cand.score - (1 - lambda) * maxSim;
       if (mmrScore > bestScore) {
         bestScore = mmrScore;
         bestIdx = i;
