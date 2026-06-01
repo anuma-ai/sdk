@@ -42,6 +42,7 @@ export type ElementRole =
   | "stat-label" // small caption under a stat
   | "quote" // pull-quote text — one line of a multi-line quote (regular)
   | "quote-accent" // pull-quote text — the italic accent line
+  | "quote-mark" // oversized decorative quotation glyph that opens a quote slide
   | "attribution" // quote attribution ("— Mei Han")
   | "card-surface" // filled rectangle that defines a card's ground
   | "card-eyebrow" // mono uppercase label / number inside a card ("01")
@@ -546,6 +547,17 @@ export const EDITORIAL_WARM: DesignSystem = {
       lineHeight: 1.2,
       align: "left",
     },
+    // Oversized opening quotation glyph. Shares the warm terracotta of
+    // hero-accent / chrome (not the olive `accent` token) so the mark
+    // reads as the same emphasis family.
+    "quote-mark": {
+      fontFamily: "heading",
+      fontSize: 9,
+      fontWeight: 400,
+      color: "#B85A2E",
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: "heading",
       fontSize: 1.6,
@@ -844,6 +856,14 @@ const TECHNO_BOLD: DesignSystem = {
       letterSpacing: -0.02,
       align: "left",
     },
+    "quote-mark": {
+      fontFamily: SANS,
+      fontSize: 9,
+      fontWeight: 700,
+      color: "#3B82F6",
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: SANS,
       fontSize: 1.4,
@@ -1115,6 +1135,18 @@ export const CORPORATE_MODERN: DesignSystem = {
       fontWeight: 500,
       color: "#3F3F46",
       lineHeight: 1.3,
+      align: "left",
+    },
+    // Corporate confines brand color to chrome and emphasises by tone,
+    // not hue. A large brand-blue glyph would read as content emphasis
+    // and break the monochrome-headline principle, so the opening mark
+    // is a restrained zinc ornament instead.
+    "quote-mark": {
+      fontFamily: CORPORATE_SERIF,
+      fontSize: 9,
+      fontWeight: 700,
+      color: "#71717A",
+      lineHeight: 1.0,
       align: "left",
     },
     attribution: {
@@ -1398,6 +1430,14 @@ const PLAYFUL_CREATIVE: DesignSystem = {
       lineHeight: 1.35,
       align: "left",
     },
+    "quote-mark": {
+      fontFamily: COZY_SANS,
+      fontSize: 9,
+      fontWeight: 700,
+      color: COZY_ACCENT,
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: COZY_SANS,
       fontSize: 1.4,
@@ -1666,6 +1706,14 @@ export const MINIMAL_SWISS: DesignSystem = {
       fontWeight: 700,
       color: "#DC2626",
       lineHeight: 1.3,
+      align: "left",
+    },
+    "quote-mark": {
+      fontFamily: SWISS_SANS,
+      fontSize: 9,
+      fontWeight: 900,
+      color: "#DC2626",
+      lineHeight: 1.0,
       align: "left",
     },
     attribution: {
@@ -1946,6 +1994,14 @@ const LUXURY_EDITORIAL: DesignSystem = {
       fontStyle: "italic",
       color: "#BE8B6E",
       lineHeight: 1.35,
+      align: "left",
+    },
+    "quote-mark": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 9,
+      fontWeight: 400,
+      color: "#BE8B6E",
+      lineHeight: 1.0,
       align: "left",
     },
     attribution: {
@@ -5018,8 +5074,138 @@ function collectSlideTexts(
 // `plan_deck` / `add_slide` tools. Each composition × design system pair
 // is registered under a compound name (e.g. "cover-split-portrait--
 // editorial-warm"). The live tool flow treats these like additional
-// layout names alongside the legacy 30-template catalog.
+// layout names the model can select.
 // ---------------------------------------------------------------------------
+
+/**
+ * Text-only long-form pull quote. An oversized opening quotation mark
+ * sits in the left gutter; the spoken passage is a variable-count column
+ * of `quote` paragraphs (each supports inline `*italic*` accents), closed
+ * by an attribution and a context line. Fills the gap left by
+ * founder-quote-portrait, which requires a portrait — this is the
+ * keynote "money quote" / manifesto / confession / testimonial-without-
+ * a-photo shape. Paragraph count is driven by the `quote_<index>_para`
+ * ids; each paragraph is budgeted for ~two lines.
+ */
+const QUOTE_PASSAGE: LayoutComposition = {
+  name: "quote-passage",
+  description:
+    "Light text-only pull-quote: an oversized opening quotation mark over a multi-paragraph spoken passage with inline *italic* emphasis, closing with an attribution and a context line. For keynote 'money quote', manifesto, confession, or testimonial-without-a-photo moments. Add or remove paragraphs by varying the count of quote_<index>_para ids; keep each paragraph to about two lines.",
+  surface: "default",
+  elements: [
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 48,
+      h: 3,
+      fit: "single-line",
+      defaultText: "A thirty-second confession · Speaker's own",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 62,
+      y: 5,
+      w: 32,
+      h: 3,
+      fit: "single-line",
+      align: "right",
+      defaultText: "Page 11 / 14",
+    },
+    {
+      id: "header_rule",
+      role: "divider",
+      x: 6,
+      y: 8.5,
+      w: 88,
+      h: 0,
+    },
+    {
+      id: "quote_mark",
+      role: "quote-mark",
+      x: 6,
+      y: 11,
+      w: 11,
+      h: 20,
+      fit: "single-line",
+      // Left double quotation mark (U+201C). The closing glyph is implied.
+      defaultText: "“",
+    },
+    {
+      kind: "flex-region",
+      idPrefix: "quote",
+      x: 17,
+      y: 19,
+      w: 76,
+      h: 56,
+      layout: "column",
+      gap: 3,
+      justify: "start",
+      item: [
+        {
+          id: "para",
+          role: "quote",
+          fit: "multi-line",
+          defaultText: "",
+        },
+      ],
+      defaultItems: [
+        { para: "I once told this board the new tool was a *parlour trick*." },
+        { para: "Months later my daughter used the *same tool* to save us." },
+        { para: "I had judged the software by its *weakest* demo, not its use." },
+      ],
+    },
+    {
+      id: "attr_rule",
+      role: "divider",
+      x: 17,
+      y: 79,
+      w: 8,
+      h: 0,
+    },
+    {
+      id: "attribution",
+      role: "attribution",
+      x: 17,
+      y: 81,
+      w: 70,
+      h: 4,
+      fit: "single-line",
+      defaultText: "— Sarah Whelan, Chief of Staff",
+    },
+    {
+      id: "attr_context",
+      role: "stat-label",
+      x: 17,
+      y: 85,
+      w: 70,
+      h: 5,
+      fit: "multi-line",
+      defaultText: "On the difference between a demo and a tool you actually need",
+    },
+    {
+      id: "footer_rule",
+      role: "divider",
+      x: 6,
+      y: 92,
+      w: 88,
+      h: 0,
+    },
+    {
+      id: "footer",
+      role: "footer",
+      x: 6,
+      y: 94,
+      w: 88,
+      h: 3,
+      fit: "single-line",
+      defaultText:
+        "A talk that hasn't named one thing the speaker got wrong is one you can't fully trust",
+    },
+  ],
+};
 
 export const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
@@ -5029,6 +5215,7 @@ export const ALL_COMPOSITIONS: LayoutComposition[] = [
   AGENDA,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
+  QUOTE_PASSAGE,
   MARKETING_GRID,
   SURFACE_PAIR,
   STAT_ROW_BOTTOM,
