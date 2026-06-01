@@ -58,7 +58,7 @@ interface UseChatMediaResult {
     address: string,
     conversationId: string,
     toolCallEvents?: LlmapiToolCallEvent[]
-  ) => Promise<{ fileIds: string[]; cleanedContent: string }>;
+  ) => Promise<{ fileIds: string[]; cleanedContent: string; imageModel?: string }>;
 
   /**
    * Persist user-attached files. When OPFS + encryption are available,
@@ -71,6 +71,36 @@ interface UseChatMediaResult {
     address: string,
     conversationId: string
   ) => Promise<string[]>;
+}
+
+/** Kind-dependent metadata for a downloaded MCP media blob. */
+interface ResolvedMediaMeta {
+  isVideo: boolean;
+  extension: string;
+  mimeType: string;
+  namePrefix: string;
+}
+
+/**
+ * Resolve the storage metadata for a downloaded MCP blob from its extracted
+ * kind, URL, and reported blob mime. Centralizes the image-vs-video branching
+ * so adding a new kind-dependent field is a one-line change here.
+ */
+function resolveMediaMeta(
+  extractedKind: "image" | "video",
+  urlPath: string,
+  reportedType: string
+): ResolvedMediaMeta {
+  const isVideo = extractedKind === "video";
+  // Extension defaults to mp4/png only as a last resort, when the URL itself
+  // carries no extension to read it from.
+  const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || (isVideo ? "mp4" : "png");
+  return {
+    isVideo,
+    extension,
+    mimeType: reportedType || `${isVideo ? "video" : "image"}/${extension}`,
+    namePrefix: isVideo ? "mcp-video" : "mcp-image",
+  };
 }
 
 /**
@@ -139,14 +169,23 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
     ): Promise<{
       fileIds: string[];
       cleanedContent: string;
+      imageModel?: string;
     }> => {
+      // Hoisted so the outer catch can still return it. Resolved before any
+      // throwable async call, so a downstream failure keeps the model metadata.
+      let imageModel: string | undefined;
       try {
         // 1. Extract image URLs using pure function
         const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
+        // Resolve the image model once here so the caller doesn't have to walk
+        // the tool events a second time. Image-kind only, so a video tool's
+        // model sentinel never leaks into the message's imageModel.
+        imageModel = urls.find((u) => u.mediaType === "image")?.model;
+
         // No MCP images found — return content as-is (presigned URLs stay for inline rendering)
         if (urls.length === 0) {
-          return { fileIds: [], cleanedContent: content };
+          return { fileIds: [], cleanedContent: content, imageModel };
         }
 
         // 2. Download images → get mediaIds
@@ -154,7 +193,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         const mediaOptions: CreateMediaOptions[] = [];
 
         const results = await Promise.allSettled(
-          urls.map(async ({ url }) => {
+          urls.map(async ({ url, mediaType: extractedKind }) => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
@@ -165,18 +204,28 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               });
 
               if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status}`);
+                throw new Error(`Failed to fetch media: ${response.status}`);
               }
 
               const blob = await response.blob();
 
               const mediaId = generateMediaId();
               const urlPath = url.split("?")[0] ?? url;
-              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
-              const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
+              // Object storage often serves generic `application/octet-stream`,
+              // which would later resolve to `document`. Ignore that (and empty)
+              // and derive a kind-appropriate mime so the record's media_type
+              // stays correct.
+              const reportedType =
+                blob.type && blob.type !== "application/octet-stream" ? blob.type : "";
+              const { isVideo, extension, mimeType, namePrefix } = resolveMediaMeta(
+                extractedKind,
+                urlPath,
+                reportedType
+              );
+              const fileName = `${namePrefix}-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              const dimensions = await getImageDimensions(blob);
+              // Dimensions probe is image-only; skip for video.
+              const dimensions = isVideo ? undefined : await getImageDimensions(blob);
 
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
@@ -199,7 +248,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
 
         // 3. Collect mediaOptions from successful downloads
         results.forEach((result, i) => {
-          const { url, model } = urls[i];
+          const { url, model, mediaType: extractedKind } = urls[i];
 
           if (result.status === "fulfilled") {
             const { mediaId, fileName, mimeType, size, dimensions } = result.value;
@@ -210,7 +259,11 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               conversationId,
               name: fileName,
               mimeType,
-              mediaType: "image",
+              // Trust the kind resolved at extraction (by tool name / extension)
+              // over the mime — object storage can return a generic
+              // `application/octet-stream` that would otherwise mark a video as
+              // a document and bounce it out of the video library / fallback.
+              mediaType: extractedKind,
               size,
               role: "assistant",
               model,
@@ -219,7 +272,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
             });
           } else {
             getLogger().warn(
-              "[extractAndStoreEncryptedMCPImages] Failed to download image:",
+              "[extractAndStoreEncryptedMCPImages] Failed to download media:",
               url,
               result.reason
             );
@@ -254,15 +307,15 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               }
             }
             // Return original content to avoid orphaned __SDKFILE__ placeholders
-            return { fileIds: [], cleanedContent: content };
+            return { fileIds: [], cleanedContent: content, imageModel };
           }
         }
 
-        return { fileIds: createdMediaIds, cleanedContent };
+        return { fileIds: createdMediaIds, cleanedContent, imageModel };
       } catch {
         // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
         // so the LLM can still reference them for editing even if OPFS storage fails.
-        return { fileIds: [], cleanedContent: content };
+        return { fileIds: [], cleanedContent: content, imageModel };
       }
     },
     [mediaCtx, getImageDimensions, mcpR2Domain]

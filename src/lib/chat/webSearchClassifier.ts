@@ -14,8 +14,9 @@
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import { cosineSimilarity } from "../memoryEngine/vector";
 import type { PromptPreProcessor } from "./preProcessor";
+import { wrapAsUserText } from "./preProcessor";
+import { cosineSimilarity } from "./preProcessorMath";
 import { noSearchCentroid, searchCentroid } from "./webSearchCentroids";
 
 export interface WebSearchClassification {
@@ -159,13 +160,8 @@ export function createWebSearchPreProcessor(
     if (!classification.needsWebSearch || !options.fetchSearchResults) return;
     const results = await options.fetchSearchResults(prompt, { signal });
     if (typeof results === "string") {
-      if (!results) return;
-      return [
-        {
-          role: "user",
-          content: [{ type: "text", text: `Web search context:\n${results}` }],
-        },
-      ];
+      const wrapped = wrapAsUserText("Web search context:", results);
+      return wrapped.length === 0 ? undefined : wrapped;
     }
     if (results.length === 0) return;
     return results;

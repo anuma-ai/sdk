@@ -12,6 +12,21 @@ export default defineConfig([
       };
     },
   },
+  // Constants — dependency-free, side-effect-free primitive constants.
+  // RN/Hermes-safe leaf bundle so slim consumers (agent packages, other
+  // cross-platform packages) can import values without the bare SDK bundle.
+  // Exposed as "@anuma/sdk/constants" with a "react-native" export condition.
+  {
+    entry: ["src/constants/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/constants",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
   {
     entry: ["src/lib/polyfills/index.ts"],
     format: ["esm", "cjs"],

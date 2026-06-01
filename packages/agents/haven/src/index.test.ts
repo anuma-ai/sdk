@@ -59,6 +59,27 @@ describe("havenAgent", () => {
     }
   });
 
+  it("firstTimeDisclaimer is a non-empty string mentioning AI and Privacy Policy", () => {
+    expect(typeof havenAgent.firstTimeDisclaimer).toBe("string");
+    expect(havenAgent.firstTimeDisclaimer!.length).toBeGreaterThan(0);
+    expect(havenAgent.firstTimeDisclaimer).toContain("AI");
+    expect(havenAgent.firstTimeDisclaimer).toContain("Privacy Policy");
+  });
+
+  it("firstTimeDisclaimer contains the {{agent_name}} placeholder", () => {
+    expect(havenAgent.firstTimeDisclaimer).toContain("{{agent_name}}");
+  });
+
+  it("persistentFooter is a non-empty single-line string", () => {
+    expect(typeof havenAgent.persistentFooter).toBe("string");
+    expect(havenAgent.persistentFooter!.length).toBeGreaterThan(0);
+    expect(havenAgent.persistentFooter).not.toContain("\n");
+  });
+
+  it("persistentFooter contains the {{agent_name}} placeholder", () => {
+    expect(havenAgent.persistentFooter).toContain("{{agent_name}}");
+  });
+
   it("each skill's requiredVariables has a matching journey field", () => {
     // requiredVariables is the full set of slots the prompt template needs (used
     // by the SMS gateway, which has no file upload). Every required variable

@@ -220,6 +220,7 @@ export {
   type MediaRole,
   mediaToStored,
   type MediaType,
+  relinkMisclassifiedVideosOp,
   searchMediaOp,
   type StoredMedia,
   updateMediaMessageIdBatchOp,
@@ -393,13 +394,16 @@ export {
 
 // ── Tool Loop (framework-agnostic agent core) ──
 
-export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
-export type { PriceClassification, PricePreProcessorOptions } from "../lib/chat/priceClassifier";
+export type {
+  CryptoPriceClassification,
+  CryptoPricePreProcessorOptions,
+} from "../lib/chat/cryptoPriceClassifier";
 export {
-  classifyPrice,
-  classifyPriceBatch,
-  createPricePreProcessor,
-} from "../lib/chat/priceClassifier";
+  classifyCryptoPrice,
+  classifyCryptoPriceBatch,
+  createCryptoPricePreProcessor,
+} from "../lib/chat/cryptoPriceClassifier";
+export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type {
   LlmTokenUsage,
   ModelCallEndEvent,
@@ -412,6 +416,15 @@ export type {
   ToolUseStartEvent,
 } from "../lib/chat/runHooks";
 export { composeHooks } from "../lib/chat/runHooks";
+export type {
+  StockPriceClassification,
+  StockPricePreProcessorOptions,
+} from "../lib/chat/stockPriceClassifier";
+export {
+  classifyStockPrice,
+  classifyStockPriceBatch,
+  createStockPricePreProcessor,
+} from "../lib/chat/stockPriceClassifier";
 export type {
   AutoExecutedToolResult,
   RunToolLoopOptions,
@@ -426,6 +439,15 @@ export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types"
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
 export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
+export type {
+  WeatherClassification,
+  WeatherPreProcessorOptions,
+} from "../lib/chat/weatherClassifier";
+export {
+  classifyWeather,
+  classifyWeatherBatch,
+  createWeatherPreProcessor,
+} from "../lib/chat/weatherClassifier";
 export type {
   WebSearchClassification,
   WebSearchPreProcessorOptions,
