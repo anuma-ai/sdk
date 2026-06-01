@@ -6,10 +6,7 @@ export default defineConfig({
     alias: {
       // More specific first — otherwise the bare "@anuma/sdk" alias would also
       // capture "@anuma/sdk/constants" and rewrite it to "<index.ts>/constants".
-      "@anuma/sdk/constants": path.resolve(
-        __dirname,
-        "../../../src/constants/index.ts",
-      ),
+      "@anuma/sdk/constants": path.resolve(__dirname, "../../../src/constants/index.ts"),
       "@anuma/sdk": path.resolve(__dirname, "../../../src/index.ts"),
     },
   },
