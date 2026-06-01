@@ -105,6 +105,11 @@ export async function rerankPairs(query: string, items: RerankerItem[]): Promise
   if (batchDim !== items.length) {
     throw new Error(`reranker: model returned batch dim ${batchDim} for ${items.length} pairs`);
   }
+  if (numLabels !== 1 && numLabels !== 2) {
+    throw new Error(
+      `reranker: unsupported numLabels=${numLabels}; expected 1 (single relevance logit) or 2 (binary classification head)`
+    );
+  }
   const relevanceCol = numLabels === 2 ? 1 : 0;
   const scores: number[] = Array.from({ length: items.length }, () => 0);
   for (let i = 0; i < items.length; i++) {

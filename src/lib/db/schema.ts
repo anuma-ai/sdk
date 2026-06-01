@@ -332,6 +332,8 @@ export const sdkSchema = appSchema({
  * - v26 → v27: Added `tool_call_events` column to history for reconstructing tool call history
  * - v27 → v28: Added `source_chunk_ids`, `proof_count`, `source` columns to memory_vault for auto-extraction provenance and supersession tracking
  * - v28 → v29: Added `entity` + `memory_entity` tables for W5 knowledge-graph retrieval lane
+ * - v29 → v30: Added `event_time_start`, `event_time_end`, `event_time_kind` columns to memory_vault for W6 temporal retrieval lane
+ * - v30 → v31: Added `user_id` column to memory_entity for multi-user scoping of the W5 graph lane (with backfill from memory_vault.user_id)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [

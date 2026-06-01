@@ -101,6 +101,7 @@ export async function retain(
           content: existing.content,
           proofCount: newProofCount,
           sourceChunkIds: mergedSourceIds,
+          preserveUpdatedAt: true,
           ...(options.eventTime !== undefined &&
             options.eventTime !== null && {
               eventTime: {
@@ -217,6 +218,7 @@ async function tryConsolidate(
       content: existing.content,
       proofCount: newProofCount,
       sourceChunkIds: mergedSourceIds,
+      preserveUpdatedAt: true,
       ...(options.eventTime !== undefined &&
         options.eventTime !== null && {
           eventTime: {

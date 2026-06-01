@@ -354,6 +354,7 @@ export async function updateVaultMemoryOp(
           )
         : opts.content;
 
+    const originalUpdatedAt = record.updatedAt.getTime();
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("content", encryptedContent);
@@ -379,6 +380,12 @@ export async function updateVaultMemoryOp(
           r._setRaw("event_time_start", opts.eventTime.start ?? null);
           r._setRaw("event_time_end", opts.eventTime.end ?? null);
           r._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+        }
+        if (opts.preserveUpdatedAt) {
+          // WatermelonDB's record.update() bumps updated_at automatically.
+          // Restore the original so re-observation doesn't double-count
+          // against the recency multiplier on top of proof_count.
+          r._setRaw("updated_at", originalUpdatedAt);
         }
       });
     });

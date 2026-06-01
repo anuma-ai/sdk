@@ -12,8 +12,10 @@
 import { BASE_URL } from "../../clientConfig.js";
 import { getLogger } from "../logger.js";
 
-const DEFAULT_BASE_URL =
-  (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) || BASE_URL;
+/** Read per-call so tests that mutate `process.env` between imports take effect. */
+function defaultBaseUrl(): string {
+  return (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) || BASE_URL;
+}
 
 interface PortalLlmRequest {
   apiKey: string;
@@ -38,7 +40,7 @@ interface PortalLlmRequest {
  */
 export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<unknown> {
   const log = getLogger();
-  const baseUrl = req.baseUrl ?? DEFAULT_BASE_URL;
+  const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
   const timeoutMs = req.timeoutMs ?? 20_000;
 

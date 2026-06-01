@@ -64,19 +64,23 @@ export async function recall(
 ): Promise<RecallResult> {
   const types: MemoryKind[] = options.types ?? ["fact"];
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const budget = options.budget ?? DEFAULT_BUDGET;
-  const flags = flagsForBudget(budget);
+  const requestedBudget = options.budget ?? DEFAULT_BUDGET;
+  const flags = flagsForBudget(requestedBudget);
   const decomposeAvailable = flags.decompose && !!options.decomposeOptions;
+  // Report the budget actually executed: high silently downgrades to mid
+  // when decomposeOptions is missing (no LLM to run the query rewriter).
+  const usedBudget: "low" | "mid" | "high" =
+    requestedBudget === "high" && !decomposeAvailable ? "mid" : requestedBudget;
 
   if (!query || typeof query !== "string" || query.trim().length === 0) {
-    return { memories: [], usedBudget: budget, reranked: false, candidateCount: 0 };
+    return { memories: [], usedBudget, reranked: false, candidateCount: 0 };
   }
 
   // Embed once, share across stores. Vault path embeds internally too —
   // it's keyed off the cache so we don't pay twice.
   let queryEmbedding: number[] | undefined;
-  const needsEmbedding = types.includes("chunk") && ctx.storageCtx;
-  if (needsEmbedding) {
+  const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
+  if (needsChunkEmbedding) {
     queryEmbedding = await generateEmbedding(query, ctx.embeddingOptions);
   }
 
@@ -157,7 +161,7 @@ export async function recall(
     memories.sort((a, b) => b.score - a.score);
     return {
       memories: memories.slice(0, limit),
-      usedBudget: budget,
+      usedBudget,
       reranked: flags.rerank,
       candidateCount: factResults.length + chunkResults.length,
       ...(vaultSize !== undefined && { vaultSize }),
@@ -187,7 +191,7 @@ export async function recall(
   const memories = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, limit);
   return {
     memories,
-    usedBudget: budget,
+    usedBudget,
     reranked: flags.rerank,
     candidateCount: byId.size,
     ...(vaultSize !== undefined && { vaultSize }),

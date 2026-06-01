@@ -57,6 +57,19 @@ If provided, moves the memory to this folder.
 
 ***
 
+### preserveUpdatedAt?
+
+> `optional` **preserveUpdatedAt**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#87)
+
+When true, restore the existing `updated_at` after the write so the
+recency multiplier doesn't see a re-observation as a brand-new fact.
+Set by auto-merge/consolidate paths — they want proof\_count to bump
+without inflating recency on top.
+
+***
+
 ### proofCount?
 
 > `optional` **proofCount**: `number`

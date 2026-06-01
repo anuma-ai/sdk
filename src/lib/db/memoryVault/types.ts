@@ -78,4 +78,11 @@ export interface UpdateVaultMemoryOptions {
     end: number | null;
     kind: "point" | "range" | "ongoing" | null;
   };
+  /**
+   * When true, restore the existing `updated_at` after the write so the
+   * recency multiplier doesn't see a re-observation as a brand-new fact.
+   * Set by auto-merge/consolidate paths — they want proof_count to bump
+   * without inflating recency on top.
+   */
+  preserveUpdatedAt?: boolean;
 }

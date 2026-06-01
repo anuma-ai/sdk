@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#336)
+Defined in: [src/lib/db/schema.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#338)
 
 Combined migrations for all SDK storage modules.
 
@@ -42,3 +42,5 @@ Migration history:
 * v26 → v27: Added `tool_call_events` column to history for reconstructing tool call history
 * v27 → v28: Added `source_chunk_ids`, `proof_count`, `source` columns to memory\_vault for auto-extraction provenance and supersession tracking
 * v28 → v29: Added `entity` + `memory_entity` tables for W5 knowledge-graph retrieval lane
+* v29 → v30: Added `event_time_start`, `event_time_end`, `event_time_kind` columns to memory\_vault for W6 temporal retrieval lane
+* v30 → v31: Added `user_id` column to memory\_entity for multi-user scoping of the W5 graph lane (with backfill from memory\_vault.user\_id)

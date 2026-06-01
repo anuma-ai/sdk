@@ -535,6 +535,11 @@ export async function rankFusedVaultMemoriesAsync(
   // (entityRanking) or W6 (temporalRanking) lanes still need to surface
   // their hits. The side-lane fusion below pulls candidates straight
   // from `items` when they're absent from the V2 head.
+  // Note: lane-only hits skip the CE rerank even at budget:high — the
+  // rerank stage runs over the V2 head, which is empty in that case.
+  // Lane RRF still produces a usable ordering; CE precision is sacrificed
+  // for the recall gain. Revisit if eval shows the lane-only path
+  // needs CE.
   let combined: VaultSearchResult[];
   let tailSlice: VaultSearchResult[] = [];
 
@@ -1075,14 +1080,6 @@ export async function searchVaultMemories(
   return results;
 }
 
-/**
- * Creates a memory vault search tool for use with chat completions.
- *
- * The tool allows the LLM to search through vault memories using semantic
- * similarity. Vault entries should have their embeddings pre-computed in the
- * cache (via preEmbedVaultMemories or eagerEmbedContent). Any missing
- * embeddings are computed on the fly as a fallback.
- *
 /** Numbered "[N] (id: …, similarity: …)\n<content>" rendering shared by the
  * chat-tool's recall-delegated and useFusion:false branches. */
 function formatVaultHits(hits: Array<{ id: string; content: string; score: number }>): string {
@@ -1092,6 +1089,13 @@ function formatVaultHits(hits: Array<{ id: string; content: string; score: numbe
 }
 
 /**
+ * Creates a memory vault search tool for use with chat completions.
+ *
+ * The tool allows the LLM to search through vault memories using semantic
+ * similarity. Vault entries should have their embeddings pre-computed in the
+ * cache (via preEmbedVaultMemories or eagerEmbedContent). Any missing
+ * embeddings are computed on the fly as a fallback.
+ *
  * @param vaultCtx - Vault operations context for database access
  * @param embeddingOptions - Options for embedding generation (auth, base URL)
  * @param cache - Pre-populated embedding cache
@@ -1159,6 +1163,9 @@ export function createMemoryVaultSearchTool(
             : searchOptions?.rerank
               ? "mid"
               : "low";
+        // Host's configured folder wins — the LLM can't escape a host-
+        // imposed scope. When the host has *not* set a folder, the LLM's
+        // explicit folder_id (including `null` for unfiled) is used.
         const folderId = searchOptions?.folderId ?? argFolderId;
 
         // useFusion:false callers want cosine-only — skip recall's fusion.
@@ -1209,6 +1216,9 @@ export function createMemoryVaultSearchTool(
           return "No relevant memories found in the vault.";
         }
 
+        // Surface the raw cosine, not the fused score — preserves the
+        // legacy tool surface so LLMs interpreting the number get the
+        // same scale they were trained against.
         const formatted = formatVaultHits(
           result.memories.map((m) => ({
             id: m.id,

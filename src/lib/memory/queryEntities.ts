@@ -26,6 +26,8 @@
  * Replace with an LLM-based extractor under `budget=high` in a later pass.
  */
 
+import { normalizeEntityName } from "../db/entities/types.js";
+
 const STOPWORDS = new Set(
   [
     "User",
@@ -73,7 +75,11 @@ const STOPWORDS = new Set(
   ].map((w) => w.toLowerCase())
 );
 
-const ENTITY_REGEX = /\b[A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]+){0,2}\b/g;
+// Capitalized noun phrases. The character class covers hyphenated names
+// ("Jean-Luc"), apostrophes ("O'Brien"), and non-ASCII letters
+// ("São Paulo", "Łukasz") via Unicode property escapes. Three-token cap
+// keeps "São Paulo Lakers" but not full sentences.
+const ENTITY_REGEX = /\b\p{Lu}[\p{L}'-]{2,}(?:\s+\p{Lu}[\p{L}'-]+){0,2}\b/gu;
 
 /**
  * Extract candidate entity names from a query. Returns canonical
@@ -85,9 +91,8 @@ export function extractQueryEntities(query: string): string[] {
   const matches = query.matchAll(ENTITY_REGEX);
   const seen = new Set<string>();
   for (const match of matches) {
-    const surface = match[0].trim();
-    if (!surface) continue;
-    const canonical = surface.toLowerCase();
+    const canonical = normalizeEntityName(match[0]);
+    if (!canonical) continue;
     if (STOPWORDS.has(canonical)) continue;
     if (canonical.split(/\s+/).every((w) => STOPWORDS.has(w))) continue;
     seen.add(canonical);

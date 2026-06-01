@@ -268,15 +268,29 @@ function parseEventTime(raw: unknown): ExtractedCandidate["eventTime"] {
   if (kindRaw !== "point" && kindRaw !== "range" && kindRaw !== "ongoing") return null;
   const start = parseEventDate(obj.start);
   if (start === null) return null;
-  const end = kindRaw === "range" ? parseEventDate(obj.end) : null;
+  // `end` is required for "range", optional for "ongoing" (an LLM-emitted
+  // close-out date for a previously-ongoing fact), ignored for "point".
+  const end = kindRaw === "point" ? null : parseEventDate(obj.end);
   if (kindRaw === "range" && end === null) return null;
   return { kind: kindRaw, start, end };
 }
 
 /**
- * Date-only "YYYY-MM-DD" → local midnight, matching the query-window
- * basis in queryTemporal. ISO strings with an explicit time / offset
- * fall through to `Date.parse`.
+ * LLM-emitted event date → Unix ms at local midnight of the calendar day
+ * the LLM intended. Normalizing the calendar day (rather than the
+ * absolute instant) is what matches the query-window basis in
+ * queryTemporal — a fact dated "2026-05-23" must land in the same
+ * calendar-day window the user's "what happened May 23" query builds.
+ *
+ * Accepts:
+ *  - number (Unix ms) — passed through unchanged
+ *  - "YYYY-MM-DD" — local midnight of that day
+ *  - any ISO string Date.parse handles ("2026-05-23T00:00:00Z",
+ *    "2026-05-23T15:30:00+02:00") — the absolute instant is parsed,
+ *    then re-normalized to local midnight of the *local* calendar day
+ *    it falls on. This collapses the UTC/local mismatch that would
+ *    otherwise drift a Z-suffixed event outside its own query window
+ *    for non-UTC users.
  */
 function parseEventDate(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
@@ -291,6 +305,9 @@ function parseEventDate(raw: unknown): number | null {
     const ms = new Date(year, month - 1, day).getTime();
     return Number.isFinite(ms) ? ms : null;
   }
-  const ms = Date.parse(trimmed);
-  return Number.isFinite(ms) ? ms : null;
+  const parsed = Date.parse(trimmed);
+  if (!Number.isFinite(parsed)) return null;
+  // Snap to local midnight of the day the absolute instant falls on.
+  const d = new Date(parsed);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }

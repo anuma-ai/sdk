@@ -1,8 +1,9 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
+import type { Clause } from "@nozbe/watermelondb/QueryDescription";
 
 import type { Entity, MemoryEntity } from "./models";
-import type { StoredEntity } from "./types";
+import { normalizeEntityName as normalizeName, type StoredEntity } from "./types";
 
 export interface EntityOperationsContext {
   database: Database;
@@ -14,10 +15,6 @@ export interface EntityOperationsContext {
    * filters lookups by it. Leave undefined for single-user clients.
    */
   userId?: string;
-}
-
-function normalizeName(name: string): string {
-  return name.toLowerCase().trim();
 }
 
 function entityToStored(e: Entity): StoredEntity {
@@ -83,17 +80,18 @@ export async function linkMemoryEntitiesOp(
   const entities = Array.from(byName.values());
   if (entities.length === 0) return [];
 
-  // Skip pairs that already exist.
-  const existingLinks = await ctx.memoryEntityCollection
-    .query(Q.where("memory_id", memoryId))
-    .fetch();
-  const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
-
-  const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
-  if (toCreate.length === 0) return entities;
-
   const userId = ctx.userId;
+  // Read existing pairs *inside* the write so two parallel
+  // linkMemoryEntitiesOp calls for the same memory can't both miss and
+  // both insert overlapping (memory_id, entity_id) rows — which would
+  // inflate the shared-count downstream in rankByEntityOverlap.
   await ctx.database.write(async () => {
+    const existingLinks = await ctx.memoryEntityCollection
+      .query(Q.where("memory_id", memoryId))
+      .fetch();
+    const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
+    const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
+    if (toCreate.length === 0) return;
     const prepared = toCreate.map((e) =>
       ctx.memoryEntityCollection.prepareCreate((record) => {
         record._setRaw("memory_id", memoryId);
@@ -146,6 +144,46 @@ export async function unlinkAllMemoryEntitiesForUserOp(
 }
 
 /**
+ * Backfill `memory_entity.user_id` from the parent vault row's user_id.
+ * Idempotent — only touches rows where user_id is null. Use this on web
+ * (LokiJS) where the v31 schema migration's `unsafeExecuteSql` backfill
+ * runs as a no-op; native SQLite migrations already filled these.
+ *
+ * Best-effort: call once on app start after the SDK opens the DB. A
+ * vault row that's missing (deleted, race) is skipped silently.
+ *
+ * @public
+ */
+export async function backfillMemoryEntityUserIdsOp(
+  ctx: EntityOperationsContext,
+  vaultMemoryCollection: { find: (id: string) => Promise<{ userId?: string | null } | null> }
+): Promise<number> {
+  const unstamped = await ctx.memoryEntityCollection.query(Q.where("user_id", null)).fetch();
+  if (unstamped.length === 0) return 0;
+
+  const toUpdate: Array<{ link: MemoryEntity; userId: string }> = [];
+  for (const link of unstamped) {
+    try {
+      const parent = await vaultMemoryCollection.find(String(link.memoryId));
+      const userId = parent?.userId;
+      if (typeof userId === "string" && userId.length > 0) {
+        toUpdate.push({ link, userId });
+      }
+    } catch {
+      // Parent missing — leave the orphan as-is; cascade will collect.
+    }
+  }
+  if (toUpdate.length === 0) return 0;
+
+  await ctx.database.write(async () => {
+    await ctx.database.batch(
+      ...toUpdate.map(({ link, userId }) => link.prepareUpdate((r) => r._setRaw("user_id", userId)))
+    );
+  });
+  return toUpdate.length;
+}
+
+/**
  * W5 graph-lane read: given a set of entity names (e.g. extracted from
  * a query), return the set of memory IDs linked to *any* of them, with
  * a per-memory count of how many of the queried entities they match.
@@ -176,9 +214,13 @@ export async function getMemoriesByEntityNamesOp(
   if (entityRows.length === 0) return new Map();
 
   const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
-  const linkConditions = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
+  const linkConditions: Clause[] = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
   if (ctx.userId !== undefined) {
-    linkConditions.push(Q.where("user_id", ctx.userId));
+    // Tolerate user_id=null so pre-v31 rows still surface on the LokiJS
+    // adapter (where the v31 SQL backfill is a no-op). The downstream
+    // `itemById` filter built from user-scoped `getAllVaultMemoriesOp`
+    // still drops cross-user IDs.
+    linkConditions.push(Q.or(Q.where("user_id", ctx.userId), Q.where("user_id", null)));
   }
   const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
 

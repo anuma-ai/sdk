@@ -115,6 +115,15 @@ function shiftByUnit(base: number, n: number, unit: string): number {
   return addMonths(base, n);
 }
 
+/** Window size in days for a numeric-offset phrase. "3 weeks ago" should
+ * resolve to a 7-day window starting at the target Monday, not a single
+ * day — matching the "this week"/"last week" branches' 7-day windows. */
+function windowDaysForUnit(unit: string): number {
+  if (unit.startsWith("week")) return 7;
+  if (unit.startsWith("month")) return 30;
+  return 1;
+}
+
 // Hoisted regexes — parseQueryTimeWindow is called on every recall, so
 // the dynamically-built MONTH_NAMES alternation only needs to compile once.
 const MONTH_DAY_RE = new RegExp(
@@ -185,13 +194,14 @@ export function parseQueryTimeWindow(
     const n = parseInt(futureMatch[1] ?? futureMatch[3], 10);
     const unit = futureMatch[2] ?? futureMatch[4];
     const start = shiftByUnit(startOfDay(now), n, unit);
-    return { start, end: endOfDay(start), matchedPhrase: futureMatch[0] };
+    return { start, end: addDays(start, windowDaysForUnit(unit)), matchedPhrase: futureMatch[0] };
   }
   const agoMatch = PAST_OFFSET_RE.exec(q);
   if (agoMatch) {
     const n = parseInt(agoMatch[1], 10);
-    const start = shiftByUnit(startOfDay(now), -n, agoMatch[2]);
-    return { start, end: endOfDay(start), matchedPhrase: agoMatch[0] };
+    const unit = agoMatch[2];
+    const start = shiftByUnit(startOfDay(now), -n, unit);
+    return { start, end: addDays(start, windowDaysForUnit(unit)), matchedPhrase: agoMatch[0] };
   }
 
   // ── 5. Day-of-week with optional "next" / "last" ────────────────────
@@ -228,7 +238,11 @@ export function parseQueryTimeWindow(
     const yearStr = monthDayMatch[3];
     const year = yearStr ? parseInt(yearStr, 10) : new Date(now).getFullYear();
     const start = new Date(year, monthIdx, day).getTime();
-    return { start, end: endOfDay(start), matchedPhrase: monthDayMatch[0] };
+    // "may I want to ..." can satisfy MONTH_DAY_RE if the next token is a
+    // number — guard against the resulting NaN/Invalid Date window.
+    if (Number.isFinite(start)) {
+      return { start, end: endOfDay(start), matchedPhrase: monthDayMatch[0] };
+    }
   }
 
   // ── 7. Month-only — "in May", "in May 2026" ─────────────────────────
@@ -239,7 +253,9 @@ export function parseQueryTimeWindow(
     const year = yearStr ? parseInt(yearStr, 10) : new Date(now).getFullYear();
     const start = new Date(year, monthIdx, 1).getTime();
     const end = new Date(year, monthIdx + 1, 1).getTime();
-    return { start, end, matchedPhrase: monthOnlyMatch[0] };
+    if (Number.isFinite(start) && Number.isFinite(end)) {
+      return { start, end, matchedPhrase: monthOnlyMatch[0] };
+    }
   }
 
   return null;
