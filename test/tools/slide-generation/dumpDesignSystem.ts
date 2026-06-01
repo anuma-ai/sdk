@@ -48,13 +48,36 @@ const compositions: LayoutComposition[] = ALL_COMPOSITIONS;
 const baseSystems: Array<{ name: string; system: DesignSystem }> = ALL_SYSTEMS;
 const systems: Array<{ name: string; system: DesignSystem }> = baseSystems;
 
+// Real photo for the cover-image full-bleed background, so the dump shows
+// how a deck-supplied image reads under the scrim (the renderer only draws
+// an <img> for http/data: srcs, so we inline it as a base64 data URI). When
+// the asset is absent the slot falls back to the surface-tinted placeholder.
+const BG_ASSET = path.resolve(__dirname, "assets", "bg.jpg");
+const bgDataUri = fs.existsSync(BG_ASSET)
+  ? `data:image/jpeg;base64,${fs.readFileSync(BG_ASSET).toString("base64")}`
+  : null;
+
+// Inject the sample photo into cover-image's bg_image slot for the dump
+// only — the composition itself ships no defaultSrc, so production stays
+// photo-agnostic. Clones the composition so the live registry is untouched.
+function withCoverPhoto(composition: LayoutComposition): LayoutComposition {
+  if (!bgDataUri || composition.name !== "cover-image") return composition;
+  return {
+    ...composition,
+    elements: composition.elements.map((el) =>
+      "id" in el && el.id === "bg_image" ? { ...el, defaultSrc: bgDataUri } : el
+    ),
+  };
+}
+
 // Build one deck with every (composition × system) pair, grouped by
 // composition so two adjacent slides are the same layout in different
 // visual identities — easy to flip between.
 const slides: string[] = [];
 for (const composition of compositions) {
+  const forDump = withCoverPhoto(composition);
   for (const { name, system } of systems) {
-    slides.push(compile(composition, system, fontPreset, `${composition.name}--${name}`));
+    slides.push(compile(forDump, system, fontPreset, `${composition.name}--${name}`));
   }
 }
 

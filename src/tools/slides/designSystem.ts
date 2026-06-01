@@ -54,6 +54,7 @@ export type ElementRole =
   | "divider" // thin hairline rule (shape role)
   | "accent-bar" // colored accent rectangle (shape role)
   | "marker" // small filled circle — timeline dots, list bullets (shape role)
+  | "scrim" // full-bleed semi-transparent wash for legibility over a photo (shape role)
   | "image"; // image placeholder (image role)
 
 /**
@@ -62,14 +63,14 @@ export type ElementRole =
  * `emitRelativeElement` handles dividers / accent-bars / markers as
  * shape primitives and routes every other role through the text path
  * (with role-specific style + fontRole resolution). It explicitly does
- * NOT render `image` (no `<Anuma.Image>` emit path for rels) or
+ * NOT render `image` (no `<Anuma.Image>` emit path for rels),
  * `card-surface` (cards paint their surface via `cardItems: true` on
- * the region, not via a per-rel role). Narrowing the type here makes
- * those two roles uncompilable inside a flex item — so the silent-
- * misrender case (rel.role="image" rendering as zero-size Text) can't
- * be constructed.
+ * the region, not via a per-rel role), or `scrim` (a full-bleed
+ * slide-level overlay, never a flex item). Narrowing the type here makes
+ * those roles uncompilable inside a flex item — so the silent-misrender
+ * case (rel.role="image" rendering as zero-size Text) can't be constructed.
  */
-type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface">;
+type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface" | "scrim">;
 
 // ---------------------------------------------------------------------------
 // RoleStyle — the concrete styling applied to a role within a design system
@@ -270,8 +271,9 @@ interface RelativeElement {
   id: string;
   /**
    * One of the roles the flex emitter actually renders. Excludes "image"
-   * (no flex-item Image emit path) and "card-surface" (cards paint their
-   * surface via `cardItems: true` on the region, not via a per-rel role).
+   * (no flex-item Image emit path), "card-surface" (cards paint their
+   * surface via `cardItems: true` on the region, not via a per-rel role),
+   * and "scrim" (a slide-level full-bleed overlay, never a flex item).
    * The type narrows what `ElementRole` would otherwise advertise so
    * those silent-misrender cases can't be constructed.
    */
@@ -649,6 +651,13 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontSize: 0,
       color: "card",
     },
+    // Semi-transparent wash tinted to the dark-surface ground (warm
+    // brown) so a cover photo darkens on-brand for legible text.
+    scrim: {
+      fontFamily: "body",
+      fontSize: 0,
+      color: "rgba(35,26,15,0.55)",
+    },
   },
   // Per-surface treatments. Each declares both the fill color used for
   // slide ground / card-surface fills and the per-role overrides applied
@@ -929,6 +938,7 @@ const TECHNO_BOLD: DesignSystem = {
     "accent-bar": { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
     marker: { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
     image: { fontFamily: SANS, fontSize: 0, color: "#0A0A0A" },
+    scrim: { fontFamily: SANS, fontSize: 0, color: "rgba(10,10,10,0.55)" },
   },
   // Per-surface treatments — same shape as editorial-warm.
   surfaces: {
@@ -1216,6 +1226,7 @@ export const CORPORATE_MODERN: DesignSystem = {
     "accent-bar": { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
     marker: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
     image: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#D4D4D8" },
+    scrim: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "rgba(24,24,27,0.55)" },
   },
   // Surface treatments — corporate dark goes zinc-900; accent surface
   // is zinc-800 (a deep neutral, not a brand-color block). Emphasis
@@ -1505,6 +1516,7 @@ const PLAYFUL_CREATIVE: DesignSystem = {
     "accent-bar": { fontFamily: COZY_SANS, fontSize: 0, color: COZY_ACCENT },
     marker: { fontFamily: COZY_SANS, fontSize: 0, color: COZY_ACCENT },
     image: { fontFamily: COZY_SANS, fontSize: 0, color: "#FFEDD5" },
+    scrim: { fontFamily: COZY_SANS, fontSize: 0, color: "rgba(41,37,36,0.55)" },
   },
   surfaces: {
     dark: {
@@ -1783,6 +1795,7 @@ export const MINIMAL_SWISS: DesignSystem = {
     "accent-bar": { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
     marker: { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
     image: { fontFamily: SWISS_SANS, fontSize: 0, color: "#F5F5F5" },
+    scrim: { fontFamily: SWISS_SANS, fontSize: 0, color: "rgba(10,10,10,0.55)" },
   },
   // Surfaces — dark inverts to pure black; accent goes saturated red
   // for poster moments (manifesto slides, statement covers).
@@ -2074,6 +2087,7 @@ const LUXURY_EDITORIAL: DesignSystem = {
     "accent-bar": { fontFamily: LUXURY_SANS, fontSize: 0, color: "#BE8B6E" },
     marker: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#BE8B6E" },
     image: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#E7E5E4" },
+    scrim: { fontFamily: LUXURY_SANS, fontSize: 0, color: "rgba(31,41,55,0.55)" },
   },
   surfaces: {
     dark: {
@@ -4010,6 +4024,13 @@ function emitMarker(el: CompositionElement, s: RoleStyle): string {
   return `<Anuma.Circle id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" />`;
 }
 
+// Full-bleed semi-transparent wash. Same Rect primitive as accent-bar but
+// with sharp corners (no cornerRadius) and the role's rgba fill, so it
+// darkens whatever sits beneath it (a cover photo) for text legibility.
+function emitScrim(el: CompositionElement, s: RoleStyle): string {
+  return `<Anuma.Rect id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" />`;
+}
+
 /**
  * Sentinel placeholder emitted when compile() runs in `"sentinel"` mode
  * (e.g. for recipes shipped to the model). The model is expected to
@@ -4419,6 +4440,9 @@ export function compile(
       case "marker":
         lines.push(emitMarker(el, s));
         break;
+      case "scrim":
+        lines.push(emitScrim(el, s));
+        break;
       case "card-surface":
         lines.push(emitCardSurface(el, system, elState));
         break;
@@ -4548,6 +4572,7 @@ const STATIC_ROLES: ReadonlySet<ElementRole> = new Set([
   "divider",
   "accent-bar",
   "marker",
+  "scrim",
   "image",
   "card-surface",
 ]);
@@ -5207,9 +5232,140 @@ const QUOTE_PASSAGE: LayoutComposition = {
   ],
 };
 
+/**
+ * Full-bleed photo title slide. A single image fills the slide; a
+ * semi-transparent scrim (tinted to the system's dark ground) darkens it
+ * for legibility; chrome / hero / subtitle / credits overlay on top. The
+ * whole slide is surface="dark" so text resolves to the cream/white
+ * treatment that reads over a photo regardless of the chosen system.
+ *
+ * Completes the cover family alongside cover-statement (text-only) and
+ * cover-split-portrait (image on one half). If the model supplies no
+ * photo the image is stripped (sentinel) and it degrades to a dark cover.
+ * Element ORDER matters: image first, then scrim, then text — later
+ * elements paint on top.
+ */
+const COVER_IMAGE: LayoutComposition = {
+  name: "cover-image",
+  description:
+    "Dark full-bleed PHOTO title slide: one image fills the slide behind a darkening scrim, with chrome, a one-line hero, a subtitle, and a prepared-by / submitted credit row overlaid in light text. For image-led openers — hospitality, brand, event, product, or proposal covers where a single strong photo sets the tone. Provide a hero photo for the background, or omit it to fall back to a solid dark cover.",
+  surface: "dark",
+  elements: [
+    // Background photo (behind everything) then the legibility scrim.
+    {
+      id: "bg_image",
+      role: "image",
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+    },
+    {
+      id: "bg_scrim",
+      role: "scrim",
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+    },
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 6,
+      w: 46,
+      h: 3,
+      fit: "single-line",
+      defaultText: "The Acme Grand · 480 keys · Downtown",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 54,
+      y: 6,
+      w: 40,
+      h: 3,
+      fit: "single-line",
+      align: "right",
+      defaultText: "Group Sales Proposal · RFP #LT-26-0312",
+    },
+    {
+      id: "chrome_rule",
+      role: "accent-bar",
+      x: 6,
+      y: 10,
+      w: 7,
+      h: 0.5,
+    },
+    {
+      id: "hero",
+      role: "hero",
+      x: 6,
+      y: 54,
+      w: 82,
+      h: 15,
+      fit: "single-line",
+      defaultText: "A house, not a venue.",
+    },
+    {
+      id: "subtitle",
+      role: "subtitle",
+      x: 6,
+      y: 71,
+      w: 82,
+      h: 8,
+      fit: "single-line",
+      defaultText: "Prepared for the Lattice User Conference, 2026.",
+    },
+    {
+      id: "prepared_label",
+      role: "stat-label",
+      x: 6,
+      y: 85,
+      w: 40,
+      h: 3,
+      fit: "single-line",
+      defaultText: "Prepared by",
+    },
+    {
+      id: "prepared_value",
+      role: "body",
+      x: 6,
+      y: 88.5,
+      w: 64,
+      h: 6,
+      fit: "single-line",
+      defaultText: "Marisa Cheng · Director of Group Sales · marisa.cheng@acmegrand.com",
+    },
+    {
+      id: "submitted_label",
+      role: "stat-label",
+      x: 66,
+      y: 85,
+      w: 28,
+      h: 3,
+      fit: "single-line",
+      align: "right",
+      defaultText: "Submitted",
+    },
+    {
+      id: "submitted_value",
+      role: "body",
+      x: 64,
+      y: 88.5,
+      w: 30,
+      h: 6,
+      fit: "single-line",
+      align: "right",
+      defaultText: "May 14, 2026",
+    },
+  ],
+};
+
 export const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
   COVER_STATEMENT,
+  COVER_IMAGE,
   PROBLEM_EVIDENCE,
   HEADLINE_NUMBER,
   AGENDA,
