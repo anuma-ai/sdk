@@ -1,21 +1,22 @@
 /**
- * DesignSystem — proposal sketch for decoupling layout composition from
- * visual style.
+ * DesignSystem — the layer that decouples layout composition from visual
+ * style. This is the live slide layout system: it is wired into the slide
+ * tool (src/tools/slides/index.ts) and the model-facing prompt
+ * (src/tools/slides/slidePrompt.ts).
  *
- * The current layouts.ts encodes three things together: where elements go
- * (composition), what each element is for (content roles), and how each
- * element looks (style — fontFamily/fontSize/color/weight). The result is
- * that every cover slide looks the same regardless of the deck's intent.
+ * The earlier template system fused three things into each fixed template:
+ * where elements go (composition), what each element is for (content roles),
+ * and how each element looks (style — fontFamily/fontSize/color/weight). The
+ * result was that every cover slide looked the same regardless of the deck's
+ * intent.
  *
- * This file proposes splitting style out into a separate "design system"
- * layer. A layout becomes a role-tagged compositional skeleton; a design
- * system maps roles → concrete styles. The same composition rendered with
- * different design systems produces visually distinct decks.
+ * This layer splits style out into a separate "design system": a layout is a
+ * role-tagged compositional skeleton; a design system maps roles → concrete
+ * styles. The same composition rendered with different design systems
+ * produces visually distinct decks.
  *
- * Status: PROPOSAL. Not wired into the live tool flow. See
- * test/tools/slide-generation/dumpDesignSystem.ts for a working
- * demonstration that compiles one composition through the editorial-warm
- * system and dumps it to HTML for inspection.
+ * See test/tools/slide-generation/dumpDesignSystem.ts for a visual-review
+ * harness that compiles every composition × design system pair to HTML.
  */
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,7 @@ export type ElementRole =
   | "stat-label" // small caption under a stat
   | "quote" // pull-quote text — one line of a multi-line quote (regular)
   | "quote-accent" // pull-quote text — the italic accent line
+  | "quote-mark" // oversized decorative quotation glyph that opens a quote slide
   | "attribution" // quote attribution ("— Mei Han")
   | "card-surface" // filled rectangle that defines a card's ground
   | "card-eyebrow" // mono uppercase label / number inside a card ("01")
@@ -52,6 +54,7 @@ export type ElementRole =
   | "divider" // thin hairline rule (shape role)
   | "accent-bar" // colored accent rectangle (shape role)
   | "marker" // small filled circle — timeline dots, list bullets (shape role)
+  | "scrim" // full-bleed semi-transparent wash for legibility over a photo (shape role)
   | "image"; // image placeholder (image role)
 
 /**
@@ -60,14 +63,14 @@ export type ElementRole =
  * `emitRelativeElement` handles dividers / accent-bars / markers as
  * shape primitives and routes every other role through the text path
  * (with role-specific style + fontRole resolution). It explicitly does
- * NOT render `image` (no `<Anuma.Image>` emit path for rels) or
+ * NOT render `image` (no `<Anuma.Image>` emit path for rels),
  * `card-surface` (cards paint their surface via `cardItems: true` on
- * the region, not via a per-rel role). Narrowing the type here makes
- * those two roles uncompilable inside a flex item — so the silent-
- * misrender case (rel.role="image" rendering as zero-size Text) can't
- * be constructed.
+ * the region, not via a per-rel role), or `scrim` (a full-bleed
+ * slide-level overlay, never a flex item). Narrowing the type here makes
+ * those roles uncompilable inside a flex item — so the silent-misrender
+ * case (rel.role="image" rendering as zero-size Text) can't be constructed.
  */
-type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface">;
+type RelativeElementRole = Exclude<ElementRole, "image" | "card-surface" | "scrim">;
 
 // ---------------------------------------------------------------------------
 // RoleStyle — the concrete styling applied to a role within a design system
@@ -268,8 +271,9 @@ interface RelativeElement {
   id: string;
   /**
    * One of the roles the flex emitter actually renders. Excludes "image"
-   * (no flex-item Image emit path) and "card-surface" (cards paint their
-   * surface via `cardItems: true` on the region, not via a per-rel role).
+   * (no flex-item Image emit path), "card-surface" (cards paint their
+   * surface via `cardItems: true` on the region, not via a per-rel role),
+   * and "scrim" (a slide-level full-bleed overlay, never a flex item).
    * The type narrows what `ElementRole` would otherwise advertise so
    * those silent-misrender cases can't be constructed.
    */
@@ -545,6 +549,17 @@ export const EDITORIAL_WARM: DesignSystem = {
       lineHeight: 1.2,
       align: "left",
     },
+    // Oversized opening quotation glyph. Shares the warm terracotta of
+    // hero-accent / chrome (not the olive `accent` token) so the mark
+    // reads as the same emphasis family.
+    "quote-mark": {
+      fontFamily: "heading",
+      fontSize: 9,
+      fontWeight: 400,
+      color: "#B85A2E",
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: "heading",
       fontSize: 1.6,
@@ -635,6 +650,13 @@ export const EDITORIAL_WARM: DesignSystem = {
       fontFamily: "body",
       fontSize: 0,
       color: "card",
+    },
+    // Semi-transparent wash tinted to the dark-surface ground (warm
+    // brown) so a cover photo darkens on-brand for legible text.
+    scrim: {
+      fontFamily: "body",
+      fontSize: 0,
+      color: "rgba(35,26,15,0.55)",
     },
   },
   // Per-surface treatments. Each declares both the fill color used for
@@ -843,6 +865,14 @@ const TECHNO_BOLD: DesignSystem = {
       letterSpacing: -0.02,
       align: "left",
     },
+    "quote-mark": {
+      fontFamily: SANS,
+      fontSize: 9,
+      fontWeight: 700,
+      color: "#3B82F6",
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: SANS,
       fontSize: 1.4,
@@ -908,6 +938,7 @@ const TECHNO_BOLD: DesignSystem = {
     "accent-bar": { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
     marker: { fontFamily: SANS, fontSize: 0, color: "#3B82F6" },
     image: { fontFamily: SANS, fontSize: 0, color: "#0A0A0A" },
+    scrim: { fontFamily: SANS, fontSize: 0, color: "rgba(10,10,10,0.55)" },
   },
   // Per-surface treatments — same shape as editorial-warm.
   surfaces: {
@@ -1116,6 +1147,18 @@ export const CORPORATE_MODERN: DesignSystem = {
       lineHeight: 1.3,
       align: "left",
     },
+    // Corporate confines brand color to chrome and emphasises by tone,
+    // not hue. A large brand-blue glyph would read as content emphasis
+    // and break the monochrome-headline principle, so the opening mark
+    // is a restrained zinc ornament instead.
+    "quote-mark": {
+      fontFamily: CORPORATE_SERIF,
+      fontSize: 9,
+      fontWeight: 700,
+      color: "#71717A",
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: CORPORATE_SERIF,
       fontSize: 1.4,
@@ -1183,6 +1226,7 @@ export const CORPORATE_MODERN: DesignSystem = {
     "accent-bar": { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
     marker: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#1E40AF" },
     image: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "#D4D4D8" },
+    scrim: { fontFamily: CORPORATE_SERIF, fontSize: 0, color: "rgba(24,24,27,0.55)" },
   },
   // Surface treatments — corporate dark goes zinc-900; accent surface
   // is zinc-800 (a deep neutral, not a brand-color block). Emphasis
@@ -1397,6 +1441,14 @@ const PLAYFUL_CREATIVE: DesignSystem = {
       lineHeight: 1.35,
       align: "left",
     },
+    "quote-mark": {
+      fontFamily: COZY_SANS,
+      fontSize: 9,
+      fontWeight: 700,
+      color: COZY_ACCENT,
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: COZY_SANS,
       fontSize: 1.4,
@@ -1464,6 +1516,7 @@ const PLAYFUL_CREATIVE: DesignSystem = {
     "accent-bar": { fontFamily: COZY_SANS, fontSize: 0, color: COZY_ACCENT },
     marker: { fontFamily: COZY_SANS, fontSize: 0, color: COZY_ACCENT },
     image: { fontFamily: COZY_SANS, fontSize: 0, color: "#FFEDD5" },
+    scrim: { fontFamily: COZY_SANS, fontSize: 0, color: "rgba(41,37,36,0.55)" },
   },
   surfaces: {
     dark: {
@@ -1667,6 +1720,14 @@ export const MINIMAL_SWISS: DesignSystem = {
       lineHeight: 1.3,
       align: "left",
     },
+    "quote-mark": {
+      fontFamily: SWISS_SANS,
+      fontSize: 9,
+      fontWeight: 900,
+      color: "#DC2626",
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: SWISS_SANS,
       fontSize: 1.4,
@@ -1734,6 +1795,7 @@ export const MINIMAL_SWISS: DesignSystem = {
     "accent-bar": { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
     marker: { fontFamily: SWISS_SANS, fontSize: 0, color: "#DC2626" },
     image: { fontFamily: SWISS_SANS, fontSize: 0, color: "#F5F5F5" },
+    scrim: { fontFamily: SWISS_SANS, fontSize: 0, color: "rgba(10,10,10,0.55)" },
   },
   // Surfaces — dark inverts to pure black; accent goes saturated red
   // for poster moments (manifesto slides, statement covers).
@@ -1947,6 +2009,14 @@ const LUXURY_EDITORIAL: DesignSystem = {
       lineHeight: 1.35,
       align: "left",
     },
+    "quote-mark": {
+      fontFamily: LUXURY_SERIF,
+      fontSize: 9,
+      fontWeight: 400,
+      color: "#BE8B6E",
+      lineHeight: 1.0,
+      align: "left",
+    },
     attribution: {
       fontFamily: LUXURY_SANS,
       fontSize: 1.35,
@@ -2017,6 +2087,7 @@ const LUXURY_EDITORIAL: DesignSystem = {
     "accent-bar": { fontFamily: LUXURY_SANS, fontSize: 0, color: "#BE8B6E" },
     marker: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#BE8B6E" },
     image: { fontFamily: LUXURY_SANS, fontSize: 0, color: "#E7E5E4" },
+    scrim: { fontFamily: LUXURY_SANS, fontSize: 0, color: "rgba(31,41,55,0.55)" },
   },
   surfaces: {
     dark: {
@@ -3953,6 +4024,13 @@ function emitMarker(el: CompositionElement, s: RoleStyle): string {
   return `<Anuma.Circle id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" />`;
 }
 
+// Full-bleed semi-transparent wash. Same Rect primitive as accent-bar but
+// with sharp corners (no cornerRadius) and the role's rgba fill, so it
+// darkens whatever sits beneath it (a cover photo) for text legibility.
+function emitScrim(el: CompositionElement, s: RoleStyle): string {
+  return `<Anuma.Rect id="${el.id}" x={${pxX(el.x)}} y={${pxY(el.y)}} w={${pxX(el.w)}} h={${pxY(el.h)}} fill="${s.color}" />`;
+}
+
 /**
  * Sentinel placeholder emitted when compile() runs in `"sentinel"` mode
  * (e.g. for recipes shipped to the model). The model is expected to
@@ -4362,6 +4440,9 @@ export function compile(
       case "marker":
         lines.push(emitMarker(el, s));
         break;
+      case "scrim":
+        lines.push(emitScrim(el, s));
+        break;
       case "card-surface":
         lines.push(emitCardSurface(el, system, elState));
         break;
@@ -4491,6 +4572,7 @@ const STATIC_ROLES: ReadonlySet<ElementRole> = new Set([
   "divider",
   "accent-bar",
   "marker",
+  "scrim",
   "image",
   "card-surface",
 ]);
@@ -5017,17 +5099,279 @@ function collectSlideTexts(
 // `plan_deck` / `add_slide` tools. Each composition × design system pair
 // is registered under a compound name (e.g. "cover-split-portrait--
 // editorial-warm"). The live tool flow treats these like additional
-// layout names alongside the legacy 30-template catalog.
+// layout names the model can select.
 // ---------------------------------------------------------------------------
+
+/**
+ * Text-only long-form pull quote. An oversized opening quotation mark
+ * sits in the left gutter; the spoken passage is a variable-count column
+ * of `quote` paragraphs (each supports inline `*italic*` accents), closed
+ * by an attribution and a context line. Fills the gap left by
+ * founder-quote-portrait, which requires a portrait — this is the
+ * keynote "money quote" / manifesto / confession / testimonial-without-
+ * a-photo shape. Paragraph count is driven by the `quote_<index>_para`
+ * ids; each paragraph is budgeted for ~two lines.
+ */
+const QUOTE_PASSAGE: LayoutComposition = {
+  name: "quote-passage",
+  description:
+    "Light text-only pull-quote: an oversized opening quotation mark over a multi-paragraph spoken passage with inline *italic* emphasis, closing with an attribution and a context line. For keynote 'money quote', manifesto, confession, or testimonial-without-a-photo moments. Add or remove paragraphs by varying the count of quote_<index>_para ids; keep each paragraph to about two lines.",
+  surface: "default",
+  elements: [
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 5,
+      w: 48,
+      h: 3,
+      fit: "single-line",
+      defaultText: "A thirty-second confession · Speaker's own",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 62,
+      y: 5,
+      w: 32,
+      h: 3,
+      fit: "single-line",
+      align: "right",
+      defaultText: "Page 11 / 14",
+    },
+    {
+      id: "header_rule",
+      role: "divider",
+      x: 6,
+      y: 8.5,
+      w: 88,
+      h: 0,
+    },
+    {
+      id: "quote_mark",
+      role: "quote-mark",
+      x: 6,
+      y: 11,
+      w: 11,
+      h: 20,
+      fit: "single-line",
+      // Left double quotation mark (U+201C). The closing glyph is implied.
+      defaultText: "“",
+    },
+    {
+      kind: "flex-region",
+      idPrefix: "quote",
+      x: 17,
+      y: 19,
+      w: 76,
+      h: 56,
+      layout: "column",
+      gap: 3,
+      justify: "start",
+      item: [
+        {
+          id: "para",
+          role: "quote",
+          fit: "multi-line",
+          defaultText: "",
+        },
+      ],
+      defaultItems: [
+        { para: "I once told this board the new tool was a *parlour trick*." },
+        { para: "Months later my daughter used the *same tool* to save us." },
+        { para: "I had judged the software by its *weakest* demo, not its use." },
+      ],
+    },
+    {
+      id: "attr_rule",
+      role: "divider",
+      x: 17,
+      y: 79,
+      w: 8,
+      h: 0,
+    },
+    {
+      id: "attribution",
+      role: "attribution",
+      x: 17,
+      y: 81,
+      w: 70,
+      h: 4,
+      fit: "single-line",
+      defaultText: "— Sarah Whelan, Chief of Staff",
+    },
+    {
+      id: "attr_context",
+      role: "stat-label",
+      x: 17,
+      y: 85,
+      w: 70,
+      h: 5,
+      fit: "multi-line",
+      defaultText: "On the difference between a demo and a tool you actually need",
+    },
+    {
+      id: "footer_rule",
+      role: "divider",
+      x: 6,
+      y: 92,
+      w: 88,
+      h: 0,
+    },
+    {
+      id: "footer",
+      role: "footer",
+      x: 6,
+      y: 94,
+      w: 88,
+      h: 3,
+      fit: "single-line",
+      defaultText:
+        "A talk that hasn't named one thing the speaker got wrong is one you can't fully trust",
+    },
+  ],
+};
+
+/**
+ * Full-bleed photo title slide. A single image fills the slide; a
+ * semi-transparent scrim (tinted to the system's dark ground) darkens it
+ * for legibility; chrome / hero / subtitle / credits overlay on top. The
+ * whole slide is surface="dark" so text resolves to the cream/white
+ * treatment that reads over a photo regardless of the chosen system.
+ *
+ * Completes the cover family alongside cover-statement (text-only) and
+ * cover-split-portrait (image on one half). If the model supplies no
+ * photo the image is stripped (sentinel) and it degrades to a dark cover.
+ * Element ORDER matters: image first, then scrim, then text — later
+ * elements paint on top.
+ */
+const COVER_IMAGE: LayoutComposition = {
+  name: "cover-image",
+  description:
+    "Dark full-bleed PHOTO title slide: one image fills the slide behind a darkening scrim, with chrome, a one-line hero, a subtitle, and a prepared-by / submitted credit row overlaid in light text. For image-led openers — hospitality, brand, event, product, or proposal covers where a single strong photo sets the tone. Provide a hero photo for the background, or omit it to fall back to a solid dark cover.",
+  surface: "dark",
+  elements: [
+    // Background photo (behind everything) then the legibility scrim.
+    {
+      id: "bg_image",
+      role: "image",
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+    },
+    {
+      id: "bg_scrim",
+      role: "scrim",
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+    },
+    {
+      id: "chrome_left",
+      role: "chrome-left",
+      x: 6,
+      y: 6,
+      w: 46,
+      h: 3,
+      fit: "single-line",
+      defaultText: "The Acme Grand · 480 keys · Downtown",
+    },
+    {
+      id: "chrome_right",
+      role: "chrome-right",
+      x: 54,
+      y: 6,
+      w: 40,
+      h: 3,
+      fit: "single-line",
+      align: "right",
+      defaultText: "Group Sales Proposal · RFP #LT-26-0312",
+    },
+    {
+      id: "chrome_rule",
+      role: "accent-bar",
+      x: 6,
+      y: 10,
+      w: 7,
+      h: 0.5,
+    },
+    {
+      id: "hero",
+      role: "hero",
+      x: 6,
+      y: 54,
+      w: 82,
+      h: 15,
+      fit: "single-line",
+      defaultText: "A house, not a venue.",
+    },
+    {
+      id: "subtitle",
+      role: "subtitle",
+      x: 6,
+      y: 71,
+      w: 82,
+      h: 8,
+      fit: "single-line",
+      defaultText: "Prepared for the Lattice User Conference, 2026.",
+    },
+    {
+      id: "prepared_label",
+      role: "stat-label",
+      x: 6,
+      y: 85,
+      w: 40,
+      h: 3,
+      fit: "single-line",
+      defaultText: "Prepared by",
+    },
+    {
+      id: "prepared_value",
+      role: "body",
+      x: 6,
+      y: 88.5,
+      w: 64,
+      h: 6,
+      fit: "single-line",
+      defaultText: "Marisa Cheng · Director of Group Sales · marisa.cheng@acmegrand.com",
+    },
+    {
+      id: "submitted_label",
+      role: "stat-label",
+      x: 66,
+      y: 85,
+      w: 28,
+      h: 3,
+      fit: "single-line",
+      align: "right",
+      defaultText: "Submitted",
+    },
+    {
+      id: "submitted_value",
+      role: "body",
+      x: 64,
+      y: 88.5,
+      w: 30,
+      h: 6,
+      fit: "single-line",
+      align: "right",
+      defaultText: "May 14, 2026",
+    },
+  ],
+};
 
 export const ALL_COMPOSITIONS: LayoutComposition[] = [
   COVER_SPLIT_PORTRAIT,
   COVER_STATEMENT,
+  COVER_IMAGE,
   PROBLEM_EVIDENCE,
   HEADLINE_NUMBER,
   AGENDA,
   BRAND_STORY_SPLIT,
   FOUNDER_QUOTE_PORTRAIT,
+  QUOTE_PASSAGE,
   MARKETING_GRID,
   SURFACE_PAIR,
   STAT_ROW_BOTTOM,

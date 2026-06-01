@@ -14,7 +14,7 @@ Defined in: [src/react/anumaRuntime.tsx:118](https://github.com/anuma-ai/sdk/blo
 
 ### colors?
 
-> `optional` **colors**: `Partial`<`Record`<`"background"` | `"border"` | `"accent"` | `"slideBg"` | `"surfaceSecondary"` | `"textPrimary"` | `"textSecondary"` | `"textMuted"` | `"card"`, `string`>>
+> `optional` **colors**: `Partial`<`Record`<`"accent"` | `"textPrimary"` | `"textSecondary"` | `"textMuted"` | `"slideBg"` | `"border"` | `"card"` | `"background"` | `"surfaceSecondary"`, `string`>>
 
 Defined in: [src/react/anumaRuntime.tsx:117](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#117)
 

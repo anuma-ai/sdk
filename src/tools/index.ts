@@ -249,6 +249,7 @@ export {
   removeById,
   replaceById,
   serializeJsx,
+  SLIDE_BUILDER_PROMPT,
   SLIDE_CANVAS_HEIGHT,
   SLIDE_CANVAS_WIDTH,
   SLIDES_FILE_PATH,
