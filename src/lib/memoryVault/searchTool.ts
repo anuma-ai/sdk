@@ -1216,14 +1216,16 @@ export function createMemoryVaultSearchTool(
           return "No relevant memories found in the vault.";
         }
 
-        // Surface the raw cosine, not the fused score — preserves the
-        // legacy tool surface so LLMs interpreting the number get the
-        // same scale they were trained against.
+        // Surface whatever ranker score the pipeline produced (fused
+        // under useFusion=true, raw cosine when useFusion=false). The
+        // LLM sees a single "similarity" number on the same scale the
+        // legacy tool returned — the underlying metric just changes
+        // with the active ranking mode.
         const formatted = formatVaultHits(
           result.memories.map((m) => ({
             id: m.id,
             content: m.content,
-            score: m.scoreBreakdown?.cosine ?? m.score,
+            score: m.scoreBreakdown?.fused ?? m.scoreBreakdown?.cosine ?? m.score,
           }))
         );
         return `Found ${result.memories.length} vault memories:\n\n${formatted}`;

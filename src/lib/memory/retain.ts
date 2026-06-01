@@ -252,6 +252,11 @@ async function tryConsolidate(
       proofCount: newProofCount,
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
+      // Even when the LLM rewrites content into a richer paraphrase,
+      // this is still a re-observation of an existing fact — not a new
+      // one. Preserving updated_at keeps the recency multiplier honest
+      // and matches the merge/noop paths above.
+      preserveUpdatedAt: true,
       ...(options.eventTime !== undefined &&
         options.eventTime !== null && {
           eventTime: {

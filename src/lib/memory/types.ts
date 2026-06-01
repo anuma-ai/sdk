@@ -27,7 +27,14 @@ export type MemoryKind = "fact" | "chunk";
 export type Budget = "low" | "mid" | "high";
 
 export interface ScoreBreakdown {
+  /** Raw cosine similarity. Set only when callers compute it explicitly
+   * (e.g. cosine-only `useFusion: false` search); the fusion path sets
+   * {@link fused} instead so the label stays honest. */
   cosine?: number;
+  /** Composite score from the fused ranker (cosine + BM25 + RRF + recency
+   * + proof boost). What `RankedMemory.score` carries when the fusion
+   * pipeline ran. */
+  fused?: number;
   bm25?: number;
   recency?: number;
   rerank?: number;

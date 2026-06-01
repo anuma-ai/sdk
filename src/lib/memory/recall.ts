@@ -177,14 +177,14 @@ export async function recall(
     const m = toFactMemory(r);
     m.score = fused.get(`fact:${r.uniqueId}`) ?? 0;
     if (!m.scoreBreakdown) m.scoreBreakdown = {};
-    m.scoreBreakdown.cosine = r.similarity;
+    m.scoreBreakdown.fused = r.similarity;
     byId.set(`fact:${r.uniqueId}`, m);
   }
   for (const r of chunkResults) {
     const m = toChunkMemory(r);
     m.score = fused.get(`chunk:${r.message.uniqueId}`) ?? 0;
     if (!m.scoreBreakdown) m.scoreBreakdown = {};
-    m.scoreBreakdown.cosine = r.similarity;
+    m.scoreBreakdown.fused = r.similarity;
     byId.set(`chunk:${r.message.uniqueId}`, m);
   }
 
@@ -202,9 +202,14 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
   return {
     id: r.uniqueId,
     kind: "fact",
+    // r.similarity from searchVaultMemoriesWithSize is the fused score
+    // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
+    // default) and pure cosine when useFusion=false. The breakdown
+    // labels it `fused` since that's the common case; callers wanting
+    // strictly-cosine should pass useFusion=false.
     content: r.content,
     score: r.similarity,
-    scoreBreakdown: { cosine: r.similarity },
+    scoreBreakdown: { fused: r.similarity },
     createdAt: r.createdAt ?? new Date(0),
     updatedAt: r.updatedAt ?? new Date(0),
   };
@@ -274,6 +279,7 @@ function toChunkMemory(r: ChunkSearchResult): RankedMemory {
     kind: "chunk",
     content: r.chunkText,
     score: r.similarity,
+    // Chunks come from searchChunksOp which is cosine-only — label honestly.
     scoreBreakdown: { cosine: r.similarity },
     conversationId: r.message.conversationId,
     messageId: r.message.uniqueId,
