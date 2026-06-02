@@ -57,14 +57,17 @@ function formatRecallResult(memories: RankedMemory[]): string {
     return "No relevant memories found.";
   }
 
+  // Don't surface numerical scores in the LLM-visible output — they
+  // make the model second-guess lower-ranked but still-relevant
+  // evidence. Items are already presented in rank order; that's the
+  // ranking signal the model should use.
   const lines = memories.map((m, i) => {
-    const score = (m.scoreBreakdown?.fused ?? m.scoreBreakdown?.cosine ?? m.score).toFixed(2);
     if (m.kind === "fact") {
-      return `[${i + 1}] fact (id: ${m.id}, score: ${score})\n${m.content}`;
+      return `[${i + 1}] fact (id: ${m.id})\n${m.content}`;
     }
     const date = m.createdAt.toISOString().slice(0, 10);
     const who = m.role === "assistant" ? "assistant" : "user";
-    return `[${i + 1}] conversation excerpt (${who}, ${date}, score: ${score})\n${m.content}`;
+    return `[${i + 1}] conversation excerpt (${who}, ${date})\n${m.content}`;
   });
 
   return `Found ${memories.length} relevant memories:\n\n${lines.join("\n\n")}`;
@@ -127,9 +130,20 @@ export function createRecallTool(
           : typeof args.limit === "string"
             ? parseInt(args.limit, 10)
             : NaN;
-      const requestLimit = Number.isFinite(rawLimit)
+      let requestLimit = Number.isFinite(rawLimit)
         ? Math.min(Math.max(Math.floor(rawLimit), 1), RECALL_MAX_LIMIT)
         : defaultLimit;
+
+      // Budget="high" means the caller opted into LLM decomposition, a
+      // signal that they expect composite / multi-fact queries. Floor
+      // the limit at 14 so multi-session synthesis has enough evidence
+      // to fuse — Sonnet often hand-picks `limit: 8` which is too thin
+      // for cross-session questions. We only floor (not override), so
+      // an LLM asking for more still wins.
+      const HIGH_BUDGET_LIMIT_FLOOR = 14;
+      if (defaultBudget === "high" && requestLimit < HIGH_BUDGET_LIMIT_FLOOR) {
+        requestLimit = Math.min(HIGH_BUDGET_LIMIT_FLOOR, RECALL_MAX_LIMIT);
+      }
 
       try {
         const recallOpts: RecallOptions = {
