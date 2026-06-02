@@ -2,6 +2,7 @@
 
 | Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 2026-06-02 | memory-recall | oracle | claude-sonnet-4-6 | 86% | 43/50 | 92% | 91.5% | [`1907e77`](https://github.com/anuma-ai/sdk/commit/1907e77956df7c4c07f9a3c6515f9dbf41916253) | [link](https://github.com/anuma-ai/sdk/actions/runs/26854514962) |
 | 2026-06-02 | memory-recall | oracle | claude-sonnet-4-6 | 78% | 39/50 | 94% | 93.5% | [`4f9105c`](https://github.com/anuma-ai/sdk/commit/4f9105cd56ae39dc81e225cdc591bba0d0a34dbe) | [link](https://github.com/anuma-ai/sdk/actions/runs/26854013687) |
 | 2026-06-02 | memory-recall | oracle | claude-sonnet-4-6 | 85% | 34/40 | 92.5% | 91.9% | [`396679c`](https://github.com/anuma-ai/sdk/commit/396679ce67aa397a50b2661cfef63d69a2cbc9aa) | [link](https://github.com/anuma-ai/sdk/actions/runs/26853763909) |
 | 2026-06-02 | memory-recall | oracle | claude-sonnet-4-6 | 50% | 25/50 | 100% | 96.8% | [`c2345bf`](https://github.com/anuma-ai/sdk/commit/c2345bfcce7daa05bcc132f9585f05cb681eaf6d) | [link](https://github.com/anuma-ai/sdk/actions/runs/26853311812) |
