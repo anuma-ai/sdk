@@ -370,7 +370,15 @@ export async function updateVaultMemoryOp(
         if (opts.sourceChunkIds !== undefined) {
           r._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
         }
-        if (opts.proofCount !== undefined) {
+        if (opts.proofCountIncrement !== undefined) {
+          // Read inside the writer so two parallel retain() calls observe
+          // each other's commits and neither loses its increment. Reading
+          // `r.proofCount` reflects the latest committed _raw value (the
+          // identity-mapped record is updated immediately by _setRaw, and
+          // database.write() serializes writers).
+          const current = r.proofCount ?? 1;
+          r._setRaw("proof_count", current + opts.proofCountIncrement);
+        } else if (opts.proofCount !== undefined) {
           r._setRaw("proof_count", opts.proofCount);
         }
         if (opts.source !== undefined) {

@@ -26,7 +26,7 @@ JSON-stringified embedding vector to persist, or null to clear stale embedding
 
 > `optional` **eventTime**: `object`
 
-Defined in: [src/lib/db/memoryVault/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#76)
+Defined in: [src/lib/db/memoryVault/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#83)
 
 W6 temporal lane — write the event-time fields on update. Use during
 auto-merge to preserve (or refine) the original event-time signal when
@@ -61,7 +61,7 @@ If provided, moves the memory to this folder.
 
 > `optional` **preserveUpdatedAt**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#87)
+Defined in: [src/lib/db/memoryVault/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#94)
 
 When true, restore the existing `updated_at` after the write so the
 recency multiplier doesn't see a re-observation as a brand-new fact.
@@ -74,9 +74,24 @@ without inflating recency on top.
 
 > `optional` **proofCount**: `number`
 
-Defined in: [src/lib/db/memoryVault/types.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#67)
+Defined in: [src/lib/db/memoryVault/types.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#69)
 
-Set absolute proof count. Used during merge to increment.
+Set an absolute proof count. Prefer [proofCountIncrement](#proofcountincrement) for
+re-observation paths so the read+write happens inside the writer
+and concurrent retains can't lose updates.
+
+***
+
+### proofCountIncrement?
+
+> `optional` **proofCountIncrement**: `number`
+
+Defined in: [src/lib/db/memoryVault/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#74)
+
+Atomically bump proof\_count by this delta inside the write block.
+Reads the current value from the in-memory record at write time, so
+two parallel retain() calls observe each other's commits and neither
+loses its increment. Wins over `proofCount` when both are set.
 
 ***
 
@@ -94,7 +109,7 @@ If provided, updates the memory's scope.
 
 > `optional` **source**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#69)
+Defined in: [src/lib/db/memoryVault/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#76)
 
 Set source ("manual" | "auto-extracted" | "capsule").
 

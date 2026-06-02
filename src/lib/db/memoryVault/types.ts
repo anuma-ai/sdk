@@ -63,8 +63,15 @@ export interface UpdateVaultMemoryOptions {
   embedding?: string | null;
   /** Replace source-chunk-ids list (used during merge to accumulate provenance). */
   sourceChunkIds?: string[];
-  /** Set absolute proof count. Used during merge to increment. */
+  /** Set an absolute proof count. Prefer {@link proofCountIncrement} for
+   * re-observation paths so the read+write happens inside the writer
+   * and concurrent retains can't lose updates. */
   proofCount?: number;
+  /** Atomically bump proof_count by this delta inside the write block.
+   * Reads the current value from the in-memory record at write time, so
+   * two parallel retain() calls observe each other's commits and neither
+   * loses its increment. Wins over `proofCount` when both are set. */
+  proofCountIncrement?: number;
   /** Set source ("manual" | "auto-extracted" | "capsule"). */
   source?: string;
   /**

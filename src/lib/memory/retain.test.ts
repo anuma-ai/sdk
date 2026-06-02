@@ -120,7 +120,9 @@ describe("retain", () => {
       mockVaultCtx,
       "existing-id",
       expect.objectContaining({
-        proofCount: 4,
+        // Atomic increment, not an absolute proofCount — see
+        // proofCountIncrement docstring on UpdateVaultMemoryOptions.
+        proofCountIncrement: 1,
         sourceChunkIds: ["msg-old", "msg-new"],
       })
     );

@@ -92,14 +92,15 @@ export async function retain(
       const targetId = matches[0].uniqueId;
       const existing = await getVaultMemoryOp(ctx.vaultCtx, targetId);
       if (existing) {
-        const newProofCount = (existing.proofCount ?? 1) + 1;
         const mergedSourceIds = unionStrings(
           existing.sourceChunkIds ?? [],
           options.sourceChunkIds ?? []
         );
-        await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
+        // proofCountIncrement (not absolute proofCount) so two parallel
+        // retain() calls don't race a read-modify-write and lose updates.
+        const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
           content: existing.content,
-          proofCount: newProofCount,
+          proofCountIncrement: 1,
           sourceChunkIds: mergedSourceIds,
           preserveUpdatedAt: true,
           ...(options.eventTime !== undefined &&
@@ -115,7 +116,7 @@ export async function retain(
           action: "merge",
           memoryId: targetId,
           targetId,
-          proofCount: newProofCount,
+          proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
         };
       }
     }
@@ -209,14 +210,13 @@ async function tryConsolidate(
   if (decision.action === "noop" && decision.targetId) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
     if (!existing) return null; // race: target gone, fall through to create
-    const newProofCount = (existing.proofCount ?? 1) + 1;
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
     );
-    await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
+    const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: existing.content,
-      proofCount: newProofCount,
+      proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
       preserveUpdatedAt: true,
       ...(options.eventTime !== undefined &&
@@ -232,14 +232,13 @@ async function tryConsolidate(
       action: "merge",
       memoryId: decision.targetId,
       targetId: decision.targetId,
-      proofCount: newProofCount,
+      proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
     };
   }
 
   if (decision.action === "update" && decision.targetId && decision.content) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
     if (!existing) return null;
-    const newProofCount = (existing.proofCount ?? 1) + 1;
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
@@ -247,9 +246,9 @@ async function tryConsolidate(
     // Re-embed the consolidated content; embeddingOptions includes the cache.
     const newEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
     ctx.vaultCache.set(decision.content, newEmbedding);
-    await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
+    const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: decision.content,
-      proofCount: newProofCount,
+      proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
       // Even when the LLM rewrites content into a richer paraphrase,
@@ -270,7 +269,7 @@ async function tryConsolidate(
       action: "update",
       memoryId: decision.targetId,
       targetId: decision.targetId,
-      proofCount: newProofCount,
+      proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
     };
   }
 
