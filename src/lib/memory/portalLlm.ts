@@ -44,6 +44,19 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   const fetchImpl = req.fetchFn ?? fetch;
   const timeoutMs = req.timeoutMs ?? 20_000;
 
+  // Anthropic models ignore OpenAI-style response_format and frequently
+  // respond conversationally to bare user queries. The canonical fix is
+  // to "prefill" the assistant turn with `{` so the model has no choice
+  // but to continue valid JSON. We prepend the prefill back onto the
+  // returned content before parsing.
+  const isAnthropic = req.model.startsWith("anthropic/");
+  const prefill = isAnthropic ? "{" : "";
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: req.systemPrompt },
+    { role: "user", content: req.userMessage },
+  ];
+  if (prefill) messages.push({ role: "assistant", content: prefill });
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -54,10 +67,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       headers: { "x-api-key": req.apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: req.model,
-        messages: [
-          { role: "system", content: req.systemPrompt },
-          { role: "user", content: req.userMessage },
-        ],
+        messages,
         response_format: { type: "json_object" },
         ...req.extra,
       }),
@@ -85,11 +95,21 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   }
   clearTimeout(timer);
 
-  const content = extractCompletionContent(body);
-  if (!content) {
+  const rawContent = extractCompletionContent(body);
+  if (!rawContent) {
     log.warn(`[${req.tag}] portal response had no completion content`);
     return null;
   }
+
+  // Anthropic prefill (`{`) isn't echoed in the response — the model
+  // continues from it. Detect that case (response trimstart is a JSON
+  // continuation token like `"`, indicating a quoted object key) and
+  // prepend the prefill back. If the response starts with `{` or `[`,
+  // the prefill was either echoed or ignored — no need to prepend.
+  // If it starts with prose, the extractor below finds the first
+  // balanced brace block, so prepending would just corrupt input.
+  const looksLikeContinuation = prefill && /^\s*"/.test(rawContent);
+  const content = looksLikeContinuation ? prefill + rawContent : rawContent;
 
   // Anthropic (and some other providers) ignore the OpenAI-style
   // `response_format: json_object` flag and may prepend prose or wrap

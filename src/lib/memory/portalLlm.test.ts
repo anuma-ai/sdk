@@ -76,4 +76,38 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toBeNull();
   });
+
+  it("appends an assistant prefill { for anthropic models and prepends it on parse", async () => {
+    // Simulate Anthropic's prefill behavior: the model continues from "{"
+    // so the returned content does NOT include the opening brace.
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(mockResponse('"mode":"specific","subQueries":["q"]}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ mode: "specific", subQueries: ["q"] });
+
+    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const messages = sentBody.messages as Array<{ role: string; content: string }>;
+    expect(messages.at(-1)).toEqual({ role: "assistant", content: "{" });
+  });
+
+  it("avoids double-prefix when an anthropic provider echoes the prefill", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(mockResponse('{"mode":"specific","subQueries":["q"]}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ mode: "specific", subQueries: ["q"] });
+  });
+
+  it("does NOT add an assistant prefill for non-anthropic models", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-5.4",
+      fetchFn,
+    });
+    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    const messages = sentBody.messages as Array<{ role: string; content: string }>;
+    expect(messages.map((m) => m.role)).toEqual(["system", "user"]);
+  });
 });

@@ -92,7 +92,11 @@ export async function decomposeQuery(
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
     model: options.model ?? DEFAULT_MODEL,
     systemPrompt: SYSTEM_PROMPT,
-    userMessage: trimmed,
+    // Wrap the bare query in a task framing so the model treats it as
+    // input to classify, not as a question to answer conversationally.
+    // Bare-query inputs caused Anthropic models to respond with prose
+    // like "Do you mean...?" before this wrap.
+    userMessage: `Classify the following memory query and decompose if composite. Respond with JSON only — do not answer the question, do not ask for clarification.\n\nQuery: ${trimmed}`,
     tag: "memory/decompose",
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
   });
