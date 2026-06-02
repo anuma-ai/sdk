@@ -217,6 +217,38 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Round-robin sample of N entries that gives roughly equal coverage of
+ * every question_type present. Preserves the original intra-type order
+ * (deterministic across runs) and the original surfacing order across
+ * types so the printed run log stays readable. When N >= length, all
+ * entries are returned in the original order.
+ */
+function stratifyByType(entries: LongMemEvalEntry[], n: number): LongMemEvalEntry[] {
+  if (n >= entries.length) return entries;
+
+  // Group preserving first-appearance order.
+  const byType = new Map<string, LongMemEvalEntry[]>();
+  for (const e of entries) {
+    const bucket = byType.get(e.question_type);
+    if (bucket) bucket.push(e);
+    else byType.set(e.question_type, [e]);
+  }
+
+  // Round-robin pull from each bucket until we hit N.
+  const buckets = Array.from(byType.values());
+  const picked: LongMemEvalEntry[] = [];
+  let i = 0;
+  while (picked.length < n) {
+    const bucket = buckets[i % buckets.length];
+    if (bucket.length > 0) picked.push(bucket.shift()!);
+    i++;
+    // Drop empty buckets so we don't spin uselessly.
+    if (i % buckets.length === 0 && buckets.every((b) => b.length === 0)) break;
+  }
+  return picked;
+}
+
 export async function callChatCompletion(
   api: ApiConfig,
   messages: Array<{ role: string; content?: string; tool_calls?: any; tool_call_id?: string }>,
@@ -673,7 +705,12 @@ export async function runLongMemEval(
   }
 
   if (options.maxQuestions && options.maxQuestions < entries.length) {
-    entries = entries.slice(0, options.maxQuestions);
+    // The oracle dataset clusters questions by type, so a naive
+    // .slice(0, N) gives a single-type sample (e.g. all multi-session
+    // with N=50) — useless for evaluating cross-type performance.
+    // Take roughly equal counts per surviving question type, preserving
+    // each type's intra-cluster order so reruns are reproducible.
+    entries = stratifyByType(entries, options.maxQuestions);
   }
 
   const strategy = options.strategy || "both";
