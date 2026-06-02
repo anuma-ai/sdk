@@ -1,0 +1,79 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { callPortalJsonCompletion } from "./portalLlm.js";
+
+function mockResponse(content: string): Response {
+  return new Response(
+    JSON.stringify({
+      choices: [{ message: { content } }],
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "anthropic/claude-sonnet-4-6",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  it("parses a clean JSON object", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1,"b":2}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ a: 1, b: 2 });
+  });
+
+  it("extracts JSON wrapped in a ```json fence", async () => {
+    const content = 'Sure, here it is:\n```json\n{"items":["a","b"]}\n```';
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ items: ["a", "b"] });
+  });
+
+  it("extracts JSON wrapped in a bare ``` fence", async () => {
+    const content = 'Here you go:\n```\n{"k":"v"}\n```';
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ k: "v" });
+  });
+
+  it("strips a leading prose paragraph before the JSON", async () => {
+    const content =
+      'I have extracted the following memories from the conversation:\n\n{"items":[{"content":"hi"}]}';
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ items: [{ content: "hi" }] });
+  });
+
+  it("strips a trailing prose paragraph after the JSON", async () => {
+    const content =
+      '{"mode":"specific","subQueries":["q"]}\n\nLet me know if you want a different breakdown.';
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ mode: "specific", subQueries: ["q"] });
+  });
+
+  it("balances nested braces inside string values", async () => {
+    const content = 'Here:\n{"text":"this has {nested} braces and \\"quotes\\""}';
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ text: 'this has {nested} braces and "quotes"' });
+  });
+
+  it("supports top-level arrays", async () => {
+    const content = "Sure:\n[1, 2, 3]\nThat's the list.";
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual([1, 2, 3]);
+  });
+
+  it("returns null and warns when the response is pure prose with no JSON", async () => {
+    const content = "Do you want me to summarize the conversation first?";
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toBeNull();
+  });
+});
