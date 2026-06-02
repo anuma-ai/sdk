@@ -180,26 +180,35 @@ jobs:
           # injection via the workflow_dispatch UI.
           INPUTS_CHUNK_SOURCE: ${{ inputs.chunk_source }}
           INPUTS_EXCERPT_CAP: ${{ inputs.excerpt_cap }}
+          INPUTS_CONCURRENCY: ${{ inputs.concurrency }}
+          INPUTS_RECALL_TYPES: ${{ inputs.recall_types }}
+          INPUTS_RECALL_EMIT: ${{ inputs.recall_emit }}
+          INPUTS_RECALL_LANE_MODE: ${{ inputs.recall_lane_mode }}
+          INPUTS_RERANK: ${{ inputs.rerank }}
+          INPUTS_DECOMPOSE: ${{ inputs.decompose }}
+          INPUTS_CONSOLIDATE: ${{ inputs.consolidate }}
+          INPUTS_STRATEGY: ${{ matrix.strategy }}
+          INPUTS_INCLUDE_UNSUPPORTED: ${{ inputs.include_unsupported }}
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
           # Accumulate into a bash array so each flag is one token —
           # values with whitespace/globs don't get re-word-split when
           # invoking pnpm.
           args=(
-            --strategy "${{ matrix.strategy }}"
+            --strategy "$INPUTS_STRATEGY"
             --variant "$EVAL_VARIANT"
             --llm "$EVAL_MODEL"
-            --concurrency "${{ inputs.concurrency }}"
+            --concurrency "$INPUTS_CONCURRENCY"
             --output results.json
           )
           if [ -n "$EVAL_MAX" ]; then
             args+=(--max "$EVAL_MAX")
           fi
-          if [ "${{ matrix.strategy }}" = "vault" ]; then
+          if [ "$INPUTS_STRATEGY" = "vault" ]; then
             args+=(
-              "--rerank=${{ inputs.rerank }}"
-              "--decompose=${{ inputs.decompose }}"
-              "--consolidate=${{ inputs.consolidate }}"
+              "--rerank=$INPUTS_RERANK"
+              "--decompose=$INPUTS_DECOMPOSE"
+              "--consolidate=$INPUTS_CONSOLIDATE"
             )
             if [ -n "$INPUTS_CHUNK_SOURCE" ]; then
               args+=("--chunk-source=$INPUTS_CHUNK_SOURCE")
@@ -208,16 +217,16 @@ jobs:
               args+=("--excerpt-cap=$INPUTS_EXCERPT_CAP")
             fi
           fi
-          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_types }}" ]; then
-            args+=("--recall-types=${{ inputs.recall_types }}")
+          if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_TYPES" ]; then
+            args+=("--recall-types=$INPUTS_RECALL_TYPES")
           fi
-          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_emit }}" ]; then
-            args+=("--recall-emit=${{ inputs.recall_emit }}")
+          if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_EMIT" ]; then
+            args+=("--recall-emit=$INPUTS_RECALL_EMIT")
           fi
-          if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_lane_mode }}" ]; then
-            args+=("--recall-lane-mode=${{ inputs.recall_lane_mode }}")
+          if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_LANE_MODE" ]; then
+            args+=("--recall-lane-mode=$INPUTS_RECALL_LANE_MODE")
           fi
-          if [ "${{ inputs.include_unsupported }}" = "true" ]; then
+          if [ "$INPUTS_INCLUDE_UNSUPPORTED" = "true" ]; then
             args+=(--include-unsupported)
           fi
           pnpm eval:longmemeval "${args[@]}"
@@ -233,15 +242,35 @@ jobs:
         if: success()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUTS_MODEL: ${{ inputs.model }}
+          INPUTS_VARIANT: ${{ inputs.variant }}
+          INPUTS_STRATEGY: ${{ matrix.strategy }}
+          INPUTS_CONCURRENCY: ${{ inputs.concurrency }}
+          GH_SHA: ${{ github.sha }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_SERVER_URL: ${{ github.server_url }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
         run: |
           # Build a short model slug for the filename
-          model_slug=$(echo "${{ inputs.model }}" | sed 's|.*/||')
+          model_slug=$(echo "$INPUTS_MODEL" | sed 's|.*/||')
           commit=$(git rev-parse --short HEAD)
           ts=$(date -u +%Y-%m-%dT%H-%M-%SZ)
-          filename="${{ matrix.strategy }}_${{ inputs.variant }}_${model_slug}_${ts}_${commit}.json"
+          filename="${INPUTS_STRATEGY}_${INPUTS_VARIANT}_${model_slug}_${ts}_${commit}.json"
 
-          # Strip per-question results array, add run metadata
-          jq '{
+          # Strip per-question results array, add run metadata. All input
+          # values flow through --arg (jq quotes them) so a workflow_dispatch
+          # value can't escape the jq program.
+          run_url="${GH_SERVER_URL}/${GH_REPOSITORY}/actions/runs/${GH_RUN_ID}"
+          jq --arg commit "$GH_SHA" \
+             --arg commitShort "$commit" \
+             --arg branch "$GH_REF_NAME" \
+             --arg model "$INPUTS_MODEL" \
+             --arg variant "$INPUTS_VARIANT" \
+             --argjson concurrency "${INPUTS_CONCURRENCY:-1}" \
+             --arg runUrl "$run_url" \
+             --argjson runId "$GH_RUN_ID" \
+             '{
             timestamp,
             datasetName,
             strategy,
@@ -254,14 +283,14 @@ jobs:
             tokenUsage,
             cost,
             meta: {
-              commit: "${{ github.sha }}",
-              commitShort: "'"${commit}"'",
-              branch: "${{ github.ref_name }}",
-              model: "${{ inputs.model }}",
-              variant: "${{ inputs.variant }}",
-              concurrency: ${{ inputs.concurrency }},
-              runUrl: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-              runId: ${{ github.run_id }}
+              commit: $commit,
+              commitShort: $commitShort,
+              branch: $branch,
+              model: $model,
+              variant: $variant,
+              concurrency: $concurrency,
+              runUrl: $runUrl,
+              runId: $runId
             }
           }' results.json > summary.json
 

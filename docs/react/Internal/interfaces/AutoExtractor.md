@@ -1,6 +1,6 @@
 # AutoExtractor
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#79)
+Defined in: [src/lib/memory/autoExtractWorker.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#95)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:79](https://github.com/anuma-ai
 
 > **dispose**(): `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#89)
+Defined in: [src/lib/memory/autoExtractWorker.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#105)
 
 Stop accepting new turns. In-flight work continues to completion.
 
@@ -22,7 +22,7 @@ Stop accepting new turns. In-flight work continues to completion.
 
 > **isProcessing**(): `boolean`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#87)
+Defined in: [src/lib/memory/autoExtractWorker.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#103)
 
 True while a turn's extraction is in flight.
 
@@ -36,7 +36,7 @@ True while a turn's extraction is in flight.
 
 > **processTurn**(`messages`: [`AutoExtractMessage`](AutoExtractMessage.md)\[], `conversationId?`: `string`): `boolean`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#85)
+Defined in: [src/lib/memory/autoExtractWorker.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#101)
 
 Kick off extraction for the most recent turn. Returns immediately
 (async, fire-and-forget). The returned promise resolves to true if

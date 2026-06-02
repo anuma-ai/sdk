@@ -758,7 +758,10 @@ export async function runLongMemEval(
               rerank: options.rerank,
               decompose: options.decompose,
               consolidate: options.consolidate,
-              chunkSourceMaxChars: options.chunkSourceMaxChars,
+              // chunkSourceMaxChars is a memory-vault-pipeline concept
+              // (caps raw chunk text before fact extraction). recall()
+              // reads chunks directly from storage and has no analogue,
+              // so omit it here rather than silently strip it.
               excerptMaxChars: options.excerptMaxChars,
               recallTypes: options.recallTypes,
               recallEmit: options.recallEmit,

@@ -1,6 +1,6 @@
 # CreateAutoExtractorOptions
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#54)
+Defined in: [src/lib/memory/autoExtractWorker.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#55)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:54](https://github.com/anuma-ai
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#67)
+Defined in: [src/lib/memory/autoExtractWorker.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#68)
 
 Entity / memory\_entity write context — when provided, each retained
 candidate's `entities[]` is persisted via `linkMemoryEntitiesOp`,
@@ -21,7 +21,17 @@ empty and recall's graph fusion is a no-op.
 
 > **extract**: [`ExtractFactsOptions`](ExtractFactsOptions.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#56)
+Defined in: [src/lib/memory/autoExtractWorker.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#57)
+
+***
+
+### folderId?
+
+> `optional` **folderId**: `string` | `null`
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#72)
+
+Override folderId for all retained facts.
 
 ***
 
@@ -29,9 +39,87 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:56](https://github.com/anuma-ai
 
 > `optional` **minConfidence**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#58)
+Defined in: [src/lib/memory/autoExtractWorker.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#59)
 
 Confidence floor for retained facts. Default 0.7.
+
+***
+
+### onCandidateFailed()?
+
+> `optional` **onCandidateFailed**: (`event`: `object`) => `void`
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#87)
+
+Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
+— couldn't save Lives in Portland") surface the specific fact that
+dropped instead of only seeing the aggregate `failedCount`. Fires
+once per filtered candidate that threw during retain.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`event`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`event.candidate`
+
+</td>
+<td>
+
+[`ExtractedCandidate`](ExtractedCandidate.md)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`event.conversationId?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`event.error`
+
+</td>
+<td>
+
+`unknown`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
 
 ***
 
@@ -39,7 +127,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **onError**: (`error`: `Error`, `conversationId?`: `string`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#75)
+Defined in: [src/lib/memory/autoExtractWorker.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#80)
 
 Diagnostic — fires on unexpected pipeline errors.
 
@@ -90,7 +178,7 @@ Diagnostic — fires on unexpected pipeline errors.
 
 > `optional` **onMemoryExtracted**: (`event`: [`MemoryExtractedEvent`](MemoryExtractedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#69)
+Defined in: [src/lib/memory/autoExtractWorker.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#74)
 
 Per-fact event — fires once per memory written.
 
@@ -129,7 +217,7 @@ Per-fact event — fires once per memory written.
 
 > `optional` **onSkipped**: (`event`: [`TurnSkippedEvent`](TurnSkippedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#73)
+Defined in: [src/lib/memory/autoExtractWorker.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#78)
 
 Diagnostic — fires when a turn is skipped.
 
@@ -168,7 +256,7 @@ Diagnostic — fires when a turn is skipped.
 
 > `optional` **onTurnComplete**: (`event`: [`TurnCompleteEvent`](TurnCompleteEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#71)
+Defined in: [src/lib/memory/autoExtractWorker.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#76)
 
 Per-turn event — fires once after the whole pipeline finishes.
 
@@ -207,7 +295,17 @@ Per-turn event — fires once after the whole pipeline finishes.
 
 > **retainCtx**: [`RetainContext`](RetainContext.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#55)
+Defined in: [src/lib/memory/autoExtractWorker.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#56)
+
+***
+
+### scope?
+
+> `optional` **scope**: `string`
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#70)
+
+Override scope for all retained facts.
 
 ***
 
@@ -215,6 +313,6 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:55](https://github.com/anuma-ai
 
 > `optional` **windowSize**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#60)
+Defined in: [src/lib/memory/autoExtractWorker.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#61)
 
 How many recent messages to feed the extractor. Default 6.

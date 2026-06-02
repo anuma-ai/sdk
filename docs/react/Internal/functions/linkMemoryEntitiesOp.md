@@ -2,7 +2,7 @@
 
 > **linkMemoryEntitiesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityNames`: `string`\[]): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
 
-Defined in: [src/lib/db/entities/operations.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#71)
+Defined in: [src/lib/db/entities/operations.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#80)
 
 Link a memory to one or more entities. Names are normalized; missing
 entities are auto-created. Idempotent — duplicate (memory\_id, entity\_id)

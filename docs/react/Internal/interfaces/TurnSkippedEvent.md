@@ -1,6 +1,6 @@
 # TurnSkippedEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#38)
+Defined in: [src/lib/memory/autoExtractWorker.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#39)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:38](https://github.com/anuma-ai
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#40)
+Defined in: [src/lib/memory/autoExtractWorker.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#41)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:40](https://github.com/anuma-ai
 
 > **reason**: `"in-flight"` | `"no-messages"`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#39)
+Defined in: [src/lib/memory/autoExtractWorker.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#40)

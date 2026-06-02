@@ -1,6 +1,6 @@
 # ReflectOptions
 
-Defined in: [src/lib/memory/reflect.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#41)
+Defined in: [src/lib/memory/reflect.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#43)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/reflect.ts:41](https://github.com/anuma-ai/sdk/blob/
 
 > **apiKey**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#49)
+Defined in: [src/lib/memory/reflect.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#51)
 
 Auth + endpoint for the answer LLM.
 
@@ -22,7 +22,7 @@ Auth + endpoint for the answer LLM.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#50)
+Defined in: [src/lib/memory/reflect.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#52)
 
 ***
 
@@ -100,7 +100,7 @@ Exclude one conversation from chunk search. Chunk-only.
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/reflect.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#52)
+Defined in: [src/lib/memory/reflect.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#54)
 
 Override fetch (for tests).
 
@@ -246,7 +246,7 @@ Max items returned. Default: 8.
 
 > `optional` **llmModel**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#43)
+Defined in: [src/lib/memory/reflect.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#45)
 
 Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
@@ -256,7 +256,7 @@ Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
 > `optional` **maxTokens**: `number`
 
-Defined in: [src/lib/memory/reflect.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#45)
+Defined in: [src/lib/memory/reflect.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#47)
 
 Cap response length. Default: 4096.
 
@@ -284,7 +284,7 @@ Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors t
 
 > `optional` **responseSchema**: `Record`<`string`, `unknown`>
 
-Defined in: [src/lib/memory/reflect.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#54)
+Defined in: [src/lib/memory/reflect.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#56)
 
 Optional JSON Schema to coerce structured outputs.
 
@@ -308,7 +308,7 @@ Vault scope filter. Vault-only.
 
 > `optional` **systemPrompt**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#47)
+Defined in: [src/lib/memory/reflect.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#49)
 
 Override the grounding system prompt.
 

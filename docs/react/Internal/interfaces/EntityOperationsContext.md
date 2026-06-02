@@ -4,6 +4,21 @@ Defined in: [src/lib/db/entities/operations.ts:7](https://github.com/anuma-ai/sd
 
 ## Properties
 
+### allowUnscopedRows?
+
+> `optional` **allowUnscopedRows**: `boolean`
+
+Defined in: [src/lib/db/entities/operations.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#25)
+
+When `true`, `getMemoriesByEntityNamesOp` admits rows with
+`user_id = null` alongside the strict `userId` match. Set this on
+LokiJS (web) adapters where the v31 `unsafeExecuteSql` backfill
+is a no-op — pre-v31 rows otherwise become invisible to the W5
+lane until `backfillMemoryEntityUserIdsOp` runs. Default `false`
+(server / SQLite, where the migration backfill is authoritative).
+
+***
+
 ### database
 
 > **database**: `Database`

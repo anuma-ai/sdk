@@ -2,7 +2,7 @@
 
 > **reflect**(`query`: `string`, `ctx`: [`RecallContext`](../interfaces/RecallContext.md), `options`: [`ReflectOptions`](../interfaces/ReflectOptions.md)): `Promise`<[`ReflectResult`](../interfaces/ReflectResult.md)>
 
-Defined in: [src/lib/memory/reflect.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#78)
+Defined in: [src/lib/memory/reflect.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#80)
 
 Synthesize a grounded answer to `query` using the user's memory as
 evidence. On any LLM failure, returns an empty result with the

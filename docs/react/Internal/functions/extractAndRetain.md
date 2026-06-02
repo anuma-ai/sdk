@@ -149,6 +149,26 @@ memories sharing entities with the user's question.
 <tr>
 <td>
 
+`options.onCandidateFailed?`
+
+</td>
+<td>
+
+(`candidate`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md), `error`: `unknown`) => `void`
+
+</td>
+<td>
+
+Per-candidate failure hook — invoked once per filtered candidate
+whose `retain()` call threw. Lets UI layers surface "couldn't save
+X" toasts; without it consumers only see the aggregate
+`failedCount` and can't name which facts dropped.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.scope?`
 
 </td>

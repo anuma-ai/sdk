@@ -351,7 +351,9 @@ export {
 export type {
   CachedServerTools,
   ParsedServerToolsResponse,
+  SelectServerToolsForPromptOptions,
   ServerTool,
+  ServerToolsFilterFunction,
   ServerToolsOptions,
   ServerToolsResponse,
   ToolMatchOptions,
@@ -359,11 +361,16 @@ export type {
 } from "../lib/tools";
 export {
   clearServerToolsCache,
+  createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
+  DEFAULT_EXCLUDED_SERVER_TOOLS,
+  DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  defaultServerToolsFilter,
   findMatchingTools,
   getCachedServerTools,
   getServerTools,
   getToolsChecksum,
+  selectServerToolsForPrompt,
   shouldRefreshTools,
 } from "../lib/tools";
 

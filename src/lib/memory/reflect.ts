@@ -19,6 +19,7 @@
  */
 
 import { BASE_URL } from "../../clientConfig.js";
+import { getLogger } from "../logger.js";
 import { recall } from "./recall.js";
 import type { RecallContext, RecallOptions } from "./types.js";
 
@@ -129,8 +130,13 @@ export async function reflect(
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const fetchImpl = options.fetchFn ?? fetch;
 
+  const log = getLogger();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // Single end-to-end deadline so the header timer + body timer can't
+  // double the budget (was up to ~2×REQUEST_TIMEOUT_MS before).
+  const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+  const remaining = () => Math.max(0, deadline - Date.now());
+  const timer = setTimeout(() => controller.abort(), remaining());
 
   let response: Response;
   try {
@@ -153,23 +159,36 @@ export async function reflect(
       }),
       signal: controller.signal,
     });
-  } catch {
+  } catch (err) {
     clearTimeout(timer);
+    log.warn("[memory/reflect] portal request failed", {
+      err: err instanceof Error ? err.message : String(err),
+      baseUrl,
+    });
     return baseResult;
   }
   clearTimeout(timer);
 
-  if (!response.ok) return baseResult;
+  if (!response.ok) {
+    log.warn("[memory/reflect] portal returned non-OK", {
+      status: response.status,
+      statusText: response.statusText,
+    });
+    return baseResult;
+  }
 
-  // The fetch-level timer covers header arrival, not body streaming.
-  // Re-arm an AbortController deadline around response.json() so a slow
-  // body read can't block past the request budget.
-  const bodyTimer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // Re-arm the same controller against the remaining slice of the
+  // single deadline — covers slow body streaming without granting a
+  // fresh 60s budget.
+  const bodyTimer = setTimeout(() => controller.abort(), remaining());
   let body: unknown;
   try {
     body = await response.json();
-  } catch {
+  } catch (err) {
     clearTimeout(bodyTimer);
+    log.warn("[memory/reflect] failed to parse portal response body", {
+      err: err instanceof Error ? err.message : String(err),
+    });
     return baseResult;
   }
   clearTimeout(bodyTimer);

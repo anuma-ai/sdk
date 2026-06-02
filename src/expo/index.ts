@@ -219,10 +219,48 @@ export {
   quantizeEmbedding,
 } from "../lib/memoryEngine";
 
-// Unified recall surface — the single chat-completion tool that fuses
-// vault facts and conversation chunks via recall().
-export type { RecallToolCallbacks, RecallToolOptions } from "../lib/memory";
-export { createRecallTool, RECALL_MAX_LIMIT, RECALL_TOOL_NAME } from "../lib/memory";
+// Unified memory API surface — recall + retain + reflect + auto-extraction.
+// Mirrors the react and server barrels so Expo consumers can call the
+// programmatic API (recall/retain/reflect/...) in addition to wiring the
+// recall_memory tool.
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+  reflect,
+  retain,
+} from "../lib/memory";
 
 // Notion OAuth primitives (platform-agnostic, no browser globals)
 export type {
