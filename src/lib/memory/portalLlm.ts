@@ -25,7 +25,10 @@ interface PortalLlmRequest {
   userMessage: string;
   /** Tag prefix for log lines, e.g. `"memory/extract"`. */
   tag: string;
-  /** Per-request timeout. Covers fetch headers AND body read. Default 20s. */
+  /** Per-request timeout. Covers fetch headers AND body read. Default
+   * 60s — sized for slower providers (Anthropic Sonnet under high
+   * concurrency routinely takes 15–40s for the 2k-token consolidate
+   * prompt). Pass a tighter value for steps on the recall hot path. */
   timeoutMs?: number;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
@@ -42,7 +45,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   const log = getLogger();
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
-  const timeoutMs = req.timeoutMs ?? 20_000;
+  const timeoutMs = req.timeoutMs ?? 60_000;
 
   // Anthropic models ignore OpenAI-style response_format and frequently
   // respond conversationally to bare user queries. The canonical fix is

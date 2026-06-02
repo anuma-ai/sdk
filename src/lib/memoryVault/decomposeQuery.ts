@@ -97,6 +97,9 @@ export async function decomposeQuery(
     // Bare-query inputs caused Anthropic models to respond with prose
     // like "Do you mean...?" before this wrap.
     userMessage: `Classify the following memory query and decompose if composite. Respond with JSON only — do not answer the question, do not ask for clarification.\n\nQuery: ${trimmed}`,
+    // Decompose runs on the recall hot path — tighter than the
+    // portalLlm default (consolidate/extract can wait longer).
+    timeoutMs: 20_000,
     tag: "memory/decompose",
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
   });
