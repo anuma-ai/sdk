@@ -66,6 +66,10 @@ export interface CreateAutoExtractorOptions {
    * empty and recall's graph fusion is a no-op.
    */
   entityCtx?: EntityOperationsContext;
+  /** Override scope for all retained facts. */
+  scope?: string;
+  /** Override folderId for all retained facts. */
+  folderId?: string | null;
   /** Per-fact event — fires once per memory written. */
   onMemoryExtracted?: (event: MemoryExtractedEvent) => void;
   /** Per-turn event — fires once after the whole pipeline finishes. */
@@ -145,6 +149,8 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
             extract: options.extract,
             ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
             ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
+            ...(options.scope !== undefined && { scope: options.scope }),
+            ...(options.folderId !== undefined && { folderId: options.folderId }),
             ...(options.onCandidateFailed && {
               onCandidateFailed: (candidate, error) =>
                 options.onCandidateFailed?.({ candidate, error, conversationId }),

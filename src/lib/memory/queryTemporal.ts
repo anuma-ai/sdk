@@ -77,7 +77,12 @@ function addDays(ts: number, days: number): number {
 
 function addMonths(ts: number, months: number): number {
   const d = new Date(ts);
-  return new Date(d.getFullYear(), d.getMonth() + months, d.getDate()).getTime();
+  const targetYear = d.getFullYear();
+  const targetMonth = d.getMonth() + months;
+  const currentDay = d.getDate();
+  const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const clampedDay = Math.min(currentDay, lastDayOfTargetMonth);
+  return new Date(targetYear, targetMonth, clampedDay).getTime();
 }
 
 function startOfWeek(ts: number): number {
