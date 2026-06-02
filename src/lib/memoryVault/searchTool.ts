@@ -88,7 +88,11 @@ interface EmbeddedItem {
   id: string;
   content: string;
   embedding: number[];
-  /** Last update timestamp — used for supersession detection. */
+  /** Original creation timestamp — what `RankedMemory.createdAt` surfaces.
+   * Distinct from `updatedAt` since `proofCountIncrement` re-observation
+   * doesn't bump `created_at`. */
+  createdAt?: Date;
+  /** Last update timestamp — used for supersession detection + recency. */
   updatedAt?: Date;
   /** Number of times this fact has been re-observed (W4 — auto-merge). */
   proofCount?: number | null;
@@ -264,7 +268,7 @@ export function rankVaultMemories(
       uniqueId: r.uniqueId,
       content: r.content,
       similarity: r.similarity,
-      createdAt: item?.updatedAt, // Use updatedAt as proxy for createdAt when available
+      createdAt: item?.createdAt ?? item?.updatedAt,
       updatedAt: item?.updatedAt,
     };
   });
@@ -359,7 +363,7 @@ export function rankFusedVaultMemories(
       uniqueId: item.id,
       content: item.content,
       similarity: Math.min(minSimilarity, bm25 / 50),
-      createdAt: item.updatedAt,
+      createdAt: item.createdAt ?? item.updatedAt,
       updatedAt: item.updatedAt,
     });
   }
@@ -367,14 +371,18 @@ export function rankFusedVaultMemories(
   // Stage 3 — recency + proof-count boosts on the union.
   // proof_count: re-observed facts get a small log-curve lift (Hindsight α=0.1).
   // Items with no proof_count (legacy / unset) treated as 1 → log(2)≈0.69 → boost ~7%.
-  let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => {
-    const item = itemById.get(r.uniqueId);
+  const boostFor = (id: string): number => {
+    const item = itemById.get(id);
     const recency = recencyMultiplier(item?.updatedAt, options?.recency);
     const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
     const proofCount = Math.max(1, item?.proofCount ?? 1);
     const proofBoost = 1 + 0.1 * Math.log(1 + proofCount) - 0.1 * Math.log(2);
-    return { ...r, similarity: r.similarity * recencyBoost * proofBoost };
-  });
+    return recencyBoost * proofBoost;
+  };
+  let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => ({
+    ...r,
+    similarity: r.similarity * boostFor(r.uniqueId),
+  }));
 
   // Stage 4 — W5 graph lane fusion. RRF the boosted cosine+BM25 head with
   // the entity-overlap ranking. Same logic as the async/CE path: graph
@@ -393,9 +401,13 @@ export function rankFusedVaultMemories(
     combined.sort((a, b) => b.similarity - a.similarity);
     const headIds = combined.map((r) => r.uniqueId);
     const fused = rrfFuse([headIds, headIds, ...sideLanes]);
+    // Multiply boostFor back in so the recency · proof multiplier from
+    // Stage 3 isn't discarded by the RRF score replacement. Without
+    // this, the high-budget side-lane path drops exactly the signal
+    // it's supposed to layer on top of cosine + BM25.
     combined = combined.map((r) => ({
       ...r,
-      similarity: fused.get(r.uniqueId) ?? r.similarity,
+      similarity: (fused.get(r.uniqueId) ?? 0) * boostFor(r.uniqueId),
     }));
     const seen = new Set(combined.map((r) => r.uniqueId));
     for (const lane of sideLanes) {
@@ -406,8 +418,8 @@ export function rankFusedVaultMemories(
         combined.push({
           uniqueId: id,
           content: it.content,
-          similarity: fused.get(id) ?? 0,
-          createdAt: it.updatedAt,
+          similarity: (fused.get(id) ?? 0) * boostFor(id),
+          createdAt: it.createdAt ?? it.updatedAt,
           updatedAt: it.updatedAt,
         });
         seen.add(id);
@@ -610,7 +622,7 @@ export async function rankFusedVaultMemoriesAsync(
           uniqueId: id,
           content: it.content,
           similarity: fused.get(id) ?? 0,
-          createdAt: it.updatedAt,
+          createdAt: it.createdAt ?? it.updatedAt,
           updatedAt: it.updatedAt,
         });
         seen.add(id);
@@ -648,7 +660,10 @@ export async function rankFusedVaultMemoriesAsync(
     // limit strictly so production callers (tool executor) get exactly
     // what they asked for.
     const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
-    return [...pickedResults, ...remainingTail, ...tailSlice].slice(0, limit);
+    // Filter tailSlice too — an id present in both MMR picks and the
+    // pre-MMR tail would otherwise appear twice in the returned list.
+    const tailFiltered = tailSlice.filter((r) => !pickedIds.has(r.uniqueId));
+    return [...pickedResults, ...remainingTail, ...tailFiltered].slice(0, limit);
   }
 
   return [...combined, ...tailSlice].slice(0, limit);
@@ -769,7 +784,7 @@ export async function rankComposite(
         uniqueId: id,
         content: item.content,
         similarity: score,
-        createdAt: item.updatedAt,
+        createdAt: item.createdAt ?? item.updatedAt,
         updatedAt: item.updatedAt,
       };
     }
@@ -788,7 +803,7 @@ export async function rankComposite(
         uniqueId: item.id,
         content: item.content,
         similarity: 0,
-        createdAt: item.updatedAt,
+        createdAt: item.createdAt ?? item.updatedAt,
         updatedAt: item.updatedAt,
       });
     }
@@ -972,6 +987,7 @@ export async function searchVaultMemoriesWithSize(
     id: m.uniqueId,
     content: m.content,
     embedding: cache.get(m.content) ?? [],
+    createdAt: m.createdAt,
     updatedAt: m.updatedAt,
     proofCount: m.proofCount,
   }));

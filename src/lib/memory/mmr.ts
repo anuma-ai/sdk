@@ -72,14 +72,23 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
     maxSimVs.splice(bestIdx, 1);
 
     // Fold the newly-selected item's similarity into the running max
-    // for each remaining candidate. Items without embeddings on either
-    // side contribute nothing — they keep their existing maxSim.
+    // for each remaining embedded candidate.
     if (picked.embedding.length > 0) {
       for (let i = 0; i < remaining.length; i++) {
         const r = remaining[i];
         if (r.embedding.length === 0) continue;
         const sim = cosineSimilarity(r.embedding, picked.embedding);
         if (sim > maxSimVs[i]) maxSimVs[i] = sim;
+      }
+    } else {
+      // Picked has no embedding — there's no diversity signal to fold
+      // in. Advance any embedded candidate still at the -Infinity
+      // sentinel up to 0 so the next round's `λ·score − (1-λ)·maxSim`
+      // doesn't compute (1-λ)·(-∞) = +∞ and force-pick arbitrarily.
+      for (let i = 0; i < remaining.length; i++) {
+        if (remaining[i].embedding.length > 0 && maxSimVs[i] === -Infinity) {
+          maxSimVs[i] = 0;
+        }
       }
     }
   }

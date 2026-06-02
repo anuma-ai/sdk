@@ -14,6 +14,15 @@ export interface EntityOperationsContext {
    * filters lookups by it. Leave undefined for single-user clients.
    */
   userId?: string;
+  /**
+   * When `true`, `getMemoriesByEntityNamesOp` admits rows with
+   * `user_id = null` alongside the strict `userId` match. Set this on
+   * LokiJS (web) adapters where the v31 `unsafeExecuteSql` backfill
+   * is a no-op — pre-v31 rows otherwise become invisible to the W5
+   * lane until `backfillMemoryEntityUserIdsOp` runs. Default `false`
+   * (server / SQLite, where the migration backfill is authoritative).
+   */
+  allowUnscopedRows?: boolean;
 }
 
 function entityToStored(e: Entity): StoredEntity {
@@ -225,12 +234,15 @@ export async function getMemoriesByEntityNamesOp(
   const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
   const linkConditions: Q.Clause[] = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
   if (ctx.userId !== undefined) {
-    // Strict user-scope. Pre-v31 rows have user_id=null and are filtered
-    // out by this clause until `backfillMemoryEntityUserIdsOp` runs; the
-    // SDK init paths (react/expo useChatStorage) invoke that helper once
-    // per session. Tolerating null here would leak cross-user rows in
-    // any future consumer that bypasses the downstream itemById join.
-    linkConditions.push(Q.where("user_id", ctx.userId));
+    if (ctx.allowUnscopedRows) {
+      // LokiJS path: the v31 SQL backfill is a no-op, so pre-v31 rows
+      // keep user_id=null. Admit them alongside the user's own rows;
+      // the downstream `itemById` filter (built from user-scoped
+      // `getAllVaultMemoriesOp`) still drops cross-user IDs.
+      linkConditions.push(Q.or(Q.where("user_id", ctx.userId), Q.where("user_id", null)));
+    } else {
+      linkConditions.push(Q.where("user_id", ctx.userId));
+    }
   }
   const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
 

@@ -18,6 +18,7 @@
  */
 
 import type { EntityOperationsContext } from "../db/entities/operations.js";
+import { getLogger } from "../logger.js";
 import {
   type AutoExtractMessage,
   extractAndRetain,
@@ -73,6 +74,17 @@ export interface CreateAutoExtractorOptions {
   onSkipped?: (event: TurnSkippedEvent) => void;
   /** Diagnostic — fires on unexpected pipeline errors. */
   onError?: (error: Error, conversationId?: string) => void;
+  /**
+   * Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
+   * — couldn't save Lives in Portland") surface the specific fact that
+   * dropped instead of only seeing the aggregate `failedCount`. Fires
+   * once per filtered candidate that threw during retain.
+   */
+  onCandidateFailed?: (event: {
+    candidate: ExtractedCandidate;
+    error: unknown;
+    conversationId?: string;
+  }) => void;
 }
 
 /** @public */
@@ -99,6 +111,16 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   let inflight = 0;
   let disposed = false;
 
+  // Warn once if the caller wired a vault context with cascade-delete
+  // entityCtx but didn't pass an entityCtx to the extractor. The W5
+  // graph lane consumes both write- and read-side wiring; without the
+  // worker linking entities at write time the lane stays empty.
+  if (options.retainCtx.vaultCtx.entityCtx && !options.entityCtx) {
+    getLogger().warn(
+      "[memory/extract] retainCtx.vaultCtx.entityCtx is set but extractor was created without `entityCtx` — W5 graph lane will receive no writes"
+    );
+  }
+
   function processTurn(messages: AutoExtractMessage[], conversationId?: string): boolean {
     if (disposed) return false;
     if (messages.length === 0) {
@@ -123,6 +145,10 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
             extract: options.extract,
             ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
             ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
+            ...(options.onCandidateFailed && {
+              onCandidateFailed: (candidate, error) =>
+                options.onCandidateFailed?.({ candidate, error, conversationId }),
+            }),
           }
         );
 

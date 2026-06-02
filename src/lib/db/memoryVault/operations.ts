@@ -166,15 +166,23 @@ export async function getMemoriesByEventTimeOp(
     eventTimeKind: string | null;
   }>
 > {
-  // Fast path: any memory whose event_time_start is in [start, end) is a
-  // candidate. Range memories starting BEFORE the window may still
-  // overlap (range ends inside window) — pull those by start <= windowEnd
-  // and filter in JS.
+  // Push as much filtering into SQL as possible:
+  //   - event_time_start IS NOT NULL
+  //   - event_time_start < windowEnd  (any candidate must start before
+  //     the window ends, regardless of kind)
+  //   - (event_time_start >= windowStart  OR  kind IN ("range","ongoing"))
+  //     A point starting before windowStart can't overlap, so filter at
+  //     SQL. Range/ongoing rows starting earlier may still overlap and
+  //     fall through to the JS check below.
   const records = await ctx.vaultMemoryCollection
     .query(
       ...baseVaultConditions(ctx),
       Q.where("event_time_start", Q.notEq(null)),
-      Q.where("event_time_start", Q.lte(windowEnd))
+      Q.where("event_time_start", Q.lte(windowEnd)),
+      Q.or(
+        Q.where("event_time_start", Q.gte(windowStart)),
+        Q.where("event_time_kind", Q.oneOf(["range", "ongoing"]))
+      )
     )
     .fetch();
 

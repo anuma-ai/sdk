@@ -98,19 +98,13 @@ export async function retain(
         );
         // proofCountIncrement (not absolute proofCount) so two parallel
         // retain() calls don't race a read-modify-write and lose updates.
+        const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
         const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
           content: existing.content,
           proofCountIncrement: 1,
           sourceChunkIds: mergedSourceIds,
           preserveUpdatedAt: true,
-          ...(options.eventTime !== undefined &&
-            options.eventTime !== null && {
-              eventTime: {
-                start: options.eventTime.start,
-                end: options.eventTime.end,
-                kind: options.eventTime.kind,
-              },
-            }),
+          ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
         });
         return {
           action: "merge",
@@ -156,6 +150,26 @@ export async function retain(
 
 function unionStrings(a: string[], b: string[]): string[] {
   return [...new Set([...a, ...b])];
+}
+
+/**
+ * Decide whether the incoming observation's event_time should overwrite
+ * the target's. The target wins by default — the original write was the
+ * authoritative anchor; a re-observation with a vaguer or differently-
+ * dated anchor would silently corrupt it.
+ *
+ * Inherit only when the target carries no anchor at all (`eventTimeStart`
+ * is null) and the new observation has one.
+ */
+function pickEventTimeUpdate(
+  existing: { eventTimeStart: number | null },
+  incoming: RetainOptions["eventTime"]
+):
+  | { start: number | null; end: number | null; kind: "point" | "range" | "ongoing" | null }
+  | undefined {
+  if (incoming === undefined || incoming === null) return undefined;
+  if (existing.eventTimeStart !== null) return undefined;
+  return { start: incoming.start, end: incoming.end, kind: incoming.kind };
 }
 
 /**
@@ -214,19 +228,13 @@ async function tryConsolidate(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
     );
+    const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: existing.content,
       proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
       preserveUpdatedAt: true,
-      ...(options.eventTime !== undefined &&
-        options.eventTime !== null && {
-          eventTime: {
-            start: options.eventTime.start,
-            end: options.eventTime.end,
-            kind: options.eventTime.kind,
-          },
-        }),
+      ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
     return {
       action: "merge",
@@ -246,6 +254,7 @@ async function tryConsolidate(
     // Re-embed the consolidated content; embeddingOptions includes the cache.
     const newEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
     ctx.vaultCache.set(decision.content, newEmbedding);
+    const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: decision.content,
       proofCountIncrement: 1,
@@ -256,14 +265,7 @@ async function tryConsolidate(
       // one. Preserving updated_at keeps the recency multiplier honest
       // and matches the merge/noop paths above.
       preserveUpdatedAt: true,
-      ...(options.eventTime !== undefined &&
-        options.eventTime !== null && {
-          eventTime: {
-            start: options.eventTime.start,
-            end: options.eventTime.end,
-            kind: options.eventTime.kind,
-          },
-        }),
+      ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
     return {
       action: "update",

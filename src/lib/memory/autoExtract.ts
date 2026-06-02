@@ -159,6 +159,13 @@ export async function extractAndRetain(
      * memories sharing entities with the user's question.
      */
     entityCtx?: EntityOperationsContext;
+    /**
+     * Per-candidate failure hook — invoked once per filtered candidate
+     * whose `retain()` call threw. Lets UI layers surface "couldn't save
+     * X" toasts; without it consumers only see the aggregate
+     * `failedCount` and can't name which facts dropped.
+     */
+    onCandidateFailed?: (candidate: ExtractedCandidate, error: unknown) => void;
   }
 ): Promise<{
   candidates: ExtractedCandidate[];
@@ -203,6 +210,7 @@ export async function extractAndRetain(
       // — the worker's outer onError can't see what we've caught here.
       failedWrites++;
       log.warn("[memory/extract] retain failed for one candidate", err);
+      options.onCandidateFailed?.(candidate, err);
     }
   }
   if (failedWrites > 0) {
@@ -295,12 +303,29 @@ function parseEventDate(raw: unknown): number | null {
   if (trimmed.length === 0) return null;
   const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
   if (dateOnlyMatch) {
-    const year = parseInt(dateOnlyMatch[1], 10);
-    const month = parseInt(dateOnlyMatch[2], 10);
-    const day = parseInt(dateOnlyMatch[3], 10);
-    const ms = new Date(year, month - 1, day).getTime();
-    return Number.isFinite(ms) ? ms : null;
+    return parseLocalCalendarDay(
+      parseInt(dateOnlyMatch[1], 10),
+      parseInt(dateOnlyMatch[2], 10),
+      parseInt(dateOnlyMatch[3], 10)
+    );
   }
   const ms = Date.parse(trimmed);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Build local-midnight ms for a calendar (year, month, day), rejecting
+ * out-of-range components rather than silently rolling over. JS's Date
+ * constructor accepts `new Date(2026, 1, 30)` and rolls to Mar 2; we
+ * round-trip the components and bail on mismatch so a bad LLM emission
+ * doesn't land as a wrong temporal anchor.
+ */
+function parseLocalCalendarDay(year: number, month: number, day: number): number | null {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  const ms = d.getTime();
   return Number.isFinite(ms) ? ms : null;
 }

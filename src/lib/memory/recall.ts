@@ -77,33 +77,31 @@ export async function recall(
   }
 
   // Embed once, share across stores. Vault path embeds internally too —
-  // it's keyed off the cache so we don't pay twice.
-  let queryEmbedding: number[] | undefined;
+  // it's keyed off the cache so we don't pay twice. Run in parallel with
+  // the side-lane builds since none of the three depends on the others.
+  //
+  // W5 graph lane: when the recall context carries an entityCtx, extract
+  // candidate entities from the query and look up memories that share any
+  // of them. RRF-fused alongside cosine + BM25 inside the vault search.
+  //
+  // W6 temporal lane: when the query has a temporal phrase ("next week",
+  // "what's coming up this month"), resolve to an absolute window and
+  // look up memories whose event_time overlaps.
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
-  if (needsChunkEmbedding) {
-    queryEmbedding = await generateEmbedding(query, ctx.embeddingOptions);
-  }
+  const wantsTemporal = types.includes("fact") && ctx.vaultCtx;
+  const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
+    needsChunkEmbedding
+      ? generateEmbedding(query, ctx.embeddingOptions)
+      : Promise.resolve(undefined),
+    buildGraphLaneRanking(query, ctx),
+    wantsTemporal
+      ? buildTemporalLaneRanking(query, ctx.vaultCtx!)
+      : Promise.resolve([] as string[]),
+  ]);
 
   const factResults: VaultSearchResult[] = [];
   const chunkResults: ChunkSearchResult[] = [];
   let vaultSize: number | undefined;
-
-  // W5 graph lane — when the recall context carries an entityCtx, extract
-  // candidate entities from the query and look up memories that share any
-  // of them. The result is a ranking of memory IDs by entity-overlap
-  // score, RRF-fused alongside cosine + BM25 inside the vault search. We
-  // build it once here so both the fact lane (below) and any other lane
-  // that wants entity overlap can consume it.
-  const entityRanking = await buildGraphLaneRanking(query, ctx);
-
-  // W6 temporal lane — when the query has a temporal phrase ("next week",
-  // "what's coming up this month"), resolve to an absolute window and
-  // look up memories whose event_time overlaps. Returns a ranking
-  // RRF-fused alongside the other lanes.
-  const temporalRanking =
-    types.includes("fact") && ctx.vaultCtx
-      ? await buildTemporalLaneRanking(query, ctx.vaultCtx)
-      : [];
 
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;

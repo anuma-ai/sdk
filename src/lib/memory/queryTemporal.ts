@@ -106,6 +106,20 @@ function endOfDay(dayStart: number): number {
   return addDays(dayStart, 1);
 }
 
+/** Build local-midnight ms for (year, month, day), rejecting out-of-range
+ * components rather than silently rolling over. `new Date(2026, 1, 30)`
+ * happily produces Mar 2; we round-trip the components and bail on
+ * mismatch so a malformed query phrase doesn't land on a wrong window. */
+function parseLocalCalendarDay(year: number, month: number, day: number): number | null {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  const ms = d.getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
 /** Day/week/month delta against a local-midnight base. Day and week use
  * `addDays` so DST transitions stay aligned; month uses the local Date
  * constructor for the same reason. */
@@ -224,11 +238,12 @@ export function parseQueryTimeWindow(
   // ── 6. Absolute date — "May 23 2026" / "May 23" / "2026-05-23" ──────
   const isoMatch = ISO_DATE_RE.exec(q);
   if (isoMatch) {
-    const year = parseInt(isoMatch[1], 10);
-    const month = parseInt(isoMatch[2], 10);
-    const day = parseInt(isoMatch[3], 10);
-    const start = new Date(year, month - 1, day).getTime();
-    if (Number.isFinite(start)) {
+    const start = parseLocalCalendarDay(
+      parseInt(isoMatch[1], 10),
+      parseInt(isoMatch[2], 10),
+      parseInt(isoMatch[3], 10)
+    );
+    if (start !== null) {
       return { start, end: endOfDay(start), matchedPhrase: isoMatch[0] };
     }
   }
@@ -238,10 +253,11 @@ export function parseQueryTimeWindow(
     const day = parseInt(monthDayMatch[2], 10);
     const yearStr = monthDayMatch[3];
     const year = yearStr ? parseInt(yearStr, 10) : new Date(now).getFullYear();
-    const start = new Date(year, monthIdx, day).getTime();
-    // "may I want to ..." can satisfy MONTH_DAY_RE if the next token is a
-    // number — guard against the resulting NaN/Invalid Date window.
-    if (Number.isFinite(start)) {
+    // "may I want to 99 ..." can satisfy MONTH_DAY_RE; round-trip-validate
+    // so out-of-range days (May 99 → August) and bad months don't roll
+    // over silently.
+    const start = parseLocalCalendarDay(year, monthIdx + 1, day);
+    if (start !== null) {
       return { start, end: endOfDay(start), matchedPhrase: monthDayMatch[0] };
     }
   }
