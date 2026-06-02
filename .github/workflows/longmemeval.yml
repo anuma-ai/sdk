@@ -182,32 +182,45 @@ jobs:
           INPUTS_EXCERPT_CAP: ${{ inputs.excerpt_cap }}
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
-          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency ${{ inputs.concurrency }} --output results.json"
+          # Accumulate into a bash array so each flag is one token —
+          # values with whitespace/globs don't get re-word-split when
+          # invoking pnpm.
+          args=(
+            --strategy "${{ matrix.strategy }}"
+            --variant "$EVAL_VARIANT"
+            --llm "$EVAL_MODEL"
+            --concurrency "${{ inputs.concurrency }}"
+            --output results.json
+          )
           if [ -n "$EVAL_MAX" ]; then
-            args="$args --max $EVAL_MAX"
+            args+=(--max "$EVAL_MAX")
           fi
           if [ "${{ matrix.strategy }}" = "vault" ]; then
-            args="$args --rerank=${{ inputs.rerank }} --decompose=${{ inputs.decompose }} --consolidate=${{ inputs.consolidate }}"
+            args+=(
+              "--rerank=${{ inputs.rerank }}"
+              "--decompose=${{ inputs.decompose }}"
+              "--consolidate=${{ inputs.consolidate }}"
+            )
             if [ -n "$INPUTS_CHUNK_SOURCE" ]; then
-              args="$args --chunk-source=$INPUTS_CHUNK_SOURCE"
+              args+=("--chunk-source=$INPUTS_CHUNK_SOURCE")
             fi
             if [ -n "$INPUTS_EXCERPT_CAP" ]; then
-              args="$args --excerpt-cap=$INPUTS_EXCERPT_CAP"
+              args+=("--excerpt-cap=$INPUTS_EXCERPT_CAP")
             fi
           fi
           if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_types }}" ]; then
-            args="$args --recall-types=${{ inputs.recall_types }}"
+            args+=("--recall-types=${{ inputs.recall_types }}")
           fi
           if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_emit }}" ]; then
-            args="$args --recall-emit=${{ inputs.recall_emit }}"
+            args+=("--recall-emit=${{ inputs.recall_emit }}")
           fi
           if [ "${{ matrix.strategy }}" = "recall" ] && [ -n "${{ inputs.recall_lane_mode }}" ]; then
-            args="$args --recall-lane-mode=${{ inputs.recall_lane_mode }}"
+            args+=("--recall-lane-mode=${{ inputs.recall_lane_mode }}")
           fi
           if [ "${{ inputs.include_unsupported }}" = "true" ]; then
-            args="$args --include-unsupported"
+            args+=(--include-unsupported)
           fi
-          pnpm eval:longmemeval $args
+          pnpm eval:longmemeval "${args[@]}"
 
       - name: Upload results
         if: always()

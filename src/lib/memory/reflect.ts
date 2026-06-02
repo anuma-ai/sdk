@@ -22,10 +22,11 @@ import { BASE_URL } from "../../clientConfig.js";
 import { recall } from "./recall.js";
 import type { RecallContext, RecallOptions } from "./types.js";
 
-/** Fallback portal URL — `clientConfig.BASE_URL` (also honored by
- * `portalLlm`). `ANUMA_PORTAL_BASE_URL` env overrides at module load. */
-const DEFAULT_BASE_URL =
-  (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) || BASE_URL;
+/** Fallback portal URL — shared with the rest of the SDK via
+ * `clientConfig.BASE_URL`, which already resolves the standard
+ * `API_URL` / `NEXT_PUBLIC_API_URL` / `EXPO_PUBLIC_API_URL` env vars
+ * across Node, browser, RN, and edge runtimes. */
+const DEFAULT_BASE_URL = BASE_URL;
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 4096;
 const REQUEST_TIMEOUT_MS = 60_000;

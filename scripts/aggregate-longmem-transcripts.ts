@@ -52,11 +52,16 @@ interface Transcript {
 async function main() {
   const all = await readdir(TRANSCRIPTS_DIR);
   // Strategy-specific transcripts live as `<id>_<strategy>.json`. The
-  // legacy engine path uses a bare `<id>.json` (no suffix), so handle it
-  // explicitly rather than catching it in a `.json` default that would
-  // also pull in unrelated artifacts.
+  // legacy engine path uses a bare `<id>.json` (no suffix). Distinguish
+  // engine via a positive allow-list of known suffixes — a blanket
+  // "ends in _<word>.json" test would over-match LongMemEval ids that
+  // themselves end in `_abs` or carry a `gpt4_` prefix, silently
+  // dropping those engine transcripts.
+  const SUFFIXED_STRATEGIES = KNOWN_STRATEGIES.filter((s) => s !== "engine");
+  const SUFFIX_RE = new RegExp(`_(${SUFFIXED_STRATEGIES.join("|")})\\.json$`);
   const files = all.filter((f) => {
-    if (STRATEGY === "engine") return f.endsWith(".json") && !/_[a-z]+\.json$/.test(f);
+    if (!f.endsWith(".json")) return false;
+    if (STRATEGY === "engine") return !SUFFIX_RE.test(f);
     return f.endsWith(`_${STRATEGY}.json`);
   });
 

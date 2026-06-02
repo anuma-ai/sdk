@@ -387,6 +387,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
+    preProcessors,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -677,6 +678,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (!getToken) {
         throw new Error("getToken is required for recall tool");
       }
+      // Default excludeConversationId to the active conversation so
+      // recall doesn't surface chunks from the user's own current turns
+      // back as "memory". Caller can still override explicitly.
+      const resolvedToolOptions: RecallToolOptions | undefined =
+        toolOptions?.excludeConversationId !== undefined || !currentConversationId
+          ? toolOptions
+          : { ...toolOptions, excludeConversationId: currentConversationId };
       return createRecallToolBase(
         {
           vaultCtx,
@@ -688,11 +696,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // to fact + chunk lanes). Wire it up when the Expo client
           // grows an entity-extraction surface.
         },
-        toolOptions,
+        resolvedToolOptions,
         callbacks
       );
     },
-    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel, currentConversationId]
   );
 
   /**
@@ -728,6 +736,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     apiType,
+    preProcessors,
   });
 
   /**

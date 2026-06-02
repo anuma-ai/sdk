@@ -178,17 +178,15 @@ async function autoFilterClientTools(
   extraToolSets: ToolSet[] = [],
   activeToolSets: string[] = []
 ): Promise<LlmapiChatCompletionTool[]> {
-  // Memory tools are always included — only filter connector tools (Notion, Google)
   // Memory tools are always included — only filter connector tools
-  // (Notion, Google). Matches both the legacy two-tool surface and the
-  // unified recall_memory tool from createRecallTool.
+  // (Notion, Google). Matches both the legacy memory_vault_* surface and
+  // the unified recall_memory tool from createRecallTool. The
+  // memory_engine_* prefix is intentionally NOT matched — it is not an
+  // owned SDK namespace and would let any third-party tool bypass the
+  // similarity filter by name alone.
   const isMemoryTool = (t: LlmapiChatCompletionTool) => {
     const name = getToolName(t);
-    return (
-      name.startsWith("memory_vault_") ||
-      name.startsWith("memory_engine_") ||
-      name === RECALL_TOOL_NAME
-    );
+    return name.startsWith("memory_vault_") || name === RECALL_TOOL_NAME;
   };
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
@@ -1111,8 +1109,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       database,
       entityCollection,
       memoryEntityCollection,
+      // React web ships LokiJS where the v31 SQL backfill is a no-op,
+      // so pre-v31 memory_entity rows still carry `user_id = null`.
+      // Scope new reads to the active wallet while admitting those
+      // legacy unscoped rows until `backfillMemoryEntityUserIdsOp` runs.
+      ...(walletAddress !== undefined && { userId: walletAddress }),
+      allowUnscopedRows: true,
     }),
-    [database, entityCollection, memoryEntityCollection]
+    [database, entityCollection, memoryEntityCollection, walletAddress]
   );
 
   // ── Queue Management ──
@@ -1531,6 +1535,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (!getToken) {
         throw new Error("getToken is required for recall tool");
       }
+      // Default excludeConversationId to the active conversation so the
+      // recall tool can't surface chunks from the user's own current
+      // turns back as "memory" (assistant otherwise paraphrases the
+      // user's latest message with "as I mentioned previously"). Callers
+      // can still override explicitly.
+      const resolvedToolOptions: RecallToolOptions | undefined =
+        toolOptions?.excludeConversationId !== undefined || !currentConversationId
+          ? toolOptions
+          : { ...toolOptions, excludeConversationId: currentConversationId };
       return createRecallToolBase(
         {
           vaultCtx,
@@ -1543,11 +1556,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // no-op — recall falls through to fact + chunk lanes.
           entityCtx,
         },
-        toolOptions,
+        resolvedToolOptions,
         callbacks
       );
     },
-    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel, currentConversationId]
   );
 
   /**

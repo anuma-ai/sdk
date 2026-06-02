@@ -109,7 +109,15 @@ export function createRecallTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<string> => {
-      const query = args.query as string;
+      // Throw (not return) on invalid args so the tool-loop treats it as
+      // "invalid args, retry" rather than as a successful tool result —
+      // returning a string answer leaks the error back into the model's
+      // visible context, where it gets paraphrased to the user.
+      if (typeof args.query !== "string" || args.query.length === 0) {
+        throw new Error("recall_memory: `query` is required and must be a non-empty string.");
+      }
+      const query = args.query;
+
       // LLM-supplied limit: tolerate string / number / missing; clamp to
       // [1, RECALL_MAX_LIMIT] so a hallucinated 0 / negative / huge value
       // doesn't blow up downstream sorts or starve the executor.
@@ -122,10 +130,6 @@ export function createRecallTool(
       const requestLimit = Number.isFinite(rawLimit)
         ? Math.min(Math.max(Math.floor(rawLimit), 1), RECALL_MAX_LIMIT)
         : defaultLimit;
-
-      if (!query || typeof query !== "string") {
-        return "Error: A search query is required.";
-      }
 
       try {
         const recallOpts: RecallOptions = {
