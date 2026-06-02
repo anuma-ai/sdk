@@ -10,6 +10,7 @@ import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import { cosineSimilarity } from "../memoryEngine/vector";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -605,29 +606,6 @@ export function mergeTools(
 
   // Return merged array: server tools first, then client tools
   return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error("Vectors must have the same length");
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-  if (denominator === 0) {
-    return 0;
-  }
-
-  return dotProduct / denominator;
 }
 
 /**

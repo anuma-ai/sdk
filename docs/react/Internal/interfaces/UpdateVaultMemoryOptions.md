@@ -1,6 +1,6 @@
 # UpdateVaultMemoryOptions
 
-Defined in: [src/lib/db/memoryVault/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#29)
+Defined in: [src/lib/db/memoryVault/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#56)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:29](https://github.com/anuma-ai/sdk
 
 > **content**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#30)
+Defined in: [src/lib/db/memoryVault/types.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#57)
 
 ***
 
@@ -16,9 +16,34 @@ Defined in: [src/lib/db/memoryVault/types.ts:30](https://github.com/anuma-ai/sdk
 
 > `optional` **embedding**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#36)
+Defined in: [src/lib/db/memoryVault/types.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#63)
 
 JSON-stringified embedding vector to persist, or null to clear stale embedding
+
+***
+
+### eventTime?
+
+> `optional` **eventTime**: `object`
+
+Defined in: [src/lib/db/memoryVault/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#83)
+
+W6 temporal lane — write the event-time fields on update. Use during
+auto-merge to preserve (or refine) the original event-time signal when
+a new observation lands on an existing fact. Omit to leave the
+existing values untouched.
+
+**end**
+
+> **end**: `number` | `null`
+
+**kind**
+
+> **kind**: `"point"` | `"range"` | `"ongoing"` | `null`
+
+**start**
+
+> **start**: `number` | `null`
 
 ***
 
@@ -26,9 +51,47 @@ JSON-stringified embedding vector to persist, or null to clear stale embedding
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#34)
+Defined in: [src/lib/db/memoryVault/types.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#61)
 
 If provided, moves the memory to this folder.
+
+***
+
+### preserveUpdatedAt?
+
+> `optional` **preserveUpdatedAt**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#94)
+
+When true, restore the existing `updated_at` after the write so the
+recency multiplier doesn't see a re-observation as a brand-new fact.
+Set by auto-merge/consolidate paths — they want proof\_count to bump
+without inflating recency on top.
+
+***
+
+### proofCount?
+
+> `optional` **proofCount**: `number`
+
+Defined in: [src/lib/db/memoryVault/types.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#69)
+
+Set an absolute proof count. Prefer [proofCountIncrement](#proofcountincrement) for
+re-observation paths so the read+write happens inside the writer
+and concurrent retains can't lose updates.
+
+***
+
+### proofCountIncrement?
+
+> `optional` **proofCountIncrement**: `number`
+
+Defined in: [src/lib/db/memoryVault/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#74)
+
+Atomically bump proof\_count by this delta inside the write block.
+Reads the current value from the in-memory record at write time, so
+two parallel retain() calls observe each other's commits and neither
+loses its increment. Wins over `proofCount` when both are set.
 
 ***
 
@@ -36,6 +99,26 @@ If provided, moves the memory to this folder.
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#32)
+Defined in: [src/lib/db/memoryVault/types.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#59)
 
 If provided, updates the memory's scope.
+
+***
+
+### source?
+
+> `optional` **source**: `string`
+
+Defined in: [src/lib/db/memoryVault/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#76)
+
+Set source ("manual" | "auto-extracted" | "capsule").
+
+***
+
+### sourceChunkIds?
+
+> `optional` **sourceChunkIds**: `string`\[]
+
+Defined in: [src/lib/db/memoryVault/types.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#65)
+
+Replace source-chunk-ids list (used during merge to accumulate provenance).
