@@ -960,6 +960,54 @@
     }
   },
   {
+    "timestamp": "2026-06-02T23:02:38.883Z",
+    "datasetName": "longmemeval_s_memory-recall",
+    "strategy": "memory-recall",
+    "totalQuestions": 20,
+    "correctAnswers": 9,
+    "accuracy": 0.45,
+    "byQuestionType": {
+      "multi-session": {
+        "total": 20,
+        "correct": 9,
+        "accuracy": 0.45
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 1,
+      "avgRecall": 1
+    },
+    "latency": {
+      "p50": 151861.5755175,
+      "p95": 212900.53900389996,
+      "p99": 215873.74697998,
+      "mean": 159041.33430465
+    },
+    "tokenUsage": {
+      "promptTokens": 178039,
+      "completionTokens": 4348,
+      "totalTokens": 534245,
+      "embeddingTokens": 351858
+    },
+    "cost": {
+      "llmCost": 0.599337,
+      "embeddingCost": 0,
+      "totalCost": 0.599337,
+      "llmModel": "anthropic/claude-sonnet-4-6",
+      "embeddingModel": "qwen/qwen3-embedding-8b"
+    },
+    "meta": {
+      "commit": "c2345bfcce7daa05bcc132f9585f05cb681eaf6d",
+      "commitShort": "c2345bf",
+      "branch": "feat/memory-recall-api",
+      "model": "anthropic/claude-sonnet-4-6",
+      "variant": "oracle",
+      "concurrency": 20,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/26852997450",
+      "runId": 26852997450
+    }
+  },
+  {
     "timestamp": "2026-05-06T21:30:29.892Z",
     "datasetName": "longmemeval_s_memory-recall",
     "strategy": "memory-recall",
