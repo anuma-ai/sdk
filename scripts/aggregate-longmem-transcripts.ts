@@ -6,7 +6,7 @@
  * when the main run crashes during teardown before the JSON output
  * gets written.
  *
- * Usage:  npx tsx scripts/aggregate-longmem-transcripts.ts [--strategy vault|engine]
+ * Usage:  npx tsx scripts/aggregate-longmem-transcripts.ts [--strategy vault|engine|recall|ensemble] [--variant oracle|s|m]
  */
 import { readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -15,6 +15,11 @@ import { parseArgs } from "node:util";
 
 import { loadLongMemEvalDataset } from "../test/memory/src/longmemeval/dataset.js";
 
+const KNOWN_STRATEGIES = ["vault", "engine", "recall", "ensemble"] as const;
+type Strategy = (typeof KNOWN_STRATEGIES)[number];
+const KNOWN_VARIANTS = ["oracle", "s", "m"] as const;
+type Variant = (typeof KNOWN_VARIANTS)[number];
+
 const { values: args } = parseArgs({
   options: {
     strategy: { type: "string", default: "vault" },
@@ -22,8 +27,19 @@ const { values: args } = parseArgs({
   },
 });
 
-const STRATEGY = args.strategy === "engine" ? "engine" : "vault";
-const VARIANT = args.variant === "s" ? "s" : "oracle";
+function parseStrategy(raw: string): Strategy {
+  if ((KNOWN_STRATEGIES as readonly string[]).includes(raw)) return raw as Strategy;
+  console.error(`Unknown --strategy "${raw}"; expected one of ${KNOWN_STRATEGIES.join(", ")}`);
+  process.exit(1);
+}
+function parseVariant(raw: string): Variant {
+  if ((KNOWN_VARIANTS as readonly string[]).includes(raw)) return raw as Variant;
+  console.error(`Unknown --variant "${raw}"; expected one of ${KNOWN_VARIANTS.join(", ")}`);
+  process.exit(1);
+}
+
+const STRATEGY = parseStrategy(args.strategy ?? "vault");
+const VARIANT = parseVariant(args.variant ?? "oracle");
 const TRANSCRIPTS_DIR = join(homedir(), ".cache", "longmemeval", "transcripts");
 
 interface Transcript {
@@ -35,10 +51,13 @@ interface Transcript {
 
 async function main() {
   const all = await readdir(TRANSCRIPTS_DIR);
-  const suffix = STRATEGY === "vault" ? "_vault.json" : ".json";
+  // Strategy-specific transcripts live as `<id>_<strategy>.json`. The
+  // legacy engine path uses a bare `<id>.json` (no suffix), so handle it
+  // explicitly rather than catching it in a `.json` default that would
+  // also pull in unrelated artifacts.
   const files = all.filter((f) => {
-    if (STRATEGY === "vault") return f.endsWith("_vault.json");
-    return f.endsWith(".json") && !f.endsWith("_vault.json");
+    if (STRATEGY === "engine") return f.endsWith(".json") && !/_[a-z]+\.json$/.test(f);
+    return f.endsWith(`_${STRATEGY}.json`);
   });
 
   if (files.length === 0) {
