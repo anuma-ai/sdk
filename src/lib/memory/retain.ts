@@ -260,17 +260,11 @@ async function tryConsolidate(
       proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
-      // Let `updated_at` bump naturally on consolidate.update. The LLM
-      // picks `update` either because content was rephrased (paraphrase)
-      // or because the value materially changed (e.g. "works at Stripe"
-      // → "works at Anthropic" — the knowledge-update case). We can't
-      // tell those apart structurally, and preserving `updated_at`
-      // breaks the value-change case by anchoring recency to the stale
-      // first-mention timestamp. The paraphrase case pays a small
-      // recency-noise cost (1y → 0.8x), which is the lesser evil — and
-      // the fact is, after all, still active in the user's life today.
-      // The noop + strict-cosine-merge paths above still preserve
-      // updated_at because those ARE pure re-observations.
+      // Even when the LLM rewrites content into a richer paraphrase,
+      // this is still a re-observation of an existing fact — not a new
+      // one. Preserving updated_at keeps the recency multiplier honest
+      // and matches the merge/noop paths above.
+      preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
     return {
