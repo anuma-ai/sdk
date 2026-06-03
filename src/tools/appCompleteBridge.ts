@@ -341,7 +341,21 @@ export const APP_COMPLETE_IFRAME_SHIM_SCRIPT = `(function () {
     }
   }
 
-  function newId(prefix) { return prefix + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  // Prefer a CSPRNG so ids aren't predictable; fall back gracefully for
+  // contexts that expose neither (very old / non-secure preview frames).
+  function newId(prefix) {
+    try {
+      var c = typeof crypto !== "undefined" ? crypto : null;
+      if (c && typeof c.randomUUID === "function") return prefix + c.randomUUID();
+      if (c && typeof c.getRandomValues === "function") {
+        var bytes = c.getRandomValues(new Uint8Array(16));
+        var hex = "";
+        for (var i = 0; i < bytes.length; i++) hex += (bytes[i] + 256).toString(16).slice(1);
+        return prefix + hex;
+      }
+    } catch (e) {}
+    return prefix + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
 
   var port = null;             // entangled MessagePort once connected
   var connecting = false;      // a connect attempt is in flight
