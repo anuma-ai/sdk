@@ -66,9 +66,11 @@ function formatEventTime(
   // Reject missing / sentinel-zero / non-finite timestamps — a legacy
   // migration that wrote `DEFAULT 0` would otherwise render every fact
   // anchored to 1970-01-01 and break temporal answering.
-  if (start == null || !Number.isFinite(start) || start <= 0) return "";
+  // (Number.isFinite returns false for null / undefined / NaN, so this
+  // single check is the boundary guard.)
+  if (start === null || start === undefined || !Number.isFinite(start) || start <= 0) return "";
   const startDate = new Date(start).toISOString().slice(0, 10);
-  if (kind === "range" && end != null && Number.isFinite(end) && end > 0) {
+  if (kind === "range" && end !== null && end !== undefined && Number.isFinite(end) && end > 0) {
     // Swap inverted ranges (end < start) — bench fixtures and
     // hand-written tests sometimes produce these; render the wider
     // window rather than the literally-inverted string.

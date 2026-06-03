@@ -76,6 +76,20 @@ Min score threshold. Defaults to recall()'s per-lane defaults.
 
 ***
 
+### now?
+
+> `optional` **now**: `number`
+
+Defined in: [src/lib/memory/recallTool.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#51)
+
+Reference "now" for resolving relative temporal phrases in the
+query ("last week", "yesterday", "N days ago"). Default: `Date.now()`.
+Override for back-dated bench harnesses, replay tools, or
+deterministic tests — otherwise the W6 lane resolves windows
+against wall-clock today, which is wrong for any historical dataset.
+
+***
+
 ### scopes?
 
 > `optional` **scopes**: `string`\[]

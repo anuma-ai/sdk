@@ -1,6 +1,6 @@
 # RecallToolCallbacks
 
-Defined in: [src/lib/memory/recallTool.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#48)
+Defined in: [src/lib/memory/recallTool.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#54)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/recallTool.ts:48](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **onChunksRetrieved**: (`conversationIds`: `string`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#50)
+Defined in: [src/lib/memory/recallTool.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#56)
 
 Called with the conversation IDs returned via the chunk lane.
 
@@ -47,7 +47,7 @@ Called with the conversation IDs returned via the chunk lane.
 
 > `optional` **onFactsRetrieved**: (`factIds`: `string`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#52)
+Defined in: [src/lib/memory/recallTool.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#58)
 
 Called with the fact IDs returned via the fact lane.
 
