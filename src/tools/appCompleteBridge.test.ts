@@ -285,36 +285,55 @@ describe("createAppCompleteBridge ack targeting", () => {
   });
 });
 
-describe("createAppCompleteBridge wide-open warning", () => {
-  it("does not warn when allowedOrigins is set", () => {
+describe("createAppCompleteBridge default-deny", () => {
+  it("throws when neither allowedOrigins nor source is set", () => {
+    expect(() => createAppCompleteBridge({ complete: vi.fn(async () => "x") })).toThrow(
+      /refusing a wide-open bridge/
+    );
+  });
+
+  it("does not throw or warn when allowedOrigins is set", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const bridge = createAppCompleteBridge({
+    const bridge = mkBridge({
       complete: vi.fn(async () => "x"),
       allowedOrigins: ["https://x.example"],
     });
+    expect(bridge).toBeDefined();
     expect(warnSpy).not.toHaveBeenCalled();
-    bridge.dispose();
     warnSpy.mockRestore();
   });
 
-  it("does not warn when source is set", () => {
+  it("does not throw or warn when source is set", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const bridge = createAppCompleteBridge({
+    const bridge = mkBridge({
       complete: vi.fn(async () => "x"),
       source: window,
     });
+    expect(bridge).toBeDefined();
     expect(warnSpy).not.toHaveBeenCalled();
-    bridge.dispose();
     warnSpy.mockRestore();
   });
 
-  it("warns exactly once for wide-open creations (fresh module)", async () => {
+  it('accepts every origin with the explicit ["*"] wildcard', () => {
+    mkBridge({ complete: vi.fn(async (p: string) => p), allowedOrigins: ["*"] });
+    // A connect from an arbitrary origin still gets a port.
+    const { port } = connect({ origin: "https://anything.example" });
+    expect(typeof port.postMessage).toBe("function");
+  });
+
+  it('warns exactly once for the explicit ["*"] wildcard (fresh module)', async () => {
     vi.resetModules();
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const mod = await import("./appCompleteBridge.js");
 
-    const b1 = mod.createAppCompleteBridge({ complete: vi.fn(async () => "x") });
-    const b2 = mod.createAppCompleteBridge({ complete: vi.fn(async () => "x") });
+    const b1 = mod.createAppCompleteBridge({
+      complete: vi.fn(async () => "x"),
+      allowedOrigins: ["*"],
+    });
+    const b2 = mod.createAppCompleteBridge({
+      complete: vi.fn(async () => "x"),
+      allowedOrigins: ["*"],
+    });
 
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy.mock.calls[0][0]).toContain("[anuma] createAppCompleteBridge");

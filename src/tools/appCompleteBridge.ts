@@ -46,6 +46,8 @@
  * import { createAppCompleteBridge } from "@anuma/sdk/tools";
  *
  * const bridge = createAppCompleteBridge({
+ *   // Restrict who can drive complete() — required (or pass `source`).
+ *   allowedOrigins: ["https://preview.example"],
  *   complete: async (prompt) => {
  *     const res = await fetch("/api/complete", {
  *       method: "POST",
@@ -108,12 +110,13 @@ export interface AppCompleteBridgeOptions {
    *  multiple iframes and wants to route them differently. */
   source?: Window;
   /** Restrict accepted `event.origin` values for connect announcements.
-   *  When set, connects from any other origin are silently dropped — so a
-   *  cross-origin script that gains a window handle can't open a channel
-   *  and burn quota. Recommended in production. Defaults to unconstrained
-   *  (accept all origins), which is convenient for local dev and srcdoc
-   *  iframes (origin: "null") but should not be relied on under any
-   *  untrusted-origin threat model. */
+   *  Connects from any other origin are silently dropped — so a cross-origin
+   *  script that gains a window handle can't open a channel and burn quota.
+   *  Use the host's own origin (or the preview's, for cross-origin previews);
+   *  for srcdoc/sandboxed previews whose origin is "null", prefer `source`.
+   *  The single-element sentinel `["*"]` opts into accepting every origin
+   *  (logs a one-time warning). Omitting both this and `source` throws — the
+   *  bridge will not silently default to wide-open. */
   allowedOrigins?: readonly string[];
 }
 
@@ -123,15 +126,15 @@ export interface AppCompleteBridge {
   dispose(): void;
 }
 
-/** Warn at most once per process that a bridge was created without any origin
- *  or source-window restriction. Module-scoped flag keeps it from spamming
+/** Warn at most once per process that a bridge was created with the explicit
+ *  `allowedOrigins: ["*"]` wildcard. Module-scoped flag keeps it from spamming
  *  hosts that mount/unmount previews repeatedly. */
 let warnedWideOpenBridge = false;
 function warnWideOpenBridge(): void {
   if (warnedWideOpenBridge) return;
   warnedWideOpenBridge = true;
   console.warn(
-    "[anuma] createAppCompleteBridge: no `allowedOrigins` or `source` set — the bridge will open a channel for connect requests from ANY origin and run complete() for them. Pass `allowedOrigins` (or `source` for srcdoc/sandboxed previews) to restrict callers in production."
+    '[anuma] createAppCompleteBridge: `allowedOrigins` is ["*"] — the bridge will open a channel and run complete() for connect requests from ANY origin (any frame that can postMessage this window can spend your tokens and read the results). Prefer a specific origin allowlist or `source` in production.'
   );
 }
 
@@ -139,16 +142,30 @@ function warnWideOpenBridge(): void {
  * Install a parent-side bridge that answers `window.app.complete`
  * calls from one or more preview iframes. Returns a handle whose
  * `dispose()` removes the listener and closes open channels.
+ *
+ * @throws if neither `allowedOrigins` nor `source` is provided. The bridge
+ * runs the host's `complete()` (which holds the API key/quota) for callers, so
+ * it refuses to default to accepting every origin — pass `allowedOrigins`
+ * and/or `source`, or opt in explicitly with `allowedOrigins: ["*"]`.
  */
 export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppCompleteBridge {
   const { complete, targetOrigin, source, allowedOrigins } = options;
   const allowSet = allowedOrigins ? new Set(allowedOrigins) : null;
+  const allowAnyOrigin = allowSet?.has("*") ?? false;
 
-  // Wide-open posture (no origin allowlist, no source-window filter) means any
-  // frame that can postMessage this window can open a channel and drive the
-  // host's `complete()`. Legitimate for local dev / single trusted preview,
-  // but warn once so it isn't shipped to production unnoticed.
-  if (!allowSet && !source) warnWideOpenBridge();
+  // Default-deny. A bridge with no origin allowlist and no source-window filter
+  // is a confused-deputy LLM proxy: any frame that can postMessage this window
+  // (a sibling ad/analytics iframe, a hijacked CDN frame, a page that framed or
+  // popped open the host) can open a channel and bill the host's `complete()`
+  // for tokens while reading the responses. A console.warn wouldn't gate that,
+  // so refuse to construct — the host must make an explicit choice.
+  if (!allowSet && !source) {
+    throw new Error(
+      '[anuma] createAppCompleteBridge: refusing a wide-open bridge. Restrict callers with `allowedOrigins` (or `source` for srcdoc/sandboxed previews), or opt into accepting every origin explicitly with `allowedOrigins: ["*"]`.'
+    );
+  }
+  // Explicit wildcard is permitted but genuinely risky; surface it once.
+  if (allowAnyOrigin) warnWideOpenBridge();
 
   // Every channel we hand out, so dispose() can tear them all down. Ports
   // have no "peer went away" event, so a reloaded preview (which re-handshakes
@@ -187,7 +204,7 @@ export function createAppCompleteBridge(options: AppCompleteBridgeOptions): AppC
 
   const handleConnect = (event: MessageEvent): void => {
     if (source && event.source !== source) return;
-    if (allowSet && !allowSet.has(event.origin)) return;
+    if (allowSet && !allowAnyOrigin && !allowSet.has(event.origin)) return;
     const data = event.data as { type?: unknown; id?: unknown } | null | undefined;
     if (!data || data.type !== APP_COMPLETE_CONNECT_TYPE) return;
     if (typeof data.id !== "string") return;
