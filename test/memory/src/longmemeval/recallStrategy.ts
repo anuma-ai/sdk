@@ -392,14 +392,20 @@ export async function processEntryRecall(
     const systemPrompt = `Today is ${entry.question_date}.
 You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.
 
-When the question enumerates a category — "what / which X have I attended / visited / tried / bought / read / discussed", "all the times I…", "everything I…", or any other listing-style question — list EVERY matching memory rather than only the most-recent or top-scoring one. Combine evidence across sessions and dates. The recall tool returns ranked memories but ranking is not exclusion; treat all returned items as candidates worth enumerating when the question shape calls for a list.`;
+When the question enumerates a category — "what / which X have I attended / visited / tried / bought / read / discussed", "all the times I…", "everything I…", or any other listing-style question — list EVERY matching memory rather than only the most-recent or top-scoring one. Combine evidence across sessions and dates. The recall tool returns ranked memories but ranking is not exclusion; treat all returned items as candidates worth enumerating when the question shape calls for a list.
+
+When the question references a NAMED EVENT or activity as a temporal anchor — "before my Japan trip", "after Sara's wedding", "the day after the meeting", "when I started at Stripe", "how long after I started yoga" — your query MUST include both the named anchor AND the asked-about activity. Phrase the query to recall both at once (e.g. "Japan trip and what I did before it" rather than just "Japan trip"). Then in your answer, identify the anchor's date from one returned memory and reason about the asked-about activity relative to that date. If only the anchor is returned but not the asked-about side (or vice versa), the answer is "information not enough"; do not fabricate the missing leg.
+
+When a fact in the memory has a different version mentioned at a later session date (e.g. "user works at Stripe" written 2023-02-01 and "user just started at Anthropic" written 2023-09-15), the LATER fact is the current truth. The earlier one is historical. Prefer the most-recent applicable fact for current-state questions ("where does the user work?"), and use the older fact only for historical questions ("where did the user work before Anthropic?").`;
 
     const toolDef = {
       type: "function" as const,
       function: {
         name: RECALL_TOOL_NAME,
         description:
-          "Search the user's memory across distilled facts and raw conversation chunks. Use the results to answer the user's question.",
+          "Search the user's memory across distilled facts and raw conversation chunks. Use the results to answer the user's question. " +
+          'When the question references a named event or activity as a temporal anchor ("before my Japan trip", "after Sara\'s wedding"), include BOTH the anchor and the asked-about activity in the same query so both surface together. ' +
+          'When the question asks about a current value or latest state ("where does the user work now", "what\'s the user\'s current phone"), recall and use the MOST RECENT applicable fact; older facts about the same property are historical.',
         parameters: {
           type: "object",
           properties: {

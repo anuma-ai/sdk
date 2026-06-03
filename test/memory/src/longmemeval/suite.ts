@@ -709,14 +709,13 @@ export async function runLongMemEval(
   options: LongMemEvalOptions,
   api: ApiConfig
 ): Promise<LongMemEvalSummary | LongMemEvalComparisonSummary> {
-  // `temporal-reasoning` is supported as of PR #533 — the W6 temporal
-  // lane in recall() parses query time windows (parseQueryTimeWindow)
-  // and scores memories by event_time overlap. `knowledge-update`
-  // remains gated: the recall pipeline relies on recency boosts +
-  // consolidation to surface latest facts, which works in principle
-  // but hasn't been validated at the eval level yet — leaving in for
-  // now so a known-noisy category doesn't pollute headline accuracy.
-  const unsupportedTypes: LongMemEvalQuestionType[] = ["knowledge-update"];
+  // All six LongMemEval categories are now in scope. `temporal-reasoning`
+  // is handled by the W6 lane in recall() (parseQueryTimeWindow + event_time
+  // overlap). `knowledge-update` is handled by the recency multiplier +
+  // LLM-based consolidation (consolidate.update overwrites stale fact
+  // content) — an n=10 stratified smoke landed at 90% before this was
+  // enabled at full n=78, so enabling now to measure at scale.
+  const unsupportedTypes: LongMemEvalQuestionType[] = [];
 
   let entries = dataset;
 
