@@ -6,11 +6,18 @@ import type {
   LlmapiMessage,
   LlmapiResponseReasoning,
   LlmapiResponseResponse,
-  LlmapiResponseUsage,
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../client";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
+// Import the cost/credit extraction helpers (and the response union) directly
+// from the strategies type module — it's pure (type-only imports), so this
+// adds no runtime dependency on the strategy singletons in the barrel.
+import {
+  type ApiResponse,
+  getCostMicroUsd,
+  getCreditsUsed,
+} from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
@@ -737,14 +744,17 @@ export interface BaseSendMessageWithStorageArgs {
 }
 
 export interface BaseSendMessageSuccessResult {
-  data: LlmapiResponseResponse;
+  // `ApiResponse` (not `LlmapiResponseResponse`) because the Chat Completions
+  // strategy returns a `LlmapiChatCompletionResponse` here; narrowing to the
+  // Responses shape mistyped `data` for completions callers.
+  data: ApiResponse;
   error: null;
   userMessage: StoredMessage;
   assistantMessage: StoredMessage;
 }
 
 export interface BaseSendMessageSkippedResult {
-  data: LlmapiResponseResponse;
+  data: ApiResponse;
   error: null;
   userMessage?: undefined;
   assistantMessage?: undefined;
@@ -783,14 +793,32 @@ export function generateConversationId(): string {
   return `conv_${uuidv7()}`;
 }
 
-export function convertUsageToStored(usage?: LlmapiResponseUsage): ChatCompletionUsage | undefined {
-  if (!usage) return undefined;
+/**
+ * Convert a chat/responses API response's usage into the stored shape.
+ *
+ * Token counts come straight from `usage`. The cost/credit fields differ by
+ * API — Chat Completions nests them under `portal`, the Responses API keeps
+ * them in `usage` — but that precedence rule lives in exactly one place
+ * (`getCostMicroUsd` / `getCreditsUsed`), which this function defers to rather
+ * than re-implementing. Pass the whole response; `null`/`undefined` yields
+ * `undefined`.
+ */
+export function convertUsageToStored(
+  response?: ApiResponse | null
+): ChatCompletionUsage | undefined {
+  if (!response) return undefined;
+  const usage = response.usage;
+  const costMicroUsd = getCostMicroUsd(response);
+  const creditsUsed = getCreditsUsed(response);
+  if (!usage && costMicroUsd === undefined && creditsUsed === undefined) {
+    return undefined;
+  }
   return {
-    promptTokens: usage.prompt_tokens,
-    completionTokens: usage.completion_tokens,
-    totalTokens: usage.total_tokens,
-    costMicroUsd: usage.cost_micro_usd,
-    creditsUsed: usage.credits_used,
+    promptTokens: usage?.prompt_tokens,
+    completionTokens: usage?.completion_tokens,
+    totalTokens: usage?.total_tokens,
+    costMicroUsd,
+    creditsUsed,
   };
 }
 

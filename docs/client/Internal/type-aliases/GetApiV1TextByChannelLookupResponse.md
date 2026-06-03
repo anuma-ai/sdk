@@ -2,4 +2,4 @@
 
 > **GetApiV1TextByChannelLookupResponse** = [`GetApiV1TextByChannelLookupResponses`](GetApiV1TextByChannelLookupResponses.md)\[keyof [`GetApiV1TextByChannelLookupResponses`](GetApiV1TextByChannelLookupResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6383](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6383)
+Defined in: [src/client/types.gen.ts:8412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8412)

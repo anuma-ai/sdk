@@ -2,3 +2,13 @@
 
 export type * from './types.gen';
 export * from './sdk.gen';
+
+// Backwards-compat shims — see ../clientCompat.ts. These named re-exports
+// shadow the wildcard re-export above for the listed types.
+export type {
+  LlmapiChatCompletionResponse,
+  LlmapiChatCompletionTool,
+  LlmapiChatCompletionToolChoice,
+  LlmapiChatCompletionUsage,
+  LlmapiChoice,
+} from '../clientCompat';

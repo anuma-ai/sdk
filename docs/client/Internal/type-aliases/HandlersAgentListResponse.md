@@ -2,7 +2,7 @@
 
 > **HandlersAgentListResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#210)
+Defined in: [src/client/types.gen.ts:1207](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1207)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:210](https://github.com/anuma-ai/sdk/blob/m
 
 > **agents**: [`HandlersAgentListItem`](HandlersAgentListItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:214](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#214)
+Defined in: [src/client/types.gen.ts:1211](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1211)
 
 Agents is the list of active agents.
