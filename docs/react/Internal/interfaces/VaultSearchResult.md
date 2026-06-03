@@ -1,6 +1,6 @@
 # VaultSearchResult
 
-Defined in: [src/lib/memoryVault/searchTool.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#289)
+Defined in: [src/lib/memoryVault/searchTool.ts:904](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#904)
 
 A single vault search result with its similarity score.
 
@@ -10,7 +10,18 @@ A single vault search result with its similarity score.
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#291)
+Defined in: [src/lib/memoryVault/searchTool.ts:906](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#906)
+
+***
+
+### createdAt?
+
+> `optional` **createdAt**: `Date`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:910](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#910)
+
+Optional — surfaced by the rankers so downstream `RankedMemory` carries
+real timestamps. Omitted when an item lacks the field upstream.
 
 ***
 
@@ -18,7 +29,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:291](https://github.com/anuma-ai/
 
 > **similarity**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:292](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#292)
+Defined in: [src/lib/memoryVault/searchTool.ts:907](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#907)
 
 ***
 
@@ -26,4 +37,12 @@ Defined in: [src/lib/memoryVault/searchTool.ts:292](https://github.com/anuma-ai/
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#290)
+Defined in: [src/lib/memoryVault/searchTool.ts:905](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#905)
+
+***
+
+### updatedAt?
+
+> `optional` **updatedAt**: `Date`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:911](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#911)

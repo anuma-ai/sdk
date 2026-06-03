@@ -2,6 +2,11 @@ import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils";
+import {
+  type EntityOperationsContext,
+  unlinkAllMemoryEntitiesForUserOp,
+  unlinkMemoryEntitiesOp,
+} from "../entities/operations";
 import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
 import type {
@@ -18,6 +23,12 @@ export interface VaultMemoryOperationsContext {
   embeddedWalletSigner?: EmbeddedWalletSignerFn;
   /** When set, operations scope to this user (server-side multi-user). */
   userId?: string;
+  /**
+   * When set, vault delete ops cascade to memory_entity rows pointing at
+   * the deleted memories. Without this the W5 graph lane keeps returning
+   * IDs of soft-deleted memories and the join table grows unbounded.
+   */
+  entityCtx?: EntityOperationsContext;
 }
 
 /** Returns true if the record belongs to the context user (or if no user scoping is active). */
@@ -45,6 +56,17 @@ async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Prom
 }
 
 function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
+  let sourceChunkIds: string[] | null = null;
+  if (memory.sourceChunkIds) {
+    try {
+      const parsed = JSON.parse(memory.sourceChunkIds) as unknown;
+      if (Array.isArray(parsed)) {
+        sourceChunkIds = parsed.filter((s): s is string => typeof s === "string");
+      }
+    } catch {
+      sourceChunkIds = null;
+    }
+  }
   return {
     uniqueId: memory.id,
     content: memory.content,
@@ -52,6 +74,12 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     folderId: memory.folderId ?? null,
     userId: memory.userId ?? null,
     embedding: memory.embedding ?? null,
+    sourceChunkIds,
+    proofCount: memory.proofCount ?? null,
+    source: memory.source ?? null,
+    eventTimeStart: memory.eventTimeStart ?? null,
+    eventTimeEnd: memory.eventTimeEnd ?? null,
+    eventTimeKind: memory.eventTimeKind ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -96,10 +124,112 @@ export async function createVaultMemoryOp(
       if (opts.embedding !== undefined) {
         record._setRaw("embedding", opts.embedding);
       }
+      if (opts.sourceChunkIds !== undefined) {
+        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+      }
+      record._setRaw("proof_count", opts.proofCount ?? 1);
+      record._setRaw("source", opts.source ?? "manual");
+      if (opts.eventTime) {
+        record._setRaw("event_time_start", opts.eventTime.start ?? null);
+        record._setRaw("event_time_end", opts.eventTime.end ?? null);
+        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
     });
   });
 
   return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * W6 temporal lane read — fetch memories whose event-time overlaps the
+ * given window. "Overlap" means:
+ *   - point/ongoing: event_time_start ∈ [windowStart, windowEnd)
+ *   - range:         memory range ∩ window non-empty
+ *
+ * Returns a thin shape with just the fields needed for the temporal
+ * ranker — uniqueId, eventTimeStart, eventTimeEnd, eventTimeKind. Caller
+ * scores overlap via {@link scoreEventTimeOverlap} and folds into RRF.
+ *
+ * Uses the indexed `event_time_start` column for the cheap point/ongoing
+ * filter; range overlap is then post-filtered in JS (rare; range
+ * memories are < 5% of typical vaults).
+ */
+export async function getMemoriesByEventTimeOp(
+  ctx: VaultMemoryOperationsContext,
+  windowStart: number,
+  windowEnd: number
+): Promise<
+  Array<{
+    uniqueId: string;
+    eventTimeStart: number;
+    eventTimeEnd: number | null;
+    eventTimeKind: string | null;
+  }>
+> {
+  // Push as much filtering into SQL as possible:
+  //   - event_time_start IS NOT NULL
+  //   - event_time_start < windowEnd  (any candidate must start before
+  //     the window ends, regardless of kind)
+  //   - (event_time_start >= windowStart  OR  kind IN ("range","ongoing"))
+  //     A point starting before windowStart can't overlap, so filter at
+  //     SQL. Range/ongoing rows starting earlier may still overlap and
+  //     fall through to the JS check below.
+  const records = await ctx.vaultMemoryCollection
+    .query(
+      ...baseVaultConditions(ctx),
+      Q.where("event_time_start", Q.notEq(null)),
+      Q.where("event_time_start", Q.lte(windowEnd)),
+      Q.or(
+        Q.where("event_time_start", Q.gte(windowStart)),
+        Q.where("event_time_kind", Q.oneOf(["range", "ongoing"]))
+      )
+    )
+    .fetch();
+
+  const out: Array<{
+    uniqueId: string;
+    eventTimeStart: number;
+    eventTimeEnd: number | null;
+    eventTimeKind: string | null;
+  }> = [];
+  for (const r of records) {
+    const start = r.eventTimeStart;
+    if (start === null) continue;
+    const end = r.eventTimeEnd ?? null;
+    const kind = r.eventTimeKind ?? null;
+    // Point/ongoing: only keep if start is inside window.
+    if (kind !== "range") {
+      if (kind === "ongoing") {
+        // Overlap window if started before windowEnd and (if it has a
+        // non-null end) hasn't ended before windowStart.
+        const ongoingEnd = end ?? Number.POSITIVE_INFINITY;
+        if (start < windowEnd && ongoingEnd >= windowStart) {
+          out.push({
+            uniqueId: r.id,
+            eventTimeStart: start,
+            eventTimeEnd: end,
+            eventTimeKind: kind,
+          });
+        }
+      } else {
+        if (start >= windowStart && start < windowEnd) {
+          out.push({
+            uniqueId: r.id,
+            eventTimeStart: start,
+            eventTimeEnd: end,
+            eventTimeKind: kind,
+          });
+        }
+      }
+      continue;
+    }
+    // Range: overlap if [start, end] ∩ [windowStart, windowEnd) is non-empty.
+    const memEnd = end ?? start;
+    if (memEnd >= windowStart && start < windowEnd) {
+      out.push({ uniqueId: r.id, eventTimeStart: start, eventTimeEnd: end, eventTimeKind: kind });
+    }
+  }
+  return out;
 }
 
 export async function createVaultMemoriesBatchOp(
@@ -134,6 +264,16 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("is_deleted", false);
         if (optionsArray[i].embedding !== undefined) {
           record._setRaw("embedding", optionsArray[i].embedding);
+        }
+        if (opts.sourceChunkIds !== undefined) {
+          record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+        }
+        record._setRaw("proof_count", opts.proofCount ?? 1);
+        record._setRaw("source", opts.source ?? "manual");
+        if (opts.eventTime) {
+          record._setRaw("event_time_start", opts.eventTime.start ?? null);
+          record._setRaw("event_time_end", opts.eventTime.end ?? null);
+          record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
         }
       })
     );
@@ -222,6 +362,7 @@ export async function updateVaultMemoryOp(
           )
         : opts.content;
 
+    const originalUpdatedAt = record.updatedAt.getTime();
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("content", encryptedContent);
@@ -233,6 +374,34 @@ export async function updateVaultMemoryOp(
         }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
+        }
+        if (opts.sourceChunkIds !== undefined) {
+          r._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+        }
+        if (opts.proofCountIncrement !== undefined) {
+          // Read inside the writer so two parallel retain() calls observe
+          // each other's commits and neither loses its increment. Reading
+          // `r.proofCount` reflects the latest committed _raw value (the
+          // identity-mapped record is updated immediately by _setRaw, and
+          // database.write() serializes writers).
+          const current = r.proofCount ?? 1;
+          r._setRaw("proof_count", current + opts.proofCountIncrement);
+        } else if (opts.proofCount !== undefined) {
+          r._setRaw("proof_count", opts.proofCount);
+        }
+        if (opts.source !== undefined) {
+          r._setRaw("source", opts.source);
+        }
+        if (opts.eventTime !== undefined) {
+          r._setRaw("event_time_start", opts.eventTime.start ?? null);
+          r._setRaw("event_time_end", opts.eventTime.end ?? null);
+          r._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+        }
+        if (opts.preserveUpdatedAt) {
+          // WatermelonDB's record.update() bumps updated_at automatically.
+          // Restore the original so re-observation doesn't double-count
+          // against the recency multiplier on top of proof_count.
+          r._setRaw("updated_at", originalUpdatedAt);
         }
       });
     });
@@ -261,6 +430,17 @@ export async function deleteVaultMemoryOp(
         r._setRaw("is_deleted", true);
       });
     });
+
+    // W5 cascade: drop the join rows so the graph lane doesn't keep
+    // returning IDs of soft-deleted memories. Best-effort — a failure
+    // here doesn't roll back the vault delete.
+    if (ctx.entityCtx) {
+      try {
+        await unlinkMemoryEntitiesOp(ctx.entityCtx, [id]);
+      } catch {
+        // Auxiliary cleanup — leave the cascade to the next sweep.
+      }
+    }
 
     return true;
   } catch {
@@ -305,6 +485,24 @@ export async function deleteAllVaultMemoriesForUserOp(
     );
     await ctx.database.batch(...prepared);
   });
+
+  // W5 cascade: drop every join row for this user in one pass. Falls
+  // back to per-memory unlink when the entity context lacks user_id
+  // scoping (single-user clients).
+  if (ctx.entityCtx) {
+    try {
+      if (ctx.entityCtx.userId !== undefined) {
+        await unlinkAllMemoryEntitiesForUserOp(ctx.entityCtx, userId);
+      } else {
+        await unlinkMemoryEntitiesOp(
+          ctx.entityCtx,
+          records.map((r) => r.id)
+        );
+      }
+    } catch {
+      // Auxiliary cleanup — leave the cascade to the next sweep.
+    }
+  }
 
   return records.length;
 }

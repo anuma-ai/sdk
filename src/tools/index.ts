@@ -147,6 +147,32 @@ export {
 // GitHub exports
 export { createGitHubTools } from "./github";
 
+// Gmail exports
+export type {
+  GmailGetMessageArgs,
+  GmailMessageDetail,
+  GmailMessageSummary,
+  GmailRequestAccess,
+  GmailSearchArgs,
+  GmailSendMessageArgs,
+  GmailTokenGetter,
+} from "./gmail";
+export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
+
+// Connector vault primitives
+export type {
+  ConnectorErrorCode,
+  ConnectorMintError,
+  ConnectorMintResult,
+  ConnectorTokenGetterOpts,
+  ConnectorTokenSource,
+} from "../lib/connectors";
+export {
+  buildConnectorErrorResult,
+  CONNECTOR_ERROR_MARKER,
+  createConnectorTokenGetter,
+} from "../lib/connectors";
+
 // App generation tools
 export type {
   AuditIssue,

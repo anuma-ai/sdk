@@ -1,4 +1,5 @@
-import { MULTILINE_FIELD_MAX, type SkillJourneyDefinition } from "@anuma/sdk";
+import { MULTILINE_FIELD_MAX } from "@anuma/sdk/constants";
+import type { SkillJourneyDefinition } from "@anuma/sdk";
 
 const US_STATES = [
   "AL",

@@ -2,7 +2,7 @@
 
 > **getVideosOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:462](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#462)
+Defined in: [src/lib/db/media/operations.ts:562](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#562)
 
 Get all videos for a user.
 

@@ -2,7 +2,7 @@
 
 > **updateVaultMemoryEmbeddingOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`, `embedding`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#312)
+Defined in: [src/lib/db/memoryVault/operations.ts:510](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#510)
 
 ## Parameters
 

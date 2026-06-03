@@ -1,19 +1,30 @@
 /**
- * Google Drive OAuth 2.0 Authorization Code Flow
+ * Google Drive OAuth 2.0 Authorization Code Flow — **LEGACY (v1) MODULE**.
  *
- * Uses the portal backend for token exchange.
- * The backend handles the client secret - client only sends auth code.
+ * As of the connector-vault rollout (`.claude-docs/connecters/DESIGN.md`),
+ * Google refresh tokens live server-side on the portal and the canonical
+ * way to obtain a Drive access token is:
  *
- * This implementation requests drive.readonly scope to access ALL user files,
- * not just files created by the app.
+ * ```ts
+ * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
+ * const getToken = createConnectorTokenGetter(portalClient, "gdrive");
+ * ```
  *
- * Token storage uses wallet-based encryption when a wallet address is provided.
- * Encrypted tokens are stored in localStorage with the "enc:oauth:" prefix.
- * When no wallet is available, tokens are stored temporarily in sessionStorage.
+ * The functions in this file remain published with their original
+ * signatures so existing consumers (anuma-ai/ai-memoryless-client) keep
+ * compiling and the legacy `/auth/oauth/google-drive/{exchange,refresh,revoke}`
+ * portal endpoints keep working through the transition window
+ * (≈2 release cycles per the design). New code MUST use
+ * `createConnectorTokenGetter`. Each export below is annotated
+ * `@deprecated` with the recommended replacement.
  *
- * Note: This is different from the backup/google/auth.ts which uses drive.file
- * scope (limited to app-created files). Use this module when you need to search
- * and read any file in the user's Drive.
+ * TODO(connector-vault): once `ai-memoryless-client` migrates to the
+ * portal mint path and the legacy endpoints sunset (PR 4 in the plan),
+ * collapse this module to a thin re-export over `createConnectorTokenGetter`
+ * and delete the browser-resident encryption + localStorage code paths.
+ *
+ * The original behavior is preserved verbatim below for backward
+ * compatibility. See the design doc for the migration plan.
  */
 
 import type { Client } from "../../client/client";

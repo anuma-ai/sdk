@@ -16,6 +16,13 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.cjs"
     },
+    "./constants": {
+      "types": "./dist/constants/index.d.ts",
+      "react-native": "./dist/constants/index.mjs",
+      "import": "./dist/constants/index.mjs",
+      "require": "./dist/constants/index.cjs",
+      "default": "./dist/constants/index.cjs"
+    },
     "./react": {
       "types": "./dist/react/index.d.ts",
       "react-native": "./dist/react/index.mjs",

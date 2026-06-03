@@ -1,7 +1,7 @@
 /**
- * Pure functions for extracting MCP image URLs.
+ * Pure functions for extracting MCP media URLs (images and videos).
  *
- * These are extracted from `useChatStorage.extractAndStoreEncryptedMCPImages`
+ * These are extracted from `useChatMedia.extractAndStoreEncryptedMCPImages`
  * so they can be tested in isolation without React hooks or OPFS dependencies.
  */
 
@@ -11,10 +11,15 @@ interface ToolCallEvent {
   output?: string;
 }
 
-/** Extracted image URL with its associated model. */
-interface ExtractedImageUrl {
+/** Media kind an extracted URL resolves to. */
+type ExtractedMediaKind = "image" | "video";
+
+/** Extracted media URL with its associated model and resolved kind. */
+interface ExtractedMediaUrl {
   url: string;
   model: string;
+  /** "video" when the URL/tool is a video source, otherwise "image". */
+  mediaType: ExtractedMediaKind;
 }
 
 /** Image tool names recognized by the MCP image pipeline. */
@@ -25,28 +30,62 @@ export const IMAGE_TOOL_NAMES = new Set([
   "edit_cloud_image",
 ]);
 
+/** Video tool names recognized by the MCP video pipeline. */
+const VIDEO_TOOL_NAMES = new Set([
+  "AnumaMediaMCP-anuma_create_video",
+  "AnumaFalMCP-fal_generate_video",
+  "anuma_create_video",
+  "fal_generate_video",
+]);
+
 /**
- * Extracts MCP image URLs from tool_call_events (primary) or content (fallback).
+ * Single source of truth for video file extensions. Adding a new format here
+ * updates classification everywhere (extraction, fallback, and the relink
+ * recovery op in db/media/operations.ts which imports this list + helper).
+ */
+export const VIDEO_EXTENSIONS = ["mp4", "webm", "mov"] as const;
+
+/** Matches a video extension at the end of a path, before a query/fragment. */
+const VIDEO_EXTENSION_RE = new RegExp(`\\.(${VIDEO_EXTENSIONS.join("|")})(?:[?#]|$)`, "i");
+
+/** Extract the lowercased video extension from a URL/filename, or null. */
+export function videoExtensionOf(value: string | undefined | null): string | null {
+  return value?.match(VIDEO_EXTENSION_RE)?.[1]?.toLowerCase() ?? null;
+}
+
+/** Classify a URL by file extension. Defaults to image. */
+function classifyUrl(url: string): ExtractedMediaKind {
+  return VIDEO_EXTENSION_RE.test(url) ? "video" : "image";
+}
+
+/**
+ * Extracts MCP media URLs from tool_call_events (primary) or content (fallback).
  *
- * Primary path: parses JSON output of image-generation tool calls.
- * Fallback path: regex-matches MCP R2 domain URLs embedded in content.
+ * Primary path: parses JSON output of image- and video-generation tool calls.
+ * Fallback path: regex-matches MCP R2 domain URLs in content and classifies
+ * each by file extension (so videos aren't mislabeled as images).
  *
- * @param content    - The message content (may contain markdown/HTML image refs)
+ * The function name is retained for call-site stability; it now returns videos
+ * too, each tagged with `mediaType`.
+ *
+ * @param content    - The message content (may contain markdown/HTML media refs)
  * @param toolCallEvents - Tool call events from streaming accumulator
- * @param mcpR2Domain    - The R2 domain to match (e.g. "ai-image-mcp-images.xxx.r2.cloudflarestorage.com")
- * @returns Array of extracted URLs with model info
+ * @param mcpR2Domain    - The R2 domain to match
+ * @returns Array of extracted URLs with model + mediaType info
  */
 export function extractMCPImageUrls(
   content: string,
   toolCallEvents: ToolCallEvent[] | undefined,
   mcpR2Domain: string
-): ExtractedImageUrl[] {
-  const urls: ExtractedImageUrl[] = [];
+): ExtractedMediaUrl[] {
+  const urls: ExtractedMediaUrl[] = [];
 
   // Primary: extract from tool_call_events
   if (toolCallEvents && toolCallEvents.length > 0) {
     for (const event of toolCallEvents) {
-      if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
+      if (!event.name) continue;
+
+      if (IMAGE_TOOL_NAMES.has(event.name)) {
         try {
           const output = JSON.parse(event.output || "{}") as {
             model?: string;
@@ -56,7 +95,34 @@ export function extractMCPImageUrls(
           // Tool output uses "imageUrl"; also check "url" for backward compatibility
           const imageUrl = output.imageUrl || output.url;
           if (imageUrl) {
-            urls.push({ url: imageUrl, model: output.model || "image" });
+            urls.push({ url: imageUrl, model: output.model || "image", mediaType: "image" });
+          }
+        } catch {
+          // Malformed JSON — skip this event
+        }
+      } else if (VIDEO_TOOL_NAMES.has(event.name)) {
+        try {
+          const output = JSON.parse(event.output || "{}") as {
+            model?: string;
+            videos?: Array<{ video_url?: string }>;
+            videoUrl?: string;
+            url?: string;
+          };
+          const model = output.model || "video";
+          // Video tools return a `videos: [{ video_url }]` array; fall back to
+          // single videoUrl/url for resilience. Dedupe so a response that
+          // repeats a URL across fields doesn't create two records.
+          const videoUrls = [
+            ...new Set(
+              [
+                ...(output.videos?.map((v) => v.video_url) ?? []),
+                output.videoUrl,
+                output.url,
+              ].filter((u): u is string => Boolean(u))
+            ),
+          ];
+          for (const url of videoUrls) {
+            urls.push({ url, model, mediaType: "video" });
           }
         } catch {
           // Malformed JSON — skip this event
@@ -76,7 +142,11 @@ export function extractMCPImageUrls(
         const normalized = url.replace(/[)"'>\s]+$/, "");
         if (!seen.has(normalized)) {
           seen.add(normalized);
-          urls.push({ url: normalized, model: "image" });
+          const mediaType = classifyUrl(normalized);
+          // Content fallback has no tool output, so there's no real model.
+          // Use the legacy "image" sentinel for both kinds (the `model` field is
+          // an image-model hint, not a kind — `mediaType` carries the real kind).
+          urls.push({ url: normalized, model: "image", mediaType });
         }
       }
     }

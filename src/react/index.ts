@@ -354,6 +354,7 @@ export {
   mediaToStored,
   // Types
   type MediaType,
+  relinkMisclassifiedVideosOp,
   searchMediaOp,
   type StoredMedia,
   Media as StoredMediaModel,

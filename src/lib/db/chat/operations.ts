@@ -3,6 +3,7 @@ import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
+import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decryptJsonField } from "../encryption-utils";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import { decryptMessageFields, encryptMessageFields, isEncrypted } from "./encryption";
@@ -752,23 +753,6 @@ async function readJsonField<T>(
   } catch {
     return undefined;
   }
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-  return magnitude === 0 ? 0 : dotProduct / magnitude;
 }
 
 export async function searchMessagesOp(
