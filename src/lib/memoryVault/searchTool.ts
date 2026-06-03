@@ -84,6 +84,18 @@ export interface MemoryVaultSearchOptions {
 /**
  * An item with a pre-computed embedding, ready for ranking.
  */
+/**
+ * Coerce a free-form `eventTimeKind` string from the vault row into the
+ * fixed enum the recall executor knows how to format. Unknown / casing
+ * variants collapse to null so we never silently render a range memory
+ * as a point date (or vice versa).
+ */
+function normalizeEventTimeKind(
+  kind: string | null | undefined
+): "point" | "range" | "ongoing" | null {
+  return kind === "point" || kind === "range" || kind === "ongoing" ? kind : null;
+}
+
 interface EmbeddedItem {
   id: string;
   content: string;
@@ -96,6 +108,11 @@ interface EmbeddedItem {
   updatedAt?: Date;
   /** Number of times this fact has been re-observed (W4 — auto-merge). */
   proofCount?: number | null;
+  /** W6 temporal-lane anchors — carried through to VaultSearchResult so the
+   * recall executor can surface event dates without a second DB+decrypt. */
+  eventTimeStart?: number | null;
+  eventTimeEnd?: number | null;
+  eventTimeKind?: "point" | "range" | "ongoing" | null;
 }
 
 /**
@@ -222,6 +239,10 @@ export function rankVaultMemories(
     content: item.content,
     embedding: item.embedding,
     updatedAt: item.updatedAt,
+    createdAt: item.createdAt,
+    eventTimeStart: item.eventTimeStart,
+    eventTimeEnd: item.eventTimeEnd,
+    eventTimeKind: item.eventTimeKind,
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
@@ -365,6 +386,9 @@ export function rankFusedVaultMemories(
       similarity: Math.min(minSimilarity, bm25 / 50),
       createdAt: item.createdAt ?? item.updatedAt,
       updatedAt: item.updatedAt,
+      eventTimeStart: item.eventTimeStart,
+      eventTimeEnd: item.eventTimeEnd,
+      eventTimeKind: item.eventTimeKind,
     });
   }
 
@@ -458,6 +482,9 @@ export function rankByEntityOverlap(
     let shared = 0;
     for (const e of queryEntities) if (item.entities.has(e)) shared++;
     if (shared === 0) continue;
+    // entityRanking is consumed by upstream RRF as an id-only ranking;
+    // eventTime / timestamps don't need to round-trip here since the
+    // primary lane already carries them on the merged result.
     scored.push({
       uniqueId: item.id,
       content: item.content,
@@ -653,6 +680,9 @@ export async function rankFusedVaultMemoriesAsync(
         similarity: p.score,
         createdAt: orig?.createdAt,
         updatedAt: orig?.updatedAt,
+        eventTimeStart: orig?.eventTimeStart,
+        eventTimeEnd: orig?.eventTimeEnd,
+        eventTimeKind: orig?.eventTimeKind,
       };
     });
     // For benchmark + temporal-margin analysis, callers that want the
@@ -786,6 +816,9 @@ export async function rankComposite(
         similarity: score,
         createdAt: item.createdAt ?? item.updatedAt,
         updatedAt: item.updatedAt,
+        eventTimeStart: item.eventTimeStart,
+        eventTimeEnd: item.eventTimeEnd,
+        eventTimeKind: item.eventTimeKind,
       };
     }
   );
@@ -805,6 +838,9 @@ export async function rankComposite(
         similarity: 0,
         createdAt: item.createdAt ?? item.updatedAt,
         updatedAt: item.updatedAt,
+        eventTimeStart: item.eventTimeStart,
+        eventTimeEnd: item.eventTimeEnd,
+        eventTimeKind: item.eventTimeKind,
       });
     }
   }
@@ -909,6 +945,13 @@ export interface VaultSearchResult {
    * real timestamps. Omitted when an item lacks the field upstream. */
   createdAt?: Date;
   updatedAt?: Date;
+  /** W6 temporal-lane anchors carried through to downstream `RankedMemory`
+   * so the recall executor can surface dates to the answer model without
+   * a second per-fact DB lookup + decrypt. Unix ms; null when the fact
+   * has no anchored event time. */
+  eventTimeStart?: number | null;
+  eventTimeEnd?: number | null;
+  eventTimeKind?: "point" | "range" | "ongoing" | null;
 }
 
 /**
@@ -990,6 +1033,9 @@ export async function searchVaultMemoriesWithSize(
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
     proofCount: m.proofCount,
+    eventTimeStart: m.eventTimeStart,
+    eventTimeEnd: m.eventTimeEnd,
+    eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
   }));
 
   // The rankers below all return bare {uniqueId, content, similarity}

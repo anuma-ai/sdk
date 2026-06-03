@@ -26,6 +26,7 @@ import {
   fetchModelPricing,
   attachCost,
 } from "./src/longmemeval/index.js";
+import { LONG_MEM_EVAL_QUESTION_TYPES } from "./src/longmemeval/index.js";
 import type {
   LongMemEvalOptions,
   LongMemEvalQuestionType,
@@ -48,6 +49,22 @@ function parseRecallEmit(raw: string): RecallEmit {
 
 function parseRecallLaneMode(raw: string): RecallLaneMode {
   return raw === "per-lane" ? "per-lane" : "fused";
+}
+
+function parseQuestionTypes(raw: string): LongMemEvalQuestionType[] {
+  const known = new Set<string>(LONG_MEM_EVAL_QUESTION_TYPES);
+  const tokens = raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+  const unknown = tokens.filter((t) => !known.has(t));
+  if (unknown.length > 0) {
+    console.error(
+      `Unknown --types: ${unknown.join(", ")}. Expected one of ${LONG_MEM_EVAL_QUESTION_TYPES.join(", ")}`
+    );
+    process.exit(1);
+  }
+  return tokens as LongMemEvalQuestionType[];
 }
 
 const { values: args } = parseArgs({
@@ -212,9 +229,7 @@ async function main(): Promise<void> {
     questionId: args["question-id"],
     maxQuestions: args.max ? parseInt(args.max, 10) : undefined,
     maxSessions: args["max-sessions"] ? parseInt(args["max-sessions"], 10) : undefined,
-    questionTypes: args.types
-      ? (args.types.split(",").map((t) => t.trim()) as LongMemEvalQuestionType[])
-      : undefined,
+    questionTypes: args.types ? parseQuestionTypes(args.types) : undefined,
     verbose: args.verbose,
     output: args.output,
     skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],

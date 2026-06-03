@@ -48,6 +48,19 @@ const TYPES_BY_FLAG: Record<RecallTypes, Array<"fact" | "chunk">> = {
   "fact-chunk": ["fact", "chunk"],
 };
 
+/**
+ * Extract YYYY-MM-DD prefix from LongMemEval's `YYYY/MM/DD (Day) HH:MM`
+ * format and parse as midnight UTC. Returns NaN if the format isn't
+ * recognized — caller should fall back to Date.now() in that case to
+ * avoid silently corrupting the W6 lane with a NaN window.
+ */
+function parseQuestionDateUtc(raw: string): number {
+  const match = raw.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
+  if (!match) return NaN;
+  const [, yyyy, mm, dd] = match;
+  return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
 function budgetFor(decompose: boolean, rerank: boolean): "low" | "mid" | "high" {
   if (decompose) return "high";
   if (rerank) return "mid";
@@ -269,7 +282,18 @@ export async function processEntryRecall(
       // question's reference date — LongMemEval entries are dated
       // 2021–2023 but Date.now() resolves to today, so without this the
       // W6 temporal lane returns empty windows for every question.
-      const nowForQuery = Date.parse(entry.question_date);
+      //
+      // question_date format is `YYYY/MM/DD (Day) HH:MM`. Date.parse
+      // accepts this in V8 but interprets the date in LOCAL time (no TZ
+      // designator), so the GitHub runner (UTC) and a developer's local
+      // machine (e.g. PDT) get different `now` values for the same
+      // question — leading to non-reproducible runs near day boundaries.
+      // Force UTC by extracting the YYYY-MM-DD prefix and parsing as an
+      // explicit ISO UTC date.
+      const nowForQueryRaw = parseQuestionDateUtc(entry.question_date);
+      // Fall back to undefined (recall defaults to Date.now()) on parse
+      // failure rather than letting NaN poison every downstream date.
+      const nowForQuery = Number.isFinite(nowForQueryRaw) ? nowForQueryRaw : undefined;
 
       // Per-lane: separate calls so chunks don't compete with facts for
       // a shared limit. Each lane gets its own pool. Skip when the fused

@@ -13,10 +13,6 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
   updateVaultMemoryEmbeddingOp: vi.fn().mockResolvedValue(undefined),
-  // recall() now calls getVaultMemoryOp via attachEventTimeToFacts to
-  // hydrate event_time onto fact memories for the W6 temporal lane —
-  // returns null in these tests since they don't exercise temporal.
-  getVaultMemoryOp: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({

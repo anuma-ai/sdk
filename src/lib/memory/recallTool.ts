@@ -43,6 +43,12 @@ export interface RecallToolOptions {
     baseUrl?: string;
     model?: string;
   };
+  /** Reference "now" for resolving relative temporal phrases in the
+   * query ("last week", "yesterday", "N days ago"). Default: `Date.now()`.
+   * Override for back-dated bench harnesses, replay tools, or
+   * deterministic tests — otherwise the W6 lane resolves windows
+   * against wall-clock today, which is wrong for any historical dataset. */
+  now?: number;
 }
 
 export interface RecallToolCallbacks {
@@ -57,11 +63,19 @@ function formatEventTime(
   end: number | null | undefined,
   kind: "point" | "range" | "ongoing" | null | undefined
 ): string {
-  if (start == null) return "";
+  // Reject missing / sentinel-zero / non-finite timestamps — a legacy
+  // migration that wrote `DEFAULT 0` would otherwise render every fact
+  // anchored to 1970-01-01 and break temporal answering.
+  if (start == null || !Number.isFinite(start) || start <= 0) return "";
   const startDate = new Date(start).toISOString().slice(0, 10);
-  if (kind === "range" && end != null) {
-    const endDate = new Date(end).toISOString().slice(0, 10);
-    return `, event: ${startDate}..${endDate}`;
+  if (kind === "range" && end != null && Number.isFinite(end) && end > 0) {
+    // Swap inverted ranges (end < start) — bench fixtures and
+    // hand-written tests sometimes produce these; render the wider
+    // window rather than the literally-inverted string.
+    const [lo, hi] = end >= start ? [start, end] : [end, start];
+    const startStr = new Date(lo).toISOString().slice(0, 10);
+    const endStr = new Date(hi).toISOString().slice(0, 10);
+    return startStr === endStr ? `, event: ${startStr}` : `, event: ${startStr}..${endStr}`;
   }
   if (kind === "ongoing") return `, event: since ${startDate}`;
   return `, event: ${startDate}`;
@@ -180,6 +194,7 @@ export function createRecallTool(
           ...(toolOptions?.decomposeOptions && {
             decomposeOptions: toolOptions.decomposeOptions,
           }),
+          ...(toolOptions?.now !== undefined && { now: toolOptions.now }),
         };
 
         const result = await recall(query, ctx, recallOpts);

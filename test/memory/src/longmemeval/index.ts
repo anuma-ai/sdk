@@ -23,3 +23,4 @@ export type {
   LongMemEvalStrategy,
   ApiConfig,
 } from "./types.js";
+export { LONG_MEM_EVAL_QUESTION_TYPES } from "./types.js";

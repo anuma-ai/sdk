@@ -4,13 +4,16 @@
  * Based on the LongMemEval benchmark: https://github.com/xiaowu0162/LongMemEval
  */
 
-export type LongMemEvalQuestionType =
-  | "single-session-user"
-  | "single-session-assistant"
-  | "single-session-preference"
-  | "temporal-reasoning"
-  | "knowledge-update"
-  | "multi-session";
+export const LONG_MEM_EVAL_QUESTION_TYPES = [
+  "single-session-user",
+  "single-session-assistant",
+  "single-session-preference",
+  "temporal-reasoning",
+  "knowledge-update",
+  "multi-session",
+] as const;
+
+export type LongMemEvalQuestionType = (typeof LONG_MEM_EVAL_QUESTION_TYPES)[number];
 
 export interface LongMemEvalMessage {
   role: "user" | "assistant";

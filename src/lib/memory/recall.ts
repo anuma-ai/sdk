@@ -15,7 +15,7 @@
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
-import { getMemoriesByEventTimeOp, getVaultMemoryOp } from "../db/memoryVault/operations.js";
+import { getMemoriesByEventTimeOp } from "../db/memoryVault/operations.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
@@ -157,10 +157,8 @@ export async function recall(
       ...chunkResults.map(toChunkMemory),
     ];
     memories.sort((a, b) => b.score - a.score);
-    const sliced = memories.slice(0, limit);
-    await attachEventTimeToFacts(sliced, ctx);
     return {
-      memories: sliced,
+      memories: memories.slice(0, limit),
       usedBudget,
       reranked: flags.rerank,
       candidateCount: factResults.length + chunkResults.length,
@@ -189,7 +187,6 @@ export async function recall(
   }
 
   const memories = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, limit);
-  await attachEventTimeToFacts(memories, ctx);
   return {
     memories,
     usedBudget,
@@ -199,38 +196,18 @@ export async function recall(
   };
 }
 
-/**
- * Hydrate `eventTimeStart/End/Kind` on fact memories from the vault.
- * Done as a post-processing step on the limit-sliced result set so we
- * only pay one DB lookup per fact returned to the caller (not per
- * candidate). Chunk memories carry their own timestamps and are
- * untouched. Failures are silent — missing event_time just means the
- * recall executor won't emit a date suffix.
- */
-async function attachEventTimeToFacts(memories: RankedMemory[], ctx: RecallContext): Promise<void> {
-  if (!ctx.vaultCtx) return;
-  const factIds = memories.filter((m) => m.kind === "fact").map((m) => m.id);
-  if (factIds.length === 0) return;
-  const stored = await Promise.all(
-    factIds.map((id) => getVaultMemoryOp(ctx.vaultCtx!, id).catch(() => null))
-  );
-  const byId = new Map(
-    stored.filter((s): s is NonNullable<typeof s> => s !== null).map((s) => [s.uniqueId, s])
-  );
-  for (const m of memories) {
-    if (m.kind !== "fact") continue;
-    const s = byId.get(m.id);
-    if (!s) continue;
-    m.eventTimeStart = s.eventTimeStart;
-    m.eventTimeEnd = s.eventTimeEnd;
-    m.eventTimeKind = (s.eventTimeKind as "point" | "range" | "ongoing" | null) ?? null;
-  }
-}
-
 function toFactMemory(r: VaultSearchResult): RankedMemory {
   return {
     id: r.uniqueId,
     kind: "fact",
+    // event_time anchors come directly from VaultSearchResult — the
+    // ranker passes them through from the storage row, so the recall
+    // executor can surface dates to the answer model without a second
+    // DB read + decrypt per returned fact. Undefined when the fact has
+    // no anchored time.
+    ...(r.eventTimeStart !== undefined && { eventTimeStart: r.eventTimeStart }),
+    ...(r.eventTimeEnd !== undefined && { eventTimeEnd: r.eventTimeEnd }),
+    ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
     // r.similarity from searchVaultMemoriesWithSize is the fused score
     // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
     // default) and pure cosine when useFusion=false. The breakdown
