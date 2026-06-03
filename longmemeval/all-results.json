@@ -1633,6 +1633,74 @@
     }
   },
   {
+    "timestamp": "2026-06-03T05:20:05.064Z",
+    "datasetName": "longmemeval_s_memory-recall",
+    "strategy": "memory-recall",
+    "totalQuestions": 422,
+    "correctAnswers": 339,
+    "accuracy": 0.8033175355450237,
+    "byQuestionType": {
+      "single-session-user": {
+        "total": 70,
+        "correct": 69,
+        "accuracy": 0.9857142857142858
+      },
+      "single-session-assistant": {
+        "total": 56,
+        "correct": 40,
+        "accuracy": 0.7142857142857143
+      },
+      "single-session-preference": {
+        "total": 30,
+        "correct": 29,
+        "accuracy": 0.9666666666666667
+      },
+      "temporal-reasoning": {
+        "total": 133,
+        "correct": 97,
+        "accuracy": 0.7293233082706767
+      },
+      "multi-session": {
+        "total": 133,
+        "correct": 104,
+        "accuracy": 0.7819548872180451
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 0.9478672985781991,
+      "avgRecall": 0.9436808846761452
+    },
+    "latency": {
+      "p50": 70800.35265299995,
+      "p95": 186651.54209789998,
+      "p99": 262075.83339902,
+      "mean": 78627.76248323465
+    },
+    "tokenUsage": {
+      "promptTokens": 3923832,
+      "completionTokens": 94606,
+      "totalTokens": 7955951,
+      "embeddingTokens": 3937513
+    },
+    "cost": {
+      "llmCost": 13.190586000000001,
+      "embeddingCost": 0,
+      "totalCost": 13.190586000000001,
+      "llmModel": "anthropic/claude-sonnet-4-6",
+      "embeddingModel": "qwen/qwen3-embedding-8b"
+    },
+    "meta": {
+      "commit": "258ef5d7099068f11a980bc8e827a99213515615",
+      "commitShort": "258ef5d",
+      "branch": "feat/memory-recall-api",
+      "model": "anthropic/claude-sonnet-4-6",
+      "variant": "oracle",
+      "concurrency": 20,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/26864384774",
+      "runId": 26864384774
+    }
+  },
+  {
     "timestamp": "2026-05-06T21:30:29.892Z",
     "datasetName": "longmemeval_s_memory-recall",
     "strategy": "memory-recall",
