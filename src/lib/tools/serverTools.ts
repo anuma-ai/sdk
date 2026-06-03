@@ -1064,10 +1064,33 @@ export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   "OpenMeteoMCP-geocoding",
 ];
 
-/** Default match options for the server-tools filter (limit 5, minSim 0.5). */
+/**
+ * Default match options for the server-tools filter.
+ *
+ * - `limit: 5` — at most 5 tools attached per chat completion. The model's
+ *   tool-selection context window has diminishing returns past this.
+ * - `minSimilarity: 0.5` — floor for individual tool match scores.
+ * - `filterAmbiguous: true` — when the top match is < 0.55 AND the gap to
+ *   the runner-up is < 0.04, return no tools at all. Without this, generic
+ *   prompts like "hello" or "thanks" produce a uniform cluster around the
+ *   0.5 floor and the matcher returns essentially random tools — including
+ *   expensive media tools that the model then proposes, which was a
+ *   confirmed production bug (see PR #1085 in zeta-chain/ai-portal for
+ *   the portal-side defenses this SDK fix removes the need for).
+ * - `relevanceRatio: 0.85` — once a clear winner exists, drop any tools
+ *   scoring below 85% of the top match. Trims the tail of weakly-related
+ *   tools that fill out the limit without earning their place.
+ *
+ * Aligns the chat-flow filter with `selectServerSideTools` (used by the
+ * non-React server entrypoint), which has used these settings since
+ * inception. Prior to this change the chat path was notably more
+ * permissive than the dedicated tool-selection helper.
+ */
 export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
   limit: 5,
   minSimilarity: 0.5,
+  filterAmbiguous: true,
+  relevanceRatio: 0.85,
 };
 
 /**
