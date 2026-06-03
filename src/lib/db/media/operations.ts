@@ -54,6 +54,8 @@ function mediaToStoredRaw(media: Media): StoredMedia {
     createdAt: media.createdAt,
     updatedAt: media.updatedAt,
     isDeleted: media.isDeleted,
+    isCold: media.isCold,
+    lastAccessedAt: media.lastAccessedAt,
   };
 }
 
@@ -280,6 +282,39 @@ export async function updateMediaOp(
   return updated.length > 0
     ? await mediaToStored(updated[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     : null;
+}
+
+/**
+ * Set storage-aware local retention state on a media row (#3271).
+ *
+ * Deliberately does NOT bump `updated_at`: `is_cold` / `last_accessed_at` are
+ * DEVICE-LOCAL eviction bookkeeping, not user edits. Leaving `updated_at`
+ * untouched keeps the row out of the backup delta and prevents this per-device
+ * state from ever syncing to the cloud or to other devices. Pass only the fields
+ * you intend to change.
+ *
+ * @returns true if a matching row was updated, false if none was found.
+ */
+export async function setMediaColdStateOp(
+  ctx: MediaOperationsContext,
+  mediaId: string,
+  state: { isCold?: boolean; lastAccessedAt?: number }
+): Promise<boolean> {
+  const mediaCollection = ctx.database.get<Media>("media");
+  const results = await mediaCollection.query(Q.where("media_id", mediaId)).fetch();
+  if (results.length === 0) return false;
+
+  // WatermelonDB auto-bumps updated_at on .update(); restore it so this
+  // device-local change never marks the row dirty for the backup delta.
+  const originalUpdatedAt = results[0]._getRaw("updated_at") as number;
+  await ctx.database.write(async () => {
+    await results[0].update((m) => {
+      if (state.isCold !== undefined) m._setRaw("is_cold", state.isCold);
+      if (state.lastAccessedAt !== undefined) m._setRaw("last_accessed_at", state.lastAccessedAt);
+      m._setRaw("updated_at", originalUpdatedAt);
+    });
+  });
+  return true;
 }
 
 /**

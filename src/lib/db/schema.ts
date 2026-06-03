@@ -53,8 +53,11 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v29: Added entity + memory_entity tables for the W5 knowledge-graph retrieval lane
  * - v30: Added event_time_start, event_time_end, event_time_kind columns to memory_vault for the W6 temporal retrieval lane
  * - v31: Added user_id column to memory_entity for multi-user server-side scoping of the W5 graph retrieval lane
+ * - v32: Added is_cold + last_accessed_at columns to media table for storage-aware
+ *   local retention / eviction (#3271): is_cold marks media whose bytes are evicted
+ *   off-device (metadata row kept); last_accessed_at drives LRU eviction order.
  */
-export const SDK_SCHEMA_VERSION = 31;
+export const SDK_SCHEMA_VERSION = 32;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -263,6 +266,10 @@ export const sdkSchema = appSchema({
         { name: "updated_at", type: "number" },
         // Soft delete
         { name: "is_deleted", type: "boolean", isIndexed: true },
+        // Storage-aware local retention (#3271): bytes evicted off-device while the
+        // metadata row is retained; last_accessed_at drives LRU eviction order.
+        { name: "is_cold", type: "boolean", isIndexed: true },
+        { name: "last_accessed_at", type: "number", isOptional: true, isIndexed: true },
       ],
     }),
     // ── App files ─────────────────────────────────────────────────────────
@@ -757,6 +764,23 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;`
         ),
+      ],
+    },
+    // v31 -> v32: Storage-aware local retention (#3271). is_cold marks media whose
+    // bytes have been evicted off-device (metadata row retained so the gallery still
+    // lists it and sync never treats eviction as a deletion); last_accessed_at drives
+    // LRU eviction order. Indexes materialise via `isIndexed` (Loki ensureIndex);
+    // existing rows default to is_cold=false / last_accessed_at=null.
+    {
+      toVersion: 32,
+      steps: [
+        addColumns({
+          table: "media",
+          columns: [
+            { name: "is_cold", type: "boolean", isIndexed: true },
+            { name: "last_accessed_at", type: "number", isOptional: true, isIndexed: true },
+          ],
+        }),
       ],
     },
   ],

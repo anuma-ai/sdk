@@ -356,6 +356,7 @@ export {
   type MediaType,
   relinkMisclassifiedVideosOp,
   searchMediaOp,
+  setMediaColdStateOp,
   type StoredMedia,
   Media as StoredMediaModel,
   updateMediaMessageIdBatchOp,

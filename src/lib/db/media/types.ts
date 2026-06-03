@@ -100,6 +100,14 @@ export interface StoredMedia {
 
   // Soft delete
   isDeleted: boolean;
+
+  /**
+   * Storage-aware local retention (#3271) — DEVICE-LOCAL, never backed up.
+   * `isCold`: media bytes evicted off-device (this metadata row is retained).
+   * `lastAccessedAt`: ms epoch of last view, drives LRU eviction order.
+   */
+  isCold?: boolean;
+  lastAccessedAt?: number;
 }
 
 /**
