@@ -1255,6 +1255,79 @@
     }
   },
   {
+    "timestamp": "2026-06-03T00:12:48.254Z",
+    "datasetName": "longmemeval_s_memory-recall",
+    "strategy": "memory-recall",
+    "totalQuestions": 60,
+    "correctAnswers": 50,
+    "accuracy": 0.8333333333333334,
+    "byQuestionType": {
+      "single-session-user": {
+        "total": 10,
+        "correct": 9,
+        "accuracy": 0.9
+      },
+      "single-session-assistant": {
+        "total": 10,
+        "correct": 7,
+        "accuracy": 0.7
+      },
+      "single-session-preference": {
+        "total": 10,
+        "correct": 9,
+        "accuracy": 0.9
+      },
+      "temporal-reasoning": {
+        "total": 10,
+        "correct": 8,
+        "accuracy": 0.8
+      },
+      "knowledge-update": {
+        "total": 10,
+        "correct": 9,
+        "accuracy": 0.9
+      },
+      "multi-session": {
+        "total": 10,
+        "correct": 8,
+        "accuracy": 0.8
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 0.95,
+      "avgRecall": 0.9375
+    },
+    "latency": {
+      "p50": 64665.6058875,
+      "p95": 133712.92358999996,
+      "p99": 180622.80347999986,
+      "mean": 68871.27208776669
+    },
+    "tokenUsage": {
+      "promptTokens": 575140,
+      "completionTokens": 14680,
+      "totalTokens": 1103142,
+      "embeddingTokens": 513322
+    },
+    "cost": {
+      "llmCost": 1.94562,
+      "embeddingCost": 0,
+      "totalCost": 1.94562,
+      "llmModel": "anthropic/claude-sonnet-4-6",
+      "embeddingModel": "qwen/qwen3-embedding-8b"
+    },
+    "meta": {
+      "commit": "1907e77956df7c4c07f9a3c6515f9dbf41916253",
+      "commitShort": "1907e77",
+      "branch": "feat/memory-recall-api",
+      "model": "anthropic/claude-sonnet-4-6",
+      "variant": "oracle",
+      "concurrency": 20,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/26855495045",
+      "runId": 26855495045
+    }
+  },
+  {
     "timestamp": "2026-05-06T21:30:29.892Z",
     "datasetName": "longmemeval_s_memory-recall",
     "strategy": "memory-recall",
