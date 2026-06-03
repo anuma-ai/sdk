@@ -265,6 +265,12 @@ export async function processEntryRecall(
       const query = typeof args.query === "string" ? args.query : "";
       if (!query) return "(no query)";
 
+      // Anchor relative-time parsing ("last week", "N days ago") to the
+      // question's reference date — LongMemEval entries are dated
+      // 2021–2023 but Date.now() resolves to today, so without this the
+      // W6 temporal lane returns empty windows for every question.
+      const nowForQuery = Date.parse(entry.question_date);
+
       // Per-lane: separate calls so chunks don't compete with facts for
       // a shared limit. Each lane gets its own pool. Skip when the fused
       // path is taken — the single fused recall() below covers both
@@ -277,6 +283,7 @@ export async function processEntryRecall(
                 limit: DEFAULT_LIMIT,
                 minScore: DEFAULT_FACT_MIN_SCORE,
                 budget,
+                now: nowForQuery,
                 ...decomposeOpts,
               })
             ).memories
@@ -288,6 +295,7 @@ export async function processEntryRecall(
               types: ["chunk"],
               limit: DEFAULT_CHUNK_LANE_LIMIT,
               budget,
+              now: nowForQuery,
               ...decomposeOpts,
             })
           ).memories
@@ -301,6 +309,7 @@ export async function processEntryRecall(
               limit: DEFAULT_LIMIT,
               minScore: DEFAULT_FACT_MIN_SCORE,
               budget,
+              now: nowForQuery,
               ...decomposeOpts,
             })
           ).memories

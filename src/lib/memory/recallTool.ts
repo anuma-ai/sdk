@@ -52,6 +52,21 @@ export interface RecallToolCallbacks {
   onFactsRetrieved?: (factIds: string[]) => void;
 }
 
+function formatEventTime(
+  start: number | null | undefined,
+  end: number | null | undefined,
+  kind: "point" | "range" | "ongoing" | null | undefined
+): string {
+  if (start == null) return "";
+  const startDate = new Date(start).toISOString().slice(0, 10);
+  if (kind === "range" && end != null) {
+    const endDate = new Date(end).toISOString().slice(0, 10);
+    return `, event: ${startDate}..${endDate}`;
+  }
+  if (kind === "ongoing") return `, event: since ${startDate}`;
+  return `, event: ${startDate}`;
+}
+
 function formatRecallResult(memories: RankedMemory[]): string {
   if (memories.length === 0) {
     return "No relevant memories found.";
@@ -61,9 +76,15 @@ function formatRecallResult(memories: RankedMemory[]): string {
   // make the model second-guess lower-ranked but still-relevant
   // evidence. Items are already presented in rank order; that's the
   // ranking signal the model should use.
+  //
+  // For facts, surface `event_time` as an ISO date when present — the
+  // answer model needs the date to handle temporal-reasoning questions
+  // ("how many days between X and Y", "what did I do before Z"). Chunk
+  // dates come from createdAt (the chunk's own message timestamp).
   const lines = memories.map((m, i) => {
     if (m.kind === "fact") {
-      return `[${i + 1}] fact (id: ${m.id})\n${m.content}`;
+      const eventSuffix = formatEventTime(m.eventTimeStart, m.eventTimeEnd, m.eventTimeKind);
+      return `[${i + 1}] fact (id: ${m.id}${eventSuffix})\n${m.content}`;
     }
     const date = m.createdAt.toISOString().slice(0, 10);
     const who = m.role === "assistant" ? "assistant" : "user";

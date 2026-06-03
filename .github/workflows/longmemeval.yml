@@ -124,6 +124,19 @@ on:
         options:
           - "false"
           - "true"
+      types:
+        description: "Comma-separated question types filter (e.g. 'temporal-reasoning' to run that category only). Blank = all surviving types."
+        required: false
+        type: string
+        default: ""
+      verbose:
+        description: "Include per-question results in the uploaded artifact (for debugging failure modes)."
+        required: false
+        type: choice
+        default: "false"
+        options:
+          - "false"
+          - "true"
 
 jobs:
   resolve-strategies:
@@ -189,6 +202,8 @@ jobs:
           INPUTS_CONSOLIDATE: ${{ inputs.consolidate }}
           INPUTS_STRATEGY: ${{ matrix.strategy }}
           INPUTS_INCLUDE_UNSUPPORTED: ${{ inputs.include_unsupported }}
+          INPUTS_TYPES: ${{ inputs.types }}
+          INPUTS_VERBOSE: ${{ inputs.verbose }}
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
           # Accumulate into a bash array so each flag is one token —
@@ -228,6 +243,12 @@ jobs:
           fi
           if [ "$INPUTS_INCLUDE_UNSUPPORTED" = "true" ]; then
             args+=(--include-unsupported)
+          fi
+          if [ -n "$INPUTS_TYPES" ]; then
+            args+=("--types=$INPUTS_TYPES")
+          fi
+          if [ "$INPUTS_VERBOSE" = "true" ]; then
+            args+=(--verbose)
           fi
           pnpm eval:longmemeval "${args[@]}"
 

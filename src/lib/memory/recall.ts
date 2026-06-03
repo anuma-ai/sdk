@@ -15,7 +15,7 @@
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
-import { getMemoriesByEventTimeOp } from "../db/memoryVault/operations.js";
+import { getMemoriesByEventTimeOp, getVaultMemoryOp } from "../db/memoryVault/operations.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
@@ -95,7 +95,7 @@ export async function recall(
       : Promise.resolve(undefined),
     buildGraphLaneRanking(query, ctx),
     wantsTemporal
-      ? buildTemporalLaneRanking(query, ctx.vaultCtx!)
+      ? buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
       : Promise.resolve([] as string[]),
   ]);
 
@@ -157,8 +157,10 @@ export async function recall(
       ...chunkResults.map(toChunkMemory),
     ];
     memories.sort((a, b) => b.score - a.score);
+    const sliced = memories.slice(0, limit);
+    await attachEventTimeToFacts(sliced, ctx);
     return {
-      memories: memories.slice(0, limit),
+      memories: sliced,
       usedBudget,
       reranked: flags.rerank,
       candidateCount: factResults.length + chunkResults.length,
@@ -187,6 +189,7 @@ export async function recall(
   }
 
   const memories = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+  await attachEventTimeToFacts(memories, ctx);
   return {
     memories,
     usedBudget,
@@ -194,6 +197,34 @@ export async function recall(
     candidateCount: byId.size,
     ...(vaultSize !== undefined && { vaultSize }),
   };
+}
+
+/**
+ * Hydrate `eventTimeStart/End/Kind` on fact memories from the vault.
+ * Done as a post-processing step on the limit-sliced result set so we
+ * only pay one DB lookup per fact returned to the caller (not per
+ * candidate). Chunk memories carry their own timestamps and are
+ * untouched. Failures are silent — missing event_time just means the
+ * recall executor won't emit a date suffix.
+ */
+async function attachEventTimeToFacts(memories: RankedMemory[], ctx: RecallContext): Promise<void> {
+  if (!ctx.vaultCtx) return;
+  const factIds = memories.filter((m) => m.kind === "fact").map((m) => m.id);
+  if (factIds.length === 0) return;
+  const stored = await Promise.all(
+    factIds.map((id) => getVaultMemoryOp(ctx.vaultCtx!, id).catch(() => null))
+  );
+  const byId = new Map(
+    stored.filter((s): s is NonNullable<typeof s> => s !== null).map((s) => [s.uniqueId, s])
+  );
+  for (const m of memories) {
+    if (m.kind !== "fact") continue;
+    const s = byId.get(m.id);
+    if (!s) continue;
+    m.eventTimeStart = s.eventTimeStart;
+    m.eventTimeEnd = s.eventTimeEnd;
+    m.eventTimeKind = (s.eventTimeKind as "point" | "range" | "ongoing" | null) ?? null;
+  }
 }
 
 function toFactMemory(r: VaultSearchResult): RankedMemory {
@@ -255,9 +286,10 @@ async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise
  */
 async function buildTemporalLaneRanking(
   query: string,
-  vaultCtx: NonNullable<RecallContext["vaultCtx"]>
+  vaultCtx: NonNullable<RecallContext["vaultCtx"]>,
+  now?: number
 ): Promise<string[]> {
-  const window = parseQueryTimeWindow(query);
+  const window = parseQueryTimeWindow(query, now);
   if (!window) return [];
   const candidates = await getMemoriesByEventTimeOp(vaultCtx, window.start, window.end);
   if (candidates.length === 0) return [];
