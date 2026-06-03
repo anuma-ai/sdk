@@ -61,6 +61,20 @@ function parseQuestionDateUtc(raw: string): number {
   return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd));
 }
 
+/**
+ * Normalize LongMemEval's `YYYY/MM/DD (Day) HH:MM` format into the
+ * `YYYY-MM-DD` shape the extractor prompt expects. Falls back to the
+ * raw input on parse failure so the extractor's own prompt-level
+ * fallback ("Observation date: {obsDate}") still produces something.
+ */
+function formatObservationDate(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const match = raw.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
+  if (!match) return raw;
+  const [, yyyy, mm, dd] = match;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function budgetFor(decompose: boolean, rerank: boolean): "low" | "mid" | "high" {
   if (decompose) return "high";
   if (rerank) return "mid";
@@ -136,12 +150,20 @@ export async function processEntryRecall(
       const session = entry.haystack_sessions[sIdx];
       const sessionId = entry.haystack_session_ids[sIdx];
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
+      // Use the session's own date as the observation date so the
+      // extractor resolves relative phrases ("today", "yesterday",
+      // "N days ago") against when the conversation HAPPENED, not when
+      // the question is being asked. Previously every session shared
+      // entry.question_date as obsDate, collapsing all `event:` dates
+      // onto the question date — the dominant temporal-reasoning
+      // failure mode at 51% of misses on full oracle.
+      const sessionDate = formatObservationDate(entry.haystack_dates[sIdx]);
       const extracted = await extractMemoriesFromSession(
         session,
         sIdx,
         sessionId,
         api,
-        entry.question_date
+        sessionDate
       );
       for (const mem of extracted) {
         const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
