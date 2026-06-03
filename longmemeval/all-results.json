@@ -1769,6 +1769,79 @@
     }
   },
   {
+    "timestamp": "2026-06-03T18:31:33.339Z",
+    "datasetName": "longmemeval_s_memory-recall",
+    "strategy": "memory-recall",
+    "totalQuestions": 60,
+    "correctAnswers": 49,
+    "accuracy": 0.8166666666666667,
+    "byQuestionType": {
+      "single-session-user": {
+        "total": 10,
+        "correct": 9,
+        "accuracy": 0.9
+      },
+      "single-session-assistant": {
+        "total": 10,
+        "correct": 7,
+        "accuracy": 0.7
+      },
+      "single-session-preference": {
+        "total": 10,
+        "correct": 10,
+        "accuracy": 1
+      },
+      "temporal-reasoning": {
+        "total": 10,
+        "correct": 10,
+        "accuracy": 1
+      },
+      "knowledge-update": {
+        "total": 10,
+        "correct": 8,
+        "accuracy": 0.8
+      },
+      "multi-session": {
+        "total": 10,
+        "correct": 5,
+        "accuracy": 0.5
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 0.9833333333333333,
+      "avgRecall": 0.9791666666666666
+    },
+    "latency": {
+      "p50": 109044.6413935,
+      "p95": 238701.99078285,
+      "p99": 308873.0004254198,
+      "mean": 114060.85994299996
+    },
+    "tokenUsage": {
+      "promptTokens": 603262,
+      "completionTokens": 13041,
+      "totalTokens": 1174285,
+      "embeddingTokens": 557982
+    },
+    "cost": {
+      "llmCost": 2.005401,
+      "embeddingCost": 0,
+      "totalCost": 2.005401,
+      "llmModel": "anthropic/claude-sonnet-4-6",
+      "embeddingModel": "qwen/qwen3-embedding-8b"
+    },
+    "meta": {
+      "commit": "fab1635b3b587813f9462c44b9e475676c01225c",
+      "commitShort": "fab1635",
+      "branch": "feat/memory-recall-api",
+      "model": "anthropic/claude-sonnet-4-6",
+      "variant": "oracle",
+      "concurrency": 20,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/26904570699",
+      "runId": 26904570699
+    }
+  },
+  {
     "timestamp": "2026-05-06T21:30:29.892Z",
     "datasetName": "longmemeval_s_memory-recall",
     "strategy": "memory-recall",
