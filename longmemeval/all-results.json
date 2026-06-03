@@ -1842,6 +1842,79 @@
     }
   },
   {
+    "timestamp": "2026-06-03T20:38:35.369Z",
+    "datasetName": "longmemeval_s_memory-recall",
+    "strategy": "memory-recall",
+    "totalQuestions": 500,
+    "correctAnswers": 9,
+    "accuracy": 0.018,
+    "byQuestionType": {
+      "single-session-user": {
+        "total": 70,
+        "correct": 0,
+        "accuracy": 0
+      },
+      "single-session-assistant": {
+        "total": 56,
+        "correct": 2,
+        "accuracy": 0.03571428571428571
+      },
+      "single-session-preference": {
+        "total": 30,
+        "correct": 0,
+        "accuracy": 0
+      },
+      "temporal-reasoning": {
+        "total": 133,
+        "correct": 2,
+        "accuracy": 0.015037593984962405
+      },
+      "knowledge-update": {
+        "total": 78,
+        "correct": 0,
+        "accuracy": 0
+      },
+      "multi-session": {
+        "total": 133,
+        "correct": 5,
+        "accuracy": 0.03759398496240601
+      }
+    },
+    "retrieval": {
+      "avgPrecision": 0,
+      "avgRecall": 0
+    },
+    "latency": {
+      "p50": 123718.54868150013,
+      "p95": 312349.23906859977,
+      "p99": 488986.9136490496,
+      "mean": 136602.29033851592
+    },
+    "tokenUsage": {
+      "promptTokens": 2544626,
+      "completionTokens": 27912,
+      "totalTokens": 7759482,
+      "embeddingTokens": 5186944
+    },
+    "cost": {
+      "llmCost": 8.052558,
+      "embeddingCost": 0,
+      "totalCost": 8.052558,
+      "llmModel": "anthropic/claude-sonnet-4-6",
+      "embeddingModel": "qwen/qwen3-embedding-8b"
+    },
+    "meta": {
+      "commit": "fab1635b3b587813f9462c44b9e475676c01225c",
+      "commitShort": "fab1635",
+      "branch": "feat/memory-recall-api",
+      "model": "anthropic/claude-sonnet-4-6",
+      "variant": "oracle",
+      "concurrency": 20,
+      "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/26908527355",
+      "runId": 26908527355
+    }
+  },
+  {
     "timestamp": "2026-05-06T21:30:29.892Z",
     "datasetName": "longmemeval_s_memory-recall",
     "strategy": "memory-recall",
