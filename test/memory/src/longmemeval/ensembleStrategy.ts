@@ -26,6 +26,7 @@ import {
   createVaultContext,
   evaluateAnswer,
   extractMemoriesFromSession,
+  formatHaystackDateAsObservation,
   logProgress,
   saveTranscript,
   selectSessions,
@@ -95,12 +96,16 @@ export async function processEntryEnsemble(
       const session = entry.haystack_sessions[sIdx];
       const sessionId = entry.haystack_session_ids[sIdx];
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
+      // Anchor relative-date resolution to the session's own date, not
+      // entry.question_date — collapsing all observations onto the
+      // question date was the 51%-of-misses temporal failure mode.
+      const sessionDate = formatHaystackDateAsObservation(entry.haystack_dates[sIdx]);
       const extracted = await extractMemoriesFromSession(
         session,
         sIdx,
         sessionId,
         api,
-        entry.question_date
+        sessionDate
       );
       for (const mem of extracted) {
         const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";

@@ -158,6 +158,25 @@ export function createStorageContext(db: Database): StorageOperationsContext {
   };
 }
 
+// ── Date helpers ──
+
+/**
+ * Normalize LongMemEval's `YYYY/MM/DD (Day) HH:MM` haystack-date format
+ * into the `YYYY-MM-DD` shape the extraction prompt expects as
+ * "Observation date". Strategies should pass the SESSION's haystack date
+ * (not entry.question_date) so the extractor resolves "today" /
+ * "N days ago" against when the conversation happened, not when the
+ * question is being asked — collapsing event_time onto question_date
+ * was the dominant temporal-reasoning failure mode (51% of misses).
+ */
+export function formatHaystackDateAsObservation(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const match = raw.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
+  if (!match) return raw;
+  const [, yyyy, mm, dd] = match;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // ── JSON extraction ──
 
 export function extractJsonFromResponse(content: string): string {

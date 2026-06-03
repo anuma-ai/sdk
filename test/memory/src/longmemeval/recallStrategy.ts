@@ -23,6 +23,7 @@ import {
   createVaultContext,
   evaluateAnswer,
   extractMemoriesFromSession,
+  formatHaystackDateAsObservation,
   logProgress,
   saveTranscript,
   selectSessions,
@@ -59,20 +60,6 @@ function parseQuestionDateUtc(raw: string): number {
   if (!match) return NaN;
   const [, yyyy, mm, dd] = match;
   return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd));
-}
-
-/**
- * Normalize LongMemEval's `YYYY/MM/DD (Day) HH:MM` format into the
- * `YYYY-MM-DD` shape the extractor prompt expects. Falls back to the
- * raw input on parse failure so the extractor's own prompt-level
- * fallback ("Observation date: {obsDate}") still produces something.
- */
-function formatObservationDate(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-  const match = raw.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
-  if (!match) return raw;
-  const [, yyyy, mm, dd] = match;
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 function budgetFor(decompose: boolean, rerank: boolean): "low" | "mid" | "high" {
@@ -157,7 +144,7 @@ export async function processEntryRecall(
       // entry.question_date as obsDate, collapsing all `event:` dates
       // onto the question date — the dominant temporal-reasoning
       // failure mode at 51% of misses on full oracle.
-      const sessionDate = formatObservationDate(entry.haystack_dates[sIdx]);
+      const sessionDate = formatHaystackDateAsObservation(entry.haystack_dates[sIdx]);
       const extracted = await extractMemoriesFromSession(
         session,
         sIdx,
