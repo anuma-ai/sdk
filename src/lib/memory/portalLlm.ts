@@ -25,7 +25,10 @@ interface PortalLlmRequest {
   userMessage: string;
   /** Tag prefix for log lines, e.g. `"memory/extract"`. */
   tag: string;
-  /** Per-request timeout. Covers fetch headers AND body read. Default 20s. */
+  /** Per-request timeout. Covers fetch headers AND body read. Default
+   * 60s — sized for slower providers (Anthropic Sonnet under high
+   * concurrency routinely takes 15–40s for the 2k-token consolidate
+   * prompt). Pass a tighter value for steps on the recall hot path. */
   timeoutMs?: number;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
@@ -42,7 +45,20 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   const log = getLogger();
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
-  const timeoutMs = req.timeoutMs ?? 20_000;
+  const timeoutMs = req.timeoutMs ?? 60_000;
+
+  // Anthropic models ignore OpenAI-style response_format and frequently
+  // respond conversationally to bare user queries. The canonical fix is
+  // to "prefill" the assistant turn with `{` so the model has no choice
+  // but to continue valid JSON. We prepend the prefill back onto the
+  // returned content before parsing.
+  const isAnthropic = req.model.startsWith("anthropic/");
+  const prefill = isAnthropic ? "{" : "";
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: req.systemPrompt },
+    { role: "user", content: req.userMessage },
+  ];
+  if (prefill) messages.push({ role: "assistant", content: prefill });
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -54,10 +70,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       headers: { "x-api-key": req.apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: req.model,
-        messages: [
-          { role: "system", content: req.systemPrompt },
-          { role: "user", content: req.userMessage },
-        ],
+        messages,
         response_format: { type: "json_object" },
         ...req.extra,
       }),
@@ -85,18 +98,80 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   }
   clearTimeout(timer);
 
-  const content = extractCompletionContent(body);
-  if (!content) {
+  const rawContent = extractCompletionContent(body);
+  if (!rawContent) {
     log.warn(`[${req.tag}] portal response had no completion content`);
     return null;
   }
 
+  // Anthropic prefill (`{`) isn't echoed in the response — the model
+  // continues from it. Detect that case (response trimstart is a JSON
+  // continuation token like `"`, indicating a quoted object key) and
+  // prepend the prefill back. If the response starts with `{` or `[`,
+  // the prefill was either echoed or ignored — no need to prepend.
+  // If it starts with prose, the extractor below finds the first
+  // balanced brace block, so prepending would just corrupt input.
+  const looksLikeContinuation = prefill && /^\s*"/.test(rawContent);
+  const content = looksLikeContinuation ? prefill + rawContent : rawContent;
+
+  // Anthropic (and some other providers) ignore the OpenAI-style
+  // `response_format: json_object` flag and may prepend prose or wrap
+  // the JSON in a ```json fence. Strip both before parsing — the LLM
+  // intent is clear from the structure, and a one-off prose preamble
+  // shouldn't blow the whole extraction/decompose/consolidate step.
+  const candidate = extractJsonCandidate(content);
   try {
-    return JSON.parse(content);
+    return JSON.parse(candidate);
   } catch (err) {
     log.warn(`[${req.tag}] completion was not valid JSON`, err);
     return null;
   }
+}
+
+/**
+ * Best-effort JSON extraction from a possibly-prose-wrapped response:
+ *   1. Pull from a ```json … ``` (or ```… ```) code fence if present.
+ *   2. Otherwise take the longest balanced object/array starting at the
+ *      first `{`/`[`. A bare brace-scan is too greedy when the model
+ *      includes a trailing prose sentence after the JSON.
+ *   3. Fall back to the trimmed original so JSON.parse surfaces a real
+ *      error rather than us silently returning {}.
+ */
+function extractJsonCandidate(raw: string): string {
+  const trimmed = raw.trim();
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = fence ? fence[1].trim() : trimmed;
+
+  const start = body.search(/[{[]/);
+  if (start < 0) return body;
+  const open = body[start];
+  const close = open === "{" ? "}" : "]";
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < body.length; i++) {
+    const ch = body[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === open) depth++;
+    else if (ch === close) {
+      depth--;
+      if (depth === 0) return body.slice(start, i + 1);
+    }
+  }
+  return body;
 }
 
 function extractCompletionContent(body: unknown): string | null {

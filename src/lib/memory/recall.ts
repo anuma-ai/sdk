@@ -95,7 +95,7 @@ export async function recall(
       : Promise.resolve(undefined),
     buildGraphLaneRanking(query, ctx),
     wantsTemporal
-      ? buildTemporalLaneRanking(query, ctx.vaultCtx!)
+      ? buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
       : Promise.resolve([] as string[]),
   ]);
 
@@ -200,6 +200,14 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
   return {
     id: r.uniqueId,
     kind: "fact",
+    // event_time anchors come directly from VaultSearchResult — the
+    // ranker passes them through from the storage row, so the recall
+    // executor can surface dates to the answer model without a second
+    // DB read + decrypt per returned fact. Undefined when the fact has
+    // no anchored time.
+    ...(r.eventTimeStart !== undefined && { eventTimeStart: r.eventTimeStart }),
+    ...(r.eventTimeEnd !== undefined && { eventTimeEnd: r.eventTimeEnd }),
+    ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
     // r.similarity from searchVaultMemoriesWithSize is the fused score
     // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
     // default) and pure cosine when useFusion=false. The breakdown
@@ -255,9 +263,10 @@ async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise
  */
 async function buildTemporalLaneRanking(
   query: string,
-  vaultCtx: NonNullable<RecallContext["vaultCtx"]>
+  vaultCtx: NonNullable<RecallContext["vaultCtx"]>,
+  now?: number
 ): Promise<string[]> {
-  const window = parseQueryTimeWindow(query);
+  const window = parseQueryTimeWindow(query, now);
   if (!window) return [];
   const candidates = await getMemoriesByEventTimeOp(vaultCtx, window.start, window.end);
   if (candidates.length === 0) return [];

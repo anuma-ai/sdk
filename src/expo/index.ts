@@ -219,6 +219,49 @@ export {
   quantizeEmbedding,
 } from "../lib/memoryEngine";
 
+// Unified memory API surface — recall + retain + reflect + auto-extraction.
+// Mirrors the react and server barrels so Expo consumers can call the
+// programmatic API (recall/retain/reflect/...) in addition to wiring the
+// recall_memory tool.
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+  reflect,
+  retain,
+} from "../lib/memory";
+
 // Notion OAuth primitives (platform-agnostic, no browser globals)
 export type {
   NotionAuthUrlParams,
