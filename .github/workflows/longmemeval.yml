@@ -173,11 +173,22 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Restore embedding cache
+      - name: Restore longmemeval cache (datasets + embeddings)
         uses: actions/cache@v4
         with:
-          path: ~/.cache/longmemeval/embedding-cache-*.json
-          key: longmemeval-embeddings-v1
+          # Cache the entire longmemeval cache dir so the HuggingFace
+          # dataset jsons survive across runs — HF rate-limits the
+          # endpoint and the preload step would otherwise hit 429 when
+          # we re-dispatch the workflow several times in quick succession.
+          path: |
+            ~/.cache/longmemeval/embedding-cache-*.json
+            ~/.cache/longmemeval/longmemeval_oracle.json
+            ~/.cache/longmemeval/longmemeval_s_cleaned.json
+            ~/.cache/longmemeval/longmemeval_m_cleaned.json
+          # Bump key suffix when the cache shape changes so a stale
+          # entry (e.g. embeddings-only from before this patch) doesn't
+          # shadow a new dataset addition.
+          key: longmemeval-cache-v2
 
       - name: Preload datasets
         run: pnpm eval:longmemeval --preload
