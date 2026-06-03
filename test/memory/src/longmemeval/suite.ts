@@ -467,16 +467,19 @@ OUTPUT — strict JSON, no prose, no markdown:
 
 If no memories worth keeping, return {"items": []}.
 
-WHAT TO EXTRACT — facts about the user themselves.
+WHAT TO EXTRACT
 
-- "state" — durable: identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
-- "event" — dated occurrences: meals eaten, trips taken, meetings, bedtimes, purchases, doctor visits, things "I did yesterday".
+1. **Facts about the user themselves.**
+   - "state" — durable: identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
+   - "event" — dated occurrences: meals eaten, trips taken, meetings, bedtimes, purchases, doctor visits, things "I did yesterday".
+
+2. **Assistant-provided information the user engaged with** — recipes the assistant gave, books / movies / restaurants the assistant recommended, technical advice the assistant offered, code snippets, instructions, or any specific content the assistant produced that the user might later want to recall ("what was that pasta recipe you gave me", "which book did you recommend"). Phrase these as the user's own memory of receiving the info — start with "Assistant gave the user a [recipe/recommendation/advice/instructions] for X: <key content>". Mark "state" unless the user explicitly tried it on a specific date. Skip the assistant's filler ("here's a recipe", "let me know how it goes") — only the substantive content.
 
 Casual topics ARE extractable. Pet names, what they ate for breakfast, a friend's birthday, what time they went to bed, the route they took to work.
 
 WHAT NOT TO EXTRACT:
 
-- Greetings, filler ("got it", "ok"), confirmations of the assistant's reply
+- Greetings, filler ("got it", "ok"), the user's confirmations of the assistant's reply
 - Hypotheticals ("if I were to move to Tokyo…")
 - Pure search/task requests with no durable answer ("draft an email", "what's the weather")
 - Facts about other people that don't connect to the user or the conversation

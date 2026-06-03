@@ -390,7 +390,9 @@ export async function processEntryRecall(
     };
 
     const systemPrompt = `Today is ${entry.question_date}.
-You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
+You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.
+
+When the question enumerates a category — "what / which X have I attended / visited / tried / bought / read / discussed", "all the times I…", "everything I…", or any other listing-style question — list EVERY matching memory rather than only the most-recent or top-scoring one. Combine evidence across sessions and dates. The recall tool returns ranked memories but ranking is not exclusion; treat all returned items as candidates worth enumerating when the question shape calls for a list.`;
 
     const toolDef = {
       type: "function" as const,
