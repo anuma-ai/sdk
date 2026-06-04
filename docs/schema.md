@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v31**
+Current version: **v32**
 
 ```mermaid
 graph LR
@@ -177,6 +177,8 @@ graph LR
 | `created_at` | number | ✓ |  |
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
+| `is_cold` | boolean | ✓ |  |
+| `last_accessed_at` | number | ✓ | ✓ |
 
 ## app_files
 
@@ -206,6 +208,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v32 | Added `is_cold`, `last_accessed_at` to `media` |
 | v31 | Added `user_id` to `memory_entity`; `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;` |
 | v30 | Added `event_time_start`, `event_time_end`, `event_time_kind` to `memory_vault` |
 | v29 | Added `entity` table; Added `memory_entity` table |
