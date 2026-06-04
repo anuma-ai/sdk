@@ -196,7 +196,7 @@ function finalAssistantMessage(data: unknown): LlmapiMessage | undefined {
     return {
       role: chatMsg.role,
       content:
-        chatMsg.content !== undefined ? [{ type: "text", text: chatMsg.content }] : undefined,
+        typeof chatMsg.content === "string" ? [{ type: "text", text: chatMsg.content }] : undefined,
       ...(chatMsg.tool_calls ? { tool_calls: chatMsg.tool_calls } : undefined),
     };
   }
