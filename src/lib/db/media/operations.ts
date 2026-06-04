@@ -301,20 +301,28 @@ export async function setMediaColdStateOp(
   state: { isCold?: boolean; lastAccessedAt?: number }
 ): Promise<boolean> {
   const mediaCollection = ctx.database.get<Media>("media");
-  const results = await mediaCollection.query(Q.where("media_id", mediaId)).fetch();
-  if (results.length === 0) return false;
+  const existing = await mediaCollection.query(Q.where("media_id", mediaId)).fetch();
+  if (existing.length === 0) return false;
 
-  // WatermelonDB auto-bumps updated_at on .update(); restore it so this
-  // device-local change never marks the row dirty for the backup delta.
-  const originalUpdatedAt = results[0]._getRaw("updated_at") as number;
+  let updated = false;
   await ctx.database.write(async () => {
-    await results[0].update((m) => {
+    // Re-fetch INSIDE the serialized write queue so the updated_at snapshot can't
+    // race a concurrent updateMediaOp (TOCTOU). Read it BEFORE update(), because
+    // WatermelonDB auto-bumps updated_at as part of .update() — we then restore the
+    // pre-update value so this device-local change never marks the row dirty for
+    // the backup delta.
+    const fresh = await mediaCollection.query(Q.where("media_id", mediaId)).fetch();
+    const record = fresh[0];
+    if (!record) return;
+    const originalUpdatedAt = record._getRaw("updated_at") as number;
+    await record.update((m) => {
       if (state.isCold !== undefined) m._setRaw("is_cold", state.isCold);
       if (state.lastAccessedAt !== undefined) m._setRaw("last_accessed_at", state.lastAccessedAt);
       m._setRaw("updated_at", originalUpdatedAt);
     });
+    updated = true;
   });
-  return true;
+  return updated;
 }
 
 /**

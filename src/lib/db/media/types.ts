@@ -106,7 +106,7 @@ export interface StoredMedia {
    * `isCold`: media bytes evicted off-device (this metadata row is retained).
    * `lastAccessedAt`: ms epoch of last view, drives LRU eviction order.
    */
-  isCold?: boolean;
+  isCold: boolean;
   lastAccessedAt?: number;
 }
 

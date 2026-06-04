@@ -49,6 +49,7 @@ export class Media extends Model {
 
   // Storage-aware local retention (#3271): is_cold = bytes evicted off-device
   // (metadata row retained); last_accessed_at drives LRU eviction order.
-  @field("is_cold") isCold?: boolean;
+  // is_cold is a non-optional column (migration defaults existing rows to false).
+  @field("is_cold") isCold!: boolean;
   @field("last_accessed_at") lastAccessedAt?: number;
 }
