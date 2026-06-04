@@ -140,3 +140,16 @@ Called after each embedding API call with the token usage from the response.
 **Returns**
 
 `void`
+
+***
+
+### signal?
+
+> `optional` **signal**: `AbortSignal`
+
+Defined in: [src/lib/memoryEngine/types.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#89)
+
+Optional abort signal forwarded to the embedding API call. When the
+signal aborts mid-fetch, the request is cancelled and the call rejects
+with an `AbortError`. Useful for tying embedding requests to a parent
+stream's lifecycle (e.g. `useChat`'s `stop()`).
