@@ -47,7 +47,15 @@ export interface ConnectorInfo {
 
 /** Argument shape for {@link PortalClient.createConnectTicket}. */
 export interface ConnectTicketOpts {
-  oauthApp: string;
+  /** Logical provider (e.g. `"gmail"`, `"github"`) — mapped to the portal
+   *  `oauth_app` internally and used to build the connect URL. */
+  provider: string;
+  /**
+   * Scopes requested for the connect flow, passed VERBATIM upstream
+   * ("upstream-flavored"): Google needs full
+   * `https://www.googleapis.com/auth/...` URLs. An empty array falls back to
+   * the provider's default scope union on the portal side.
+   */
   requestedScopes: string[];
   returnTo: string;
 }
@@ -61,8 +69,10 @@ export interface ConnectTicket {
 
 /** Typed wrapper over the portal HTTP API. */
 export interface PortalClient {
-  /** Mint a fresh upstream access token for a logical provider. */
-  mintConnectorToken(provider: string): Promise<MintResult>;
+  /** Mint a fresh upstream access token for a logical provider. `access`
+   *  defaults to the provider's standard level (e.g. gmail `read`, github
+   *  `repo`). */
+  mintConnectorToken(provider: string, access?: string): Promise<MintResult>;
   /** List the user's currently-connected connectors. */
   listConnectors(): Promise<ConnectorInfo[]>;
   /** Mint a connect ticket so the user can be redirected to a connect flow. */
