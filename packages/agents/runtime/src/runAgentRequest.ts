@@ -187,7 +187,19 @@ function finalAssistantMessage(data: unknown): LlmapiMessage | undefined {
   if (!data || typeof data !== "object") return undefined;
   const chatLike = data as LlmapiChatCompletionResponse;
   const chatMsg = chatLike.choices?.[0]?.message;
-  if (chatMsg) return chatMsg;
+  // The chat-completion envelope is OpenAI-compliant since #532: `message`
+  // carries `content` as a plain string, whereas the rest of the runtime
+  // speaks the LLM-API message shape (a content-part array). Lift the string
+  // into a single text part. `role` (LlmapiRole = string) and `tool_calls`
+  // are structurally identical across both shapes, so they carry over as-is.
+  if (chatMsg) {
+    return {
+      role: chatMsg.role,
+      content:
+        chatMsg.content !== undefined ? [{ type: "text", text: chatMsg.content }] : undefined,
+      ...(chatMsg.tool_calls ? { tool_calls: chatMsg.tool_calls } : undefined),
+    };
+  }
   // Fall back to Responses-API shape (best-effort).
   const resp = data as LlmapiResponseResponse;
   const output = resp.output;
