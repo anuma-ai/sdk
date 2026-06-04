@@ -58,6 +58,16 @@ export interface RankedMemory {
   proofCount?: number;
   source?: string;
   folderId?: string | null;
+  /**
+   * Anchored event-time for the fact (the date the underlying event
+   * occurred, not the write time). When present, the recall executor
+   * surfaces it to the LLM as `(event: YYYY-MM-DD)` so the answer model
+   * can do date arithmetic for temporal-reasoning questions. Null /
+   * undefined means the fact has no anchored date.
+   */
+  eventTimeStart?: number | null;
+  eventTimeEnd?: number | null;
+  eventTimeKind?: "point" | "range" | "ongoing" | null;
 
   // Chunk-only
   conversationId?: string;
@@ -99,6 +109,14 @@ export interface RecallOptions {
     baseUrl?: string;
     model?: string;
   };
+  /**
+   * Reference "now" for resolving relative temporal phrases in the
+   * query ("last week", "yesterday", "N days ago"). Default: `Date.now()`.
+   * Override for back-dated evaluation harnesses (bench corpora dated
+   * 2021–2023) and for deterministic tests — otherwise the W6 lane
+   * resolves windows in 2026 and never overlaps stored event_time.
+   */
+  now?: number;
 }
 
 export interface RecallContext {

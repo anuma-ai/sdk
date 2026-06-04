@@ -50,6 +50,11 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import {
+  Entity as EntityModel,
+  MemoryEntity as MemoryEntityModel,
+} from "../lib/db/entities/models";
+import type { EntityOperationsContext } from "../lib/db/entities/operations";
+import {
   createMediaBatchOp,
   deleteMediaByConversationOp,
   getMediaByIdsOp,
@@ -77,6 +82,12 @@ import {
   WalletPoller,
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
+import {
+  createRecallTool as createRecallToolBase,
+  RECALL_TOOL_NAME,
+  type RecallToolCallbacks,
+  type RecallToolOptions,
+} from "../lib/memory";
 import {
   chunkText,
   createMemoryEngineTool as createMemoryEngineToolBase,
@@ -192,8 +203,16 @@ async function autoFilterClientTools(
   extraToolSets: ToolSet[] = [],
   activeToolSets: string[] = []
 ): Promise<LlmapiChatCompletionTool[]> {
-  // Memory tools are always included — only filter connector tools (Notion, Google)
-  const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
+  // Memory tools are always included — only filter connector tools
+  // (Notion, Google). Matches both the legacy memory_vault_* surface and
+  // the unified recall_memory tool from createRecallTool. The
+  // memory_engine_* prefix is intentionally NOT matched — it is not an
+  // owned SDK namespace and would let any third-party tool bypass the
+  // similarity filter by name alone.
+  const isMemoryTool = (t: LlmapiChatCompletionTool) => {
+    const name = getToolName(t);
+    return name.startsWith("memory_vault_") || name === RECALL_TOOL_NAME;
+  };
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
@@ -858,6 +877,17 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryVaultSearchTool: (searchOptions?: MemoryVaultSearchOptions) => ToolConfig;
 
   /**
+   * Create the unified recall_memory tool — single LLM-facing tool that
+   * fuses vault facts and conversation chunks via `recall()`. Prefer
+   * this over wiring `createMemoryVaultSearchTool` and the chunk tool
+   * separately; the LLM no longer has to route between two surfaces.
+   */
+  createRecallTool: (
+    toolOptions?: RecallToolOptions,
+    callbacks?: RecallToolCallbacks
+  ) => ToolConfig;
+
+  /**
    * Search vault memories programmatically using semantic similarity.
    * Returns structured results sorted by descending similarity.
    * Gracefully returns [] when auth is unavailable.
@@ -1088,6 +1118,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       embeddedWalletSigner,
     }),
     [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
+  );
+
+  // W5 graph lane — entity + memory_entity collections feed `recall()`'s
+  // graph lane (query entities → shared-entity memories → RRF fusion)
+  // and `linkMemoryEntitiesOp` on the write path so retain() can persist
+  // entity links when callers pass them through.
+  const entityCollection = useMemo(() => database.get<EntityModel>("entity"), [database]);
+  const memoryEntityCollection = useMemo(
+    () => database.get<MemoryEntityModel>("memory_entity"),
+    [database]
+  );
+  const entityCtx = useMemo<EntityOperationsContext>(
+    () => ({
+      database,
+      entityCollection,
+      memoryEntityCollection,
+      // React web ships LokiJS where the v31 SQL backfill is a no-op,
+      // so pre-v31 memory_entity rows still carry `user_id = null`.
+      // Scope new reads to the active wallet while admitting those
+      // legacy unscoped rows until `backfillMemoryEntityUserIdsOp` runs.
+      ...(walletAddress !== undefined && { userId: walletAddress }),
+      allowUnscopedRows: true,
+    }),
+    [database, entityCollection, memoryEntityCollection, walletAddress]
   );
 
   // ── Queue Management ──
@@ -1494,6 +1548,44 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       );
     },
     [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Create the unified recall tool. Routes through `recall()` so vault
+   * facts and conversation chunks are fused into a single ranked result —
+   * one tool exposed to the LLM instead of two.
+   */
+  const createRecallTool = useCallback(
+    (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for recall tool");
+      }
+      // Default excludeConversationId to the active conversation so the
+      // recall tool can't surface chunks from the user's own current
+      // turns back as "memory" (assistant otherwise paraphrases the
+      // user's latest message with "as I mentioned previously"). Callers
+      // can still override explicitly.
+      const resolvedToolOptions: RecallToolOptions | undefined =
+        toolOptions?.excludeConversationId !== undefined || !currentConversationId
+          ? toolOptions
+          : { ...toolOptions, excludeConversationId: currentConversationId };
+      return createRecallToolBase(
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+          // Graph lane fires when entityCtx is present and the query
+          // contains extractable entities. Empty memory_entity (e.g.
+          // before any auto-extraction linked entities) is a graceful
+          // no-op — recall falls through to fact + chunk lanes.
+          entityCtx,
+        },
+        resolvedToolOptions,
+        callbacks
+      );
+    },
+    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel, currentConversationId]
   );
 
   /**
@@ -2980,6 +3072,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryEngineTool,
     createMemoryVaultTool,
     createMemoryVaultSearchTool,
+    createRecallTool,
     searchVaultMemories: searchVaultMemoriesFn,
     vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
     getVaultMemories,

@@ -22,7 +22,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:23](https://github.com/anuma-a
 
 ### entityCtx?
 
-> `optional` **entityCtx**: `EntityOperationsContext`
+> `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
 Defined in: [src/lib/db/memoryVault/operations.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#31)
 
