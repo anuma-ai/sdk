@@ -80,6 +80,13 @@ export interface EmbeddingOptions {
   cache?: Map<string, number[]>;
   /** Called after each embedding API call with the token usage from the response. */
   onUsage?: (usage: { promptTokens: number; totalTokens: number }) => void;
+  /**
+   * Optional abort signal forwarded to the embedding API call. When the
+   * signal aborts mid-fetch, the request is cancelled and the call rejects
+   * with an `AbortError`. Useful for tying embedding requests to a parent
+   * stream's lifecycle (e.g. `useChat`'s `stop()`).
+   */
+  signal?: AbortSignal;
 }
 
 /**

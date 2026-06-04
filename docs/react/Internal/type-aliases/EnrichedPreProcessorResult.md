@@ -2,27 +2,35 @@
 
 > **EnrichedPreProcessorResult** = `object`
 
-Defined in: [src/lib/chat/preProcessor.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#60)
+Defined in: [src/lib/chat/preProcessor.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#72)
 
-Carries an artifact alongside the text the LLM sees.
+Pre-processor return shape that carries UI artifacts alongside the
+conversation enrichment messages. The runtime appends `messages` to the
+LLM request and surfaces `artifacts` via `onPreProcessorArtifact` plus
+the final result.
 
-Returning this shape from a pre-processor (or from one of the built-in
-`fetch*Data` callbacks) lets the wrapper deliver structured UI data to
-the consumer without involving the LLM. The runtime extracts `artifact`
-and inlines `text` as a normal enrichment message via `wrapAsUserText`.
+Use this shape from a pre-processor (or a built-in `fetch*Data` callback)
+when you want to render a UI card without making the LLM follow up with
+a `display_*` tool call. Returning a plain `LlmapiMessage[]` from a
+pre-processor remains valid for the text-only case.
 
 ## Properties
 
-### artifact?
+### artifacts?
 
-> `optional` **artifact**: [`PreProcessorArtifact`](PreProcessorArtifact.md)
+> `optional` **artifacts**: [`PreProcessorArtifact`](PreProcessorArtifact.md)\[]
 
-Defined in: [src/lib/chat/preProcessor.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#62)
+Defined in: [src/lib/chat/preProcessor.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#77)
+
+UI artifacts to surface to the consumer. Order is preserved.
 
 ***
 
-### text
+### messages
 
-> **text**: `string`
+> **messages**: [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 
-Defined in: [src/lib/chat/preProcessor.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#61)
+Defined in: [src/lib/chat/preProcessor.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#75)
+
+Enrichment messages appended to the LLM request. May be empty when the
+artifact is the only payload.

@@ -229,9 +229,7 @@ describe("runToolLoop pre-processors", () => {
 
     it("inlines messages from EnrichedPreProcessorResult into the LLM request", async () => {
       const p: PromptPreProcessor = () => ({
-        messages: [
-          { role: "user", content: [{ type: "text", text: "Weather data:\nsunny" }] },
-        ],
+        messages: [{ role: "user", content: [{ type: "text", text: "Weather data:\nsunny" }] }],
         artifacts: [weatherArtifact],
       });
 

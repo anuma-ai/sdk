@@ -89,10 +89,17 @@ export type RunPreProcessorsResult = {
   /**
    * Flattened enrichment messages to forward to each worker's `useChat` via
    * `enrichmentMessages`. Empty array when no pre-processor produced messages.
+   * Ordered by `preProcessors` array index, NOT by completion order — same
+   * conversation produces the same LLM context across runs.
    */
   messages: LlmapiMessage[];
   /**
-   * Aggregated artifacts. Same shape `onPreProcessorArtifact` fires with.
+   * Aggregated artifacts in `preProcessors` array order — stable across
+   * runs so persisted rows and reload-render order are deterministic. The
+   * live `onPreProcessorArtifact` callback fires in completion order (fast
+   * cards render before slow pre-processors finish), so callback-arrival
+   * order can differ from this array's order — by design.
+   *
    * Empty array when none were produced — never `undefined` here so the
    * caller can iterate without a null check.
    */
@@ -114,16 +121,18 @@ export async function runPreProcessors(
       apiKey: options.apiKey,
       getToken: options.getToken,
       baseUrl: options.baseUrl,
+      signal,
     }));
 
   const ctx: PromptPreProcessorContext = { prompt, embedding, signal };
-  const artifacts: PreProcessorArtifact[] = [];
 
-  // Artifacts fire INSIDE the per-pre-processor async wrapper so a slow
-  // pre-processor doesn't hold up the renderer for a fast one's card. The
-  // callback contract is "fires as each pre-processor resolves" — moving
-  // this loop outside `Promise.all` would block all artifact emission on
-  // the slowest pre-processor.
+  // Callback fires INSIDE the per-pre-processor async wrapper so a slow
+  // pre-processor doesn't hold up the renderer for a fast one's card.
+  // Size-warn lives here too because it's the natural per-artifact point.
+  // The aggregated `artifacts` array is built AFTER the barrier from the
+  // ordered `results` to keep persisted / result-field order stable —
+  // callback timing (fast-first) is for live render, result-array order
+  // (preProcessors index) is for persistence and reload determinism.
   const results = await Promise.all(
     preProcessors.map(async (p) => {
       try {
@@ -131,12 +140,16 @@ export async function runPreProcessors(
         if (isEnrichedPreProcessorResult(r) && r.artifacts) {
           for (const a of r.artifacts) {
             warnIfPayloadOversize(a);
-            artifacts.push(a);
-            try {
-              onPreProcessorArtifact?.(a);
-            } catch (cbErr) {
-              console.warn("[runPreProcessors] onPreProcessorArtifact callback threw:", cbErr);
-            }
+            // `Promise.resolve(...).catch` catches BOTH sync throws (wrapped
+            // by Promise.resolve into a rejected promise) and async
+            // rejections from callbacks declared `async`. The docstring on
+            // `onPreProcessorArtifact` allows async callbacks; without this
+            // the rejection would be unhandled — fatal in React Native.
+            void Promise.resolve()
+              .then(() => onPreProcessorArtifact?.(a))
+              .catch((cbErr: unknown) => {
+                console.warn("[runPreProcessors] onPreProcessorArtifact callback threw:", cbErr);
+              });
           }
         }
         return r;
@@ -147,15 +160,17 @@ export async function runPreProcessors(
     })
   );
 
-  // Messages are aggregated after the barrier so injection order matches
-  // the `preProcessors` array order (deterministic LLM context layout),
-  // independent of which pre-processor finished first.
+  // Aggregate messages AND artifacts in preProcessors array order so the
+  // LLM context and the persisted artifact list are both deterministic
+  // across runs, independent of which pre-processor finished first.
   const messages: LlmapiMessage[] = [];
+  const artifacts: PreProcessorArtifact[] = [];
   for (const r of results) {
     if (Array.isArray(r)) {
       messages.push(...r);
     } else if (isEnrichedPreProcessorResult(r)) {
       messages.push(...r.messages);
+      if (r.artifacts) artifacts.push(...r.artifacts);
     }
   }
 

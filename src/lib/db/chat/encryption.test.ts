@@ -297,7 +297,12 @@ describe("Chat Encryption Utilities", () => {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const encrypted = (await encryptMessageFields(
-        { conversationId: "c", role: "assistant" as const, content: "ok", preProcessorArtifacts: artifacts },
+        {
+          conversationId: "c",
+          role: "assistant" as const,
+          content: "ok",
+          preProcessorArtifacts: artifacts,
+        },
         testAddress,
         mockSignMessage
       )) as any;

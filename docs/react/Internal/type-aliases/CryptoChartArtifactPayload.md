@@ -2,7 +2,7 @@
 
 > **CryptoChartArtifactPayload** = `object`
 
-Defined in: src/lib/chat/preProcessor.artifacts.ts:48
+Defined in: [src/lib/chat/preProcessor.artifacts.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.artifacts.ts#48)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/lib/chat/preProcessor.artifacts.ts:48
 
 > **quotes**: `object`\[]
 
-Defined in: src/lib/chat/preProcessor.artifacts.ts:49
+Defined in: [src/lib/chat/preProcessor.artifacts.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.artifacts.ts#49)
 
 **change24h?**
 

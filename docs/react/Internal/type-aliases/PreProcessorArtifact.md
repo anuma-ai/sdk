@@ -17,7 +17,7 @@ Renderers on the consumer side route by `type` and dedupe by `(type, key)`.
 
 > `optional` **key**: `string`
 
-Defined in: [src/lib/chat/preProcessor.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#49)
+Defined in: [src/lib/chat/preProcessor.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#58)
 
 Dedupe key — consumers skip re-rendering the same `(type, key)` tuple
 inside a single response. Optional; omit when the artifact has no
@@ -29,11 +29,13 @@ natural collision dimension.
 
 > **payload**: `unknown`
 
-Defined in: [src/lib/chat/preProcessor.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#43)
+Defined in: [src/lib/chat/preProcessor.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#52)
 
 Renderer-specific payload. Must be JSON-serializable. Wrappers are
 responsible for trimming to under 10KB after `JSON.stringify` before
-emitting — the SDK does not enforce or trim.
+emitting — the SDK does not enforce or trim, but emits a console
+warning at the `runPreProcessors` boundary so oversized payloads
+surface during development.
 
 ***
 
@@ -41,9 +43,16 @@ emitting — the SDK does not enforce or trim.
 
 > **type**: `string`
 
-Defined in: [src/lib/chat/preProcessor.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#37)
+Defined in: [src/lib/chat/preProcessor.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.ts#44)
 
-Open string. Well-known types: `"weather"`, `"crypto_chart"`,
-`"stock_chart"`, `"search_citations"`. Custom pre-processors are free to
-emit any type — consumers route known types to renderers and ignore
-unknown ones.
+Open string. Well-known (built-in) types: `"weather"`, `"crypto_chart"`,
+`"stock_chart"`, `"search_citations"`. Consumers route known types to
+renderers and ignore unknown ones.
+
+**Namespacing convention**: built-in types are unprefixed. Third-party
+and custom emitters SHOULD use a reverse-DNS-style prefix to avoid
+collisions with future built-ins or other emitters — e.g.
+`"com.myorg.calendar_event"` or `"acme.contact_card"`. Renderers route
+by exact string match, so a third-party `"weather"` would collide with
+the built-in and the user-facing card would route to whichever renderer
+the consumer registered last.

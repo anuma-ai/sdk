@@ -42,7 +42,7 @@ export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
 ): Promise<number[]> {
-  const { baseUrl = BASE_URL, getToken, apiKey, model, cache } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model, cache, signal } = options;
 
   // Check cache first
   if (cache) {
@@ -71,6 +71,7 @@ export async function generateEmbedding(
       model: model ?? DEFAULT_API_EMBEDDING_MODEL,
     },
     headers,
+    signal,
   });
 
   if (response.error) {

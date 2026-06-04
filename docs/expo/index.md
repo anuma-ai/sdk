@@ -931,3 +931,9 @@ Re-exports [WEATHER\_ARTIFACT\_TYPE](../react/Internal/variables/WEATHER_ARTIFAC
 ### WeatherArtifactPayload
 
 Re-exports [WeatherArtifactPayload](../react/Internal/type-aliases/WeatherArtifactPayload.md)
+
+***
+
+### wrapAsUserText
+
+Re-exports [wrapAsUserText](../react/Internal/functions/wrapAsUserText.md)

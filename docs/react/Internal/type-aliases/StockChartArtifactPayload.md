@@ -2,7 +2,7 @@
 
 > **StockChartArtifactPayload** = `object`
 
-Defined in: src/lib/chat/preProcessor.artifacts.ts:60
+Defined in: [src/lib/chat/preProcessor.artifacts.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.artifacts.ts#60)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/lib/chat/preProcessor.artifacts.ts:60
 
 > **quotes**: `object`\[]
 
-Defined in: src/lib/chat/preProcessor.artifacts.ts:61
+Defined in: [src/lib/chat/preProcessor.artifacts.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.artifacts.ts#61)
 
 **change?**
 

@@ -2,7 +2,7 @@
 
 > **WeatherArtifactPayload** = `object`
 
-Defined in: src/lib/chat/preProcessor.artifacts.ts:24
+Defined in: [src/lib/chat/preProcessor.artifacts.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.artifacts.ts#24)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/lib/chat/preProcessor.artifacts.ts:24
 
 > **forecasts**: `object`\[]
 
-Defined in: src/lib/chat/preProcessor.artifacts.ts:25
+Defined in: [src/lib/chat/preProcessor.artifacts.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/preProcessor.artifacts.ts#25)
 
 **current**
 
