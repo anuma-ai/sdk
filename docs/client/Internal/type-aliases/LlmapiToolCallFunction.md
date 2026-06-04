@@ -2,7 +2,7 @@
 
 > **LlmapiToolCallFunction** = `object`
 
-Defined in: [src/client/types.gen.ts:2555](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2555)
+Defined in: [src/client/types.gen.ts:1022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1022)
 
 Function contains the function call details
 
@@ -12,7 +12,7 @@ Function contains the function call details
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:2559](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2559)
+Defined in: [src/client/types.gen.ts:1026](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1026)
 
 Arguments is the JSON string of arguments to pass to the function
 
@@ -22,6 +22,6 @@ Arguments is the JSON string of arguments to pass to the function
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:2563](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2563)
+Defined in: [src/client/types.gen.ts:1030](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1030)
 
 Name is the name of the function to call

@@ -2,7 +2,7 @@
 
 > **postApiV1AdminOauthClients**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminOauthClientsData`](../type-aliases/PostApiV1AdminOauthClientsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminOauthClientsResponses`](../type-aliases/PostApiV1AdminOauthClientsResponses.md), [`PostApiV1AdminOauthClientsErrors`](../type-aliases/PostApiV1AdminOauthClientsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#258)
+Defined in: [src/client/sdk.gen.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#274)
 
 Create an OAuth client (agent registration)
 

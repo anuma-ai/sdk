@@ -1,0 +1,63 @@
+# getApiV1Me
+
+> **getApiV1Me**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1MeData`](../type-aliases/GetApiV1MeData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1MeResponses`](../type-aliases/GetApiV1MeResponses.md), [`GetApiV1MeErrors`](../type-aliases/GetApiV1MeErrors.md), `ThrowOnError`>
+
+Defined in: [src/client/sdk.gen.ts:1188](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1188)
+
+Return the caller's identity and granted scopes
+
+Returns user\_address, client\_id, and scopes for the request's authenticated principal. The auth middleware injects a GrantContext on both Privy and OAuth bearer paths; this handler just reads it out.
+
+## Type Parameters
+
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+<th>Default type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`ThrowOnError` *extends* `boolean`
+
+</td>
+<td>
+
+`false`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+## Parameters
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`Options`](../type-aliases/Options.md)<[`GetApiV1MeData`](../type-aliases/GetApiV1MeData.md), `ThrowOnError`>
+
+</td>
+</tr>
+</tbody>
+</table>
+
+## Returns
+
+`RequestResult`<[`GetApiV1MeResponses`](../type-aliases/GetApiV1MeResponses.md), [`GetApiV1MeErrors`](../type-aliases/GetApiV1MeErrors.md), `ThrowOnError`>

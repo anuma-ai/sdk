@@ -434,6 +434,8 @@ export type {
   LlmapiModelsListExtraFields,
   LlmapiModelsListResponse,
   LlmapiModelTopProvider,
+  LlmapiPortalChatCompletionRequest,
+  LlmapiPortalChatCompletionResponse,
   LlmapiResponseExtraFields,
   LlmapiResponseInput,
   LlmapiResponseOutputContent,
@@ -824,3 +826,17 @@ export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memory
 // until a conversation is actually rendered.
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
+
+// Response field read-helpers for the chat-completions / responses APIs. After the
+// OpenAI-compliant migration, portal-specific fields (cost/credits, tool-call events, image
+// model) live under a `portal` envelope on chat-completions responses and at the top level on
+// responses-API responses; each helper reads its field from the correct location for either
+// shape. Imported from the types module rather than the strategies barrel so consumers don't
+// pull in the strategy singletons created there.
+export type { ApiResponse } from "./lib/chat/useChat/strategies/types";
+export {
+  getCostMicroUsd,
+  getCreditsUsed,
+  getImageModel,
+  getToolCallEvents,
+} from "./lib/chat/useChat/strategies/types";

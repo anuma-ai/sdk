@@ -319,6 +319,8 @@ export type StreamAccumulator = {
   implicitReasoningStart?: boolean;
   /** Checksum of tools used to generate this response */
   toolsChecksum?: string;
+  /** Image model the portal resolved when an image-generation tool ran */
+  imageModel?: string;
   /** Tool call events from server-side tool execution */
   toolCallEvents?: Array<{
     id: string;

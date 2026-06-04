@@ -2,4 +2,4 @@
 
 > **PostApiV1TextByChannelRegisterResponse** = [`PostApiV1TextByChannelRegisterResponses`](PostApiV1TextByChannelRegisterResponses.md)\[keyof [`PostApiV1TextByChannelRegisterResponses`](PostApiV1TextByChannelRegisterResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6428](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6428)
+Defined in: [src/client/types.gen.ts:8457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8457)
