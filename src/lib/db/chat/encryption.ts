@@ -22,6 +22,9 @@ export { decryptField, encryptField, isEncrypted };
  * - chunks: MessageChunk[] with embeddings
  * - sources: SearchSource[] (reveals browsing patterns)
  * - thoughtProcess: ActivityPhase[] (may contain memory data)
+ * - preProcessorArtifacts: PreProcessorArtifact[] (reveals query topics:
+ *   location names, ticker symbols, search URLs — same threat model as
+ *   sources, since the artifact payload is shaped by the user's prompt)
  *
  * Non-encrypted fields:
  * - IDs, roles, models, timestamps, flags, token counts, dimensions
@@ -81,6 +84,17 @@ export async function encryptMessageFields(
       ? await encryptJsonField(msg.thoughtProcess, address, signMessage, embeddedWalletSigner, true)
       : undefined;
 
+    const encryptedPreProcessorArtifacts =
+      Array.isArray(msg.preProcessorArtifacts) && msg.preProcessorArtifacts.length > 0
+        ? await encryptJsonField(
+            msg.preProcessorArtifacts,
+            address,
+            signMessage,
+            embeddedWalletSigner,
+            true
+          )
+        : undefined;
+
     return {
       ...message,
       ...(encryptedContent !== undefined && { content: encryptedContent }),
@@ -89,6 +103,9 @@ export async function encryptMessageFields(
       ...(encryptedChunks !== undefined && { chunks: encryptedChunks }),
       ...(encryptedSources !== undefined && { sources: encryptedSources }),
       ...(encryptedThoughtProcess !== undefined && { thoughtProcess: encryptedThoughtProcess }),
+      ...(encryptedPreProcessorArtifacts !== undefined && {
+        preProcessorArtifacts: encryptedPreProcessorArtifacts,
+      }),
     };
   } catch (error) {
     getLogger().warn("Failed to encrypt message fields:", error);
@@ -195,6 +212,13 @@ export async function decryptMessageFields(
     address
   );
 
+  const decryptedPreProcessorArtifacts = await decryptMaybeJsonField<
+    typeof message.preProcessorArtifacts
+  >(
+    message.preProcessorArtifacts as typeof message.preProcessorArtifacts | string | undefined,
+    address
+  );
+
   return {
     ...message,
     content: decryptedContent,
@@ -203,5 +227,6 @@ export async function decryptMessageFields(
     chunks: decryptedChunks,
     sources: decryptedSources,
     thoughtProcess: decryptedThoughtProcess,
+    preProcessorArtifacts: decryptedPreProcessorArtifacts,
   };
 }

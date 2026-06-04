@@ -14,8 +14,8 @@
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import type { PromptPreProcessor } from "./preProcessor";
-import { wrapAsUserText } from "./preProcessor";
+import type { EnrichedPreProcessorResult, PromptPreProcessor } from "./preProcessor";
+import { isEnrichedPreProcessorResult, wrapAsUserText } from "./preProcessor";
 import { cosineSimilarity } from "./preProcessorMath";
 import { noSearchCentroid, searchCentroid } from "./webSearchCentroids";
 
@@ -90,7 +90,7 @@ export interface WebSearchPreProcessorOptions {
   fetchSearchResults?: (
     prompt: string,
     options: { signal?: AbortSignal }
-  ) => Promise<string | LlmapiMessage[]>;
+  ) => Promise<string | LlmapiMessage[] | EnrichedPreProcessorResult>;
   /**
    * Score margin: `searchScore` must exceed `noSearchScore` by at least
    * this amount to classify as "needs web search".
@@ -158,12 +158,13 @@ export function createWebSearchPreProcessor(
     const classification = classify(embedding, margin);
     options.onClassification?.(classification);
     if (!classification.needsWebSearch || !options.fetchSearchResults) return;
-    const results = await options.fetchSearchResults(prompt, { signal });
-    if (typeof results === "string") {
-      const wrapped = wrapAsUserText("Web search context:", results);
+    const result = await options.fetchSearchResults(prompt, { signal });
+    if (isEnrichedPreProcessorResult(result)) return result;
+    if (typeof result === "string") {
+      const wrapped = wrapAsUserText("Web search context:", result);
       return wrapped.length === 0 ? undefined : wrapped;
     }
-    if (results.length === 0) return;
-    return results;
+    if (result.length === 0) return;
+    return result;
   };
 }

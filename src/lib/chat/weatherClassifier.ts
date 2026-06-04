@@ -15,8 +15,8 @@
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import type { PromptPreProcessor } from "./preProcessor";
-import { wrapAsUserText } from "./preProcessor";
+import type { EnrichedPreProcessorResult, PromptPreProcessor } from "./preProcessor";
+import { isEnrichedPreProcessorResult, wrapAsUserText } from "./preProcessor";
 import { cosineSimilarity } from "./preProcessorMath";
 import { noWeatherCentroid, weatherCentroid } from "./weatherCentroids";
 
@@ -91,7 +91,7 @@ export interface WeatherPreProcessorOptions {
   fetchWeatherData?: (
     prompt: string,
     options: { signal?: AbortSignal }
-  ) => Promise<string | LlmapiMessage[]>;
+  ) => Promise<string | LlmapiMessage[] | EnrichedPreProcessorResult>;
   /**
    * Score margin: `weatherScore` must exceed `noWeatherScore` by at least
    * this amount to classify as "needs weather data".
@@ -119,12 +119,13 @@ export function createWeatherPreProcessor(
     const classification = classify(embedding, margin);
     options.onClassification?.(classification);
     if (!classification.needsWeather || !options.fetchWeatherData) return;
-    const results = await options.fetchWeatherData(prompt, { signal });
-    if (typeof results === "string") {
-      const wrapped = wrapAsUserText("Weather data:", results);
+    const result = await options.fetchWeatherData(prompt, { signal });
+    if (isEnrichedPreProcessorResult(result)) return result;
+    if (typeof result === "string") {
+      const wrapped = wrapAsUserText("Weather data:", result);
       return wrapped.length === 0 ? undefined : wrapped;
     }
-    if (results.length === 0) return;
-    return results;
+    if (result.length === 0) return;
+    return result;
   };
 }

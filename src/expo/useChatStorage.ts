@@ -388,6 +388,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     preProcessors,
+    onPreProcessorArtifact,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -737,6 +738,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onError,
     apiType,
     preProcessors,
+    onPreProcessorArtifact,
   });
 
   /**
@@ -1366,6 +1368,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
+              preProcessorArtifacts:
+                result.preProcessorArtifacts && result.preProcessorArtifacts.length > 0
+                  ? result.preProcessorArtifacts
+                  : undefined,
               uniqueId: assistantUniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
@@ -1420,6 +1426,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
+            preProcessorArtifacts:
+              result.preProcessorArtifacts && result.preProcessorArtifacts.length > 0
+                ? result.preProcessorArtifacts
+                : undefined,
             uniqueId: assistantUniqueId,
           });
         } catch {
@@ -1511,6 +1521,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolCallEvents:
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
+            : undefined,
+        preProcessorArtifacts:
+          result.preProcessorArtifacts && result.preProcessorArtifacts.length > 0
+            ? result.preProcessorArtifacts
             : undefined,
         uniqueId: assistantUniqueId,
       };

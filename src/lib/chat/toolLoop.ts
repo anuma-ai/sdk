@@ -7,8 +7,7 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
-import { generateEmbedding } from "../memoryEngine/embeddings";
-import type { PromptPreProcessor } from "./preProcessor";
+import type { PreProcessorArtifact, PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
   ModelCallStartEvent,
@@ -19,6 +18,7 @@ import type {
   ToolUseStartEvent,
 } from "./runHooks";
 import { composeHooks } from "./runHooks";
+import { runPreProcessors } from "./runPreProcessors";
 
 /**
  * Fire-and-forget hook invocation. Takes a thunk so synchronous throws
@@ -504,6 +504,19 @@ export type RunToolLoopOptions = {
    */
   preProcessors?: PromptPreProcessor[];
   /**
+   * Fires once per pre-processor artifact, as each pre-processor resolves.
+   * Multiple async fires; arrival order is `Promise.all` completion order
+   * and is NOT guaranteed to match `preProcessors` array order. All fires
+   * complete BEFORE the LLM request begins streaming. Fire-and-forget —
+   * `runToolLoop` does not await the callback's return value; async
+   * callbacks are allowed but do not block the LLM stream. Errors thrown
+   * by the callback are swallowed so a buggy listener can't crash the loop.
+   *
+   * Doubles as the telemetry hook: callers log emission per `type` from
+   * inside the callback.
+   */
+  onPreProcessorArtifact?: (artifact: PreProcessorArtifact) => void;
+  /**
    * Maximum number of connector tool calls (notion, google calendar, google drive)
    * before they are removed from subsequent rounds. Set to `Infinity` to disable.
    * Only applies to fast models (cerebras) by default.
@@ -529,6 +542,12 @@ export type RunToolLoopResult =
       toolsChecksum?: string;
       /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
+      /**
+       * Artifacts emitted by pre-processors during this turn. `undefined`
+       * when none were emitted — never an empty array. Same shape as
+       * `onPreProcessorArtifact` fires.
+       */
+      preProcessorArtifacts?: PreProcessorArtifact[];
     }
   | {
       data: ApiResponse | null;
@@ -537,6 +556,11 @@ export type RunToolLoopResult =
       statusCode?: number;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /**
+       * Artifacts emitted by pre-processors during this turn, even if the
+       * LLM call later failed. `undefined` when none were emitted.
+       */
+      preProcessorArtifacts?: PreProcessorArtifact[];
     };
 
 /** Options passed to a streaming transport function. */
@@ -681,6 +705,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onStreamRetry,
     transport: makeStreamingRequest = defaultTransport,
     preProcessors,
+    onPreProcessorArtifact,
     maxConnectorCalls = 2,
     hooks: hooksOption,
   } = options;
@@ -693,6 +718,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   // `messages` is mutable so pre-processors can inject context
   // (e.g. web search results) before the first LLM request.
   let messages = options.messages;
+  // Aggregated across the pre-processor stage; surfaced on every terminal
+  // return below. Declared up here so error paths that fire BEFORE the
+  // pre-processor stage runs see an empty array → `undefined` on the result.
+  const collectedArtifacts: PreProcessorArtifact[] = [];
+  const artifactsField = (): { preProcessorArtifacts?: PreProcessorArtifact[] } =>
+    collectedArtifacts.length > 0 ? { preProcessorArtifacts: collectedArtifacts } : {};
 
   const resolved = resolveApiType(apiType, model);
   const strategy = getStrategy(resolved);
@@ -736,7 +767,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       stage: "model",
       errorObject: new Error(messagesValidation.message),
     });
-    return { data: null, error: messagesValidation.message };
+    return { data: null, error: messagesValidation.message, ...artifactsField() };
   }
 
   const modelValidation = validateModel(model);
@@ -747,46 +778,39 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       stage: "model",
       errorObject: new Error(modelValidation.message),
     });
-    return { data: null, error: modelValidation.message };
+    return { data: null, error: modelValidation.message, ...artifactsField() };
   }
 
   if (!token && !headers) {
     const msg = "No access token available. Provide `token` or auth via `headers`.";
     if (onError) onError(new Error(msg));
     await fireRunError({ error: msg, stage: "model", errorObject: new Error(msg) });
-    return { data: null, error: msg };
+    return { data: null, error: msg, ...artifactsField() };
   }
 
   if (signal?.aborted) {
     await fireRunError({ error: "Request aborted", stage: "model" });
-    return { data: null, error: "Request aborted" };
+    return { data: null, error: "Request aborted", ...artifactsField() };
   }
 
-  // Run pre-processors if any are provided. Each receives the shared
-  // embedding and may return messages to enrich the conversation.
+  // Run pre-processors via the shared helper. Same logic backs Council
+  // mode's manager-level fan-out (`runPreProcessors` is exported), so the
+  // tool loop and the manager can't drift.
   if (preProcessors?.length) {
     try {
       const text = extractLastUserText(messages);
       if (text.length > 0) {
-        const embedding = await generateEmbedding(text, {
+        const { messages: extra, artifacts } = await runPreProcessors({
+          prompt: text,
+          preProcessors,
           apiKey: headers?.["X-API-Key"],
           getToken: token ? () => Promise.resolve(token) : undefined,
           baseUrl,
+          signal,
+          onPreProcessorArtifact,
         });
-        const results = await Promise.all(
-          preProcessors.map(async (p) => {
-            try {
-              return await p({ prompt: text, embedding, signal });
-            } catch (err) {
-              console.warn("[runToolLoop] pre-processor failed:", err);
-              return undefined;
-            }
-          })
-        );
-        const extra = results.flatMap((r) => (Array.isArray(r) ? r : []));
-        if (extra.length > 0) {
-          messages = [...messages, ...extra];
-        }
+        if (artifacts.length > 0) collectedArtifacts.push(...artifacts);
+        if (extra.length > 0) messages = [...messages, ...extra];
       }
     } catch (err) {
       // Embedding / pre-processor stage failure is non-fatal
@@ -930,6 +954,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               data: strategy.buildFinalResponse(accumulator),
               error: "Request aborted",
               toolsChecksum: accumulator.toolsChecksum,
+              ...artifactsField(),
             };
           }
 
@@ -985,6 +1010,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             data: strategy.buildFinalResponse(accumulator),
             error: "Request aborted",
             toolsChecksum: accumulator.toolsChecksum,
+            ...artifactsField(),
           };
         }
 
@@ -1385,6 +1411,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           error: null,
           toolsChecksum: currentAccumulator.toolsChecksum,
           autoExecutedToolResults: accumulatedToolResults,
+          ...artifactsField(),
         };
       }
 
@@ -1506,6 +1533,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 data: strategy.buildFinalResponse(currentAccumulator),
                 error: "Request aborted",
                 toolsChecksum: currentAccumulator.toolsChecksum,
+                ...artifactsField(),
               };
             }
 
@@ -1559,6 +1587,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               data: strategy.buildFinalResponse(currentAccumulator),
               error: "Request aborted",
               toolsChecksum: currentAccumulator.toolsChecksum,
+              ...artifactsField(),
             };
           }
 
@@ -1616,6 +1645,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
         autoExecutedToolResults: accumulatedToolResults,
+        ...artifactsField(),
       };
     }
 
@@ -1628,6 +1658,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       data: response,
       error: null,
       toolsChecksum: accumulator.toolsChecksum,
+      ...artifactsField(),
     };
   } catch (err) {
     if (isAbortError(err)) {
@@ -1635,7 +1666,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // that escapes here still needs a terminal hook to close the run.
       const abortErr = err instanceof Error ? err : new Error("Request aborted");
       await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
-      return { data: null, error: "Request aborted" };
+      return { data: null, error: "Request aborted", ...artifactsField() };
     }
 
     const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
@@ -1650,6 +1681,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       err instanceof Error && "statusCode" in err
         ? (err as { statusCode: number }).statusCode
         : undefined;
-    return { data: null, error: errorMsg, statusCode };
+    return { data: null, error: errorMsg, statusCode, ...artifactsField() };
   }
 }

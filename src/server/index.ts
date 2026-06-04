@@ -445,7 +445,25 @@ export {
   classifyCryptoPriceBatch,
   createCryptoPricePreProcessor,
 } from "../lib/chat/cryptoPriceClassifier";
-export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type {
+  EnrichedPreProcessorResult,
+  PreProcessorArtifact,
+  PromptPreProcessor,
+  PromptPreProcessorContext,
+} from "../lib/chat/preProcessor";
+export { wrapAsUserText } from "../lib/chat/preProcessor";
+export type {
+  CryptoChartArtifactPayload,
+  SearchCitationsArtifactPayload,
+  StockChartArtifactPayload,
+  WeatherArtifactPayload,
+} from "../lib/chat/preProcessor.artifacts";
+export {
+  CRYPTO_CHART_ARTIFACT_TYPE,
+  SEARCH_CITATIONS_ARTIFACT_TYPE,
+  STOCK_CHART_ARTIFACT_TYPE,
+  WEATHER_ARTIFACT_TYPE,
+} from "../lib/chat/preProcessor.artifacts";
 export type {
   LlmTokenUsage,
   ModelCallEndEvent,
@@ -458,6 +476,8 @@ export type {
   ToolUseStartEvent,
 } from "../lib/chat/runHooks";
 export { composeHooks } from "../lib/chat/runHooks";
+export type { RunPreProcessorsOptions, RunPreProcessorsResult } from "../lib/chat/runPreProcessors";
+export { runPreProcessors } from "../lib/chat/runPreProcessors";
 export type {
   StockPriceClassification,
   StockPricePreProcessorOptions,

@@ -15,8 +15,8 @@
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import type { PromptPreProcessor } from "./preProcessor";
-import { wrapAsUserText } from "./preProcessor";
+import type { EnrichedPreProcessorResult, PromptPreProcessor } from "./preProcessor";
+import { isEnrichedPreProcessorResult, wrapAsUserText } from "./preProcessor";
 import { cosineSimilarity } from "./preProcessorMath";
 import { noStockPriceCentroid, stockPriceCentroid } from "./stockPriceCentroids";
 
@@ -94,7 +94,7 @@ export interface StockPricePreProcessorOptions {
   fetchStockPriceData?: (
     prompt: string,
     options: { signal?: AbortSignal }
-  ) => Promise<string | LlmapiMessage[]>;
+  ) => Promise<string | LlmapiMessage[] | EnrichedPreProcessorResult>;
   /**
    * Score margin: `stockPriceScore` must exceed `noStockPriceScore` by at
    * least this amount to classify as "needs stock price data".
@@ -124,12 +124,13 @@ export function createStockPricePreProcessor(
     const classification = classify(embedding, margin);
     options.onClassification?.(classification);
     if (!classification.needsStockPrice || !options.fetchStockPriceData) return;
-    const results = await options.fetchStockPriceData(prompt, { signal });
-    if (typeof results === "string") {
-      const wrapped = wrapAsUserText("Current stock/ETF/FX quotes:", results);
+    const result = await options.fetchStockPriceData(prompt, { signal });
+    if (isEnrichedPreProcessorResult(result)) return result;
+    if (typeof result === "string") {
+      const wrapped = wrapAsUserText("Current stock/ETF/FX quotes:", result);
       return wrapped.length === 0 ? undefined : wrapped;
     }
-    if (results.length === 0) return;
-    return results;
+    if (result.length === 0) return;
+    return result;
   };
 }

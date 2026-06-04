@@ -1016,6 +1016,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     mcpR2Domain = MCP_R2_DOMAIN,
     preProcessors,
+    onPreProcessorArtifact,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1601,6 +1602,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onToolCallArgumentsDelta,
     apiType,
     preProcessors,
+    onPreProcessorArtifact,
   });
 
   /**
@@ -2703,6 +2705,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
+              preProcessorArtifacts:
+                result.preProcessorArtifacts && result.preProcessorArtifacts.length > 0
+                  ? result.preProcessorArtifacts
+                  : undefined,
               uniqueId: assistantUniqueId,
             });
 
@@ -2757,6 +2763,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
+            preProcessorArtifacts:
+              result.preProcessorArtifacts && result.preProcessorArtifacts.length > 0
+                ? result.preProcessorArtifacts
+                : undefined,
             uniqueId: assistantUniqueId,
           });
         } catch {
@@ -2870,6 +2880,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolCallEvents:
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
+            : undefined,
+        preProcessorArtifacts:
+          result.preProcessorArtifacts && result.preProcessorArtifacts.length > 0
+            ? result.preProcessorArtifacts
             : undefined,
         // Pre-allocated ID from consumer — when provided, both the in-flight streaming
         // placeholder and this persisted message share the same React key, preventing

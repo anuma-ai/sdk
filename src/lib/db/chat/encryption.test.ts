@@ -184,6 +184,67 @@ describe("Chat Encryption Utilities", () => {
       expect(typeof encrypted.vector).toBe("string");
       expect(isEncrypted(encrypted.vector)).toBe(true);
     });
+
+    it("should encrypt preProcessorArtifacts (no plaintext on disk)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const message = {
+        conversationId: "conv-123",
+        role: "assistant" as const,
+        content: "response",
+        preProcessorArtifacts: [
+          {
+            type: "weather",
+            payload: { forecasts: [{ location: { name: "Lisbon" } }] },
+            key: "lisbon",
+          },
+        ],
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
+
+      expect(typeof encrypted.preProcessorArtifacts).toBe("string");
+      expect(isEncrypted(encrypted.preProcessorArtifacts)).toBe(true);
+      // Plaintext query topic ("Lisbon") must not leak into ciphertext.
+      expect(encrypted.preProcessorArtifacts).not.toContain("Lisbon");
+      expect(encrypted.preProcessorArtifacts).not.toContain("lisbon");
+      expect(encrypted.preProcessorArtifacts).not.toContain("weather");
+    });
+
+    it("should leave preProcessorArtifacts undefined when none are passed", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const message = {
+        conversationId: "conv-123",
+        role: "assistant" as const,
+        content: "response",
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
+
+      expect(encrypted.preProcessorArtifacts).toBeUndefined();
+    });
+
+    it("should not produce ciphertext for an empty preProcessorArtifacts array", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const message = {
+        conversationId: "conv-123",
+        role: "assistant" as const,
+        content: "response",
+        preProcessorArtifacts: [],
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
+
+      // Spread of `...message` preserves the empty array, but no ciphertext
+      // is produced — the write path in operations.ts skips empty arrays so
+      // the column stays NULL on disk.
+      expect(encrypted.preProcessorArtifacts).toEqual([]);
+    });
   });
 
   describe("decryptMessageFields", () => {
@@ -220,6 +281,41 @@ describe("Chat Encryption Utilities", () => {
       expect(decrypted.content).toBe("Secret response");
       expect(decrypted.thinking).toBe("Internal reasoning");
       expect(decrypted.sources).toEqual([{ url: "https://example.com", title: "Test" }]);
+    });
+
+    it("should decrypt preProcessorArtifacts round-trip", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const artifacts = [
+        {
+          type: "weather",
+          payload: { forecasts: [{ location: { name: "Lisbon" } }] },
+          key: "lisbon",
+        },
+        { type: "crypto_chart", payload: { quotes: [{ symbol: "BTC", price: 90000 }] } },
+      ];
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const encrypted = (await encryptMessageFields(
+        { conversationId: "c", role: "assistant" as const, content: "ok", preProcessorArtifacts: artifacts },
+        testAddress,
+        mockSignMessage
+      )) as any;
+
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-1",
+        messageId: "msg-1" as unknown as number,
+        conversationId: "c",
+        role: "assistant",
+        content: "ok",
+        model: "any-model",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        preProcessorArtifacts: encrypted.preProcessorArtifacts,
+      };
+
+      const decrypted = await decryptMessageFields(storedMessage, testAddress, mockSignMessage);
+      expect(decrypted.preProcessorArtifacts).toEqual(artifacts);
     });
 
     it("should handle plaintext messages (backwards compatibility)", async () => {

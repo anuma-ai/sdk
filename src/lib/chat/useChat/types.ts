@@ -6,7 +6,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
-import type { PromptPreProcessor } from "../preProcessor";
+import type { PreProcessorArtifact, PromptPreProcessor } from "../preProcessor";
 import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
@@ -262,8 +262,22 @@ export type BaseUseChatOptions = {
    * `createCryptoPricePreProcessor`, `createStockPricePreProcessor`,
    * `createWeatherPreProcessor`, or write a custom one matching
    * `PromptPreProcessor`.
+   *
+   * Pass `[]` to explicitly disable the stage — used by Council/Compare
+   * mode workers where the manager runs `runPreProcessors` once and fans
+   * the resulting `enrichmentMessages` + `onPreProcessorArtifact` calls
+   * out to N parallel workers.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Fires once per pre-processor artifact, as each pre-processor resolves,
+   * BEFORE the LLM stream starts. Lets consumers render UI cards (weather,
+   * charts, citations) deterministically without depending on the model
+   * making a follow-up `display_*` tool call.
+   *
+   * Mirrors the `runToolLoop` option of the same name.
+   */
+  onPreProcessorArtifact?: (artifact: PreProcessorArtifact) => void;
 };
 
 /**

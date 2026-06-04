@@ -87,6 +87,20 @@
  * @module
  */
 
+export type { EnrichedPreProcessorResult, PreProcessorArtifact } from "../lib/chat/preProcessor";
+export { wrapAsUserText } from "../lib/chat/preProcessor";
+export type {
+  CryptoChartArtifactPayload,
+  SearchCitationsArtifactPayload,
+  StockChartArtifactPayload,
+  WeatherArtifactPayload,
+} from "../lib/chat/preProcessor.artifacts";
+export {
+  CRYPTO_CHART_ARTIFACT_TYPE,
+  SEARCH_CITATIONS_ARTIFACT_TYPE,
+  STOCK_CHART_ARTIFACT_TYPE,
+  WEATHER_ARTIFACT_TYPE,
+} from "../lib/chat/preProcessor.artifacts";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";

@@ -489,6 +489,26 @@ Callback invoked when the response completes successfully
 <tr>
 <td>
 
+`options.onPreProcessorArtifact?`
+
+</td>
+<td>
+
+(`artifact`: [`PreProcessorArtifact`](../../react/Internal/type-aliases/PreProcessorArtifact.md)) => `void`
+
+</td>
+<td>
+
+Fires once per pre-processor artifact, as each pre-processor resolves,
+BEFORE the LLM stream starts. Forwarded to the underlying `useChat`.
+Use this to render UI cards (weather, charts, citations) without
+waiting for the model to follow up with a `display_*` tool call.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onServerToolCall?`
 
 </td>
@@ -559,6 +579,10 @@ enrich the conversation. Forwarded to the underlying `useChat` hook.
 See `createWebSearchPreProcessor`, `createCryptoPricePreProcessor`,
 `createStockPricePreProcessor`, `createWeatherPreProcessor`, or write
 a custom one matching `PromptPreProcessor`.
+
+Pass `[]` to explicitly disable the stage — used by Council/Compare
+mode workers that consume artifacts via the manager's pre-resolved
+`enrichmentMessages`/`onPreProcessorArtifact` fan-out.
 
 </td>
 </tr>

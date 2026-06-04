@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#192)
+Defined in: [src/lib/db/chat/types.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#199)
 
 ## Extends
 
@@ -180,6 +180,23 @@ Parent message ID for branching (edit/regenerate). Null for root messages.
 
 ***
 
+### preProcessorArtifacts?
+
+> `optional` **preProcessorArtifacts**: [`PreProcessorArtifact`](../type-aliases/PreProcessorArtifact.md)\[]
+
+Defined in: [src/lib/db/chat/types.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#153)
+
+Artifacts emitted by pre-processors when this message was produced.
+Stored alongside the assistant row so that on reload the renderer can
+re-emit the same cards without re-running the pre-processor stage.
+`undefined` when no artifacts were emitted for this turn.
+
+**Inherited from**
+
+[`StoredMessage`](StoredMessage.md).[`preProcessorArtifacts`](StoredMessage.md#preprocessorartifacts)
+
+***
+
 ### responseDuration?
 
 > `optional` **responseDuration**: `number`
@@ -208,7 +225,7 @@ Defined in: [src/lib/db/chat/types.ts:117](https://github.com/anuma-ai/sdk/blob/
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#193)
+Defined in: [src/lib/db/chat/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#200)
 
 ***
 

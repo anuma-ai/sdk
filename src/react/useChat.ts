@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
+import type { PreProcessorArtifact } from "../lib/chat/preProcessor";
 import {
   type ApiResponse,
   type ApiType,
@@ -61,12 +62,19 @@ type SendMessageResult =
       toolsChecksum?: string;
       /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
+      /**
+       * Artifacts emitted by pre-processors during this turn. `undefined`
+       * when none. See `onPreProcessorArtifact` for live callback delivery.
+       */
+      preProcessorArtifacts?: PreProcessorArtifact[];
     }
   | {
       data: ApiResponse | null;
       error: string;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** Artifacts emitted before the LLM call failed. */
+      preProcessorArtifacts?: PreProcessorArtifact[];
     };
 
 /**
@@ -153,6 +161,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
+    onPreProcessorArtifact,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -295,6 +304,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
+          onPreProcessorArtifact,
         });
 
         return result;
@@ -324,6 +334,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       defaultApiType,
       smoothing,
       preProcessors,
+      onPreProcessorArtifact,
     ]
   );
 

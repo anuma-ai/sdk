@@ -55,6 +55,20 @@
  *
  * @module react
  */
+export type { EnrichedPreProcessorResult, PreProcessorArtifact } from "../lib/chat/preProcessor";
+export { wrapAsUserText } from "../lib/chat/preProcessor";
+export type {
+  CryptoChartArtifactPayload,
+  SearchCitationsArtifactPayload,
+  StockChartArtifactPayload,
+  WeatherArtifactPayload,
+} from "../lib/chat/preProcessor.artifacts";
+export {
+  CRYPTO_CHART_ARTIFACT_TYPE,
+  SEARCH_CITATIONS_ARTIFACT_TYPE,
+  STOCK_CHART_ARTIFACT_TYPE,
+  WEATHER_ARTIFACT_TYPE,
+} from "../lib/chat/preProcessor.artifacts";
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
 export { ProviderStreamError } from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";

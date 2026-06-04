@@ -10,7 +10,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../client";
-import type { PromptPreProcessor } from "../../chat/preProcessor";
+import type { PreProcessorArtifact, PromptPreProcessor } from "../../chat/preProcessor";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
@@ -144,6 +144,13 @@ export interface StoredMessage {
   feedback?: MessageFeedback;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /**
+   * Artifacts emitted by pre-processors when this message was produced.
+   * Stored alongside the assistant row so that on reload the renderer can
+   * re-emit the same cards without re-running the pre-processor stage.
+   * `undefined` when no artifacts were emitted for this turn.
+   */
+  preProcessorArtifacts?: PreProcessorArtifact[];
 }
 
 export interface ActivityPhase {
@@ -281,6 +288,11 @@ export interface CreateMessageOptions {
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
   /**
+   * Artifacts emitted by pre-processors during this turn. Persisted as a
+   * JSON-stringified array so the renderer can re-emit the cards on reload.
+   */
+  preProcessorArtifacts?: PreProcessorArtifact[];
+  /**
    * Optional pre-generated unique ID for this message.
    * When provided, used as the WatermelonDB record ID instead of auto-generating one.
    * Consumers can pre-allocate this ID before streaming starts so the in-flight
@@ -417,8 +429,19 @@ export interface BaseUseChatStorageOptions {
    * See `createWebSearchPreProcessor`, `createCryptoPricePreProcessor`,
    * `createStockPricePreProcessor`, `createWeatherPreProcessor`, or write
    * a custom one matching `PromptPreProcessor`.
+   *
+   * Pass `[]` to explicitly disable the stage — used by Council/Compare
+   * mode workers that consume artifacts via the manager's pre-resolved
+   * `enrichmentMessages`/`onPreProcessorArtifact` fan-out.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Fires once per pre-processor artifact, as each pre-processor resolves,
+   * BEFORE the LLM stream starts. Forwarded to the underlying `useChat`.
+   * Use this to render UI cards (weather, charts, citations) without
+   * waiting for the model to follow up with a `display_*` tool call.
+   */
+  onPreProcessorArtifact?: (artifact: PreProcessorArtifact) => void;
 }
 
 /**

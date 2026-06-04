@@ -53,8 +53,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v29: Added entity + memory_entity tables for the W5 knowledge-graph retrieval lane
  * - v30: Added event_time_start, event_time_end, event_time_kind columns to memory_vault for the W6 temporal retrieval lane
  * - v31: Added user_id column to memory_entity for multi-user server-side scoping of the W5 graph retrieval lane
+ * - v32: Added pre_processor_artifacts column to history for persisted pre-processor UI artifacts (weather, charts, citations)
  */
-export const SDK_SCHEMA_VERSION = 31;
+export const SDK_SCHEMA_VERSION = 32;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -116,6 +117,7 @@ export const sdkSchema = appSchema({
         { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
         { name: "feedback", type: "string", isOptional: true }, // 'like' | 'dislike' | null
         { name: "tool_call_events", type: "string", isOptional: true }, // JSON stringified LlmapiToolCallEvent[]
+        { name: "pre_processor_artifacts", type: "string", isOptional: true }, // JSON stringified PreProcessorArtifact[]
       ],
     }),
     tableSchema({
@@ -334,6 +336,7 @@ export const sdkSchema = appSchema({
  * - v28 → v29: Added `entity` + `memory_entity` tables for W5 knowledge-graph retrieval lane
  * - v29 → v30: Added `event_time_start`, `event_time_end`, `event_time_kind` columns to memory_vault for W6 temporal retrieval lane
  * - v30 → v31: Added `user_id` column to memory_entity for multi-user scoping of the W5 graph lane (with backfill from memory_vault.user_id)
+ * - v31 → v32: Added `pre_processor_artifacts` column to history for persisted pre-processor UI artifacts
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -757,6 +760,20 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;`
         ),
+      ],
+    },
+    // v31 -> v32: Added pre_processor_artifacts to history so UI cards
+    // emitted by pre-processors (weather, crypto/stock charts, search
+    // citations) re-render on conversation reload without rerunning the
+    // pre-processor stage. Additive nullable column; existing rows are
+    // null-safe.
+    {
+      toVersion: 32,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "pre_processor_artifacts", type: "string", isOptional: true }],
+        }),
       ],
     },
   ],

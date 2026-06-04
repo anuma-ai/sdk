@@ -48,6 +48,7 @@ function messageToStoredRaw(message: Message): StoredMessage {
   const chunksRaw = message._getRaw("chunks");
   const thoughtProcessRaw = message._getRaw("thought_process");
   const toolCallEventsRaw = message._getRaw("tool_call_events");
+  const preProcessorArtifactsRaw = message._getRaw("pre_processor_artifacts");
 
   return {
     uniqueId: message.id,
@@ -74,6 +75,7 @@ function messageToStoredRaw(message: Message): StoredMessage {
     parentMessageId: message.parentMessageId,
     feedback: message.feedback || null,
     toolCallEvents: parseJsonField(toolCallEventsRaw),
+    preProcessorArtifacts: parseJsonField(preProcessorArtifactsRaw),
   };
 }
 
@@ -536,6 +538,19 @@ export async function createMessageOp(
             ? encryptedOpts.toolCallEvents
             : JSON.stringify(encryptedOpts.toolCallEvents);
         msg._setRaw("tool_call_events", tceValue);
+      }
+      // Encrypted alongside `sources` — same browsing-pattern threat model
+      // (artifact payloads carry location names, ticker symbols, search URLs
+      // derived from the user's prompt). encryptedOpts.preProcessorArtifacts
+      // is a ciphertext string when a wallet key is available, the original
+      // array otherwise (unencrypted fall-through path). Skip empty arrays
+      // so the column stays NULL — matches the "never empty array, always
+      // undefined" contract surfaced on `StoredMessage`.
+      const ppa = encryptedOpts.preProcessorArtifacts;
+      if (typeof ppa === "string" && ppa.length > 0) {
+        msg._setRaw("pre_processor_artifacts", ppa);
+      } else if (Array.isArray(ppa) && ppa.length > 0) {
+        msg._setRaw("pre_processor_artifacts", JSON.stringify(ppa));
       }
     });
   });
@@ -1069,6 +1084,7 @@ export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMe
     thinking: opts.thinking,
     parentMessageId: opts.parentMessageId,
     toolCallEvents: opts.toolCallEvents,
+    preProcessorArtifacts: opts.preProcessorArtifacts,
   };
 }
 

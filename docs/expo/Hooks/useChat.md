@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#120)
+Defined in: [src/expo/useChat.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#128)
 
 A React hook for managing chat completions with authentication.
 
@@ -153,6 +153,28 @@ Receives raw API response - either Responses API or Completions API format.
 <tr>
 <td>
 
+`options.onPreProcessorArtifact?`
+
+</td>
+<td>
+
+(`artifact`: [`PreProcessorArtifact`](../../react/Internal/type-aliases/PreProcessorArtifact.md)) => `void`
+
+</td>
+<td>
+
+Fires once per pre-processor artifact, as each pre-processor resolves,
+BEFORE the LLM stream starts. Lets consumers render UI cards (weather,
+charts, citations) deterministically without depending on the model
+making a follow-up `display_*` tool call.
+
+Mirrors the `runToolLoop` option of the same name.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onServerToolCall?`
 
 </td>
@@ -261,6 +283,11 @@ conversation. See `createWebSearchPreProcessor`,
 `createCryptoPricePreProcessor`, `createStockPricePreProcessor`,
 `createWeatherPreProcessor`, or write a custom one matching
 `PromptPreProcessor`.
+
+Pass `[]` to explicitly disable the stage — used by Council/Compare
+mode workers where the manager runs `runPreProcessors` once and fans
+the resulting `enrichmentMessages` + `onPreProcessorArtifact` calls
+out to N parallel workers.
 
 </td>
 </tr>

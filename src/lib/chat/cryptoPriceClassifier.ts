@@ -16,8 +16,8 @@ import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cryptoPriceCentroid, noCryptoPriceCentroid } from "./cryptoPriceCentroids";
-import type { PromptPreProcessor } from "./preProcessor";
-import { wrapAsUserText } from "./preProcessor";
+import type { EnrichedPreProcessorResult, PromptPreProcessor } from "./preProcessor";
+import { isEnrichedPreProcessorResult, wrapAsUserText } from "./preProcessor";
 import { cosineSimilarity } from "./preProcessorMath";
 
 export interface CryptoPriceClassification {
@@ -94,7 +94,7 @@ export interface CryptoPricePreProcessorOptions {
   fetchCryptoPriceData?: (
     prompt: string,
     options: { signal?: AbortSignal }
-  ) => Promise<string | LlmapiMessage[]>;
+  ) => Promise<string | LlmapiMessage[] | EnrichedPreProcessorResult>;
   /**
    * Score margin: `cryptoPriceScore` must exceed `noCryptoPriceScore` by at
    * least this amount to classify as "needs crypto price data".
@@ -124,12 +124,13 @@ export function createCryptoPricePreProcessor(
     const classification = classify(embedding, margin);
     options.onClassification?.(classification);
     if (!classification.needsCryptoPrice || !options.fetchCryptoPriceData) return;
-    const results = await options.fetchCryptoPriceData(prompt, { signal });
-    if (typeof results === "string") {
-      const wrapped = wrapAsUserText("Current crypto prices:", results);
+    const result = await options.fetchCryptoPriceData(prompt, { signal });
+    if (isEnrichedPreProcessorResult(result)) return result;
+    if (typeof result === "string") {
+      const wrapped = wrapAsUserText("Current crypto prices:", result);
       return wrapped.length === 0 ? undefined : wrapped;
     }
-    if (results.length === 0) return;
-    return results;
+    if (result.length === 0) return;
+    return result;
   };
 }

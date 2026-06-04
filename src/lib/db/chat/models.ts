@@ -3,6 +3,7 @@ import { date, field, json, text } from "@nozbe/watermelondb/decorators";
 import type { Associations } from "@nozbe/watermelondb/Model";
 
 import type { LlmapiToolCallEvent } from "../../../client";
+import type { PreProcessorArtifact } from "../../chat/preProcessor";
 import type {
   ActivityPhase,
   ChatCompletionUsage,
@@ -48,6 +49,8 @@ export class Message extends Model {
   @text("feedback") feedback?: MessageFeedback;
   @json("tool_call_events", (raw: unknown) => raw as LlmapiToolCallEvent[])
   toolCallEvents?: LlmapiToolCallEvent[];
+  @json("pre_processor_artifacts", (raw: unknown) => raw as PreProcessorArtifact[])
+  preProcessorArtifacts?: PreProcessorArtifact[];
 }
 
 export class Conversation extends Model {

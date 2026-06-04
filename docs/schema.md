@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v31**
+Current version: **v32**
 
 ```mermaid
 graph LR
@@ -54,6 +54,7 @@ graph LR
 | `parent_message_id` | string |  | ✓ |
 | `feedback` | string |  | ✓ |
 | `tool_call_events` | string |  | ✓ |
+| `pre_processor_artifacts` | string |  | ✓ |
 
 ## conversations
 
@@ -206,6 +207,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v32 | Added `pre_processor_artifacts` to `history` |
 | v31 | Added `user_id` to `memory_entity`; `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;` |
 | v30 | Added `event_time_start`, `event_time_end`, `event_time_kind` to `memory_vault` |
 | v29 | Added `entity` table; Added `memory_entity` table |
