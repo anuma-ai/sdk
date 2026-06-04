@@ -2,7 +2,7 @@
 
 > **getMediaCountsByTypeOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`): `Promise`<`Record`<[`MediaType`](../type-aliases/MediaType.md), `number`>>
 
-Defined in: [src/lib/db/media/operations.ts:791](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#791)
+Defined in: [src/lib/db/media/operations.ts:834](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#834)
 
 Get media counts by type for a user.
 

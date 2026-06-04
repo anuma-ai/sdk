@@ -168,11 +168,27 @@ Defined in: [src/lib/db/media/models.ts:40](https://github.com/anuma-ai/sdk/blob
 
 ***
 
+### isCold
+
+> **isCold**: `boolean`
+
+Defined in: [src/lib/db/media/models.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#53)
+
+***
+
 ### isDeleted
 
 > **isDeleted**: `boolean`
 
 Defined in: [src/lib/db/media/models.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#48)
+
+***
+
+### lastAccessedAt?
+
+> `optional` **lastAccessedAt**: `number`
+
+Defined in: [src/lib/db/media/models.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#54)
 
 ***
 

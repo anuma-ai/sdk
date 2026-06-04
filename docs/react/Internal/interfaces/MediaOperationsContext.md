@@ -1,6 +1,6 @@
 # MediaOperationsContext
 
-Defined in: [src/lib/db/media/types.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#183)
+Defined in: [src/lib/db/media/types.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#191)
 
 Context required for media database operations.
 
@@ -10,7 +10,7 @@ Context required for media database operations.
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/media/types.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#184)
+Defined in: [src/lib/db/media/types.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#192)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/media/types.ts:184](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddedWalletSigner**: `MediaSignMessageFn`
 
-Defined in: [src/lib/db/media/types.ts:190](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#190)
+Defined in: [src/lib/db/media/types.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#198)
 
 Function for silent signing with embedded wallets
 
@@ -28,7 +28,7 @@ Function for silent signing with embedded wallets
 
 > `optional` **signMessage**: `MediaSignMessageFn`
 
-Defined in: [src/lib/db/media/types.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#188)
+Defined in: [src/lib/db/media/types.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#196)
 
 Function to sign a message for encryption key derivation
 
@@ -38,6 +38,6 @@ Function to sign a message for encryption key derivation
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/db/media/types.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#186)
+Defined in: [src/lib/db/media/types.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#194)
 
 Wallet address for encryption (optional - when present, enables field-level encryption)

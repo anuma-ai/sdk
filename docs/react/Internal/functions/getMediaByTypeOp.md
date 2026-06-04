@@ -2,7 +2,7 @@
 
 > **getMediaByTypeOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `mediaType`: [`MediaType`](../type-aliases/MediaType.md), `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:539](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#539)
+Defined in: [src/lib/db/media/operations.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#582)
 
 Get media by type (image, video, audio, document).
 

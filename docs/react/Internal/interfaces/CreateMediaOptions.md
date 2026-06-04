@@ -1,6 +1,6 @@
 # CreateMediaOptions
 
-Defined in: [src/lib/db/media/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#108)
+Defined in: [src/lib/db/media/types.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#116)
 
 Options for creating a new media record.
 
@@ -10,7 +10,7 @@ Options for creating a new media record.
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/media/types.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#116)
+Defined in: [src/lib/db/media/types.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#124)
 
 Associated conversation ID (optional)
 
@@ -20,7 +20,7 @@ Associated conversation ID (optional)
 
 > `optional` **dimensions**: [`MediaDimensions`](MediaDimensions.md)
 
-Defined in: [src/lib/db/media/types.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#128)
+Defined in: [src/lib/db/media/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#136)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/media/types.ts:128](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **duration**: `number`
 
-Defined in: [src/lib/db/media/types.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#129)
+Defined in: [src/lib/db/media/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#137)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/db/media/types.ts:129](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **mediaId**: `string`
 
-Defined in: [src/lib/db/media/types.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#110)
+Defined in: [src/lib/db/media/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#118)
 
 Pre-generated media ID. If not provided, one will be generated.
 
@@ -46,7 +46,7 @@ Pre-generated media ID. If not provided, one will be generated.
 
 > **mediaType**: [`MediaType`](../type-aliases/MediaType.md)
 
-Defined in: [src/lib/db/media/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#121)
+Defined in: [src/lib/db/media/types.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#129)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [src/lib/db/media/types.ts:121](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **messageId**: `string`
 
-Defined in: [src/lib/db/media/types.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#114)
+Defined in: [src/lib/db/media/types.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#122)
 
 Associated message ID (optional)
 
@@ -64,7 +64,7 @@ Associated message ID (optional)
 
 > `optional` **metadata**: [`MediaMetadata`](MediaMetadata.md)
 
-Defined in: [src/lib/db/media/types.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#130)
+Defined in: [src/lib/db/media/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#138)
 
 ***
 
@@ -72,7 +72,7 @@ Defined in: [src/lib/db/media/types.ts:130](https://github.com/anuma-ai/sdk/blob
 
 > **mimeType**: `string`
 
-Defined in: [src/lib/db/media/types.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#120)
+Defined in: [src/lib/db/media/types.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#128)
 
 ***
 
@@ -80,7 +80,7 @@ Defined in: [src/lib/db/media/types.ts:120](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/media/types.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#126)
+Defined in: [src/lib/db/media/types.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#134)
 
 ***
 
@@ -88,7 +88,7 @@ Defined in: [src/lib/db/media/types.ts:126](https://github.com/anuma-ai/sdk/blob
 
 > **name**: `string`
 
-Defined in: [src/lib/db/media/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#119)
+Defined in: [src/lib/db/media/types.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#127)
 
 ***
 
@@ -96,7 +96,7 @@ Defined in: [src/lib/db/media/types.ts:119](https://github.com/anuma-ai/sdk/blob
 
 > **role**: [`MediaRole`](../type-aliases/MediaRole.md)
 
-Defined in: [src/lib/db/media/types.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#123)
+Defined in: [src/lib/db/media/types.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#131)
 
 ***
 
@@ -104,7 +104,7 @@ Defined in: [src/lib/db/media/types.ts:123](https://github.com/anuma-ai/sdk/blob
 
 > **size**: `number`
 
-Defined in: [src/lib/db/media/types.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#122)
+Defined in: [src/lib/db/media/types.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#130)
 
 ***
 
@@ -112,7 +112,7 @@ Defined in: [src/lib/db/media/types.ts:122](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **sourceUrl**: `string`
 
-Defined in: [src/lib/db/media/types.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#127)
+Defined in: [src/lib/db/media/types.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#135)
 
 ***
 
@@ -120,6 +120,6 @@ Defined in: [src/lib/db/media/types.ts:127](https://github.com/anuma-ai/sdk/blob
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/media/types.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#112)
+Defined in: [src/lib/db/media/types.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#120)
 
 Wallet address of the user

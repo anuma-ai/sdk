@@ -2,7 +2,7 @@
 
 > **isSupportedMediaType**(`mimeType`: `string`): `boolean`
 
-Defined in: [src/lib/db/media/types.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#224)
+Defined in: [src/lib/db/media/types.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#232)
 
 Check if a MIME type is supported for the library.
 

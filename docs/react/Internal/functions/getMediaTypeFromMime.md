@@ -2,7 +2,7 @@
 
 > **getMediaTypeFromMime**(`mimeType`: `string`): [`MediaType`](../type-aliases/MediaType.md)
 
-Defined in: [src/lib/db/media/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#205)
+Defined in: [src/lib/db/media/types.ts:213](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#213)
 
 Determine MediaType from MIME type string.
 

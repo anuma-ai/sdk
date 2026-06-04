@@ -54,11 +54,31 @@ WatermelonDB record ID
 
 ***
 
+### isCold
+
+> **isCold**: `boolean`
+
+Defined in: [src/lib/db/media/types.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#109)
+
+Storage-aware local retention (#3271) — DEVICE-LOCAL, never backed up.
+`isCold`: media bytes evicted off-device (this metadata row is retained).
+`lastAccessedAt`: ms epoch of last view, drives LRU eviction order.
+
+***
+
 ### isDeleted
 
 > **isDeleted**: `boolean`
 
 Defined in: [src/lib/db/media/types.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#102)
+
+***
+
+### lastAccessedAt?
+
+> `optional` **lastAccessedAt**: `number`
+
+Defined in: [src/lib/db/media/types.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#110)
 
 ***
 
