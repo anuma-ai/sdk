@@ -337,6 +337,130 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "How does ZetaChain enable cross-chain transfers?", shouldTrigger: [] },
   { text: "Write a smart contract that mints an ERC-20 token", shouldTrigger: [] },
   { text: "What is the difference between proof-of-stake and proof-of-work?", shouldTrigger: [] },
+
+  // ── Imported from the portal classifier test corpus ─────────────────────
+  // Sourced from ai-portal/internal/services/classifier/classifier_test.go.
+  // The portal classifier was a single yes/no "needs external data" call,
+  // so its `search`-labeled prompts include crypto/stock/weather domain
+  // queries that the SDK delegates to the dedicated pre-processors. Labels
+  // here reflect the per-classifier routing, not the original binary tag.
+
+  // Portal corpus — cryptoPrice
+  { text: "What is the bitcoin price today?", shouldTrigger: ["cryptoPrice"] },
+  { text: "What is the bitcoin price?", shouldTrigger: ["cryptoPrice"] },
+  { text: "What's the current ETH price?", shouldTrigger: ["cryptoPrice"] },
+
+  // Portal corpus — stockPrice (includes FX)
+  { text: "OHLCV data for AAPL", shouldTrigger: ["stockPrice"] },
+  { text: "What is the current stock price of Apple?", shouldTrigger: ["stockPrice"] },
+  { text: "exchange rate USD to EUR", shouldTrigger: ["stockPrice"] },
+  { text: "stock price of Apple", shouldTrigger: ["stockPrice"] },
+
+  // Portal corpus — weather
+  { text: "air quality in Beijing", shouldTrigger: ["weather"] },
+  { text: "flood forecast for Houston", shouldTrigger: ["weather"] },
+  { text: "historical weather data for 2023", shouldTrigger: ["weather"] },
+  { text: "marine weather forecast", shouldTrigger: ["weather"] },
+  { text: "temperature forecast for tomorrow", shouldTrigger: ["weather"] },
+  { text: "weather in San Francisco", shouldTrigger: ["weather"] },
+
+  // Portal corpus — webSearch (news / current events)
+  { text: "Breaking news today", shouldTrigger: ["webSearch"] },
+  { text: "What happened in 2025 today?", shouldTrigger: ["webSearch"] },
+  { text: "What happened today?", shouldTrigger: ["webSearch"] },
+  { text: "What happened with coder today?", shouldTrigger: ["webSearch"] },
+  { text: "What is happening right now?", shouldTrigger: ["webSearch"] },
+  { text: "What news is there about Tesla?", shouldTrigger: ["webSearch"] },
+  { text: "What's the latest news about AI?", shouldTrigger: ["webSearch"] },
+  { text: "What's the latest news about programming?", shouldTrigger: ["webSearch"] },
+  { text: "What's the latest news on Tesla?", shouldTrigger: ["webSearch"] },
+  { text: "latest news update on the election", shouldTrigger: ["webSearch"] },
+
+  // Portal corpus — webSearch (sports / events)
+  { text: "Did the team win the game?", shouldTrigger: ["webSearch"] },
+  { text: "Is the concert streaming live?", shouldTrigger: ["webSearch"] },
+  { text: "What was the score of the Lakers game?", shouldTrigger: ["webSearch"] },
+  { text: "Who won the championship?", shouldTrigger: ["webSearch"] },
+
+  // Portal corpus — webSearch (research / comparison / recommendations)
+  { text: "What are the differences? Compare React vs Vue", shouldTrigger: ["webSearch"] },
+  { text: "What are the pros and cons of Kubernetes?", shouldTrigger: ["webSearch"] },
+  { text: "analyze the current market trends for AI", shouldTrigger: ["webSearch"] },
+  { text: "climate projection for 2050", shouldTrigger: ["webSearch"] },
+  { text: "comprehensive overview of blockchain technology", shouldTrigger: ["webSearch"] },
+  { text: "recommend a good framework for mobile development", shouldTrigger: ["webSearch"] },
+  { text: "which is better React or Vue for web development", shouldTrigger: ["webSearch"] },
+
+  // Portal corpus — webSearch (local / location)
+  { text: "coffee shops nearby", shouldTrigger: ["webSearch"] },
+  { text: "hotels in New York City", shouldTrigger: ["webSearch"] },
+  { text: "restaurants near me", shouldTrigger: ["webSearch"] },
+  { text: "where is the nearest gas station", shouldTrigger: ["webSearch"] },
+
+  // Portal corpus — webSearch (lookup / encyclopedic)
+  { text: "find ticker symbol for Apple", shouldTrigger: ["webSearch"] },
+  { text: "what's the elevation of Denver", shouldTrigger: ["webSearch"] },
+
+  // Portal corpus — webSearch (image / video)
+  { text: "images of cute cats", shouldTrigger: ["webSearch"] },
+  { text: "pasta cooking video tutorial", shouldTrigger: ["webSearch"] },
+  { text: "pictures of mountains", shouldTrigger: ["webSearch"] },
+  { text: "pictures of the Eiffel Tower", shouldTrigger: ["webSearch"] },
+  { text: "youtube python tutorials", shouldTrigger: ["webSearch"] },
+
+  // ── Portal corpus — no-trigger (code / creative / conversational / personal) ─────
+  { text: "Calculate the derivative of x^2", shouldTrigger: [] },
+  { text: "Debug this code snippet", shouldTrigger: [] },
+  { text: "Explain how neural networks work", shouldTrigger: [] },
+  { text: "Explain local storage in JavaScript", shouldTrigger: [] },
+  { text: "How do I deliver packages efficiently?", shouldTrigger: [] },
+  { text: "How do I resize a window in macOS?", shouldTrigger: [] },
+  {
+    text: "How much is the painting of a sunset worth in terms of the amount I paid for it?",
+    shouldTrigger: [],
+  },
+  { text: "How to configure npm run watch", shouldTrigger: [] },
+  { text: "How to use local variables in Python", shouldTrigger: [] },
+  { text: "I want to know how to cook pasta", shouldTrigger: [] },
+  {
+    text: "I wanted to follow up on our previous conversation about YouTube videos for workplace posture. Can you remind me of the Mayo Clinic video you recommended?",
+    shouldTrigger: [],
+  },
+  {
+    text: "I wanted to follow up on our previous conversation about fracking in the Marcellus Shale region. You mentioned that some states require fracking companies to monitor groundwater quality at nearby wells.",
+    shouldTrigger: [],
+  },
+  { text: "List my calendar events for the next 7 days.", shouldTrigger: [] },
+  { text: 'Now say the word "beta"', shouldTrigger: [] },
+  { text: "Translate 'hello' to Spanish", shouldTrigger: [] },
+  { text: "What a wonderful world this is", shouldTrigger: [] },
+  { text: "What happened during World War 2?", shouldTrigger: [] },
+  {
+    text: "What is the current time at the location of IP address 8.8.8.8? First look up where it is, then get the current time for that timezone.",
+    shouldTrigger: [],
+  },
+  { text: "What was life like in the 19th century?", shouldTrigger: [] },
+  { text: "Where is the IP address 8.8.8.8 located?", shouldTrigger: [] },
+  { text: "Who am I and where do I live?", shouldTrigger: [] },
+  { text: "Write a Python function to sort a list", shouldTrigger: [] },
+  { text: "Write a poem about nature", shouldTrigger: [] },
+  { text: "Write a program to sort numbers", shouldTrigger: [] },
+  {
+    text: "You are an answer evaluator. Determine if the generated answer correctly answers the question",
+    shouldTrigger: [],
+  },
+  { text: "create a picture of a forest", shouldTrigger: [] },
+  { text: "draw me a diagram of a tree", shouldTrigger: [] },
+  { text: "draw me an image of a dog", shouldTrigger: [] },
+  { text: "generate an image of a turtle", shouldTrigger: [] },
+  { text: "how to update flutter sdk", shouldTrigger: [] },
+  { text: "illustrate this concept for me", shouldTrigger: [] },
+  { text: "npm update not working", shouldTrigger: [] },
+  { text: "paint a portrait of a woman", shouldTrigger: [] },
+  { text: "sketch a wireframe for me", shouldTrigger: [] },
+  { text: "webpack watch mode not working", shouldTrigger: [] },
+  { text: "where is the bug in my code", shouldTrigger: [] },
+  { text: "where is the error coming from", shouldTrigger: [] },
 ];
 
 // ── Per-pre-processor stats ──────────────────────────────────────────────────
