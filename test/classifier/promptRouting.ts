@@ -319,8 +319,19 @@ const PROMPTS: LabeledPrompt[] = [
 
   // Commodities without notable crypto representation — stock-only.
   // Listed explicitly to document why they're NOT in the ambiguous bucket.
-  { text: "Spot price of platinum", shouldTrigger: ["stockPrice"] },
-  { text: "Oil price today", shouldTrigger: ["stockPrice"] },
+  // mustNotTrigger: cryptoPrice — these were added to NO_CRYPTO_PRICE_PHRASES
+  // specifically to prevent over-firing; the hard-fail guard makes a
+  // regression immediately visible rather than buried in aggregate FPs.
+  {
+    text: "Spot price of platinum",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["cryptoPrice"],
+  },
+  {
+    text: "Oil price today",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["cryptoPrice"],
+  },
 
   // Edge cases — questions that look general but need current data
   { text: "Is TikTok banned in the US?", shouldTrigger: ["webSearch"] },
@@ -707,6 +718,18 @@ describe("prompt routing to pre-processors", () => {
       const embedding = embeddings[i];
       const expectedSet = new Set(shouldTrigger);
       const mustNotSet = new Set(mustNotTrigger ?? []);
+
+      // Annotation sanity check: a classifier cannot be in both
+      // `shouldTrigger` (must fire) and `mustNotTrigger` (must NOT fire)
+      // for the same prompt. Without this guard the hard-fail check below
+      // is nested inside the FP branch and would silently ignore the
+      // contradictory annotation — confusing for the next contributor.
+      for (const name of mustNotSet) {
+        expect(
+          expectedSet.has(name),
+          `Prompt "${text}": "${name}" appears in both shouldTrigger and mustNotTrigger`
+        ).toBe(false);
+      }
 
       // Run all pre-processors in observer mode against the cached embedding.
       const outcomes = await Promise.all(
