@@ -234,7 +234,7 @@ export function createPortalClient(bearer: string, opts: PortalClientOpts = {}):
       return {
         ticketId: body.ticket_id,
         expiresAt: Date.now() + body.expires_in * 1000,
-        connectUrl: `${baseUrl}/connectors/${opts.provider}/connect?ticket=${body.ticket_id}`,
+        connectUrl: `${baseUrl}/connectors/${opts.provider}/connect?ticket=${encodeURIComponent(body.ticket_id)}`,
       };
     },
   };

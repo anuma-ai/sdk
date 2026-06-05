@@ -58,17 +58,26 @@ export interface StubPortalHandle {
   stop(): Promise<void>;
   /** Successful mints since startup. */
   readonly mintCount: number;
-  /** Body of the most recent mint request (after the `access` guard). */
+  /** Body of the most recent mint request (recorded before the `access`
+   *  guard, so rejected mints are captured too). */
   readonly lastMintBody: { access?: string } | null;
   /** Body of the most recent connect-ticket request. */
-  readonly lastConnectTicketBody: { oauth_app?: string; requested_scopes?: string[] } | null;
+  readonly lastConnectTicketBody: {
+    oauth_app?: string;
+    requested_scopes?: string[];
+    return_to?: string;
+  } | null;
 }
 
 interface MutableStubState {
   mintCount: number;
   upstream5xxRemaining: Record<string, number>;
   lastMintBody: { access?: string } | null;
-  lastConnectTicketBody: { oauth_app?: string; requested_scopes?: string[] } | null;
+  lastConnectTicketBody: {
+    oauth_app?: string;
+    requested_scopes?: string[];
+    return_to?: string;
+  } | null;
 }
 
 function readJson<T>(req: http.IncomingMessage): Promise<T> {
