@@ -142,7 +142,6 @@ const NO_SEARCH_PROMPTS = [
 
   // Reasoning / analysis
   "Explain the difference between TCP and UDP",
-  "What are the pros and cons of microservices?",
   "Summarize the text I pasted above",
   "Why is bubble sort inefficient for large arrays?",
   "What's the difference between REST and GraphQL?",

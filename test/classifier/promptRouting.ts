@@ -261,7 +261,6 @@ const PROMPTS: LabeledPrompt[] = [
 
   // Reasoning / analysis
   { text: "Explain the difference between TCP and UDP", shouldTrigger: [] },
-  { text: "What are the pros and cons of microservices?", shouldTrigger: [] },
   { text: "Summarize the text I pasted above", shouldTrigger: [] },
   { text: "Why is bubble sort inefficient for large arrays?", shouldTrigger: [] },
   { text: "What's the difference between REST and GraphQL?", shouldTrigger: [] },
