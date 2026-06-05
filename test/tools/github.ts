@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
+import { runToolLoop } from "./setup.js";
 import { createGitHubTools } from "../../src/tools/github.js";
 import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 

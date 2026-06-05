@@ -19,17 +19,60 @@ import {
   dumpFiles,
   extractText,
   type FileDiff,
+  type PhaseRecord,
   printDiff,
   printResult,
+  shortHash,
   snapshot,
+  summarizePhase,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  closeSharedBrowser,
+  writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
 
 const SYSTEM_PROMPT = buildAppSystemPrompt();
+const PROMPT_HASH = shortHash(SYSTEM_PROMPT);
+
+/** Per-scenario metrics tracker. Each `it` block creates a fresh one. */
+function makeTracker(
+  store: Map<string, string>,
+  log: ToolCallLog[]
+): {
+  recordPhase: (label: string, elapsedMs: number, errored: boolean) => void;
+  finish: (outputSubdir: string, scenario: string) => void;
+} {
+  const phases: PhaseRecord[] = [];
+  const startedAt = new Date().toISOString();
+  let logStart = 0;
+  return {
+    recordPhase(label, elapsedMs, errored): void {
+      phases.push(
+        summarizePhase({
+          label,
+          elapsedMs,
+          toolCalls: log.slice(logStart),
+          files: store,
+          errored,
+        })
+      );
+      logStart = log.length;
+    },
+    finish(outputSubdir, scenario): void {
+      writeRunMetrics({
+        outputSubdir,
+        benchmark: "precision-updates",
+        scenario,
+        promptHash: PROMPT_HASH,
+        startedAt,
+        phases,
+      });
+    },
+  };
+}
 
 type Message = {
   role: string;
@@ -65,13 +108,17 @@ async function runTurn(messages: Message[], tools: any[], maxRounds = 5) {
 }
 
 describe("precision-updates", () => {
-  afterAll(() => writeIndex());
+  afterAll(async () => {
+    writeIndex();
+    await closeSharedBrowser();
+  });
 
   it("change button color — should modify only color-related CSS lines", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
+    const tracker = makeTracker(store, log);
 
     // Step 1: Generate the initial app
     conversation.push(
@@ -81,6 +128,7 @@ describe("precision-updates", () => {
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-btn-color/step-1-initial");
+    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
     conversation.push(assistantMsg(gen.responseText));
     const snap1 = snapshot(store);
     const logAfterGen = log.length;
@@ -91,6 +139,7 @@ describe("precision-updates", () => {
     printResult(update.result);
     expect(update.result.error).toBeNull();
     dumpFiles(store, "precision-btn-color/step-2-colored");
+    tracker.recordPhase("step-2-colored", update.result.elapsedMs, update.result.error !== null);
     const snap2 = snapshot(store);
 
     // Analyze the diff
@@ -131,6 +180,7 @@ describe("precision-updates", () => {
         `  WARNING: ${totalChanged} lines changed for a color tweak — excessive rewrite`
       );
     }
+    tracker.finish("precision-btn-color", "btn-color");
   });
 
   it("change title text — should modify only the text, not styles or logic", async () => {
@@ -138,6 +188,7 @@ describe("precision-updates", () => {
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
+    const tracker = makeTracker(store, log);
 
     // Step 1: Generate
     conversation.push(userMsg("Build a BMI calculator with height and weight inputs."));
@@ -145,6 +196,7 @@ describe("precision-updates", () => {
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-title/step-1-initial");
+    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
     conversation.push(assistantMsg(gen.responseText));
     const snap1 = snapshot(store);
 
@@ -154,6 +206,7 @@ describe("precision-updates", () => {
     printResult(update.result);
     expect(update.result.error).toBeNull();
     dumpFiles(store, "precision-title/step-2-renamed");
+    tracker.recordPhase("step-2-renamed", update.result.elapsedMs, update.result.error !== null);
     const snap2 = snapshot(store);
 
     const diffs = diffSnapshots(snap1, snap2);
@@ -179,6 +232,7 @@ describe("precision-updates", () => {
         `  WARNING: ${jsDiff?.linesChanged} lines changed for a title rename — excessive rewrite`
       );
     }
+    tracker.finish("precision-title", "title");
   });
 
   it("recovers from failed patches using returned file content", async () => {
@@ -186,6 +240,7 @@ describe("precision-updates", () => {
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
+    const tracker = makeTracker(store, log);
 
     // Step 1: Generate a simple app
     conversation.push(
@@ -197,6 +252,7 @@ describe("precision-updates", () => {
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-retry/step-1-initial");
+    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
     conversation.push(assistantMsg(gen.responseText));
 
     const snap1 = snapshot(store);
@@ -213,6 +269,7 @@ describe("precision-updates", () => {
     printResult(update.result);
     expect(update.result.error).toBeNull();
     dumpFiles(store, "precision-retry/step-2-updated");
+    tracker.recordPhase("step-2-updated", update.result.elapsedMs, update.result.error !== null);
 
     const snap2 = snapshot(store);
     const diffs = diffSnapshots(snap1, snap2);
@@ -250,6 +307,7 @@ describe("precision-updates", () => {
 
     console.log(`  Button text updated: ${hasNewText}, Purple applied: ${hasPurple}`);
     expect(hasNewText).toBe(true);
+    tracker.finish("precision-retry", "retry");
   });
 
   it("multi-step changes — each step should be incremental", async () => {
@@ -257,6 +315,7 @@ describe("precision-updates", () => {
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
+    const tracker = makeTracker(store, log);
     const snapshots: Array<{
       label: string;
       snap: Map<string, string>;
@@ -268,6 +327,7 @@ describe("precision-updates", () => {
     const gen = await runTurn(conversation, tools);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-1-initial");
+    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
     conversation.push(assistantMsg(gen.responseText));
     snapshots.push({ label: "initial", snap: snapshot(store) });
 
@@ -276,6 +336,7 @@ describe("precision-updates", () => {
     const s2 = await runTurn(conversation, tools);
     expect(s2.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-2-bg-color");
+    tracker.recordPhase("step-2-bg-color", s2.result.elapsedMs, s2.result.error !== null);
     conversation.push(assistantMsg(s2.responseText));
     const diffs2 = diffSnapshots(snapshots[0]!.snap, snapshot(store));
     snapshots.push({
@@ -290,6 +351,7 @@ describe("precision-updates", () => {
     const s3 = await runTurn(conversation, tools);
     expect(s3.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-3-counter");
+    tracker.recordPhase("step-3-counter", s3.result.elapsedMs, s3.result.error !== null);
     conversation.push(assistantMsg(s3.responseText));
     const diffs3 = diffSnapshots(snapshots[1]!.snap, snapshot(store));
     snapshots.push({
@@ -304,6 +366,7 @@ describe("precision-updates", () => {
     const s4 = await runTurn(conversation, tools);
     expect(s4.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-4-font");
+    tracker.recordPhase("step-4-font", s4.result.elapsedMs, s4.result.error !== null);
     conversation.push(assistantMsg(s4.responseText));
     const diffs4 = diffSnapshots(snapshots[2]!.snap, snapshot(store));
     snapshots.push({ label: "font", snap: snapshot(store), diffs: diffs4 });
@@ -327,5 +390,6 @@ describe("precision-updates", () => {
         console.warn(`  WARNING: "${s.label}" changed ${total} lines — likely a full rewrite`);
       }
     }
+    tracker.finish("precision-multi", "multi");
   });
 });

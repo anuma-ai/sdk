@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/react/useChatStorage.ts:785](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#785)
+Defined in: [src/react/useChatStorage.ts:810](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#810)
 
 Result returned by useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base result with React-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/react/useChatStorage.ts:932](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#932)
+Defined in: [src/react/useChatStorage.ts:957](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#957)
 
 Clear all queued operations for the current wallet.
 Discards pending operations without writing them.
@@ -84,7 +84,7 @@ Defined in: [src/lib/db/chat/types.ts:782](https://github.com/anuma-ai/sdk/blob/
 
 > **createMemoryEngineTool**: (`searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](MemoryEngineSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:839](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#839)
+Defined in: [src/react/useChatStorage.ts:864](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#864)
 
 Create a memory engine tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -142,7 +142,7 @@ await sendMessage({
 
 > **createMemoryVaultSearchTool**: (`searchOptions?`: [`MemoryVaultSearchOptions`](MemoryVaultSearchOptions.md)) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:858](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#858)
+Defined in: [src/react/useChatStorage.ts:883](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#883)
 
 Create a memory vault search tool for LLM to search vault memories
 using semantic similarity. Pre-configured with vault context, auth, and
@@ -191,7 +191,7 @@ A ToolConfig that can be passed to sendMessage's clientTools
 
 > **createMemoryVaultTool**: (`options?`: [`MemoryVaultToolOptions`](MemoryVaultToolOptions.md)) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:848](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#848)
+Defined in: [src/react/useChatStorage.ts:873](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#873)
 
 Create a memory vault tool for LLM to save/update persistent memories.
 The tool is pre-configured with the hook's vault context and encryption.
@@ -239,7 +239,7 @@ A ToolConfig that can be passed to sendMessage's clientTools
 
 > **createRecallTool**: (`toolOptions?`: [`RecallToolOptions`](RecallToolOptions.md), `callbacks?`: [`RecallToolCallbacks`](RecallToolCallbacks.md)) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:866](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#866)
+Defined in: [src/react/useChatStorage.ts:891](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#891)
 
 Create the unified recall\_memory tool — single LLM-facing tool that
 fuses vault facts and conversation chunks via `recall()`. Prefer
@@ -293,7 +293,7 @@ separately; the LLM no longer has to route between two surfaces.
 
 > **createVaultMemory**: (`content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)>
 
-Defined in: [src/react/useChatStorage.ts:902](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#902)
+Defined in: [src/react/useChatStorage.ts:927](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#927)
 
 Create a new vault memory with the given content.
 
@@ -396,7 +396,7 @@ Defined in: [src/lib/db/chat/types.ts:786](https://github.com/anuma-ai/sdk/blob/
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useChatStorage.ts:919](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#919)
+Defined in: [src/react/useChatStorage.ts:944](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#944)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -437,7 +437,7 @@ true if the memory was found and deleted
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](FlushResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:926](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#926)
+Defined in: [src/react/useChatStorage.ts:951](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#951)
 
 Manually flush all queued operations for the current wallet.
 Operations are encrypted and written to the database.
@@ -453,7 +453,7 @@ Requires the encryption key to be available.
 
 > **getAllFiles**: (`options?`: `object`) => `Promise`<[`StoredFileWithContext`](StoredFileWithContext.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:819](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#819)
+Defined in: [src/react/useChatStorage.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#844)
 
 Get all files from all conversations, sorted by creation date (newest first).
 Returns files with conversation context for building file browser UIs.
@@ -615,7 +615,7 @@ Defined in: [src/lib/db/chat/types.ts:787](https://github.com/anuma-ai/sdk/blob/
 
 > **getVaultMemories**: (`options?`: `object`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:895](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#895)
+Defined in: [src/react/useChatStorage.ts:920](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#920)
 
 Get all vault memories for context injection.
 Returns non-deleted memories sorted by creation date (newest first).
@@ -690,7 +690,7 @@ Defined in: [src/lib/db/chat/types.ts:778](https://github.com/anuma-ai/sdk/blob/
 
 > **queueStatus**: [`QueueStatus`](QueueStatus.md)
 
-Defined in: [src/react/useChatStorage.ts:937](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#937)
+Defined in: [src/react/useChatStorage.ts:962](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#962)
 
 Current status of the write queue.
 
@@ -700,7 +700,7 @@ Current status of the write queue.
 
 > **searchVaultMemories**: (`query`: `string`, `searchOptions?`: [`MemoryVaultSearchOptions`](MemoryVaultSearchOptions.md)) => `Promise`<[`VaultSearchResult`](VaultSearchResult.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:879](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#879)
+Defined in: [src/react/useChatStorage.ts:904](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#904)
 
 Search vault memories programmatically using semantic similarity.
 Returns structured results sorted by descending similarity.
@@ -764,7 +764,7 @@ Optional search configuration (limit, minSimilarity, scopes)
 
 > **sendMessage**: (`args`: `object`) => `Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:814](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#814)
+Defined in: [src/react/useChatStorage.ts:839](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#839)
 
 Sends a message to the AI and automatically persists both the user message
 and assistant response to the database.
@@ -1721,7 +1721,7 @@ Defined in: [src/lib/db/chat/types.ts:785](https://github.com/anuma-ai/sdk/blob/
 
 > **updateVaultMemory**: (`id`: `string`, `content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/react/useChatStorage.ts:909](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#909)
+Defined in: [src/react/useChatStorage.ts:934](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#934)
 
 Update an existing vault memory's content.
 
@@ -1802,7 +1802,7 @@ the updated memory, or null if not found
 
 > **vaultEmbeddingCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/react/useChatStorage.ts:888](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#888)
+Defined in: [src/react/useChatStorage.ts:913](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#913)
 
 The shared vault embedding cache. Use this to eagerly embed content
 when saving vault memories (via eagerEmbedContent).

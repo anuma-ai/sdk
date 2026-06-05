@@ -175,16 +175,53 @@ export {
 
 // App generation tools
 export type {
+  AuditIssue,
+  AuditIssueType,
+  AuditResult,
+  AuditSeverity,
+  AuditTokens,
+} from "./appAudit";
+export { auditDesign } from "./appAudit";
+export type { AppCompleteBridge, AppCompleteBridgeOptions } from "./appCompleteBridge";
+export {
+  APP_COMPLETE_CONNECT_ACK_TYPE,
+  APP_COMPLETE_CONNECT_TYPE,
+  APP_COMPLETE_DEFAULT_TIMEOUT_MS,
+  APP_COMPLETE_IFRAME_SHIM_SCRIPT,
+  APP_COMPLETE_REQUEST_TYPE,
+  APP_COMPLETE_RESPONSE_TYPE,
+  createAppCompleteBridge,
+  installAppCompleteIframeShim,
+} from "./appCompleteBridge";
+export type { ExportAppOptions } from "./appExport";
+export {
+  APP_COMPLETE_STUB_SCRIPT,
+  APP_PREVIEW_BASELINE_CSS,
+  exportAppToHtml,
+  RUNTIME_ERROR_OVERLAY_SCRIPT,
+} from "./appExport";
+export type {
+  AnchorMatch,
   AppFileRecord,
   AppFileStorage,
   CreateAppGenerationToolsOptions,
+  FileChangeEvent,
+  FileSnippet,
+  PatchFailure,
+  PatchFailureReason,
+  VerifyAppResult,
 } from "./appGeneration";
 export {
+  APP_BUILDER_PROMPT,
   APP_FILE_TOOL_NAMES,
   applyPatches,
+  AUDIT_DESIGN_SCHEMA,
   buildAppSystemPrompt,
   CREATE_FILE_SCHEMA,
   createAppGenerationTools,
+  CRITIQUE_DESIGN_SCHEMA,
+  DEFAULT_DESIGN_CRITIQUE_RUBRIC,
+  DEFAULT_MAX_CONVERSATIONS,
   DELETE_FILE_SCHEMA,
   LIST_FILES_SCHEMA,
   MapFileStorage,
@@ -192,6 +229,7 @@ export {
   PATCH_FILE_SCHEMA,
   READ_FILE_SCHEMA,
   truncateContent,
+  VERIFY_APP_SCHEMA,
 } from "./appGeneration";
 
 // Slide deck tools — now Anuma-JSX-AST native

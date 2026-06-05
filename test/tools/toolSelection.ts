@@ -546,14 +546,29 @@ const cases: ToolSelectionCase[] = [
 
   // ── App generation ───────────────────────────────────────────────────
   // App gen tools form a logical set: when building/modifying apps, the LLM
-  // needs the full toolkit (create_file, patch_file, read_file, list_files,
-  // delete_file). Semantic matching alone picks create_file but misses the
-  // supporting tools. These tests document what SHOULD happen once tool
-  // sets are implemented.
+  // needs the full toolkit — file ops (create_file, patch_file, read_file,
+  // list_files, delete_file) AND quality ops (audit_design, critique_design,
+  // verify_app). Semantic matching alone picks create_file on a "build an
+  // app" prompt but misses the supporting tools; set expansion (PR #435)
+  // pulls in the full membership when an anchor fires.
   {
-    label: "build app includes all app gen tools",
+    label: "build app includes full app-generation set (file + quality tools)",
     prompt: "Build me a todo list app",
-    clientMustInclude: ["create_file", "patch_file"],
+    // Anchor (create_file) scores; the rest ride along via set expansion.
+    // The quality tools never semantically match "build a todo list" on
+    // their own — they're only included because they're set members. If
+    // a refactor drops them from BUILT_IN_TOOL_SETS["app-generation"],
+    // this assertion is the canary that surfaces it.
+    clientMustInclude: [
+      "create_file",
+      "patch_file",
+      "read_file",
+      "list_files",
+      "delete_file",
+      "audit_design",
+      "critique_design",
+      "verify_app",
+    ],
     // display_weather, github_api, prompt_user_choice score 0.55-0.65 on
     // "todo list app" — borderline leaks we tolerate (recall over precision).
     clientMustExclude: ["display_chart"],

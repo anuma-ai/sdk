@@ -372,6 +372,7 @@ export {
   getToolsChecksum,
   selectServerToolsForPrompt,
   shouldRefreshTools,
+  toolSetSystemPrompts,
 } from "../lib/tools";
 
 // ── Encryption (non-React utilities) ──

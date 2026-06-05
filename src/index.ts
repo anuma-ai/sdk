@@ -740,6 +740,7 @@ export {
 } from "./client";
 export {
   applyToolSets,
+  BUILT_IN_TOOL_SETS,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
@@ -749,6 +750,7 @@ export {
   selectServerSideTools,
   type SelectServerSideToolsOptions,
   type ToolSet,
+  toolSetSystemPrompts,
 } from "./lib/tools";
 
 // SSE idle-keepalive wrapper for the generated SSE client

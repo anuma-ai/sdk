@@ -127,6 +127,43 @@ describe("useChat multi-turn tool loop", () => {
     expect(toolResultMsg.content[0].text).toContain("result for hello");
   });
 
+  it("injects toolGuidance as a system message", async () => {
+    mockCreateSseClient.mockReturnValueOnce(makeMockStream(makeTextStream("ok")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Build a todo list" }] }],
+        model: "test-model",
+        toolGuidance: "APP_BUILDER_GUIDANCE_MARKER",
+      });
+    });
+
+    const body = getRequestBody(0);
+    const systemTexts = body.input
+      .filter((m: any) => m.role === "system")
+      .flatMap((m: any) => (m.content ?? []).map((c: any) => c.text));
+    expect(systemTexts).toContain("APP_BUILDER_GUIDANCE_MARKER");
+  });
+
+  it("does not add a guidance system message when toolGuidance is absent", async () => {
+    mockCreateSseClient.mockReturnValueOnce(makeMockStream(makeTextStream("ok")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+        model: "test-model",
+      });
+    });
+
+    const body = getRequestBody(0);
+    const systemTexts = body.input
+      .filter((m: any) => m.role === "system")
+      .flatMap((m: any) => (m.content ?? []).map((c: any) => c.text));
+    expect(systemTexts).not.toContain("APP_BUILDER_GUIDANCE_MARKER");
+  });
+
   it("emits onToolCall for tools without an executor", async () => {
     const noExecutorTool: ToolConfig = {
       type: "function",

@@ -6,6 +6,7 @@
  */
 
 import type { LlmapiChatCompletionTool } from "../../client";
+import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
@@ -825,13 +826,47 @@ export interface ToolSet {
    * the global minSimilarity threshold. Default: 0.60
    */
   anchorMinSimilarity?: number;
+  /**
+   * System-prompt fragment to APPEND to the base prompt when this set is
+   * active. Additive, never a replacement — it composes with the host's
+   * persona / memory, so over-including it on a borderline match is harmless
+   * (mirrors `expandToolSetsAdditive`). Collected for a selection by
+   * {@link toolSetSystemPrompts}.
+   */
+  systemPrompt?: string;
 }
 
 /** Built-in tool sets. Consumers can extend this with their own. */
 export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   {
     name: "app-generation",
-    members: ["create_file", "patch_file", "delete_file", "read_file", "list_files"],
+    // Appended to the base prompt (not replacing it) whenever this set
+    // activates, so the App Builder guidance — including the window.app.complete
+    // runtime-AI contract — rides in with the app-gen tools via the same
+    // semantic selection that includes them. Collected by toolSetSystemPrompts.
+    systemPrompt: APP_BUILDER_PROMPT,
+    // Must stay in sync with APP_FILE_TOOL_NAMES in src/tools/appGeneration.ts.
+    // If a new app-gen tool ships there but isn't added here, semantic
+    // selection will exclude it on every request — the model literally
+    // doesn't see it. The quality tools (audit_design / critique_design /
+    // verify_app) are non-obvious to a user prompt ("build me a kanban")
+    // and rely entirely on set expansion to reach the model.
+    members: [
+      "create_file",
+      "patch_file",
+      "delete_file",
+      "read_file",
+      "list_files",
+      "audit_design",
+      "critique_design",
+      "verify_app",
+    ],
+    // Anchors stay limited to the primary entry-point tools. Users phrase
+    // app intent as "build / make / fix" → semantic match on create_file
+    // or patch_file → full set pulled in. The quality tools fire later in
+    // the workflow and don't anchor on their own; including them as
+    // anchors would risk pulling the set in on unrelated "audit my code"
+    // prompts that have nothing to do with app generation.
     anchors: ["create_file", "patch_file"],
     // Set above the global filter floor (0.53). The floor says "this tool
     // might be relevant"; anchoring says "this is an app-building
@@ -973,6 +1008,41 @@ export function expandToolSetsAdditive(
     }
   }
   return result;
+}
+
+/**
+ * Collect the `systemPrompt` of every tool set whose tools appear in
+ * `selectedToolNames`, for the caller to APPEND to its base system prompt.
+ *
+ * A set contributes when any of its `anchors` is in the selection — anchors are
+ * the tools that activate the set, so once the set is pulled in (by semantic
+ * match or an explicit force-include) its prompt rides along the same way its
+ * members do. Additive by design: append the returned fragments, never replace
+ * the base prompt, so persona / memory survive and over-including on a
+ * borderline match is harmless (the model just doesn't act on guidance it
+ * doesn't need). De-duplicated, order preserved.
+ *
+ * @param selectedToolNames - Final selected tool names (client + server tools).
+ * @param toolSets - Tool sets to consult (defaults to {@link BUILT_IN_TOOL_SETS}).
+ * @returns Mode prompts for active sets, in `toolSets` order, deduplicated.
+ */
+export function toolSetSystemPrompts(
+  selectedToolNames: Iterable<string>,
+  toolSets: ToolSet[] = BUILT_IN_TOOL_SETS
+): string[] {
+  const selected =
+    selectedToolNames instanceof Set ? selectedToolNames : new Set(selectedToolNames);
+  const prompts: string[] = [];
+  const seen = new Set<string>();
+  for (const ts of toolSets) {
+    const prompt = ts.systemPrompt;
+    if (!prompt || seen.has(prompt)) continue;
+    if (ts.anchors.some((anchor) => selected.has(anchor))) {
+      prompts.push(prompt);
+      seen.add(prompt);
+    }
+  }
+  return prompts;
 }
 
 /**
