@@ -31,12 +31,8 @@ const SEARCH_PROMPTS = [
   "What happened in the world today?",
   "Any breaking news right now?",
 
-  // Financial
-  "What is Bitcoin's price right now?",
-  "How is the S&P 500 performing today?",
-  "What's the current exchange rate for USD to EUR?",
-  "How much is Nvidia stock worth?",
-  "What's the market cap of Apple?",
+  // Financial — most pure-data queries route to cryptoPrice/stockPrice, NOT
+  // webSearch. Only news / current-data with no dedicated pre-processor stays.
   "What are Ethereum gas fees right now?",
 
   // Sports
@@ -46,11 +42,8 @@ const SEARCH_PROMPTS = [
   "When is the next UFC fight?",
   "Who's leading the Tour de France?",
 
-  // Weather
-  "What's the weather in San Francisco today?",
-  "Will it rain in New York this weekend?",
-  "What's the UV index in Miami right now?",
-  "Is there a flood warning in Houston?",
+  // (Weather queries route to createWeatherPreProcessor, not webSearch.
+  //  See NO_SEARCH_PROMPTS for the negative cases.)
 
   // Local search
   "Find Italian restaurants near me",
@@ -89,8 +82,8 @@ const SEARCH_PROMPTS = [
   "When is the next presidential debate?",
 
   // Edge cases — short / terse but still search-worthy
-  "Ethereum price",
-  "weather tomorrow",
+  // (Pure "Ethereum price" / "weather tomorrow" route to the dedicated
+  //  classifiers and live in NO_SEARCH_PROMPTS below.)
   "election results 2026",
   "flights to Tokyo",
   "Lakers score",
@@ -100,6 +93,43 @@ const SEARCH_PROMPTS = [
   "What's the interest rate right now?",
   "How many people have COVID this week?",
   "What's trending on Twitter?",
+
+  // === Imported from the portal classifier test corpus ===
+  // Sourced from ai-portal/internal/services/classifier/classifier_test.go via
+  // ai-portal/tools/extract-classifier-corpus. Migrated as additional
+  // calibration data when the portal classifier is retired.
+  "Breaking news today",
+  "Did the team win the game?",
+  "Is the concert streaming live?",
+  "What are the differences? Compare React vs Vue",
+  "What are the pros and cons of Kubernetes?",
+  "What happened in 2025 today?",
+  "What happened today?",
+  "What happened with coder today?",
+  "What is happening right now?",
+  "What news is there about Tesla?",
+  "What was the score of the Lakers game?",
+  "What's the latest news about AI?",
+  "What's the latest news about programming?",
+  "What's the latest news on Tesla?",
+  "Who won the championship?",
+  "analyze the current market trends for AI",
+  "climate projection for 2050",
+  "coffee shops nearby",
+  "comprehensive overview of blockchain technology",
+  "find ticker symbol for Apple",
+  "hotels in New York City",
+  "images of cute cats",
+  "latest news update on the election",
+  "pasta cooking video tutorial",
+  "pictures of mountains",
+  "pictures of the Eiffel Tower",
+  "recommend a good framework for mobile development",
+  "restaurants near me",
+  "what's the elevation of Denver",
+  "where is the nearest gas station",
+  "which is better React or Vue for web development",
+  "youtube python tutorials",
 ];
 
 /** Prompts that should NOT trigger a web search. */
@@ -112,7 +142,6 @@ const NO_SEARCH_PROMPTS = [
 
   // Reasoning / analysis
   "Explain the difference between TCP and UDP",
-  "What are the pros and cons of microservices?",
   "Summarize the text I pasted above",
   "Why is bubble sort inefficient for large arrays?",
   "What's the difference between REST and GraphQL?",
@@ -182,6 +211,81 @@ const NO_SEARCH_PROMPTS = [
   "add types",
   "explain this code",
   "why does this fail",
+
+  // === Imported from the portal classifier test corpus (part 1/2) ===
+  // Sourced from ai-portal/internal/services/classifier/classifier_test.go via
+  // ai-portal/tools/extract-classifier-corpus.
+  "Calculate the derivative of x^2",
+  "Debug this code snippet",
+  "Explain how neural networks work",
+  "Explain local storage in JavaScript",
+  "How do I deliver packages efficiently?",
+  "How do I resize a window in macOS?",
+  "How much is the painting of a sunset worth in terms of the amount I paid for it?",
+  "How to configure npm run watch",
+  "How to use local variables in Python",
+  "I want to know how to cook pasta",
+  "I wanted to follow up on our previous conversation about YouTube videos for workplace posture. Can you remind me of the Mayo Clinic video you recommended?",
+  "I wanted to follow up on our previous conversation about fracking in the Marcellus Shale region. You mentioned that some states require fracking companies to monitor groundwater quality at nearby wells.",
+  "List my calendar events for the next 7 days.",
+  'Now say the word "beta"',
+  "Translate 'hello' to Spanish",
+  "What a wonderful world this is",
+  "What happened during World War 2?",
+  "What is the current time at the location of IP address 8.8.8.8? First look up where it is, then get the current time for that timezone.",
+
+  // === Imported from the portal classifier test corpus (part 2/2) ===
+  "What was life like in the 19th century?",
+  "Where is the IP address 8.8.8.8 located?",
+  "Who am I and where do I live?",
+  "Write a Python function to sort a list",
+  "Write a poem about nature",
+  "Write a program to sort numbers",
+  "You are an answer evaluator. Determine if the generated answer correctly answers the question",
+  "create a picture of a forest",
+  "draw me a diagram of a tree",
+  "draw me an image of a dog",
+  "generate an image of a turtle",
+  "how to update flutter sdk",
+  "illustrate this concept for me",
+  "npm update not working",
+  "paint a portrait of a woman",
+  "sketch a wireframe for me",
+  "webpack watch mode not working",
+  "where is the bug in my code",
+  "where is the error coming from",
+
+  // === Pure crypto-price queries — handled by createCryptoPricePreProcessor ===
+  // webSearch must NOT fire on these. The cryptoPrice classifier owns them
+  // (see promptRouting.ts). Includes both original SDK and portal-imported.
+  "What is Bitcoin's price right now?",
+  "Ethereum price",
+  "What is the bitcoin price today?",
+  "What is the bitcoin price?",
+  "What's the current ETH price?",
+
+  // === Pure stock / ETF / index / FX queries — handled by createStockPricePreProcessor ===
+  "How is the S&P 500 performing today?",
+  "What's the current exchange rate for USD to EUR?",
+  "How much is Nvidia stock worth?",
+  "What's the market cap of Apple?",
+  "OHLCV data for AAPL",
+  "What is the current stock price of Apple?",
+  "exchange rate USD to EUR",
+  "stock price of Apple",
+
+  // === Pure weather queries — handled by createWeatherPreProcessor ===
+  "What's the weather in San Francisco today?",
+  "Will it rain in New York this weekend?",
+  "What's the UV index in Miami right now?",
+  "Is there a flood warning in Houston?",
+  "weather tomorrow",
+  "air quality in Beijing",
+  "flood forecast for Houston",
+  "historical weather data for 2023",
+  "marine weather forecast",
+  "temperature forecast for tomorrow",
+  "weather in San Francisco",
 ];
 
 describe("web search classifier", () => {
