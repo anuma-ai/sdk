@@ -113,10 +113,23 @@ const PRE_PROCESSORS: PreProcessorUnderTest[] = [
 // ── Labeled prompt corpus ────────────────────────────────────────────────────
 // Each prompt is annotated with the set of pre-processor names that SHOULD
 // trigger. An empty `shouldTrigger` means no pre-processor should fire.
+//
+// `mustNotTrigger` (optional) lists pre-processors that — for this specific
+// prompt — MUST NOT fire. Violations are hard test failures, not just FPs
+// that contribute to an aggregate accuracy stat. Use it on boundary cases
+// where over-firing is especially costly (wrong-API spend, mis-routed
+// queries near the crypto/stock/weather/webSearch lines).
+//
+// Note: `shouldTrigger` is already exhaustive — any classifier not listed
+// is implicitly expected to NOT fire and counts as an FP if it does. The
+// `mustNotTrigger` field PROMOTES that implicit expectation to a hard
+// assertion for the named classifier on the named prompt. Use sparingly,
+// only where the boundary matters.
 
 interface LabeledPrompt {
   text: string;
   shouldTrigger: string[];
+  mustNotTrigger?: string[];
 }
 
 const PROMPTS: LabeledPrompt[] = [
@@ -133,17 +146,45 @@ const PROMPTS: LabeledPrompt[] = [
 
   // Financial — pure data queries route only to the dedicated price classifier.
   // Web search would just add noisy news context the user didn't ask for.
-  { text: "What is Bitcoin's price right now?", shouldTrigger: ["cryptoPrice"] },
-  { text: "How is the S&P 500 performing today?", shouldTrigger: ["stockPrice"] },
-  { text: "What's the current exchange rate for USD to EUR?", shouldTrigger: ["stockPrice"] },
-  { text: "How much is Nvidia stock worth?", shouldTrigger: ["stockPrice"] },
-  { text: "What's the market cap of Apple?", shouldTrigger: ["stockPrice"] },
+  // `mustNotTrigger` enforces no-cross-firing: a webSearch FP here means a
+  // wasted search API call on a query the price classifier already handles.
+  {
+    text: "What is Bitcoin's price right now?",
+    shouldTrigger: ["cryptoPrice"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "How is the S&P 500 performing today?",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
+  {
+    text: "What's the current exchange rate for USD to EUR?",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
+  {
+    text: "How much is Nvidia stock worth?",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
+  {
+    text: "What's the market cap of Apple?",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
   // Gas fees are current data the SDK has no dedicated processor for — falls
   // back to webSearch by design. If/when we add an on-chain gas/network-stats
   // pre-processor, relabel this and move the phrase out of webSearch's YES
   // corpus so we stop spending search calls on it. Until then this label
-  // documents the known gap rather than a misclassification.
-  { text: "What are Ethereum gas fees right now?", shouldTrigger: ["webSearch"] },
+  // documents the known gap rather than a misclassification. The
+  // mustNotTrigger guard prevents cryptoPrice from over-firing here — gas
+  // fees are denominated in gwei, NOT a token-price query.
+  {
+    text: "What are Ethereum gas fees right now?",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["cryptoPrice"],
+  },
 
   // Sports
   { text: "Who won the Super Bowl this year?", shouldTrigger: ["webSearch"] },
@@ -153,16 +194,51 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "Who's leading the Tour de France?", shouldTrigger: ["webSearch"] },
 
   // Weather — pure data queries route only to the weather classifier.
-  { text: "What's the weather in San Francisco today?", shouldTrigger: ["weather"] },
-  { text: "Will it rain in New York this weekend?", shouldTrigger: ["weather"] },
-  { text: "What's the UV index in Miami right now?", shouldTrigger: ["weather"] },
-  { text: "Is there a flood warning in Houston?", shouldTrigger: ["weather"] },
+  // mustNotTrigger guards against webSearch firing on the same prompt and
+  // burning a search call the dedicated processor already covers.
+  {
+    text: "What's the weather in San Francisco today?",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "Will it rain in New York this weekend?",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "What's the UV index in Miami right now?",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "Is there a flood warning in Houston?",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
 
-  // Local search
-  { text: "Find Italian restaurants near me", shouldTrigger: ["webSearch"] },
-  { text: "Where is the nearest pharmacy open right now?", shouldTrigger: ["webSearch"] },
-  { text: "Coffee shops with wifi in downtown Austin", shouldTrigger: ["webSearch"] },
-  { text: "How do I get to JFK airport from Manhattan?", shouldTrigger: ["webSearch"] },
+  // Local search — geographic vocabulary is the dominant weather-FP pattern,
+  // so mustNotTrigger on these locks in "city/place name ≠ weather query."
+  {
+    text: "Find Italian restaurants near me",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["weather"],
+  },
+  {
+    text: "Where is the nearest pharmacy open right now?",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["weather"],
+  },
+  {
+    text: "Coffee shops with wifi in downtown Austin",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["weather"],
+  },
+  {
+    text: "How do I get to JFK airport from Manhattan?",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["weather"],
+  },
 
   // Image / video
   { text: "Show me pictures of the new Tesla Roadster", shouldTrigger: ["webSearch"] },
@@ -243,8 +319,19 @@ const PROMPTS: LabeledPrompt[] = [
 
   // Commodities without notable crypto representation — stock-only.
   // Listed explicitly to document why they're NOT in the ambiguous bucket.
-  { text: "Spot price of platinum", shouldTrigger: ["stockPrice"] },
-  { text: "Oil price today", shouldTrigger: ["stockPrice"] },
+  // mustNotTrigger: cryptoPrice — these were added to NO_CRYPTO_PRICE_PHRASES
+  // specifically to prevent over-firing; the hard-fail guard makes a
+  // regression immediately visible rather than buried in aggregate FPs.
+  {
+    text: "Spot price of platinum",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["cryptoPrice"],
+  },
+  {
+    text: "Oil price today",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["cryptoPrice"],
+  },
 
   // Edge cases — questions that look general but need current data
   { text: "Is TikTok banned in the US?", shouldTrigger: ["webSearch"] },
@@ -331,11 +418,43 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "explain this code", shouldTrigger: [] },
   { text: "why does this fail", shouldTrigger: [] },
 
-  // Crypto-adjacent but NOT price queries — must not false-positive price
+  // ── Adjacent-but-not negatives — must NOT false-positive the named classifier ────
+  // These prompts use vocabulary the matching classifier latches onto
+  // (crypto / stocks / weather / search) but ask conceptual or unrelated
+  // questions. They're the most useful failures to surface because they
+  // map directly to centroid NO-phrase additions.
+
+  // Crypto-adjacent but NOT price queries — must not false-positive cryptoPrice
   { text: "Explain how Bitcoin mining works", shouldTrigger: [] },
   { text: "How does ZetaChain enable cross-chain transfers?", shouldTrigger: [] },
   { text: "Write a smart contract that mints an ERC-20 token", shouldTrigger: [] },
   { text: "What is the difference between proof-of-stake and proof-of-work?", shouldTrigger: [] },
+  { text: "Set up a Phantom wallet for me", shouldTrigger: [] },
+  { text: "What is a Merkle tree?", shouldTrigger: [] },
+  { text: "How do gas fees work conceptually on Ethereum?", shouldTrigger: [] },
+
+  // Stock-adjacent but NOT quote queries — must not false-positive stockPrice
+  { text: "How do I open a brokerage account?", shouldTrigger: [] },
+  { text: "What is an ETF?", shouldTrigger: [] },
+  { text: "Explain the difference between bonds and stocks", shouldTrigger: [] },
+  { text: "What is a dividend and how is it taxed?", shouldTrigger: [] },
+  { text: "Should I invest in index funds or individual stocks?", shouldTrigger: [] },
+  { text: "How does compound interest work in retirement accounts?", shouldTrigger: [] },
+
+  // Weather-adjacent but NOT forecast queries — must not false-positive weather
+  { text: "What causes hurricanes to form?", shouldTrigger: [] },
+  { text: "Explain the difference between climate and weather", shouldTrigger: [] },
+  { text: "How do meteorologists predict tornadoes?", shouldTrigger: [] },
+  { text: "Why is the sky blue?", shouldTrigger: [] },
+  { text: "How does a barometer measure air pressure?", shouldTrigger: [] },
+  { text: "What is the greenhouse effect?", shouldTrigger: [] },
+
+  // Search-adjacent but NOT web-search queries — must not false-positive webSearch
+  { text: "Explain how Google search ranks results", shouldTrigger: [] },
+  { text: "What is SEO and why does it matter?", shouldTrigger: [] },
+  { text: "How do search engines crawl the web?", shouldTrigger: [] },
+  { text: "What's the difference between a search engine and a database?", shouldTrigger: [] },
+  { text: "Recall what we discussed earlier in this thread", shouldTrigger: [] },
 
   // ── Imported from the portal classifier test corpus ─────────────────────
   // Sourced from ai-portal/internal/services/classifier/classifier_test.go.
@@ -345,23 +464,82 @@ const PROMPTS: LabeledPrompt[] = [
   // here reflect the per-classifier routing, not the original binary tag.
 
   // Portal corpus — cryptoPrice
-  { text: "What is the bitcoin price today?", shouldTrigger: ["cryptoPrice"] },
-  { text: "What is the bitcoin price?", shouldTrigger: ["cryptoPrice"] },
-  { text: "What's the current ETH price?", shouldTrigger: ["cryptoPrice"] },
+  // mustNotTrigger: webSearch — pure-price queries must not waste a search
+  // API call when the dedicated cryptoPrice processor already covers them.
+  {
+    text: "What is the bitcoin price today?",
+    shouldTrigger: ["cryptoPrice"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "What is the bitcoin price?",
+    shouldTrigger: ["cryptoPrice"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "What's the current ETH price?",
+    shouldTrigger: ["cryptoPrice"],
+    mustNotTrigger: ["webSearch"],
+  },
 
   // Portal corpus — stockPrice (includes FX)
-  { text: "OHLCV data for AAPL", shouldTrigger: ["stockPrice"] },
-  { text: "What is the current stock price of Apple?", shouldTrigger: ["stockPrice"] },
-  { text: "exchange rate USD to EUR", shouldTrigger: ["stockPrice"] },
-  { text: "stock price of Apple", shouldTrigger: ["stockPrice"] },
+  // mustNotTrigger: webSearch + cryptoPrice — pure stock/FX data is handled
+  // by stockPrice alone; both other classifiers firing would mean wasted
+  // calls or wrong-API routing.
+  {
+    text: "OHLCV data for AAPL",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
+  {
+    text: "What is the current stock price of Apple?",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
+  {
+    text: "exchange rate USD to EUR",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
+  {
+    text: "stock price of Apple",
+    shouldTrigger: ["stockPrice"],
+    mustNotTrigger: ["webSearch", "cryptoPrice"],
+  },
 
   // Portal corpus — weather
-  { text: "air quality in Beijing", shouldTrigger: ["weather"] },
-  { text: "flood forecast for Houston", shouldTrigger: ["weather"] },
-  { text: "historical weather data for 2023", shouldTrigger: ["weather"] },
-  { text: "marine weather forecast", shouldTrigger: ["weather"] },
-  { text: "temperature forecast for tomorrow", shouldTrigger: ["weather"] },
-  { text: "weather in San Francisco", shouldTrigger: ["weather"] },
+  // mustNotTrigger: webSearch — weather processor owns these; a webSearch
+  // FP burns a search call on data we already fetched.
+  {
+    text: "air quality in Beijing",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "flood forecast for Houston",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "historical weather data for 2023",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "marine weather forecast",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "temperature forecast for tomorrow",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
+  {
+    text: "weather in San Francisco",
+    shouldTrigger: ["weather"],
+    mustNotTrigger: ["webSearch"],
+  },
 
   // Portal corpus — webSearch (news / current events)
   { text: "Breaking news today", shouldTrigger: ["webSearch"] },
@@ -391,14 +569,35 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "which is better React or Vue for web development", shouldTrigger: ["webSearch"] },
 
   // Portal corpus — webSearch (local / location)
-  { text: "coffee shops nearby", shouldTrigger: ["webSearch"] },
-  { text: "hotels in New York City", shouldTrigger: ["webSearch"] },
-  { text: "restaurants near me", shouldTrigger: ["webSearch"] },
-  { text: "where is the nearest gas station", shouldTrigger: ["webSearch"] },
+  // mustNotTrigger: weather (geographic words pulling city→weather is the
+  // dominant historical FP pattern).
+  { text: "coffee shops nearby", shouldTrigger: ["webSearch"], mustNotTrigger: ["weather"] },
+  {
+    text: "hotels in New York City",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["weather"],
+  },
+  { text: "restaurants near me", shouldTrigger: ["webSearch"], mustNotTrigger: ["weather"] },
+  {
+    text: "where is the nearest gas station",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["weather"],
+  },
 
   // Portal corpus — webSearch (lookup / encyclopedic)
-  { text: "find ticker symbol for Apple", shouldTrigger: ["webSearch"] },
-  { text: "what's the elevation of Denver", shouldTrigger: ["webSearch"] },
+  // mustNotTrigger guards against the historical FPs: stock on "ticker
+  // symbol" (a lookup intent, not a quote), weather on "elevation of Denver"
+  // (a city name pulling toward weather).
+  {
+    text: "find ticker symbol for Apple",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["stockPrice"],
+  },
+  {
+    text: "what's the elevation of Denver",
+    shouldTrigger: ["webSearch"],
+    mustNotTrigger: ["weather"],
+  },
 
   // Portal corpus — webSearch (image / video)
   { text: "images of cute cats", shouldTrigger: ["webSearch"] },
@@ -509,11 +708,28 @@ describe("prompt routing to pre-processors", () => {
 
     const stats = new Map<string, Stats>(PRE_PROCESSORS.map((p) => [p.name, newStats()]));
     const mismatches: string[] = [];
+    // Hard-fail boundary violations: per-prompt `mustNotTrigger` violations
+    // collected here will cause the test to fail (not just dent the accuracy
+    // stat). Mirrors the `clientMustExclude` semantics in `toolSelection.ts`.
+    const mustNotTriggerViolations: string[] = [];
 
     for (let i = 0; i < PROMPTS.length; i++) {
-      const { text, shouldTrigger } = PROMPTS[i];
+      const { text, shouldTrigger, mustNotTrigger } = PROMPTS[i];
       const embedding = embeddings[i];
       const expectedSet = new Set(shouldTrigger);
+      const mustNotSet = new Set(mustNotTrigger ?? []);
+
+      // Annotation sanity check: a classifier cannot be in both
+      // `shouldTrigger` (must fire) and `mustNotTrigger` (must NOT fire)
+      // for the same prompt. Without this guard the hard-fail check below
+      // is nested inside the FP branch and would silently ignore the
+      // contradictory annotation — confusing for the next contributor.
+      for (const name of mustNotSet) {
+        expect(
+          expectedSet.has(name),
+          `Prompt "${text}": "${name}" appears in both shouldTrigger and mustNotTrigger`
+        ).toBe(false);
+      }
 
       // Run all pre-processors in observer mode against the cached embedding.
       const outcomes = await Promise.all(
@@ -534,6 +750,11 @@ describe("prompt routing to pre-processors", () => {
         } else if (!expected && triggered) {
           s.fp++;
           mismatches.push(`  [FP] ${name} triggered but shouldn't have: "${text}"`);
+          if (mustNotSet.has(name)) {
+            mustNotTriggerViolations.push(
+              `  [HARD] ${name} fired on a mustNotTrigger boundary case: "${text}"`
+            );
+          }
         } else s.tn++;
       }
     }
@@ -562,6 +783,21 @@ describe("prompt routing to pre-processors", () => {
       console.log(`── Mismatches (${mismatches.length}) ──`);
       for (const line of mismatches) console.log(line);
     }
+    if (mustNotTriggerViolations.length > 0) {
+      console.log(
+        `\n── HARD failures: mustNotTrigger violations (${mustNotTriggerViolations.length}) ──`
+      );
+      for (const line of mustNotTriggerViolations) console.log(line);
+    }
+
+    // Hard assertion: any `mustNotTrigger` violation fails the test
+    // immediately, regardless of aggregate accuracy. Aggregate accuracy
+    // can hide boundary FPs that are individually unacceptable (e.g.
+    // wasting a webSearch call on a pure crypto price query).
+    expect(
+      mustNotTriggerViolations,
+      `${mustNotTriggerViolations.length} mustNotTrigger boundary case(s) violated`
+    ).toEqual([]);
 
     // Per-pre-processor accuracy gate — fails the run if any drops below its
     // minAccuracy threshold. More forgiving than asserting every prompt.

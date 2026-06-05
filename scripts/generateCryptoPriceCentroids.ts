@@ -64,16 +64,31 @@ const CRYPTO_PRICE_PHRASES = [
 
   // Commodity-backed tokens (gold, silver) — these are genuinely ambiguous
   // (token vs spot), so the crypto centroid should fire alongside the stock
-  // centroid on bare "price of gold/silver" queries.
+  // centroid on bare "price of gold/silver" queries. Multiple phrasings on
+  // purpose: the platinum / oil / copper NO additions in this corpus pull
+  // the precious-metals vocabulary cluster slightly toward NO, so we need
+  // enough YES anchors to keep gold/silver on the YES side.
   "PAXG price",
+  "PAX Gold price today",
+  "Live PAXG price",
+  "PAXG market price right now",
+  "How much is PAXG worth",
   "What is the PAX Gold token worth",
   "XAUT price today",
   "Tether Gold price",
+  "XAUT live price",
+  "How much is XAUT trading at",
   "Price of gold-backed tokens",
   "What is the price of gold today",
+  "Show me the price of gold",
+  "Gold token price",
+  "Gold-pegged token price",
   "Price of silver tokens",
   "Silver-backed token price",
   "What is the price of silver today",
+  "Show me the price of silver",
+  "Silver token price",
+  "Silver-pegged token live price",
 
   // Conversational crypto price queries
   "How much does one Bitcoin cost in USD right now",
@@ -136,6 +151,31 @@ const NO_CRYPTO_PRICE_PHRASES = [
   "Who won the Super Bowl this year",
   "What is the weather in Tokyo tomorrow",
   "Find Italian restaurants near me",
+
+  // Commodity prices — must NOT trigger crypto. Existing silver/oil entries
+  // don't cover the full vocabulary the classifier was firing on.
+  // NOTE: gold/silver are intentionally NOT in this list — the YES corpus
+  // explicitly includes gold/silver as PAXG/XAUT-pegged token queries.
+  // Platinum sits in the same precious-metals embedding cluster as gold and
+  // silver, so we anchor it with industrial / NYMEX vocabulary to keep it
+  // distinguishable from the pegged-token cluster.
+  "Oil price today",
+  "Spot price of platinum",
+  "Spot price of copper",
+  "Wheat futures price right now",
+  "Spot price of crude oil",
+  "Platinum spot price per ounce",
+  "Industrial platinum demand and pricing",
+  "Platinum NYMEX futures contract",
+  "Platinum bullion market price",
+  "Spot platinum commodity index",
+
+  // Network stats vs token prices — Ethereum gas fees are denominated in gwei
+  // (not USD or token price territory) and have no dedicated SDK processor,
+  // so they fall back to webSearch. Pull them out of cryptoPrice's gravity.
+  "What are Ethereum gas fees right now",
+  "Current gas price in gwei",
+  "Network fees on Ethereum today",
 ];
 
 async function main() {
