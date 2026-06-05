@@ -125,6 +125,34 @@ const NO_STOCK_PRICE_PHRASES = [
   "Who won the Super Bowl this year",
   "What is the weather in Tokyo tomorrow",
   "Find Italian restaurants near me",
+
+  // Sports standings / rankings — "current X standings" pattern was firing
+  // stockPrice (financial-data vocabulary collision).
+  "What are the current NBA playoff standings",
+  "Latest baseball rankings",
+  "Current standings in the Premier League",
+  "Who is leading the Tour de France",
+
+  // Public-company name + current-data, but NOT a quote — store hours,
+  // not stock price.
+  "What time does Costco close today",
+  "Is Target open right now",
+  "Walmart store hours today",
+
+  // Ticker / symbol LOOKUP (not a quote) — needs to fall through to
+  // webSearch / general LLM, not the price classifier. Boundary case
+  // enforced by promptRouting's mustNotTrigger guard on the AAPL phrasing,
+  // so anchor the lookup intent hard.
+  "Find ticker symbol for Apple",
+  "What ticker symbol does Tesla trade under",
+  "How do I look up a stock ticker",
+  "What does the ticker AAPL stand for",
+  "Look up the ticker for Microsoft",
+  "What's the stock symbol for Berkshire Hathaway",
+  "Where can I find a company's ticker symbol",
+  "How do I search for a stock ticker by company name",
+  "What ticker is Amazon listed under",
+  "Help me find the ticker for a company",
 ];
 
 async function main() {

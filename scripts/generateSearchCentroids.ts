@@ -107,6 +107,26 @@ const SEARCH_PHRASES = [
   "What are Ethereum gas fees right now",
   "flights to Tokyo",
   "election results 2026",
+
+  // Visual / image / video search — the dominant FN pattern. Embedding
+  // model doesn't otherwise pull these toward webSearch's centroid.
+  "pictures of mountains",
+  "pictures of the Eiffel Tower",
+  "youtube python tutorials",
+  "pasta cooking video tutorial",
+  "images of cute cats",
+
+  // Opinion / comparison / recommendations on evolving topics — these
+  // benefit from current sources even though the LLM has some answer.
+  "Compare React vs Vue for web development",
+  "What are the pros and cons of Kubernetes",
+  "Which is better React or Vue",
+  "Recommend a good framework for mobile development",
+  "Comprehensive overview of blockchain technology",
+
+  // Terse current-data queries that fall through to webSearch
+  "Lakers score",
+  "interest rate right now",
 ];
 
 const NO_SEARCH_PHRASES = [
@@ -196,6 +216,28 @@ const NO_SEARCH_PHRASES = [
   "UV index in Miami",
   "Is there a flood warning in Houston",
   "Wind speed in Wellington",
+
+  // Historical / encyclopedic — LLM knows, no web search needed. Was a
+  // dominant FP pattern ("What happened during X war", "Life in 19th
+  // century", etc.).
+  "What happened during World War 2",
+  "What was life like in the 19th century",
+  "What year did World War 2 end",
+  "Tell me about the French Revolution",
+  "When did the Roman Empire fall",
+  "How many continents are there",
+
+  // Personal / identity / calendar — tool territory or context-dependent,
+  // not search.
+  "Who am I and where do I live",
+  "List my calendar events for the next 7 days",
+  "What are my appointments today",
+  "Remind me what we talked about earlier",
+
+  // Follow-up to prior conversation — context-dependent, NOT a new search.
+  "I wanted to follow up on our previous conversation about X",
+  "As we discussed yesterday, what was your recommendation",
+  "Going back to what you said earlier about Y",
 ];
 
 async function main() {

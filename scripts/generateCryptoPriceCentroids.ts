@@ -136,6 +136,23 @@ const NO_CRYPTO_PRICE_PHRASES = [
   "Who won the Super Bowl this year",
   "What is the weather in Tokyo tomorrow",
   "Find Italian restaurants near me",
+
+  // Commodity prices — must NOT trigger crypto. Existing silver/oil entries
+  // don't cover the full vocabulary the classifier was firing on.
+  // NOTE: gold/silver are intentionally NOT in this list — the YES corpus
+  // explicitly includes gold/silver as PAXG/XAUT-pegged token queries.
+  "Oil price today",
+  "Spot price of platinum",
+  "Spot price of copper",
+  "Wheat futures price right now",
+  "Spot price of crude oil",
+
+  // Network stats vs token prices — Ethereum gas fees are denominated in gwei
+  // (not USD or token price territory) and have no dedicated SDK processor,
+  // so they fall back to webSearch. Pull them out of cryptoPrice's gravity.
+  "What are Ethereum gas fees right now",
+  "Current gas price in gwei",
+  "Network fees on Ethereum today",
 ];
 
 async function main() {

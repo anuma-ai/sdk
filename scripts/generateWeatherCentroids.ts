@@ -101,6 +101,20 @@ const NO_WEATHER_PHRASES = [
   "What did Elon Musk tweet about today",
   "Who won the Super Bowl this year",
   "Find Italian restaurants near me",
+
+  // Geographic / location queries that are NOT weather. City and place
+  // names pulling the weather centroid is the dominant FP pattern — these
+  // counter-examples push it back.
+  "Hotels in New York City",
+  "Flights to Tokyo from JFK",
+  "Coffee shops with wifi in downtown Austin",
+  "What's the elevation of Denver",
+  "Where is the nearest gas station",
+  "How do I get to JFK airport from Manhattan",
+  "Is the Golden Gate Bridge open to traffic right now",
+  "Where is the IP address 8.8.8.8 located",
+  "What timezone is Tokyo in",
+  "What time is it in San Francisco",
 ];
 
 async function main() {
