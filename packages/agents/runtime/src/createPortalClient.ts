@@ -25,6 +25,36 @@ const DEFAULT_TIMEOUT_MS = 5_000;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_MS = 100;
 
+/**
+ * Default mint access level per logical provider. The portal's
+ * `POST /api/v1/connector-tokens/{provider}` requires an `access` body keyed
+ * to the provider's `ScopesByAccess` map (ai-portal `internal/oauth/providers.go`).
+ * Anything not listed falls back to `"read"`.
+ */
+const DEFAULT_MINT_ACCESS: Record<string, string> = {
+  gmail: "read",
+  gdrive: "read",
+  gcalendar: "rw",
+  github: "repo",
+  dropbox: "read",
+  notion: "rw",
+};
+
+/**
+ * The portal speaks a single `oauth_app` for the three Google connectors.
+ * Everything else maps 1:1 to its logical provider name.
+ */
+function oauthAppFor(provider: string): string {
+  switch (provider) {
+    case "gmail":
+    case "gdrive":
+    case "gcalendar":
+      return "google";
+    default:
+      return provider;
+  }
+}
+
 interface MintErrorBody {
   error?: string;
   code?: string;
@@ -52,8 +82,7 @@ interface ConnectorListBody {
 
 interface ConnectTicketBody {
   ticket_id: string;
-  expires_at: number;
-  connect_url: string;
+  expires_in: number;
 }
 
 function jitter(baseMs: number, attempt: number): number {
@@ -143,10 +172,11 @@ export function createPortalClient(bearer: string, opts: PortalClientOpts = {}):
   }
 
   return {
-    async mintConnectorToken(provider: string): Promise<MintResult> {
+    async mintConnectorToken(provider: string, access?: string): Promise<MintResult> {
       const response = await requestWithRetry(`/api/v1/connector-tokens/${provider}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access: access ?? DEFAULT_MINT_ACCESS[provider] ?? "read" }),
       });
       if (response.ok) {
         const body = (await response.json()) as MintSuccessBody;
@@ -190,7 +220,7 @@ export function createPortalClient(bearer: string, opts: PortalClientOpts = {}):
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          oauth_app: opts.oauthApp,
+          oauth_app: oauthAppFor(opts.provider),
           requested_scopes: opts.requestedScopes,
           return_to: opts.returnTo,
         }),
@@ -199,10 +229,12 @@ export function createPortalClient(bearer: string, opts: PortalClientOpts = {}):
         throw new Error(`portal /api/v1/connect-tickets returned ${response.status}`);
       }
       const body = (await response.json()) as ConnectTicketBody;
+      // The portal returns only `{ ticket_id, expires_in }` — the client owns
+      // the connect URL, keyed to the LOGICAL provider (not the oauth_app).
       return {
         ticketId: body.ticket_id,
-        expiresAt: body.expires_at,
-        connectUrl: body.connect_url,
+        expiresAt: Date.now() + body.expires_in * 1000,
+        connectUrl: `${baseUrl}/connectors/${opts.provider}/connect?ticket=${encodeURIComponent(body.ticket_id)}`,
       };
     },
   };

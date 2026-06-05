@@ -8,7 +8,8 @@
  *   POST /api/v1/connector-tokens/{provider}   → mint OR return 412 connector_not_connected
  *                                                / 412 scope_not_covered / 5xx for upstream-unavailable
  *   GET  /api/v1/connectors                    → list the user's credentials
- *   POST /api/v1/connect-tickets               → return a fake ticket
+ *   POST /api/v1/connect-tickets               → return a live-shaped ticket
+ *                                                ({ticket_id, expires_in})
  *
  * The stub increments `mintCount` on every successful mint so caching
  * tests can assert "two tool calls = one mint".
@@ -57,11 +58,26 @@ export interface StubPortalHandle {
   stop(): Promise<void>;
   /** Successful mints since startup. */
   readonly mintCount: number;
+  /** Body of the most recent mint request (recorded before the `access`
+   *  guard, so rejected mints are captured too). */
+  readonly lastMintBody: { access?: string } | null;
+  /** Body of the most recent connect-ticket request. */
+  readonly lastConnectTicketBody: {
+    oauth_app?: string;
+    requested_scopes?: string[];
+    return_to?: string;
+  } | null;
 }
 
 interface MutableStubState {
   mintCount: number;
   upstream5xxRemaining: Record<string, number>;
+  lastMintBody: { access?: string } | null;
+  lastConnectTicketBody: {
+    oauth_app?: string;
+    requested_scopes?: string[];
+    return_to?: string;
+  } | null;
 }
 
 function readJson<T>(req: http.IncomingMessage): Promise<T> {
@@ -111,6 +127,8 @@ export async function startStubPortal(cfg: StubPortalConfig): Promise<StubPortal
         .filter(([, v]) => v.kind === "upstream_5xx")
         .map(([k, v]) => [k, (v as { count: number }).count])
     ),
+    lastMintBody: null,
+    lastConnectTicketBody: null,
   };
 
   const server = http.createServer(async (req, res) => {
@@ -133,6 +151,10 @@ export async function startStubPortal(cfg: StubPortalConfig): Promise<StubPortal
       if (req.method === "POST" && path.startsWith("/api/v1/connector-tokens/")) {
         if (!grant) return send(res, 401, { error: "missing_or_invalid_bearer" });
         const provider = path.replace("/api/v1/connector-tokens/", "");
+        // Mirror of ai-portal connector_token.go: `access` is required.
+        const mintBody = await readJson<{ access?: string }>(req);
+        state.lastMintBody = mintBody;
+        if (!mintBody.access) return send(res, 400, { error: "access is required" });
         const beh = behavior[provider];
 
         if (beh?.kind === "upstream_5xx") {
@@ -187,11 +209,19 @@ export async function startStubPortal(cfg: StubPortalConfig): Promise<StubPortal
 
       if (req.method === "POST" && path === "/api/v1/connect-tickets") {
         if (!grant) return send(res, 401, { error: "missing_or_invalid_bearer" });
-        const body = await readJson<{ oauth_app: string; requested_scopes: string[] }>(req);
+        const body = await readJson<{
+          oauth_app?: string;
+          requested_scopes?: string[];
+          return_to?: string;
+        }>(req);
+        state.lastConnectTicketBody = body;
+        if (!body.oauth_app) return send(res, 400, { error: "oauth_app is required" });
+        if (!body.return_to) return send(res, 400, { error: "return_to is required" });
+        // Live shape: the client owns the connect URL; the portal returns only
+        // the ticket id and a TTL in seconds.
         return send(res, 200, {
           ticket_id: `ticket-${Date.now()}`,
-          expires_at: Date.now() + 600_000,
-          connect_url: `http://stub/connectors/${body.oauth_app}/connect?ticket=stub`,
+          expires_in: 600,
         });
       }
 
@@ -214,6 +244,12 @@ export async function startStubPortal(cfg: StubPortalConfig): Promise<StubPortal
       }),
     get mintCount() {
       return state.mintCount;
+    },
+    get lastMintBody() {
+      return state.lastMintBody;
+    },
+    get lastConnectTicketBody() {
+      return state.lastConnectTicketBody;
     },
   };
 }
