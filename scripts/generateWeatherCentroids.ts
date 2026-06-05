@@ -115,6 +115,14 @@ const NO_WEATHER_PHRASES = [
   "Where is the IP address 8.8.8.8 located",
   "What timezone is Tokyo in",
   "What time is it in San Francisco",
+
+  // Climate / weather research vs forecast — the weather classifier should
+  // own real-time / short-term forecast queries, NOT long-horizon climate
+  // research projections. Both have the "climate" / "weather" vocabulary
+  // but the projection / research framing is webSearch territory.
+  "Climate projection for the year 2050",
+  "Long-term climate research forecast",
+  "Climate science overview for the next century",
 ];
 
 async function main() {

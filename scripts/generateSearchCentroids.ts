@@ -235,6 +235,10 @@ const NO_SEARCH_PHRASES = [
   "Remind me what we talked about earlier",
 
   // Follow-up to prior conversation — context-dependent, NOT a new search.
+  // Keep this list small and abstract: previous attempts to add
+  // article / YouTube / topic vocabulary pulled real news / sports queries
+  // ("What did Elon Musk tweet about today?") into NO. Phrasings here use
+  // generic "previous conversation" framing only.
   "I wanted to follow up on our previous conversation about X",
   "As we discussed yesterday, what was your recommendation",
   "Going back to what you said earlier about Y",
