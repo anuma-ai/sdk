@@ -2,4 +2,4 @@
 
 > **DeleteApiV1TextByChannelUnregisterError** = [`DeleteApiV1TextByChannelUnregisterErrors`](DeleteApiV1TextByChannelUnregisterErrors.md)\[keyof [`DeleteApiV1TextByChannelUnregisterErrors`](DeleteApiV1TextByChannelUnregisterErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6495](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6495)
+Defined in: [src/client/types.gen.ts:8524](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8524)

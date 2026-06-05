@@ -17,20 +17,64 @@ type ToolCallEventChunk = {
 };
 
 /**
- * Streaming chunk format for Chat Completions API (OpenAI-compatible)
+ * Portal envelope on chat completions responses (new OpenAI-compliant shape).
+ * The same envelope appears on the non-streaming response body and on the
+ * `response.completed`-style fallback chunk emitted when the portal cannot
+ * stream incrementally (e.g. when an upstream provider only supports
+ * non-streaming).
+ */
+type CompletionsPortalEnvelope = {
+  tools_checksum?: string;
+  tool_call_events?: Array<ToolCallEventChunk>;
+  cost_micro_usd?: number;
+  credits_used?: number;
+  /** Image model the portal resolved when an image-generation tool ran. */
+  image_model?: string;
+  /** Cost/usage breakdown — moved here from the flat `usage` shape in the
+   *  OpenAI-compliant migration. Mirrored back into `usage` for legacy readers. */
+  init_prompt_tokens?: number;
+  init_completion_tokens?: number;
+  provider_cost_micro_usd?: number;
+  pricing_source?: string;
+  tool_cost_micro_usd?: number;
+};
+
+/**
+ * The legacy top-level mirrors (`tools_checksum`, `tool_call_events`) can ride
+ * on the chunk itself or the wrapped `response`, as well as inside a `portal`
+ * envelope, so they are resolved from the wider carrier set below. The
+ * portal-only fields (cost/credits, image_model, the init/provider/pricing
+ * breakdown) appear ONLY under a `portal` envelope per the OpenAI-compliant
+ * schema — never at the chunk top level — so they come from `portalEnvelopes`.
+ */
+type LegacyMirrorCarrier = {
+  tools_checksum?: string;
+  tool_call_events?: Array<ToolCallEventChunk>;
+};
+
+/**
+ * Streaming chunk format for Chat Completions API (OpenAI-compatible).
+ *
+ * Per-chunk `usage` frames still carry `cost_micro_usd` / `credits_used` at the
+ * top of `usage` — the OpenAI-compliant migration did not change the streaming
+ * usage frame. The fallback `response.completed`-style envelope, however, uses
+ * the new portal-nested shape for those fields; we honor both here.
  */
 type CompletionsStreamingChunk = {
   id?: string;
   object?: string;
   model?: string;
-  /** Checksum of tools used to generate this response */
+  /** Checksum of tools used to generate this response (legacy top-level path). */
   tools_checksum?: string;
-  /** Tool call events from server-side MCP tool execution */
+  /** Tool call events from server-side MCP tool execution (legacy top-level path). */
   tool_call_events?: Array<ToolCallEventChunk>;
+  /** Portal envelope on the fallback non-streaming envelope. */
+  portal?: CompletionsPortalEnvelope;
   /** Wrapped response format (some endpoints nest the response) */
   response?: {
     tools_checksum?: string;
     tool_call_events?: Array<ToolCallEventChunk>;
+    portal?: CompletionsPortalEnvelope;
   };
   choices?: Array<{
     index: number;
@@ -82,6 +126,59 @@ type CompletionsStreamingChunk = {
 };
 
 /**
+ * Carriers for the legacy top-level mirrors: the chunk, its `portal` envelope,
+ * and the wrapped-`response` variants of each. Exactly one is populated per
+ * request, depending on whether the portal streamed incrementally or fell back
+ * to a wrapped envelope. The chunk and wrapped `response` only ever carry the
+ * legacy mirror fields at their top level, so the carrier type is narrowed to
+ * `LegacyMirrorCarrier` — the raw chunk is never asserted to hold portal-only
+ * fields (cost/credits/image_model/...), which it does not declare.
+ */
+function legacyMirrorCarriers(chunk: CompletionsStreamingChunk): LegacyMirrorCarrier[] {
+  return [chunk, chunk.portal, chunk.response, chunk.response?.portal].filter(
+    (carrier): carrier is LegacyMirrorCarrier => carrier !== undefined
+  );
+}
+
+/**
+ * Carriers for the portal-only fields (cost/credits, image_model, the
+ * init/provider/pricing breakdown). These appear solely under a `portal`
+ * envelope on the chunk or the wrapped `response`.
+ */
+function portalEnvelopes(chunk: CompletionsStreamingChunk): CompletionsPortalEnvelope[] {
+  return [chunk.portal, chunk.response?.portal].filter(
+    (carrier): carrier is CompletionsPortalEnvelope => carrier !== undefined
+  );
+}
+
+/** Return the first carrier's value for `pick` that is not `undefined`. */
+function firstPortalField<C, T>(carriers: C[], pick: (carrier: C) => T | undefined): T | undefined {
+  for (const carrier of carriers) {
+    const value = pick(carrier);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+/**
+ * Build a single-key object only when the value is present, so spreading the
+ * result never introduces an `undefined`-valued key (which would defeat the
+ * `Object.keys(...).length` presence checks downstream). Returns `{}` otherwise.
+ */
+function numberField<K extends string>(
+  key: K,
+  value: number | undefined
+): Partial<Record<K, number>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<K, number>);
+}
+function stringField<K extends string>(
+  key: K,
+  value: string | undefined
+): Partial<Record<K, string>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<K, string>);
+}
+
+/**
  * Strategy for the OpenAI Chat Completions API (/api/v1/chat/completions)
  *
  * Provides wider model compatibility but does not support:
@@ -107,6 +204,17 @@ export class CompletionsStrategy implements ApiStrategy {
       conversationId,
     } = args;
 
+    // Portal-specific request fields (image_model, conversation_id) live under
+    // a `portal` envelope per the new OpenAI-compliant schema; only build the
+    // envelope when there's at least one value to send.
+    const portal =
+      imageModel || conversationId
+        ? {
+            ...(imageModel && { image_model: imageModel }),
+            ...(conversationId && { conversation_id: conversationId }),
+          }
+        : undefined;
+
     return {
       messages,
       model,
@@ -115,8 +223,7 @@ export class CompletionsStrategy implements ApiStrategy {
       ...(maxOutputTokens !== undefined && { max_tokens: maxOutputTokens }),
       ...(tools && { tools }),
       ...(toolChoice && { tool_choice: toolChoice }),
-      ...(imageModel && { image_model: imageModel }),
-      ...(conversationId && { conversation_id: conversationId }),
+      ...(portal && { portal }),
     };
   }
 
@@ -145,44 +252,109 @@ export class CompletionsStrategy implements ApiStrategy {
     if (typedChunk.model && (!accumulator.responseModel || accumulator.responseModel === "auto")) {
       accumulator.responseModel = typedChunk.model;
     }
-    // Capture tools_checksum if present
-    if (typedChunk.tools_checksum && !accumulator.toolsChecksum) {
-      accumulator.toolsChecksum = typedChunk.tools_checksum;
-    }
-    // Also capture from nested response if present
-    if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
-      accumulator.toolsChecksum = typedChunk.response.tools_checksum;
+    // Portal-side fields arrive on different carriers (see the carrier helpers);
+    // resolve each from whichever one the server populated.
+    const legacyCarriers = legacyMirrorCarriers(typedChunk);
+    const portalEnvs = portalEnvelopes(typedChunk);
+
+    // Capture tools_checksum. Coerce an empty string to `undefined` so it
+    // doesn't shadow a real checksum on a later carrier (mirrors the empty-array
+    // skip for tool_call_events below) — `firstPortalField` stops at the first
+    // non-undefined value, and the truthy guard would otherwise discard "".
+    const checksumCandidate = firstPortalField(
+      legacyCarriers,
+      (c) => c.tools_checksum || undefined
+    );
+    if (checksumCandidate && !accumulator.toolsChecksum) {
+      accumulator.toolsChecksum = checksumCandidate;
     }
 
-    // Capture tool_call_events if present (skip empty arrays from early chunks)
-    if (typedChunk.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
-      accumulator.toolCallEvents = typedChunk.tool_call_events.map((event) => ({
+    // Capture tool_call_events (skip empty arrays from early chunks).
+    const toolCallEventsCandidate = firstPortalField(legacyCarriers, (c) =>
+      c.tool_call_events?.length ? c.tool_call_events : undefined
+    );
+    if (toolCallEventsCandidate && !accumulator.toolCallEvents?.length) {
+      accumulator.toolCallEvents = toolCallEventsCandidate.map((event) => ({
         id: event.id || "",
         name: event.name || "",
         arguments: event.arguments || "",
         output: event.output || "",
       }));
     }
-    // Also capture from nested response if present (skip empty arrays from early chunks)
-    if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
-      accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
-        id: event.id || "",
-        name: event.name || "",
-        arguments: event.arguments || "",
-        output: event.output || "",
-      }));
-    }
 
-    // Accumulate usage data
+    // Accumulate usage data. Per-chunk usage frames still carry `cost_micro_usd`
+    // and `credits_used` inside `usage` (unchanged by the OpenAI-compliant
+    // migration). The fallback envelope moves those to `portal`; merge both
+    // sources so the accumulator's internal representation stays consistent.
     if (typedChunk.usage) {
+      // Every field on the OpenAI usage frame is optional, and the portal may
+      // emit more than one usage frame per stream (e.g. tokens in one, cost in
+      // a later fallback). Spread every field conditionally so an omission in a
+      // later frame never wipes a value an earlier frame already set, and so the
+      // accumulator only ever holds fields that actually arrived (no
+      // `undefined`-valued keys leaking into `buildFinalResponse`).
       accumulator.usage = {
         ...accumulator.usage,
-        prompt_tokens: typedChunk.usage.prompt_tokens,
-        completion_tokens: typedChunk.usage.completion_tokens,
-        total_tokens: typedChunk.usage.total_tokens,
-        cost_micro_usd: typedChunk.usage.cost_micro_usd,
-        credits_used: typedChunk.usage.credits_used,
+        ...(typedChunk.usage.prompt_tokens !== undefined && {
+          prompt_tokens: typedChunk.usage.prompt_tokens,
+        }),
+        ...(typedChunk.usage.completion_tokens !== undefined && {
+          completion_tokens: typedChunk.usage.completion_tokens,
+        }),
+        ...(typedChunk.usage.total_tokens !== undefined && {
+          total_tokens: typedChunk.usage.total_tokens,
+        }),
+        ...(typedChunk.usage.cost_micro_usd !== undefined && {
+          cost_micro_usd: typedChunk.usage.cost_micro_usd,
+        }),
+        ...(typedChunk.usage.credits_used !== undefined && {
+          credits_used: typedChunk.usage.credits_used,
+        }),
       };
+    }
+    // Image model resolved by the portal (rides only on the portal envelope).
+    const portalImageModel = firstPortalField(portalEnvs, (c) => c.image_model || undefined);
+    if (portalImageModel && !accumulator.imageModel) {
+      accumulator.imageModel = portalImageModel;
+    }
+
+    // Cost/usage breakdown from the portal fallback envelope. The OpenAI-compliant
+    // schema moved these out of the flat `usage` shape into `portal`; merge each
+    // conditionally so a later frame's omission never wipes an earlier value.
+    const portalUsageExtras = {
+      ...numberField(
+        "cost_micro_usd",
+        firstPortalField(portalEnvs, (c) => c.cost_micro_usd)
+      ),
+      ...numberField(
+        "credits_used",
+        firstPortalField(portalEnvs, (c) => c.credits_used)
+      ),
+      ...numberField(
+        "init_prompt_tokens",
+        firstPortalField(portalEnvs, (c) => c.init_prompt_tokens)
+      ),
+      ...numberField(
+        "init_completion_tokens",
+        firstPortalField(portalEnvs, (c) => c.init_completion_tokens)
+      ),
+      ...numberField(
+        "provider_cost_micro_usd",
+        firstPortalField(portalEnvs, (c) => c.provider_cost_micro_usd)
+      ),
+      ...stringField(
+        "pricing_source",
+        // Coerce "" to undefined so an empty value doesn't shadow a real
+        // pricing_source on a later carrier (mirrors image_model / tools_checksum).
+        firstPortalField(portalEnvs, (c) => c.pricing_source || undefined)
+      ),
+      ...numberField(
+        "tool_cost_micro_usd",
+        firstPortalField(portalEnvs, (c) => c.tool_cost_micro_usd)
+      ),
+    };
+    if (Object.keys(portalUsageExtras).length > 0) {
+      accumulator.usage = { ...accumulator.usage, ...portalUsageExtras };
     }
 
     // Process choices array
@@ -411,33 +583,96 @@ export class CompletionsStrategy implements ApiStrategy {
           }))
         : undefined;
 
-    // Build native Completions API response format
+    // Build the response in the new OpenAI-compliant shape (portal envelope +
+    // OpenAI-only usage) AND also mirror the portal-side fields back onto the
+    // top level / inside `usage`. The override on `LlmapiChatCompletionResponse`
+    // in src/clientCompat.ts types both paths as optional, so SDK consumers can
+    // keep reading the legacy locations (`response.tools_checksum`,
+    // `response.usage.cost_micro_usd`, ...) while the wire shape stays
+    // OpenAI-compliant for clients reading `response.portal.*`.
+    // `accumulator.usage` only holds fields that actually arrived (the chunk
+    // merge above spreads every field conditionally), so each presence check
+    // below reflects a real value. Split the OpenAI token counts from the
+    // portal-side cost/usage breakdown: tokens stay in `usage`, while the
+    // breakdown is mirrored into BOTH `usage` (legacy `LlmapiChatCompletionUsage`
+    // readers) and `portal` (the OpenAI-compliant location).
+    const u = accumulator.usage;
+    const tokenFields = {
+      ...numberField("prompt_tokens", u.prompt_tokens),
+      ...numberField("completion_tokens", u.completion_tokens),
+      ...numberField("total_tokens", u.total_tokens),
+    };
+    const portalUsageExtras = {
+      ...numberField("cost_micro_usd", u.cost_micro_usd),
+      ...numberField("credits_used", u.credits_used),
+      ...numberField("init_prompt_tokens", u.init_prompt_tokens),
+      ...numberField("init_completion_tokens", u.init_completion_tokens),
+      ...numberField("provider_cost_micro_usd", u.provider_cost_micro_usd),
+      ...stringField("pricing_source", u.pricing_source),
+      ...numberField("tool_cost_micro_usd", u.tool_cost_micro_usd),
+    };
+    const hasUsageExtras = Object.keys(portalUsageExtras).length > 0;
+    const usage =
+      Object.keys(tokenFields).length > 0 || hasUsageExtras
+        ? { ...tokenFields, ...portalUsageExtras }
+        : undefined;
+
+    const hasPortalFields =
+      accumulator.toolsChecksum !== undefined ||
+      (accumulator.toolCallEvents?.length ?? 0) > 0 ||
+      accumulator.imageModel !== undefined ||
+      hasUsageExtras;
+
+    const portal = hasPortalFields
+      ? {
+          ...(accumulator.toolsChecksum !== undefined && {
+            tools_checksum: accumulator.toolsChecksum,
+          }),
+          ...(accumulator.toolCallEvents?.length && {
+            tool_call_events: accumulator.toolCallEvents,
+          }),
+          ...stringField("image_model", accumulator.imageModel),
+          ...portalUsageExtras,
+        }
+      : undefined;
+
     return {
       id: accumulator.responseId,
       model: accumulator.responseModel,
-      tools_checksum: accumulator.toolsChecksum,
-      tool_call_events: accumulator.toolCallEvents,
       choices: [
         {
           index: 0,
           message: {
             role: "assistant",
-            content: [{ type: "text", text: finalContent }],
+            content: finalContent,
             ...(toolCalls && { tool_calls: toolCalls }),
           },
           finish_reason: toolCalls ? "tool_calls" : "stop",
         },
       ],
-      usage:
-        Object.keys(accumulator.usage).length > 0
-          ? {
-              prompt_tokens: accumulator.usage.prompt_tokens,
-              completion_tokens: accumulator.usage.completion_tokens,
-              total_tokens: accumulator.usage.total_tokens,
-              cost_micro_usd: accumulator.usage.cost_micro_usd,
-              credits_used: accumulator.usage.credits_used,
-            }
-          : undefined,
+      ...(usage && { usage }),
+      ...(portal && { portal }),
+      // Legacy top-level mirrors — kept for SDK consumers that haven't migrated
+      // to reading `response.portal.*` yet.
+      //
+      // TODO(deprecate-legacy-chat-completion-mirrors) [#548]: remove these
+      // mirrors (and the corresponding optional top-level fields on the
+      // LlmapiChatCompletionResponse override in src/clientCompat.ts) once the
+      // next SDK MAJOR bump lands. Until then they ride alongside `portal` so a
+      // minor bump doesn't break name-pinned readers. Deprecation steps:
+      //   1. This release: emit both shapes (done); the read helpers in
+      //      strategies/types.ts already prefer `portal`.
+      //   2. Announce in CHANGELOG that top-level `tools_checksum` /
+      //      `tool_call_events` and in-`usage` cost fields are deprecated.
+      //   3. Next MAJOR: delete this block + the override's legacy fields;
+      //      consumers read `response.portal.*` exclusively.
+      ...(accumulator.toolsChecksum !== undefined && {
+        tools_checksum: accumulator.toolsChecksum,
+      }),
+      ...(accumulator.toolCallEvents?.length && {
+        tool_call_events: accumulator.toolCallEvents,
+      }),
+      ...stringField("image_model", accumulator.imageModel),
     };
   }
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import type { LlmapiMessage } from "../client";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
@@ -12,6 +12,12 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
+import {
+  type ApiResponse,
+  extractAssistantText,
+  getImageModel,
+  getToolCallEvents,
+} from "../lib/chat/useChat/strategies";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type BaseSendMessageWithStorageArgs,
@@ -1329,24 +1335,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
         const abortedResult = result as {
-          data: LlmapiResponseResponse | null;
+          data: ApiResponse | null;
           error: string;
         };
 
         if (abortedResult.error === "Request aborted") {
-          // Extract content if we have partial data, otherwise empty string
-          // Find the message output item (type: "message") for main content
-          const abortOutput = (abortedResult.data?.output ?? []).filter(Boolean);
-          const messageOutput = abortOutput.find((item) => item?.type === "message");
-          const assistantContent =
-            messageOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
-            "";
-
-          // Find the reasoning output item (type: "reasoning") for thinking content
-          const reasoningOutput = abortOutput.find((item) => item?.type === "reasoning");
-          const abortedThinkingContent =
-            reasoningOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
-            undefined;
+          // Extract partial content from whichever response shape the strategy
+          // produced — Responses API ships it under output[], Chat Completions
+          // under choices[0].message.content.
+          const extracted = abortedResult.data
+            ? extractAssistantText(abortedResult.data)
+            : { content: "", thinking: undefined as string | undefined };
+          const assistantContent = extracted.content;
+          const abortedThinkingContent = extracted.thinking;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -1358,8 +1359,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
-              imageModel,
-              usage: convertUsageToStored(abortedResult.data?.usage),
+              imageModel:
+                imageModel || (abortedResult.data ? getImageModel(abortedResult.data) : undefined),
+              usage: convertUsageToStored(abortedResult.data),
               responseDuration,
               wasStopped: true,
               sources,
@@ -1371,8 +1373,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // Embed assistant message asynchronously (non-blocking)
             void embedMessageAsync(storedAssistantMessage);
 
-            // Build a valid response for the return (even if original was null)
-            const responseData: LlmapiResponseResponse = abortedResult.data || {
+            // Build a valid response for the return (even if original was null).
+            // Typed `ApiResponse`: when the strategy was Chat Completions,
+            // `abortedResult.data` is a `LlmapiChatCompletionResponse`, not the
+            // Responses shape — the synthesized fallback below is Responses-shaped.
+            const responseData: ApiResponse = abortedResult.data || {
               id: `aborted-${Date.now()}`,
               model: responseModel,
               object: "response",
@@ -1484,13 +1489,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Deduplicate tool_call_events: the backend returns accumulated events across
       // the entire conversation. Filter to only new events from this turn so we don't
       // re-extract images (or other artifacts) that already belong to earlier messages.
-      const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
+      const currentTurnToolCallEvents = getToolCallEvents(responseData)?.filter(
         (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
       );
 
-      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      // Resolve image model: prefer the caller's selection, then the portal's
+      // resolved `image_model` on the response, then MCP tool-event scraping.
       const resolvedImageModel =
-        imageModel || extractImageModelFromToolEvents(currentTurnToolCallEvents);
+        imageModel ||
+        getImageModel(responseData) ||
+        extractImageModelFromToolEvents(currentTurnToolCallEvents);
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -1499,7 +1507,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         content: cleanedContent,
         model: responseData.model || model,
         imageModel: resolvedImageModel,
-        usage: convertUsageToStored(responseData.usage),
+        usage: convertUsageToStored(responseData),
         responseDuration,
         sources: combinedSources,
         thoughtProcess: finalizeThoughtProcess(thoughtProcess),

@@ -2,7 +2,7 @@
 
 > **LlmapiResponseToolChoice** = `object`
 
-Defined in: [src/client/types.gen.ts:2462](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2462)
+Defined in: [src/client/types.gen.ts:929](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#929)
 
 ToolChoice controls tool usage
 

@@ -13,7 +13,13 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
-import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
+import {
+  type ApiResponse,
+  extractAssistantText,
+  getImageModel,
+  getToolCallEvents,
+  getToolsChecksum,
+} from "../lib/chat/useChat/strategies";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type ActivityPhase,
@@ -2217,7 +2223,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
 
         // Auto-refresh server tools cache if checksum changed
-        if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
+        if (getToken && shouldRefreshTools(getToolsChecksum(result.data))) {
           getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
             getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
           });
@@ -2703,23 +2709,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         };
 
         if (abortedResult.error === "Request aborted") {
-          // Extract content if we have partial data, otherwise empty string
-          let assistantContent = "";
-          let abortedThinkingContent: string | undefined;
-
-          if (abortedResult.data && "output" in abortedResult.data && abortedResult.data.output) {
-            type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-            const abortOutput = (abortedResult.data.output as OutputItem[]).filter(Boolean);
-            // Find the message output item (type: "message") for main content
-            const messageOutput = abortOutput.find((item) => item?.type === "message");
-            assistantContent =
-              messageOutput?.content?.map((part) => part.text || "").join("") || "";
-
-            // Find the reasoning output item (type: "reasoning") for thinking content
-            const reasoningOutput = abortOutput.find((item) => item?.type === "reasoning");
-            abortedThinkingContent =
-              reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
-          }
+          // Extract partial content from whichever response shape the strategy
+          // produced — Responses API ships it under output[], Chat Completions
+          // under choices[0].message.content.
+          const extracted = abortedResult.data
+            ? extractAssistantText(abortedResult.data)
+            : { content: "", thinking: undefined as string | undefined };
+          const assistantContent = extracted.content;
+          const abortedThinkingContent = extracted.thinking;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -2731,8 +2728,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
-              imageModel,
-              usage: convertUsageToStored(abortedResult.data?.usage),
+              imageModel:
+                imageModel || (abortedResult.data ? getImageModel(abortedResult.data) : undefined),
+              usage: convertUsageToStored(abortedResult.data),
               responseDuration,
               wasStopped: true,
               thoughtProcess: resolveThoughtProcess(),
@@ -2841,7 +2839,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Deduplicate tool_call_events: the backend returns accumulated events across
       // the entire conversation. Filter to only new events from this turn so we don't
       // re-extract images (or other artifacts) that already belong to earlier messages.
-      const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
+      const currentTurnToolCallEvents = getToolCallEvents(responseData)?.filter(
         (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
       );
 
@@ -2882,8 +2880,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         )?.model;
       }
 
-      // Resolve image model: prefer user-provided, fall back to MCP tool response.
-      const resolvedImageModel = imageModel || mcpImageModel;
+      // Resolve image model: prefer the caller's selection, then the portal's
+      // resolved `image_model` on the response, then the MCP tool-event hint.
+      const resolvedImageModel = imageModel || getImageModel(responseData) || mcpImageModel;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -2893,7 +2892,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         model: responseData.model || model,
         imageModel: resolvedImageModel,
         fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
-        usage: convertUsageToStored(responseData.usage),
+        usage: convertUsageToStored(responseData),
         responseDuration,
         sources: extractedSources,
         thoughtProcess: resolveThoughtProcess(),
@@ -3007,7 +3006,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       // Auto-refresh server tools cache if checksum changed
-      if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
+      if (getToken && shouldRefreshTools(getToolsChecksum(responseData))) {
         getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
           getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
         });

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1013](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1013)
+Defined in: [src/react/useChatStorage.ts:1019](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1019)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 

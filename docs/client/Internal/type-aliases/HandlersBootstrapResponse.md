@@ -2,7 +2,7 @@
 
 > **HandlersBootstrapResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:387](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#387)
+Defined in: [src/client/types.gen.ts:1384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1384)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:387](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **build**: [`HandlersBootstrapBuild`](HandlersBootstrapBuild.md)
 
-Defined in: [src/client/types.gen.ts:388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#388)
+Defined in: [src/client/types.gen.ts:1385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1385)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:388](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **flags**: `object`
 
-Defined in: [src/client/types.gen.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#393)
+Defined in: [src/client/types.gen.ts:1390](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1390)
 
 Flags maps registered feature-flag keys to the variant assigned to this user.
 Variant values are typed by PostHog: bool for boolean flags, string for multivariate.
@@ -33,4 +33,4 @@ Variant values are typed by PostHog: bool for boolean flags, string for multivar
 
 > `optional` **user**: [`HandlersBootstrapUser`](HandlersBootstrapUser.md)
 
-Defined in: [src/client/types.gen.ts:396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#396)
+Defined in: [src/client/types.gen.ts:1393](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1393)

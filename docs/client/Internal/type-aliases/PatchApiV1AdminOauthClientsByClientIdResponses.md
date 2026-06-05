@@ -2,7 +2,7 @@
 
 > **PatchApiV1AdminOauthClientsByClientIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:3514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3514)
+Defined in: [src/client/types.gen.ts:4874](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4874)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:3514](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersOAuthClientResponse`](HandlersOAuthClientResponse.md)
 
-Defined in: [src/client/types.gen.ts:3518](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3518)
+Defined in: [src/client/types.gen.ts:4878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4878)
 
 OK

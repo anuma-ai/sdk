@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsRenewData** = `object`
 
-Defined in: [src/client/types.gen.ts:6153](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6153)
+Defined in: [src/client/types.gen.ts:8182](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8182)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6153](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6154](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6154)
+Defined in: [src/client/types.gen.ts:8183](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8183)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6154](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6155)
+Defined in: [src/client/types.gen.ts:8184](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8184)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:6155](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6156)
+Defined in: [src/client/types.gen.ts:8185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8185)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:6156](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/subscriptions/renew"`
 
-Defined in: [src/client/types.gen.ts:6157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6157)
+Defined in: [src/client/types.gen.ts:8186](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8186)

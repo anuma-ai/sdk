@@ -2,7 +2,7 @@
 
 > **SendMessageWithStorageArgs** = `BaseSendMessageWithStorageArgs` & `object`
 
-Defined in: [src/expo/useChatStorage.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#252)
+Defined in: [src/expo/useChatStorage.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#258)
 
 Arguments for sendMessage with storage (Expo version)
 

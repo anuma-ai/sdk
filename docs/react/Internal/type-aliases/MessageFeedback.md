@@ -2,7 +2,7 @@
 
 > **MessageFeedback** = `"like"` | `"dislike"` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#62)
+Defined in: [src/lib/db/chat/types.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#69)
 
 Feedback type for message like/dislike.
 
