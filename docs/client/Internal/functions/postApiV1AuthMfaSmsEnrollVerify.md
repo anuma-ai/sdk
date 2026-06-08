@@ -1,0 +1,61 @@
+# postApiV1AuthMfaSmsEnrollVerify
+
+> **postApiV1AuthMfaSmsEnrollVerify**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaSmsEnrollVerifyData`](../type-aliases/PostApiV1AuthMfaSmsEnrollVerifyData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AuthMfaSmsEnrollVerifyResponses`](../type-aliases/PostApiV1AuthMfaSmsEnrollVerifyResponses.md), [`PostApiV1AuthMfaSmsEnrollVerifyErrors`](../type-aliases/PostApiV1AuthMfaSmsEnrollVerifyErrors.md), `ThrowOnError`>
+
+Defined in: [src/client/sdk.gen.ts:632](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#632)
+
+Verify SMS enrollment
+
+## Type Parameters
+
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+<th>Default type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`ThrowOnError` *extends* `boolean`
+
+</td>
+<td>
+
+`false`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+## Parameters
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+[`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaSmsEnrollVerifyData`](../type-aliases/PostApiV1AuthMfaSmsEnrollVerifyData.md), `ThrowOnError`>
+
+</td>
+</tr>
+</tbody>
+</table>
+
+## Returns
+
+`RequestResult`<[`PostApiV1AuthMfaSmsEnrollVerifyResponses`](../type-aliases/PostApiV1AuthMfaSmsEnrollVerifyResponses.md), [`PostApiV1AuthMfaSmsEnrollVerifyErrors`](../type-aliases/PostApiV1AuthMfaSmsEnrollVerifyErrors.md), `ThrowOnError`>

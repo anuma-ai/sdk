@@ -13,7 +13,13 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
-import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
+import {
+  type ApiResponse,
+  extractAssistantText,
+  getImageModel,
+  getToolCallEvents,
+  getToolsChecksum,
+} from "../lib/chat/useChat/strategies";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type ActivityPhase,
@@ -50,6 +56,11 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import {
+  Entity as EntityModel,
+  MemoryEntity as MemoryEntityModel,
+} from "../lib/db/entities/models";
+import type { EntityOperationsContext } from "../lib/db/entities/operations";
+import {
   createMediaBatchOp,
   deleteMediaByConversationOp,
   getMediaByIdsOp,
@@ -77,6 +88,12 @@ import {
   WalletPoller,
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
+import {
+  createRecallTool as createRecallToolBase,
+  RECALL_TOOL_NAME,
+  type RecallToolCallbacks,
+  type RecallToolOptions,
+} from "../lib/memory";
 import {
   chunkText,
   createMemoryEngineTool as createMemoryEngineToolBase,
@@ -192,8 +209,16 @@ async function autoFilterClientTools(
   extraToolSets: ToolSet[] = [],
   activeToolSets: string[] = []
 ): Promise<LlmapiChatCompletionTool[]> {
-  // Memory tools are always included — only filter connector tools (Notion, Google)
-  const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
+  // Memory tools are always included — only filter connector tools
+  // (Notion, Google). Matches both the legacy memory_vault_* surface and
+  // the unified recall_memory tool from createRecallTool. The
+  // memory_engine_* prefix is intentionally NOT matched — it is not an
+  // owned SDK namespace and would let any third-party tool bypass the
+  // similarity filter by name alone.
+  const isMemoryTool = (t: LlmapiChatCompletionTool) => {
+    const name = getToolName(t);
+    return name.startsWith("memory_vault_") || name === RECALL_TOOL_NAME;
+  };
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
@@ -858,6 +883,17 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryVaultSearchTool: (searchOptions?: MemoryVaultSearchOptions) => ToolConfig;
 
   /**
+   * Create the unified recall_memory tool — single LLM-facing tool that
+   * fuses vault facts and conversation chunks via `recall()`. Prefer
+   * this over wiring `createMemoryVaultSearchTool` and the chunk tool
+   * separately; the LLM no longer has to route between two surfaces.
+   */
+  createRecallTool: (
+    toolOptions?: RecallToolOptions,
+    callbacks?: RecallToolCallbacks
+  ) => ToolConfig;
+
+  /**
    * Search vault memories programmatically using semantic similarity.
    * Returns structured results sorted by descending similarity.
    * Gracefully returns [] when auth is unavailable.
@@ -1088,6 +1124,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       embeddedWalletSigner,
     }),
     [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
+  );
+
+  // W5 graph lane — entity + memory_entity collections feed `recall()`'s
+  // graph lane (query entities → shared-entity memories → RRF fusion)
+  // and `linkMemoryEntitiesOp` on the write path so retain() can persist
+  // entity links when callers pass them through.
+  const entityCollection = useMemo(() => database.get<EntityModel>("entity"), [database]);
+  const memoryEntityCollection = useMemo(
+    () => database.get<MemoryEntityModel>("memory_entity"),
+    [database]
+  );
+  const entityCtx = useMemo<EntityOperationsContext>(
+    () => ({
+      database,
+      entityCollection,
+      memoryEntityCollection,
+      // React web ships LokiJS where the v31 SQL backfill is a no-op,
+      // so pre-v31 memory_entity rows still carry `user_id = null`.
+      // Scope new reads to the active wallet while admitting those
+      // legacy unscoped rows until `backfillMemoryEntityUserIdsOp` runs.
+      ...(walletAddress !== undefined && { userId: walletAddress }),
+      allowUnscopedRows: true,
+    }),
+    [database, entityCollection, memoryEntityCollection, walletAddress]
   );
 
   // ── Queue Management ──
@@ -1494,6 +1554,44 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       );
     },
     [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Create the unified recall tool. Routes through `recall()` so vault
+   * facts and conversation chunks are fused into a single ranked result —
+   * one tool exposed to the LLM instead of two.
+   */
+  const createRecallTool = useCallback(
+    (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for recall tool");
+      }
+      // Default excludeConversationId to the active conversation so the
+      // recall tool can't surface chunks from the user's own current
+      // turns back as "memory" (assistant otherwise paraphrases the
+      // user's latest message with "as I mentioned previously"). Callers
+      // can still override explicitly.
+      const resolvedToolOptions: RecallToolOptions | undefined =
+        toolOptions?.excludeConversationId !== undefined || !currentConversationId
+          ? toolOptions
+          : { ...toolOptions, excludeConversationId: currentConversationId };
+      return createRecallToolBase(
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+          // Graph lane fires when entityCtx is present and the query
+          // contains extractable entities. Empty memory_entity (e.g.
+          // before any auto-extraction linked entities) is a graceful
+          // no-op — recall falls through to fact + chunk lanes.
+          entityCtx,
+        },
+        resolvedToolOptions,
+        callbacks
+      );
+    },
+    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel, currentConversationId]
   );
 
   /**
@@ -2125,7 +2223,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
 
         // Auto-refresh server tools cache if checksum changed
-        if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
+        if (getToken && shouldRefreshTools(getToolsChecksum(result.data))) {
           getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
             getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
           });
@@ -2611,23 +2709,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         };
 
         if (abortedResult.error === "Request aborted") {
-          // Extract content if we have partial data, otherwise empty string
-          let assistantContent = "";
-          let abortedThinkingContent: string | undefined;
-
-          if (abortedResult.data && "output" in abortedResult.data && abortedResult.data.output) {
-            type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-            const abortOutput = (abortedResult.data.output as OutputItem[]).filter(Boolean);
-            // Find the message output item (type: "message") for main content
-            const messageOutput = abortOutput.find((item) => item?.type === "message");
-            assistantContent =
-              messageOutput?.content?.map((part) => part.text || "").join("") || "";
-
-            // Find the reasoning output item (type: "reasoning") for thinking content
-            const reasoningOutput = abortOutput.find((item) => item?.type === "reasoning");
-            abortedThinkingContent =
-              reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
-          }
+          // Extract partial content from whichever response shape the strategy
+          // produced — Responses API ships it under output[], Chat Completions
+          // under choices[0].message.content.
+          const extracted = abortedResult.data
+            ? extractAssistantText(abortedResult.data)
+            : { content: "", thinking: undefined as string | undefined };
+          const assistantContent = extracted.content;
+          const abortedThinkingContent = extracted.thinking;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -2639,8 +2728,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
-              imageModel,
-              usage: convertUsageToStored(abortedResult.data?.usage),
+              imageModel:
+                imageModel || (abortedResult.data ? getImageModel(abortedResult.data) : undefined),
+              usage: convertUsageToStored(abortedResult.data),
               responseDuration,
               wasStopped: true,
               thoughtProcess: resolveThoughtProcess(),
@@ -2749,7 +2839,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Deduplicate tool_call_events: the backend returns accumulated events across
       // the entire conversation. Filter to only new events from this turn so we don't
       // re-extract images (or other artifacts) that already belong to earlier messages.
-      const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
+      const currentTurnToolCallEvents = getToolCallEvents(responseData)?.filter(
         (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
       );
 
@@ -2765,6 +2855,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Extract and store MCP images using encrypted OPFS with media records
       // Skip file/media storage when encryption key isn't ready (queue window is 1-3s during signup)
       let assistantFileIds: string[] = [];
+      // MCP image model resolved from the tool events. In the common path it
+      // comes back from extractAndStoreEncryptedMCPImages so the events are
+      // only walked once.
+      let mcpImageModel: string | undefined;
 
       if (walletAddress && isEncryptionReady()) {
         const result = await extractAndStoreEncryptedMCPImages(
@@ -2775,14 +2869,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
+        mcpImageModel = result.imageModel;
+      } else {
+        // When encryption isn't ready, leave R2 URLs in content (valid 3 days,
+        // presigned). Media isn't stored, but still resolve the image-model
+        // hint for the message record. Image-kind only, so a video tool's
+        // model sentinel doesn't leak in.
+        mcpImageModel = extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain).find(
+          (u) => u.mediaType === "image"
+        )?.model;
       }
-      // When encryption isn't ready, leave R2 URLs in content.
-      // They remain valid for 3 days (presigned) and let the LLM
-      // reference images for editing. No permanent data loss.
 
-      // Resolve image model: prefer user-provided, fall back to MCP tool response
-      const resolvedImageModel =
-        imageModel || extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain)[0]?.model;
+      // Resolve image model: prefer the caller's selection, then the portal's
+      // resolved `image_model` on the response, then the MCP tool-event hint.
+      const resolvedImageModel = imageModel || getImageModel(responseData) || mcpImageModel;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -2792,7 +2892,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         model: responseData.model || model,
         imageModel: resolvedImageModel,
         fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
-        usage: convertUsageToStored(responseData.usage),
+        usage: convertUsageToStored(responseData),
         responseDuration,
         sources: extractedSources,
         thoughtProcess: resolveThoughtProcess(),
@@ -2906,7 +3006,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       // Auto-refresh server tools cache if checksum changed
-      if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
+      if (getToken && shouldRefreshTools(getToolsChecksum(responseData))) {
         getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
           getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
         });
@@ -2971,6 +3071,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryEngineTool,
     createMemoryVaultTool,
     createMemoryVaultSearchTool,
+    createRecallTool,
     searchVaultMemories: searchVaultMemoriesFn,
     vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
     getVaultMemories,

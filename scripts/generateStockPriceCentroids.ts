@@ -1,0 +1,213 @@
+/**
+ * One-time script to generate centroid vectors for the stock-price classifier.
+ *
+ * Embeds the reference phrases, averages each class into a single centroid,
+ * and writes the result to src/lib/chat/stockPriceCentroids.ts.
+ *
+ * Usage:
+ *   PORTAL_API_KEY=... npx tsx scripts/generateStockPriceCentroids.ts
+ */
+
+import "dotenv/config";
+import { writeFileSync } from "fs";
+import { resolve } from "path";
+
+import { BASE_URL } from "../src/clientConfig";
+import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
+import { averageVectors } from "./lib/centroids";
+import { GENERIC_NEGATIVE_PHRASES } from "./lib/genericNegatives";
+
+const STOCK_PRICE_PHRASES = [
+  // Direct stock price queries
+  "What is the current Nvidia stock price",
+  "How is Apple stock performing today",
+  "Tesla stock price right now",
+  "MSFT after-hours price",
+  "Show me AMZN price today",
+  "What's GOOGL trading at",
+  "META stock price today",
+  "How much is one share of NVDA worth",
+  "Price of Berkshire Hathaway B shares",
+
+  // Indices
+  "What is the S&P 500 at today",
+  "Show me the Dow Jones right now",
+  "How is the Nasdaq performing today",
+  "FTSE 100 price right now",
+  "Nikkei 225 today",
+  "Hang Seng index close",
+
+  // ETFs / mutual funds
+  "What's the SPY ETF price",
+  "QQQ price right now",
+  "VOO performance today",
+  "GLD gold ETF price",
+  "USO oil ETF price",
+
+  // FX / currency pairs
+  "USD to EUR exchange rate",
+  "How much is one British pound in dollars",
+  "JPY to USD rate today",
+  "EUR/USD live rate",
+  "What is the AUD to CAD rate",
+  "Convert 1000 USD to JPY",
+
+  // Quotes / market data
+  "What's the 52-week high for AAPL",
+  "Show me Tesla's market cap",
+  "P/E ratio of NVDA",
+  "Dividend yield of MSFT",
+  "What is Apple's earnings per share",
+  "Quarterly earnings report for Amazon",
+
+  // Commodities (Twelve Data covers via XAU/USD-style symbols)
+  "What is the price of gold today",
+  "Spot price of silver",
+  "Oil price right now",
+  "How much is platinum per ounce",
+
+  // Conversational stock queries
+  "Is Nvidia up or down today",
+  "How did Tesla close yesterday",
+  "Top movers in the S&P 500",
+  "Best performing stocks today",
+  "Pre-market movers",
+];
+
+const NO_STOCK_PRICE_PHRASES = [
+  // Crypto queries — must NOT trigger stock classifier (covered by cryptoPrice)
+  // (Many examples mirroring the stock YES corpus structure with crypto tickers)
+  "What is the current price of Bitcoin",
+  "How much is Ethereum worth right now",
+  "Show me the ZETA token price",
+  "BTC USD",
+  "Solana market cap",
+  "Top crypto gainers today",
+  "What is BTC trading at",
+  "How much is one Ethereum coin worth",
+  "Show me the SOL chart",
+  "What's the 7-day change for BTC",
+  "Is Bitcoin up or down today",
+  "Market cap of Ethereum",
+  "Trading volume for Solana today",
+  "All-time high for Bitcoin",
+  "Ethereum price chart over the last month",
+  "What's the price of $BTC",
+  "$ETH price today",
+  "ZETA token price",
+  "Latest crypto prices",
+  "Top movers in crypto today",
+  "DOGE market cap",
+  "Polygon trading volume",
+  "Avalanche price",
+  "Polkadot price now",
+  "How much is one Bitcoin in USD",
+  "Compare ETH and BTC prices over the last week",
+  "DeFi token prices",
+  "Memecoin prices today",
+
+  // Stock/finance adjacent but NOT price
+  "Explain how the stock market works",
+  "What is a P/E ratio",
+  "How do stock options work",
+  "What is short selling",
+  "Explain dividend reinvestment",
+  "What is the difference between a stock and a bond",
+  "How does Wall Street regulation work",
+  "What does an IPO process look like",
+  "Why did the 2008 financial crisis happen",
+
+  // Generic out-of-domain negatives shared with other classifiers.
+  ...GENERIC_NEGATIVE_PHRASES,
+
+  // Other current-data web searches
+  "What did Elon Musk tweet about today",
+  "Who won the Super Bowl this year",
+  "What is the weather in Tokyo tomorrow",
+  "Find Italian restaurants near me",
+
+  // Sports standings / rankings — "current X standings" pattern was firing
+  // stockPrice (financial-data vocabulary collision).
+  "What are the current NBA playoff standings",
+  "Latest baseball rankings",
+  "Current standings in the Premier League",
+  "Who is leading the Tour de France",
+
+  // Public-company name + current-data, but NOT a quote — store hours,
+  // not stock price.
+  "What time does Costco close today",
+  "Is Target open right now",
+  "Walmart store hours today",
+
+  // Ticker / symbol LOOKUP (not a quote) — needs to fall through to
+  // webSearch / general LLM, not the price classifier. Boundary case
+  // enforced by promptRouting's mustNotTrigger guard on the AAPL phrasing,
+  // so anchor the lookup intent hard.
+  "Find ticker symbol for Apple",
+  "What ticker symbol does Tesla trade under",
+  "How do I look up a stock ticker",
+  "What does the ticker AAPL stand for",
+  "Look up the ticker for Microsoft",
+  "What's the stock symbol for Berkshire Hathaway",
+  "Where can I find a company's ticker symbol",
+  "How do I search for a stock ticker by company name",
+  "What ticker is Amazon listed under",
+  "Help me find the ticker for a company",
+];
+
+async function main() {
+  const apiKey = process.env.PORTAL_API_KEY;
+  const baseUrl = process.env.ANUMA_API_URL || BASE_URL;
+
+  if (!apiKey) {
+    console.error("PORTAL_API_KEY is required");
+    process.exit(1);
+  }
+
+  console.log(`Using baseUrl: ${baseUrl}`);
+  console.log("Embedding stock-price phrases...");
+  const priceEmbeddings = await generateEmbeddings(STOCK_PRICE_PHRASES, { apiKey, baseUrl });
+
+  console.log("Embedding no-stock-price phrases...");
+  const noPriceEmbeddings = await generateEmbeddings(NO_STOCK_PRICE_PHRASES, { apiKey, baseUrl });
+
+  const stockPriceCentroid = averageVectors(priceEmbeddings);
+  const noStockPriceCentroid = averageVectors(noPriceEmbeddings);
+
+  console.log(`Dimensions: ${stockPriceCentroid.length}`);
+
+  const output = `/**
+ * Pre-computed centroid vectors for the stock-price classifier.
+ *
+ * Generated by: npx tsx scripts/generateStockPriceCentroids.ts
+ *
+ * stockPriceCentroid: average embedding of phrases representing "needs stock/ETF/FX quote data" intent.
+ * noStockPriceCentroid: average embedding of phrases representing "no stock-price data needed" intent.
+ *
+ * At runtime the classifier only needs to embed the user prompt and compute
+ * two cosine similarities — no reference phrase embedding calls needed.
+ *
+ * Note: depending on which floats land in this regen, ESLint's
+ * \`no-loss-of-precision\` rule may fire on the literal array below. If lint
+ * complains, add \`/* eslint-disable no-loss-of-precision *\\/\` above the
+ * \`export const\` line — but don't add it pre-emptively, because the
+ * \`reportUnusedDisableDirectives\` check will then fail when the regen happens
+ * to produce safe floats.
+ */
+
+// prettier-ignore
+export const stockPriceCentroid: number[] = ${JSON.stringify(stockPriceCentroid)};
+
+// prettier-ignore
+export const noStockPriceCentroid: number[] = ${JSON.stringify(noStockPriceCentroid)};
+`;
+
+  const outPath = resolve(__dirname, "../src/lib/chat/stockPriceCentroids.ts");
+  writeFileSync(outPath, output, "utf-8");
+  console.log(`Written to ${outPath}`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

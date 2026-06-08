@@ -258,8 +258,10 @@ export type BaseUseChatOptions = {
    * Pre-processors run after the last user message is received but before the
    * first LLM request. Each receives the prompt text and a shared embedding
    * (computed once per request) and may return messages to enrich the
-   * conversation. See `createWebSearchPreProcessor`, `createPricePreProcessor`,
-   * or write a custom one matching `PromptPreProcessor`.
+   * conversation. See `createWebSearchPreProcessor`,
+   * `createCryptoPricePreProcessor`, `createStockPricePreProcessor`,
+   * `createWeatherPreProcessor`, or write a custom one matching
+   * `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
 };
@@ -317,6 +319,8 @@ export type StreamAccumulator = {
   implicitReasoningStart?: boolean;
   /** Checksum of tools used to generate this response */
   toolsChecksum?: string;
+  /** Image model the portal resolved when an image-generation tool ran */
+  imageModel?: string;
   /** Tool call events from server-side tool execution */
   toolCallEvents?: Array<{
     id: string;

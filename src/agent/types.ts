@@ -6,11 +6,11 @@ export type AgentRuntime = "client" | "server";
  *  the actual extraction (pdf.js, OCR, etc.) is the consumer's responsibility. */
 export type FileExtractionStrategy = "pdf-text" | "csv-text" | "image-ocr";
 
-/** Character cap for multiline / textarea fields. Agent gateways (e.g. cf-tasks)
- *  truncate values to this length before interpolating them into prompt templates.
- *  Shared across all agent packages so a single change updates every journey
- *  declaration simultaneously. */
-export const MULTILINE_FIELD_MAX = 50_000;
+/** Character cap for multiline / textarea fields. Re-exported from the
+ *  dependency-free `../constants` leaf so RN/slim consumers can import it via
+ *  `@anuma/sdk/constants` without loading the bare SDK bundle. The bare entry
+ *  keeps re-exporting it here for backward compatibility. */
+export { MULTILINE_FIELD_MAX } from "../constants";
 
 /** Configuration for a single agent skill (task template). */
 export interface SkillConfig {
@@ -267,4 +267,13 @@ export interface AgentConfig {
   marketplace?: AgentMarketplaceContent;
   /** UI metadata (color, icon, example conversations) for renderer fallbacks. */
   uiMetadata?: AgentUiMetadata;
+  /** One-time disclaimer shown in a popup the first time a user opens
+   *  a chat with this agent. Plain text; consumers split on `\n\n` for paragraphs.
+   *  May include `{{agent_name}}` placeholder. */
+  firstTimeDisclaimer?: string;
+
+  /** Persistent one-line disclaimer rendered under the chat input
+   *  whenever this agent's chat is open. May include `{{agent_name}}`
+   *  placeholder. */
+  persistentFooter?: string;
 }

@@ -9,5 +9,6 @@
     "unist-util-visit",
     "playwright"
   ],
-  "exclude": ["optionalPeerDependencies", "unresolved"]
+  "exclude": ["optionalPeerDependencies", "unresolved"],
+  "tags": ["-public"]
 }

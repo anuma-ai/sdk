@@ -35,6 +35,7 @@ import {
   type MediaOperationsContext,
   type MediaRole,
   type MediaType,
+  relinkMisclassifiedVideosOp,
   searchMediaOp,
   type StoredMedia,
   updateMediaMessageIdBatchOp,
@@ -87,6 +88,12 @@ export interface UseFilesResult {
   updateMedia: (mediaId: string, options: UpdateMediaOptions) => Promise<StoredMedia | null>;
   /** Batch update file records with a messageId */
   updateMediaMessageIdBatch: (mediaIds: string[], messageId: string) => Promise<number>;
+  /**
+   * One-time recovery: relink videos previously stored as images (media_type
+   * "image" but a video/* mime) so they appear in the Videos tab and resolve in
+   * the video player's OPFS fallback. Idempotent. Returns count relinked.
+   */
+  relinkMisclassifiedVideos: () => Promise<number>;
   /** Soft delete a file record */
   deleteMedia: (mediaId: string) => Promise<boolean>;
   /** Permanently delete a file record */
@@ -316,6 +323,13 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     },
     [ctx]
   );
+
+  const relinkMisclassifiedVideos = useCallback(async (): Promise<number> => {
+    if (!ctx || !walletAddress) {
+      return 0;
+    }
+    return relinkMisclassifiedVideosOp(ctx, walletAddress);
+  }, [ctx, walletAddress]);
 
   const deleteMedia = useCallback(
     async (mediaId: string): Promise<boolean> => {
@@ -662,6 +676,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     getMediaByMessage,
     updateMedia,
     updateMediaMessageIdBatch,
+    relinkMisclassifiedVideos,
     deleteMedia,
     hardDeleteMedia,
 

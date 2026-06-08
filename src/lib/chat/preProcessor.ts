@@ -27,3 +27,16 @@ export type PromptPreProcessorContext = {
 export type PromptPreProcessor = (
   ctx: PromptPreProcessorContext
 ) => LlmapiMessage[] | void | Promise<LlmapiMessage[] | void>;
+
+/**
+ * Wrap a pre-processor's fetch-result string in a single `LlmapiMessage`
+ * with the given prefix. Used by the built-in pre-processor factories
+ * (web-search, crypto-price, stock-price, weather) to keep the message
+ * shape consistent. Returns an empty array if `text` is empty or
+ * whitespace-only — callers can spread it into a result or return it
+ * directly and the tool loop will treat it as "no injection".
+ */
+export function wrapAsUserText(prefix: string, text: string): LlmapiMessage[] {
+  if (!text || !text.trim()) return [];
+  return [{ role: "user", content: [{ type: "text", text: `${prefix}\n${text}` }] }];
+}

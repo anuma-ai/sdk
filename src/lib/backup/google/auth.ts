@@ -1,11 +1,24 @@
 /**
- * Google Drive OAuth 2.0 Authorization Code Flow
+ * Google Drive (backup-scoped) OAuth 2.0 Authorization Code Flow —
+ * **LEGACY (v1) MODULE**.
  *
- * Flow:
- * 1. Redirect user to Google authorization URL
- * 2. User authorizes and is redirected back with authorization code
- * 3. Exchange code on backend for access + refresh tokens
- * 4. Use refresh token to get new access tokens silently
+ * This module uses the `drive.file` scope (app-created files only) for
+ * the backup pipeline. As of the connector-vault rollout
+ * (`.claude-docs/connecters/DESIGN.md`), refresh tokens live server-side
+ * on the portal — the backup pipeline should switch to:
+ *
+ * ```ts
+ * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
+ * const getToken = createConnectorTokenGetter(portalClient, "gdrive");
+ * ```
+ *
+ * The functions in this file remain published with their original
+ * signatures so the backup pipeline keeps compiling. Legacy
+ * `/auth/oauth/google-drive/{exchange,refresh,revoke}` endpoints stay
+ * live during the transition window.
+ *
+ * TODO(connector-vault): collapse to a thin wrapper once the backup
+ * pipeline migrates to the portal mint path.
  */
 
 import type { Client } from "../../../client/client";

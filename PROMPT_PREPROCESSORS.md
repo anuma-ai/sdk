@@ -110,68 +110,114 @@ const { needsWebSearch, searchScore, noSearchScore } = await classifyWebSearch(
 
 `classifyWebSearchBatch` accepts an array of prompts and embeds them in a single batch call.
 
-## Built-in: `createPricePreProcessor`
+## Built-in: `createCryptoPricePreProcessor`
 
-Same shape as the web-search pre-processor, but classifies whether the prompt is asking for a current price quote. Covers crypto, stocks, and FX queries — anything where the user wants a current price/quote/rate. The SDK does **not** run the price lookup itself — the caller wires up CoinGecko, DexScreener, an on-chain oracle, a stock-quote API, an FX feed, or whatever they like.
-
-### Basic usage
+Classifies whether the prompt is asking for crypto price data (Bitcoin, Ethereum, ZRC-20s, DeFi tokens, etc.). The SDK does **not** run the price lookup itself — the caller wires up CoinGecko, DexScreener, an on-chain oracle, or whatever they like.
 
 ```ts
-import { runToolLoop, createPricePreProcessor } from "@anuma/sdk/server";
+import { runToolLoop, createCryptoPricePreProcessor } from "@anuma/sdk/server";
 
-const price = createPricePreProcessor({
-  fetchPriceData: async (prompt, { signal }) => {
-    const tickers = extractTickers(prompt); // caller-supplied
-    const quotes = await myProvider.getQuotes(tickers, { signal });
+const crypto = createCryptoPricePreProcessor({
+  fetchCryptoPriceData: async (prompt, { signal }) => {
+    const tickers = extractCryptoTickers(prompt); // caller-supplied
+    const quotes = await myCryptoProvider.getQuotes(tickers, { signal });
     return quotes.map((q) => `- ${q.symbol}: $${q.price} (${q.change24h}%)`).join("\n");
   },
 });
 
-await runToolLoop({
-  messages,
-  model,
-  token,
-  preProcessors: [price],
-});
+await runToolLoop({ messages, model, token, preProcessors: [crypto] });
 ```
 
-When `fetchPriceData` returns a string, the SDK wraps it in a user-role message with the prefix `Current prices:\n…`. Return an `LlmapiMessage[]` directly for full control over role or shape.
+String returns are wrapped with the prefix `Current crypto prices:\n…`. Return an `LlmapiMessage[]` for full control over role/shape.
 
-### Observer mode
-
-Omit `fetchPriceData` to only observe the classification:
+Observer-only mode:
 
 ```ts
-const observer = createPricePreProcessor({
-  onClassification: ({ needsPrice, priceScore, noPriceScore }) => {
-    metrics.record({ needsPrice, priceScore, noPriceScore });
+createCryptoPricePreProcessor({
+  onClassification: ({ needsCryptoPrice, cryptoPriceScore, noCryptoPriceScore }) => {
+    metrics.record({ needsCryptoPrice, cryptoPriceScore, noCryptoPriceScore });
   },
 });
 ```
 
-### Tuning
+Standalone classification:
 
-- **`margin`** — how much `priceScore` must exceed `noPriceScore` to trigger. Defaults to `0.02`.
-- **`onClassification`** — fires on every classification regardless of whether `fetchPriceData` runs.
+```ts
+import { classifyCryptoPrice, classifyCryptoPriceBatch } from "@anuma/sdk/server";
+
+const { needsCryptoPrice, cryptoPriceScore, noCryptoPriceScore } =
+  await classifyCryptoPrice(prompt, { apiKey, baseUrl });
+```
+
+## Built-in: `createStockPricePreProcessor`
+
+Same shape, but classifies stocks, ETFs, indices, FX, and commodities (Twelve Data territory). Crypto-only queries go to the crypto pre-processor instead.
+
+```ts
+import { runToolLoop, createStockPricePreProcessor } from "@anuma/sdk/server";
+
+const stocks = createStockPricePreProcessor({
+  fetchStockPriceData: async (prompt, { signal }) => {
+    const symbols = extractStockSymbols(prompt);
+    const quotes = await myStockProvider.getQuotes(symbols, { signal });
+    return quotes.map((q) => `- ${q.symbol}: $${q.price} (${q.change24h}%)`).join("\n");
+  },
+});
+
+await runToolLoop({ messages, model, token, preProcessors: [stocks] });
+```
+
+String returns are wrapped with the prefix `Current stock/ETF/FX quotes:\n…`.
+
+Observer-only and standalone classification follow the same pattern (`onClassification`, `classifyStockPrice`, `classifyStockPriceBatch`).
+
+## Built-in: `createWeatherPreProcessor`
+
+Classifies whether the prompt asks for weather data — forecasts, temperature, precipitation, AQI, marine, flood, climate. The caller wires up OpenMeteo, AccuWeather, weather.gov, or any other provider.
+
+```ts
+import { runToolLoop, createWeatherPreProcessor } from "@anuma/sdk/server";
+
+const weather = createWeatherPreProcessor({
+  fetchWeatherData: async (prompt, { signal }) => {
+    const location = extractLocation(prompt);
+    const forecast = await myWeatherProvider.forecast(location, { signal });
+    return formatForecast(forecast);
+  },
+});
+
+await runToolLoop({ messages, model, token, preProcessors: [weather] });
+```
+
+String returns are wrapped with the prefix `Weather data:\n…`.
+
+Observer-only and standalone classification follow the same pattern (`onClassification`, `classifyWeather`, `classifyWeatherBatch`).
+
+## Tuning the built-ins
+
+All three factories take the same set of optional config:
+
+- **`margin`** — how much the positive score must exceed the negative score to trigger. Defaults to `0.02`. Raise to reduce false positives; lower to reduce false negatives.
+- **`onClassification`** — fires on every classification regardless of whether the fetch callback runs. Use for observability even when the fetcher is wired.
 
 ### Argument extraction
 
-Classification only tells you *"this prompt is asking for prices"* — not *"about which tickers"*. The caller's `fetchPriceData` is responsible for extracting tickers from the prompt (regex, named-entity match, or a small LLM call). The SDK is intentionally unopinionated here.
+Classification only tells you *"this prompt is asking for X"* — not *"about which ticker / which location"*. The caller's fetch callback is responsible for extracting the relevant arguments (regex, named-entity match, or a small LLM call). The SDK is intentionally unopinionated here.
 
-## Low-level: `classifyPrice`
+### Stacking pre-processors
 
-If you need classification outside of `runToolLoop`, use the standalone API:
+Multiple pre-processors can run on a single request — they share one embedding and fire in parallel. Ambiguous prompts (e.g. *"price of gold"*) will fire both `cryptoPrice` (gold-pegged tokens like PAXG) and `stockPrice` (gold-spot / GLD ETF), and the LLM gets both contexts injected.
 
 ```ts
-import { classifyPrice } from "@anuma/sdk/server";
-
-const { needsPrice, priceScore, noPriceScore } = await classifyPrice(
-  prompt,
-  { apiKey, baseUrl },
-);
+useChat({
+  preProcessors: [
+    createCryptoPricePreProcessor({ fetchCryptoPriceData }),
+    createStockPricePreProcessor({ fetchStockPriceData }),
+    createWeatherPreProcessor({ fetchWeatherData }),
+    createWebSearchPreProcessor({ fetchSearchResults }),
+  ],
+});
 ```
-
-`classifyPriceBatch` accepts an array of prompts and embeds them in a single batch call.
 
 ## Writing a custom pre-processor
 

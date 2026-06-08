@@ -2,7 +2,7 @@
 
 > **ServerToolsFilterFunction** = (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]) => `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1203](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1203)
+Defined in: [src/lib/tools/serverTools.ts:1181](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1181)
 
 Type for a server-tools filter — a function that takes prompt embeddings
 and the full server tool catalog and returns the names of tools to keep.

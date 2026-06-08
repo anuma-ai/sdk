@@ -2,7 +2,7 @@
 
 > **isGithubCallback**(`callbackPath`: `string`): `boolean`
 
-Defined in: [src/lib/auth/github.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#312)
+Defined in: [src/lib/auth/github.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#319)
 
 Check if current URL is a GitHub OAuth callback
 

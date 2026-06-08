@@ -10,7 +10,7 @@ Options for updating an existing media record.
 
 > `optional` **dimensions**: [`MediaDimensions`](MediaDimensions.md)
 
-Defined in: [src/lib/db/media/types.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#141)
+Defined in: [src/lib/db/media/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#143)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/media/types.ts:141](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **duration**: `number`
 
-Defined in: [src/lib/db/media/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#142)
+Defined in: [src/lib/db/media/types.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#144)
 
 ***
 
@@ -26,7 +26,17 @@ Defined in: [src/lib/db/media/types.ts:142](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/media/types.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#144)
+Defined in: [src/lib/db/media/types.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#146)
+
+***
+
+### mediaType?
+
+> `optional` **mediaType**: [`MediaType`](../type-aliases/MediaType.md)
+
+Defined in: [src/lib/db/media/types.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#141)
+
+Re-categorize the media (e.g. relinking a video mistakenly stored as image)
 
 ***
 
@@ -44,7 +54,7 @@ Update the associated message ID (set after message creation)
 
 > `optional` **metadata**: [`MediaMetadata`](MediaMetadata.md)
 
-Defined in: [src/lib/db/media/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#143)
+Defined in: [src/lib/db/media/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#145)
 
 ***
 
@@ -60,4 +70,4 @@ Defined in: [src/lib/db/media/types.ts:137](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **sourceUrl**: `string`
 
-Defined in: [src/lib/db/media/types.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#140)
+Defined in: [src/lib/db/media/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#142)

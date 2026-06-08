@@ -16,6 +16,13 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.cjs"
     },
+    "./constants": {
+      "types": "./dist/constants/index.d.ts",
+      "react-native": "./dist/constants/index.mjs",
+      "import": "./dist/constants/index.mjs",
+      "require": "./dist/constants/index.cjs",
+      "default": "./dist/constants/index.cjs"
+    },
     "./react": {
       "types": "./dist/react/index.d.ts",
       "react-native": "./dist/react/index.mjs",
@@ -131,7 +138,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260518144823",
+    "@anuma/portal": "1.0.0-next.20260603174411",
     "@babel/parser": "^7.29.2",
     "@babel/types": "^7.29.0",
     "ai": "5.0.93",

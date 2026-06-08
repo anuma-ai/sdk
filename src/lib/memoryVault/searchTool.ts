@@ -8,8 +8,15 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
+import { applyMMR } from "../memory/mmr";
+import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
+import { rerankPairs } from "../memory/reranker";
+import { rrfFuse } from "../memory/rrf";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import { cosineSimilarity } from "../memoryEngine/vector";
+import { scoreBM25 } from "./bm25";
+import { decomposeQuery } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -31,34 +38,81 @@ export interface MemoryVaultSearchOptions {
   scopes?: string[];
   /** When provided, only search memories in this folder (null for unfiled) */
   folderId?: string | null;
-}
-
-/**
- * Compute cosine similarity between two vectors.
- */
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
+  /**
+   * Use the hybrid fusion ranker (cosine + BM25 + RRF + recency) instead of
+   * cosine-only. Default true — new W1 pipeline. Pass false to fall back
+   * to the legacy cosine-only ranker (e.g. for benchmark A/B comparison).
+   */
+  useFusion?: boolean;
+  /**
+   * Run the cross-encoder reranker on the top-N V2 candidates. Default false.
+   * When true, switches to the async pipeline (rankFusedVaultMemoriesAsync).
+   */
+  rerank?: boolean;
+  /** Number of CE rerank candidates. Default 30. */
+  rerankTopN?: number;
+  /**
+   * LLM-based query decomposition for composite/abstract queries. When set,
+   * each query is classified + (if composite) decomposed into 3–5 facet
+   * sub-queries via gpt-5-mini, then ranked via {@link rankComposite}.
+   * Requires `decomposeOptions` (auth) when set to "llm".
+   */
+  decompose?: "off" | "llm";
+  /** Auth + endpoint for the decomposition LLM call. Required when decompose="llm". */
+  decomposeOptions?: {
+    apiKey: string;
+    baseUrl?: string;
+    model?: string;
+  };
+  /**
+   * W5 graph lane — pre-built ranking of memory IDs by entity-overlap
+   * score with the query. RRF-fused alongside cosine + BM25. Build via
+   * {@link rankByEntityOverlap} or pass-through from `recall()` when
+   * `RecallContext.entityCtx` is available.
+   */
+  entityRanking?: string[];
+  /**
+   * W6 temporal lane — pre-built ranking of memory IDs whose event-time
+   * overlaps the resolved query window, ordered by overlap score
+   * (descending). RRF-fused alongside cosine + BM25 + graph. Build via
+   * `getMemoriesByEventTimeOp` + `scoreEventTimeOverlap`, or
+   * pass-through from `recall()` when the query has a temporal phrase.
+   */
+  temporalRanking?: string[];
 }
 
 /**
  * An item with a pre-computed embedding, ready for ranking.
  */
+/**
+ * Coerce a free-form `eventTimeKind` string from the vault row into the
+ * fixed enum the recall executor knows how to format. Unknown / casing
+ * variants collapse to null so we never silently render a range memory
+ * as a point date (or vice versa).
+ */
+function normalizeEventTimeKind(
+  kind: string | null | undefined
+): "point" | "range" | "ongoing" | null {
+  return kind === "point" || kind === "range" || kind === "ongoing" ? kind : null;
+}
+
 interface EmbeddedItem {
   id: string;
   content: string;
   embedding: number[];
-  /** Last update timestamp — used for supersession detection. */
+  /** Original creation timestamp — what `RankedMemory.createdAt` surfaces.
+   * Distinct from `updatedAt` since `proofCountIncrement` re-observation
+   * doesn't bump `created_at`. */
+  createdAt?: Date;
+  /** Last update timestamp — used for supersession detection + recency. */
   updatedAt?: Date;
+  /** Number of times this fact has been re-observed (W4 — auto-merge). */
+  proofCount?: number | null;
+  /** W6 temporal-lane anchors — carried through to VaultSearchResult so the
+   * recall executor can surface event dates without a second DB+decrypt. */
+  eventTimeStart?: number | null;
+  eventTimeEnd?: number | null;
+  eventTimeKind?: "point" | "range" | "ongoing" | null;
 }
 
 /**
@@ -81,6 +135,17 @@ const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
  * the older one in contention for recall.
  */
 const SUPERSESSION_BOOST_FACTOR = 0.8;
+
+/**
+ * Hard cap on the supersession candidate window. Independent of the caller's
+ * `limit` — `rankFusedVaultMemoriesAsync` and the bench pass `limit=items.length`
+ * so they can probe the long tail, but supersession's O(n²) pairwise cosine
+ * scales catastrophically (1k memories → 500k pairwise comparisons → ~1.7s
+ * per query). The signal lives entirely in the top candidates anyway: an old
+ * memory that doesn't even rank in the top 50 isn't going to be wrongly
+ * surfaced over its newer replacement.
+ */
+const SUPERSESSION_MAX_WINDOW = 50;
 
 /**
  * Supersession adjustment for a single pair. Returns the score delta to
@@ -174,6 +239,10 @@ export function rankVaultMemories(
     content: item.content,
     embedding: item.embedding,
     updatedAt: item.updatedAt,
+    createdAt: item.createdAt,
+    eventTimeStart: item.eventTimeStart,
+    eventTimeEnd: item.eventTimeEnd,
+    eventTimeKind: item.eventTimeKind,
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
@@ -181,8 +250,10 @@ export function rankVaultMemories(
   filtered.sort((a, b) => b.similarity - a.similarity);
 
   // Check top candidates for supersession — boost newer items and penalize
-  // older ones when they are highly similar and the older one outranks
-  const window = filtered.slice(0, limit * 3);
+  // older ones when they are highly similar and the older one outranks.
+  // Capped at SUPERSESSION_MAX_WINDOW to keep O(n²) bounded; tail items are
+  // already too low-ranked for supersession to matter.
+  const window = filtered.slice(0, Math.min(limit * 3, SUPERSESSION_MAX_WINDOW));
   const pairs = findSupersessionPairs(
     window.map((r) => ({
       id: r.uniqueId,
@@ -211,11 +282,591 @@ export function rankVaultMemories(
     filtered.sort((a, b) => b.similarity - a.similarity);
   }
 
-  return filtered.slice(0, limit).map((r) => ({
-    uniqueId: r.uniqueId,
-    content: r.content,
-    similarity: r.similarity,
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  return filtered.slice(0, limit).map((r) => {
+    const item = itemById.get(r.uniqueId);
+    return {
+      uniqueId: r.uniqueId,
+      content: r.content,
+      similarity: r.similarity,
+      createdAt: item?.createdAt ?? item?.updatedAt,
+      updatedAt: item?.updatedAt,
+    };
+  });
+}
+
+/**
+ * Hybrid ranker (V2 — Hindsight pattern): cosine+supersession as the base
+ * relevance score, gentle multiplicative recency boost on top, BM25 used
+ * to admit out-of-cosine candidates with a small additive contribution.
+ *
+ * Why not RRF as the final ranker:
+ *  - On 100s of memories with only 2 signals, equal-weight RRF puts BM25 on
+ *    par with cosine. For natural-language queries, BM25 noise dominates.
+ *  - RRF rank-quantization (1/(k+rank)) erases score magnitude so recency
+ *    boosts can't differentiate close pairs.
+ *  - Hindsight (vectorize-io/hindsight) uses RRF for candidate *selection*
+ *    only, then ranks by `CE_score * (1 + α*(recency - 0.5))`. Without a
+ *    cross-encoder, we substitute supersession-adjusted cosine for CE.
+ *
+ * Pipeline:
+ *  1. Run rankVaultMemories internally (cosine + existing supersession)
+ *  2. Build BM25 admission set: items absent from rankVaultMemories' output
+ *     but with positive BM25 — these come in with a small fixed score
+ *  3. Apply gentle recency boost: score *= 1 + 0.2*(recency - 0.5),
+ *     yielding ±10% from neutral. Items without updatedAt get neutral 1.0.
+ *  4. Sort by boosted score, take top-K.
+ *
+ * The returned `similarity` field carries the boosted score; ordering
+ * semantics are preserved relative to {@link VaultSearchResult}.
+ */
+export function rankFusedVaultMemories(
+  query: string,
+  queryEmbedding: number[],
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    /**
+     * Recency boost slope. Default 1.0 → boost in [0.6, 1.5] across the
+     * recency multiplier range [0.1, 1.0]. Tuned empirically against the
+     * 100-query vault benchmark — α=1.0 lifts temporal recall by ~5pp
+     * without regressing any other category. Hindsight uses α=0.2 because
+     * their boost rides on top of a cross-encoder rerank score; we don't
+     * have a CE here so cosine carries more responsibility, hence the
+     * stronger boost.
+     */
+    recencyAlpha?: number;
+    recency?: RecencyOptions;
+    /**
+     * W5 graph lane — pre-built ranking of memory IDs by entity-overlap
+     * score. RRF-fused with the cosine+BM25 head when present. Items in
+     * `entityRanking` but absent from base cosine/BM25 admit at the
+     * tail with their RRF-only contribution (graph is a retrieval lane,
+     * not a boost). Build via {@link rankByEntityOverlap}.
+     */
+    entityRanking?: string[];
+    /**
+     * W6 temporal lane — pre-built ranking of memory IDs whose event-time
+     * overlaps the resolved query window. Same lane semantics as
+     * entityRanking: tail-admission for items absent from the cosine head.
+     */
+    temporalRanking?: string[];
+  }
+): VaultSearchResult[] {
+  const limit = options?.limit ?? 5;
+  const minSimilarity = options?.minSimilarity ?? 0.1;
+  const recencyAlpha = options?.recencyAlpha ?? 1.0;
+
+  if (items.length === 0) return [];
+
+  // Stage 1 — base cosine + supersession via existing ranker.
+  const baseRanked = rankVaultMemories(query, queryEmbedding, items, {
+    limit: items.length,
+    minSimilarity,
+  });
+  const baseIds = new Set(baseRanked.map((r) => r.uniqueId));
+
+  // Stage 2 — BM25 admission for items not in the cosine ranking.
+  const bm25Scores = scoreBM25(
+    query,
+    items.map((i) => ({ id: i.id, content: i.content }))
+  );
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const admitted: VaultSearchResult[] = [];
+  for (const item of items) {
+    if (baseIds.has(item.id)) continue;
+    const bm25 = bm25Scores.get(item.id) ?? 0;
+    if (bm25 <= 0) continue;
+    // Map BM25 score to a small floor under the cosine threshold so
+    // BM25-only hits enter the ranking but rarely outrank cosine winners.
+    admitted.push({
+      uniqueId: item.id,
+      content: item.content,
+      similarity: Math.min(minSimilarity, bm25 / 50),
+      createdAt: item.createdAt ?? item.updatedAt,
+      updatedAt: item.updatedAt,
+      eventTimeStart: item.eventTimeStart,
+      eventTimeEnd: item.eventTimeEnd,
+      eventTimeKind: item.eventTimeKind,
+    });
+  }
+
+  // Stage 3 — recency + proof-count boosts on the union.
+  // proof_count: re-observed facts get a small log-curve lift (Hindsight α=0.1).
+  // Items with no proof_count (legacy / unset) treated as 1 → log(2)≈0.69 → boost ~7%.
+  const boostFor = (id: string): number => {
+    const item = itemById.get(id);
+    const recency = recencyMultiplier(item?.updatedAt, options?.recency);
+    const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
+    const proofCount = Math.max(1, item?.proofCount ?? 1);
+    const proofBoost = 1 + 0.1 * Math.log(1 + proofCount) - 0.1 * Math.log(2);
+    return recencyBoost * proofBoost;
+  };
+  let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => ({
+    ...r,
+    similarity: r.similarity * boostFor(r.uniqueId),
   }));
+
+  // Stage 4 — W5 graph lane fusion. RRF the boosted cosine+BM25 head with
+  // the entity-overlap ranking. Same logic as the async/CE path: graph
+  // remains a retrieval lane (admits zero-cosine candidates with shared
+  // entities) without overruling cosine on items it has already seen.
+  // Cosine head weighted 2× via duplication so each side lane is a
+  // tiebreaker, not an overrule.
+  const sideLanes: string[][] = [];
+  if (options?.entityRanking && options.entityRanking.length > 0) {
+    sideLanes.push(options.entityRanking);
+  }
+  if (options?.temporalRanking && options.temporalRanking.length > 0) {
+    sideLanes.push(options.temporalRanking);
+  }
+  if (sideLanes.length > 0) {
+    combined.sort((a, b) => b.similarity - a.similarity);
+    const headIds = combined.map((r) => r.uniqueId);
+    const fused = rrfFuse([headIds, headIds, ...sideLanes]);
+    // Multiply boostFor back in so the recency · proof multiplier from
+    // Stage 3 isn't discarded by the RRF score replacement. Without
+    // this, the high-budget side-lane path drops exactly the signal
+    // it's supposed to layer on top of cosine + BM25.
+    combined = combined.map((r) => ({
+      ...r,
+      similarity: (fused.get(r.uniqueId) ?? 0) * boostFor(r.uniqueId),
+    }));
+    const seen = new Set(combined.map((r) => r.uniqueId));
+    for (const lane of sideLanes) {
+      for (const id of lane) {
+        if (seen.has(id)) continue;
+        const it = itemById.get(id);
+        if (!it) continue;
+        combined.push({
+          uniqueId: id,
+          content: it.content,
+          similarity: (fused.get(id) ?? 0) * boostFor(id),
+          createdAt: it.createdAt ?? it.updatedAt,
+          updatedAt: it.updatedAt,
+        });
+        seen.add(id);
+      }
+    }
+  }
+
+  return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+}
+
+/**
+ * Knowledge-graph retrieval lane (W5).
+ *
+ * Returns a ranked list of items by entity-overlap score, descending. Items
+ * with zero shared entities are dropped — graph is a *retrieval lane*, not
+ * a boost: it surfaces candidates that the cosine/BM25 lanes might miss,
+ * and contributes to final ordering through RRF fusion (in
+ * {@link rankFusedVaultMemoriesAsync} and {@link rankComposite}).
+ *
+ * Score formula: `tanh(0.5 × shared_entity_count)` — copied from Hindsight's
+ * `link_expansion_retrieval.py`. Count-based (not ratio): a memory sharing
+ * 3 entities scores higher than one sharing "1-of-1", which is what
+ * "tell me about Peter" actually wants. Saturates near 3+ entities so a
+ * memory tagged with every query entity doesn't blow out the rest.
+ *
+ * The returned list contains only items with overlap > 0; callers fuse it
+ * with V2/V2+CE rankings via RRF, so missing items contribute zero.
+ */
+export function rankByEntityOverlap(
+  queryEntities: Set<string>,
+  items: Array<{ id: string; content: string; entities: Set<string> }>
+): VaultSearchResult[] {
+  if (queryEntities.size === 0 || items.length === 0) return [];
+  const scored: VaultSearchResult[] = [];
+  for (const item of items) {
+    let shared = 0;
+    for (const e of queryEntities) if (item.entities.has(e)) shared++;
+    if (shared === 0) continue;
+    // entityRanking is consumed by upstream RRF as an id-only ranking;
+    // eventTime / timestamps don't need to round-trip here since the
+    // primary lane already carries them on the merged result.
+    scored.push({
+      uniqueId: item.id,
+      content: item.content,
+      similarity: Math.tanh(0.5 * shared),
+    });
+  }
+  scored.sort((a, b) => b.similarity - a.similarity);
+  return scored;
+}
+
+/**
+ * Async variant of {@link rankFusedVaultMemories} that adds an optional
+ * cross-encoder rerank stage on top of the V2 pipeline. Mirrors Hindsight's
+ * `budget: high` path where a CE refines the top-N candidates after the
+ * lexical/semantic fusion stage.
+ *
+ * Combination: the CE score is folded in as a *multiplicative boost* on
+ * the V2 score, not a replacement. This is intentional — CE values
+ * lexical overlap (e.g. "Lives in Portland" outscores "Relocated to SF"
+ * on a "where do I live now" query because of token match), so using CE
+ * alone tanks temporal recall. Multiplicative blending keeps V2's
+ * temporal+supersession signal while letting CE bump precision on
+ * non-temporal categories.
+ *
+ * Pipeline:
+ *  1. Run synchronous V2 ranker → top-N candidates
+ *  2. Rerank those N with the cross-encoder (Xenova/ms-marco-MiniLM-L-6-v2)
+ *  3. final = v2_score * (1 + ceWeight * ce_score)
+ *  4. Sort, take top-K
+ *
+ * @param rerankTopN - how many V2 candidates to feed the reranker. Default 30.
+ * @param ceWeight - multiplicative blend weight on the CE score. Default 0.1
+ *   (tuned by sweep — ce=0.1 captures the precision/specificity wins from
+ *   the CE without introducing the ranking-violation regressions that
+ *   higher weights cause; CE's lexical bias on temporal queries dominates
+ *   above ~0.3).
+ *
+ * @public
+ */
+export async function rankFusedVaultMemoriesAsync(
+  query: string,
+  queryEmbedding: number[],
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    recencyAlpha?: number;
+    recency?: RecencyOptions;
+    rerank?: boolean;
+    rerankTopN?: number;
+    ceWeight?: number;
+    /**
+     * Apply Maximal Marginal Relevance after the relevance pass to spread
+     * the top-K across distinct memory clusters. Off by default; on
+     * lifts composite (multi-fact) recall significantly without
+     * regressing single-answer categories.
+     */
+    mmr?: boolean;
+    /** MMR diversity tradeoff. 1=pure relevance, 0=pure diversity. Default 0.7. */
+    mmrLambda?: number;
+    /** How many candidates to feed MMR. Default 20. */
+    mmrTopN?: number;
+    /**
+     * W5 — knowledge-graph retrieval lane. Pre-built ranking of memory IDs
+     * (descending by entity-overlap score). When provided, RRF-fuses with
+     * the V2 ranking *before* CE rerank — graph is a retrieval lane, not
+     * a boost. Build with {@link rankByEntityOverlap}.
+     */
+    entityRanking?: string[];
+    /**
+     * W6 — temporal retrieval lane. Pre-built ranking of memory IDs whose
+     * event-time overlaps the resolved query window, descending by overlap
+     * score. Same lane semantics as `entityRanking`.
+     */
+    temporalRanking?: string[];
+  }
+): Promise<VaultSearchResult[]> {
+  const limit = options?.limit ?? 5;
+  const v2Ranked = rankFusedVaultMemories(query, queryEmbedding, items, {
+    limit: items.length,
+    minSimilarity: options?.minSimilarity,
+    recencyAlpha: options?.recencyAlpha,
+    recency: options?.recency,
+  });
+
+  // Don't short-circuit on empty V2: queries that only match the W5
+  // (entityRanking) or W6 (temporalRanking) lanes still need to surface
+  // their hits. The side-lane fusion below pulls candidates straight
+  // from `items` when they're absent from the V2 head.
+  // Note: lane-only hits skip the CE rerank even at budget:high — the
+  // rerank stage runs over the V2 head, which is empty in that case.
+  // Lane RRF still produces a usable ordering; CE precision is sacrificed
+  // for the recall gain. Revisit if eval shows the lane-only path
+  // needs CE.
+  let combined: VaultSearchResult[];
+  let tailSlice: VaultSearchResult[] = [];
+
+  if (options?.rerank) {
+    const rerankTopN = options.rerankTopN ?? 30;
+    const ceWeight = options.ceWeight ?? 0.1;
+    const headSlice = v2Ranked.slice(0, rerankTopN);
+    tailSlice = v2Ranked.slice(rerankTopN);
+
+    const reranked = await rerankPairs(
+      query,
+      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+    );
+
+    const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
+    const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
+
+    combined = headSlice.map((r) => {
+      const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
+      const ce = ceScoreById.get(r.uniqueId) ?? 0;
+      return {
+        uniqueId: r.uniqueId,
+        content: r.content,
+        similarity: v2 * (1 + ceWeight * ce),
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      };
+    });
+    combined.sort((a, b) => b.similarity - a.similarity);
+  } else {
+    combined = v2Ranked;
+  }
+
+  // W5 lane fusion — RRF the post-CE ranking with the entity-overlap
+  // ranking. Lane fusion runs *after* CE rerank so the CE's lexical/
+  // temporal signal isn't washed out by graph lift on superseded
+  // memories (graph alone would pull "Lives in Portland" above
+  // "Relocated to SF" on a "where now" query because both share user
+  // entities; CE-then-RRF preserves the temporal demotion).
+  //
+  // CE-ranked head is weighted 2× so graph remains a tiebreaker that
+  // surfaces candidates V2 missed entirely (e.g. zero-cosine items with
+  // shared entities — the hard_negatives win), without overruling the
+  // CE's lexical decisions on items it has already seen.
+  const sideLanesAsync: string[][] = [];
+  if (options?.entityRanking && options.entityRanking.length > 0) {
+    sideLanesAsync.push(options.entityRanking);
+  }
+  if (options?.temporalRanking && options.temporalRanking.length > 0) {
+    sideLanesAsync.push(options.temporalRanking);
+  }
+  if (sideLanesAsync.length > 0) {
+    const headIds = combined.map((r) => r.uniqueId);
+    const fused = rrfFuse([headIds, headIds, ...sideLanesAsync]);
+    const fusedHead = combined
+      .map((r) => ({ ...r, similarity: fused.get(r.uniqueId) ?? r.similarity }))
+      .sort((a, b) => b.similarity - a.similarity);
+    // Items in side lanes but absent from the CE head re-enter the pipeline
+    // at the bottom so they're available to RRF even if CE didn't see them.
+    const seen = new Set(combined.map((r) => r.uniqueId));
+    const itemById = new Map(items.map((i) => [i.id, i]));
+    for (const lane of sideLanesAsync) {
+      for (const id of lane) {
+        if (seen.has(id)) continue;
+        const it = itemById.get(id);
+        if (!it) continue;
+        fusedHead.push({
+          uniqueId: id,
+          content: it.content,
+          similarity: fused.get(id) ?? 0,
+          createdAt: it.createdAt ?? it.updatedAt,
+          updatedAt: it.updatedAt,
+        });
+        seen.add(id);
+      }
+    }
+    fusedHead.sort((a, b) => b.similarity - a.similarity);
+    combined = fusedHead;
+  }
+
+  if (options?.mmr) {
+    const lambda = options.mmrLambda ?? 0.7;
+    const mmrTopN = options.mmrTopN ?? 20;
+    const itemById = new Map(items.map((i) => [i.id, i]));
+    const mmrCandidates = combined.slice(0, mmrTopN).map((r) => ({
+      id: r.uniqueId,
+      score: r.similarity,
+      embedding: itemById.get(r.uniqueId)?.embedding ?? [],
+      content: r.content,
+    }));
+    const picked = applyMMR(mmrCandidates, limit, lambda);
+    const pickedIds = new Set(picked.map((p) => p.id));
+    const resultMap = new Map(combined.map((r) => [r.uniqueId, r]));
+    const pickedResults: VaultSearchResult[] = picked.map((p) => {
+      const orig = resultMap.get(p.id);
+      return {
+        uniqueId: p.id,
+        content: p.content,
+        similarity: p.score,
+        createdAt: orig?.createdAt,
+        updatedAt: orig?.updatedAt,
+        eventTimeStart: orig?.eventTimeStart,
+        eventTimeEnd: orig?.eventTimeEnd,
+        eventTimeKind: orig?.eventTimeKind,
+      };
+    });
+    // For benchmark + temporal-margin analysis, callers that want the
+    // long tail must pass `limit: items.length`. The function respects
+    // limit strictly so production callers (tool executor) get exactly
+    // what they asked for.
+    const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
+    // Filter tailSlice too — an id present in both MMR picks and the
+    // pre-MMR tail would otherwise appear twice in the returned list.
+    const tailFiltered = tailSlice.filter((r) => !pickedIds.has(r.uniqueId));
+    return [...pickedResults, ...remainingTail, ...tailFiltered].slice(0, limit);
+  }
+
+  return [...combined, ...tailSlice].slice(0, limit);
+}
+
+/**
+ * Composite ranker — sub-query decomposition + RRF fusion.
+ *
+ * For abstract/multi-faceted questions ("tell me about the user", "what is
+ * my tech stack"), the V2/V2+CE pipeline scores about equally against every
+ * personal fact since the query has no lexical or semantic anchor. The fix
+ * (LlamaIndex pattern, departing from Hindsight's "skip query rewriting"
+ * stance because their workload is factual): rewrite the *left side* —
+ * decompose into 3–5 concrete facets, run the existing fused ranker per
+ * facet, fuse the rank lists with RRF.
+ *
+ * The recency/proof-count/supersession signals are already applied inside
+ * each per-facet `rankFusedVaultMemories` call; RRF only fuses ranks, so
+ * those boosts shape the per-facet ordering before fusion.
+ *
+ * Optional rerank stage scores the top-N fused candidates against the
+ * *original* query (not the sub-queries) so a CE that sees "tell me about
+ * X" can weight thematic relevance back into the ordering — useful when
+ * sub-queries miss a facet the user actually cared about.
+ *
+ * @param subQueries  3–5 facet questions with pre-computed embeddings.
+ * @returns Ranked results. When `limit < items.length`, the tail is
+ *   appended in fused-score order so callers (e.g. the benchmark) can
+ *   probe IDs beyond K for margin analysis.
+ */
+export async function rankComposite(
+  originalQuery: string,
+  originalQueryEmbedding: number[],
+  subQueries: Array<{ query: string; embedding: number[] }>,
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    recencyAlpha?: number;
+    recency?: RecencyOptions;
+    rerank?: boolean;
+    rerankTopN?: number;
+    ceWeight?: number;
+    rrfK?: number;
+    /**
+     * Truncate each sub-query's ranked list before RRF. Default 10. The
+     * LlamaIndex sub-query pattern is to fuse *top hits per facet*, not
+     * full lists — long tails dilute the fusion signal because every
+     * memory ends up in every list.
+     */
+    perFacetTopN?: number;
+    /**
+     * W5 — pre-built entity-overlap ranking of memory IDs. Added as an
+     * additional RRF facet alongside the original query and sub-queries,
+     * so memories sharing entities with the question get lifted by graph
+     * convergence the same way they get lifted by sub-query convergence.
+     * Build with {@link rankByEntityOverlap}.
+     */
+    entityRanking?: string[];
+    /**
+     * W6 — pre-built temporal-overlap ranking of memory IDs whose
+     * event-time intersects the resolved query window. Added as a
+     * top-N RRF facet so temporal hits survive composite decomposition.
+     */
+    temporalRanking?: string[];
+  }
+): Promise<VaultSearchResult[]> {
+  const limit = options?.limit ?? 5;
+  const perFacetTopN = options?.perFacetTopN ?? 10;
+  if (items.length === 0 || subQueries.length === 0) return [];
+
+  // Stage 1 — per-facet V2 ranking. Each sub-query contributes only its
+  // top-N (default 10) to RRF. The original query also contributes a
+  // ranking with extra weight (replicated facets) so that when a
+  // technically-specific query is mislabeled as composite, the original
+  // ranking dominates and rescues recall.
+  const originalRanked = rankFusedVaultMemories(originalQuery, originalQueryEmbedding, items, {
+    limit: perFacetTopN,
+    minSimilarity: options?.minSimilarity ?? 0,
+    ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+    ...(options?.recency && { recency: options.recency }),
+  }).map((r) => r.uniqueId);
+
+  const perFacetRankings: string[][] = [];
+  // Weight the original query 3x (triplicated facet) — empirically rescues
+  // mis-classified specific queries without diluting true composites,
+  // which still have 3–5 sub-query facets dominating the fusion.
+  perFacetRankings.push(originalRanked, originalRanked, originalRanked);
+
+  for (const sq of subQueries) {
+    const ranked = rankFusedVaultMemories(sq.query, sq.embedding, items, {
+      limit: perFacetTopN,
+      minSimilarity: options?.minSimilarity ?? 0,
+      ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+      ...(options?.recency && { recency: options.recency }),
+    });
+    perFacetRankings.push(ranked.map((r) => r.uniqueId));
+  }
+
+  // W5 — graph lane as one more facet (truncated to the same top-N so it
+  // doesn't dominate when the query has many shared entities).
+  if (options?.entityRanking && options.entityRanking.length > 0) {
+    perFacetRankings.push(options.entityRanking.slice(0, perFacetTopN));
+  }
+  // W6 — temporal lane facet, same truncation rule.
+  if (options?.temporalRanking && options.temporalRanking.length > 0) {
+    perFacetRankings.push(options.temporalRanking.slice(0, perFacetTopN));
+  }
+
+  // Stage 2 — RRF fusion across facet rankings.
+  const fused = rrfFuse(perFacetRankings, options?.rrfK);
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const mappedResults: (VaultSearchResult | null)[] = Array.from(fused.entries()).map(
+    ([id, score]) => {
+      const item = itemById.get(id);
+      if (!item) return null;
+      return {
+        uniqueId: id,
+        content: item.content,
+        similarity: score,
+        createdAt: item.createdAt ?? item.updatedAt,
+        updatedAt: item.updatedAt,
+        eventTimeStart: item.eventTimeStart,
+        eventTimeEnd: item.eventTimeEnd,
+        eventTimeKind: item.eventTimeKind,
+      };
+    }
+  );
+  let combined: VaultSearchResult[] = mappedResults.filter(
+    (r): r is VaultSearchResult => r !== null
+  );
+  combined.sort((a, b) => b.similarity - a.similarity);
+
+  // Bench parity: append items absent from any facet's top-N so the
+  // returned list covers all items (margin analysis needs any ID locatable).
+  const fusedIds = new Set(combined.map((r) => r.uniqueId));
+  for (const item of items) {
+    if (!fusedIds.has(item.id)) {
+      combined.push({
+        uniqueId: item.id,
+        content: item.content,
+        similarity: 0,
+        createdAt: item.createdAt ?? item.updatedAt,
+        updatedAt: item.updatedAt,
+        eventTimeStart: item.eventTimeStart,
+        eventTimeEnd: item.eventTimeEnd,
+        eventTimeKind: item.eventTimeKind,
+      });
+    }
+  }
+
+  // Stage 3 — optional CE rerank against the *original* query.
+  if (options?.rerank && combined.length > 0) {
+    const rerankTopN = options.rerankTopN ?? 30;
+    const ceWeight = options.ceWeight ?? 0.1;
+    const headSlice = combined.slice(0, rerankTopN);
+    const tailSlice = combined.slice(rerankTopN);
+
+    const reranked = await rerankPairs(
+      originalQuery,
+      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+    );
+    const ceById = new Map(reranked.map((r) => [r.id, r.score]));
+
+    const head = headSlice.map((r) => ({
+      ...r,
+      similarity: r.similarity * (1 + ceWeight * (ceById.get(r.uniqueId) ?? 0)),
+    }));
+    head.sort((a, b) => b.similarity - a.similarity);
+    combined = [...head, ...tailSlice];
+  }
+
+  return combined.slice(0, limit);
 }
 
 /**
@@ -290,12 +941,23 @@ export interface VaultSearchResult {
   uniqueId: string;
   content: string;
   similarity: number;
+  /** Optional — surfaced by the rankers so downstream `RankedMemory` carries
+   * real timestamps. Omitted when an item lacks the field upstream. */
+  createdAt?: Date;
+  updatedAt?: Date;
+  /** W6 temporal-lane anchors carried through to downstream `RankedMemory`
+   * so the recall executor can surface dates to the answer model without
+   * a second per-fact DB lookup + decrypt. Unix ms; null when the fact
+   * has no anchored event time. */
+  eventTimeStart?: number | null;
+  eventTimeEnd?: number | null;
+  eventTimeKind?: "point" | "range" | "ongoing" | null;
 }
 
 /**
  * Internal search that also returns the vault size, avoiding a second vault load.
  */
-async function searchVaultMemoriesWithSize(
+export async function searchVaultMemoriesWithSize(
   query: string,
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
@@ -362,13 +1024,88 @@ async function searchVaultMemoriesWithSize(
     }
   }
 
-  // Build embedded items for the pure ranking function
-  const embeddedItems: EmbeddedItem[] = [];
-  for (const m of memories) {
-    const embedding = cache.get(m.content);
-    if (embedding) {
-      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding, updatedAt: m.updatedAt });
+  // Missing embeddings → []; cosine returns 0 (lane no-op), but W5/W6
+  // side lanes can still admit the row.
+  const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
+    id: m.uniqueId,
+    content: m.content,
+    embedding: cache.get(m.content) ?? [],
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+    proofCount: m.proofCount,
+    eventTimeStart: m.eventTimeStart,
+    eventTimeEnd: m.eventTimeEnd,
+    eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
+  }));
+
+  // The rankers below all return bare {uniqueId, content, similarity}
+  // — they're pure functions over EmbeddedItem and don't carry the
+  // memory's timestamps. Stamp createdAt/updatedAt on the way out so
+  // downstream RankedMemory metadata is correct.
+  const timestampById = new Map(
+    memories.map((m) => [m.uniqueId, { createdAt: m.createdAt, updatedAt: m.updatedAt }])
+  );
+  const stampTimestamps = (out: {
+    results: VaultSearchResult[];
+    vaultSize: number;
+  }): { results: VaultSearchResult[]; vaultSize: number } => {
+    out.results = out.results.map((r) => {
+      const ts = timestampById.get(r.uniqueId);
+      return ts ? { ...r, createdAt: ts.createdAt, updatedAt: ts.updatedAt } : r;
+    });
+    return out;
+  };
+
+  const useFusion = searchOptions?.useFusion ?? true;
+
+  // Composite path — LLM decomposes the query into sub-queries, embeds them,
+  // and runs the multi-facet RRF ranker. Falls through to V2/V2+CE on
+  // "specific" mode so single-fact queries don't pay the decomposition cost.
+  if (useFusion && searchOptions?.decompose === "llm" && searchOptions.decomposeOptions) {
+    const decomp = await decomposeQuery(query, searchOptions.decomposeOptions);
+    if (decomp.mode === "composite") {
+      const subEmbeddings = await generateEmbeddings(decomp.subQueries, embeddingOptions);
+      const subQueries = decomp.subQueries.map((sq, i) => ({
+        query: sq,
+        embedding: subEmbeddings[i],
+      }));
+      const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
+        limit,
+        minSimilarity,
+        rerank: !!searchOptions.rerank,
+        ...(searchOptions.rerankTopN !== undefined && {
+          rerankTopN: searchOptions.rerankTopN,
+        }),
+        ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
+        ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+      });
+      return stampTimestamps({ results: composite, vaultSize: memories.length });
     }
+    // mode === "specific" — fall through to V2/V2+CE below.
+  }
+
+  if (useFusion && searchOptions?.rerank) {
+    const results = await rankFusedVaultMemoriesAsync(query, queryEmbedding, embeddedItems, {
+      limit,
+      minSimilarity,
+      rerank: true,
+      ...(searchOptions.rerankTopN !== undefined && {
+        rerankTopN: searchOptions.rerankTopN,
+      }),
+      ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
+      ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+    });
+    return stampTimestamps({ results, vaultSize: memories.length });
+  }
+
+  if (useFusion) {
+    const results = rankFusedVaultMemories(query, queryEmbedding, embeddedItems, {
+      limit,
+      minSimilarity,
+      ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
+      ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+    });
+    return stampTimestamps({ results, vaultSize: memories.length });
   }
 
   const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
@@ -376,7 +1113,7 @@ async function searchVaultMemoriesWithSize(
     minSimilarity,
   });
 
-  return { results, vaultSize: memories.length };
+  return stampTimestamps({ results, vaultSize: memories.length });
 }
 
 /**
@@ -403,6 +1140,14 @@ export async function searchVaultMemories(
     searchOptions
   );
   return results;
+}
+
+/** Numbered "[N] (id: …, similarity: …)\n<content>" rendering shared by the
+ * chat-tool's recall-delegated and useFusion:false branches. */
+function formatVaultHits(hits: Array<{ id: string; content: string; score: number }>): string {
+  return hits
+    .map((h, i) => `[${i + 1}] (id: ${h.id}, similarity: ${h.score.toFixed(2)})\n${h.content}`)
+    .join("\n\n");
 }
 
 /**
@@ -469,23 +1214,58 @@ export function createMemoryVaultSearchTool(
       }
 
       try {
-        const { results, vaultSize } = await searchVaultMemoriesWithSize(
-          query,
-          vaultCtx,
-          embeddingOptions,
-          cache,
-          {
-            ...searchOptions,
+        // Route through the unified recall() API so the chat tool, the
+        // SDK's programmatic surface, and any future consumer all share
+        // one ranking pipeline. searchOptions.rerank/decompose/decomposeOptions
+        // map onto recall's `budget` for the legacy MemoryVaultSearchOptions
+        // shape.
+        const budget: "low" | "mid" | "high" =
+          searchOptions?.decompose === "llm" && searchOptions.decomposeOptions
+            ? "high"
+            : searchOptions?.rerank
+              ? "mid"
+              : "low";
+        // Host's configured folder wins — the LLM can't escape a host-
+        // imposed scope. When the host has *not* set a folder, the LLM's
+        // explicit folder_id (including `null` for unfiled) is used.
+        const folderId = searchOptions?.folderId ?? argFolderId;
+
+        // useFusion:false callers want cosine-only — skip recall's fusion.
+        if (searchOptions?.useFusion === false) {
+          const legacy = await searchVaultMemories(query, vaultCtx, embeddingOptions, cache, {
             limit: requestLimit,
             minSimilarity,
-            // Only use LLM's folder_id when the host app hasn't set one
-            ...(searchOptions?.folderId === undefined &&
-              argFolderId !== undefined && { folderId: argFolderId }),
+            useFusion: false,
+            ...(folderId !== undefined && { folderId }),
+            ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
+          });
+          if (legacy.length === 0) {
+            return "No relevant memories found in the vault.";
+          }
+          return formatVaultHits(
+            legacy.map((r) => ({ id: r.uniqueId, content: r.content, score: r.similarity }))
+          );
+        }
+
+        const { recall } = await import("../memory/recall.js");
+        const result = await recall(
+          query,
+          { vaultCtx, embeddingOptions, vaultCache: cache },
+          {
+            types: ["fact"],
+            limit: requestLimit,
+            minScore: minSimilarity,
+            budget,
+            ...(folderId !== undefined && { folderId }),
+            ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
+            ...(searchOptions?.decompose === "llm" &&
+              searchOptions.decomposeOptions && {
+                decomposeOptions: searchOptions.decomposeOptions,
+              }),
           }
         );
 
-        if (vaultSize === 0) {
-          // Distinguish between a truly empty vault and an empty folder-scoped query
+        if (result.vaultSize === 0) {
           const hasFolderFilter =
             searchOptions?.folderId !== undefined || argFolderId !== undefined;
           if (hasFolderFilter) {
@@ -494,18 +1274,23 @@ export function createMemoryVaultSearchTool(
           return "The memory vault is empty. No memories have been saved yet.";
         }
 
-        if (results.length === 0) {
+        if (result.memories.length === 0) {
           return "No relevant memories found in the vault.";
         }
 
-        const formatted = results
-          .map(
-            (r, i) =>
-              `[${i + 1}] (id: ${r.uniqueId}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`
-          )
-          .join("\n\n");
-
-        return `Found ${results.length} vault memories:\n\n${formatted}`;
+        // Surface whatever ranker score the pipeline produced (fused
+        // under useFusion=true, raw cosine when useFusion=false). The
+        // LLM sees a single "similarity" number on the same scale the
+        // legacy tool returned — the underlying metric just changes
+        // with the active ranking mode.
+        const formatted = formatVaultHits(
+          result.memories.map((m) => ({
+            id: m.id,
+            content: m.content,
+            score: m.scoreBreakdown?.fused ?? m.scoreBreakdown?.cosine ?? m.score,
+          }))
+        );
+        return `Found ${result.memories.length} vault memories:\n\n${formatted}`;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         return `Error searching vault: ${message}`;

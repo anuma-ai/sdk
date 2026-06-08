@@ -28,7 +28,15 @@ import { parseArgs } from "node:util";
 import { readFile, writeFile } from "node:fs/promises";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
-import { rankVaultMemories } from "../../../../src/lib/memoryVault/searchTool.js";
+import {
+  rankVaultMemories,
+  rankFusedVaultMemories,
+  rankFusedVaultMemoriesAsync,
+  rankComposite,
+  rankByEntityOverlap,
+} from "../../../../src/lib/memoryVault/searchTool.js";
+import type { DecomposedQuery } from "../../../../src/lib/memoryVault/decomposeQuery.js";
+import { preloadReranker } from "../../../../src/lib/memory/reranker.js";
 import { precisionAtK, recallAtK, reciprocalRank, ndcgAtK } from "../metrics.js";
 import {
   VAULT_MEMORIES,
@@ -54,8 +62,117 @@ const { values: args } = parseArgs({
     max: { type: "string", short: "m" },
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
+    ranker: { type: "string", default: "cosine" },
+    "recency-alpha": { type: "string" },
+    rerank: { type: "boolean", default: false },
+    "ce-weight": { type: "string" },
+    mmr: { type: "boolean", default: false },
+    "mmr-lambda": { type: "string" },
+    graph: { type: "boolean", default: false },
+    entities: { type: "string", default: "heuristic" },
+    decompose: { type: "string", default: "off" },
   },
 });
+
+const RANKER_NAME = (args.ranker ?? "cosine").toLowerCase();
+if (RANKER_NAME !== "cosine" && RANKER_NAME !== "fused") {
+  console.error(`Invalid --ranker "${RANKER_NAME}". Expected "cosine" or "fused".`);
+  process.exit(1);
+}
+
+const RECENCY_ALPHA = args["recency-alpha"] ? parseFloat(args["recency-alpha"]) : undefined;
+const RERANK = !!args.rerank;
+const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
+const USE_MMR = !!args.mmr;
+const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
+const USE_GRAPH = !!args.graph;
+const ENTITY_MODE = args.entities ?? "heuristic";
+if (ENTITY_MODE !== "heuristic" && ENTITY_MODE !== "llm") {
+  console.error(`Invalid --entities "${ENTITY_MODE}". Expected "heuristic" or "llm".`);
+  process.exit(1);
+}
+const DECOMPOSE_MODE = (args.decompose ?? "off").toLowerCase();
+if (DECOMPOSE_MODE !== "off" && DECOMPOSE_MODE !== "llm") {
+  console.error(`Invalid --decompose "${DECOMPOSE_MODE}". Expected "off" or "llm".`);
+  process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// W5 — heuristic entity extraction (bench only).
+//
+// In production, the auto-extraction worker (W2) populates the entity table
+// at write time. Here we approximate by pulling capitalized phrases plus
+// numbers — close enough to validate that the graph lane gives a real lift
+// on composite/multi-fact queries without needing hand-annotated data.
+// ---------------------------------------------------------------------------
+const ENTITY_STOPWORDS = new Set([
+  "I",
+  "He",
+  "She",
+  "They",
+  "We",
+  "It",
+  "The",
+  "This",
+  "That",
+  "There",
+  "How",
+  "What",
+  "When",
+  "Where",
+  "Why",
+  "Who",
+  "Which",
+  "Tell",
+  "Give",
+  "Describe",
+  "Summarize",
+  "Does",
+  "Has",
+  "Have",
+  "Had",
+  "User",
+  "Users",
+]);
+
+function heuristicEntities(text: string): Set<string> {
+  const out = new Set<string>();
+  const phraseRe = /\b[A-Z][a-zA-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]+)*\b/g;
+  const matches = text.match(phraseRe) ?? [];
+  for (const m of matches) {
+    if (ENTITY_STOPWORDS.has(m)) continue;
+    out.add(m.toLowerCase());
+  }
+  const techRe = /\b[a-z]+\d+\b|\b\d{4}\b/gi;
+  const tech = text.match(techRe) ?? [];
+  for (const t of tech) out.add(t.toLowerCase());
+  return out;
+}
+
+let llmCache: Record<string, string[]> | null = null;
+function loadLlmCache(): Record<string, string[]> {
+  if (llmCache !== null) return llmCache;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    llmCache = require("./llm-entities.json") as Record<string, string[]>;
+  } catch {
+    console.error(
+      "Missing test/memory/src/vault/llm-entities.json — " +
+        "run: PORTAL_API_KEY=... npx tsx scripts/precompute-bench-entities.ts"
+    );
+    process.exit(1);
+  }
+  return llmCache!;
+}
+
+function extractEntities(text: string): Set<string> {
+  if (ENTITY_MODE === "llm") {
+    const cache = loadLlmCache();
+    const entities = cache[text] ?? [];
+    return new Set(entities.map((e) => e.toLowerCase().trim()).filter((e) => e.length > 0));
+  }
+  return heuristicEntities(text);
+}
 
 // ---------------------------------------------------------------------------
 // Config
@@ -342,14 +459,49 @@ async function main() {
     embeddingMap.set(VAULT_MEMORIES[i].id, memoryEmbeddings[i]);
   }
 
-  console.log(`Embedding ${queries.length} queries...`);
-  const queryEmbeddingsList = await generateEmbeddings(
-    queries.map((q) => q.query),
-    embeddingOptions
+  // Load decomposition cache when --decompose=llm. Sub-queries are embedded
+  // alongside the originals so the per-query loop never blocks on network.
+  let decompositions: Record<string, DecomposedQuery> = {};
+  if (DECOMPOSE_MODE === "llm") {
+    try {
+      decompositions = JSON.parse(
+        await readFile("test/memory/src/vault/decompositions.json", "utf-8")
+      ) as Record<string, DecomposedQuery>;
+      const composite = Object.values(decompositions).filter((d) => d.mode === "composite").length;
+      console.log(
+        `Loaded ${Object.keys(decompositions).length} decompositions (${composite} composite)`
+      );
+    } catch (err) {
+      console.error(
+        `Failed to load decompositions.json: ${err}\n` +
+          "Run: PORTAL_API_KEY=... npx tsx scripts/precompute-bench-decompositions.ts"
+      );
+      process.exit(1);
+    }
+  }
+
+  const allQueryTexts: string[] = queries.map((q) => q.query);
+  const subQueriesSeen = new Set<string>();
+  for (const q of queries) {
+    const decomp = decompositions[q.query];
+    if (!decomp || decomp.mode !== "composite") continue;
+    for (const sq of decomp.subQueries) {
+      if (sq === q.query) continue;
+      if (subQueriesSeen.has(sq)) continue;
+      subQueriesSeen.add(sq);
+      allQueryTexts.push(sq);
+    }
+  }
+
+  console.log(
+    `Embedding ${queries.length} queries${
+      subQueriesSeen.size > 0 ? ` + ${subQueriesSeen.size} sub-queries` : ""
+    }...`
   );
+  const allEmbeddings = await generateEmbeddings(allQueryTexts, embeddingOptions);
   const queryEmbeddingMap = new Map<string, number[]>();
-  for (let i = 0; i < queries.length; i++) {
-    queryEmbeddingMap.set(queries[i].query, queryEmbeddingsList[i]);
+  for (let i = 0; i < allQueryTexts.length; i++) {
+    queryEmbeddingMap.set(allQueryTexts[i], allEmbeddings[i]);
   }
 
   console.log(`Running ${queries.length} queries...\n`);
@@ -361,15 +513,85 @@ async function main() {
     updatedAt: new Date(m.createdAt), // no explicit updatedAt in benchmark data; createdAt encodes recency for temporal tests
   }));
 
+  if (RERANK) {
+    console.log("Pre-loading reranker model...");
+    await preloadReranker();
+  }
+
+  // Memory-side entities are query-independent; extract once.
+  const memoryEntitiesById = USE_GRAPH
+    ? new Map(VAULT_MEMORIES.map((m) => [m.id, extractEntities(m.content)]))
+    : null;
+
   const results: QueryResult[] = [];
   for (const query of queries) {
     const queryEmbedding = queryEmbeddingMap.get(query.query)!;
 
     // Retrieve all memories (no limit) so temporal margin analysis can find any ID
-    const ranked = rankVaultMemories(query.query, queryEmbedding, embeddedItems, {
-      limit: embeddedItems.length,
-      minSimilarity: 0,
-    });
+    let ranked;
+    const decomp = DECOMPOSE_MODE === "llm" ? decompositions[query.query] : undefined;
+
+    // W5 — graph lane: pre-build the entity ranking once per query and
+    // pass it into whichever ranker is in play (composite or V2+CE).
+    let entityRanking: string[] | undefined;
+    if (USE_GRAPH && memoryEntitiesById && RANKER_NAME === "fused") {
+      const queryEnts = extractEntities(query.query);
+      if (queryEnts.size > 0) {
+        const overlapItems = embeddedItems.map((it) => ({
+          id: it.id,
+          content: it.content,
+          entities: memoryEntitiesById.get(it.id) ?? new Set<string>(),
+        }));
+        entityRanking = rankByEntityOverlap(queryEnts, overlapItems).map((r) => r.uniqueId);
+      }
+    }
+
+    if (decomp && decomp.mode === "composite" && RANKER_NAME === "fused") {
+      const subQueriesWithEmbeddings = decomp.subQueries.map((sq) => ({
+        query: sq,
+        embedding: queryEmbeddingMap.get(sq) ?? queryEmbedding,
+      }));
+      if (args.verbose) {
+        console.log(`[composite] "${query.query}" → ${decomp.subQueries.length} sub-queries`);
+      }
+      ranked = await rankComposite(
+        query.query,
+        queryEmbedding,
+        subQueriesWithEmbeddings,
+        embeddedItems,
+        {
+          limit: embeddedItems.length,
+          minSimilarity: 0,
+          rerank: RERANK,
+          ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+          ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
+          ...(entityRanking && { entityRanking }),
+        }
+      );
+    } else if ((RERANK || USE_MMR || USE_GRAPH) && RANKER_NAME === "fused") {
+      ranked = await rankFusedVaultMemoriesAsync(query.query, queryEmbedding, embeddedItems, {
+        // Benchmark needs the full list so temporal-margin analysis can
+        // locate any ID. The MMR path picks K internally and appends
+        // the tail in relevance order; passing items.length surfaces
+        // both picks and tail.
+        limit: embeddedItems.length,
+        minSimilarity: 0,
+        rerank: RERANK,
+        mmr: USE_MMR,
+        ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+        ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
+        ...(MMR_LAMBDA !== undefined && { mmrLambda: MMR_LAMBDA }),
+        ...(entityRanking && { entityRanking }),
+      });
+    } else {
+      const ranker = RANKER_NAME === "fused" ? rankFusedVaultMemories : rankVaultMemories;
+      ranked = ranker(query.query, queryEmbedding, embeddedItems, {
+        limit: embeddedItems.length,
+        minSimilarity: 0,
+        ...(RANKER_NAME === "fused" &&
+          RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+      });
+    }
 
     const allScored = ranked.map((r) => ({ id: r.uniqueId, similarity: r.similarity }));
     const allSimilarityMap = new Map(allScored.map((s) => [s.id, s.similarity]));

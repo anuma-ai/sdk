@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#12)
+Defined in: [src/lib/db/memoryVault/models.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#21)
 
 ***
 
@@ -154,6 +154,36 @@ Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sd
 > **embedding**: `string` | `null`
 
 Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#11)
+
+***
+
+### eventTimeEnd
+
+> **eventTimeEnd**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#18)
+
+W6 temporal lane — Unix ms timestamp of event end (range/ongoing).
+
+***
+
+### eventTimeKind
+
+> **eventTimeKind**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#20)
+
+W6 temporal lane — `point | range | ongoing | null`.
+
+***
+
+### eventTimeStart
+
+> **eventTimeStart**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#16)
+
+W6 temporal lane — Unix ms timestamp of when the event occurred.
 
 ***
 
@@ -169,7 +199,15 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#14)
+Defined in: [src/lib/db/memoryVault/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#23)
+
+***
+
+### proofCount
+
+> **proofCount**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#13)
 
 ***
 
@@ -181,11 +219,27 @@ Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/anuma-ai/sdk
 
 ***
 
+### source
+
+> **source**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#14)
+
+***
+
+### sourceChunkIds
+
+> **sourceChunkIds**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#12)
+
+***
+
 ### updatedAt
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#13)
+Defined in: [src/lib/db/memoryVault/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#22)
 
 ***
 

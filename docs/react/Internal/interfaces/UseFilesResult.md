@@ -1,6 +1,6 @@
 # UseFilesResult
 
-Defined in: [src/react/useFiles.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#66)
+Defined in: [src/react/useFiles.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#67)
 
 Result returned by useFiles hook.
 
@@ -10,7 +10,7 @@ Result returned by useFiles hook.
 
 > **createBlobUrl**: (`mediaId`: `string`) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useFiles.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#135)
+Defined in: [src/react/useFiles.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#142)
 
 Create a blob URL for a file (auto-managed lifecycle)
 
@@ -49,7 +49,7 @@ Create a blob URL for a file (auto-managed lifecycle)
 
 > **createMedia**: (`options`: [`CreateMediaOptions`](CreateMediaOptions.md)) => `Promise`<[`StoredMedia`](StoredMedia.md)>
 
-Defined in: [src/react/useFiles.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#75)
+Defined in: [src/react/useFiles.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#76)
 
 Create a new file record
 
@@ -88,7 +88,7 @@ Create a new file record
 
 > **createMediaBatch**: (`optionsArray`: [`CreateMediaOptions`](CreateMediaOptions.md)\[]) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#77)
+Defined in: [src/react/useFiles.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#78)
 
 Create multiple file records in a batch
 
@@ -127,7 +127,7 @@ Create multiple file records in a batch
 
 > **deleteMedia**: (`mediaId`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useFiles.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#91)
+Defined in: [src/react/useFiles.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#98)
 
 Soft delete a file record
 
@@ -166,7 +166,7 @@ Soft delete a file record
 
 > **deleteMediaByConversation**: (`conversationId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useFiles.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#127)
+Defined in: [src/react/useFiles.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#134)
 
 Delete all files for a conversation
 
@@ -205,7 +205,7 @@ Delete all files for a conversation
 
 > **deleteMediaByMessage**: (`messageId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useFiles.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#129)
+Defined in: [src/react/useFiles.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#136)
 
 Delete all files for a message
 
@@ -244,7 +244,7 @@ Delete all files for a message
 
 > **getAIGeneratedMedia**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#113)
+Defined in: [src/react/useFiles.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#120)
 
 Get AI-generated files
 
@@ -283,7 +283,7 @@ Get AI-generated files
 
 > **getAudio**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#105)
+Defined in: [src/react/useFiles.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#112)
 
 Get all audio files
 
@@ -322,7 +322,7 @@ Get all audio files
 
 > **getDocuments**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#107)
+Defined in: [src/react/useFiles.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#114)
 
 Get all documents
 
@@ -361,7 +361,7 @@ Get all documents
 
 > **getImages**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#101)
+Defined in: [src/react/useFiles.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#108)
 
 Get all images
 
@@ -400,7 +400,7 @@ Get all images
 
 > **getMedia**: (`filters`: [`MediaFilterOptions`](MediaFilterOptions.md)) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#97)
+Defined in: [src/react/useFiles.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#104)
 
 Get all files with optional filters
 
@@ -439,7 +439,7 @@ Get all files with optional filters
 
 > **getMediaByConversation**: (`conversationId`: `string`, `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#109)
+Defined in: [src/react/useFiles.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#116)
 
 Get files by conversation
 
@@ -490,7 +490,7 @@ Get files by conversation
 
 > **getMediaById**: (`mediaId`: `string`) => `Promise`<[`StoredMedia`](StoredMedia.md) | `null`>
 
-Defined in: [src/react/useFiles.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#79)
+Defined in: [src/react/useFiles.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#80)
 
 Get a file record by its media\_id
 
@@ -529,7 +529,7 @@ Get a file record by its media\_id
 
 > **getMediaByIds**: (`mediaIds`: `string`\[], `includeDeleted?`: `boolean`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#83)
+Defined in: [src/react/useFiles.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#84)
 
 Get files by an array of media IDs
 
@@ -580,7 +580,7 @@ Get files by an array of media IDs
 
 > **getMediaByMessage**: (`messageId`: `string`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#85)
+Defined in: [src/react/useFiles.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#86)
 
 Get files by message ID
 
@@ -619,7 +619,7 @@ Get files by message ID
 
 > **getMediaByModel**: (`model`: `string`, `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#117)
+Defined in: [src/react/useFiles.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#124)
 
 Get files by AI model
 
@@ -670,7 +670,7 @@ Get files by AI model
 
 > **getMediaByRole**: (`role`: [`MediaRole`](../type-aliases/MediaRole.md), `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#111)
+Defined in: [src/react/useFiles.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#118)
 
 Get files by role (user uploads vs AI generated)
 
@@ -721,7 +721,7 @@ Get files by role (user uploads vs AI generated)
 
 > **getMediaBySourceUrl**: (`sourceUrl`: `string`) => `Promise`<[`StoredMedia`](StoredMedia.md) | `null`>
 
-Defined in: [src/react/useFiles.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#81)
+Defined in: [src/react/useFiles.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#82)
 
 Get a file record by its source URL
 
@@ -760,7 +760,7 @@ Get a file record by its source URL
 
 > **getMediaByType**: (`mediaType`: [`MediaType`](../type-aliases/MediaType.md), `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#99)
+Defined in: [src/react/useFiles.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#106)
 
 Get files by type
 
@@ -811,7 +811,7 @@ Get files by type
 
 > **getMediaCount**: (`mediaType?`: [`MediaType`](../type-aliases/MediaType.md)) => `Promise`<`number`>
 
-Defined in: [src/react/useFiles.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#123)
+Defined in: [src/react/useFiles.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#130)
 
 Get file count
 
@@ -850,7 +850,7 @@ Get file count
 
 > **getMediaCountsByType**: () => `Promise`<`Record`<[`MediaType`](../type-aliases/MediaType.md), `number`>>
 
-Defined in: [src/react/useFiles.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#125)
+Defined in: [src/react/useFiles.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#132)
 
 Get file counts by type
 
@@ -864,7 +864,7 @@ Get file counts by type
 
 > **getRecentMedia**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#119)
+Defined in: [src/react/useFiles.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#126)
 
 Get recent files for library homepage
 
@@ -903,7 +903,7 @@ Get recent files for library homepage
 
 > **getUserUploadedMedia**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#115)
+Defined in: [src/react/useFiles.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#122)
 
 Get user-uploaded files
 
@@ -942,7 +942,7 @@ Get user-uploaded files
 
 > **getVideos**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#103)
+Defined in: [src/react/useFiles.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#110)
 
 Get all videos
 
@@ -981,7 +981,7 @@ Get all videos
 
 > **hardDeleteMedia**: (`mediaId`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useFiles.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#93)
+Defined in: [src/react/useFiles.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#100)
 
 Permanently delete a file record
 
@@ -1020,7 +1020,7 @@ Permanently delete a file record
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useFiles.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#71)
+Defined in: [src/react/useFiles.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#72)
 
 Whether files are being loaded
 
@@ -1030,7 +1030,7 @@ Whether files are being loaded
 
 > **isReady**: `boolean`
 
-Defined in: [src/react/useFiles.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#69)
+Defined in: [src/react/useFiles.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#70)
 
 Whether the file system is ready (database table exists)
 
@@ -1040,7 +1040,7 @@ Whether the file system is ready (database table exists)
 
 > **readFile**: (`mediaId`: `string`) => `Promise`<`File`>
 
-Defined in: [src/react/useFiles.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#133)
+Defined in: [src/react/useFiles.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#140)
 
 Read a file from OPFS by its media ID
 
@@ -1075,11 +1075,27 @@ Read a file from OPFS by its media ID
 
 ***
 
+### relinkMisclassifiedVideos()
+
+> **relinkMisclassifiedVideos**: () => `Promise`<`number`>
+
+Defined in: [src/react/useFiles.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#96)
+
+One-time recovery: relink videos previously stored as images (media\_type
+"image" but a video/\* mime) so they appear in the Videos tab and resolve in
+the video player's OPFS fallback. Idempotent. Returns count relinked.
+
+**Returns**
+
+`Promise`<`number`>
+
+***
+
 ### resolveFilePlaceholders()
 
 > **resolveFilePlaceholders**: (`content`: `string`) => `Promise`<`string`>
 
-Defined in: [src/react/useFiles.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#141)
+Defined in: [src/react/useFiles.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#148)
 
 Resolve **SDKFILE** placeholders in content to blob URLs
 
@@ -1118,7 +1134,7 @@ Resolve **SDKFILE** placeholders in content to blob URLs
 
 > **revokeAllBlobUrls**: () => `void`
 
-Defined in: [src/react/useFiles.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#139)
+Defined in: [src/react/useFiles.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#146)
 
 Revoke all blob URLs (cleanup)
 
@@ -1132,7 +1148,7 @@ Revoke all blob URLs (cleanup)
 
 > **revokeBlobUrl**: (`mediaId`: `string`) => `void`
 
-Defined in: [src/react/useFiles.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#137)
+Defined in: [src/react/useFiles.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#144)
 
 Revoke a specific blob URL
 
@@ -1171,7 +1187,7 @@ Revoke a specific blob URL
 
 > **searchMedia**: (`query`: `string`, `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useFiles.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#121)
+Defined in: [src/react/useFiles.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#128)
 
 Search files by name
 
@@ -1222,7 +1238,7 @@ Search files by name
 
 > **updateMedia**: (`mediaId`: `string`, `options`: [`UpdateMediaOptions`](UpdateMediaOptions.md)) => `Promise`<[`StoredMedia`](StoredMedia.md) | `null`>
 
-Defined in: [src/react/useFiles.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#87)
+Defined in: [src/react/useFiles.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#88)
 
 Update a file record
 
@@ -1273,7 +1289,7 @@ Update a file record
 
 > **updateMediaMessageIdBatch**: (`mediaIds`: `string`\[], `messageId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useFiles.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#89)
+Defined in: [src/react/useFiles.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#90)
 
 Batch update file records with a messageId
 

@@ -2,7 +2,7 @@
 
 > **revokeCalendarToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-calendar.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#418)
+Defined in: [src/lib/auth/google-calendar.ts:426](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#426)
 
 Revoke the OAuth token
 
