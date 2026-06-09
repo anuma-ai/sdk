@@ -538,7 +538,7 @@ export class MapFileStorage implements AppFileStorage {
 
 export const CREATE_FILE_SCHEMA = {
   name: "create_file",
-  description: `Build a new app — a calculator, a game, a todo list, a form, a dashboard, a chart, a simulation, or another interactive demo. Writes files into the in-chat app project; the live preview renders automatically. Pass every file (App.js, App.css, package.json, ...) in a single call.
+  description: `Build a complete, standalone interactive app from scratch — a calculator, a game, a todo list, a dashboard, a simulation, or another self-contained interactive tool. Writes files into the in-chat app project; the live preview renders automatically. Pass every file (App.js, App.css, package.json, ...) in a single call.
 
 create_file creates new files and can also overwrite existing ones for substantial restructures. For overwrites, you must have called read_file for the path earlier in this conversation (or created it via create_file in the same conversation) — the tool refuses otherwise. For incremental changes, prefer patch_file: it's easier to review and preserves surrounding code unchanged.`,
   arguments: {

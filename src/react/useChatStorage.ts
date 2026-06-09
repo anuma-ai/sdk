@@ -130,6 +130,7 @@ import {
   readEncryptedFile,
 } from "../lib/storage";
 import {
+  activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
   expandToolSetsAdditive,
   filterServerTools,
@@ -181,7 +182,8 @@ function getToolDescription(t: LlmapiChatCompletionTool): string {
 function computeToolGuidance(
   selectedServerTools: ServerTool[],
   selectedClientTools: LlmapiChatCompletionTool[] | undefined,
-  extraToolSets: ToolSet[]
+  extraToolSets: ToolSet[],
+  activatedSetNames?: ReadonlySet<string>
 ): string | undefined {
   const names = [
     ...selectedServerTools.map((t) => t.name),
@@ -189,7 +191,11 @@ function computeToolGuidance(
   ].filter(Boolean);
   const toolSets =
     extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
-  const prompts = toolSetSystemPrompts(names, toolSets);
+  // Gate on genuine activation (from the client-tool selection) so a set's
+  // persona rides in only when the set actually activated — not on a borderline
+  // anchor kept in the selection by recall-over-precision. Falls back to anchor
+  // presence when activation info isn't available (e.g. an explicit host filter).
+  const prompts = toolSetSystemPrompts(names, toolSets, activatedSetNames);
   return prompts.length > 0 ? prompts.join("\n\n") : undefined;
 }
 
@@ -208,7 +214,7 @@ async function autoFilterClientTools(
   embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
   extraToolSets: ToolSet[] = [],
   activeToolSets: string[] = []
-): Promise<LlmapiChatCompletionTool[]> {
+): Promise<{ tools: LlmapiChatCompletionTool[]; activatedSetNames?: ReadonlySet<string> }> {
   // Memory tools are always included — only filter connector tools
   // (Notion, Google). Matches both the legacy memory_vault_* surface and
   // the unified recall_memory tool from createRecallTool. The
@@ -227,7 +233,14 @@ async function autoFilterClientTools(
   // filtering on small catalogs, where dropping irrelevant tools still
   // matters. MAX_CLIENT_TOOLS_AFTER_FILTER remains the result-size cap below.
   if (!promptEmbeddings || filterCandidates.length === 0) {
-    return clientTools;
+    // No semantic selection ran (no embeddings — e.g. a prompt below
+    // MIN_CONTENT_LENGTH_FOR_TOOLS like "hey" — or nothing to filter), so NO
+    // tool set activated. Return an empty activation set, not undefined:
+    // undefined makes toolSetSystemPrompts fall back to anchor-presence and
+    // inject a set's persona (e.g. APP_BUILDER_PROMPT) just because create_file
+    // sits in the unfiltered tool list. That fallback was leaking the App
+    // Builder prompt onto short greetings.
+    return { tools: clientTools, activatedSetNames: new Set() };
   }
 
   // Generate embeddings for tool descriptions that aren't cached yet
@@ -247,8 +260,10 @@ async function autoFilterClientTools(
         cache.set(toolsNeedingEmbeddings[i].name, embeddings[i]);
       }
     } catch {
-      // Embedding generation failed — skip filtering, send all tools
-      return clientTools;
+      // Embedding generation failed — skip filtering, send all tools. No
+      // semantic selection ran, so no set activated (empty, not undefined —
+      // see the guard above) and no tool-set persona should be injected.
+      return { tools: clientTools, activatedSetNames: new Set() };
     }
   }
 
@@ -310,18 +325,23 @@ async function autoFilterClientTools(
     toolSets,
     activeSetNames
   );
+  // Which sets genuinely activated (anchor cleared anchorMinSimilarity, or
+  // forced active). This drives toolSetSystemPrompts so a set's persona (e.g.
+  // APP_BUILDER_PROMPT) rides in only on real activation — not on a borderline
+  // anchor that expandToolSetsAdditive kept in the selection for recall.
+  const activatedSetNames = activatedToolSetNames(scores, toolSets, activeSetNames);
 
   // If nothing semantically matched AND no active sets pulled anything in,
   // return only always-included tools (e.g. memory).
   if (finalNames.size === 0) {
-    return alwaysInclude;
+    return { tools: alwaysInclude, activatedSetNames };
   }
 
   const filtered = filterCandidates.filter((t) => {
     const name = getToolName(t);
     return name && finalNames.has(name);
   });
-  return [...alwaysInclude, ...filtered];
+  return { tools: [...alwaysInclude, ...filtered], activatedSetNames };
 }
 
 /**
@@ -392,7 +412,7 @@ export async function previewToolSelection(options: {
 
   // Client tools — identical call path to sendMessage
   const cache = clientToolEmbeddingsCache ?? new Map<string, number[]>();
-  const filteredClientTools = await autoFilterClientTools(
+  const { tools: filteredClientTools } = await autoFilterClientTools(
     clientTools,
     promptEmbedding,
     cache,
@@ -2164,6 +2184,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
         let filteredClientTools = clientTools;
+        let clientActivatedSetNames: ReadonlySet<string> | undefined;
         if (clientToolsFilter && clientTools?.length) {
           const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
           filteredClientTools = clientTools.filter((t) => {
@@ -2173,7 +2194,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           });
         } else if (clientTools?.length && getToken) {
           // Auto-filter client tools using semantic matching (no explicit filter provided)
-          filteredClientTools = await autoFilterClientTools(
+          const clientFilterResult = await autoFilterClientTools(
             clientTools,
             skipStorageEmbeddings,
             clientToolEmbeddingsCacheRef.current,
@@ -2181,6 +2202,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             extraToolSets,
             activeToolSetsRef.current
           );
+          filteredClientTools = clientFilterResult.tools;
+          clientActivatedSetNames = clientFilterResult.activatedSetNames;
         }
 
         if (
@@ -2201,7 +2224,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           toolGuidance: computeToolGuidance(
             filteredServerTools,
             filteredClientTools,
-            extraToolSets ?? []
+            extraToolSets ?? [],
+            clientActivatedSetNames
           ),
           temperature,
           maxOutputTokens,
@@ -2597,6 +2621,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
       let filteredClientTools = clientTools;
+      let clientActivatedSetNames: ReadonlySet<string> | undefined;
       if (clientToolsFilter && clientTools?.length) {
         const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
         filteredClientTools = clientTools.filter((t) => {
@@ -2606,7 +2631,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         });
       } else if (clientTools?.length && getToken) {
         // Auto-filter client tools using semantic matching (no explicit filter provided)
-        filteredClientTools = await autoFilterClientTools(
+        const clientFilterResult = await autoFilterClientTools(
           clientTools,
           userMessageEmbeddings ?? null,
           clientToolEmbeddingsCacheRef.current,
@@ -2614,6 +2639,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           extraToolSets,
           activeToolSetsRef.current
         );
+        filteredClientTools = clientFilterResult.tools;
+        clientActivatedSetNames = clientFilterResult.activatedSetNames;
       }
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
@@ -2683,7 +2710,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolGuidance: computeToolGuidance(
           filteredServerTools,
           filteredClientTools,
-          extraToolSets ?? []
+          extraToolSets ?? [],
+          clientActivatedSetNames
         ),
         // Responses API options
         temperature,

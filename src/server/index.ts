@@ -360,6 +360,7 @@ export type {
   ToolMatchResult,
 } from "../lib/tools";
 export {
+  activatedToolSetNames,
   clearServerToolsCache,
   createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,

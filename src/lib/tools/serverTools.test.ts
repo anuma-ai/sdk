@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
-import { BUILT_IN_TOOL_SETS, type ToolSet, toolSetSystemPrompts } from "./serverTools";
+import {
+  activatedToolSetNames,
+  BUILT_IN_TOOL_SETS,
+  type ToolSet,
+  toolSetSystemPrompts,
+} from "./serverTools";
 
 describe("toolSetSystemPrompts", () => {
   it("attaches APP_BUILDER_PROMPT to the built-in app-generation set", () => {
@@ -44,5 +49,42 @@ describe("toolSetSystemPrompts", () => {
 
   it("accepts a Set as input", () => {
     expect(toolSetSystemPrompts(new Set(["create_file"]))).toEqual([APP_BUILDER_PROMPT]);
+  });
+
+  // Gating on genuine activation (the fix): a borderline anchor that ends up in
+  // the selection (kept by recall-over-precision) must NOT inject the prompt
+  // unless the set actually activated.
+  it("gates on activatedSetNames when provided", () => {
+    // create_file is selected, but no set activated → prompt suppressed.
+    expect(toolSetSystemPrompts(["create_file"], BUILT_IN_TOOL_SETS, new Set())).toEqual([]);
+    // app-generation activated → prompt rides in.
+    expect(
+      toolSetSystemPrompts(["create_file"], BUILT_IN_TOOL_SETS, new Set(["app-generation"]))
+    ).toEqual([APP_BUILDER_PROMPT]);
+  });
+});
+
+describe("activatedToolSetNames", () => {
+  it("activates only when an anchor clears anchorMinSimilarity", () => {
+    // app-generation's anchorMinSimilarity is 0.55.
+    expect(activatedToolSetNames(new Map([["create_file", 0.54]]))).toEqual(new Set());
+    expect(activatedToolSetNames(new Map([["create_file", 0.55]]))).toEqual(
+      new Set(["app-generation"])
+    );
+  });
+
+  it("activates a forced set regardless of score", () => {
+    expect(
+      activatedToolSetNames(
+        new Map([["create_file", 0.1]]),
+        BUILT_IN_TOOL_SETS,
+        new Set(["app-generation"])
+      )
+    ).toEqual(new Set(["app-generation"]));
+  });
+
+  it("does not activate on a non-anchor member's score", () => {
+    // read_file is a member but not an anchor — its score can't activate the set.
+    expect(activatedToolSetNames(new Map([["read_file", 0.99]]))).toEqual(new Set());
   });
 });
