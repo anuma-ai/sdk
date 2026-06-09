@@ -231,7 +231,8 @@
       "picomatch": ">=2.3.2 <3.0.0 || >=4.0.4",
       "@xmldom/xmldom": ">=0.8.13 <0.9.0",
       "protobufjs": ">=7.5.8 <8.0.0",
-      "tmp": ">=0.2.6"
+      "tmp": ">=0.2.6",
+      "shell-quote": ">=1.8.4"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",
