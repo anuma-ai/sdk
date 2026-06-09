@@ -69,10 +69,13 @@ Human-readable name for logging/debugging
 
 > `optional` **systemPrompt**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:836](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#836)
+Defined in: [src/lib/tools/serverTools.ts:839](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#839)
 
-System-prompt fragment to APPEND to the base prompt when this set is
-active. Additive, never a replacement — it composes with the host's
-persona / memory, so over-including it on a borderline match is harmless
-(mirrors `expandToolSetsAdditive`). Collected for a selection by
-toolSetSystemPrompts.
+System-prompt fragment to APPEND to the base prompt when this set
+activates. Additive, never a replacement — it composes with the host's
+persona / memory. Gated on genuine activation (anchor score ≥
+`anchorMinSimilarity`, or a forced set) via activatedToolSetNames →
+toolSetSystemPrompts, NOT on mere anchor presence — a borderline
+anchor kept by recall-over-precision must not drag this persona in. Write
+it to be self-limiting too (condition its behavior on the user actually
+wanting what the set does), so a borderline activation doesn't bias the turn.

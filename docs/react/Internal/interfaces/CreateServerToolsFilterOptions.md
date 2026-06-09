@@ -1,6 +1,6 @@
 # CreateServerToolsFilterOptions
 
-Defined in: [src/lib/tools/serverTools.ts:1051](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1051)
+Defined in: [src/lib/tools/serverTools.ts:1101](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1101)
 
 Options for createServerToolsFilter.
 
@@ -10,7 +10,7 @@ Options for createServerToolsFilter.
 
 > `optional` **excludeTools**: `Iterable`<`string`, `any`, `any`>
 
-Defined in: [src/lib/tools/serverTools.ts:1059](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1059)
+Defined in: [src/lib/tools/serverTools.ts:1109](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1109)
 
 Tool names to always drop from results, even when they match.
 
@@ -20,7 +20,7 @@ Tool names to always drop from results, even when they match.
 
 > `optional` **matchOptions**: [`ToolMatchOptions`](ToolMatchOptions.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1061](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1061)
+Defined in: [src/lib/tools/serverTools.ts:1111](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1111)
 
 Options forwarded to `findMatchingTools`.
 
@@ -30,7 +30,7 @@ Options forwarded to `findMatchingTools`.
 
 > `optional` **toolSets**: [`ToolSet`](ToolSet.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1057](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1057)
+Defined in: [src/lib/tools/serverTools.ts:1107](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1107)
 
 Tool sets to expand additively. When any anchor scores at or above the
 set's `anchorMinSimilarity`, all members are included alongside the

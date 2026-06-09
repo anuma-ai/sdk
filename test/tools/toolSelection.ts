@@ -17,6 +17,7 @@ import "dotenv/config";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { table, getBorderCharacters } from "table";
 import {
+  activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
   DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
@@ -26,10 +27,13 @@ import {
   mergeTools,
   scoreTools,
   type ServerTool,
+  toolSetSystemPrompts,
 } from "../../src/lib/tools/serverTools.js";
 import { generateEmbedding, generateEmbeddings } from "../../src/lib/memoryEngine/embeddings.js";
 import type { ToolConfig } from "../../src/lib/chat/useChat/types.js";
 import {
+  APP_BUILDER_PROMPT,
+  AUDIT_DESIGN_SCHEMA,
   createChartTool,
   createChoiceTool,
   createFormTool,
@@ -37,10 +41,12 @@ import {
   createPhoneCallOfferTool,
   createWeatherTool,
   CREATE_FILE_SCHEMA,
+  CRITIQUE_DESIGN_SCHEMA,
   DELETE_FILE_SCHEMA,
   LIST_FILES_SCHEMA,
   PATCH_FILE_SCHEMA,
   READ_FILE_SCHEMA,
+  VERIFY_APP_SCHEMA,
 } from "../../src/tools/index.js";
 import { createIpGeolocationTool } from "../../src/tools/ipGeolocation.js";
 import { createTimezoneTool } from "../../src/tools/timezone.js";
@@ -94,12 +100,18 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
   // GitHub tools (factory-created)
   ...githubTools.map(toMeta),
 
-  // App generation tools (schema constants — used directly by createAppGenerationTools)
+  // App generation tools (schema constants — used directly by createAppGenerationTools).
+  // Includes the quality ops (audit/critique/verify): they're non-anchor set
+  // members, so they only reach the model via set expansion — keep them in the
+  // catalog or the "full app-generation set" assertion can never be satisfied.
   toMeta(CREATE_FILE_SCHEMA),
   toMeta(PATCH_FILE_SCHEMA),
   toMeta(DELETE_FILE_SCHEMA),
   toMeta(READ_FILE_SCHEMA),
   toMeta(LIST_FILES_SCHEMA),
+  toMeta(AUDIT_DESIGN_SCHEMA),
+  toMeta(CRITIQUE_DESIGN_SCHEMA),
+  toMeta(VERIFY_APP_SCHEMA),
 
   // Slide tools (schema constants — used directly by createSlideTools)
   toMeta(PLAN_DECK_SCHEMA),
@@ -111,6 +123,9 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
 // Match the constants from useChatStorage.ts
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
+// Production skips embeddings (hence all tool selection) for prompts shorter
+// than this — so very short greetings never activate a set or inject a persona.
+const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 
 // Server tool matching uses selectServerSideTools defaults
 // ── Shared state ─────────────────────────────────────────────────────────────
@@ -140,6 +155,22 @@ function buildClientPseudoServerTools(): ServerTool[] {
  * 4. Merge both sets (like mergeTools)
  */
 async function selectTools(prompt: string, activeToolSets: string[] = []) {
+  // Mirror production's length gate (useChatStorage): prompts shorter than
+  // MIN_CONTENT_LENGTH_FOR_TOOLS skip embeddings entirely, so no semantic
+  // selection runs, no tool set activates, and no persona is injected.
+  if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+    return {
+      serverMatches: [],
+      clientMatches: [],
+      allToolNames: [],
+      merged: [],
+      anchorActivatedSets: [],
+      activatedSets: [],
+      guidancePrompts: [],
+      stickyActiveSets: [...activeToolSets],
+    };
+  }
+
   const promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
 
   // Server tool filtering — mirror what `defaultServerToolsFilter` does in
@@ -193,6 +224,19 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     s.members.every((m) => anchorOnlyNames.has(m))
   ).map((s) => s.name);
 
+  // Production-accurate activation gate (anchor score ≥ anchorMinSimilarity, or
+  // a forced set) and the tool-set guidance it would inject — the exact signal
+  // `computeToolGuidance` uses in useChatStorage. This lets the suite verify
+  // which prompts the App Builder persona actually rides in on (app-generation
+  // is the only built-in set with a systemPrompt), not just which tools are
+  // selected.
+  const activatedSetNames = activatedToolSetNames(scores, BUILT_IN_TOOL_SETS, activeSetNames);
+  const guidancePrompts = toolSetSystemPrompts(
+    finalClientNames,
+    BUILT_IN_TOOL_SETS,
+    activatedSetNames
+  );
+
   // Build client tool configs from the final set (including set-expanded tools)
   const filteredClientToolConfigs = CLIENT_TOOLS.filter((t) => finalClientNames.has(t.name)).map(
     (t) => ({
@@ -231,6 +275,8 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     allToolNames,
     merged,
     anchorActivatedSets,
+    activatedSets: [...activatedSetNames],
+    guidancePrompts,
     stickyActiveSets: [...activeToolSets],
   };
 }
@@ -258,6 +304,17 @@ interface ToolSelectionCase {
    * consumer passes `activeToolSets: ["slides"]`).
    */
   activeToolSets?: string[];
+  /**
+   * Tool set(s) that MUST genuinely activate for this prompt — meaning their
+   * `systemPrompt` (e.g. APP_BUILDER_PROMPT) rides in. Asserted against the
+   * production gate `activatedToolSetNames`, not the display heuristic.
+   */
+  mustActivateSets?: string[];
+  /**
+   * Tool set(s) that MUST NOT activate — so their persona is NOT injected. The
+   * bias-bug guard: "write a story" / "hey" must not activate "app-generation".
+   */
+  mustNotActivateSets?: string[];
 }
 
 const cases: ToolSelectionCase[] = [
@@ -377,6 +434,8 @@ const cases: ToolSelectionCase[] = [
     prompt: "Create a slide deck about the fundamentals of home gardening",
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
     clientMustExclude: ["display_weather", "geolocate_ip"],
+    mustActivateSets: ["slides"],
+    mustNotActivateSets: ["app-generation"],
   },
   {
     label: "presentation request includes full slide set",
@@ -572,30 +631,35 @@ const cases: ToolSelectionCase[] = [
     // display_weather, github_api, prompt_user_choice score 0.55-0.65 on
     // "todo list app" — borderline leaks we tolerate (recall over precision).
     clientMustExclude: ["display_chart"],
+    mustActivateSets: ["app-generation"],
   },
   {
     label: "create game includes app gen tools",
     prompt: "Create a snake game",
     clientMustInclude: ["create_file", "patch_file"],
     clientMustExclude: ["display_weather", "github_api"],
+    mustActivateSets: ["app-generation"],
   },
   {
     label: "dashboard app includes app gen tools",
     prompt: "Make a dashboard that shows sales metrics with charts",
     clientMustInclude: ["create_file", "patch_file", "display_chart"],
     clientMustExclude: ["display_weather", "github_api"],
+    mustActivateSets: ["app-generation"],
   },
   {
     label: "modify existing app includes app gen tools",
     prompt: "Edit the app to change the background color to blue and add a new footer component",
     clientMustInclude: ["patch_file", "create_file"],
     clientMustExclude: ["display_weather", "github_api"],
+    mustActivateSets: ["app-generation"],
   },
   {
     label: "build calculator includes app gen tools",
     prompt: "Create a calculator app with basic arithmetic operations",
     clientMustInclude: ["create_file", "patch_file"],
     clientMustExclude: ["display_weather", "github_api"],
+    mustActivateSets: ["app-generation"],
   },
 
   // ── Noise exclusions on client-focused prompts ───────────────────────
@@ -617,6 +681,12 @@ const cases: ToolSelectionCase[] = [
 
   // ── Negative cases ───────────────────────────────────────────────────
   {
+    // KNOWN over-selection (documented): "...about programming" pushes
+    // create_file to ~0.57, clearing the 0.55 anchor floor, so the app-gen set
+    // expands and this case exceeds the `expectNoClientTools` tolerance. It's the
+    // same create_file-overlaps-chitchat band that makes a higher floor unsafe
+    // (see the app-generation anchorMinSimilarity note in serverTools.ts). The
+    // conditional APP_BUILDER_PROMPT keeps it from biasing.
     label: "general chat: nothing selected",
     prompt: "Tell me a joke about programming",
     expectNoClientTools: true,
@@ -627,12 +697,71 @@ const cases: ToolSelectionCase[] = [
     prompt: "What is the square root of 144?",
     expectNoClientTools: true,
     expectNoServerTools: true,
+    mustNotActivateSets: ["app-generation"],
   },
   {
     label: "simple greeting: nothing selected",
     prompt: "Hello, how are you?",
     expectNoClientTools: true,
     expectNoServerTools: true,
+    mustNotActivateSets: ["app-generation"],
+  },
+
+  // ── App-builder bias guards ──────────────────────────────────────────
+  // Prompts that aren't app requests but brush the create_file / patch_file
+  // anchors. When the anchor stays below the 0.55 activation floor the set must
+  // NOT activate — so APP_BUILDER_PROMPT is never injected. This is the
+  // selection-level guard for the prompt-pollution bug. (The cases below score
+  // create_file < 0.55 in practice; the gating ceiling is documented separately.)
+  {
+    label: "writing a story does not activate app-generation",
+    prompt: "Write a short story about a dragon who learns to paint",
+    mustNotActivateSets: ["app-generation"],
+  },
+  {
+    label: "explaining code (not building an app) does not activate app-generation",
+    prompt: "Explain how recursion works with a small example",
+    mustNotActivateSets: ["app-generation"],
+  },
+  {
+    label: "editing prose does not activate app-generation",
+    prompt: "Edit this paragraph to be more concise and fix any grammar mistakes",
+    mustNotActivateSets: ["app-generation"],
+  },
+  {
+    // "hey" (< MIN_CONTENT_LENGTH_FOR_TOOLS) skips embeddings in production, so
+    // no set activates and APP_BUILDER_PROMPT is NOT injected. Semantically
+    // "hey" actually scores create_file ~0.61 — higher than legit app prompts
+    // like "make a dashboard" (0.58) — so without the length gate it would
+    // falsely activate; the gate is what protects very short greetings.
+    label: "very short greeting skips selection (no app-generation)",
+    prompt: "hey",
+    mustNotActivateSets: ["app-generation"],
+  },
+  // Longer chitchat clears the length gate, so it runs full semantic selection.
+  // These document whether everyday greetings still pull in app-generation
+  // (≥5 chars → no length-gate protection; only the create_file anchor score
+  // and the conditional persona stand between them and an injected prompt).
+  {
+    // GATING CEILING (documented — no activation assertion): "what's up" clears
+    // the length gate and scores create_file ~0.56, which is the SAME band as a
+    // legitimate app-edit prompt ("Edit the app…" also ~0.56). No anchor
+    // threshold separates them — raising it to drop "what's up" also strips the
+    // file tools from real edit requests (verified: 0.575 broke "modify existing
+    // app"). So it activates app-generation and APP_BUILDER_PROMPT is injected;
+    // the conditional persona is what stops it biasing toward building an app.
+    label: "casual greeting (what's up): gating ceiling, conditional prompt guards",
+    prompt: "what's up",
+  },
+  {
+    label: "good morning greeting — chitchat, no app build",
+    prompt: "good morning",
+    mustNotActivateSets: ["app-generation"],
+  },
+  {
+    label: "thanks — chitchat, no app build",
+    prompt: "thanks, that's really helpful",
+    mustNotActivateSets: ["app-generation"],
   },
 ];
 
@@ -640,6 +769,7 @@ const cases: ToolSelectionCase[] = [
 
 type ResultRow = {
   prompt: string;
+  appBuilder: boolean;
   tools: string;
 };
 
@@ -663,18 +793,27 @@ function formatSetLine(label: string, sets: string[]): string {
 }
 
 function printSummary() {
-  const rows: string[][] = [["Prompt", "Tools"]];
+  const rows: string[][] = [["Prompt", "App Builder", "Tools"]];
   for (const r of summaryRows) {
-    rows.push([r.prompt, r.tools || "(none)"]);
+    rows.push([r.prompt, r.appBuilder ? "✓ INJECTED" : "—", r.tools || "(none)"]);
   }
   console.log(
     "\n" +
       table(rows, {
         border: getBorderCharacters("norc"),
-        columns: { 0: { width: 40, wrapWord: true }, 1: { width: 60 } },
+        columns: { 0: { width: 34, wrapWord: true }, 1: { width: 11 }, 2: { width: 54 } },
         drawHorizontalLine: () => true,
       })
   );
+
+  // Focused, grep-able readout: which prompts get APP_BUILDER_PROMPT injected.
+  const injected = summaryRows.filter((r) => r.appBuilder).map((r) => r.prompt);
+  console.log(
+    `\n[APP_BUILDER_PROMPT] injected for ${injected.length}/${summaryRows.length} prompts:`
+  );
+  for (const r of summaryRows) {
+    console.log(`  ${r.appBuilder ? "✓" : "·"}  ${r.prompt}`);
+  }
 }
 
 // ── Test runner ──────────────────────────────────────────────────────────────
@@ -693,14 +832,21 @@ describe("client tool selection (full pipeline)", () => {
     for (let i = 0; i < CLIENT_TOOLS.length; i++) {
       clientToolEmbeddings.set(CLIENT_TOOLS[i].name, clientEmbeddings[i]);
     }
-  }, 30_000);
+  }, 90_000);
 
   afterAll(() => printSummary());
 
   for (const tc of cases) {
     it(tc.label, async () => {
-      const { serverMatches, clientMatches, allToolNames, anchorActivatedSets, stickyActiveSets } =
-        await selectTools(tc.prompt, tc.activeToolSets);
+      const {
+        serverMatches,
+        clientMatches,
+        allToolNames,
+        anchorActivatedSets,
+        activatedSets,
+        guidancePrompts,
+        stickyActiveSets,
+      } = await selectTools(tc.prompt, tc.activeToolSets);
 
       const triggeredLine = formatSetLine("sets triggered by prompt", anchorActivatedSets);
       const stickyLine = formatSetLine("sets sticky from history", stickyActiveSets);
@@ -709,7 +855,38 @@ describe("client tool selection (full pipeline)", () => {
       const toolsCell = [triggeredLine, stickyLine, clientLine, serverLine]
         .filter(Boolean)
         .join("\n");
-      summaryRows.push({ prompt: tc.prompt, tools: toolsCell });
+      summaryRows.push({
+        prompt: tc.prompt,
+        appBuilder: guidancePrompts.includes(APP_BUILDER_PROMPT),
+        tools: toolsCell,
+      });
+
+      // The App Builder persona must ride in EXACTLY when the app-generation set
+      // activates — never on a prompt that merely brushed an anchor below the
+      // activation floor. This invariant is the core guard for the system-prompt
+      // bias bug: gating on activation, not on anchor presence.
+      expect(
+        guidancePrompts.includes(APP_BUILDER_PROMPT),
+        `APP_BUILDER_PROMPT presence must match app-generation activation for: "${tc.prompt}" (activated: [${activatedSets.join(", ")}])`
+      ).toBe(activatedSets.includes("app-generation"));
+
+      if (tc.mustActivateSets) {
+        for (const s of tc.mustActivateSets) {
+          expect(
+            activatedSets,
+            `Expected tool set "${s}" to activate for: "${tc.prompt}" (activated: [${activatedSets.join(", ")}])`
+          ).toContain(s);
+        }
+      }
+
+      if (tc.mustNotActivateSets) {
+        for (const s of tc.mustNotActivateSets) {
+          expect(
+            activatedSets,
+            `Tool set "${s}" must NOT activate for: "${tc.prompt}" (activated: [${activatedSets.join(", ")}])`
+          ).not.toContain(s);
+        }
+      }
 
       const clientNames = clientMatches.map((m) => m.tool.name);
 
