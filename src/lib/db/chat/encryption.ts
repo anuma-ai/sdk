@@ -7,6 +7,7 @@ import {
   encryptField,
   encryptJsonField,
   isEncrypted,
+  tryDecryptField,
 } from "../encryption-utils";
 import type { CreateMessageOptions, StoredMessage, UpdateMessageOptions } from "./types";
 
@@ -161,14 +162,25 @@ export async function decryptMessageFields(
     }
   }
 
-  // String fields: decryptField returns the input unchanged when it
-  // doesn't carry the enc: prefix, so the no-encryption path doesn't
-  // copy.
-  const decryptedContent = await decryptField(message.content, address);
+  // String fields: tryDecryptField returns the input unchanged when it
+  // doesn't carry the enc: prefix (no copy on the plaintext path), and
+  // reports `ok: false` when an encrypted value genuinely fails to decrypt
+  // (missing/wrong key) — distinct from plaintext. On failure we keep the
+  // ciphertext in place (never fabricate content) and flag the message via
+  // `decryptionFailed` so consumers can show a recoverable state and trigger
+  // key re-derivation instead of rendering undecryptable ciphertext.
+  const contentResult = await tryDecryptField(message.content, address);
+  const decryptedContent = contentResult.ok ? contentResult.value : contentResult.ciphertext;
 
-  const decryptedThinking = message.thinking
-    ? await decryptField(message.thinking, address)
-    : message.thinking;
+  let decryptedThinking = message.thinking;
+  let thinkingFailed = false;
+  if (message.thinking) {
+    const thinkingResult = await tryDecryptField(message.thinking, address);
+    decryptedThinking = thinkingResult.ok ? thinkingResult.value : thinkingResult.ciphertext;
+    thinkingFailed = !thinkingResult.ok;
+  }
+
+  const decryptionFailed = !contentResult.ok || thinkingFailed;
 
   // JSON fields: previously each of these always ran JSON.stringify on
   // already-parsed objects only to feed decryptJsonField, which then
@@ -203,5 +215,6 @@ export async function decryptMessageFields(
     chunks: decryptedChunks,
     sources: decryptedSources,
     thoughtProcess: decryptedThoughtProcess,
+    ...(decryptionFailed ? { decryptionFailed: true } : {}),
   };
 }

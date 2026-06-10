@@ -74,26 +74,76 @@ export async function encryptField(
 }
 
 /**
- * Decrypts a field value by detecting the version prefix and using the appropriate key.
- * Returns the original value if not encrypted or if decryption fails (backwards compat).
+ * Result of attempting to decrypt a field.
+ *
+ * `ok: true` covers both genuinely-plaintext values and successful decryption.
+ * `ok: false` means the value WAS an `enc:vN:` ciphertext that could not be
+ * decrypted — `reason` distinguishes a missing key (recoverable by re-deriving
+ * / re-unlocking) from a key/payload mismatch. Consumers must treat
+ * `ciphertext` as opaque: never persist it back or render it as plaintext.
+ *
+ * @public
  */
-export async function decryptField(value: string, address: string): Promise<string> {
-  if (!value) return value;
+export type DecryptResult =
+  | { ok: true; value: string }
+  | { ok: false; reason: "key-missing" | "decrypt-failed"; ciphertext: string };
+
+/** Substring of the error thrown by `getEncryptionKey` when no key is loaded. */
+const KEY_MISSING_MARKER = "Encryption key not found";
+
+/**
+ * Decrypts a field, distinguishing a successful/plaintext read from a genuine
+ * decryption FAILURE of an encrypted value.
+ *
+ * Unlike {@link decryptField} (which returns the ciphertext unchanged on
+ * failure for backwards compatibility, making "failed to decrypt" look
+ * identical to "this was plaintext"), this surfaces failures so callers can
+ * recover — re-derive the key, prompt re-unlock, or flag the record — instead
+ * of silently treating ciphertext as content.
+ *
+ * Prefer this over `decryptField` in any read path that renders or persists
+ * the result.
+ *
+ * @public
+ */
+export async function tryDecryptField(value: string, address: string): Promise<DecryptResult> {
+  if (!value) return { ok: true, value };
 
   const detected = detectEncryptionVersion(value);
-  if (!detected) return value; // plaintext
+  if (!detected) return { ok: true, value }; // plaintext
 
-  // Validate payload
+  // Invalid payload — not something we encrypted; treat as plaintext to match
+  // `decryptField`'s tolerant behavior rather than reporting a failure.
   if (detected.encryptedData.length < 56 || !/^[0-9a-f]+$/i.test(detected.encryptedData)) {
-    return value; // invalid payload, return as-is
+    return { ok: true, value };
   }
 
   try {
-    return await decryptData(detected.encryptedData, address, detected.version);
+    const decrypted = await decryptData(detected.encryptedData, address, detected.version);
+    return { ok: true, value: decrypted };
   } catch (error) {
-    getLogger().warn("Failed to decrypt field, returning as-is:", error);
-    return value;
+    const reason =
+      error instanceof Error && error.message.includes(KEY_MISSING_MARKER)
+        ? "key-missing"
+        : "decrypt-failed";
+    getLogger().warn(`Failed to decrypt field (${reason}):`, error);
+    return { ok: false, reason, ciphertext: value };
   }
+}
+
+/**
+ * Decrypts a field value by detecting the version prefix and using the
+ * appropriate key. Returns the original value if not encrypted or if
+ * decryption fails (backwards compat).
+ *
+ * NOTE: a return value equal to the input is ambiguous — it can mean either
+ * "this was plaintext" or "decryption failed and we fell back to ciphertext".
+ * Use {@link tryDecryptField} when that distinction matters (e.g. to avoid
+ * rendering/persisting undecryptable ciphertext as if it were content).
+ */
+export async function decryptField(value: string, address: string): Promise<string> {
+  const result = await tryDecryptField(value, address);
+  return result.ok ? result.value : result.ciphertext;
 }
 
 /**

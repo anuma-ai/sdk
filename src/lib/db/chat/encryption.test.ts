@@ -6,6 +6,7 @@ import {
   encryptMessageFields,
   decryptMessageFields,
 } from "./encryption";
+import { tryDecryptField } from "../encryption-utils";
 import { requestEncryptionKey, clearAllEncryptionKeys } from "../../../react/useEncryption";
 import type { SignMessageFn } from "../../../react/useEncryption";
 import type { StoredMessage } from "./types";
@@ -127,6 +128,66 @@ describe("Chat Encryption Utilities", () => {
     });
   });
 
+  describe("tryDecryptField", () => {
+    it("returns ok:true with the value for plaintext", async () => {
+      const result = await tryDecryptField("plaintext value", testAddress);
+      expect(result).toEqual({ ok: true, value: "plaintext value" });
+    });
+
+    it("returns ok:true for empty values", async () => {
+      const result = await tryDecryptField("", testAddress);
+      expect(result).toEqual({ ok: true, value: "" });
+    });
+
+    it("returns ok:true with the decrypted value on success", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const encrypted = await encryptField("secret", testAddress, mockSignMessage);
+
+      const result = await tryDecryptField(encrypted, testAddress);
+      expect(result).toEqual({ ok: true, value: "secret" });
+    });
+
+    it("returns ok:false reason='key-missing' when no key is loaded", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const encrypted = await encryptField("secret", testAddress, mockSignMessage);
+
+      // Drop the key so the encrypted value can no longer be decrypted.
+      clearAllEncryptionKeys();
+
+      const result = await tryDecryptField(encrypted, testAddress);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("key-missing");
+        // Ciphertext is preserved, never coerced to plaintext.
+        expect(result.ciphertext).toBe(encrypted);
+        expect(isEncrypted(result.ciphertext)).toBe(true);
+      }
+      warnSpy.mockRestore();
+    });
+
+    it("returns ok:false reason='decrypt-failed' when the ciphertext fails to verify", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const encrypted = await encryptField("secret", testAddress, mockSignMessage);
+
+      // Tamper the final hex char of the payload: still a valid-length hex
+      // ciphertext, but the AES-GCM auth tag no longer verifies. The key IS
+      // present, so this is a genuine decrypt failure, not a missing key.
+      const payload = encrypted.slice("enc:v3:".length);
+      const lastChar = payload.slice(-1);
+      const tampered = `enc:v3:${payload.slice(0, -1)}${lastChar === "a" ? "b" : "a"}`;
+
+      const result = await tryDecryptField(tampered, testAddress);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("decrypt-failed");
+        expect(result.ciphertext).toBe(tampered);
+      }
+      warnSpy.mockRestore();
+    });
+  });
+
   describe("encryptMessageFields", () => {
     it("should encrypt content and thinking fields with v3 prefix", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
@@ -220,6 +281,41 @@ describe("Chat Encryption Utilities", () => {
       expect(decrypted.content).toBe("Secret response");
       expect(decrypted.thinking).toBe("Internal reasoning");
       expect(decrypted.sources).toEqual([{ url: "https://example.com", title: "Test" }]);
+      // Successful decryption must not flag the message.
+      expect(decrypted.decryptionFailed).toBeUndefined();
+    });
+
+    it("flags decryptionFailed and preserves ciphertext when content can't be decrypted", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const encrypted = (await encryptMessageFields(
+        { conversationId: "conv-123", role: "assistant" as const, content: "Secret response" },
+        testAddress,
+        mockSignMessage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      )) as any;
+
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-123",
+        messageId: "msg-123",
+        conversationId: "conv-123",
+        role: "assistant",
+        content: encrypted.content,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Drop the key, then decrypt WITHOUT signMessage — mirrors the chat read
+      // path, which has no signMessage and so cannot silently re-derive.
+      clearAllEncryptionKeys();
+      const decrypted = await decryptMessageFields(storedMessage, testAddress);
+
+      expect(decrypted.decryptionFailed).toBe(true);
+      // The ciphertext is left in place — never fabricated or blanked.
+      expect(decrypted.content).toBe(encrypted.content);
+      expect(isEncrypted(decrypted.content)).toBe(true);
+      warnSpy.mockRestore();
     });
 
     it("should handle plaintext messages (backwards compatibility)", async () => {

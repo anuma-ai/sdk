@@ -151,6 +151,13 @@ export interface StoredMessage {
   feedback?: MessageFeedback;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /**
+   * True when one or more encrypted fields (e.g. `content`) could not be
+   * decrypted on read — the ciphertext is left in place. Consumers should
+   * render a recoverable "couldn't decrypt" state and trigger key
+   * re-derivation / re-unlock rather than treating the field as content.
+   */
+  decryptionFailed?: boolean;
 }
 
 export interface ActivityPhase {
