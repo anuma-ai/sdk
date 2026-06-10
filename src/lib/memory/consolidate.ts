@@ -33,6 +33,7 @@
  */
 
 import { callPortalJsonCompletion } from "./portalLlm.js";
+import type { ConsolidationFallbackReason } from "./types.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
 
@@ -78,12 +79,21 @@ interface ConsolidationResult {
   targetId?: string;
   /** Defined for create/update. The final content to persist. */
   content?: string;
+  /**
+   * Set when this "create" is a degraded fallback rather than a real
+   * decision (LLM failure or schema-violating response). Distinguishes
+   * "the model chose create" from "we couldn't get a usable answer" —
+   * the latter accumulates duplicates if it happens persistently.
+   */
+  fallbackReason?: ConsolidationFallbackReason;
 }
 
 interface ConsolidateOptions {
   apiKey: string;
   baseUrl?: string;
   model?: string;
+  /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
+  onFallback?: (reason: ConsolidationFallbackReason) => void;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
 }
@@ -121,10 +131,20 @@ export async function consolidateMemory(
     tag: "memory/consolidate",
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
   });
-  if (parsed === null) return fallback;
+  if (parsed === null) return degrade("llm_error", fallback, options);
 
   const validIds = new Set(candidates.map((c) => c.id));
-  return validate(parsed, trimmed, validIds) ?? fallback;
+  const result = validate(parsed, trimmed, validIds);
+  return result ?? degrade("invalid_response", fallback, options);
+}
+
+function degrade(
+  reason: ConsolidationFallbackReason,
+  fallback: ConsolidationResult,
+  options: ConsolidateOptions
+): ConsolidationResult {
+  options.onFallback?.(reason);
+  return { ...fallback, fallbackReason: reason };
 }
 
 function validate(
