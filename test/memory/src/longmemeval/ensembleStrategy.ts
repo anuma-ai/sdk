@@ -20,6 +20,7 @@ import {
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import {
+  buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
   createStorageContext,
@@ -32,7 +33,13 @@ import {
   selectSessions,
   setupDatabase,
 } from "./suite.js";
-import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";
+import type {
+  ApiConfig,
+  LongMemEvalEntry,
+  LongMemEvalResult,
+  RetrievalTuningKnobs,
+  TokenUsage,
+} from "./types.js";
 
 const DEFAULT_VAULT_LIMIT = 14;
 const DEFAULT_ENGINE_TOPK = 12;
@@ -46,7 +53,7 @@ export async function processEntryEnsemble(
     rerank?: boolean;
     decompose?: "off" | "llm";
     consolidate?: boolean;
-  }
+  } & RetrievalTuningKnobs
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
   const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
@@ -186,6 +193,7 @@ export async function processEntryEnsemble(
       minSimilarity: 0.1,
       rerank: rerankEnabled,
       decompose: decomposeMode,
+      ...buildRetrievalTuningOptions(searchPipeline),
       ...(decomposeMode === "llm" && {
         decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
       }),

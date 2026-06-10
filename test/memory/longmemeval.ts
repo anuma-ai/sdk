@@ -95,8 +95,30 @@ const { values: args } = parseArgs({
     "recall-types": { type: "string" },
     "recall-emit": { type: "string" },
     "recall-lane-mode": { type: "string" },
+    "ce-weight": { type: "string" },
+    "recency-alpha": { type: "string" },
+    "recency-decay": { type: "string" },
+    "recency-floor": { type: "string" },
+    "rrf-k": { type: "string" },
+    "supersession-boost": { type: "string" },
+    "supersession-window": { type: "string" },
+    "proof-count-alpha": { type: "string" },
+    mmr: { type: "boolean" },
+    "rerank-candidates": { type: "string" },
+    "bm25-divisor": { type: "string" },
   },
 });
+
+/** Parse a numeric CLI flag, exiting with a clear error on garbage input
+ *  so a typo'd sweep doesn't silently fall back to the SDK default. */
+function parseNumericFlag(name: string, raw: string): number {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    console.error(`Invalid --${name}: "${raw}" is not a number`);
+    process.exit(1);
+  }
+  return value;
+}
 
 function printHelp(): void {
   console.log(`
@@ -132,6 +154,19 @@ Options:
   --cache-dir                 Print cache directory path and exit
   --stats                     Print dataset statistics and exit
   -h, --help                  Show this help message
+
+Retrieval tuning knobs (defaults match production; omit for a no-op):
+  --ce-weight <f>             Cross-encoder multiplicative blend weight (default: 0.1)
+  --recency-alpha <f>         Recency boost slope in the fused ranker (default: 1.0)
+  --recency-decay <f>         Recency per-year linear decay slope (default: 0.2)
+  --recency-floor <f>         Recency multiplier floor for old memories (default: 0.1)
+  --rrf-k <n>                 RRF smoothing constant for lane fusion (default: 60)
+  --supersession-boost <f>    Score-gap fraction moved old->new on supersession (default: 0.8)
+  --supersession-window <n>   Cap on supersession candidate window (default: 50)
+  --proof-count-alpha <f>     Proof-count log-boost scale (default: 0.1)
+  --mmr                       Enable MMR diversification (rerank path only; default: off)
+  --rerank-candidates <n>     Candidates fed to the CE reranker (default: 30)
+  --bm25-divisor <f>          BM25 admission floor divisor, bm25/divisor (default: 50)
 
 Shortcut scripts:
   pnpm eval:engine [options]    Equivalent to --strategy engine
@@ -253,6 +288,39 @@ async function main(): Promise<void> {
     }),
     ...(args["recall-lane-mode"] !== undefined && {
       recallLaneMode: parseRecallLaneMode(args["recall-lane-mode"]),
+    }),
+    // Retrieval-ranking tuning knobs — only set when the flag is passed so
+    // the SDK defaults stay authoritative (a flag-less run is a no-op).
+    ...(args["ce-weight"] !== undefined && {
+      ceWeight: parseNumericFlag("ce-weight", args["ce-weight"]),
+    }),
+    ...(args["recency-alpha"] !== undefined && {
+      recencyAlpha: parseNumericFlag("recency-alpha", args["recency-alpha"]),
+    }),
+    ...(args["recency-decay"] !== undefined && {
+      recencyDecay: parseNumericFlag("recency-decay", args["recency-decay"]),
+    }),
+    ...(args["recency-floor"] !== undefined && {
+      recencyFloor: parseNumericFlag("recency-floor", args["recency-floor"]),
+    }),
+    ...(args["rrf-k"] !== undefined && {
+      rrfK: parseNumericFlag("rrf-k", args["rrf-k"]),
+    }),
+    ...(args["supersession-boost"] !== undefined && {
+      supersessionBoost: parseNumericFlag("supersession-boost", args["supersession-boost"]),
+    }),
+    ...(args["supersession-window"] !== undefined && {
+      supersessionWindow: parseNumericFlag("supersession-window", args["supersession-window"]),
+    }),
+    ...(args["proof-count-alpha"] !== undefined && {
+      proofCountAlpha: parseNumericFlag("proof-count-alpha", args["proof-count-alpha"]),
+    }),
+    ...(args.mmr !== undefined && { mmr: args.mmr }),
+    ...(args["rerank-candidates"] !== undefined && {
+      rerankTopN: parseNumericFlag("rerank-candidates", args["rerank-candidates"]),
+    }),
+    ...(args["bm25-divisor"] !== undefined && {
+      bm25AdmissionDivisor: parseNumericFlag("bm25-divisor", args["bm25-divisor"]),
     }),
   };
 
