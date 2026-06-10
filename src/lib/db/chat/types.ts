@@ -170,8 +170,9 @@ export interface StoredConversation {
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
-  /** When the conversation was pinned to the top of the list; unset = not pinned */
-  pinnedAt?: Date;
+  /** When the conversation was pinned to the top of the list; null/unset = not pinned.
+   * `null` (not `undefined`) at runtime for unpinned rows — mirrors the model field. */
+  pinnedAt?: Date | null;
 }
 
 /**

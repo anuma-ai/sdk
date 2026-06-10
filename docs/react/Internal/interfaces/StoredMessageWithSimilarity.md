@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#201)
+Defined in: [src/lib/db/chat/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#202)
 
 ## Extends
 
@@ -208,7 +208,7 @@ Defined in: [src/lib/db/chat/types.ts:124](https://github.com/anuma-ai/sdk/blob/
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#202)
+Defined in: [src/lib/db/chat/types.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#203)
 
 ***
 
