@@ -28,6 +28,16 @@ Defined in: [src/lib/db/chat/types.ts:172](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
+### pinnedAt?
+
+> `optional` **pinnedAt**: `Date`
+
+Defined in: [src/lib/db/chat/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#174)
+
+When the conversation was pinned to the top of the list; unset = not pinned
+
+***
+
 ### projectId?
 
 > `optional` **projectId**: `string`

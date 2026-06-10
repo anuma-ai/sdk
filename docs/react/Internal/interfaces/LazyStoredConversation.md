@@ -1,6 +1,6 @@
 # LazyStoredConversation
 
-Defined in: [src/lib/db/chat/types.ts:190](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#190)
+Defined in: [src/lib/db/chat/types.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#192)
 
 Lazy variant of [StoredConversation](StoredConversation.md).
 
@@ -50,7 +50,7 @@ Defined in: [src/lib/db/chat/types.ts:170](https://github.com/anuma-ai/sdk/blob/
 
 > **encryptedTitle**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#196)
+Defined in: [src/lib/db/chat/types.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#198)
 
 Raw stored title — either ciphertext (`enc:v3:...`) or plaintext for
 legacy rows. Pass to `decryptConversationTitle(encryptedTitle, address)`
@@ -67,6 +67,20 @@ Defined in: [src/lib/db/chat/types.ts:172](https://github.com/anuma-ai/sdk/blob/
 **Inherited from**
 
 [`StoredConversation`](StoredConversation.md).[`isDeleted`](StoredConversation.md#isdeleted)
+
+***
+
+### pinnedAt?
+
+> `optional` **pinnedAt**: `Date`
+
+Defined in: [src/lib/db/chat/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#174)
+
+When the conversation was pinned to the top of the list; unset = not pinned
+
+**Inherited from**
+
+[`StoredConversation`](StoredConversation.md).[`pinnedAt`](StoredConversation.md#pinnedat)
 
 ***
 

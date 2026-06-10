@@ -170,6 +170,8 @@ export interface StoredConversation {
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
+  /** When the conversation was pinned to the top of the list; unset = not pinned */
+  pinnedAt?: Date;
 }
 
 /**
@@ -783,6 +785,7 @@ export interface BaseUseChatStorageResult {
   getConversation: (id: string) => Promise<StoredConversation | null>;
   getConversations: () => Promise<StoredConversation[]>;
   updateConversationTitle: (id: string, title: string) => Promise<boolean>;
+  updateConversationPinned: (id: string, pinned: boolean) => Promise<boolean>;
   deleteConversation: (id: string) => Promise<boolean>;
   getMessages: (conversationId: string) => Promise<StoredMessage[]>;
 }

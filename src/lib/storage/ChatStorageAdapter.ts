@@ -105,6 +105,9 @@ export interface ChatStorageAdapter {
 
   updateConversationProject(conversationId: string, projectId: string | null): Promise<boolean>;
 
+  /** Pin or unpin a conversation. Pinned chats sort to the top of the list. */
+  updateConversationPinned(conversationId: string, pinned: boolean): Promise<boolean>;
+
   /** Soft delete. Implementations are responsible for cascading to messages/media. */
   deleteConversation(conversationId: string): Promise<boolean>;
 
