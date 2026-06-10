@@ -154,7 +154,9 @@ describe("recall — query validation", () => {
   it("returns an empty result for empty / whitespace queries without searching", async () => {
     for (const bad of ["", "   ", "\n\t"]) {
       const result = await recall(bad, makeCtx());
-      expect(result).toEqual({
+      // toMatchObject (not toEqual) so adding a diagnostic field to
+      // RecallResult later doesn't break this pin.
+      expect(result).toMatchObject({
         memories: [],
         usedBudget: "low",
         reranked: false,
@@ -232,6 +234,29 @@ describe("recall — budget tiers", () => {
       expect.anything()
     );
     expect(result.memories[0].id).toBe("m1");
+  });
+
+  it("composite path appends zero-score tail items past the minScore floor (bench-parity append)", async () => {
+    // Pinned actual behavior: rankComposite appends every vault item
+    // absent from facet fusion with similarity 0 ("bench parity: margin
+    // analysis needs any ID locatable"), and that tail survives into
+    // recall() results — bypassing factMinScore. NOTE: this leaks
+    // zero-relevance padding into production high-budget composite
+    // results; if a tail filter is ever added, flip this test to assert
+    // m3 is absent.
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "composite",
+      subQueries: ["sub one", "sub two"],
+    });
+
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      decomposeOptions: { apiKey: "llm-key" },
+    });
+
+    const m3 = result.memories.find((m) => m.id === "m3");
+    expect(m3).toBeDefined();
+    expect(m3?.score).toBe(0); // below factMinScore (0.1), returned anyway
   });
 
   it("degrades gracefully when decompose falls back to specific (LLM failure contract)", async () => {
