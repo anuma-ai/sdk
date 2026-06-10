@@ -26,6 +26,7 @@ export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { retain, type RetainContext } from "./retain.js";
 export type {
   Budget,
+  ConsolidationFallbackReason,
   MemoryKind,
   RankedMemory,
   RecallContext,

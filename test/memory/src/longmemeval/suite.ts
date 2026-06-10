@@ -17,6 +17,7 @@ import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memory
 import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
 import { Entity, MemoryEntity } from "../../../../src/lib/db/entities/models.js";
 import { type EntityOperationsContext } from "../../../../src/lib/db/entities/operations.js";
+import { type ConsolidationFallbackReason } from "../../../../src/lib/memory/types.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -599,6 +600,38 @@ export function clearProgress(): void {
   if (process.stdout.isTTY) {
     process.stdout.write("\r" + " ".repeat(65) + "\r");
   }
+}
+
+// ── Consolidation fallback tracking ──
+
+/**
+ * Counts consolidator degradations during the retain loop. A degraded
+ * fallback writes a duplicate-prone "create" instead of a real decision,
+ * which silently inflates the vault and skews retrieval metrics — a
+ * nonzero rate here means the consolidation knob isn't doing what the
+ * run's config says it is.
+ */
+export function createConsolidationFallbackTracker(): {
+  onFallback: (reason: ConsolidationFallbackReason) => void;
+  report: (questionId: string) => void;
+} {
+  const counts: Record<ConsolidationFallbackReason, number> = {
+    llm_error: 0,
+    invalid_response: 0,
+  };
+  return {
+    onFallback: (reason) => {
+      counts[reason]++;
+    },
+    report: (questionId) => {
+      const total = counts.llm_error + counts.invalid_response;
+      if (total === 0) return;
+      console.warn(
+        `  ⚠ consolidation degraded to create ${total}x on ${questionId} ` +
+          `(llm_error: ${counts.llm_error}, invalid_response: ${counts.invalid_response})`
+      );
+    },
+  };
 }
 
 // ── Session selection ──

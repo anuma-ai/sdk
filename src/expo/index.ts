@@ -227,6 +227,7 @@ export type {
   AutoExtractMessage,
   AutoExtractor,
   Budget,
+  ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   ExtractedCandidate,
   ExtractFactsOptions,

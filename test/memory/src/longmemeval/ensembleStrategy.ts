@@ -22,6 +22,7 @@ import {
 import {
   callChatCompletion,
   clearProgress,
+  createConsolidationFallbackTracker,
   createStorageContext,
   createVaultContext,
   evaluateAnswer,
@@ -155,13 +156,18 @@ export async function processEntryEnsemble(
       const answerSessionIdSet = new Set(entry.answer_session_ids);
       const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
       const consolidateEnabled = searchPipeline?.consolidate ?? true;
+      const fallbackTracker = createConsolidationFallbackTracker();
 
       for (const mem of allMemories) {
         const result = await retain(mem.content, retainCtx, {
           source: "auto-extracted",
           sourceChunkIds: [mem.sessionId],
           ...(consolidateEnabled && {
-            consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+            consolidateOptions: {
+              apiKey: api.apiKey,
+              baseUrl: api.baseUrl,
+              onFallback: fallbackTracker.onFallback,
+            },
           }),
         });
         const targetId = result.memoryId;
@@ -170,6 +176,7 @@ export async function processEntryEnsemble(
           vaultToSession.set(targetId, mem.sessionId);
         }
       }
+      fallbackTracker.report(entry.question_id);
       await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
     }
 
