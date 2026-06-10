@@ -341,6 +341,10 @@ describe("recall — lane selection (types)", () => {
 
     // RRF (k=60): rank-1 items score 1/61, rank-2 score 1/62. Facts and
     // chunks interleave; limit truncates after fusion.
+    // NOTE: m1 and c1 tie exactly (rank-1 in their respective lanes), so
+    // their relative order is the stable-sort insertion order — recall()
+    // builds the fused list facts-first. If the merge order ever changes,
+    // ["c1", "m1", ...] is equally correct; update this pin, don't fight it.
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "c1", "m2"]);
     expect(result.memories).toHaveLength(3);
     expect(result.candidateCount).toBe(4);
