@@ -42,6 +42,19 @@ Defined in: [src/lib/db/chat/types.ts:133](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
+### decryptionFailed?
+
+> `optional` **decryptionFailed**: `boolean`
+
+Defined in: [src/lib/db/chat/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#160)
+
+True when one or more encrypted fields (e.g. `content`) could not be
+decrypted on read — the ciphertext is left in place. Consumers should
+render a recoverable "couldn't decrypt" state and trigger key
+re-derivation / re-unlock rather than treating the field as content.
+
+***
+
 ### embeddingModel?
 
 > `optional` **embeddingModel**: `string`

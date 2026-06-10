@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#199)
+Defined in: [src/lib/db/chat/types.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#206)
 
 ## Extends
 
@@ -55,6 +55,23 @@ Defined in: [src/lib/db/chat/types.ts:133](https://github.com/anuma-ai/sdk/blob/
 **Inherited from**
 
 [`StoredMessage`](StoredMessage.md).[`createdAt`](StoredMessage.md#createdat)
+
+***
+
+### decryptionFailed?
+
+> `optional` **decryptionFailed**: `boolean`
+
+Defined in: [src/lib/db/chat/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#160)
+
+True when one or more encrypted fields (e.g. `content`) could not be
+decrypted on read — the ciphertext is left in place. Consumers should
+render a recoverable "couldn't decrypt" state and trigger key
+re-derivation / re-unlock rather than treating the field as content.
+
+**Inherited from**
+
+[`StoredMessage`](StoredMessage.md).[`decryptionFailed`](StoredMessage.md#decryptionfailed)
 
 ***
 
@@ -208,7 +225,7 @@ Defined in: [src/lib/db/chat/types.ts:124](https://github.com/anuma-ai/sdk/blob/
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#200)
+Defined in: [src/lib/db/chat/types.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#207)
 
 ***
 
