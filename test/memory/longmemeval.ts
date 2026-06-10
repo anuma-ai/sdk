@@ -110,12 +110,25 @@ const { values: args } = parseArgs({
 });
 
 /** Parse a numeric CLI flag, exiting with a clear error on garbage input
- *  so a typo'd sweep doesn't silently fall back to the SDK default. */
-function parseNumericFlag(name: string, raw: string): number {
+ *  so a typo'd sweep doesn't silently fall back to the SDK default.
+ *  `min` rejects out-of-range values that would corrupt ranking math
+ *  rather than fail loudly (e.g. --bm25-divisor 0 → Infinity floor,
+ *  --rrf-k -1 → division by zero at rank 0). */
+function parseNumericFlag(
+  name: string,
+  raw: string,
+  min?: { value: number; exclusive?: boolean }
+): number {
   // Number("") === 0, so an empty value must be rejected explicitly.
   const value = raw.trim() === "" ? NaN : Number(raw);
   if (!Number.isFinite(value)) {
     console.error(`Invalid --${name}: "${raw}" is not a number`);
+    process.exit(1);
+  }
+  if (min !== undefined && (min.exclusive ? value <= min.value : value < min.value)) {
+    console.error(
+      `Invalid --${name}: must be ${min.exclusive ? ">" : ">="} ${min.value}, got ${value}`
+    );
     process.exit(1);
   }
   return value;
@@ -165,7 +178,8 @@ Retrieval tuning knobs (defaults match production; omit for a no-op):
   --supersession-boost <f>    Score-gap fraction moved old->new on supersession (default: 0.8)
   --supersession-window <n>   Cap on supersession candidate window (default: 50)
   --proof-count-alpha <f>     Proof-count log-boost scale (default: 0.1)
-  --mmr                       Enable MMR diversification (rerank path only; default: off)
+  --mmr                       Enable MMR diversification on the rerank and
+                              composite-decompose paths (default: off)
   --rerank-candidates <n>     Candidates fed to the CE reranker (default: 30)
   --bm25-divisor <f>          BM25 admission floor divisor, bm25/divisor (default: 50)
 
@@ -305,23 +319,28 @@ async function main(): Promise<void> {
       recencyFloor: parseNumericFlag("recency-floor", args["recency-floor"]),
     }),
     ...(args["rrf-k"] !== undefined && {
-      rrfK: parseNumericFlag("rrf-k", args["rrf-k"]),
+      rrfK: parseNumericFlag("rrf-k", args["rrf-k"], { value: 0 }),
     }),
     ...(args["supersession-boost"] !== undefined && {
       supersessionBoost: parseNumericFlag("supersession-boost", args["supersession-boost"]),
     }),
     ...(args["supersession-window"] !== undefined && {
-      supersessionWindow: parseNumericFlag("supersession-window", args["supersession-window"]),
+      supersessionWindow: parseNumericFlag("supersession-window", args["supersession-window"], {
+        value: 0,
+      }),
     }),
     ...(args["proof-count-alpha"] !== undefined && {
       proofCountAlpha: parseNumericFlag("proof-count-alpha", args["proof-count-alpha"]),
     }),
     ...(args.mmr !== undefined && { mmr: args.mmr }),
     ...(args["rerank-candidates"] !== undefined && {
-      rerankTopN: parseNumericFlag("rerank-candidates", args["rerank-candidates"]),
+      rerankTopN: parseNumericFlag("rerank-candidates", args["rerank-candidates"], { value: 1 }),
     }),
     ...(args["bm25-divisor"] !== undefined && {
-      bm25AdmissionDivisor: parseNumericFlag("bm25-divisor", args["bm25-divisor"]),
+      bm25AdmissionDivisor: parseNumericFlag("bm25-divisor", args["bm25-divisor"], {
+        value: 0,
+        exclusive: true,
+      }),
     }),
   };
 

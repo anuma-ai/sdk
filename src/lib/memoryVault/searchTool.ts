@@ -818,6 +818,16 @@ export async function rankComposite(
     /** Divisor mapping BM25 scores to the admission floor. Default 50. */
     bm25AdmissionDivisor?: number;
     /**
+     * Apply an MMR diversity pass to the post-rerank head. Default off.
+     * Same semantics as {@link rankFusedVaultMemoriesAsync} so an MMR
+     * sweep means the same thing on the composite and specific paths.
+     */
+    mmr?: boolean;
+    /** MMR relevance/diversity balance. Default 0.7 (relevance-biased). */
+    mmrLambda?: number;
+    /** Pool size fed to MMR. Default 20. */
+    mmrTopN?: number;
+    /**
      * Truncate each sub-query's ranked list before RRF. Default 10. The
      * LlamaIndex sub-query pattern is to fuse *top hits per facet*, not
      * full lists — long tails dilute the fusion signal because every
@@ -958,6 +968,38 @@ export async function rankComposite(
     }));
     head.sort((a, b) => b.similarity - a.similarity);
     combined = [...head, ...tailSlice];
+  }
+
+  // Stage 4 — optional MMR diversity pass, mirroring
+  // rankFusedVaultMemoriesAsync so the MMR knob behaves identically on
+  // the composite path (previously it silently no-opped here).
+  if (options?.mmr) {
+    const lambda = options.mmrLambda ?? 0.7;
+    const mmrTopN = options.mmrTopN ?? 20;
+    const mmrCandidates = combined.slice(0, mmrTopN).map((r) => ({
+      id: r.uniqueId,
+      score: r.similarity,
+      embedding: itemById.get(r.uniqueId)?.embedding ?? [],
+      content: r.content,
+    }));
+    const picked = applyMMR(mmrCandidates, limit, lambda);
+    const pickedIds = new Set(picked.map((p) => p.id));
+    const resultMap = new Map(combined.map((r) => [r.uniqueId, r]));
+    const pickedResults: VaultSearchResult[] = picked.map((p) => {
+      const orig = resultMap.get(p.id);
+      return {
+        uniqueId: p.id,
+        content: p.content,
+        similarity: p.score,
+        createdAt: orig?.createdAt,
+        updatedAt: orig?.updatedAt,
+        eventTimeStart: orig?.eventTimeStart,
+        eventTimeEnd: orig?.eventTimeEnd,
+        eventTimeKind: orig?.eventTimeKind,
+      };
+    });
+    const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
+    return [...pickedResults, ...remainingTail].slice(0, limit);
   }
 
   return combined.slice(0, limit);
@@ -1191,6 +1233,7 @@ export async function searchVaultMemoriesWithSize(
           rerankTopN: searchOptions.rerankTopN,
         }),
         ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+        ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
         ...tuning,
         ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
         ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
