@@ -630,6 +630,9 @@ export function createConsolidationFallbackTracker(): {
         `  ⚠ consolidation degraded to create ${total}x on ${questionId} ` +
           `(llm_error: ${counts.llm_error}, invalid_response: ${counts.invalid_response})`
       );
+      // Reset so a reused tracker reports per-call deltas, not a running total.
+      counts.llm_error = 0;
+      counts.invalid_response = 0;
     },
   };
 }

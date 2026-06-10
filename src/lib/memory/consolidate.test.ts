@@ -76,6 +76,15 @@ describe("consolidateMemory", () => {
     expect(onFallback).not.toHaveBeenCalled();
   });
 
+  it("falls back to create on empty content — a short-circuit, not a degraded fallback", async () => {
+    const fetchFn = vi.fn() as unknown as typeof fetch;
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("   ", candidates, { apiKey: "k", fetchFn, onFallback });
+    expect(result).toEqual({ action: "create", content: "   " });
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
   it("falls back on network error", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
