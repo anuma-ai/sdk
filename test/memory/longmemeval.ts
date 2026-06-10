@@ -112,7 +112,8 @@ const { values: args } = parseArgs({
 /** Parse a numeric CLI flag, exiting with a clear error on garbage input
  *  so a typo'd sweep doesn't silently fall back to the SDK default. */
 function parseNumericFlag(name: string, raw: string): number {
-  const value = Number(raw);
+  // Number("") === 0, so an empty value must be rejected explicitly.
+  const value = raw.trim() === "" ? NaN : Number(raw);
   if (!Number.isFinite(value)) {
     console.error(`Invalid --${name}: "${raw}" is not a number`);
     process.exit(1);
