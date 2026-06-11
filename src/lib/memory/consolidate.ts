@@ -84,6 +84,11 @@ interface ConsolidationResult {
    * decision (LLM failure or schema-violating response). Distinguishes
    * "the model chose create" from "we couldn't get a usable answer" —
    * the latter accumulates duplicates if it happens persistently.
+   *
+   * Note: retain()'s consolidation path drops the result on "create"
+   * (fallback or real), so this field only reaches direct
+   * consolidateMemory() callers and tests — `onFallback` is the live
+   * observability channel.
    */
   fallbackReason?: ConsolidationFallbackReason;
 }
@@ -143,7 +148,13 @@ function degrade(
   fallback: ConsolidationResult,
   options: ConsolidateOptions
 ): ConsolidationResult {
-  options.onFallback?.(reason);
+  try {
+    options.onFallback?.(reason);
+  } catch {
+    // Observability callback must not break the write path — a throwing
+    // metrics hook would otherwise propagate up through retain() and
+    // fail the very write the fallback is trying to preserve.
+  }
   return { ...fallback, fallbackReason: reason };
 }
 

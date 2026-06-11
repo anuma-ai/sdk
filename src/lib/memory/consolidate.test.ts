@@ -143,6 +143,22 @@ describe("consolidateMemory", () => {
     expect(onFallback).toHaveBeenCalledWith("invalid_response");
   });
 
+  it("a throwing onFallback cannot break the write path", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
+    const onFallback = vi.fn(() => {
+      throw new Error("metrics sink exploded");
+    });
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      onFallback,
+    });
+    // The degraded fallback still comes back — the observability hook's
+    // failure is swallowed rather than failing the retain write.
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    expect(onFallback).toHaveBeenCalledTimes(1);
+  });
+
   it("does not notify onFallback for a real LLM decision", async () => {
     const fetchFn = mockFetch(choices({ action: "noop", targetId: "m1" }));
     const onFallback = vi.fn();
