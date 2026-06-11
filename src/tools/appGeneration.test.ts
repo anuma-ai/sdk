@@ -585,7 +585,8 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     // Conv-1: read so we may patch
     await readFile.executor!({ path: "App.js" });
 
-    // Two more conversations bump the cap and evict conv-1 (FIFO).
+    // Two more conversations bump the cap and evict conv-1 (least
+    // recently used — it never acted again after its initial read).
     convId = "conv-2";
     await readFile.executor!({ path: "App.js" });
     convId = "conv-3";
@@ -600,6 +601,63 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     })) as Record<string, unknown>;
     expect(result.success).toBeUndefined();
     expect(String(result.error)).toMatch(/read_file/);
+  });
+
+  it("keeps a recently active conversation when the cap evicts (LRU, not FIFO)", async () => {
+    // Regression: markFileSeen used to refresh a conversation's map
+    // position only on first insertion, so eviction was FIFO in practice —
+    // a conversation that kept writing could be evicted before an idle one
+    // that merely arrived later, hitting spurious "read_file first" errors
+    // mid-conversation.
+    const storage = new MapFileStorage();
+    storage.getAll().set("App.js", "const A = 1;\n");
+    let convId = "conv-1";
+    const tools = createAppGenerationTools({
+      getConversationId: () => convId,
+      storage,
+      logError: () => undefined,
+      maxConversations: 2,
+    });
+    const findTool = (name: string): ToolConfig =>
+      tools.find((t) => (t.function as { name: string }).name === name)!;
+    const readFile = findTool("read_file");
+    const patchFile = findTool("patch_file");
+
+    // conv-1 then conv-2 read (insertion order: conv-1, conv-2).
+    await readFile.executor!({ path: "App.js" });
+    convId = "conv-2";
+    await readFile.executor!({ path: "App.js" });
+
+    // conv-1 stays active by patching — a successful patch must promote
+    // it past the idle conv-2.
+    convId = "conv-1";
+    const patched = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 1;", replace: "const A = 2;" }],
+    })) as Record<string, unknown>;
+    expect(patched.success).toBe(true);
+
+    // conv-3 pushes the map over the cap → the idle conv-2 is evicted,
+    // not the active conv-1.
+    convId = "conv-3";
+    await readFile.executor!({ path: "App.js" });
+
+    // conv-1 can still patch without re-reading…
+    convId = "conv-1";
+    const again = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 2;", replace: "const A = 3;" }],
+    })) as Record<string, unknown>;
+    expect(again.success).toBe(true);
+
+    // …while conv-2 lost its seen-state and must re-read first.
+    convId = "conv-2";
+    const evicted = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 3;", replace: "const A = 4;" }],
+    })) as Record<string, unknown>;
+    expect(evicted.success).toBeUndefined();
+    expect(String(evicted.error)).toMatch(/read_file/);
   });
 
   it("allows overwrite after read_file", async () => {

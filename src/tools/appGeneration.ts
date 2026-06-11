@@ -924,11 +924,12 @@ export function createAppGenerationTools({
   // same wrong mental model, even with snippets in hand.
   const patchFailuresByConv = new Map<string, Map<string, number>>();
   function bumpPatchFailure(conversationId: string, path: string): number {
-    let m = patchFailuresByConv.get(conversationId);
-    if (!m) {
-      m = new Map();
-      touchConv(patchFailuresByConv, conversationId, m);
-    }
+    // touchConv on every bump, not just first insertion — otherwise the
+    // conversation's map position is frozen at first failure and eviction
+    // degrades to FIFO (an active conversation can be dropped before idle
+    // ones that merely arrived later).
+    const m = patchFailuresByConv.get(conversationId) ?? new Map<string, number>();
+    touchConv(patchFailuresByConv, conversationId, m);
     const n = (m.get(path) ?? 0) + 1;
     m.set(path, n);
     return n;
@@ -938,17 +939,19 @@ export function createAppGenerationTools({
   }
 
   // Per-conversation set of file paths whose current content the model
-  // has seen — via a successful read_file or create_file. patch_file
-  // refuses to operate on files not in this set, mirroring Claude Code's
-  // "must Read before Edit" contract. Prevents the failure mode where
-  // the model patches against a hallucinated copy of the file.
+  // has seen — via a successful read_file, create_file, or patch_file
+  // (a successful patch means the model constructed the new content, so
+  // it still knows it). patch_file refuses to operate on files not in
+  // this set, mirroring Claude Code's "must Read before Edit" contract.
+  // Prevents the failure mode where the model patches against a
+  // hallucinated copy of the file.
   const seenFilesByConv = new Map<string, Set<string>>();
   function markFileSeen(conversationId: string, path: string): void {
-    let s = seenFilesByConv.get(conversationId);
-    if (!s) {
-      s = new Set();
-      touchConv(seenFilesByConv, conversationId, s);
-    }
+    // touchConv on every mark so each read/write refreshes the
+    // conversation's LRU position — see bumpPatchFailure for the
+    // FIFO-degradation failure mode this prevents.
+    const s = seenFilesByConv.get(conversationId) ?? new Set<string>();
+    touchConv(seenFilesByConv, conversationId, s);
     s.add(path);
   }
   function hasFileBeenSeen(conversationId: string, path: string): boolean {
@@ -1243,6 +1246,10 @@ export function createAppGenerationTools({
         }
 
         await storage.putFile(conversationId, filePath, content);
+        // A successful patch is conversation activity: re-mark the path so
+        // a patch-only conversation keeps refreshing its LRU position
+        // instead of aging toward eviction while actively editing.
+        markFileSeen(conversationId, filePath);
         clearPatchFailure(conversationId, filePath);
         await emitFileChange({
           type: "modified",
