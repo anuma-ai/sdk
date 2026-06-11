@@ -96,7 +96,12 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       const promptHash = shortHash(SYSTEM_PROMPT);
       let phaseLogStart = 0;
 
-      function recordPhase(label: string, elapsedMs: number, errored: boolean): void {
+      function recordPhase(
+        label: string,
+        elapsedMs: number,
+        errored: boolean,
+        usage?: { inputTokens: number; outputTokens: number }
+      ): void {
         phases.push(
           summarizePhase({
             label,
@@ -104,6 +109,7 @@ describe("kanban project board (sophisticated build + iterate)", () => {
             toolCalls: log.slice(phaseLogStart),
             files: store,
             errored,
+            usage,
           })
         );
         phaseLogStart = log.length;
@@ -132,7 +138,12 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase1.result);
       expect(phase1.result.error).toBeNull();
       dumpFiles(store, "kanban/step-1-initial");
-      recordPhase("step-1-initial", phase1.result.elapsedMs, phase1.result.error !== null);
+      recordPhase(
+        "step-1-initial",
+        phase1.result.elapsedMs,
+        phase1.result.error !== null,
+        phase1.result.usage
+      );
       conversation.push(assistantMsg(phase1.responseText));
 
       const phase1Js = getAppJs();
@@ -212,7 +223,12 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase2.result);
       expect(phase2.result.error).toBeNull();
       dumpFiles(store, "kanban/step-2-due-dates");
-      recordPhase("step-2-due-dates", phase2.result.elapsedMs, phase2.result.error !== null);
+      recordPhase(
+        "step-2-due-dates",
+        phase2.result.elapsedMs,
+        phase2.result.error !== null,
+        phase2.result.usage
+      );
       conversation.push(assistantMsg(phase2.responseText));
 
       const phase2Js = getAppJs();
@@ -246,7 +262,12 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase3.result);
       expect(phase3.result.error).toBeNull();
       dumpFiles(store, "kanban/step-3-tag-filters");
-      recordPhase("step-3-tag-filters", phase3.result.elapsedMs, phase3.result.error !== null);
+      recordPhase(
+        "step-3-tag-filters",
+        phase3.result.elapsedMs,
+        phase3.result.error !== null,
+        phase3.result.usage
+      );
       conversation.push(assistantMsg(phase3.responseText));
 
       const phase3Js = getAppJs();
@@ -279,7 +300,12 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase4.result);
       expect(phase4.result.error).toBeNull();
       dumpFiles(store, "kanban/step-4-multi-board");
-      recordPhase("step-4-multi-board", phase4.result.elapsedMs, phase4.result.error !== null);
+      recordPhase(
+        "step-4-multi-board",
+        phase4.result.elapsedMs,
+        phase4.result.error !== null,
+        phase4.result.usage
+      );
       conversation.push(assistantMsg(phase4.responseText));
 
       const phase4Js = getAppJs();
@@ -314,7 +340,12 @@ describe("kanban project board (sophisticated build + iterate)", () => {
       printResult(phase5.result);
       expect(phase5.result.error).toBeNull();
       dumpFiles(store, "kanban/step-5-blocked-column");
-      recordPhase("step-5-blocked-column", phase5.result.elapsedMs, phase5.result.error !== null);
+      recordPhase(
+        "step-5-blocked-column",
+        phase5.result.elapsedMs,
+        phase5.result.error !== null,
+        phase5.result.usage
+      );
       conversation.push(assistantMsg(phase5.responseText));
 
       const phase5Js = getAppJs();

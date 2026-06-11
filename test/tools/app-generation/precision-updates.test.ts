@@ -42,14 +42,19 @@ function makeTracker(
   store: Map<string, string>,
   log: ToolCallLog[]
 ): {
-  recordPhase: (label: string, elapsedMs: number, errored: boolean) => void;
+  recordPhase: (
+    label: string,
+    elapsedMs: number,
+    errored: boolean,
+    usage?: { inputTokens: number; outputTokens: number }
+  ) => void;
   finish: (outputSubdir: string, scenario: string) => void;
 } {
   const phases: PhaseRecord[] = [];
   const startedAt = new Date().toISOString();
   let logStart = 0;
   return {
-    recordPhase(label, elapsedMs, errored): void {
+    recordPhase(label, elapsedMs, errored, usage): void {
       phases.push(
         summarizePhase({
           label,
@@ -57,6 +62,7 @@ function makeTracker(
           toolCalls: log.slice(logStart),
           files: store,
           errored,
+          usage,
         })
       );
       logStart = log.length;
@@ -128,7 +134,12 @@ describe("precision-updates", () => {
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-btn-color/step-1-initial");
-    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
+    tracker.recordPhase(
+      "step-1-initial",
+      gen.result.elapsedMs,
+      gen.result.error !== null,
+      gen.result.usage
+    );
     conversation.push(assistantMsg(gen.responseText));
     const snap1 = snapshot(store);
     const logAfterGen = log.length;
@@ -139,7 +150,12 @@ describe("precision-updates", () => {
     printResult(update.result);
     expect(update.result.error).toBeNull();
     dumpFiles(store, "precision-btn-color/step-2-colored");
-    tracker.recordPhase("step-2-colored", update.result.elapsedMs, update.result.error !== null);
+    tracker.recordPhase(
+      "step-2-colored",
+      update.result.elapsedMs,
+      update.result.error !== null,
+      update.result.usage
+    );
     const snap2 = snapshot(store);
 
     // Analyze the diff
@@ -196,7 +212,12 @@ describe("precision-updates", () => {
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-title/step-1-initial");
-    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
+    tracker.recordPhase(
+      "step-1-initial",
+      gen.result.elapsedMs,
+      gen.result.error !== null,
+      gen.result.usage
+    );
     conversation.push(assistantMsg(gen.responseText));
     const snap1 = snapshot(store);
 
@@ -206,7 +227,12 @@ describe("precision-updates", () => {
     printResult(update.result);
     expect(update.result.error).toBeNull();
     dumpFiles(store, "precision-title/step-2-renamed");
-    tracker.recordPhase("step-2-renamed", update.result.elapsedMs, update.result.error !== null);
+    tracker.recordPhase(
+      "step-2-renamed",
+      update.result.elapsedMs,
+      update.result.error !== null,
+      update.result.usage
+    );
     const snap2 = snapshot(store);
 
     const diffs = diffSnapshots(snap1, snap2);
@@ -252,7 +278,12 @@ describe("precision-updates", () => {
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-retry/step-1-initial");
-    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
+    tracker.recordPhase(
+      "step-1-initial",
+      gen.result.elapsedMs,
+      gen.result.error !== null,
+      gen.result.usage
+    );
     conversation.push(assistantMsg(gen.responseText));
 
     const snap1 = snapshot(store);
@@ -269,7 +300,12 @@ describe("precision-updates", () => {
     printResult(update.result);
     expect(update.result.error).toBeNull();
     dumpFiles(store, "precision-retry/step-2-updated");
-    tracker.recordPhase("step-2-updated", update.result.elapsedMs, update.result.error !== null);
+    tracker.recordPhase(
+      "step-2-updated",
+      update.result.elapsedMs,
+      update.result.error !== null,
+      update.result.usage
+    );
 
     const snap2 = snapshot(store);
     const diffs = diffSnapshots(snap1, snap2);
@@ -327,7 +363,12 @@ describe("precision-updates", () => {
     const gen = await runTurn(conversation, tools);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-1-initial");
-    tracker.recordPhase("step-1-initial", gen.result.elapsedMs, gen.result.error !== null);
+    tracker.recordPhase(
+      "step-1-initial",
+      gen.result.elapsedMs,
+      gen.result.error !== null,
+      gen.result.usage
+    );
     conversation.push(assistantMsg(gen.responseText));
     snapshots.push({ label: "initial", snap: snapshot(store) });
 
@@ -336,7 +377,12 @@ describe("precision-updates", () => {
     const s2 = await runTurn(conversation, tools);
     expect(s2.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-2-bg-color");
-    tracker.recordPhase("step-2-bg-color", s2.result.elapsedMs, s2.result.error !== null);
+    tracker.recordPhase(
+      "step-2-bg-color",
+      s2.result.elapsedMs,
+      s2.result.error !== null,
+      s2.result.usage
+    );
     conversation.push(assistantMsg(s2.responseText));
     const diffs2 = diffSnapshots(snapshots[0]!.snap, snapshot(store));
     snapshots.push({
@@ -351,7 +397,12 @@ describe("precision-updates", () => {
     const s3 = await runTurn(conversation, tools);
     expect(s3.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-3-counter");
-    tracker.recordPhase("step-3-counter", s3.result.elapsedMs, s3.result.error !== null);
+    tracker.recordPhase(
+      "step-3-counter",
+      s3.result.elapsedMs,
+      s3.result.error !== null,
+      s3.result.usage
+    );
     conversation.push(assistantMsg(s3.responseText));
     const diffs3 = diffSnapshots(snapshots[1]!.snap, snapshot(store));
     snapshots.push({
@@ -366,7 +417,12 @@ describe("precision-updates", () => {
     const s4 = await runTurn(conversation, tools);
     expect(s4.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-4-font");
-    tracker.recordPhase("step-4-font", s4.result.elapsedMs, s4.result.error !== null);
+    tracker.recordPhase(
+      "step-4-font",
+      s4.result.elapsedMs,
+      s4.result.error !== null,
+      s4.result.usage
+    );
     conversation.push(assistantMsg(s4.responseText));
     const diffs4 = diffSnapshots(snapshots[2]!.snap, snapshot(store));
     snapshots.push({ label: "font", snap: snapshot(store), diffs: diffs4 });

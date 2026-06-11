@@ -14,6 +14,9 @@
  *     index.html at each step (final and intermediary), via dumpFiles.
  *   - `.runs/<timestamp>-<model>.jsonl`            — per-step tool calls + token
  *     usage (the shared recorder, always on).
+ *   - `.output/chat-app-debug/metrics.json`        — benchmark metrics (per-turn
+ *     tool counts, tokens, harness-measured audit score) + `.history/`, diffable
+ *     via `pnpm e2e:compare chat-app-debug`.
  *
  * Opt-in (long, hits the LLM):
  *   PORTAL_API_KEY=... RUN_CHAT_APP_DEBUG=1 \
@@ -36,12 +39,16 @@ import {
   type DebugTraceStep,
   dumpFiles,
   extractText,
+  type PhaseRecord,
   printResult,
+  shortHash,
+  summarizePhase,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
   writeDebugTrace,
   writeIndex,
+  writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
 
@@ -111,6 +118,8 @@ describe("chat-app-debug", () => {
       const toolNames = tools.map((t) => t.function?.name ?? "unknown");
       const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
       const steps: DebugTraceStep[] = [];
+      const phases: PhaseRecord[] = [];
+      const startedAt = new Date().toISOString();
       let logStart = 0;
 
       for (let i = 0; i < TURNS.length; i++) {
@@ -125,6 +134,17 @@ describe("chat-app-debug", () => {
 
         const turnToolCalls = log.slice(logStart);
         logStart = log.length;
+
+        phases.push(
+          summarizePhase({
+            label: turn.label,
+            elapsedMs: result.elapsedMs,
+            toolCalls: turnToolCalls,
+            files: store,
+            errored: result.error !== null,
+            usage: result.usage,
+          })
+        );
 
         steps.push({
           step: i + 1,
@@ -156,6 +176,18 @@ describe("chat-app-debug", () => {
         // trace above already captured it.
         if (result.error) break;
       }
+
+      // Persist benchmark metrics next to the trace so this scenario gets
+      // metrics.json + .history/ and works with `pnpm e2e:compare`, like the
+      // other benchmarks. Written before assertions so a failed expectation
+      // still leaves the run on disk.
+      writeRunMetrics({
+        outputSubdir: "chat-app-debug",
+        benchmark: "chat-app-debug",
+        promptHash: shortHash(SYSTEM_PROMPT),
+        startedAt,
+        phases,
+      });
 
       // The system prompt the model received must carry the runtime-AI contract.
       expect(SYSTEM_PROMPT).toContain("window.app.complete");

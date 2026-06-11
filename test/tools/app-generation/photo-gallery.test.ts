@@ -96,7 +96,12 @@ describe("photo gallery (file upload benchmark)", () => {
       const runStartedAt = new Date().toISOString();
       const promptHash = shortHash(SYSTEM_PROMPT);
       let phaseLogStart = 0;
-      function recordPhase(label: string, elapsedMs: number, errored: boolean): void {
+      function recordPhase(
+        label: string,
+        elapsedMs: number,
+        errored: boolean,
+        usage?: { inputTokens: number; outputTokens: number }
+      ): void {
         phases.push(
           summarizePhase({
             label,
@@ -104,6 +109,7 @@ describe("photo gallery (file upload benchmark)", () => {
             toolCalls: log.slice(phaseLogStart),
             files: store,
             errored,
+            usage,
           })
         );
         phaseLogStart = log.length;
@@ -133,7 +139,12 @@ describe("photo gallery (file upload benchmark)", () => {
       printResult(phase1.result);
       expect(phase1.result.error).toBeNull();
       dumpFiles(store, "photo-gallery/step-1-upload-grid");
-      recordPhase("step-1-upload-grid", phase1.result.elapsedMs, phase1.result.error !== null);
+      recordPhase(
+        "step-1-upload-grid",
+        phase1.result.elapsedMs,
+        phase1.result.error !== null,
+        phase1.result.usage
+      );
       conversation.push(assistantMsg(phase1.responseText));
 
       const phase1Js = getAppJs();
@@ -177,7 +188,12 @@ describe("photo gallery (file upload benchmark)", () => {
       printResult(phase2.result);
       expect(phase2.result.error).toBeNull();
       dumpFiles(store, "photo-gallery/step-2-css-filters");
-      recordPhase("step-2-css-filters", phase2.result.elapsedMs, phase2.result.error !== null);
+      recordPhase(
+        "step-2-css-filters",
+        phase2.result.elapsedMs,
+        phase2.result.error !== null,
+        phase2.result.usage
+      );
       conversation.push(assistantMsg(phase2.responseText));
 
       const phase2Js = getAppJs();
