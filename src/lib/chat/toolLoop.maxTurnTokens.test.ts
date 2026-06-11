@@ -85,7 +85,9 @@ function makeChattyTool() {
   };
 }
 
-async function runWithBudget(maxTurnTokens: number | undefined): Promise<Array<string | undefined>> {
+async function runWithBudget(
+  maxTurnTokens: number | undefined
+): Promise<Array<string | undefined>> {
   const modelCallToolChoices: Array<string | undefined> = [];
   const result = await runToolLoop({
     messages: [{ role: "user", content: [{ type: "text", text: "go" }] }],

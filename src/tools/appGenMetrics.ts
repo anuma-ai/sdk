@@ -28,7 +28,10 @@ import { auditDesign } from "./appAudit.js";
 
 export const SCHEMA_VERSION = 2 as const;
 
-/** LLM token usage for one phase, summed across the phase's rounds. */
+/** LLM token usage for one phase, summed across the phase's rounds.
+ *  Consumed by the e2e harness (`timedToolLoop` returns it), which sits
+ *  outside knip's project scope — hence the tag.
+ *  @public */
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
