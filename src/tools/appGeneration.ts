@@ -1103,6 +1103,15 @@ export function createAppGenerationTools({
         };
         if (overwritten.length > 0) {
           result.note = `Overwrote ${overwritten.length} existing file(s): ${overwritten.join(", ")}. For incremental changes, prefer patch_file — smaller diffs are easier to review and preserve more of the existing structure.`;
+          // Rewrites of the audited files are where JSX class names and CSS
+          // selectors drift apart (rename in one file, forget the other →
+          // blank or unstyled render). Suggest the audit at the exact moment
+          // the risk is introduced, not just in the system prompt.
+          const auditedFiles = ["App.js", "App.jsx", "App.css"];
+          if (overwritten.some((p) => auditedFiles.includes(p))) {
+            result.note +=
+              " After rewriting App.js or App.css, call audit_design — it flags JSX class names and CSS selectors that no longer match across the two files.";
+          }
         }
         return result;
       } catch (err) {

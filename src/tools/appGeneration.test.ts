@@ -1089,6 +1089,33 @@ describe("create_file result splits new writes from overwrites", () => {
     expect(result.note).toEqual(expect.stringContaining("App.js"));
   });
 
+  it("suggests audit_design when an audited file is rewritten", async () => {
+    // Rewrites of App.js/App.css are where class names and selectors
+    // desync — the note should point at the audit right then.
+    const { createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.css", content: ":root { --ink: #111; }\n" }],
+    });
+    const result = (await createFile.executor!({
+      files: [{ path: "App.css", content: ":root { --ink: #222; }\n" }],
+    })) as Record<string, unknown>;
+    expect(result.overwritten).toEqual(["App.css"]);
+    expect(result.note).toEqual(expect.stringContaining("audit_design"));
+  });
+
+  it("keeps the note free of the audit nudge for non-audited files", async () => {
+    const { createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "data.json", content: "[]\n" }],
+    });
+    const result = (await createFile.executor!({
+      files: [{ path: "data.json", content: "[1]\n" }],
+    })) as Record<string, unknown>;
+    expect(result.overwritten).toEqual(["data.json"]);
+    expect(result.note).toEqual(expect.stringContaining("prefer patch_file"));
+    expect(result.note).not.toEqual(expect.stringContaining("audit_design"));
+  });
+
   it("partitions a mixed batch — new and existing — into the two arrays", async () => {
     const { createFile } = makeTools();
     await createFile.executor!({
