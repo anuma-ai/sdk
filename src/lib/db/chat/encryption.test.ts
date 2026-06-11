@@ -348,9 +348,18 @@ describe("Chat Encryption Utilities", () => {
       clearAllEncryptionKeys();
       const decrypted = await decryptMessageFields(storedMessage, testAddress);
 
-      // The JSON field failed to decrypt → message is flagged, not silently dropped.
+      // The JSON field failed to decrypt → message is flagged, and the
+      // ciphertext is preserved (not dropped) so it stays recoverable.
       expect(decrypted.decryptionFailed).toBe(true);
-      expect(decrypted.sources).toBeUndefined();
+      expect(decrypted.sources).toBe(encrypted.sources);
+      expect(isEncrypted(decrypted.sources as unknown as string)).toBe(true);
+
+      // Re-running after the key is restored recovers the field and clears the
+      // flag — even on the same in-memory object, since the ciphertext was kept.
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const recovered = await decryptMessageFields(decrypted, testAddress);
+      expect(recovered.decryptionFailed).toBeUndefined();
+      expect(recovered.sources).toEqual([{ url: "https://example.com", title: "Secret" }]);
       warnSpy.mockRestore();
     });
 

@@ -227,10 +227,16 @@ export async function decryptMessageFields(
     ...message,
     content: decryptedContent,
     thinking: decryptedThinking,
-    vector: vectorResult.value,
-    chunks: chunksResult.value,
-    sources: sourcesResult.value,
-    thoughtProcess: thoughtProcessResult.value,
+    // On a genuine decrypt failure keep the original (ciphertext) value rather
+    // than dropping it to `undefined` — mirrors content/thinking. This keeps
+    // the field recoverable: a re-run after the key is restored decrypts it and
+    // clears `decryptionFailed`, instead of leaving it permanently absent.
+    vector: vectorResult.failed ? message.vector : vectorResult.value,
+    chunks: chunksResult.failed ? message.chunks : chunksResult.value,
+    sources: sourcesResult.failed ? message.sources : sourcesResult.value,
+    thoughtProcess: thoughtProcessResult.failed
+      ? message.thoughtProcess
+      : thoughtProcessResult.value,
     // Explicit (not conditional-spread) so a successful re-run clears any
     // stale `decryptionFailed: true` carried in on `message` from a prior
     // failed pass — `undefined` overrides it; the field stays optional.
