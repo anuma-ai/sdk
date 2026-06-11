@@ -1428,6 +1428,11 @@ export function createAppGenerationTools({
         // we don't try to evaluate design quality in code here, because
         // that's a regression to checklist-as-prompt. Taste belongs to
         // the model; the system supplies the moment for it to apply.
+        //
+        // Content is truncated like read_file: without the cap this was
+        // the one tool result whose size grew with the app instead of
+        // staying bounded, which breaks predictable per-turn token cost
+        // on long edit sessions.
         return {
           instruction:
             "Read your App.js and App.css below, then answer each of the rubric questions honestly in your next response — be specific (cite lines, name choices, don't hedge). After answering, identify the 2-3 weakest items you named and patch them now. The point is to step back from the keyboard and actually look, not to satisfy a checklist.",
@@ -1435,12 +1440,12 @@ export function createAppGenerationTools({
           appJs: {
             path: "App.js",
             lines: appJs.split("\n").length,
-            content: appJs,
+            content: truncateContent(appJs),
           },
           appCss: {
             path: "App.css",
             lines: appCss.split("\n").length,
-            content: appCss,
+            content: truncateContent(appCss),
           },
         };
       } catch (err) {
@@ -1525,4 +1530,57 @@ export { APP_BUILDER_PROMPT };
  */
 export function buildAppSystemPrompt(): string {
   return APP_BUILDER_PROMPT;
+}
+
+// ---------------------------------------------------------------------------
+// Turn envelope — bounded per-turn context for long edit sessions
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a compact manifest of the conversation's current app files, for
+ * injection into each turn's context as a system message.
+ *
+ * This is the anchor of the *turn envelope* pattern, which keeps per-request
+ * token cost flat across arbitrarily long edit sessions. The files in
+ * storage — not the conversation — are the durable state: every prior change
+ * is already encoded in them, so old tool traffic adds cost without adding
+ * information. Hosts that resend tool history across turns pay per-turn cost
+ * that grows linearly with turn count (quadratic total); hosts using the
+ * envelope pay a cost bounded by app size, the same at request 5 and
+ * request 100.
+ *
+ * The envelope recipe, per change request:
+ *   1. system: `APP_BUILDER_PROMPT`
+ *   2. system: this manifest (rebuilt from storage each turn)
+ *   3. the last few user/assistant TEXT exchanges (drop all tool messages)
+ *   4. the new user request
+ *
+ * In-turn tool traffic stays within the turn; `maxToolRounds` bounds the
+ * rounds and `maxTurnTokens` (on `runToolLoop`) gives a hard ceiling. The
+ * model re-reads the files it wants to edit (`read_file` results are
+ * truncation-bounded), so per-turn cost is a function of app size and the
+ * text window — never of how many turns came before.
+ *
+ * The manifest deliberately lists paths and sizes only, no content: the
+ * read-before-write contract tracks what the model has actually seen via
+ * `read_file`/`create_file`, and inlined-but-unread content would invite
+ * patches against text the gate can't vouch for.
+ */
+export async function buildAppFileManifest(opts: {
+  storage: AppFileStorage;
+  conversationId: string;
+}): Promise<string> {
+  const files = await opts.storage.getFiles(opts.conversationId);
+  if (files.length === 0) {
+    return "No app files exist in this conversation yet.";
+  }
+  const lines = files
+    .map((f) => ({ path: normalizePath(f.path), chars: f.content.length }))
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((f) => `- ${f.path} (${f.chars} chars)`);
+  return [
+    "Current app files (latest state; supersedes anything earlier in the conversation):",
+    ...lines,
+    "Your context does not carry file contents between turns — call read_file before patching.",
+  ].join("\n");
 }

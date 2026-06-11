@@ -11,6 +11,7 @@ import {
   type AppFileRecord,
   type AppFileStorage,
   applyPatches,
+  buildAppFileManifest,
   createAppGenerationTools,
   DEFAULT_DESIGN_CRITIQUE_RUBRIC,
   type FileChangeEvent,
@@ -797,6 +798,33 @@ describe("critique_design", () => {
     expect(result.rubric.length).toBeGreaterThanOrEqual(4);
   });
 
+  it("truncates oversized files like read_file does, keeping head and tail", async () => {
+    // Without the cap, critique_design was the one tool result whose size
+    // grew with the app — unbounded per-turn cost on long edit sessions.
+    const head = "/* head marker */\n";
+    const tail = "\n/* tail marker */";
+    const bigJs = head + "x".repeat(10_000) + tail;
+    const { critique, createFile } = makeTools();
+    await createFile.executor!({
+      files: [
+        { path: "App.js", content: bigJs },
+        { path: "App.css", content: ":root { --bg: #fff; }\n" },
+      ],
+    });
+    const result = (await critique.executor!({})) as {
+      appJs: { content: string; lines: number };
+      appCss: { content: string };
+    };
+    expect(result.appJs.content.length).toBeLessThan(5_000);
+    expect(result.appJs.content).toContain("head marker");
+    expect(result.appJs.content).toContain("tail marker");
+    expect(result.appJs.content).toContain("characters omitted");
+    // `lines` still reports the real file size, not the truncated one.
+    expect(result.appJs.lines).toBe(bigJs.split("\n").length);
+    // Small files pass through untouched.
+    expect(result.appCss.content).toBe(":root { --bg: #fff; }\n");
+  });
+
   it("honors a host-supplied rubric override", async () => {
     const customRubric = [
       "Does this app feel like the Acme brand?",
@@ -1337,5 +1365,36 @@ describe("patch_file thrash gating", () => {
     expect(String(result.message)).not.toContain("STOP retrying patches");
     // First-failure message: the "did not apply / File NOT modified" framing.
     expect(String(result.message)).toContain("File NOT modified");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildAppFileManifest — turn-envelope manifest
+// ---------------------------------------------------------------------------
+
+describe("buildAppFileManifest", () => {
+  it("lists files sorted by path with character counts", async () => {
+    const storage = new MapFileStorage();
+    storage.getAll().set("package.json", "{}");
+    storage.getAll().set("App.js", "x".repeat(123));
+    storage.getAll().set("App.css", "y".repeat(45));
+
+    const manifest = await buildAppFileManifest({ storage, conversationId: "c1" });
+    const lines = manifest.split("\n");
+    expect(lines[0]).toContain("Current app files");
+    expect(lines.slice(1, 4)).toEqual([
+      "- App.css (45 chars)",
+      "- App.js (123 chars)",
+      "- package.json (2 chars)",
+    ]);
+    // The re-read instruction is part of the contract: contents are not
+    // carried between turns, only the manifest is.
+    expect(manifest).toContain("read_file before patching");
+  });
+
+  it("reports an empty conversation without inventing structure", async () => {
+    const storage = new MapFileStorage();
+    const manifest = await buildAppFileManifest({ storage, conversationId: "c1" });
+    expect(manifest).toBe("No app files exist in this conversation yet.");
   });
 });
