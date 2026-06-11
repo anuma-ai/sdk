@@ -1,6 +1,6 @@
 # VaultSearchResult
 
-Defined in: [src/lib/memoryVault/searchTool.ts:940](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#940)
+Defined in: [src/lib/memoryVault/searchTool.ts:1076](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1076)
 
 A single vault search result with its similarity score.
 
@@ -10,7 +10,7 @@ A single vault search result with its similarity score.
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:942](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#942)
+Defined in: [src/lib/memoryVault/searchTool.ts:1078](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1078)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:942](https://github.com/anuma-ai/
 
 > `optional` **createdAt**: `Date`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:946](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#946)
+Defined in: [src/lib/memoryVault/searchTool.ts:1082](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1082)
 
 Optional — surfaced by the rankers so downstream `RankedMemory` carries
 real timestamps. Omitted when an item lacks the field upstream.
@@ -29,7 +29,7 @@ real timestamps. Omitted when an item lacks the field upstream.
 
 > `optional` **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:953](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#953)
+Defined in: [src/lib/memoryVault/searchTool.ts:1089](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1089)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:953](https://github.com/anuma-ai/
 
 > `optional` **eventTimeKind**: `"point"` | `"range"` | `"ongoing"` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:954](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#954)
+Defined in: [src/lib/memoryVault/searchTool.ts:1090](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1090)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:954](https://github.com/anuma-ai/
 
 > `optional` **eventTimeStart**: `number` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:952](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#952)
+Defined in: [src/lib/memoryVault/searchTool.ts:1088](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1088)
 
 W6 temporal-lane anchors carried through to downstream `RankedMemory`
 so the recall executor can surface dates to the answer model without
@@ -58,7 +58,7 @@ has no anchored event time.
 
 > **similarity**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:943](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#943)
+Defined in: [src/lib/memoryVault/searchTool.ts:1079](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1079)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:943](https://github.com/anuma-ai/
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:941](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#941)
+Defined in: [src/lib/memoryVault/searchTool.ts:1077](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1077)
 
 ***
 
@@ -74,4 +74,4 @@ Defined in: [src/lib/memoryVault/searchTool.ts:941](https://github.com/anuma-ai/
 
 > `optional` **updatedAt**: `Date`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:947](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#947)
+Defined in: [src/lib/memoryVault/searchTool.ts:1083](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1083)

@@ -14,8 +14,15 @@ import {
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
-import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";
+import type {
+  ApiConfig,
+  LongMemEvalEntry,
+  LongMemEvalResult,
+  RetrievalTuningKnobs,
+  TokenUsage,
+} from "./types.js";
 import {
+  buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
   createVaultContext,
@@ -63,7 +70,7 @@ export async function processEntryMemoryVault(
     consolidate?: boolean;
     chunkSourceMaxChars?: number;
     excerptMaxChars?: number;
-  }
+  } & RetrievalTuningKnobs
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -264,6 +271,7 @@ export async function processEntryMemoryVault(
       minSimilarity: 0.1,
       rerank: rerankEnabled,
       decompose: decomposeMode,
+      ...buildRetrievalTuningOptions(searchPipeline),
       ...(decomposeMode === "llm" && {
         decomposeOptions: {
           apiKey: api.apiKey,

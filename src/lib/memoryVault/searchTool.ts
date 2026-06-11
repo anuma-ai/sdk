@@ -51,6 +51,27 @@ export interface MemoryVaultSearchOptions {
   rerank?: boolean;
   /** Number of CE rerank candidates. Default 30. */
   rerankTopN?: number;
+  /** Multiplicative cross-encoder blend weight. Default 0.1. Only used when `rerank` is true. */
+  ceWeight?: number;
+  /** Recency boost slope applied in the fused ranker. Default 1.0. */
+  recencyAlpha?: number;
+  /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
+  recency?: RecencyOptions;
+  /**
+   * Apply Maximal Marginal Relevance after the relevance pass. Default false.
+   * Only effective on the rerank (async) pipeline.
+   */
+  mmr?: boolean;
+  /** Supersession score-gap transfer factor. Default 0.8. */
+  supersessionBoost?: number;
+  /** Hard cap on the supersession candidate window. Default 50. */
+  supersessionWindow?: number;
+  /** Proof-count log-boost scale (Hindsight α). Default 0.1. */
+  proofCountAlpha?: number;
+  /** Divisor mapping BM25 scores to the admission floor (`bm25 / divisor`). Default 50. */
+  bm25AdmissionDivisor?: number;
+  /** RRF smoothing constant for lane fusion. Default 60. */
+  rrfK?: number;
   /**
    * LLM-based query decomposition for composite/abstract queries. When set,
    * each query is classified + (if composite) decomposed into 3–5 facet
@@ -151,9 +172,13 @@ const SUPERSESSION_MAX_WINDOW = 50;
  * Supersession adjustment for a single pair. Returns the score delta to
  * add to the newer item (and subtract from the older item).
  */
-function supersessionDelta(olderScore: number, newerScore: number): number {
+function supersessionDelta(
+  olderScore: number,
+  newerScore: number,
+  boostFactor: number = SUPERSESSION_BOOST_FACTOR
+): number {
   const gap = olderScore - newerScore;
-  return gap * SUPERSESSION_BOOST_FACTOR;
+  return gap * boostFactor;
 }
 
 /**
@@ -229,10 +254,15 @@ export function rankVaultMemories(
   options?: {
     limit?: number;
     minSimilarity?: number;
+    /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
+    supersessionBoost?: number;
+    /** Hard cap on the supersession candidate window. Default 50. */
+    supersessionWindow?: number;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
+  const supersessionWindowCap = options?.supersessionWindow ?? SUPERSESSION_MAX_WINDOW;
 
   const scored = items.map((item) => ({
     uniqueId: item.id,
@@ -253,7 +283,7 @@ export function rankVaultMemories(
   // older ones when they are highly similar and the older one outranks.
   // Capped at SUPERSESSION_MAX_WINDOW to keep O(n²) bounded; tail items are
   // already too low-ranked for supersession to matter.
-  const window = filtered.slice(0, Math.min(limit * 3, SUPERSESSION_MAX_WINDOW));
+  const window = filtered.slice(0, Math.min(limit * 3, supersessionWindowCap));
   const pairs = findSupersessionPairs(
     window.map((r) => ({
       id: r.uniqueId,
@@ -269,7 +299,7 @@ export function rankVaultMemories(
     for (const [oldId, newId] of pairs) {
       const oldScore = scoreMap.get(oldId)!;
       const newScore = scoreMap.get(newId)!;
-      const delta = supersessionDelta(oldScore, newScore);
+      const delta = supersessionDelta(oldScore, newScore, options?.supersessionBoost);
       const oldItem = itemMap.get(oldId);
       const newItem = itemMap.get(newId);
       if (oldItem && newItem) {
@@ -338,6 +368,23 @@ export function rankFusedVaultMemories(
      */
     recencyAlpha?: number;
     recency?: RecencyOptions;
+    /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
+    supersessionBoost?: number;
+    /** Hard cap on the supersession candidate window. Default 50. */
+    supersessionWindow?: number;
+    /**
+     * Proof-count log-boost scale (Hindsight α). Default 0.1 →
+     * `1 + α·log(1+proofCount) − α·log(2)`, neutral at proofCount=1.
+     */
+    proofCountAlpha?: number;
+    /**
+     * Divisor mapping a positive BM25 score onto the admission floor:
+     * `min(minSimilarity, bm25 / divisor)`. Default 50. Smaller values let
+     * BM25-only hits enter the ranking with higher scores.
+     */
+    bm25AdmissionDivisor?: number;
+    /** RRF smoothing constant for the side-lane fusion. Default 60. */
+    rrfK?: number;
     /**
      * W5 graph lane — pre-built ranking of memory IDs by entity-overlap
      * score. RRF-fused with the cosine+BM25 head when present. Items in
@@ -357,6 +404,8 @@ export function rankFusedVaultMemories(
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
   const recencyAlpha = options?.recencyAlpha ?? 1.0;
+  const proofCountAlpha = options?.proofCountAlpha ?? 0.1;
+  const bm25AdmissionDivisor = options?.bm25AdmissionDivisor ?? 50;
 
   if (items.length === 0) return [];
 
@@ -364,6 +413,12 @@ export function rankFusedVaultMemories(
   const baseRanked = rankVaultMemories(query, queryEmbedding, items, {
     limit: items.length,
     minSimilarity,
+    ...(options?.supersessionBoost !== undefined && {
+      supersessionBoost: options.supersessionBoost,
+    }),
+    ...(options?.supersessionWindow !== undefined && {
+      supersessionWindow: options.supersessionWindow,
+    }),
   });
   const baseIds = new Set(baseRanked.map((r) => r.uniqueId));
 
@@ -383,7 +438,7 @@ export function rankFusedVaultMemories(
     admitted.push({
       uniqueId: item.id,
       content: item.content,
-      similarity: Math.min(minSimilarity, bm25 / 50),
+      similarity: Math.min(minSimilarity, bm25 / bm25AdmissionDivisor),
       createdAt: item.createdAt ?? item.updatedAt,
       updatedAt: item.updatedAt,
       eventTimeStart: item.eventTimeStart,
@@ -400,7 +455,8 @@ export function rankFusedVaultMemories(
     const recency = recencyMultiplier(item?.updatedAt, options?.recency);
     const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
     const proofCount = Math.max(1, item?.proofCount ?? 1);
-    const proofBoost = 1 + 0.1 * Math.log(1 + proofCount) - 0.1 * Math.log(2);
+    const proofBoost =
+      1 + proofCountAlpha * Math.log(1 + proofCount) - proofCountAlpha * Math.log(2);
     return recencyBoost * proofBoost;
   };
   let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => ({
@@ -424,7 +480,7 @@ export function rankFusedVaultMemories(
   if (sideLanes.length > 0) {
     combined.sort((a, b) => b.similarity - a.similarity);
     const headIds = combined.map((r) => r.uniqueId);
-    const fused = rrfFuse([headIds, headIds, ...sideLanes]);
+    const fused = rrfFuse([headIds, headIds, ...sideLanes], options?.rrfK);
     // Multiply boostFor back in so the recency · proof multiplier from
     // Stage 3 isn't discarded by the RRF score replacement. Without
     // this, the high-budget side-lane path drops exactly the signal
@@ -536,6 +592,16 @@ export async function rankFusedVaultMemoriesAsync(
     rerank?: boolean;
     rerankTopN?: number;
     ceWeight?: number;
+    /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
+    supersessionBoost?: number;
+    /** Hard cap on the supersession candidate window. Default 50. */
+    supersessionWindow?: number;
+    /** Proof-count log-boost scale. Default 0.1. */
+    proofCountAlpha?: number;
+    /** Divisor mapping BM25 scores to the admission floor. Default 50. */
+    bm25AdmissionDivisor?: number;
+    /** RRF smoothing constant for the side-lane fusion. Default 60. */
+    rrfK?: number;
     /**
      * Apply Maximal Marginal Relevance after the relevance pass to spread
      * the top-K across distinct memory clusters. Off by default; on
@@ -568,6 +634,11 @@ export async function rankFusedVaultMemoriesAsync(
     minSimilarity: options?.minSimilarity,
     recencyAlpha: options?.recencyAlpha,
     recency: options?.recency,
+    supersessionBoost: options?.supersessionBoost,
+    supersessionWindow: options?.supersessionWindow,
+    proofCountAlpha: options?.proofCountAlpha,
+    bm25AdmissionDivisor: options?.bm25AdmissionDivisor,
+    rrfK: options?.rrfK,
   });
 
   // Don't short-circuit on empty V2: queries that only match the W5
@@ -632,7 +703,7 @@ export async function rankFusedVaultMemoriesAsync(
   }
   if (sideLanesAsync.length > 0) {
     const headIds = combined.map((r) => r.uniqueId);
-    const fused = rrfFuse([headIds, headIds, ...sideLanesAsync]);
+    const fused = rrfFuse([headIds, headIds, ...sideLanesAsync], options?.rrfK);
     const fusedHead = combined
       .map((r) => ({ ...r, similarity: fused.get(r.uniqueId) ?? r.similarity }))
       .sort((a, b) => b.similarity - a.similarity);
@@ -738,6 +809,24 @@ export async function rankComposite(
     rerankTopN?: number;
     ceWeight?: number;
     rrfK?: number;
+    /** Fraction of the score gap transferred old→new on supersession. Default 0.8. */
+    supersessionBoost?: number;
+    /** Hard cap on the supersession candidate window. Default 50. */
+    supersessionWindow?: number;
+    /** Proof-count log-boost scale. Default 0.1. */
+    proofCountAlpha?: number;
+    /** Divisor mapping BM25 scores to the admission floor. Default 50. */
+    bm25AdmissionDivisor?: number;
+    /**
+     * Apply an MMR diversity pass to the post-rerank head. Default off.
+     * Same semantics as {@link rankFusedVaultMemoriesAsync} so an MMR
+     * sweep means the same thing on the composite and specific paths.
+     */
+    mmr?: boolean;
+    /** MMR relevance/diversity balance. Default 0.7 (relevance-biased). */
+    mmrLambda?: number;
+    /** Pool size fed to MMR. Default 20. */
+    mmrTopN?: number;
     /**
      * Truncate each sub-query's ranked list before RRF. Default 10. The
      * LlamaIndex sub-query pattern is to fuse *top hits per facet*, not
@@ -765,6 +854,23 @@ export async function rankComposite(
   const perFacetTopN = options?.perFacetTopN ?? 10;
   if (items.length === 0 || subQueries.length === 0) return [];
 
+  // Shared tuning knobs forwarded to every per-facet ranking call.
+  const facetTuning = {
+    ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+    ...(options?.recency && { recency: options.recency }),
+    ...(options?.supersessionBoost !== undefined && {
+      supersessionBoost: options.supersessionBoost,
+    }),
+    ...(options?.supersessionWindow !== undefined && {
+      supersessionWindow: options.supersessionWindow,
+    }),
+    ...(options?.proofCountAlpha !== undefined && { proofCountAlpha: options.proofCountAlpha }),
+    ...(options?.bm25AdmissionDivisor !== undefined && {
+      bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+    }),
+    ...(options?.rrfK !== undefined && { rrfK: options.rrfK }),
+  };
+
   // Stage 1 — per-facet V2 ranking. Each sub-query contributes only its
   // top-N (default 10) to RRF. The original query also contributes a
   // ranking with extra weight (replicated facets) so that when a
@@ -773,8 +879,7 @@ export async function rankComposite(
   const originalRanked = rankFusedVaultMemories(originalQuery, originalQueryEmbedding, items, {
     limit: perFacetTopN,
     minSimilarity: options?.minSimilarity ?? 0,
-    ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
-    ...(options?.recency && { recency: options.recency }),
+    ...facetTuning,
   }).map((r) => r.uniqueId);
 
   const perFacetRankings: string[][] = [];
@@ -787,8 +892,7 @@ export async function rankComposite(
     const ranked = rankFusedVaultMemories(sq.query, sq.embedding, items, {
       limit: perFacetTopN,
       minSimilarity: options?.minSimilarity ?? 0,
-      ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
-      ...(options?.recency && { recency: options.recency }),
+      ...facetTuning,
     });
     perFacetRankings.push(ranked.map((r) => r.uniqueId));
   }
@@ -864,6 +968,38 @@ export async function rankComposite(
     }));
     head.sort((a, b) => b.similarity - a.similarity);
     combined = [...head, ...tailSlice];
+  }
+
+  // Stage 4 — optional MMR diversity pass, mirroring
+  // rankFusedVaultMemoriesAsync so the MMR knob behaves identically on
+  // the composite path (previously it silently no-opped here).
+  if (options?.mmr) {
+    const lambda = options.mmrLambda ?? 0.7;
+    const mmrTopN = options.mmrTopN ?? 20;
+    const mmrCandidates = combined.slice(0, mmrTopN).map((r) => ({
+      id: r.uniqueId,
+      score: r.similarity,
+      embedding: itemById.get(r.uniqueId)?.embedding ?? [],
+      content: r.content,
+    }));
+    const picked = applyMMR(mmrCandidates, limit, lambda);
+    const pickedIds = new Set(picked.map((p) => p.id));
+    const resultMap = new Map(combined.map((r) => [r.uniqueId, r]));
+    const pickedResults: VaultSearchResult[] = picked.map((p) => {
+      const orig = resultMap.get(p.id);
+      return {
+        uniqueId: p.id,
+        content: p.content,
+        similarity: p.score,
+        createdAt: orig?.createdAt,
+        updatedAt: orig?.updatedAt,
+        eventTimeStart: orig?.eventTimeStart,
+        eventTimeEnd: orig?.eventTimeEnd,
+        eventTimeKind: orig?.eventTimeKind,
+      };
+    });
+    const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
+    return [...pickedResults, ...remainingTail].slice(0, limit);
   }
 
   return combined.slice(0, limit);
@@ -1058,6 +1194,26 @@ export async function searchVaultMemoriesWithSize(
 
   const useFusion = searchOptions?.useFusion ?? true;
 
+  // Ranking tuning knobs shared by every fusion path below. Only defined
+  // fields are forwarded so each ranker's own defaults stay authoritative.
+  const tuning = {
+    ...(searchOptions?.recencyAlpha !== undefined && { recencyAlpha: searchOptions.recencyAlpha }),
+    ...(searchOptions?.recency && { recency: searchOptions.recency }),
+    ...(searchOptions?.supersessionBoost !== undefined && {
+      supersessionBoost: searchOptions.supersessionBoost,
+    }),
+    ...(searchOptions?.supersessionWindow !== undefined && {
+      supersessionWindow: searchOptions.supersessionWindow,
+    }),
+    ...(searchOptions?.proofCountAlpha !== undefined && {
+      proofCountAlpha: searchOptions.proofCountAlpha,
+    }),
+    ...(searchOptions?.bm25AdmissionDivisor !== undefined && {
+      bm25AdmissionDivisor: searchOptions.bm25AdmissionDivisor,
+    }),
+    ...(searchOptions?.rrfK !== undefined && { rrfK: searchOptions.rrfK }),
+  };
+
   // Composite path — LLM decomposes the query into sub-queries, embeds them,
   // and runs the multi-facet RRF ranker. Falls through to V2/V2+CE on
   // "specific" mode so single-fact queries don't pay the decomposition cost.
@@ -1076,6 +1232,9 @@ export async function searchVaultMemoriesWithSize(
         ...(searchOptions.rerankTopN !== undefined && {
           rerankTopN: searchOptions.rerankTopN,
         }),
+        ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+        ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
+        ...tuning,
         ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
         ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
       });
@@ -1092,6 +1251,9 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions.rerankTopN !== undefined && {
         rerankTopN: searchOptions.rerankTopN,
       }),
+      ...(searchOptions.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+      ...(searchOptions.mmr !== undefined && { mmr: searchOptions.mmr }),
+      ...tuning,
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
@@ -1102,6 +1264,7 @@ export async function searchVaultMemoriesWithSize(
     const results = rankFusedVaultMemories(query, queryEmbedding, embeddedItems, {
       limit,
       minSimilarity,
+      ...tuning,
       ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
@@ -1111,6 +1274,12 @@ export async function searchVaultMemoriesWithSize(
   const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
     limit,
     minSimilarity,
+    ...(searchOptions?.supersessionBoost !== undefined && {
+      supersessionBoost: searchOptions.supersessionBoost,
+    }),
+    ...(searchOptions?.supersessionWindow !== undefined && {
+      supersessionWindow: searchOptions.supersessionWindow,
+    }),
   });
 
   return stampTimestamps({ results, vaultSize: memories.length });
@@ -1172,6 +1341,30 @@ export function createMemoryVaultSearchTool(
 ): ToolConfig {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
+
+  // Ranking tuning knobs forwarded verbatim to recall() (fusion path) and
+  // searchVaultMemories (legacy cosine path). Only defined fields are
+  // forwarded so the downstream defaults stay authoritative.
+  const tuningForward = {
+    ...(searchOptions?.rerankTopN !== undefined && { rerankTopN: searchOptions.rerankTopN }),
+    ...(searchOptions?.ceWeight !== undefined && { ceWeight: searchOptions.ceWeight }),
+    ...(searchOptions?.recencyAlpha !== undefined && { recencyAlpha: searchOptions.recencyAlpha }),
+    ...(searchOptions?.recency && { recency: searchOptions.recency }),
+    ...(searchOptions?.mmr !== undefined && { mmr: searchOptions.mmr }),
+    ...(searchOptions?.supersessionBoost !== undefined && {
+      supersessionBoost: searchOptions.supersessionBoost,
+    }),
+    ...(searchOptions?.supersessionWindow !== undefined && {
+      supersessionWindow: searchOptions.supersessionWindow,
+    }),
+    ...(searchOptions?.proofCountAlpha !== undefined && {
+      proofCountAlpha: searchOptions.proofCountAlpha,
+    }),
+    ...(searchOptions?.bm25AdmissionDivisor !== undefined && {
+      bm25AdmissionDivisor: searchOptions.bm25AdmissionDivisor,
+    }),
+    ...(searchOptions?.rrfK !== undefined && { rrfK: searchOptions.rrfK }),
+  };
 
   return {
     type: "function",
@@ -1236,6 +1429,7 @@ export function createMemoryVaultSearchTool(
             limit: requestLimit,
             minSimilarity,
             useFusion: false,
+            ...tuningForward,
             ...(folderId !== undefined && { folderId }),
             ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
           });
@@ -1256,6 +1450,7 @@ export function createMemoryVaultSearchTool(
             limit: requestLimit,
             minScore: minSimilarity,
             budget,
+            ...tuningForward,
             ...(folderId !== undefined && { folderId }),
             ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
             ...(searchOptions?.decompose === "llm" &&

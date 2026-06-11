@@ -118,6 +118,26 @@ export async function recall(
         minSimilarity: vaultMinScore,
         useFusion: true,
         rerank: flags.rerank,
+        // Ranking tuning knobs — forwarded only when set so the vault
+        // pipeline's own defaults stay authoritative.
+        ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
+        ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),
+        ...(options.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
+        ...(options.recency && { recency: options.recency }),
+        ...(options.mmr !== undefined && { mmr: options.mmr }),
+        ...(options.supersessionBoost !== undefined && {
+          supersessionBoost: options.supersessionBoost,
+        }),
+        ...(options.supersessionWindow !== undefined && {
+          supersessionWindow: options.supersessionWindow,
+        }),
+        ...(options.proofCountAlpha !== undefined && {
+          proofCountAlpha: options.proofCountAlpha,
+        }),
+        ...(options.bm25AdmissionDivisor !== undefined && {
+          bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+        }),
+        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
         ...(decomposeAvailable && {
           decompose: "llm" as const,
           decomposeOptions: options.decomposeOptions,
@@ -168,7 +188,7 @@ export async function recall(
 
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
   const chunkRanking = chunkResults.map((r) => `chunk:${r.message.uniqueId}`);
-  const fused = rrfFuse([factRanking, chunkRanking]);
+  const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
 
   const byId = new Map<string, RankedMemory>();
   for (const r of factResults) {
