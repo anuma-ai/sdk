@@ -30,6 +30,7 @@ const DEFAULT_MAX_RETRIES = 3;
 const OPERATION_PRIORITY: Record<QueuedOperationType, number> = {
   createConversation: 0,
   updateConversationTitle: 1,
+  updateConversationPinned: 1,
   createMessage: 2,
   updateMessage: 3,
   createMedia: 4,

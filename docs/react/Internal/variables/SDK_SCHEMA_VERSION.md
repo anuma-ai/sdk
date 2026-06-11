@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `31` = `31`
+> `const` **SDK\_SCHEMA\_VERSION**: `32` = `32`
 
-Defined in: [src/lib/db/schema.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#57)
+Defined in: [src/lib/db/schema.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#58)
 
 Current combined schema version for all SDK storage modules.
 
@@ -38,3 +38,4 @@ Version history:
 * v29: Added entity + memory\_entity tables for the W5 knowledge-graph retrieval lane
 * v30: Added event\_time\_start, event\_time\_end, event\_time\_kind columns to memory\_vault for the W6 temporal retrieval lane
 * v31: Added user\_id column to memory\_entity for multi-user server-side scoping of the W5 graph retrieval lane
+* v32: Added pinned\_at column to conversations for pinning chats to the top of the list

@@ -17,6 +17,7 @@ export {
   searchChunksOp,
   searchMessagesOp,
   type StorageOperationsContext,
+  updateConversationPinnedOp,
   updateConversationProjectOp,
   updateConversationTitleOp,
   updateMessageChunksOp,

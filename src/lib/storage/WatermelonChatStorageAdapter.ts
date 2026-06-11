@@ -27,6 +27,7 @@ import {
   getConversationsOp,
   getMessagesOp,
   type StorageOperationsContext,
+  updateConversationPinnedOp,
   updateConversationProjectOp,
   updateConversationTitleOp,
   updateMessageChunksOp,
@@ -107,6 +108,10 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
 
   updateConversationProject(conversationId: string, projectId: string | null): Promise<boolean> {
     return updateConversationProjectOp(this.ctx, conversationId, projectId);
+  }
+
+  updateConversationPinned(conversationId: string, pinned: boolean): Promise<boolean> {
+    return updateConversationPinnedOp(this.ctx, conversationId, pinned);
   }
 
   deleteConversation(conversationId: string): Promise<boolean> {

@@ -177,6 +177,9 @@ export interface StoredConversation {
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
+  /** When the conversation was pinned to the top of the list; null/unset = not pinned.
+   * `null` (not `undefined`) at runtime for unpinned rows — mirrors the model field. */
+  pinnedAt?: Date | null;
 }
 
 /**
@@ -790,6 +793,7 @@ export interface BaseUseChatStorageResult {
   getConversation: (id: string) => Promise<StoredConversation | null>;
   getConversations: () => Promise<StoredConversation[]>;
   updateConversationTitle: (id: string, title: string) => Promise<boolean>;
+  updateConversationPinned: (id: string, pinned: boolean) => Promise<boolean>;
   deleteConversation: (id: string) => Promise<boolean>;
   getMessages: (conversationId: string) => Promise<StoredMessage[]>;
 }
