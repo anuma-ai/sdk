@@ -29,6 +29,13 @@
  *
  * SEQUENTIAL_TURNS=<n> overrides the turn count (default 10; try 100 with
  * a fast E2E_MODEL for the long-haul version).
+ *
+ * SEQUENTIAL_MODE=accumulate runs the SAME prompts under the pre-envelope
+ * context strategy (full text history, no manifest, no window — what main's
+ * harness does), as the measurement baseline for before/after comparisons.
+ * Flatness is asserted only in envelope mode; accumulate grows by design.
+ * Each model+mode writes to its own `.output/sequential-changes/<slug>/`
+ * so runs never clobber each other's history.
  */
 
 import { afterAll, describe, expect, it } from "vitest";
@@ -53,7 +60,13 @@ import { createMapStorage, createTestAppTools, TEST_CONVERSATION_ID } from "./to
 
 const ENABLED = process.env.RUN_SEQUENTIAL_CHANGES === "1";
 const TURNS = Math.max(4, Number(process.env.SEQUENTIAL_TURNS) || 10);
+const MODE = process.env.SEQUENTIAL_MODE === "accumulate" ? "accumulate" : "envelope";
 const SYSTEM_PROMPT = buildAppSystemPrompt();
+const MODEL_SLUG = config.model
+  .split("/")
+  .pop()!
+  .replace(/[^a-zA-Z0-9.-]+/g, "_");
+const OUTPUT_SUBDIR = `sequential-changes/${MODEL_SLUG}-${MODE}`;
 
 /** Text pairs kept verbatim in the envelope. Older turns are dropped —
  *  the files carry the durable state, not the conversation. */
@@ -103,7 +116,7 @@ describe("sequential-changes", () => {
   });
 
   it.skipIf(!ENABLED)(
-    `${TURNS} sequential change requests keep per-turn input tokens flat`,
+    `${TURNS} sequential change requests (${MODE}) keep per-turn input tokens flat`,
     async () => {
       const store = createFileStore();
       const storage = createMapStorage(store);
@@ -111,24 +124,39 @@ describe("sequential-changes", () => {
       const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
       const phases: PhaseRecord[] = [];
       const startedAt = new Date().toISOString();
-      const recentPairs: Array<{ user: string; assistant: string }> = [];
+      const textPairs: Array<{ user: string; assistant: string }> = [];
       let logStart = 0;
 
       for (let i = 1; i <= TURNS; i++) {
         const prompt = i === 1 ? BUILD_PROMPT : changePrompt(i);
 
-        // The envelope: rebuilt from scratch every turn. No tool messages,
-        // no unbounded history — manifest + text window + the new request.
-        const manifest = await buildAppFileManifest({
-          storage,
-          conversationId: TEST_CONVERSATION_ID,
-        });
-        const messages: Message[] = [
-          systemMsg(SYSTEM_PROMPT),
-          systemMsg(manifest),
-          ...recentPairs.flatMap((p) => [userMsg(p.user), assistantMsg(p.assistant)]),
-          userMsg(prompt),
-        ];
+        let messages: Message[];
+        if (MODE === "envelope") {
+          // The envelope: rebuilt from scratch every turn. No tool messages,
+          // no unbounded history — manifest + text window + the new request.
+          const manifest = await buildAppFileManifest({
+            storage,
+            conversationId: TEST_CONVERSATION_ID,
+          });
+          messages = [
+            systemMsg(SYSTEM_PROMPT),
+            systemMsg(manifest),
+            ...textPairs
+              .slice(-TEXT_WINDOW_PAIRS)
+              .flatMap((p) => [userMsg(p.user), assistantMsg(p.assistant)]),
+            userMsg(prompt),
+          ];
+        } else {
+          // Baseline (main's harness shape): the full text history rides
+          // along every turn — no manifest, no window. Tool messages are
+          // still per-turn only, so this is main's BEST case; hosts that
+          // also resend tool history grow much faster.
+          messages = [
+            systemMsg(SYSTEM_PROMPT),
+            ...textPairs.flatMap((p) => [userMsg(p.user), assistantMsg(p.assistant)]),
+            userMsg(prompt),
+          ];
+        }
 
         const result = await timedToolLoop({
           messages,
@@ -162,18 +190,23 @@ describe("sequential-changes", () => {
 
         expect(result.error).toBeNull();
 
-        recentPairs.push({ user: prompt, assistant: responseText });
-        if (recentPairs.length > TEXT_WINDOW_PAIRS) recentPairs.shift();
+        textPairs.push({ user: prompt, assistant: responseText });
       }
 
-      dumpFiles(store, "sequential-changes/final");
+      dumpFiles(store, `${OUTPUT_SUBDIR}/final`);
       writeRunMetrics({
-        outputSubdir: "sequential-changes",
+        outputSubdir: OUTPUT_SUBDIR,
         benchmark: "sequential-changes",
+        scenario: `${MODEL_SLUG}-${MODE}`,
         promptHash: shortHash(SYSTEM_PROMPT),
         startedAt,
         phases,
       });
+
+      // Accumulate mode is measurement-only: it reproduces the pre-envelope
+      // baseline for comparisons and grows by design, so the flatness
+      // assertions below would (correctly) reject it.
+      if (MODE !== "envelope") return;
 
       // The flatness proof. Change turns only — the initial build has a
       // different shape (no manifest content, big create_file output).
