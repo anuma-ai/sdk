@@ -133,7 +133,7 @@ async function decryptMaybeJsonField<T>(
   if (typeof value === "string") {
     if (isEncrypted(value)) {
       const result = await tryDecryptField(value, address);
-      if (!result.ok) return { value: undefined, failed: true };
+      if (!result.ok) return { value: result.ciphertext as unknown as T, failed: true };
       try {
         return { value: JSON.parse(result.value) as T, failed: false };
       } catch (error) {

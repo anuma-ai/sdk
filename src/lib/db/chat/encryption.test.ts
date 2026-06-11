@@ -348,9 +348,15 @@ describe("Chat Encryption Utilities", () => {
       clearAllEncryptionKeys();
       const decrypted = await decryptMessageFields(storedMessage, testAddress);
 
-      // The JSON field failed to decrypt → message is flagged, not silently dropped.
+      // The JSON field failed to decrypt → message is flagged and ciphertext stays retryable.
       expect(decrypted.decryptionFailed).toBe(true);
-      expect(decrypted.sources).toBeUndefined();
+      expect(decrypted.sources).toBe(encrypted.sources);
+      expect(isEncrypted(decrypted.sources as unknown as string)).toBe(true);
+
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      const retried = await decryptMessageFields(decrypted, testAddress);
+      expect(retried.sources).toEqual([{ url: "https://example.com", title: "Secret" }]);
+      expect(retried.decryptionFailed).toBeUndefined();
       warnSpy.mockRestore();
     });
 
