@@ -59,7 +59,12 @@ const assistantMsg = (text: string): Message => ({
   content: [{ type: "text", text }],
 });
 
-async function runTurn(messages: Message[], tools: unknown[], maxRounds = 6) {
+// 9 rounds: the prompt's full workflow on a substantial turn is
+// (list_files / read_file re-orient) → create_file → critique_design →
+// patch_file → audit_design → patch_file → verify_app. At 6 the model
+// exhausts the budget on quality patches and never reaches verify_app
+// (observed: 0 verify calls across 3 turns, every turn at exactly 6/6).
+async function runTurn(messages: Message[], tools: unknown[], maxRounds = 9) {
   const result = await timedToolLoop({
     messages,
     model: config.model,
@@ -161,6 +166,11 @@ describe("chat-app-debug", () => {
         content.includes("window.app.complete")
       );
       expect(usesRuntimeAi).toBe(true);
+      // The runtime verification must actually happen: the prompt's final step
+      // is "call verify_app before declaring done", and a too-small round
+      // budget starves it silently — the Playwright verifier sits unused and
+      // nothing checks the app mounts. Guard against that regressing.
+      expect(log.some((c) => c.name === "verify_app")).toBe(true);
     },
     1_200_000
   );

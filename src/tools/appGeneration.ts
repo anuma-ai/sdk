@@ -842,7 +842,14 @@ function collectValidationErrors(
 
 /**
  * Creates the suite of app generation tools (create_file, patch_file, delete_file,
- * read_file, list_files) backed by the provided storage adapter.
+ * read_file, list_files, audit_design, critique_design, verify_app) backed by
+ * the provided storage adapter.
+ *
+ * Give the tool loop running these at least 8 tool rounds per turn
+ * (`maxToolRounds` in `runToolLoop` / `useChat`). The workflow the App Builder
+ * prompt mandates — re-orient, create, critique, patch, audit, patch, verify —
+ * takes 7–8 rounds on a substantial turn; a smaller budget silently starves
+ * the trailing `verify_app` call, so the host's runtime verification never runs.
  */
 export function createAppGenerationTools({
   getConversationId,
