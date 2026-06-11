@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import type { StepFinishEvent } from "../../../src/lib/chat/toolLoop.js";
 import { exportAppToHtml } from "../../../src/tools/appExport.js";
 import {
   compareRuns,
@@ -22,6 +23,7 @@ import {
   type RunRecord,
   shortHash,
   summarizePhase,
+  type TokenUsage,
 } from "../../../src/tools/appGenMetrics.js";
 import { config, runToolLoop } from "../setup.js";
 
@@ -41,17 +43,33 @@ export {
   type RunRecord,
   shortHash,
   summarizePhase,
+  type TokenUsage,
 } from "../../../src/tools/appGenMetrics.js";
 
-/** Wrapper that times the tool loop and logs the duration. */
+/**
+ * Wrapper that times the tool loop, logs the duration, and sums token
+ * usage across the loop's rounds (composing the caller's `onStepFinish`,
+ * same pattern as the recorder in `../setup.ts`). Pass the returned
+ * `usage` to `summarizePhase` so benchmark metrics carry cost data.
+ */
 export async function timedToolLoop(
   ...args: Parameters<typeof runToolLoop>
-): Promise<Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number }> {
+): Promise<Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number; usage: TokenUsage }> {
+  const [params] = args;
+  const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
+  const userOnStepFinish = params.onStepFinish;
   const start = performance.now();
-  const result = await runToolLoop(...args);
+  const result = await runToolLoop({
+    ...params,
+    onStepFinish: (event: StepFinishEvent) => {
+      usage.inputTokens += event.usage.inputTokens ?? 0;
+      usage.outputTokens += event.usage.outputTokens ?? 0;
+      userOnStepFinish?.(event);
+    },
+  });
   const elapsedMs = Math.round(performance.now() - start);
   console.log(`  Tool loop: ${(elapsedMs / 1000).toFixed(1)}s`);
-  return { ...result, elapsedMs };
+  return { ...result, elapsedMs, usage };
 }
 
 // ---------------------------------------------------------------------------

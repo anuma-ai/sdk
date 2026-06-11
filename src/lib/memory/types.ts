@@ -13,6 +13,7 @@ import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
+import type { RecencyOptions } from "./recency.js";
 
 export type MemoryKind = "fact" | "chunk";
 
@@ -117,6 +118,31 @@ export interface RecallOptions {
    * resolves windows in 2026 and never overlaps stored event_time.
    */
   now?: number;
+  // -------------------------------------------------------------------------
+  // Ranking tuning knobs — forwarded verbatim to the vault search pipeline.
+  // All optional; defaults below match the pipeline's hardcoded behavior, so
+  // omitting them is a no-op. Exposed for evaluation / ablation sweeps.
+  // -------------------------------------------------------------------------
+  /** Number of candidates fed to the cross-encoder rerank stage. Default: 30. */
+  rerankTopN?: number;
+  /** Multiplicative cross-encoder blend weight. Default: 0.1. */
+  ceWeight?: number;
+  /** Recency boost slope in the fused ranker. Default: 1.0. */
+  recencyAlpha?: number;
+  /** Recency decay curve overrides (per-year decay slope, floor, no-date multiplier). */
+  recency?: RecencyOptions;
+  /** Apply MMR diversification after ranking (rerank pipeline only). Default: false. */
+  mmr?: boolean;
+  /** Supersession score-gap transfer factor. Default: 0.8. */
+  supersessionBoost?: number;
+  /** Hard cap on the supersession candidate window. Default: 50. */
+  supersessionWindow?: number;
+  /** Proof-count log-boost scale. Default: 0.1. */
+  proofCountAlpha?: number;
+  /** Divisor mapping BM25 scores to the admission floor. Default: 50. */
+  bm25AdmissionDivisor?: number;
+  /** RRF smoothing constant for lane fusion (facts × chunks and side lanes). Default: 60. */
+  rrfK?: number;
 }
 
 export interface RecallContext {

@@ -120,6 +120,63 @@ describe("summarizePhase", () => {
       false
     );
   });
+
+  it("audits the post-phase file store when app files exist", () => {
+    // Clean app: tokens + var() references → near-perfect score.
+    const clean = summarizePhase({
+      label: "p",
+      elapsedMs: 0,
+      toolCalls: [],
+      files: {
+        "App.js": `export default function App() { return <h1 className="title">Hi</h1>; }`,
+        "App.css": `:root { --ink: #112233; } .title { color: var(--ink); }`,
+      },
+    });
+    expect(clean.auditScore).toBeGreaterThanOrEqual(95);
+
+    // Raw colors outside :root → penalized score.
+    const dirty = summarizePhase({
+      label: "p",
+      elapsedMs: 0,
+      toolCalls: [],
+      files: {
+        "App.js": `export default function App() { return <h1 className="title">Hi</h1>; }`,
+        "App.css": `:root { --ink: #112233; } .title { color: #ff0000; background: #00ff00; }`,
+      },
+    });
+    expect(dirty.auditScore).not.toBeNull();
+    expect(dirty.auditScore!).toBeLessThan(clean.auditScore!);
+  });
+
+  it("reports auditScore null when there is nothing to audit", () => {
+    expect(
+      summarizePhase({ label: "p", elapsedMs: 0, toolCalls: [], files: {} }).auditScore
+    ).toBeNull();
+    expect(
+      summarizePhase({
+        label: "p",
+        elapsedMs: 0,
+        toolCalls: [],
+        files: { "package.json": "{}" },
+      }).auditScore
+    ).toBeNull();
+  });
+
+  it("threads token usage when measured and nulls when not", () => {
+    const measured = summarizePhase({
+      label: "p",
+      elapsedMs: 0,
+      toolCalls: [],
+      files: {},
+      usage: { inputTokens: 1200, outputTokens: 340 },
+    });
+    expect(measured.inputTokens).toBe(1200);
+    expect(measured.outputTokens).toBe(340);
+
+    const unmeasured = summarizePhase({ label: "p", elapsedMs: 0, toolCalls: [], files: {} });
+    expect(unmeasured.inputTokens).toBeNull();
+    expect(unmeasured.outputTokens).toBeNull();
+  });
 });
 
 describe("finalizeRun", () => {
@@ -139,6 +196,9 @@ describe("finalizeRun", () => {
           overwrites: 1,
           files: { "App.js": 100 },
           errored: false,
+          auditScore: 80,
+          inputTokens: 5000,
+          outputTokens: 1000,
         },
         {
           label: "p2",
@@ -148,6 +208,9 @@ describe("finalizeRun", () => {
           overwrites: 2,
           files: { "App.js": 200 },
           errored: false,
+          auditScore: 95,
+          inputTokens: 7000,
+          outputTokens: 1500,
         },
       ],
     });
@@ -157,9 +220,37 @@ describe("finalizeRun", () => {
     expect(run.totals.toolCalls).toEqual({ create_file: 2, patch_file: 4, read_file: 1 });
     expect(run.totals.failedPatches).toBe(1);
     expect(run.totals.overwrites).toBe(3);
+    expect(run.totals.inputTokens).toBe(12000);
+    expect(run.totals.outputTokens).toBe(2500);
     expect(run.benchmark).toBe("kanban");
     // finishedAt is set to "now" — just sanity-check it's a valid ISO string.
     expect(new Date(run.finishedAt).toString()).not.toBe("Invalid Date");
+  });
+
+  it("keeps token totals null when no phase measured usage", () => {
+    const run = finalizeRun({
+      benchmark: "kanban",
+      model: "m",
+      apiType: "auto",
+      promptHash: "abc123",
+      startedAt: "2026-05-25T00:00:00.000Z",
+      phases: [
+        {
+          label: "p1",
+          elapsedMs: 1000,
+          toolCalls: {},
+          failedPatches: 0,
+          overwrites: 0,
+          files: {},
+          errored: false,
+          auditScore: null,
+          inputTokens: null,
+          outputTokens: null,
+        },
+      ],
+    });
+    expect(run.totals.inputTokens).toBeNull();
+    expect(run.totals.outputTokens).toBeNull();
   });
 });
 
@@ -195,6 +286,9 @@ const baseRun: RunRecord = {
       overwrites: 0,
       files: { "App.js": 1000, "App.css": 500 },
       errored: false,
+      auditScore: 90,
+      inputTokens: 50_000,
+      outputTokens: 8_000,
     },
     {
       label: "p2",
@@ -204,9 +298,18 @@ const baseRun: RunRecord = {
       overwrites: 0,
       files: { "App.js": 1500, "App.css": 500 },
       errored: false,
+      auditScore: 95,
+      inputTokens: 60_000,
+      outputTokens: 9_000,
     },
   ],
-  totals: { toolCalls: { create_file: 2, patch_file: 4 }, failedPatches: 1, overwrites: 0 },
+  totals: {
+    toolCalls: { create_file: 2, patch_file: 4 },
+    failedPatches: 1,
+    overwrites: 0,
+    inputTokens: 110_000,
+    outputTokens: 17_000,
+  },
 };
 
 describe("compareRuns", () => {
@@ -283,5 +386,40 @@ describe("compareRuns", () => {
   it("refuses to compare across schema versions", () => {
     const older = { ...baseRun, schemaVersion: 0 as unknown as typeof SCHEMA_VERSION };
     expect(compareRuns(older, baseRun)).toContain("schema mismatch");
+  });
+
+  it("shows token totals and per-phase audit score deltas", () => {
+    const after: RunRecord = {
+      ...baseRun,
+      phases: [
+        { ...baseRun.phases[0], auditScore: 70, inputTokens: 65_000, outputTokens: 11_000 },
+        baseRun.phases[1],
+      ],
+      totals: { ...baseRun.totals, inputTokens: 125_000, outputTokens: 20_000 },
+    };
+    const out = compareRuns(baseRun, after);
+    expect(out).toMatch(/tokens: {2}in 110000 → 125000 {2}\(\+15000\)/);
+    expect(out).toMatch(/auditScore:\s+90 → 70\s+\(-20\)/);
+  });
+
+  it("renders unmeasured token and audit fields as n/a without deltas", () => {
+    const unmeasured: RunRecord = {
+      ...baseRun,
+      phases: baseRun.phases.map((p) => ({
+        ...p,
+        auditScore: null,
+        inputTokens: null,
+        outputTokens: null,
+      })),
+      totals: { ...baseRun.totals, inputTokens: null, outputTokens: null },
+    };
+    const out = compareRuns(unmeasured, baseRun);
+    expect(out).toContain("tokens:  in n/a → 110000   out n/a → 17000");
+    expect(out).toMatch(/auditScore:\s+n\/a → 90/);
+
+    // Both sides unmeasured → the token and audit lines are omitted entirely.
+    const silent = compareRuns(unmeasured, unmeasured);
+    expect(silent).not.toContain("tokens:");
+    expect(silent).not.toContain("auditScore:");
   });
 });

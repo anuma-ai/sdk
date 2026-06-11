@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#279)
+Defined in: [src/expo/useChatStorage.ts:280](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#280)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Extends base result with Expo-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/expo/useChatStorage.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#323)
+Defined in: [src/expo/useChatStorage.ts:324](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#324)
 
 Clear all queued operations without writing them.
 
@@ -30,7 +30,7 @@ Clear all queued operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:780](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#780)
+Defined in: [src/lib/db/chat/types.ts:783](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#783)
 
 **Inherited from**
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/db/chat/types.ts:780](https://github.com/anuma-ai/sdk/blob/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](../../../react/Internal/interfaces/CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:782](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#782)
+Defined in: [src/lib/db/chat/types.ts:785](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#785)
 
 **Parameters**
 
@@ -83,7 +83,7 @@ Defined in: [src/lib/db/chat/types.ts:782](https://github.com/anuma-ai/sdk/blob/
 
 > **createMemoryEngineTool**: (`searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../../../react/Internal/interfaces/MemoryEngineSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:298](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#298)
+Defined in: [src/expo/useChatStorage.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#299)
 
 Create a memory engine tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -141,7 +141,7 @@ await sendMessage({
 
 > **createMemoryVaultTool**: (`options?`: [`MemoryVaultToolOptions`](../../../react/Internal/interfaces/MemoryVaultToolOptions.md)) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:301](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#301)
+Defined in: [src/expo/useChatStorage.ts:302](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#302)
 
 Create a memory vault tool pre-configured with hook's vault context and encryption.
 
@@ -180,7 +180,7 @@ Create a memory vault tool pre-configured with hook's vault context and encrypti
 
 > **createRecallTool**: (`toolOptions?`: [`RecallToolOptions`](../../../react/Internal/interfaces/RecallToolOptions.md), `callbacks?`: [`RecallToolCallbacks`](../../../react/Internal/interfaces/RecallToolCallbacks.md)) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#308)
+Defined in: [src/expo/useChatStorage.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#309)
 
 Create the unified recall tool — single chat-completion tool that
 searches both vault facts and conversation chunks via recall().
@@ -233,7 +233,7 @@ Replaces the legacy createMemoryEngineTool / vault search pair.
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:786](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#786)
+Defined in: [src/lib/db/chat/types.ts:790](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#790)
 
 **Parameters**
 
@@ -274,7 +274,7 @@ Defined in: [src/lib/db/chat/types.ts:786](https://github.com/anuma-ai/sdk/blob/
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/expo/useChatStorage.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#317)
+Defined in: [src/expo/useChatStorage.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#318)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -313,7 +313,7 @@ Delete a vault memory by its ID (soft delete).
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](../../../react/Internal/interfaces/FlushResult.md)>
 
-Defined in: [src/expo/useChatStorage.ts:320](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#320)
+Defined in: [src/expo/useChatStorage.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#321)
 
 Manually flush all queued operations for the current wallet.
 
@@ -327,7 +327,7 @@ Manually flush all queued operations for the current wallet.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:783](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#783)
+Defined in: [src/lib/db/chat/types.ts:786](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#786)
 
 **Parameters**
 
@@ -368,7 +368,7 @@ Defined in: [src/lib/db/chat/types.ts:783](https://github.com/anuma-ai/sdk/blob/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:784](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#784)
+Defined in: [src/lib/db/chat/types.ts:787](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#787)
 
 **Returns**
 
@@ -384,7 +384,7 @@ Defined in: [src/lib/db/chat/types.ts:784](https://github.com/anuma-ai/sdk/blob/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:787](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#787)
+Defined in: [src/lib/db/chat/types.ts:791](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#791)
 
 **Parameters**
 
@@ -425,7 +425,7 @@ Defined in: [src/lib/db/chat/types.ts:787](https://github.com/anuma-ai/sdk/blob/
 
 > **getVaultMemories**: (`options?`: `object`) => `Promise`<[`StoredVaultMemory`](../../../react/Internal/interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/expo/useChatStorage.ts:314](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#314)
+Defined in: [src/expo/useChatStorage.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#315)
 
 Get all vault memories for context injection.
 
@@ -476,7 +476,7 @@ Get all vault memories for context injection.
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#778)
+Defined in: [src/lib/db/chat/types.ts:781](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#781)
 
 **Inherited from**
 
@@ -488,7 +488,7 @@ Defined in: [src/lib/db/chat/types.ts:778](https://github.com/anuma-ai/sdk/blob/
 
 > **queueStatus**: [`QueueStatus`](../../../react/Internal/interfaces/QueueStatus.md)
 
-Defined in: [src/expo/useChatStorage.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#326)
+Defined in: [src/expo/useChatStorage.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#327)
 
 Current status of the write queue.
 
@@ -498,7 +498,7 @@ Current status of the write queue.
 
 > **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#281)
+Defined in: [src/expo/useChatStorage.ts:282](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#282)
 
 Send a message and automatically store it (Expo version)
 
@@ -537,7 +537,7 @@ Send a message and automatically store it (Expo version)
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:781](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#781)
+Defined in: [src/lib/db/chat/types.ts:784](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#784)
 
 **Parameters**
 
@@ -578,7 +578,7 @@ Defined in: [src/lib/db/chat/types.ts:781](https://github.com/anuma-ai/sdk/blob/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:779](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#779)
+Defined in: [src/lib/db/chat/types.ts:782](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#782)
 
 **Returns**
 
@@ -590,11 +590,64 @@ Defined in: [src/lib/db/chat/types.ts:779](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
+### updateConversationPinned()
+
+> **updateConversationPinned**: (`id`: `string`, `pinned`: `boolean`) => `Promise`<`boolean`>
+
+Defined in: [src/lib/db/chat/types.ts:789](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#789)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`id`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`pinned`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`boolean`>
+
+**Inherited from**
+
+`BaseUseChatStorageResult.updateConversationPinned`
+
+***
+
 ### updateConversationTitle()
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:785](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#785)
+Defined in: [src/lib/db/chat/types.ts:788](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#788)
 
 **Parameters**
 

@@ -610,6 +610,12 @@ Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md
 
 ***
 
+### RecencyOptions
+
+Re-exports [RecencyOptions](../react/Internal/interfaces/RecencyOptions.md)
+
+***
+
 ### reflect
 
 Re-exports [reflect](../react/Internal/functions/reflect.md)

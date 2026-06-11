@@ -324,6 +324,7 @@ export type {
   RecallResult,
   RecallToolCallbacks,
   RecallToolOptions,
+  RecencyOptions,
   ReflectOptions,
   ReflectResult,
   RetainAction,

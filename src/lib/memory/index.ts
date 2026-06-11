@@ -22,6 +22,7 @@ export {
   type RecallToolCallbacks,
   type RecallToolOptions,
 } from "./recallTool.js";
+export type { RecencyOptions } from "./recency.js";
 export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { retain, type RetainContext } from "./retain.js";
 export type {

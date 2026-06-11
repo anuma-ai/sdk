@@ -27,6 +27,7 @@ import type {
   LongMemEvalOptions,
   LongMemEvalQuestionType,
   ApiConfig,
+  RetrievalTuningKnobs,
 } from "./types.js";
 import { calculatePercentiles } from "../metrics.js";
 import { getCacheDirectory } from "./dataset.js";
@@ -156,6 +157,59 @@ export function createStorageContext(db: Database): StorageOperationsContext {
     walletAddress: undefined,
     signMessage: undefined,
     embeddedWalletSigner: undefined,
+  };
+}
+
+// ── Retrieval tuning knobs ──
+
+/**
+ * SDK-shaped retrieval tuning options — spreadable into both
+ * `MemoryVaultSearchOptions` (createMemoryVaultSearchTool) and
+ * `RecallOptions` (recall()), whose knob field names are identical.
+ */
+export interface SdkRetrievalTuningOptions {
+  ceWeight?: number;
+  recencyAlpha?: number;
+  recency?: { perYearDecay?: number; floor?: number };
+  rrfK?: number;
+  supersessionBoost?: number;
+  supersessionWindow?: number;
+  proofCountAlpha?: number;
+  mmr?: boolean;
+  rerankTopN?: number;
+  bm25AdmissionDivisor?: number;
+}
+
+/**
+ * Map eval-harness tuning knobs onto SDK option fields. Only knobs that are
+ * actually set are emitted, so the SDK's own defaults stay authoritative —
+ * `buildRetrievalTuningOptions(undefined)` / `({})` is always a no-op.
+ * `recencyDecay`/`recencyFloor` fold into the `recency` sub-object
+ * (`perYearDecay` / `floor`).
+ */
+export function buildRetrievalTuningOptions(
+  knobs?: RetrievalTuningKnobs
+): SdkRetrievalTuningOptions {
+  if (!knobs) return {};
+  const recencyOverrides = {
+    ...(knobs.recencyDecay !== undefined && { perYearDecay: knobs.recencyDecay }),
+    ...(knobs.recencyFloor !== undefined && { floor: knobs.recencyFloor }),
+  };
+  return {
+    ...(knobs.ceWeight !== undefined && { ceWeight: knobs.ceWeight }),
+    ...(knobs.recencyAlpha !== undefined && { recencyAlpha: knobs.recencyAlpha }),
+    ...(Object.keys(recencyOverrides).length > 0 && { recency: recencyOverrides }),
+    ...(knobs.rrfK !== undefined && { rrfK: knobs.rrfK }),
+    ...(knobs.supersessionBoost !== undefined && { supersessionBoost: knobs.supersessionBoost }),
+    ...(knobs.supersessionWindow !== undefined && {
+      supersessionWindow: knobs.supersessionWindow,
+    }),
+    ...(knobs.proofCountAlpha !== undefined && { proofCountAlpha: knobs.proofCountAlpha }),
+    ...(knobs.mmr !== undefined && { mmr: knobs.mmr }),
+    ...(knobs.rerankTopN !== undefined && { rerankTopN: knobs.rerankTopN }),
+    ...(knobs.bm25AdmissionDivisor !== undefined && {
+      bm25AdmissionDivisor: knobs.bm25AdmissionDivisor,
+    }),
   };
 }
 
@@ -815,6 +869,23 @@ export async function runLongMemEval(
     const orderedResults: (LongMemEvalResult | null)[] = new Array(entries.length).fill(null);
     let completed = 0;
 
+    // Retrieval-ranking tuning knobs shared by the vault/ensemble/recall
+    // strategies. Undefined fields are stripped downstream by
+    // buildRetrievalTuningOptions, so SDK defaults stay authoritative.
+    const tuningKnobs: RetrievalTuningKnobs = {
+      ceWeight: options.ceWeight,
+      recencyAlpha: options.recencyAlpha,
+      recencyDecay: options.recencyDecay,
+      recencyFloor: options.recencyFloor,
+      rrfK: options.rrfK,
+      supersessionBoost: options.supersessionBoost,
+      supersessionWindow: options.supersessionWindow,
+      proofCountAlpha: options.proofCountAlpha,
+      mmr: options.mmr,
+      rerankTopN: options.rerankTopN,
+      bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+    };
+
     async function processEntry(i: number): Promise<void> {
       const entry = entries[i];
 
@@ -847,6 +918,7 @@ export async function runLongMemEval(
               rerank: options.rerank,
               decompose: options.decompose,
               consolidate: options.consolidate,
+              ...tuningKnobs,
             }
           );
         } else if (strat === "memory-recall") {
@@ -867,6 +939,7 @@ export async function runLongMemEval(
               recallTypes: options.recallTypes,
               recallEmit: options.recallEmit,
               recallLaneMode: options.recallLaneMode,
+              ...tuningKnobs,
             }
           );
         } else {
@@ -881,6 +954,7 @@ export async function runLongMemEval(
               consolidate: options.consolidate,
               chunkSourceMaxChars: options.chunkSourceMaxChars,
               excerptMaxChars: options.excerptMaxChars,
+              ...tuningKnobs,
             }
           );
         }

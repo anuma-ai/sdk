@@ -6,11 +6,31 @@ Options for the vault search tool.
 
 ## Properties
 
+### bm25AdmissionDivisor?
+
+> `optional` **bm25AdmissionDivisor**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#72)
+
+Divisor mapping BM25 scores to the admission floor (`bm25 / divisor`). Default 50.
+
+***
+
+### ceWeight?
+
+> `optional` **ceWeight**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#55)
+
+Multiplicative cross-encoder blend weight. Default 0.1. Only used when `rerank` is true.
+
+***
+
 ### decompose?
 
 > `optional` **decompose**: `"off"` | `"llm"`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#60)
+Defined in: [src/lib/memoryVault/searchTool.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#81)
 
 LLM-based query decomposition for composite/abstract queries. When set,
 each query is classified + (if composite) decomposed into 3–5 facet
@@ -23,7 +43,7 @@ Requires `decomposeOptions` (auth) when set to "llm".
 
 > `optional` **decomposeOptions**: `object`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#62)
+Defined in: [src/lib/memoryVault/searchTool.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#83)
 
 Auth + endpoint for the decomposition LLM call. Required when decompose="llm".
 
@@ -45,7 +65,7 @@ Auth + endpoint for the decomposition LLM call. Required when decompose="llm".
 
 > `optional` **entityRanking**: `string`\[]
 
-Defined in: [src/lib/memoryVault/searchTool.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#73)
+Defined in: [src/lib/memoryVault/searchTool.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#94)
 
 W5 graph lane — pre-built ranking of memory IDs by entity-overlap
 score with the query. RRF-fused alongside cosine + BM25. Build via
@@ -84,6 +104,47 @@ Minimum similarity threshold below which results are discarded (default: 0.1)
 
 ***
 
+### mmr?
+
+> `optional` **mmr**: `boolean`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#64)
+
+Apply Maximal Marginal Relevance after the relevance pass. Default false.
+Only effective on the rerank (async) pipeline.
+
+***
+
+### proofCountAlpha?
+
+> `optional` **proofCountAlpha**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#70)
+
+Proof-count log-boost scale (Hindsight α). Default 0.1.
+
+***
+
+### recency?
+
+> `optional` **recency**: [`RecencyOptions`](RecencyOptions.md)
+
+Defined in: [src/lib/memoryVault/searchTool.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#59)
+
+Recency decay curve overrides (per-year decay slope, floor, no-date multiplier).
+
+***
+
+### recencyAlpha?
+
+> `optional` **recencyAlpha**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#57)
+
+Recency boost slope applied in the fused ranker. Default 1.0.
+
+***
+
 ### rerank?
 
 > `optional` **rerank**: `boolean`
@@ -105,6 +166,16 @@ Number of CE rerank candidates. Default 30.
 
 ***
 
+### rrfK?
+
+> `optional` **rrfK**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#74)
+
+RRF smoothing constant for lane fusion. Default 60.
+
+***
+
 ### scopes?
 
 > `optional` **scopes**: `string`\[]
@@ -115,11 +186,31 @@ When provided, only search memories with these scopes
 
 ***
 
+### supersessionBoost?
+
+> `optional` **supersessionBoost**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#66)
+
+Supersession score-gap transfer factor. Default 0.8.
+
+***
+
+### supersessionWindow?
+
+> `optional` **supersessionWindow**: `number`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#68)
+
+Hard cap on the supersession candidate window. Default 50.
+
+***
+
 ### temporalRanking?
 
 > `optional` **temporalRanking**: `string`\[]
 
-Defined in: [src/lib/memoryVault/searchTool.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#81)
+Defined in: [src/lib/memoryVault/searchTool.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#102)
 
 W6 temporal lane — pre-built ranking of memory IDs whose event-time
 overlaps the resolved query window, ordered by overlap score

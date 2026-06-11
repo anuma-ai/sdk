@@ -16,6 +16,7 @@ import {
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import {
+  buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
   createConsolidationFallbackTracker,
@@ -37,6 +38,7 @@ import type {
   RecallEmit,
   RecallLaneMode,
   RecallTypes,
+  RetrievalTuningKnobs,
   TokenUsage,
 } from "./types.js";
 
@@ -82,7 +84,7 @@ export async function processEntryRecall(
     recallTypes?: RecallTypes;
     recallEmit?: RecallEmit;
     recallLaneMode?: RecallLaneMode;
-  }
+  } & RetrievalTuningKnobs
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
   const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
@@ -289,6 +291,9 @@ export async function processEntryRecall(
     const decomposeOpts = decomposeEnabled
       ? { decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl } }
       : {};
+    // Ranking tuning knobs (--ce-weight, --rrf-k, …) forwarded to every
+    // recall() call. Empty object when no knob is set — pure no-op.
+    const tuningOpts = buildRetrievalTuningOptions(searchPipeline);
 
     const recallExecutor = async (args: Record<string, unknown>): Promise<string> => {
       const query = typeof args.query === "string" ? args.query : "";
@@ -324,6 +329,7 @@ export async function processEntryRecall(
                 minScore: DEFAULT_FACT_MIN_SCORE,
                 budget,
                 now: nowForQuery,
+                ...tuningOpts,
                 ...decomposeOpts,
               })
             ).memories
@@ -336,6 +342,7 @@ export async function processEntryRecall(
               limit: DEFAULT_CHUNK_LANE_LIMIT,
               budget,
               now: nowForQuery,
+              ...tuningOpts,
               ...decomposeOpts,
             })
           ).memories
@@ -350,6 +357,7 @@ export async function processEntryRecall(
               minScore: DEFAULT_FACT_MIN_SCORE,
               budget,
               now: nowForQuery,
+              ...tuningOpts,
               ...decomposeOpts,
             })
           ).memories
