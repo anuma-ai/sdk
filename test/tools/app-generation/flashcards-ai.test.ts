@@ -98,7 +98,12 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
       const runStartedAt = new Date().toISOString();
       const promptHash = shortHash(SYSTEM_PROMPT);
       let phaseLogStart = 0;
-      function recordPhase(label: string, elapsedMs: number, errored: boolean): void {
+      function recordPhase(
+        label: string,
+        elapsedMs: number,
+        errored: boolean,
+        usage?: { inputTokens: number; outputTokens: number }
+      ): void {
         phases.push(
           summarizePhase({
             label,
@@ -106,6 +111,7 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
             toolCalls: log.slice(phaseLogStart),
             files: store,
             errored,
+            usage,
           })
         );
         phaseLogStart = log.length;
@@ -135,7 +141,12 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
       printResult(phase1.result);
       expect(phase1.result.error).toBeNull();
       dumpFiles(store, "flashcards-ai/step-1-graded-tutor");
-      recordPhase("step-1-graded-tutor", phase1.result.elapsedMs, phase1.result.error !== null);
+      recordPhase(
+        "step-1-graded-tutor",
+        phase1.result.elapsedMs,
+        phase1.result.error !== null,
+        phase1.result.usage
+      );
       conversation.push(assistantMsg(phase1.responseText));
 
       const phase1Js = getAppJs();
@@ -175,7 +186,12 @@ describe("AI flashcard tutor (window.app.complete benchmark)", () => {
       printResult(phase2.result);
       expect(phase2.result.error).toBeNull();
       dumpFiles(store, "flashcards-ai/step-2-ai-generation");
-      recordPhase("step-2-ai-generation", phase2.result.elapsedMs, phase2.result.error !== null);
+      recordPhase(
+        "step-2-ai-generation",
+        phase2.result.elapsedMs,
+        phase2.result.error !== null,
+        phase2.result.usage
+      );
       conversation.push(assistantMsg(phase2.responseText));
 
       const phase2Js = getAppJs();

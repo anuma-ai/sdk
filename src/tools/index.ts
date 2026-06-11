@@ -216,6 +216,7 @@ export {
   APP_FILE_TOOL_NAMES,
   applyPatches,
   AUDIT_DESIGN_SCHEMA,
+  buildAppFileManifest,
   buildAppSystemPrompt,
   CREATE_FILE_SCHEMA,
   createAppGenerationTools,
