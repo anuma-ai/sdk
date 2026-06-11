@@ -318,6 +318,64 @@ describe("Chat Encryption Utilities", () => {
       warnSpy.mockRestore();
     });
 
+    it("flags decryptionFailed when an encrypted JSON field (sources) can't be decrypted", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const encrypted = (await encryptMessageFields(
+        {
+          conversationId: "conv-123",
+          role: "assistant" as const,
+          content: "plaintext stays readable",
+          sources: [{ url: "https://example.com", title: "Secret" }],
+        },
+        testAddress,
+        mockSignMessage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      )) as any;
+
+      const storedMessage: StoredMessage = {
+        uniqueId: "msg-json",
+        messageId: "msg-json",
+        conversationId: "conv-123",
+        role: "assistant",
+        content: "plaintext stays readable", // unencrypted, so content decrypts fine
+        sources: encrypted.sources,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      clearAllEncryptionKeys();
+      const decrypted = await decryptMessageFields(storedMessage, testAddress);
+
+      // The JSON field failed to decrypt → message is flagged, not silently dropped.
+      expect(decrypted.decryptionFailed).toBe(true);
+      expect(decrypted.sources).toBeUndefined();
+      warnSpy.mockRestore();
+    });
+
+    it("clears a stale decryptionFailed flag when a re-run succeeds", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      // Simulate re-running decryption on a message previously flagged as failed
+      // (e.g. after the user re-unlocked). Content is plaintext so it succeeds.
+      const previouslyFailed: StoredMessage = {
+        uniqueId: "msg-retry",
+        messageId: "msg-retry",
+        conversationId: "conv-123",
+        role: "user",
+        content: "now readable",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        decryptionFailed: true,
+      };
+
+      const decrypted = await decryptMessageFields(previouslyFailed, testAddress);
+
+      expect(decrypted.content).toBe("now readable");
+      expect(decrypted.decryptionFailed).toBeUndefined();
+    });
+
     it("should handle plaintext messages (backwards compatibility)", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
 
