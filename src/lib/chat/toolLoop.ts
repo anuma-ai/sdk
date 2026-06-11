@@ -424,6 +424,18 @@ export type RunToolLoopOptions = {
    * @default 20
    */
   maxToolRounds?: number;
+  /**
+   * Token budget for the whole call: input + output tokens summed across
+   * rounds, as reported by the provider. Once cumulative usage reaches the
+   * budget, the next continuation forces `toolChoice: "none"` so the model
+   * wraps up with text instead of starting further tool rounds — the same
+   * mechanism `maxToolRounds` uses. Because a round's cost is only known
+   * after it completes, the budget can overshoot by at most one round plus
+   * the wrap-up response. Gives hosts a hard, predictable per-message cost
+   * ceiling independent of how chatty the model is. Providers that don't
+   * report usage never trigger it. No budget by default.
+   */
+  maxTurnTokens?: number;
   /** Reasoning configuration for o-series models. */
   reasoning?: LlmapiResponseReasoning;
   /** Extended thinking configuration. */
@@ -663,6 +675,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     tools,
     toolChoice: toolChoiceArg,
     maxToolRounds,
+    maxTurnTokens,
     reasoning,
     thinking,
     imageModel,
@@ -1052,9 +1065,21 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     // deck via parseDisplayResults.
     const accumulatedToolResults: AutoExecutedToolResult[] = [];
 
+    // Cumulative provider-reported usage for this call. Each iteration's
+    // accumulator holds the response that issued the tool calls we're about
+    // to execute (the initial response on iteration 1, continuation N's on
+    // iteration N+1), so summing at the top of the loop counts every
+    // response that can lead to another request. The final text-only
+    // response never re-enters the loop — its cost can't trigger anything,
+    // so it doesn't need counting.
+    let turnTokensUsed = 0;
+
     while (currentAccumulator.toolCalls.size > 0 && toolIteration < hardIterationCap) {
       toolIteration++;
       sseError = null;
+      turnTokensUsed +=
+        (currentAccumulator.usage.prompt_tokens ?? 0) +
+        (currentAccumulator.usage.completion_tokens ?? 0);
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
@@ -1420,7 +1445,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Continue the conversation with tool results
       currentMessages = [...currentMessages, ...toolResultMessages];
 
-      const continuationToolChoice = toolIteration >= effectiveMaxToolRounds ? "none" : toolChoice;
+      const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
+      const continuationToolChoice =
+        toolIteration >= effectiveMaxToolRounds || turnBudgetExhausted ? "none" : toolChoice;
 
       const continuationRequestBody = strategy.buildRequestBody({
         messages: currentMessages,
