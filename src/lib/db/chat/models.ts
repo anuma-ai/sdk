@@ -64,6 +64,10 @@ export class Conversation extends Model {
   @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;
+  /** When the conversation was pinned to the top of the list; null/unset = not pinned.
+   * `null` (not `undefined`) at runtime for unpinned rows — `@date` maps a null raw
+   * column to null, and unpin stores an explicit null. */
+  @date("pinned_at") pinnedAt?: Date | null;
 }
 
 /**

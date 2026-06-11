@@ -110,6 +110,7 @@ export function conversationToStoredRaw(conversation: Conversation): StoredConve
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
     isDeleted: conversation.isDeleted,
+    pinnedAt: conversation.pinnedAt,
   };
 }
 
@@ -240,6 +241,7 @@ function conversationToLazyStored(conversation: Conversation): LazyStoredConvers
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
     isDeleted: conversation.isDeleted,
+    pinnedAt: conversation.pinnedAt,
   };
 }
 
@@ -363,6 +365,36 @@ export async function updateConversationProjectOp(
     await ctx.database.write(async () => {
       await results[0].update((conv) => {
         conv._setRaw("project_id", projectId === null ? "" : projectId);
+      });
+    });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Pin or unpin a conversation.
+ *
+ * Pinning stamps `pinned_at` with the current time; unpinning clears it.
+ * Note that list queries (`getConversationsOp` etc.) are NOT reordered by
+ * this — they keep sorting by `created_at`. Consumers sort pinned chats
+ * first using the `pinnedAt` field (most recently pinned first). The
+ * `.update()` call bumps `updated_at`, which is what flags the row for
+ * backup sync.
+ */
+export async function updateConversationPinnedOp(
+  ctx: StorageOperationsContext,
+  id: string,
+  pinned: boolean
+): Promise<boolean> {
+  const results = await ctx.conversationsCollection
+    .query(Q.where("conversation_id", id), Q.where("is_deleted", false))
+    .fetch();
+
+  if (results.length > 0) {
+    await ctx.database.write(async () => {
+      await results[0].update((conv) => {
+        conv._setRaw("pinned_at", pinned ? Date.now() : null);
       });
     });
     return true;

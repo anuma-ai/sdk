@@ -53,8 +53,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v29: Added entity + memory_entity tables for the W5 knowledge-graph retrieval lane
  * - v30: Added event_time_start, event_time_end, event_time_kind columns to memory_vault for the W6 temporal retrieval lane
  * - v31: Added user_id column to memory_entity for multi-user server-side scoping of the W5 graph retrieval lane
+ * - v32: Added pinned_at column to conversations for pinning chats to the top of the list
  */
-export const SDK_SCHEMA_VERSION = 31;
+export const SDK_SCHEMA_VERSION = 32;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -127,6 +128,7 @@ export const sdkSchema = appSchema({
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
+        { name: "pinned_at", type: "number", isOptional: true },
       ],
     }),
     // Project storage table
@@ -757,6 +759,16 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;`
         ),
+      ],
+    },
+    // v31 -> v32: Added pinned_at to conversations for pinning chats
+    {
+      toVersion: 32,
+      steps: [
+        addColumns({
+          table: "conversations",
+          columns: [{ name: "pinned_at", type: "number", isOptional: true }],
+        }),
       ],
     },
   ],
