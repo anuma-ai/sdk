@@ -178,6 +178,12 @@ Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsC
 
 ***
 
+### ConsolidationFallbackReason
+
+Re-exports [ConsolidationFallbackReason](../react/Internal/type-aliases/ConsolidationFallbackReason.md)
+
+***
+
 ### cosineInt8
 
 Re-exports [cosineInt8](../react/Internal/functions/cosineInt8.md)

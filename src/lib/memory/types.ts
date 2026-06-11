@@ -182,6 +182,9 @@ export interface RecallResult {
 export type RetainAction = "create" | "merge" | "update" | "skip";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
+/** Why the consolidator fell back to "create" instead of a real decision. */
+export type ConsolidationFallbackReason = "llm_error" | "invalid_response";
+
 export interface RetainOptions {
   source?: RetainSource;
   sourceChunkIds?: string[];
@@ -201,6 +204,15 @@ export interface RetainOptions {
     apiKey: string;
     baseUrl?: string;
     model?: string;
+    /**
+     * Invoked when the consolidator degrades to its "create" fallback
+     * instead of returning a real decision — `llm_error` for network /
+     * timeout / unparseable output, `invalid_response` for well-formed
+     * JSON that violates the schema (unknown action, bad targetId).
+     * A flaky consolidator silently accumulates duplicate memories;
+     * wire this to logging/metrics so the fallback rate is observable.
+     */
+    onFallback?: (reason: ConsolidationFallbackReason) => void;
   };
   /** Cosine similarity floor for the consolidator candidate set. Default: 0.65. */
   consolidateThreshold?: number;

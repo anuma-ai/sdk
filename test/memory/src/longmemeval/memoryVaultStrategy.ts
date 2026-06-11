@@ -25,6 +25,7 @@ import {
   buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
+  createConsolidationFallbackTracker,
   createVaultContext,
   evaluateAnswer,
   extractMemoriesFromSession,
@@ -203,13 +204,18 @@ export async function processEntryMemoryVault(
     const embeddingOptions = { apiKey: api.apiKey, baseUrl: api.baseUrl };
     const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
     const consolidateEnabled = searchPipeline?.consolidate ?? true;
+    const fallbackTracker = createConsolidationFallbackTracker();
 
     for (const mem of allMemories) {
       const result = await retain(mem.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: [mem.sessionId],
         ...(consolidateEnabled && {
-          consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+          consolidateOptions: {
+            apiKey: api.apiKey,
+            baseUrl: api.baseUrl,
+            onFallback: fallbackTracker.onFallback,
+          },
         }),
       });
 
@@ -220,6 +226,7 @@ export async function processEntryMemoryVault(
       }
     }
     clearProgress();
+    fallbackTracker.report(entry.question_id);
 
     // Step 3: Pre-embed any vault entries that retain() didn't already cache
     // (e.g. ones merged via cosine where embedding was reused). The cache

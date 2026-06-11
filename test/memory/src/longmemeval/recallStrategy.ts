@@ -19,6 +19,7 @@ import {
   buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
+  createConsolidationFallbackTracker,
   createEntityContext,
   createStorageContext,
   createVaultContext,
@@ -217,6 +218,7 @@ export async function processEntryRecall(
     const embeddingCache: VaultEmbeddingCache = new Map();
     const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
     const consolidateEnabled = searchPipeline?.consolidate ?? true;
+    const fallbackTracker = createConsolidationFallbackTracker();
 
     for (const mem of allMemories) {
       // W6 temporal lane — propagate the bench's `kind: 'event' | 'state'`
@@ -235,7 +237,11 @@ export async function processEntryRecall(
         source: "auto-extracted",
         sourceChunkIds: [mem.sessionId],
         ...(consolidateEnabled && {
-          consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+          consolidateOptions: {
+            apiKey: api.apiKey,
+            baseUrl: api.baseUrl,
+            onFallback: fallbackTracker.onFallback,
+          },
         }),
         ...(eventTime && { eventTime }),
       });
@@ -255,6 +261,7 @@ export async function processEntryRecall(
         }
       }
     }
+    fallbackTracker.report(entry.question_id);
     await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
 
     const types = TYPES_BY_FLAG[searchPipeline?.recallTypes ?? "fact-chunk"];
