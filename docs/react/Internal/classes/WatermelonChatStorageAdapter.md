@@ -449,7 +449,8 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:187](https://github
 
 Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#113)
 
-Pin or unpin a conversation. Pinned chats sort to the top of the list.
+Pin or unpin a conversation. Pinning stamps `pinnedAt`; list queries are
+NOT reordered — consumers sort pinned chats first using `pinnedAt`.
 
 **Parameters**
 

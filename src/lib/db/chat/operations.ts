@@ -375,9 +375,12 @@ export async function updateConversationProjectOp(
 /**
  * Pin or unpin a conversation.
  *
- * Pinning stamps `pinned_at` with the current time (used to order the pinned
- * section, most recently pinned first); unpinning clears it. The `.update()`
- * call bumps `updated_at`, which is what flags the row for backup sync.
+ * Pinning stamps `pinned_at` with the current time; unpinning clears it.
+ * Note that list queries (`getConversationsOp` etc.) are NOT reordered by
+ * this — they keep sorting by `created_at`. Consumers sort pinned chats
+ * first using the `pinnedAt` field (most recently pinned first). The
+ * `.update()` call bumps `updated_at`, which is what flags the row for
+ * backup sync.
  */
 export async function updateConversationPinnedOp(
   ctx: StorageOperationsContext,

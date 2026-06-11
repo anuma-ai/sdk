@@ -1720,7 +1720,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
-   * Pin or unpin a conversation (pinned chats sort to the top of the list)
+   * Pin or unpin a conversation. Pinning stamps `pinnedAt`; list queries are
+   * NOT reordered — consumers sort pinned chats first using `pinnedAt`.
    * @returns true if updated, false if conversation not found
    */
   const updateConversationPinned = useCallback(

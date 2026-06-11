@@ -98,6 +98,19 @@ describe("updateConversationPinnedOp", () => {
     expect(after).toBeGreaterThan(before);
   });
 
+  it("re-pinning bumps pinned_at to a newer timestamp", async () => {
+    await insertConversation(db, { conversationId: "conv_a" });
+
+    await updateConversationPinnedOp(ctx, "conv_a", true);
+    const first = (await fetchConversation(db, "conv_a")).pinnedAt!.getTime();
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await updateConversationPinnedOp(ctx, "conv_a", true);
+    const second = (await fetchConversation(db, "conv_a")).pinnedAt!.getTime();
+
+    expect(second).toBeGreaterThan(first);
+  });
+
   it("returns false for an unknown conversation", async () => {
     const updated = await updateConversationPinnedOp(ctx, "conv_missing", true);
     expect(updated).toBe(false);
