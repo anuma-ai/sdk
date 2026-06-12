@@ -232,19 +232,37 @@ async function autoFilterClientTools(
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
-  // Skip only if we have nothing to match against. The prior count gate
-  // (skip when filterCandidates <= MAX_CLIENT_TOOLS_AFTER_FILTER) defeated
-  // filtering on small catalogs, where dropping irrelevant tools still
-  // matters. MAX_CLIENT_TOOLS_AFTER_FILTER remains the result-size cap below.
-  if (!promptEmbeddings || filterCandidates.length === 0) {
-    // No semantic selection ran (no embeddings — e.g. a prompt below
-    // MIN_CONTENT_LENGTH_FOR_TOOLS like "hey" — or nothing to filter), so NO
-    // tool set activated. Return an empty activation set, not undefined:
-    // undefined makes toolSetSystemPrompts fall back to anchor-presence and
-    // inject a set's persona (e.g. APP_BUILDER_PROMPT) just because create_file
-    // sits in the unfiltered tool list. That fallback was leaking the App
-    // Builder prompt onto short greetings.
+  // Nothing to filter (e.g. a memory-tools-only catalog): pass everything
+  // through. Distinct from the no-embeddings case below.
+  if (filterCandidates.length === 0) {
     return { tools: clientTools, activatedSetNames: new Set() };
+  }
+
+  // No embeddings — a prompt below MIN_CONTENT_LENGTH_FOR_TOOLS like "hey".
+  // Send NO tools: a sub-5-char prompt can't express a tool-shaped request,
+  // and the previous behavior (pass ALL tools through unfiltered) paid full
+  // tool-definition tokens on every "ok"/"thx". The one exception is sticky
+  // tool sets from conversation state: a terse confirmation ("yes", "fix")
+  // inside an app/slide conversation must keep that toolkit (plus the memory
+  // tools that accompany every tool-carrying request), or the model cannot
+  // act on what was just discussed. Those sets count as genuinely activated
+  // (forced), so their persona rides in — same as the semantic path treats
+  // `activeToolSets`.
+  if (!promptEmbeddings) {
+    if (activeToolSets.length === 0) {
+      return { tools: [], activatedSetNames: new Set() };
+    }
+    const allSets =
+      extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
+    const activeSets = allSets.filter((s) => activeToolSets.includes(s.name));
+    const stickyMembers = new Set(activeSets.flatMap((s) => s.members));
+    return {
+      tools: [
+        ...alwaysInclude,
+        ...filterCandidates.filter((t) => stickyMembers.has(getToolName(t))),
+      ],
+      activatedSetNames: new Set(activeSets.map((s) => s.name)),
+    };
   }
 
   // Generate embeddings for tool descriptions that aren't cached yet
@@ -410,14 +428,38 @@ export async function previewToolSelection(options: {
   }
 
   // Mirror sendMessage's length gate: prompts below MIN_CONTENT_LENGTH_FOR_TOOLS
-  // skip embeddings entirely in production, so NO semantic selection runs —
-  // every client tool passes through unfiltered (no set activation, no
-  // persona) and no server tools are fetched. Without this mirror, "hey"
-  // previews as a full semantic selection production never performs.
+  // skip embeddings entirely in production, so no semantic selection runs and
+  // NO tools are sent — except sticky-set members (+ memory tools) when the
+  // consumer passes `activeToolSets`, and static server-tool lists, which
+  // don't depend on embeddings. autoFilterClientTools implements the client
+  // side of this; reuse it with null embeddings for an exact mirror.
   if (prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+    const { tools: gatedTools } = await autoFilterClientTools(
+      clientTools,
+      null,
+      clientToolEmbeddingsCache ?? new Map<string, number[]>(),
+      { getToken, apiKey, baseUrl, model: embeddingModel },
+      extraToolSets ?? [],
+      activeToolSets ?? []
+    );
+    let gatedServerNames: string[] = [];
+    if (Array.isArray(serverToolsFilter) && serverToolsFilter.length > 0) {
+      try {
+        const allServerTools = await getServerTools({
+          baseUrl,
+          cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+          getToken,
+          apiKey,
+        });
+        const allow = new Set(serverToolsFilter);
+        gatedServerNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
+      } catch {
+        // Server tools optional; leave empty on fetch failure.
+      }
+    }
     return {
-      clientToolNames: clientTools.map(getToolName).filter(Boolean),
-      serverToolNames: [],
+      clientToolNames: gatedTools.map(getToolName).filter(Boolean),
+      serverToolNames: gatedServerNames,
     };
   }
 
