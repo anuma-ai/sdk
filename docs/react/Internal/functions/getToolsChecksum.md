@@ -2,7 +2,7 @@
 
 > **getToolsChecksum**(): `string` | `undefined`
 
-Defined in: [src/lib/tools/serverTools.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#315)
+Defined in: [src/lib/tools/serverTools.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#325)
 
 Get the checksum of currently cached tools.
 Returns undefined if no cache or no checksum stored.
