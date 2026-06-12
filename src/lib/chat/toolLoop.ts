@@ -1446,8 +1446,18 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       currentMessages = [...currentMessages, ...toolResultMessages];
 
       const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
+      // "required" exists to guarantee the FIRST round picks a tool (e.g.
+      // media modes forcing generate_image). Re-sending it on continuation
+      // rounds corners the model: it has finished the real work but is
+      // forbidden from answering with text, so it fabricates whatever tool
+      // call escapes the constraint (observed: junk memory_vault_save
+      // writes like "The user said: 'tiger'" after image generations).
+      // Once a tool round has executed, downgrade to "auto" so remaining
+      // calls are the model's judgment. Named-tool forcing is left
+      // untouched — slide/app flows rely on re-forcing a specific tool.
+      const relaxedToolChoice = toolChoice === "required" ? "auto" : toolChoice;
       const continuationToolChoice =
-        toolIteration >= effectiveMaxToolRounds || turnBudgetExhausted ? "none" : toolChoice;
+        toolIteration >= effectiveMaxToolRounds || turnBudgetExhausted ? "none" : relaxedToolChoice;
 
       const continuationRequestBody = strategy.buildRequestBody({
         messages: currentMessages,
