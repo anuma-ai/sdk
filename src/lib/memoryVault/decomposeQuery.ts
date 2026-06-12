@@ -19,7 +19,7 @@
  * abstract user questions. See `tasks/hackathon/...` for the rationale.
  */
 
-import { callPortalJsonCompletion } from "../memory/portalLlm.js";
+import { callPortalJsonCompletion, type PortalLlmAuth } from "../memory/portalLlm.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
 const MAX_SUB_QUERIES = 5;
@@ -65,8 +65,9 @@ export interface DecomposedQuery {
   subQueries: string[];
 }
 
-interface DecomposeQueryOptions {
-  apiKey: string;
+/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
+ * runtime; see {@link PortalLlmAuth}. */
+interface DecomposeQueryOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
   /** Override fetch (for tests). */
@@ -88,7 +89,8 @@ export async function decomposeQuery(
   if (trimmed.length === 0) return fallback;
 
   const parsed = await callPortalJsonCompletion({
-    apiKey: options.apiKey,
+    ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+    ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
     model: options.model ?? DEFAULT_MODEL,
     systemPrompt: SYSTEM_PROMPT,

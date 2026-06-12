@@ -15,9 +15,9 @@
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
-import { callPortalJsonCompletion } from "./portalLlm.js";
+import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
-import type { RetainResult } from "./types.js";
+import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
@@ -98,8 +98,12 @@ export interface ExtractedCandidate {
   } | null;
 }
 
-export interface ExtractFactsOptions {
-  apiKey: string;
+/**
+ * Auth + endpoint for the extraction LLM call. Auth is the dual pattern —
+ * one of `apiKey` / `getToken` is required at runtime; see
+ * {@link PortalLlmAuth}.
+ */
+export interface ExtractFactsOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
@@ -120,7 +124,8 @@ export async function extractFacts(
 
   const transcript = messages.map((m) => `[${m.id}] ${m.role}: ${m.content}`).join("\n");
   const parsed = await callPortalJsonCompletion({
-    apiKey: options.apiKey,
+    ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+    ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
     model: options.model ?? DEFAULT_MODEL,
     systemPrompt: SYSTEM_PROMPT,
@@ -152,6 +157,12 @@ export async function extractAndRetain(
     /** Override scope/folder for all retained facts. */
     scope?: string;
     folderId?: string | null;
+    /**
+     * Forwarded verbatim to each retain() call — enables the LLM-based
+     * consolidation pass (Hindsight facet-dedup) on every write. See
+     * `RetainOptions.consolidateOptions` for auth + observability fields.
+     */
+    consolidateOptions?: RetainOptions["consolidateOptions"];
     /**
      * When provided, persist each candidate's `entities[]` to the
      * entity + memory_entity tables after a successful retain. This
@@ -190,6 +201,9 @@ export async function extractAndRetain(
         sourceChunkIds: candidate.sourceMessageIds,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(options.consolidateOptions !== undefined && {
+          consolidateOptions: options.consolidateOptions,
+        }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
       });
       succeededCandidates.push(candidate);

@@ -318,6 +318,7 @@ export type {
   FactType,
   MemoryExtractedEvent,
   MemoryKind,
+  PortalLlmAuth,
   RankedMemory,
   RecallContext,
   RecallOptions,

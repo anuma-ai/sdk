@@ -17,8 +17,26 @@ function defaultBaseUrl(): string {
   return (typeof process !== "undefined" && process.env?.ANUMA_PORTAL_BASE_URL) || BASE_URL;
 }
 
-interface PortalLlmRequest {
-  apiKey: string;
+/**
+ * Auth for portal LLM calls (extraction, consolidation, decomposition,
+ * reflection). Mirrors `memoryEngine`'s `EmbeddingOptions` dual-auth:
+ *
+ * - `apiKey`: For direct API keys (uses x-api-key header)
+ * - `getToken`: For Privy identity tokens (uses Authorization: Bearer header)
+ *
+ * At least one of `apiKey` or `getToken` must be provided (enforced at
+ * runtime); `apiKey` takes precedence when both are set.
+ *
+ * @public
+ */
+export interface PortalLlmAuth {
+  /** Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided. */
+  apiKey?: string;
+  /** Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`. */
+  getToken?: () => Promise<string | null>;
+}
+
+interface PortalLlmRequest extends PortalLlmAuth {
   baseUrl?: string;
   model: string;
   systemPrompt: string;
@@ -37,15 +55,56 @@ interface PortalLlmRequest {
 }
 
 /**
+ * Resolve dual-auth credentials into request headers (see
+ * {@link PortalLlmAuth}): `apiKey` wins and is sent as `x-api-key`;
+ * otherwise `getToken` is awaited and sent as `Authorization: Bearer`.
+ *
+ * Returns null (after logging with the supplied tag) when the token fetch
+ * throws or yields no token — matching this module's "null on any failure"
+ * contract. Throws when NEITHER credential is provided: that is a caller
+ * wiring bug, not a transient failure, and must be loud.
+ */
+export async function resolvePortalAuthHeaders(
+  auth: PortalLlmAuth,
+  tag: string
+): Promise<Record<string, string> | null> {
+  if (auth.apiKey) {
+    return { "x-api-key": auth.apiKey };
+  }
+  if (auth.getToken) {
+    let token: string | null;
+    try {
+      token = await auth.getToken();
+    } catch (err) {
+      getLogger().warn(`[${tag}] getToken threw`, err);
+      return null;
+    }
+    if (!token) {
+      getLogger().warn(`[${tag}] getToken returned no token`);
+      return null;
+    }
+    return { Authorization: `Bearer ${token}` };
+  }
+  throw new Error("Either apiKey or getToken must be provided");
+}
+
+/**
  * Call the portal's chat completions endpoint and return the parsed JSON
  * content, or null on any failure (network, non-2xx, malformed JSON, etc).
  * Every failure mode logs via the SDK logger with the supplied tag.
+ *
+ * Auth: one of `apiKey` / `getToken` is required — see {@link PortalLlmAuth}.
+ * A failed token fetch returns null like any other transient failure;
+ * providing neither credential throws.
  */
 export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<unknown> {
   const log = getLogger();
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
   const timeoutMs = req.timeoutMs ?? 60_000;
+
+  const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
+  if (authHeaders === null) return null;
 
   // Anthropic models ignore OpenAI-style response_format and frequently
   // respond conversationally to bare user queries. The canonical fix is
@@ -67,7 +126,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   try {
     response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
       method: "POST",
-      headers: { "x-api-key": req.apiKey, "Content-Type": "application/json" },
+      headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: req.model,
         messages,

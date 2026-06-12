@@ -26,7 +26,7 @@ import {
   type ExtractFactsOptions,
 } from "./autoExtract.js";
 import type { RetainContext } from "./retain.js";
-import type { RetainResult } from "./types.js";
+import type { ConsolidationFallbackReason, RetainOptions, RetainResult } from "./types.js";
 
 /** @public */
 export interface MemoryExtractedEvent {
@@ -70,6 +70,26 @@ export interface CreateAutoExtractorOptions {
   scope?: string;
   /** Override folderId for all retained facts. */
   folderId?: string | null;
+  /**
+   * Enable the LLM-based consolidation pass (Hindsight facet-dedup) on
+   * every retain() write. Auth is NOT configured here — the consolidation
+   * call reuses the `extract` options' credentials (`apiKey` / `getToken`)
+   * and defaults to its `baseUrl` unless overridden below. Absent →
+   * identical behavior to today: retain() runs the strict cosine-only
+   * auto-merge with no consolidation LLM calls.
+   */
+  consolidate?: {
+    /** Portal base URL for consolidation calls. Default: the `extract` options' `baseUrl`. */
+    baseUrl?: string;
+    /** Override the consolidation model. Default: see `consolidate.ts`. */
+    model?: string;
+    /**
+     * Notified on each degraded create-fallback (LLM failure or
+     * schema-violating response). See
+     * `RetainOptions.consolidateOptions.onFallback`.
+     */
+    onFallback?: (reason: ConsolidationFallbackReason) => void;
+  };
   /** Per-fact event — fires once per memory written. */
   onMemoryExtracted?: (event: MemoryExtractedEvent) => void;
   /** Per-turn event — fires once after the whole pipeline finishes. */
@@ -115,6 +135,23 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   let inflight = 0;
   let disposed = false;
 
+  // Resolve once — options are fixed for the extractor's lifetime. The
+  // consolidation pass reuses the extract credentials (it hits the same
+  // portal as extraction), so a browser client wired with `getToken`
+  // gains consolidation with zero extra auth plumbing.
+  const consolidateBaseUrl = options.consolidate?.baseUrl ?? options.extract.baseUrl;
+  const consolidateOptions: RetainOptions["consolidateOptions"] = options.consolidate
+    ? {
+        ...(options.extract.apiKey !== undefined && { apiKey: options.extract.apiKey }),
+        ...(options.extract.getToken !== undefined && { getToken: options.extract.getToken }),
+        ...(consolidateBaseUrl !== undefined && { baseUrl: consolidateBaseUrl }),
+        ...(options.consolidate.model !== undefined && { model: options.consolidate.model }),
+        ...(options.consolidate.onFallback !== undefined && {
+          onFallback: options.consolidate.onFallback,
+        }),
+      }
+    : undefined;
+
   // Warn once if the caller wired a vault context with cascade-delete
   // entityCtx but didn't pass an entityCtx to the extractor. The W5
   // graph lane consumes both write- and read-side wiring; without the
@@ -151,6 +188,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
             ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
             ...(options.scope !== undefined && { scope: options.scope }),
             ...(options.folderId !== undefined && { folderId: options.folderId }),
+            ...(consolidateOptions !== undefined && { consolidateOptions }),
             ...(options.onCandidateFailed && {
               onCandidateFailed: (candidate, error) =>
                 options.onCandidateFailed?.({ candidate, error, conversationId }),

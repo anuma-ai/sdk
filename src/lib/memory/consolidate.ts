@@ -32,7 +32,7 @@
  * silently swallow a write.
  */
 
-import { callPortalJsonCompletion } from "./portalLlm.js";
+import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
@@ -93,8 +93,9 @@ interface ConsolidationResult {
   fallbackReason?: ConsolidationFallbackReason;
 }
 
-interface ConsolidateOptions {
-  apiKey: string;
+/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
+ * runtime; see {@link PortalLlmAuth}. */
+interface ConsolidateOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
   /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
@@ -128,7 +129,8 @@ export async function consolidateMemory(
   const userMessage = `New memory:\n  ${trimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
 
   const parsed = await callPortalJsonCompletion({
-    apiKey: options.apiKey,
+    ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+    ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
     model: options.model ?? DEFAULT_MODEL,
     systemPrompt: SYSTEM_PROMPT,

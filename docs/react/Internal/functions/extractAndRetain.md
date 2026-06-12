@@ -2,7 +2,7 @@
 
 > **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
 
-Defined in: [src/lib/memory/autoExtract.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#146)
+Defined in: [src/lib/memory/autoExtract.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#151)
 
 Stage 2 — for each extracted candidate, call retain() with auto-merge
 enabled. The resolver path (decide create/merge/update via a second LLM
@@ -72,6 +72,25 @@ or skipped).
 <td>
 
 ‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.consolidateOptions?`
+
+</td>
+<td>
+
+[`PortalLlmAuth`](../interfaces/PortalLlmAuth.md) & `object`
+
+</td>
+<td>
+
+Forwarded verbatim to each retain() call — enables the LLM-based
+consolidation pass (Hindsight facet-dedup) on every write. See
+`RetainOptions.consolidateOptions` for auth + observability fields.
 
 </td>
 </tr>
