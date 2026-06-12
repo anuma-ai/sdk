@@ -6,8 +6,8 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types";
-import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { isEncrypted } from "../db/encryption-utils";
+import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
