@@ -19,12 +19,15 @@ import { table, getBorderCharacters } from "table";
 import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
+  CLIENT_TOOLS_MIN_SIMILARITY,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
   DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
   expandToolSetsAdditive,
   findMatchingTools,
   getServerTools,
+  MAX_CLIENT_TOOLS_AFTER_FILTER,
   mergeTools,
+  MIN_CONTENT_LENGTH_FOR_TOOLS,
   scoreTools,
   SERVER_TOOL_DEPENDENCY_SETS,
   type ServerTool,
@@ -121,14 +124,10 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
   toMeta(PATCH_SLIDES_SCHEMA),
 ];
 
-// Match the constants from useChatStorage.ts
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
-// Production skips embeddings (hence all tool selection) for prompts shorter
-// than this — so very short greetings never activate a set or inject a persona.
-const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
-
-// Server tool matching uses selectServerSideTools defaults
+// Selection thresholds are imported from serverTools.ts — the SAME constants
+// production (useChatStorage) uses, so tuning them can't silently desync this
+// suite. MIN_CONTENT_LENGTH_FOR_TOOLS gates embeddings entirely: very short
+// greetings never activate a set or inject a persona.
 // ── Shared state ─────────────────────────────────────────────────────────────
 
 const embeddingOptions = { apiKey, baseUrl };
@@ -138,8 +137,8 @@ let clientToolEmbeddings: Map<string, number[]> = new Map();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildClientPseudoServerTools(): ServerTool[] {
-  return CLIENT_TOOLS.map((t) => ({
+function buildClientPseudoServerTools(catalog: { name: string; description: string }[]) {
+  return catalog.map((t) => ({
     type: "function" as const,
     name: t.name,
     description: t.description,
@@ -155,7 +154,16 @@ function buildClientPseudoServerTools(): ServerTool[] {
  * 3. Filter client tools by semantic match (like autoFilterClientTools)
  * 4. Merge both sets (like mergeTools)
  */
-async function selectTools(prompt: string, activeToolSets: string[] = []) {
+async function selectTools(
+  prompt: string,
+  activeToolSets: string[] = [],
+  // Restrict the client catalog to a named subset — used by the web-shaped
+  // pool suite to mirror what the web app actually registers in plain chat.
+  poolNames?: ReadonlySet<string>
+) {
+  const clientCatalog = poolNames
+    ? CLIENT_TOOLS.filter((t) => poolNames.has(t.name))
+    : CLIENT_TOOLS;
   // Mirror production's length gate (useChatStorage): prompts shorter than
   // MIN_CONTENT_LENGTH_FOR_TOOLS skip embeddings entirely, so no semantic
   // selection runs, no tool set activates, and no persona is injected.
@@ -203,7 +211,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   const filteredServerTools = serverMatches.map((m) => m.tool);
 
   // Client tool filtering (same as autoFilterClientTools)
-  const clientPseudoTools = buildClientPseudoServerTools();
+  const clientPseudoTools = buildClientPseudoServerTools(clientCatalog);
   const clientMatches = findMatchingTools(promptEmbedding, clientPseudoTools, {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
@@ -218,7 +226,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   // relevanceRatio above can still activate their set — mirrors
   // useChatStorage.autoFilterClientTools.
   const scores = scoreTools(promptEmbedding, clientPseudoTools);
-  const availableNames = new Set(CLIENT_TOOLS.map((t) => t.name));
+  const availableNames = new Set(clientCatalog.map((t) => t.name));
   const activeSetNames = activeToolSets.length > 0 ? new Set(activeToolSets) : undefined;
   const finalClientNames = expandToolSetsAdditive(
     matchedNames,
@@ -255,16 +263,16 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   );
 
   // Build client tool configs from the final set (including set-expanded tools)
-  const filteredClientToolConfigs = CLIENT_TOOLS.filter((t) => finalClientNames.has(t.name)).map(
-    (t) => ({
+  const filteredClientToolConfigs = clientCatalog
+    .filter((t) => finalClientNames.has(t.name))
+    .map((t) => ({
       type: "function" as const,
       function: {
         name: t.name,
         description: t.description,
         parameters: { type: "object", properties: {}, required: [] },
       },
-    })
-  );
+    }));
   const merged = mergeTools(filteredServerTools, filteredClientToolConfigs, "responses");
 
   // Extract tool names from merged result
@@ -1002,4 +1010,82 @@ describe("client tool selection (full pipeline)", () => {
       }
     });
   }
+
+  // ── Web-shaped client pool ───────────────────────────────────────────────
+  // The anuma web app does NOT register most of the catalog above in plain
+  // chat: no choice/form/phone-call/geolocate/timezone tools, and — by
+  // deliberate product decision — no app-generation file tools ("App file
+  // tools stay explicit to avoid ordinary code/markdown questions being
+  // promoted into App Builder", apps/web/hooks/useChatTools.tsx). Its real
+  // semantic pool is chart + weather + the github and slides sets (plus
+  // client-only tools whose descriptions live in the app repo: connectors,
+  // schedule/background — absent here, which slightly softens competition).
+  // These cases pin the behaviors that only hold in THAT pool. The app-gen
+  // cases in the main suite above cover the SDK-default catalog that other
+  // consumers (and app mode itself) use.
+  const WEB_PLAIN_CHAT_POOL: ReadonlySet<string> = new Set([
+    "display_chart",
+    "display_weather",
+    "github_api",
+    "github_get_authenticated_user",
+    "plan_deck",
+    "add_slide",
+    "read_slides",
+    "patch_slides",
+  ]);
+
+  describe("web-shaped client pool", () => {
+    it("weather prompt selects display_weather", async () => {
+      const { clientMatches } = await selectTools(
+        "What's the weather like in Paris today?",
+        [],
+        WEB_PLAIN_CHAT_POOL
+      );
+      expect(clientMatches.map((m) => m.tool.name)).toContain("display_weather");
+    });
+
+    it("slide prompt expands the full slide set", async () => {
+      const { clientMatches, activatedSets } = await selectTools(
+        "Make me a presentation about the solar system",
+        [],
+        WEB_PLAIN_CHAT_POOL
+      );
+      const names = clientMatches.map((m) => m.tool.name);
+      for (const n of ["plan_deck", "add_slide", "read_slides", "patch_slides"]) {
+        expect(names, `slide tool "${n}" missing from web pool selection`).toContain(n);
+      }
+      expect(activatedSets).toContain("slides");
+    });
+
+    it("app-build prompt cannot activate app-generation (tools not in the pool)", async () => {
+      // In web plain chat the app-gen anchors don't exist, so the set can
+      // never activate and APP_BUILDER_PROMPT is never injected — the user
+      // must enter app mode explicitly. This pins the production reality the
+      // main suite's app-gen cases do NOT cover.
+      const { activatedSets, guidancePrompts, clientMatches } = await selectTools(
+        "Build me a todo list app",
+        [],
+        WEB_PLAIN_CHAT_POOL
+      );
+      expect(activatedSets).not.toContain("app-generation");
+      expect(guidancePrompts).toEqual([]);
+      const names = clientMatches.map((m) => m.tool.name);
+      expect(names).not.toContain("create_file");
+      expect(names).not.toContain("patch_file");
+    });
+
+    it("programming chitchat stays quiet without the app-gen anchors", async () => {
+      // The same "Tell me a joke about programming" prompt that balloons to
+      // ~8 tools in the SDK-default catalog (create_file anchor at ~0.58)
+      // selects almost nothing in the web pool — the over-selection ceiling
+      // documented above is specific to catalogs that include app-gen tools.
+      const { clientMatches, activatedSets } = await selectTools(
+        "Tell me a joke about programming",
+        [],
+        WEB_PLAIN_CHAT_POOL
+      );
+      expect(clientMatches.length).toBeLessThanOrEqual(2);
+      expect(activatedSets).not.toContain("app-generation");
+    });
+  });
 });

@@ -113,8 +113,22 @@ const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 /** Cache version - increment to invalidate old caches on format changes */
 const CACHE_VERSION = "1.3";
 
+// Selection thresholds — exported so `useChatStorage` (production) and the
+// toolSelection e2e suite import the SAME values; hard-coded copies drift
+// silently when these are tuned.
+
 /** Minimum prompt length for tool matching. Shorter prompts skip embedding. */
-const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
+export const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
+
+/**
+ * Max client tools to include after automatic semantic filtering.
+ * Set high — the relevanceRatio (0.9) does the real trimming; this
+ * is just a safety cap to avoid pathological cases.
+ */
+export const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
+
+/** Minimum similarity for client tool semantic matching. */
+export const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
 
 /**
  * Type guard to check if tool is in new format (has schema property)

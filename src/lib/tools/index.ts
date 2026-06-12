@@ -10,6 +10,7 @@ export {
   BUILT_IN_TOOL_SETS,
   type CachedServerTools,
   clearServerToolsCache,
+  CLIENT_TOOLS_MIN_SIMILARITY,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
   // Constants
@@ -24,7 +25,9 @@ export {
   getCachedServerTools,
   getServerTools,
   getToolsChecksum,
+  MAX_CLIENT_TOOLS_AFTER_FILTER,
   mergeTools,
+  MIN_CONTENT_LENGTH_FOR_TOOLS,
   type ParsedServerToolsResponse,
   scoreTools,
   selectServerSideTools,
