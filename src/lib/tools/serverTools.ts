@@ -1162,12 +1162,20 @@ export function createServerToolsFilter(
     const matchedNames = new Set(matches.map((m) => m.tool.name));
     let finalNames: Set<string>;
     if (sets.length > 0) {
-      // Score from the raw catalog (not from `matches`) so anchors dropped
-      // by `findMatchingTools`' limit / relevanceRatio / ambiguity cuts can
-      // still activate their set when they cleared `anchorMinSimilarity`.
+      // Dependency expansion is SELECTION-gated: an anchor activates its set
+      // only when it was actually picked by `findMatchingTools` (top-N above
+      // the floor). Score-only activation — the rescue `useChatStorage` needs
+      // client-side because its 0.9 relevanceRatio can drop anchors — is
+      // wrong here: server anchors like `fal_generate_video` graze the 0.5
+      // floor on completely unrelated prompts, and a score-gated set would
+      // ride along on nearly every request (observed live: the Fal queue
+      // lifecycle attached to news-search and chitchat prompts). Restricting
+      // the score map to selected names makes "anchor in the toolset" the
+      // activation condition while keeping `anchorMinSimilarity` semantics.
       const scores = scoreTools(embeddings, tools);
+      const selectedScores = new Map([...scores].filter(([name]) => matchedNames.has(name)));
       const availableNames = new Set(tools.map((t) => t.name));
-      finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, sets);
+      finalNames = expandToolSetsAdditive(matchedNames, availableNames, selectedScores, sets);
     } else {
       finalNames = matchedNames;
     }
@@ -1196,6 +1204,12 @@ export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   "AnumaVisionMCP-anuma_analyze_image",
   "OpenMeteoMCP-weather_forecast",
   "OpenMeteoMCP-geocoding",
+  // Same native-capability argument as the vision tool: modern models reason
+  // step-by-step natively (and reasoning-mode models do it structurally), so
+  // a server-side sequential-thinking tool is a redundant hop. Its broad
+  // description also embeds near virtually every prompt — observed live
+  // riding into news-search, scheduling, and chitchat requests.
+  "AnumaSequentialThinkingMCP-sequentialthinking",
 ];
 
 /** Default match options for the server-tools filter (limit 5, minSim 0.5). */
