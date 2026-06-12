@@ -37,8 +37,8 @@ describe("havenAgent", () => {
     expect("prompt" in havenAgent.manifest).toBe(false);
   });
 
-  it("prompt is non-empty and contains Haven identity", () => {
-    expect(havenAgent.prompt).toContain("You are Haven");
+  it("prompt is non-empty and contains the agent identity", () => {
+    expect(havenAgent.prompt).toContain("You are Anuma Housing Agent");
   });
 
   it("model.default is anthropic/claude-sonnet-4-6", () => {

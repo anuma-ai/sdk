@@ -27,7 +27,7 @@ const HAVEN_MARKETPLACE: AgentMarketplaceContent = {
     "I got a notice from my landlord. Help me respond.",
   ],
   emptyStateDescription:
-    "Your expert for everything renting. Haven knows leases, landlord law, rent prices, and your rights so you always know where you stand.",
+    "Your expert for everything renting. Anuma Housing Agent knows leases, landlord law, rent prices, and your rights so you always know where you stand.",
   transcript: {
     kind: "analysis",
     userMessage: "Can you review my lease and look for any obvious red flags?",
