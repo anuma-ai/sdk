@@ -2245,19 +2245,25 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Generate embeddings once for both server and client tool filtering
         let skipStorageEmbeddings: number[] | number[][] | null = null;
+        let skipStorageEmbeddingFailed = false;
         if (needsEmbeddings && getToken) {
           const extracted = extractUserMessageFromMessages(messages);
           const messageContent = extracted?.content || "";
           if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-            const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
-            if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
-              const textChunks = chunkText(messageContent);
-              skipStorageEmbeddings = await generateEmbeddings(
-                textChunks.map((c) => c.text),
-                embeddingOptions
-              );
-            } else {
-              skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+            try {
+              const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+              if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
+                const textChunks = chunkText(messageContent);
+                skipStorageEmbeddings = await generateEmbeddings(
+                  textChunks.map((c) => c.text),
+                  embeddingOptions
+                );
+              } else {
+                skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+              }
+            } catch {
+              // Embedding generation failed — continue without semantic filtering
+              skipStorageEmbeddingFailed = true;
             }
           }
         }
@@ -2302,16 +2308,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           });
         } else if (clientTools?.length && getToken) {
           // Auto-filter client tools using semantic matching (no explicit filter provided)
-          const clientFilterResult = await autoFilterClientTools(
-            clientTools,
-            skipStorageEmbeddings,
-            clientToolEmbeddingsCacheRef.current,
-            { getToken, baseUrl, model: embeddingModel },
-            extraToolSets,
-            activeToolSetsRef.current
-          );
-          filteredClientTools = clientFilterResult.tools;
-          clientActivatedSetNames = clientFilterResult.activatedSetNames;
+          if (skipStorageEmbeddingFailed) {
+            filteredClientTools = clientTools;
+            clientActivatedSetNames = new Set();
+          } else {
+            const clientFilterResult = await autoFilterClientTools(
+              clientTools,
+              skipStorageEmbeddings,
+              clientToolEmbeddingsCacheRef.current,
+              { getToken, baseUrl, model: embeddingModel },
+              extraToolSets,
+              activeToolSetsRef.current
+            );
+            filteredClientTools = clientFilterResult.tools;
+            clientActivatedSetNames = clientFilterResult.activatedSetNames;
+          }
         }
 
         if (
@@ -2692,6 +2703,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Track embeddings generated for tool filtering (to reuse for message storage)
       let userMessageEmbeddings: number[] | number[][] | undefined;
+      let userMessageEmbeddingFailed = false;
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
@@ -2710,6 +2722,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         } catch {
           // Embedding generation failed — continue without semantic filtering
+          userMessageEmbeddingFailed = true;
         }
       }
 
@@ -2751,16 +2764,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         });
       } else if (clientTools?.length && getToken) {
         // Auto-filter client tools using semantic matching (no explicit filter provided)
-        const clientFilterResult = await autoFilterClientTools(
-          clientTools,
-          userMessageEmbeddings ?? null,
-          clientToolEmbeddingsCacheRef.current,
-          { getToken, baseUrl, model: embeddingModel },
-          extraToolSets,
-          activeToolSetsRef.current
-        );
-        filteredClientTools = clientFilterResult.tools;
-        clientActivatedSetNames = clientFilterResult.activatedSetNames;
+        if (userMessageEmbeddingFailed) {
+          filteredClientTools = clientTools;
+          clientActivatedSetNames = new Set();
+        } else {
+          const clientFilterResult = await autoFilterClientTools(
+            clientTools,
+            userMessageEmbeddings ?? null,
+            clientToolEmbeddingsCacheRef.current,
+            { getToken, baseUrl, model: embeddingModel },
+            extraToolSets,
+            activeToolSetsRef.current
+          );
+          filteredClientTools = clientFilterResult.tools;
+          clientActivatedSetNames = clientFilterResult.activatedSetNames;
+        }
       }
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
