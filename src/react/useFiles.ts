@@ -572,14 +572,23 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
           try {
             const encryptionKey = await getEncryptionKey(walletAddress);
             const result = await readEncryptedFile(mediaId, encryptionKey);
-            if (!result) {
-              throw new Error(`File could not be found: ${mediaId}`);
+            if (result) {
+              return new File([result.blob], result.metadata?.name || mediaId, {
+                type: result.metadata?.type || "application/octet-stream",
+              });
             }
-            return new File([result.blob], result.metadata?.name || mediaId, {
-              type: result.metadata?.type || "application/octet-stream",
-            });
+            // result === null means the encrypted bytes simply aren't on this
+            // device: the file was evicted off-device, or synced as metadata but
+            // never pulled. This is an EXPECTED state once media eviction / backup
+            // restore is in play — the caller resolves it via backup-first restore
+            // (e.g. EvictedMediaTile / downloadEvictedMedia). Log at debug so it
+            // stays traceable without spamming warn on every evicted read.
+            getLogger().debug(
+              `[useFiles] No local encrypted bytes for ${mediaId} (likely evicted), trying legacy storage`
+            );
           } catch (encryptedError) {
-            // If encrypted read fails, fall back to legacy storage
+            // A real failure (decrypt error, IO error) — keep it at warn so it
+            // surfaces, since this is not the expected "not present" path.
             getLogger().warn(
               `[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`,
               encryptedError
