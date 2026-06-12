@@ -349,8 +349,12 @@ export async function updateVaultMemoryOp(
   opts: UpdateVaultMemoryOptions
 ): Promise<StoredVaultMemory | null> {
   try {
-    const record = await ctx.vaultMemoryCollection.find(id);
-    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
+    // Pre-check outside the writer so we don't pay encryption for a
+    // memory that's already gone; the authoritative check re-runs
+    // inside the write block below (a concurrent delete could land
+    // between this read and the write).
+    const probe = await ctx.vaultMemoryCollection.find(id);
+    if (probe.isDeleted || !isOwnedByCtxUser(ctx, probe)) return null;
 
     const encryptedContent =
       ctx.walletAddress && ctx.signMessage
@@ -362,8 +366,17 @@ export async function updateVaultMemoryOp(
           )
         : opts.content;
 
+    let stale = false;
+    const record = probe;
     const originalUpdatedAt = record.updatedAt.getTime();
     await ctx.database.write(async () => {
+      // Re-check inside the serialized writer: a delete that committed
+      // after the probe must win — updating a soft-deleted row would
+      // silently resurrect content on an invisible record.
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
       await record.update((r) => {
         r._setRaw("content", encryptedContent);
         if (opts.scope !== undefined) {
@@ -405,6 +418,7 @@ export async function updateVaultMemoryOp(
         }
       });
     });
+    if (stale) return null;
 
     return vaultMemoryToStored(
       record,
@@ -425,11 +439,18 @@ export async function deleteVaultMemoryOp(
     const record = await ctx.vaultMemoryCollection.find(id);
     if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
 
+    let stale = false;
     await ctx.database.write(async () => {
+      // Re-check inside the serialized writer (see updateVaultMemoryOp).
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
       await record.update((r) => {
         r._setRaw("is_deleted", true);
       });
     });
+    if (stale) return false;
 
     // W5 cascade: drop the join rows so the graph lane doesn't keep
     // returning IDs of soft-deleted memories. Best-effort — a failure
