@@ -93,9 +93,7 @@ async function runWithToolChoice(
     ...(toolChoice !== undefined ? { toolChoice } : {}),
     hooks: {
       beforeModelCall: (e: ModelCallStartEvent) => {
-        modelCallToolChoices.push(
-          (e.requestBody as { tool_choice?: string } | undefined)?.tool_choice
-        );
+        modelCallToolChoices.push((e.requestBody as { tool_choice?: string }).tool_choice);
       },
     },
   });
