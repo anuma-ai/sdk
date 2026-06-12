@@ -185,11 +185,15 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     allServerTools,
     DEFAULT_SERVER_TOOLS_MATCH_OPTIONS
   );
+  const semanticServerNames = new Set(semanticServerMatches.map((m) => m.tool.name));
   const serverScores = scoreTools(promptEmbedding, allServerTools);
+  const selectedServerScores = new Map(
+    [...serverScores].filter(([name]) => semanticServerNames.has(name))
+  );
   const expandedServerNames = expandToolSetsAdditive(
-    new Set(semanticServerMatches.map((m) => m.tool.name)),
+    semanticServerNames,
     new Set(allServerTools.map((t) => t.name)),
-    serverScores,
+    selectedServerScores,
     SERVER_TOOL_DEPENDENCY_SETS
   );
   // Set-expanded tools get similarity 0 (same convention as the client side)
@@ -197,7 +201,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   const serverMatches = [
     ...semanticServerMatches,
     ...[...expandedServerNames]
-      .filter((n) => !semanticServerMatches.some((m) => m.tool.name === n))
+      .filter((n) => !semanticServerNames.has(n))
       .map((n) => ({ tool: allServerTools.find((t) => t.name === n)!, similarity: 0 })),
   ].filter((m) => !excluded.has(m.tool.name));
   const filteredServerTools = serverMatches.map((m) => m.tool);

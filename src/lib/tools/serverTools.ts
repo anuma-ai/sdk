@@ -1398,7 +1398,7 @@ export interface SelectServerToolsForPromptOptions {
  * apply the filter, return matching `ServerTool[]` (with embeddings and
  * descriptions intact for downstream serialization).
  *
- * Returns `[]` on any of: undefined/empty filter, empty prompt for a
+ * Returns `[]` on any of: undefined/empty filter, short prompt for a
  * function filter, failed catalog fetch, or failed embedding.
  *
  * @example
@@ -1421,6 +1421,12 @@ export async function selectServerToolsForPrompt(
 
   if (serverToolsFilter === undefined) return [];
   if (Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0) return [];
+  if (
+    typeof serverToolsFilter === "function" &&
+    prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS
+  ) {
+    return [];
+  }
 
   let allServerTools: ServerTool[];
   try {
