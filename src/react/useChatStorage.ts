@@ -210,7 +210,12 @@ async function autoFilterClientTools(
   clientTools: LlmapiChatCompletionTool[],
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
-  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
+  embeddingOptions: {
+    getToken?: () => Promise<string | null>;
+    apiKey?: string;
+    baseUrl?: string;
+    model?: string;
+  },
   extraToolSets: ToolSet[] = [],
   activeToolSets: string[] = []
 ): Promise<{ tools: LlmapiChatCompletionTool[]; activatedSetNames?: ReadonlySet<string> }> {
@@ -372,7 +377,10 @@ export async function previewToolSelection(options: {
   clientTools?: LlmapiChatCompletionTool[];
   serverToolsFilter?: string[] | ServerToolsFilterFn;
   serverToolsConfig?: { cacheExpirationMs?: number };
-  getToken: () => Promise<string | null>;
+  /** Bearer-token auth (browser sessions). Provide this or `apiKey`. */
+  getToken?: () => Promise<string | null>;
+  /** X-API-Key auth (server-side / test harnesses). Provide this or `getToken`. */
+  apiKey?: string;
   baseUrl?: string;
   embeddingModel?: string;
   extraToolSets?: ToolSet[];
@@ -389,6 +397,7 @@ export async function previewToolSelection(options: {
     serverToolsFilter,
     serverToolsConfig,
     getToken,
+    apiKey,
     baseUrl,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     extraToolSets,
@@ -400,7 +409,7 @@ export async function previewToolSelection(options: {
     return { clientToolNames: [], serverToolNames: [] };
   }
 
-  const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+  const embeddingOptions = { getToken, apiKey, baseUrl, model: embeddingModel };
 
   let promptEmbedding: number[];
   try {
@@ -432,6 +441,7 @@ export async function previewToolSelection(options: {
         baseUrl,
         cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
         getToken,
+        apiKey,
       });
       if (typeof serverToolsFilter === "function") {
         serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
