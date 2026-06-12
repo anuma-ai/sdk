@@ -158,16 +158,33 @@ function buildClientPseudoServerTools() {
 async function selectTools(prompt: string, activeToolSets: string[] = []) {
   // Mirror production's length gate (useChatStorage): prompts shorter than
   // MIN_CONTENT_LENGTH_FOR_TOOLS skip embeddings entirely, so no semantic
-  // selection runs, no tool set activates, and no persona is injected.
+  // selection runs and NO tools are sent — EXCEPT sticky tool sets from
+  // conversation state: production's gate branch keeps the members of
+  // `activeToolSets` (a terse "fix" inside an app conversation must keep its
+  // toolkit), counts those sets as genuinely activated, and injects their
+  // persona. Mirror all three.
   if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+    const activeSets = BUILT_IN_TOOL_SETS.filter((s) => activeToolSets.includes(s.name));
+    const stickyMembers = new Set(activeSets.flatMap((s) => s.members));
+    const stickyMatches = CLIENT_TOOLS.filter((t) => stickyMembers.has(t.name)).map((t) => ({
+      tool: {
+        type: "function" as const,
+        name: t.name,
+        description: t.description,
+        parameters: { type: "object", properties: {}, required: [] },
+        embedding: clientToolEmbeddings.get(t.name)!,
+      },
+      similarity: 0,
+    }));
+    const activatedSetNames = new Set(activeSets.map((s) => s.name));
     return {
       serverMatches: [],
-      clientMatches: [],
-      allToolNames: [],
+      clientMatches: stickyMatches,
+      allToolNames: stickyMatches.map((m) => m.tool.name),
       merged: [],
       anchorActivatedSets: [],
-      activatedSets: [],
-      guidancePrompts: [],
+      activatedSets: [...activatedSetNames],
+      guidancePrompts: toolSetSystemPrompts(stickyMembers, BUILT_IN_TOOL_SETS, activatedSetNames),
       stickyActiveSets: [...activeToolSets],
     };
   }
@@ -530,6 +547,17 @@ const cases: ToolSelectionCase[] = [
     prompt: "add a final slide",
     activeToolSets: ["slides"],
     clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+  },
+  {
+    // Below the length gate AND sticky: embeddings are skipped, but the
+    // sticky set's members must still ship — a terse "fix" inside a deck
+    // conversation cannot lose its toolkit. Mirrors the gate branch of
+    // autoFilterClientTools.
+    label: "sub-gate terse prompt with active slides set keeps slide tools",
+    prompt: "fix",
+    activeToolSets: ["slides"],
+    clientMustInclude: ["plan_deck", "add_slide", "read_slides", "patch_slides"],
+    mustActivateSets: ["slides"],
   },
   {
     // Sanity check: even completely off-topic prompts get the slide set
