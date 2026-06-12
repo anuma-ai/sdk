@@ -31,6 +31,7 @@ export {
   type SelectServerSideToolsOptions,
   selectServerToolsForPrompt,
   type SelectServerToolsForPromptOptions,
+  SERVER_TOOL_DEPENDENCY_SETS,
   type ServerTool,
   type ServerToolsFilterFunction,
   type ServerToolsOptions,

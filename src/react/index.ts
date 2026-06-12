@@ -557,6 +557,7 @@ export {
   getServerTools,
   getToolsChecksum,
   selectServerToolsForPrompt,
+  SERVER_TOOL_DEPENDENCY_SETS,
   shouldRefreshTools,
 } from "../lib/tools";
 export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";

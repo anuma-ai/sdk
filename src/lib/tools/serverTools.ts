@@ -1191,9 +1191,98 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
 };
 
 /**
+ * Dependency edges between server tools: when an entry tool (anchor) matches
+ * a prompt, its continuation tools ride in even though they can never match
+ * the prompt themselves.
+ *
+ * These exist because semantic selection structurally cannot reach a tool
+ * whose job is step 2 of a call-chain. Measured against the live catalog
+ * (June 2026): on "research the latest news on X", `search_web` scores 0.64
+ * but `parallel_read_url` scores 0.33 and `parallel_search_web` 0.47 — below
+ * the 0.5 floor, unreachable at ANY match limit. Likewise a Fal generation
+ * prompt scores `fal_generate_video` 0.85 while the queue lifecycle it
+ * depends on scores 0.25–0.41. No threshold or limit tuning fixes this; an
+ * explicit edge is the only mechanism that does.
+ *
+ * Deliberately NOT grouped: same-vendor siblings (`extract_pdf`,
+ * `search_images`, weather/finance variants, Fal discovery tools…). Those
+ * embed near the prompts that need them and survive plain top-5 selection on
+ * their own — vendor-wide expansion just dilutes the toolset. Keep this list
+ * to genuine call-chains.
+ *
+ * Tool names are EXACT `/api/v1/tools` catalog matches — all filtering in
+ * this module is exact-string, so a stale name silently selects nothing (the
+ * May 2026 `Anuma` prefix rename broke every consumer keeping copies of
+ * these lists). The toolSelection e2e suite asserts every name below exists
+ * in the live catalog.
+ */
+export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
+  {
+    // search finds links; reading them is always the next step.
+    name: "jina-research",
+    members: [
+      "AnumaJinaMCP-search_web",
+      "AnumaJinaMCP-read_url",
+      "AnumaJinaMCP-parallel_read_url",
+      "AnumaJinaMCP-parallel_search_web",
+    ],
+    anchors: ["AnumaJinaMCP-search_web"],
+    // Activation floor = the selection floor (0.5), not the 0.6 ToolSet
+    // default. A dependency edge has different semantics from a persona-style
+    // tool set: if the entry tool is plausibly offered at all, the chain must
+    // ride along — "Search the web for recent news…" scores search_web in the
+    // 0.5–0.6 band, and shipping search without read would dead-end the model.
+    anchorMinSimilarity: 0.5,
+  },
+  {
+    // Fal jobs are async: submit returns a job id the model must poll and
+    // collect. Without status/result the model submits and dead-ends.
+    name: "fal-queue",
+    members: [
+      "AnumaFalMCP-fal_generate_video",
+      "AnumaFalMCP-fal_run",
+      "AnumaFalMCP-fal_queue_submit",
+      "AnumaFalMCP-fal_queue_status",
+      "AnumaFalMCP-fal_queue_result",
+    ],
+    anchors: [
+      "AnumaFalMCP-fal_generate_video",
+      "AnumaFalMCP-fal_run",
+      "AnumaFalMCP-fal_queue_submit",
+    ],
+    // Same rationale as jina-research: edge activation tracks the selection floor.
+    anchorMinSimilarity: 0.5,
+  },
+  {
+    // Every OpenMeteo data tool requires latitude/longitude (verified in the
+    // catalog schemas), but users speak in place names — geocoding is the
+    // mandatory first hop. Members deliberately contain ONLY the dependency:
+    // the anchor that fired is already in the semantic matches, and pulling
+    // sibling data tools in would re-create vendor-suite over-inclusion.
+    // Consumers that exclude the OpenMeteo weather tools (e.g. web, which
+    // renders weather via the client-side display_weather card) are
+    // unaffected: exclusions apply after expansion.
+    name: "openmeteo-geocode",
+    members: ["OpenMeteoMCP-geocoding"],
+    anchors: [
+      "OpenMeteoMCP-weather_forecast",
+      "OpenMeteoMCP-air_quality",
+      "OpenMeteoMCP-weather_archive",
+      "OpenMeteoMCP-marine_weather",
+      "OpenMeteoMCP-flood_forecast",
+      "OpenMeteoMCP-climate_projection",
+      "OpenMeteoMCP-elevation",
+    ],
+    anchorMinSimilarity: 0.5,
+  },
+];
+
+/**
  * Pre-configured server-tools filter ready to drop into `useChatStorage`'s
- * `serverTools` option. Pure semantic matching against the user prompt with
- * the default exclusion list applied.
+ * `serverTools` option. Semantic matching against the user prompt with the
+ * default exclusion list applied, plus call-chain expansion via
+ * {@link SERVER_TOOL_DEPENDENCY_SETS} so continuation tools (read-after-search,
+ * Fal queue lifecycle) ride in with their entry tool.
  *
  * @example
  * ```ts
@@ -1211,6 +1300,7 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
 export const defaultServerToolsFilter = createServerToolsFilter({
   excludeTools: DEFAULT_EXCLUDED_SERVER_TOOLS,
   matchOptions: DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  toolSets: SERVER_TOOL_DEPENDENCY_SETS,
 });
 
 /**

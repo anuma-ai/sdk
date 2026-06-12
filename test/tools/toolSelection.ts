@@ -26,6 +26,7 @@ import {
   getServerTools,
   mergeTools,
   scoreTools,
+  SERVER_TOOL_DEPENDENCY_SETS,
   type ServerTool,
   toolSetSystemPrompts,
 } from "../../src/lib/tools/serverTools.js";
@@ -174,15 +175,31 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   const promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
 
   // Server tool filtering — mirror what `defaultServerToolsFilter` does in
-  // production: same match options, same exclusion list. Earlier this test
-  // used a stricter relevanceRatio (0.85) which prod doesn't apply, so the
-  // test was measuring a different selection than consumers actually run.
+  // production: same match options, same exclusion list, same dependency-set
+  // expansion (continuation tools ride in with their entry anchor). Earlier
+  // this test used a stricter relevanceRatio (0.85) which prod doesn't apply,
+  // so the test was measuring a different selection than consumers run.
   const excluded = new Set<string>(DEFAULT_EXCLUDED_SERVER_TOOLS);
-  const serverMatches = findMatchingTools(
+  const semanticServerMatches = findMatchingTools(
     promptEmbedding,
     allServerTools,
     DEFAULT_SERVER_TOOLS_MATCH_OPTIONS
-  ).filter((m) => !excluded.has(m.tool.name));
+  );
+  const serverScores = scoreTools(promptEmbedding, allServerTools);
+  const expandedServerNames = expandToolSetsAdditive(
+    new Set(semanticServerMatches.map((m) => m.tool.name)),
+    new Set(allServerTools.map((t) => t.name)),
+    serverScores,
+    SERVER_TOOL_DEPENDENCY_SETS
+  );
+  // Set-expanded tools get similarity 0 (same convention as the client side)
+  // so the summary table distinguishes semantic matches from ride-alongs.
+  const serverMatches = [
+    ...semanticServerMatches,
+    ...[...expandedServerNames]
+      .filter((n) => !semanticServerMatches.some((m) => m.tool.name === n))
+      .map((n) => ({ tool: allServerTools.find((t) => t.name === n)!, similarity: 0 })),
+  ].filter((m) => !excluded.has(m.tool.name));
   const filteredServerTools = serverMatches.map((m) => m.tool);
 
   // Client tool filtering (same as autoFilterClientTools)
@@ -552,7 +569,16 @@ const cases: ToolSelectionCase[] = [
   {
     label: "web search includes search tools",
     prompt: "Search the web for recent news about AI regulation",
-    serverMustInclude: ["AnumaJinaMCP-search_web"],
+    // search_web matches semantically; the read/parallel continuation tools
+    // score below the 0.5 floor (measured 0.33-0.47) and can only arrive via
+    // the jina-research dependency set. This asserts the call-chain expansion
+    // works end-to-end: search results are useless if the model can't open them.
+    serverMustInclude: [
+      "AnumaJinaMCP-search_web",
+      "AnumaJinaMCP-read_url",
+      "AnumaJinaMCP-parallel_read_url",
+      "AnumaJinaMCP-parallel_search_web",
+    ],
     serverMustExclude: ["AnumaImageMCP-generate_cloud_image", "AnumaMediaMCP-anuma_create_music"],
   },
   {
@@ -835,6 +861,29 @@ describe("client tool selection (full pipeline)", () => {
   }, 90_000);
 
   afterAll(() => printSummary());
+
+  // Guard against catalog drift: every canonical name the SDK exports must
+  // exist in the live /api/v1/tools catalog. All matching is exact-string, so
+  // a renamed or removed server tool turns the constants into silent no-ops —
+  // exactly how the May 2026 Anuma-prefix rename broke consumers that kept
+  // their own copies of these lists. This is the loud failure for that class
+  // of bug.
+  it("SERVER_TOOL_DEPENDENCY_SETS and DEFAULT_EXCLUDED_SERVER_TOOLS match the live catalog", () => {
+    const catalog = new Set(allServerTools.map((t) => t.name));
+    const staleSetEntries = SERVER_TOOL_DEPENDENCY_SETS.flatMap((s) =>
+      [...s.members, ...s.anchors].filter((n) => !catalog.has(n)).map((n) => `${s.name}: ${n}`)
+    );
+    expect(
+      staleSetEntries,
+      `SERVER_TOOL_DEPENDENCY_SETS entries missing from the server catalog — renamed or removed server-side?`
+    ).toEqual([]);
+
+    const staleExclusions = DEFAULT_EXCLUDED_SERVER_TOOLS.filter((n) => !catalog.has(n));
+    expect(
+      staleExclusions,
+      `DEFAULT_EXCLUDED_SERVER_TOOLS entries missing from the server catalog — the exclusion is a no-op`
+    ).toEqual([]);
+  });
 
   for (const tc of cases) {
     it(tc.label, async () => {
