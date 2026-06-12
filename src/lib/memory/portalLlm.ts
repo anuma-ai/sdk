@@ -85,7 +85,7 @@ export async function resolvePortalAuthHeaders(
     }
     return { Authorization: `Bearer ${token}` };
   }
-  throw new Error("Either apiKey or getToken must be provided");
+  throw new Error(`[${tag}] Either apiKey or getToken must be provided`);
 }
 
 /**
