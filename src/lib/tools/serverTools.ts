@@ -1182,8 +1182,15 @@ export function createServerToolsFilter(
       // lifecycle attached to news-search and chitchat prompts). Restricting
       // the score map to selected names makes "anchor in the toolset" the
       // activation condition while keeping `anchorMinSimilarity` semantics.
+      // Excluded tools also can't ANCHOR a set: an anchor that will be
+      // stripped from the toolset shouldn't drag its dependencies in (e.g.
+      // the excluded weather_forecast anchoring openmeteo-geocode would ship
+      // a geocoder with nothing to feed it). Exclusion of set MEMBERS is
+      // still applied after expansion below.
       const scores = scoreTools(embeddings, tools);
-      const selectedScores = new Map([...scores].filter(([name]) => matchedNames.has(name)));
+      const selectedScores = new Map(
+        [...scores].filter(([name]) => matchedNames.has(name) && !exclude.has(name))
+      );
       const availableNames = new Set(tools.map((t) => t.name));
       finalNames = expandToolSetsAdditive(matchedNames, availableNames, selectedScores, sets);
     } else {
@@ -1203,17 +1210,20 @@ export function createServerToolsFilter(
  * - `AnumaVisionMCP-anuma_analyze_image`: modern frontier models have native
  *   vision via image content blocks; routing through a server-side vision
  *   tool just adds a hop.
- * - `OpenMeteoMCP-weather_forecast` + `OpenMeteoMCP-geocoding`: redundant when
- *   the consumer registers `createWeatherTool` (the client-side display tool
- *   handles geocoding internally and renders a card inline). Including the
- *   server-side equivalents causes the model to prefer raw data over the card.
- *   Consumers who don't register `createWeatherTool` should instead build
- *   their own filter via `createServerToolsFilter`.
+ * - `OpenMeteoMCP-weather_forecast`: redundant when the consumer registers
+ *   `createWeatherTool` (the client-side display tool handles geocoding
+ *   internally and renders a card inline). Including the server-side
+ *   equivalent causes the model to prefer raw data over the card. Consumers
+ *   who don't register `createWeatherTool` should instead build their own
+ *   filter via `createServerToolsFilter`. NOTE: `OpenMeteoMCP-geocoding` is
+ *   deliberately NOT excluded — the non-weather OpenMeteo data tools
+ *   (air_quality, marine_weather, …) require lat/lon and depend on it via the
+ *   openmeteo-geocode set; excluding it stranded them. Bare geocoding doesn't
+ *   compete with the weather card (it returns coordinates, not weather).
  */
 export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   "AnumaVisionMCP-anuma_analyze_image",
   "OpenMeteoMCP-weather_forecast",
-  "OpenMeteoMCP-geocoding",
   // Same native-capability argument as the vision tool: modern models reason
   // step-by-step natively (and reasoning-mode models do it structurally), so
   // a server-side sequential-thinking tool is a redundant hop. Its broad
@@ -1310,9 +1320,9 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
     // mandatory first hop. Members deliberately contain ONLY the dependency:
     // the anchor that fired is already in the semantic matches, and pulling
     // sibling data tools in would re-create vendor-suite over-inclusion.
-    // Consumers that exclude the OpenMeteo weather tools (e.g. web, which
-    // renders weather via the client-side display_weather card) are
-    // unaffected: exclusions apply after expansion.
+    // Excluded tools (e.g. weather_forecast under the default filter) can't
+    // anchor this set — createServerToolsFilter drops them before expansion —
+    // but the non-weather data tools still deliver geocoding when they match.
     name: "openmeteo-geocode",
     members: ["OpenMeteoMCP-geocoding"],
     anchors: [

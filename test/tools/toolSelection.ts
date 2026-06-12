@@ -209,8 +209,9 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
   // grazed the floor but never made the top-N — a more permissive selection
   // than production performs.
   const serverScores = scoreTools(promptEmbedding, allServerTools);
+  // Excluded tools can't anchor a set, mirroring createServerToolsFilter.
   const selectedServerScores = new Map(
-    [...serverScores].filter(([name]) => matchedServerNameSet.has(name))
+    [...serverScores].filter(([name]) => matchedServerNameSet.has(name) && !excluded.has(name))
   );
   const expandedServerNames = expandToolSetsAdditive(
     matchedServerNameSet,
