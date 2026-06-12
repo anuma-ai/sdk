@@ -1431,7 +1431,12 @@ export async function selectServerToolsForPrompt(
   if (allServerTools.length === 0) return [];
 
   if (typeof serverToolsFilter === "function") {
-    if (!prompt.trim()) return [];
+    // Mirror useChatStorage's short-prompt gate: below
+    // MIN_CONTENT_LENGTH_FOR_TOOLS no embeddings are generated and a
+    // function filter selects nothing. (Static lists above don't depend on
+    // embeddings and still apply.) Without this, the helper embedded "hey"
+    // and ran a selection the chat flow never performs.
+    if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) return [];
     let promptEmbedding: number[];
     try {
       promptEmbedding = await generateEmbedding(prompt, {
