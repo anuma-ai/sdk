@@ -10,6 +10,11 @@ function mockFetch(body: unknown, ok = true): typeof fetch {
 }
 
 describe("decomposeQuery", () => {
+  it("falls back to specific (not throws) when options carry no credentials", async () => {
+    const result = await decomposeQuery("what do you know about me?", {} as never);
+    expect(result.mode).toBe("specific");
+  });
+
   it("returns specific mode for a specific query", async () => {
     const fetchFn = mockFetch({
       choices: [

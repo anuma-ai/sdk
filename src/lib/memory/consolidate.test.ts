@@ -127,6 +127,15 @@ describe("consolidateMemory", () => {
     });
   });
 
+  it("degrades (not throws) when options carry no credentials — retain must survive misconfig", async () => {
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("new fact", candidates, {
+      onFallback,
+    } as never);
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    expect(onFallback).toHaveBeenCalledWith("llm_error");
+  });
+
   it("notifies onFallback with llm_error on LLM failure", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
     const onFallback = vi.fn();
