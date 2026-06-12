@@ -1170,6 +1170,8 @@ export function createServerToolsFilter(
     if (matches.length === 0) return [];
 
     const matchedNames = new Set(matches.map((m) => m.tool.name));
+    for (const name of exclude) matchedNames.delete(name);
+
     let finalNames: Set<string>;
     if (sets.length > 0) {
       // Dependency expansion is SELECTION-gated: an anchor activates its set
@@ -1203,17 +1205,16 @@ export function createServerToolsFilter(
  * - `AnumaVisionMCP-anuma_analyze_image`: modern frontier models have native
  *   vision via image content blocks; routing through a server-side vision
  *   tool just adds a hop.
- * - `OpenMeteoMCP-weather_forecast` + `OpenMeteoMCP-geocoding`: redundant when
- *   the consumer registers `createWeatherTool` (the client-side display tool
- *   handles geocoding internally and renders a card inline). Including the
- *   server-side equivalents causes the model to prefer raw data over the card.
- *   Consumers who don't register `createWeatherTool` should instead build
- *   their own filter via `createServerToolsFilter`.
+ * - `OpenMeteoMCP-weather_forecast`: redundant when the consumer registers
+ *   `createWeatherTool` (the client-side display tool handles geocoding
+ *   internally and renders a card inline). Including the server-side forecast
+ *   causes the model to prefer raw data over the card. Consumers who don't
+ *   register `createWeatherTool` should instead build their own filter via
+ *   `createServerToolsFilter`.
  */
 export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   "AnumaVisionMCP-anuma_analyze_image",
   "OpenMeteoMCP-weather_forecast",
-  "OpenMeteoMCP-geocoding",
   // Same native-capability argument as the vision tool: modern models reason
   // step-by-step natively (and reasoning-mode models do it structurally), so
   // a server-side sequential-thinking tool is a redundant hop. Its broad
@@ -1311,8 +1312,9 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
     // the anchor that fired is already in the semantic matches, and pulling
     // sibling data tools in would re-create vendor-suite over-inclusion.
     // Consumers that exclude the OpenMeteo weather tools (e.g. web, which
-    // renders weather via the client-side display_weather card) are
-    // unaffected: exclusions apply after expansion.
+    // renders weather via the client-side display_weather card) are unaffected:
+    // excluded anchors are removed before expansion, while non-weather anchors
+    // can still pull in this required first hop.
     name: "openmeteo-geocode",
     members: ["OpenMeteoMCP-geocoding"],
     anchors: [

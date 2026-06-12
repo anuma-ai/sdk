@@ -203,6 +203,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     DEFAULT_SERVER_TOOLS_MATCH_OPTIONS
   );
   const matchedServerNameSet = new Set(semanticServerMatches.map((m) => m.tool.name));
+  for (const name of excluded) matchedServerNameSet.delete(name);
   // Selection-gated, mirroring createServerToolsFilter exactly: only anchors
   // that were actually PICKED by findMatchingTools can activate their set.
   // Scoring the whole catalog here would activate sets from anchors that

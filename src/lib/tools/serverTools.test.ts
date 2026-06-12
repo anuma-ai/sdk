@@ -4,9 +4,21 @@ import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
+  defaultServerToolsFilter,
+  type ServerTool,
   type ToolSet,
   toolSetSystemPrompts,
 } from "./serverTools";
+
+function serverTool(name: string, embedding: number[]): ServerTool {
+  return {
+    type: "function",
+    name,
+    description: name,
+    parameters: { type: "object", properties: {}, required: [] },
+    embedding,
+  };
+}
 
 describe("toolSetSystemPrompts", () => {
   it("attaches APP_BUILDER_PROMPT to the built-in app-generation set", () => {
@@ -86,5 +98,30 @@ describe("activatedToolSetNames", () => {
   it("does not activate on a non-anchor member's score", () => {
     // read_file is a member but not an anchor — its score can't activate the set.
     expect(activatedToolSetNames(new Map([["read_file", 0.99]]))).toEqual(new Set());
+  });
+});
+
+describe("defaultServerToolsFilter", () => {
+  it("keeps OpenMeteo geocoding when a non-weather OpenMeteo data tool is selected", () => {
+    const selected = defaultServerToolsFilter(
+      [1, 0],
+      [serverTool("OpenMeteoMCP-air_quality", [1, 0]), serverTool("OpenMeteoMCP-geocoding", [0, 1])]
+    );
+
+    expect(selected).toContain("OpenMeteoMCP-air_quality");
+    expect(selected).toContain("OpenMeteoMCP-geocoding");
+  });
+
+  it("does not let an excluded OpenMeteo forecast trigger geocoding by itself", () => {
+    const selected = defaultServerToolsFilter(
+      [1, 0],
+      [
+        serverTool("OpenMeteoMCP-weather_forecast", [1, 0]),
+        serverTool("OpenMeteoMCP-geocoding", [0, 1]),
+      ]
+    );
+
+    expect(selected).not.toContain("OpenMeteoMCP-weather_forecast");
+    expect(selected).not.toContain("OpenMeteoMCP-geocoding");
   });
 });
