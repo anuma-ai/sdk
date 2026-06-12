@@ -409,6 +409,18 @@ export async function previewToolSelection(options: {
     return { clientToolNames: [], serverToolNames: [] };
   }
 
+  // Mirror sendMessage's length gate: prompts below MIN_CONTENT_LENGTH_FOR_TOOLS
+  // skip embeddings entirely in production, so NO semantic selection runs —
+  // every client tool passes through unfiltered (no set activation, no
+  // persona) and no server tools are fetched. Without this mirror, "hey"
+  // previews as a full semantic selection production never performs.
+  if (prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+    return {
+      clientToolNames: clientTools.map(getToolName).filter(Boolean),
+      serverToolNames: [],
+    };
+  }
+
   const embeddingOptions = { getToken, apiKey, baseUrl, model: embeddingModel };
 
   let promptEmbedding: number[];
