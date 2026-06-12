@@ -1210,6 +1210,15 @@ export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   // description also embeds near virtually every prompt — observed live
   // riding into news-search, scheduling, and chitchat requests.
   "AnumaSequentialThinkingMCP-sequentialthinking",
+  // Fal discovery/meta plumbing: generic descriptions that crack the top-5 on
+  // unrelated prompts (observed live on news-search and research requests),
+  // and useless in a chat turn without prior Fal context — listing workflows
+  // or reading platform metadata isn't something a chat user asks for in
+  // words that should beat real tools. Consumers building Fal-centric UIs
+  // can re-enable via createServerToolsFilter's excludeTools option.
+  "AnumaFalMCP-fal_meta",
+  "AnumaFalMCP-fal_list_workflows",
+  "AnumaFalMCP-fal_workflow_run",
 ];
 
 /** Default match options for the server-tools filter (limit 5, minSim 0.5). */
@@ -1278,8 +1287,12 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
       "AnumaFalMCP-fal_run",
       "AnumaFalMCP-fal_queue_submit",
     ],
-    // Same rationale as jina-research: edge activation tracks the selection floor.
-    anchorMinSimilarity: 0.5,
+    // 0.6, NOT the 0.5 selection floor: the Fal anchors score ~0.5x on
+    // generic "build/create" phrasing ("build me a todo app", chitchat about
+    // programming) and were dragging the queue lifecycle into unrelated
+    // requests even selection-gated. Genuine Fal prompts measure ~0.85, so
+    // 0.6 keeps the chain where it belongs.
+    anchorMinSimilarity: 0.6,
   },
   {
     // Every OpenMeteo data tool requires latitude/longitude (verified in the
