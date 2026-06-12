@@ -684,6 +684,19 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   apiType?: ApiType;
 
   /**
+   * Called once per `sendMessage` with the user prompt and the FINAL tool
+   * selection — after semantic filtering, tool-set expansion, and exclusions;
+   * exactly the tools the request carries. Intended for debug logging and
+   * selection QA (e.g. a prefixed plain-text console line you can filter on).
+   * Errors thrown by the callback are swallowed.
+   */
+  onToolSelection?: (info: {
+    prompt: string;
+    clientToolNames: string[];
+    serverToolNames: string[];
+  }) => void;
+
+  /**
    * Wallet address for encrypted file storage and field-level encryption.
    * When provided with signMessage, all sensitive message content, conversation titles,
    * and media metadata are encrypted at rest using AES-GCM with wallet-derived keys.
@@ -1070,6 +1083,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     activeToolSets,
     fileProcessors,
     fileProcessingOptions,
+    onToolSelection,
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
@@ -2247,6 +2261,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
         }
 
+        if (onToolSelection) {
+          try {
+            onToolSelection({
+              prompt: extractUserMessageFromMessages(messages)?.content || "",
+              clientToolNames: (filteredClientTools ?? []).map(getToolName).filter(Boolean),
+              serverToolNames: filteredServerTools.map((t) => t.name),
+            });
+          } catch {
+            // Observability must never break the send path.
+          }
+        }
+
         const result = await baseSendMessage({
           messages,
           model,
@@ -2730,6 +2756,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         (filteredClientTools && filteredClientTools.length > 0)
       ) {
         mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+      }
+
+      if (onToolSelection) {
+        try {
+          onToolSelection({
+            prompt: contentForStorage,
+            clientToolNames: (filteredClientTools ?? []).map(getToolName).filter(Boolean),
+            serverToolNames: filteredServerTools.map((t) => t.name),
+          });
+        } catch {
+          // Observability must never break the send path.
+        }
       }
 
       // Send the message using the underlying useChat
