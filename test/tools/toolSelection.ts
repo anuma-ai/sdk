@@ -20,6 +20,7 @@ import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
   CLIENT_TOOLS_MIN_SIMILARITY,
+  CLIENT_TOOLS_RELEVANCE_RATIO,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
   DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
   expandToolSetsAdditive,
@@ -207,7 +208,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
-    relevanceRatio: 0.9,
+    relevanceRatio: CLIENT_TOOLS_RELEVANCE_RATIO,
   });
 
   // Apply tool sets: if an anchor tool matched OR a set is marked active,

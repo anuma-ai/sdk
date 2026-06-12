@@ -122,13 +122,23 @@ export const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 
 /**
  * Max client tools to include after automatic semantic filtering.
- * Set high — the relevanceRatio (0.9) does the real trimming; this
+ * Set high — CLIENT_TOOLS_RELEVANCE_RATIO does the real trimming; this
  * is just a safety cap to avoid pathological cases.
  */
 export const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 
 /** Minimum similarity for client tool semantic matching. */
 export const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
+
+/**
+ * Client-tool relevance ratio: drop tools scoring below this fraction of the
+ * top match. 0.75, not 0.9 — multi-intent prompts ("weather in Tokyo, and
+ * chart the temperature trend") embed dominated by one intent, so the second
+ * tool lands around 75-80% of the top score; at 0.9 the second intent could
+ * NEVER survive, no matter how good its description (measured: display_chart
+ * 0.62 vs display_weather 0.81 → ratio 0.77).
+ */
+export const CLIENT_TOOLS_RELEVANCE_RATIO = 0.75;
 
 /**
  * Type guard to check if tool is in new format (has schema property)

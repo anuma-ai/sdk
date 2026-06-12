@@ -134,6 +134,7 @@ import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
   CLIENT_TOOLS_MIN_SIMILARITY,
+  CLIENT_TOOLS_RELEVANCE_RATIO,
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
@@ -315,13 +316,12 @@ async function autoFilterClientTools(
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
-    // 0.90 (instead of the global 0.85 default): when there's a clear top
-    // match (e.g. create_file at 0.66), borderline matches at 0.55-0.59
-    // shouldn't cling on. With additive set expansion this matters extra:
-    // a borderline anchor (patch_slides 0.58, github_api 0.58) would
-    // otherwise activate a whole second tool set on prompts where the user
-    // clearly meant something else.
-    relevanceRatio: 0.9,
+    // See CLIENT_TOOLS_RELEVANCE_RATIO: 0.75 admits the second intent of a
+    // multi-intent prompt (which lands ~75-80% of the dominant match), while
+    // still trimming the loose tail. The earlier 0.9 made a second intent
+    // structurally unselectable; the anchorMinSimilarity gates (0.53-0.55)
+    // remain the guard against borderline anchors activating a whole set.
+    relevanceRatio: CLIENT_TOOLS_RELEVANCE_RATIO,
   });
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));

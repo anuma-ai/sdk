@@ -11,6 +11,7 @@ export {
   type CachedServerTools,
   clearServerToolsCache,
   CLIENT_TOOLS_MIN_SIMILARITY,
+  CLIENT_TOOLS_RELEVANCE_RATIO,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
   // Constants
