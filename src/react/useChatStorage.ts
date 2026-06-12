@@ -423,6 +423,12 @@ export async function previewToolSelection(options: {
     clientToolEmbeddingsCache,
   } = options;
 
+  if (!getToken && !apiKey) {
+    throw new Error(
+      "previewToolSelection requires either `getToken` (Bearer auth) or `apiKey` (X-API-Key auth) — without one, embeddings and the server tool catalog cannot be fetched."
+    );
+  }
+
   if (!prompt.trim()) {
     return { clientToolNames: [], serverToolNames: [] };
   }
