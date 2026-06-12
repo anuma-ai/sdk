@@ -185,11 +185,20 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     allServerTools,
     DEFAULT_SERVER_TOOLS_MATCH_OPTIONS
   );
+  const matchedServerNameSet = new Set(semanticServerMatches.map((m) => m.tool.name));
+  // Selection-gated, mirroring createServerToolsFilter exactly: only anchors
+  // that were actually PICKED by findMatchingTools can activate their set.
+  // Scoring the whole catalog here would activate sets from anchors that
+  // grazed the floor but never made the top-N — a more permissive selection
+  // than production performs.
   const serverScores = scoreTools(promptEmbedding, allServerTools);
+  const selectedServerScores = new Map(
+    [...serverScores].filter(([name]) => matchedServerNameSet.has(name))
+  );
   const expandedServerNames = expandToolSetsAdditive(
-    new Set(semanticServerMatches.map((m) => m.tool.name)),
+    matchedServerNameSet,
     new Set(allServerTools.map((t) => t.name)),
-    serverScores,
+    selectedServerScores,
     SERVER_TOOL_DEPENDENCY_SETS
   );
   // Set-expanded tools get similarity 0 (same convention as the client side)
