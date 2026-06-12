@@ -45,6 +45,32 @@ describe("searchVaultMemories", () => {
     vi.clearAllMocks();
   });
 
+  it("excludes still-encrypted content from search (key unavailable)", async () => {
+    // decryptField is best-effort: when the key is unavailable it returns
+    // the raw enc:vN: payload. Such content must never reach ranking —
+    // BM25 would tokenize hex, the embedder would embed ciphertext, and
+    // the recall tool would emit enc:vN: blocks to the answer model.
+    const memories = [
+      makeMemory("m1", "cats are great"),
+      makeMemory("m2", "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00"),
+    ];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("cats are great", [1, 0, 0]);
+
+    const results = await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].uniqueId).toBe("m1");
+    // The ciphertext row was never sent for embedding either.
+    expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+  });
+
   it("returns structured VaultSearchResult[] sorted by similarity", async () => {
     const memories = [
       makeMemory("m1", "cats are great"),
