@@ -494,7 +494,7 @@ export async function previewToolSelection(options: {
   } catch {
     // Mirror sendMessage's degradation: an embedding FAILURE (vs the length
     // gate) falls back to the full client catalog with no semantic server
-    // tools — the model stays functional through an embeddings outage.
+    // tools, except static server-tool allow-lists that do not need embeddings.
     const { tools: degradedTools } = await autoFilterClientTools(
       clientTools,
       null,
@@ -504,9 +504,25 @@ export async function previewToolSelection(options: {
       activeToolSets ?? [],
       "error"
     );
+    let degradedServerNames: string[] = [];
+    if (Array.isArray(serverToolsFilter) && serverToolsFilter.length > 0) {
+      try {
+        const allServerTools = await getServerTools({
+          baseUrl,
+          cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+          getToken,
+          apiKey,
+        });
+        degradedServerNames = filterServerTools(allServerTools, serverToolsFilter).map(
+          (t) => t.name
+        );
+      } catch {
+        // Server tools optional; leave empty on fetch failure.
+      }
+    }
     return {
       clientToolNames: degradedTools.map(getToolName).filter(Boolean),
-      serverToolNames: [],
+      serverToolNames: degradedServerNames,
     };
   }
 
