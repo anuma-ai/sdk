@@ -133,11 +133,15 @@ import {
 import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
+  CLIENT_TOOLS_MIN_SIMILARITY,
+  CLIENT_TOOLS_RELEVANCE_RATIO,
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
   getServerTools,
+  MAX_CLIENT_TOOLS_AFTER_FILTER,
   mergeTools,
+  MIN_CONTENT_LENGTH_FOR_TOOLS,
   scoreTools,
   type ServerTool,
   shouldRefreshTools,
@@ -150,14 +154,9 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
 import { onKeyAvailable } from "./useEncryption";
 
-// Lower threshold for tool filtering - short prompts like "draw a cat" should work
-const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
-// Max client tools to include after automatic semantic filtering.
-// Set high — the relevanceRatio (0.85) does the real trimming; this
-// is just a safety cap to avoid pathological cases.
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
-// Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
+// Selection thresholds live in ../lib/tools/serverTools (single source — the
+// toolSelection e2e suite imports the same values, and serverTools keeps its
+// own length gate in sync).
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -212,9 +211,21 @@ async function autoFilterClientTools(
   clientTools: LlmapiChatCompletionTool[],
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
-  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
+  embeddingOptions: {
+    getToken?: () => Promise<string | null>;
+    apiKey?: string;
+    baseUrl?: string;
+    model?: string;
+  },
   extraToolSets: ToolSet[] = [],
-  activeToolSets: string[] = []
+  activeToolSets: string[] = [],
+  /**
+   * Why `promptEmbeddings` is null. "short-prompt" (the length gate —
+   * deliberate) sends NO tools; "error" (embedding generation failed —
+   * transient) degrades to the FULL catalog so an embeddings outage never
+   * strips every tool from every request.
+   */
+  noEmbeddingsReason: "short-prompt" | "error" = "short-prompt"
 ): Promise<{ tools: LlmapiChatCompletionTool[]; activatedSetNames?: ReadonlySet<string> }> {
   // Memory tools are always included — only filter connector tools
   // (Notion, Google). Matches both the legacy memory_vault_* surface and
@@ -229,19 +240,45 @@ async function autoFilterClientTools(
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
-  // Skip only if we have nothing to match against. The prior count gate
-  // (skip when filterCandidates <= MAX_CLIENT_TOOLS_AFTER_FILTER) defeated
-  // filtering on small catalogs, where dropping irrelevant tools still
-  // matters. MAX_CLIENT_TOOLS_AFTER_FILTER remains the result-size cap below.
-  if (!promptEmbeddings || filterCandidates.length === 0) {
-    // No semantic selection ran (no embeddings — e.g. a prompt below
-    // MIN_CONTENT_LENGTH_FOR_TOOLS like "hey" — or nothing to filter), so NO
-    // tool set activated. Return an empty activation set, not undefined:
-    // undefined makes toolSetSystemPrompts fall back to anchor-presence and
-    // inject a set's persona (e.g. APP_BUILDER_PROMPT) just because create_file
-    // sits in the unfiltered tool list. That fallback was leaking the App
-    // Builder prompt onto short greetings.
+  // Nothing to filter (e.g. a memory-tools-only catalog): pass everything
+  // through. Distinct from the no-embeddings case below.
+  if (filterCandidates.length === 0) {
     return { tools: clientTools, activatedSetNames: new Set() };
+  }
+
+  // No embeddings because generation FAILED (not the length gate): degrade
+  // to the full catalog, the pre-gate behavior — the model stays fully
+  // functional through a transient embeddings outage, just without semantic
+  // trimming. Empty activation set: no set genuinely activated, no persona.
+  if (!promptEmbeddings && noEmbeddingsReason === "error") {
+    return { tools: clientTools, activatedSetNames: new Set() };
+  }
+
+  // No embeddings — a prompt below MIN_CONTENT_LENGTH_FOR_TOOLS like "hey".
+  // Send NO tools: a sub-5-char prompt can't express a tool-shaped request,
+  // and the previous behavior (pass ALL tools through unfiltered) paid full
+  // tool-definition tokens on every "ok"/"thx". The one exception is sticky
+  // tool sets from conversation state: a terse confirmation ("yes", "fix")
+  // inside an app/slide conversation must keep that toolkit (plus the memory
+  // tools that accompany every tool-carrying request), or the model cannot
+  // act on what was just discussed. Those sets count as genuinely activated
+  // (forced), so their persona rides in — same as the semantic path treats
+  // `activeToolSets`.
+  if (!promptEmbeddings) {
+    if (activeToolSets.length === 0) {
+      return { tools: [], activatedSetNames: new Set() };
+    }
+    const allSets =
+      extraToolSets.length > 0 ? [...BUILT_IN_TOOL_SETS, ...extraToolSets] : BUILT_IN_TOOL_SETS;
+    const activeSets = allSets.filter((s) => activeToolSets.includes(s.name));
+    const stickyMembers = new Set(activeSets.flatMap((s) => s.members));
+    return {
+      tools: [
+        ...alwaysInclude,
+        ...filterCandidates.filter((t) => stickyMembers.has(getToolName(t))),
+      ],
+      activatedSetNames: new Set(activeSets.map((s) => s.name)),
+    };
   }
 
   // Generate embeddings for tool descriptions that aren't cached yet
@@ -294,13 +331,12 @@ async function autoFilterClientTools(
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
-    // 0.90 (instead of the global 0.85 default): when there's a clear top
-    // match (e.g. create_file at 0.66), borderline matches at 0.55-0.59
-    // shouldn't cling on. With additive set expansion this matters extra:
-    // a borderline anchor (patch_slides 0.58, github_api 0.58) would
-    // otherwise activate a whole second tool set on prompts where the user
-    // clearly meant something else.
-    relevanceRatio: 0.9,
+    // See CLIENT_TOOLS_RELEVANCE_RATIO: 0.75 admits the second intent of a
+    // multi-intent prompt (which lands ~75-80% of the dominant match), while
+    // still trimming the loose tail. The earlier 0.9 made a second intent
+    // structurally unselectable; the anchorMinSimilarity gates (0.53-0.55)
+    // remain the guard against borderline anchors activating a whole set.
+    relevanceRatio: CLIENT_TOOLS_RELEVANCE_RATIO,
   });
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
@@ -374,7 +410,10 @@ export async function previewToolSelection(options: {
   clientTools?: LlmapiChatCompletionTool[];
   serverToolsFilter?: string[] | ServerToolsFilterFn;
   serverToolsConfig?: { cacheExpirationMs?: number };
-  getToken: () => Promise<string | null>;
+  /** Bearer-token auth (browser sessions). Provide this or `apiKey`. */
+  getToken?: () => Promise<string | null>;
+  /** X-API-Key auth (server-side / test harnesses). Provide this or `getToken`. */
+  apiKey?: string;
   baseUrl?: string;
   embeddingModel?: string;
   extraToolSets?: ToolSet[];
@@ -391,6 +430,7 @@ export async function previewToolSelection(options: {
     serverToolsFilter,
     serverToolsConfig,
     getToken,
+    apiKey,
     baseUrl,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     extraToolSets,
@@ -398,17 +438,76 @@ export async function previewToolSelection(options: {
     clientToolEmbeddingsCache,
   } = options;
 
+  if (!getToken && !apiKey) {
+    throw new Error(
+      "previewToolSelection requires either `getToken` (Bearer auth) or `apiKey` (X-API-Key auth) — without one, embeddings and the server tool catalog cannot be fetched."
+    );
+  }
+
   if (!prompt.trim()) {
     return { clientToolNames: [], serverToolNames: [] };
   }
 
-  const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+  // Mirror sendMessage's length gate: prompts below MIN_CONTENT_LENGTH_FOR_TOOLS
+  // skip embeddings entirely in production, so no semantic selection runs and
+  // NO tools are sent — except sticky-set members (+ memory tools) when the
+  // consumer passes `activeToolSets`, and static server-tool lists, which
+  // don't depend on embeddings. autoFilterClientTools implements the client
+  // side of this; reuse it with null embeddings for an exact mirror.
+  // UNTRIMMED length, exactly like sendMessage's contentForStorage check —
+  // " hi  " (5 chars padded) runs full selection live, so it must here too.
+  if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+    const { tools: gatedTools } = await autoFilterClientTools(
+      clientTools,
+      null,
+      clientToolEmbeddingsCache ?? new Map<string, number[]>(),
+      { getToken, apiKey, baseUrl, model: embeddingModel },
+      extraToolSets ?? [],
+      activeToolSets ?? []
+    );
+    let gatedServerNames: string[] = [];
+    if (Array.isArray(serverToolsFilter) && serverToolsFilter.length > 0) {
+      try {
+        const allServerTools = await getServerTools({
+          baseUrl,
+          cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+          getToken,
+          apiKey,
+        });
+        const allow = new Set(serverToolsFilter);
+        gatedServerNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
+      } catch {
+        // Server tools optional; leave empty on fetch failure.
+      }
+    }
+    return {
+      clientToolNames: gatedTools.map(getToolName).filter(Boolean),
+      serverToolNames: gatedServerNames,
+    };
+  }
+
+  const embeddingOptions = { getToken, apiKey, baseUrl, model: embeddingModel };
 
   let promptEmbedding: number[];
   try {
     promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
   } catch {
-    return { clientToolNames: [], serverToolNames: [] };
+    // Mirror sendMessage's degradation: an embedding FAILURE (vs the length
+    // gate) falls back to the full client catalog with no semantic server
+    // tools — the model stays functional through an embeddings outage.
+    const { tools: degradedTools } = await autoFilterClientTools(
+      clientTools,
+      null,
+      clientToolEmbeddingsCache ?? new Map<string, number[]>(),
+      { getToken, apiKey, baseUrl, model: embeddingModel },
+      extraToolSets ?? [],
+      activeToolSets ?? [],
+      "error"
+    );
+    return {
+      clientToolNames: degradedTools.map(getToolName).filter(Boolean),
+      serverToolNames: [],
+    };
   }
 
   // Client tools — identical call path to sendMessage
@@ -434,6 +533,7 @@ export async function previewToolSelection(options: {
         baseUrl,
         cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
         getToken,
+        apiKey,
       });
       if (typeof serverToolsFilter === "function") {
         serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
@@ -674,6 +774,19 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
+
+  /**
+   * Called once per `sendMessage` with the user prompt and the FINAL tool
+   * selection — after semantic filtering, tool-set expansion, and exclusions;
+   * exactly the tools the request carries. Intended for debug logging and
+   * selection QA (e.g. a prefixed plain-text console line you can filter on).
+   * Errors thrown by the callback are swallowed.
+   */
+  onToolSelection?: (info: {
+    prompt: string;
+    clientToolNames: string[];
+    serverToolNames: string[];
+  }) => void;
 
   /**
    * Wallet address for encrypted file storage and field-level encryption.
@@ -1062,6 +1175,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     activeToolSets,
     fileProcessors,
     fileProcessingOptions,
+    onToolSelection,
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
@@ -2163,19 +2277,27 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Generate embeddings once for both server and client tool filtering
         let skipStorageEmbeddings: number[] | number[][] | null = null;
+        let skipStorageEmbeddingsFailed = false;
         if (needsEmbeddings && getToken) {
           const extracted = extractUserMessageFromMessages(messages);
           const messageContent = extracted?.content || "";
           if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
             const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
-            if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
-              const textChunks = chunkText(messageContent);
-              skipStorageEmbeddings = await generateEmbeddings(
-                textChunks.map((c) => c.text),
-                embeddingOptions
-              );
-            } else {
-              skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+            try {
+              if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
+                const textChunks = chunkText(messageContent);
+                skipStorageEmbeddings = await generateEmbeddings(
+                  textChunks.map((c) => c.text),
+                  embeddingOptions
+                );
+              } else {
+                skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+              }
+            } catch {
+              // Embedding generation failed — continue without semantic
+              // filtering (full client catalog, no semantic server tools)
+              // rather than failing the send or stripping every tool.
+              skipStorageEmbeddingsFailed = true;
             }
           }
         }
@@ -2226,7 +2348,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             clientToolEmbeddingsCacheRef.current,
             { getToken, baseUrl, model: embeddingModel },
             extraToolSets,
-            activeToolSetsRef.current
+            activeToolSetsRef.current,
+            skipStorageEmbeddingsFailed ? "error" : "short-prompt"
           );
           filteredClientTools = clientFilterResult.tools;
           clientActivatedSetNames = clientFilterResult.activatedSetNames;
@@ -2237,6 +2360,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           (filteredClientTools && filteredClientTools.length > 0)
         ) {
           mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+        }
+
+        if (onToolSelection) {
+          try {
+            onToolSelection({
+              prompt: extractUserMessageFromMessages(messages)?.content || "",
+              clientToolNames: (filteredClientTools ?? []).map(getToolName).filter(Boolean),
+              serverToolNames: filteredServerTools.map((t) => t.name),
+            });
+          } catch {
+            // Observability must never break the send path.
+          }
         }
 
         const result = await baseSendMessage({
@@ -2598,6 +2733,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Track embeddings generated for tool filtering (to reuse for message storage)
       let userMessageEmbeddings: number[] | number[][] | undefined;
+      let userMessageEmbeddingsFailed = false;
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
@@ -2616,6 +2752,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         } catch {
           // Embedding generation failed — continue without semantic filtering
+          // (full client catalog rather than no tools; see autoFilterClientTools).
+          userMessageEmbeddingsFailed = true;
         }
       }
 
@@ -2663,7 +2801,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientToolEmbeddingsCacheRef.current,
           { getToken, baseUrl, model: embeddingModel },
           extraToolSets,
-          activeToolSetsRef.current
+          activeToolSetsRef.current,
+          userMessageEmbeddingsFailed ? "error" : "short-prompt"
         );
         filteredClientTools = clientFilterResult.tools;
         clientActivatedSetNames = clientFilterResult.activatedSetNames;
@@ -2722,6 +2861,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         (filteredClientTools && filteredClientTools.length > 0)
       ) {
         mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+      }
+
+      if (onToolSelection) {
+        try {
+          onToolSelection({
+            prompt: contentForStorage,
+            clientToolNames: (filteredClientTools ?? []).map(getToolName).filter(Boolean),
+            serverToolNames: filteredServerTools.map((t) => t.name),
+          });
+        } catch {
+          // Observability must never break the send path.
+        }
       }
 
       // Send the message using the underlying useChat

@@ -113,8 +113,32 @@ const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 /** Cache version - increment to invalidate old caches on format changes */
 const CACHE_VERSION = "1.3";
 
+// Selection thresholds — exported so `useChatStorage` (production) and the
+// toolSelection e2e suite import the SAME values; hard-coded copies drift
+// silently when these are tuned.
+
 /** Minimum prompt length for tool matching. Shorter prompts skip embedding. */
-const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
+export const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
+
+/**
+ * Max client tools to include after automatic semantic filtering.
+ * Set high — CLIENT_TOOLS_RELEVANCE_RATIO does the real trimming; this
+ * is just a safety cap to avoid pathological cases.
+ */
+export const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
+
+/** Minimum similarity for client tool semantic matching. */
+export const CLIENT_TOOLS_MIN_SIMILARITY = 0.53;
+
+/**
+ * Client-tool relevance ratio: drop tools scoring below this fraction of the
+ * top match. 0.75, not 0.9 — multi-intent prompts ("weather in Tokyo, and
+ * chart the temperature trend") embed dominated by one intent, so the second
+ * tool lands around 75-80% of the top score; at 0.9 the second intent could
+ * NEVER survive, no matter how good its description (measured: display_chart
+ * 0.62 vs display_weather 0.81 → ratio 0.77).
+ */
+export const CLIENT_TOOLS_RELEVANCE_RATIO = 0.75;
 
 /**
  * Type guard to check if tool is in new format (has schema property)
@@ -1148,12 +1172,27 @@ export function createServerToolsFilter(
     const matchedNames = new Set(matches.map((m) => m.tool.name));
     let finalNames: Set<string>;
     if (sets.length > 0) {
-      // Score from the raw catalog (not from `matches`) so anchors dropped
-      // by `findMatchingTools`' limit / relevanceRatio / ambiguity cuts can
-      // still activate their set when they cleared `anchorMinSimilarity`.
+      // Dependency expansion is SELECTION-gated: an anchor activates its set
+      // only when it was actually picked by `findMatchingTools` (top-N above
+      // the floor). Score-only activation — the rescue `useChatStorage` needs
+      // client-side because its 0.9 relevanceRatio can drop anchors — is
+      // wrong here: server anchors like `fal_generate_video` graze the 0.5
+      // floor on completely unrelated prompts, and a score-gated set would
+      // ride along on nearly every request (observed live: the Fal queue
+      // lifecycle attached to news-search and chitchat prompts). Restricting
+      // the score map to selected names makes "anchor in the toolset" the
+      // activation condition while keeping `anchorMinSimilarity` semantics.
+      // Excluded tools also can't ANCHOR a set: an anchor that will be
+      // stripped from the toolset shouldn't drag its dependencies in (e.g.
+      // the excluded weather_forecast anchoring openmeteo-geocode would ship
+      // a geocoder with nothing to feed it). Exclusion of set MEMBERS is
+      // still applied after expansion below.
       const scores = scoreTools(embeddings, tools);
+      const selectedScores = new Map(
+        [...scores].filter(([name]) => matchedNames.has(name) && !exclude.has(name))
+      );
       const availableNames = new Set(tools.map((t) => t.name));
-      finalNames = expandToolSetsAdditive(matchedNames, availableNames, scores, sets);
+      finalNames = expandToolSetsAdditive(matchedNames, availableNames, selectedScores, sets);
     } else {
       finalNames = matchedNames;
     }
@@ -1171,17 +1210,35 @@ export function createServerToolsFilter(
  * - `AnumaVisionMCP-anuma_analyze_image`: modern frontier models have native
  *   vision via image content blocks; routing through a server-side vision
  *   tool just adds a hop.
- * - `OpenMeteoMCP-weather_forecast` + `OpenMeteoMCP-geocoding`: redundant when
- *   the consumer registers `createWeatherTool` (the client-side display tool
- *   handles geocoding internally and renders a card inline). Including the
- *   server-side equivalents causes the model to prefer raw data over the card.
- *   Consumers who don't register `createWeatherTool` should instead build
- *   their own filter via `createServerToolsFilter`.
+ * - `OpenMeteoMCP-weather_forecast`: redundant when the consumer registers
+ *   `createWeatherTool` (the client-side display tool handles geocoding
+ *   internally and renders a card inline). Including the server-side
+ *   equivalent causes the model to prefer raw data over the card. Consumers
+ *   who don't register `createWeatherTool` should instead build their own
+ *   filter via `createServerToolsFilter`. NOTE: `OpenMeteoMCP-geocoding` is
+ *   deliberately NOT excluded — the non-weather OpenMeteo data tools
+ *   (air_quality, marine_weather, …) require lat/lon and depend on it via the
+ *   openmeteo-geocode set; excluding it stranded them. Bare geocoding doesn't
+ *   compete with the weather card (it returns coordinates, not weather).
  */
 export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   "AnumaVisionMCP-anuma_analyze_image",
   "OpenMeteoMCP-weather_forecast",
-  "OpenMeteoMCP-geocoding",
+  // Same native-capability argument as the vision tool: modern models reason
+  // step-by-step natively (and reasoning-mode models do it structurally), so
+  // a server-side sequential-thinking tool is a redundant hop. Its broad
+  // description also embeds near virtually every prompt — observed live
+  // riding into news-search, scheduling, and chitchat requests.
+  "AnumaSequentialThinkingMCP-sequentialthinking",
+  // Fal discovery/meta plumbing: generic descriptions that crack the top-5 on
+  // unrelated prompts (observed live on news-search and research requests),
+  // and useless in a chat turn without prior Fal context — listing workflows
+  // or reading platform metadata isn't something a chat user asks for in
+  // words that should beat real tools. Consumers building Fal-centric UIs
+  // can re-enable via createServerToolsFilter's excludeTools option.
+  "AnumaFalMCP-fal_meta",
+  "AnumaFalMCP-fal_list_workflows",
+  "AnumaFalMCP-fal_workflow_run",
 ];
 
 /** Default match options for the server-tools filter (limit 5, minSim 0.5). */
@@ -1191,9 +1248,102 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
 };
 
 /**
+ * Dependency edges between server tools: when an entry tool (anchor) matches
+ * a prompt, its continuation tools ride in even though they can never match
+ * the prompt themselves.
+ *
+ * These exist because semantic selection structurally cannot reach a tool
+ * whose job is step 2 of a call-chain. Measured against the live catalog
+ * (June 2026): on "research the latest news on X", `search_web` scores 0.64
+ * but `parallel_read_url` scores 0.33 and `parallel_search_web` 0.47 — below
+ * the 0.5 floor, unreachable at ANY match limit. Likewise a Fal generation
+ * prompt scores `fal_generate_video` 0.85 while the queue lifecycle it
+ * depends on scores 0.25–0.41. No threshold or limit tuning fixes this; an
+ * explicit edge is the only mechanism that does.
+ *
+ * Deliberately NOT grouped: same-vendor siblings (`extract_pdf`,
+ * `search_images`, weather/finance variants, Fal discovery tools…). Those
+ * embed near the prompts that need them and survive plain top-5 selection on
+ * their own — vendor-wide expansion just dilutes the toolset. Keep this list
+ * to genuine call-chains.
+ *
+ * Tool names are EXACT `/api/v1/tools` catalog matches — all filtering in
+ * this module is exact-string, so a stale name silently selects nothing (the
+ * May 2026 `Anuma` prefix rename broke every consumer keeping copies of
+ * these lists). The toolSelection e2e suite asserts every name below exists
+ * in the live catalog.
+ */
+export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
+  {
+    // search finds links; reading them is always the next step.
+    name: "jina-research",
+    members: [
+      "AnumaJinaMCP-search_web",
+      "AnumaJinaMCP-read_url",
+      "AnumaJinaMCP-parallel_read_url",
+      "AnumaJinaMCP-parallel_search_web",
+    ],
+    anchors: ["AnumaJinaMCP-search_web"],
+    // Activation floor = the selection floor (0.5), not the 0.6 ToolSet
+    // default. A dependency edge has different semantics from a persona-style
+    // tool set: if the entry tool is plausibly offered at all, the chain must
+    // ride along — "Search the web for recent news…" scores search_web in the
+    // 0.5–0.6 band, and shipping search without read would dead-end the model.
+    anchorMinSimilarity: 0.5,
+  },
+  {
+    // Fal jobs are async: submit returns a job id the model must poll and
+    // collect. Without status/result the model submits and dead-ends.
+    name: "fal-queue",
+    members: [
+      "AnumaFalMCP-fal_generate_video",
+      "AnumaFalMCP-fal_run",
+      "AnumaFalMCP-fal_queue_submit",
+      "AnumaFalMCP-fal_queue_status",
+      "AnumaFalMCP-fal_queue_result",
+    ],
+    anchors: [
+      "AnumaFalMCP-fal_generate_video",
+      "AnumaFalMCP-fal_run",
+      "AnumaFalMCP-fal_queue_submit",
+    ],
+    // 0.6, NOT the 0.5 selection floor: the Fal anchors score ~0.5x on
+    // generic "build/create" phrasing ("build me a todo app", chitchat about
+    // programming) and were dragging the queue lifecycle into unrelated
+    // requests even selection-gated. Genuine Fal prompts measure ~0.85, so
+    // 0.6 keeps the chain where it belongs.
+    anchorMinSimilarity: 0.6,
+  },
+  {
+    // Every OpenMeteo data tool requires latitude/longitude (verified in the
+    // catalog schemas), but users speak in place names — geocoding is the
+    // mandatory first hop. Members deliberately contain ONLY the dependency:
+    // the anchor that fired is already in the semantic matches, and pulling
+    // sibling data tools in would re-create vendor-suite over-inclusion.
+    // Excluded tools (e.g. weather_forecast under the default filter) can't
+    // anchor this set — createServerToolsFilter drops them before expansion —
+    // but the non-weather data tools still deliver geocoding when they match.
+    name: "openmeteo-geocode",
+    members: ["OpenMeteoMCP-geocoding"],
+    anchors: [
+      "OpenMeteoMCP-weather_forecast",
+      "OpenMeteoMCP-air_quality",
+      "OpenMeteoMCP-weather_archive",
+      "OpenMeteoMCP-marine_weather",
+      "OpenMeteoMCP-flood_forecast",
+      "OpenMeteoMCP-climate_projection",
+      "OpenMeteoMCP-elevation",
+    ],
+    anchorMinSimilarity: 0.5,
+  },
+];
+
+/**
  * Pre-configured server-tools filter ready to drop into `useChatStorage`'s
- * `serverTools` option. Pure semantic matching against the user prompt with
- * the default exclusion list applied.
+ * `serverTools` option. Semantic matching against the user prompt with the
+ * default exclusion list applied, plus call-chain expansion via
+ * {@link SERVER_TOOL_DEPENDENCY_SETS} so continuation tools (read-after-search,
+ * Fal queue lifecycle) ride in with their entry tool.
  *
  * @example
  * ```ts
@@ -1211,6 +1361,7 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
 export const defaultServerToolsFilter = createServerToolsFilter({
   excludeTools: DEFAULT_EXCLUDED_SERVER_TOOLS,
   matchOptions: DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
+  toolSets: SERVER_TOOL_DEPENDENCY_SETS,
 });
 
 /**
@@ -1290,7 +1441,12 @@ export async function selectServerToolsForPrompt(
   if (allServerTools.length === 0) return [];
 
   if (typeof serverToolsFilter === "function") {
-    if (!prompt.trim()) return [];
+    // Mirror useChatStorage's short-prompt gate: below
+    // MIN_CONTENT_LENGTH_FOR_TOOLS no embeddings are generated and a
+    // function filter selects nothing. (Static lists above don't depend on
+    // embeddings and still apply.) Without this, the helper embedded "hey"
+    // and ran a selection the chat flow never performs.
+    if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) return [];
     let promptEmbedding: number[];
     try {
       promptEmbedding = await generateEmbedding(prompt, {

@@ -2,7 +2,7 @@
 
 > **shouldRefreshTools**(`responseChecksum`: `string` | `undefined`): `boolean`
 
-Defined in: [src/lib/tools/serverTools.ts:316](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#316)
+Defined in: [src/lib/tools/serverTools.ts:340](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#340)
 
 Check if tools should be refreshed based on checksum comparison.
 Returns true if:

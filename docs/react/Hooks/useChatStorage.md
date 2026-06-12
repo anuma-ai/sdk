@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1040](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1040)
+Defined in: [src/react/useChatStorage.ts:1153](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1153)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -595,6 +595,27 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 
 Called with partial tool call arguments as they stream in.
 Use for live preview of artifacts (HTML, slides) being generated.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onToolSelection?`
+
+</td>
+<td>
+
+(`info`: `object`) => `void`
+
+</td>
+<td>
+
+Called once per `sendMessage` with the user prompt and the FINAL tool
+selection — after semantic filtering, tool-set expansion, and exclusions;
+exactly the tools the request carries. Intended for debug logging and
+selection QA (e.g. a prefixed plain-text console line you can filter on).
+Errors thrown by the callback are swallowed.
 
 </td>
 </tr>

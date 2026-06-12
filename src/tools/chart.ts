@@ -49,8 +49,12 @@ export type DisplayChartResult =
 export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
+    // Embedding-measured phrasing: naming the data kinds (sales, prices,
+    // temperatures, metrics) and the verb forms ("plot a trend over time")
+    // lifts mixed-intent prompts like "…and chart the temperature trend" from
+    // 0.43 (below the selection floor — tool never offered) to 0.62.
     description:
-      'Render a bar, line, area, or pie chart inline. Use when the user asks to plot, chart, or graph data. You MUST pass the actual numeric values in the "data" array — they are never inferred.',
+      'Render a bar, line, area, or pie chart inline — visualize data, plot a trend over time, or graph a comparison. Use whenever the user asks to chart, plot, graph, or visualize numbers (sales, prices, temperatures, metrics). You MUST pass the actual numeric values in the "data" array — they are never inferred.',
     parameters: {
       type: "object",
       properties: {
