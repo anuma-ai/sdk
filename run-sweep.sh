@@ -14,7 +14,7 @@ run() {
     return
   fi
   echo "=== RUN $name START $(date +%H:%M:%S) ==="
-  npx tsx test/memory/longmemeval.ts --strategy vault --variant s --max 150 --concurrency 4 \
+  npx tsx test/memory/longmemeval.ts --strategy vault --variant s --max 150 --concurrency 2 \
     --llm "$KIMI" --extract-llm "$EXTRACT" --json -o "results/$name.json" "$@" \
     > "results/$name.log" 2>&1
   local acc

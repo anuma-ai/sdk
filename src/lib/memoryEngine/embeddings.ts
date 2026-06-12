@@ -38,6 +38,29 @@ export const DEFAULT_MIN_CONTENT_LENGTH = 10;
  * - `apiKey`: Uses X-API-Key header (for server-side/CLI usage)
  * - `getToken`: Uses Authorization: Bearer header (for Privy identity tokens)
  */
+
+/** Bounded retry for the embeddings endpoint. Transient 429/5xx blips
+ * under sustained load were observed killing entire eval questions (and
+ * production saves/lazy backfills) on the first error — mirror the
+ * extraction path's retry discipline: exponential backoff with jitter,
+ * a few attempts, then surface the final error. */
+const EMBED_MAX_ATTEMPTS = 4;
+
+async function withEmbeddingRetry<T extends { error?: unknown }>(
+  call: () => Promise<T>
+): Promise<T> {
+  let last: T | undefined;
+  for (let attempt = 1; attempt <= EMBED_MAX_ATTEMPTS; attempt++) {
+    last = await call();
+    if (!last.error) return last;
+    if (attempt < EMBED_MAX_ATTEMPTS) {
+      const base = 250 * 2 ** (attempt - 1);
+      await new Promise((r) => setTimeout(r, base + Math.random() * 0.4 * base));
+    }
+  }
+  return last as T;
+}
+
 export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
@@ -64,14 +87,16 @@ export async function generateEmbedding(
     throw new Error("Either apiKey or getToken must be provided");
   }
 
-  const response = await postApiV1Embeddings({
-    baseUrl,
-    body: {
-      input: text,
-      model: model ?? DEFAULT_API_EMBEDDING_MODEL,
-    },
-    headers,
-  });
+  const response = await withEmbeddingRetry(() =>
+    postApiV1Embeddings({
+      baseUrl,
+      body: {
+        input: text,
+        model: model ?? DEFAULT_API_EMBEDDING_MODEL,
+      },
+      headers,
+    })
+  );
 
   if (response.error) {
     throw new Error(
@@ -116,11 +141,13 @@ async function generateEmbeddingsBatch(
   model: string,
   onUsage?: EmbeddingOptions["onUsage"]
 ): Promise<number[][]> {
-  const response = await postApiV1Embeddings({
-    baseUrl,
-    body: { input: texts, model },
-    headers,
-  });
+  const response = await withEmbeddingRetry(() =>
+    postApiV1Embeddings({
+      baseUrl,
+      body: { input: texts, model },
+      headers,
+    })
+  );
 
   if (response.error) {
     throw new Error(

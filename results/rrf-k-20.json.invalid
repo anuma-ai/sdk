@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-06-12T17:31:37.251Z",
+  "datasetName": "longmemeval_s_memory-vault",
+  "strategy": "memory-vault",
+  "totalQuestions": 150,
+  "correctAnswers": 88,
+  "accuracy": 0.5866666666666667,
+  "byQuestionType": {
+    "single-session-user": {
+      "total": 25,
+      "correct": 13,
+      "accuracy": 0.52
+    },
+    "single-session-assistant": {
+      "total": 25,
+      "correct": 14,
+      "accuracy": 0.56
+    },
+    "single-session-preference": {
+      "total": 25,
+      "correct": 15,
+      "accuracy": 0.6
+    },
+    "temporal-reasoning": {
+      "total": 25,
+      "correct": 15,
+      "accuracy": 0.6
+    },
+    "knowledge-update": {
+      "total": 25,
+      "correct": 15,
+      "accuracy": 0.6
+    },
+    "multi-session": {
+      "total": 25,
+      "correct": 16,
+      "accuracy": 0.64
+    }
+  },
+  "retrieval": {
+    "avgPrecision": 0.0661069165039753,
+    "avgRecall": 0.5716666666666665
+  },
+  "latency": {
+    "p50": 104418.57299999997,
+    "p95": 215625.54093154994,
+    "p99": 282928.7626922397,
+    "mean": 92411.05204972671
+  },
+  "tokenUsage": {
+    "promptTokens": 1754604,
+    "completionTokens": 51684,
+    "totalTokens": 1806288,
+    "embeddingTokens": 0
+  },
+  "results": []
+}
