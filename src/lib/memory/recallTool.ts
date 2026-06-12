@@ -9,7 +9,14 @@
 
 import type { ToolConfig } from "../chat/useChat/types.js";
 import { recall } from "./recall.js";
-import type { Budget, MemoryKind, RankedMemory, RecallContext, RecallOptions } from "./types.js";
+import type {
+  Budget,
+  MemoryKind,
+  PortalLlmAuth,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+} from "./types.js";
 
 /** Tool name surfaced to the LLM. Exported so bench harnesses and chat
  * clients reference the same string — drift between prod and bench would
@@ -37,9 +44,10 @@ export interface RecallToolOptions {
   folderId?: string | null;
   /** Exclude one conversation from chunk results (typically the active one). */
   excludeConversationId?: string;
-  /** LLM-decompose options; only used at budget="high". */
-  decomposeOptions?: {
-    apiKey: string;
+  /** LLM-decompose options; only used at budget="high". Auth follows the
+   * dual pattern: apiKey (server/CLI) or getToken (browser identity
+   * tokens) — at least one required. */
+  decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
   };

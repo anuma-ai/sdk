@@ -111,3 +111,67 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
     expect(messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
 });
+
+describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
+  // No credentials — each test supplies apiKey and/or getToken.
+  const noAuthArgs = {
+    model: "openai/gpt-5-mini",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  it("sends x-api-key when apiKey is provided", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...noAuthArgs, apiKey: "key-1", fetchFn });
+    expect(result).toEqual({ ok: true });
+    const headers = fetchFn.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers["x-api-key"]).toBe("key-1");
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  it("sends Authorization: Bearer when only getToken is provided", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const getToken = vi.fn().mockResolvedValue("tok-123");
+    const result = await callPortalJsonCompletion({ ...noAuthArgs, getToken, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(getToken).toHaveBeenCalledOnce();
+    const headers = fetchFn.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer tok-123");
+    expect(headers["x-api-key"]).toBeUndefined();
+  });
+
+  it("prefers apiKey when both apiKey and getToken are provided", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    const getToken = vi.fn().mockResolvedValue("tok-123");
+    await callPortalJsonCompletion({ ...noAuthArgs, apiKey: "key-1", getToken, fetchFn });
+    expect(getToken).not.toHaveBeenCalled();
+    const headers = fetchFn.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers["x-api-key"]).toBe("key-1");
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  it("returns null (without fetching) when getToken yields no token", async () => {
+    const fetchFn = vi.fn();
+    const getToken = vi.fn().mockResolvedValue(null);
+    const result = await callPortalJsonCompletion({ ...noAuthArgs, getToken, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("returns null (without fetching) when getToken throws", async () => {
+    const fetchFn = vi.fn();
+    const getToken = vi.fn().mockRejectedValue(new Error("token service down"));
+    const result = await callPortalJsonCompletion({ ...noAuthArgs, getToken, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("throws when neither apiKey nor getToken is provided", async () => {
+    const fetchFn = vi.fn();
+    await expect(callPortalJsonCompletion({ ...noAuthArgs, fetchFn })).rejects.toThrow(
+      "Either apiKey or getToken must be provided"
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+});

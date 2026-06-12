@@ -11,6 +11,7 @@ import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations"
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
+import type { PortalLlmAuth } from "../memory/portalLlm";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
@@ -81,9 +82,10 @@ export interface MemoryVaultSearchOptions {
    * Requires `decomposeOptions` (auth) when set to "llm".
    */
   decompose?: "off" | "llm";
-  /** Auth + endpoint for the decomposition LLM call. Required when decompose="llm". */
-  decomposeOptions?: {
-    apiKey: string;
+  /** Auth + endpoint for the decomposition LLM call. Required when
+   * decompose="llm". Auth is the dual pattern — one of `apiKey` /
+   * `getToken`; see {@link PortalLlmAuth}. */
+  decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
   };

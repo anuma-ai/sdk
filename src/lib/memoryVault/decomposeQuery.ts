@@ -19,7 +19,8 @@
  * abstract user questions. See `tasks/hackathon/...` for the rationale.
  */
 
-import { callPortalJsonCompletion } from "../memory/portalLlm.js";
+import { getLogger } from "../logger.js";
+import { callPortalJsonCompletion, type PortalLlmAuth } from "../memory/portalLlm.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
 const MAX_SUB_QUERIES = 5;
@@ -65,8 +66,9 @@ export interface DecomposedQuery {
   subQueries: string[];
 }
 
-interface DecomposeQueryOptions {
-  apiKey: string;
+/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
+ * runtime; see {@link PortalLlmAuth}. */
+interface DecomposeQueryOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
   /** Override fetch (for tests). */
@@ -87,22 +89,32 @@ export async function decomposeQuery(
   const trimmed = query.trim();
   if (trimmed.length === 0) return fallback;
 
-  const parsed = await callPortalJsonCompletion({
-    apiKey: options.apiKey,
-    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
-    model: options.model ?? DEFAULT_MODEL,
-    systemPrompt: SYSTEM_PROMPT,
-    // Wrap the bare query in a task framing so the model treats it as
-    // input to classify, not as a question to answer conversationally.
-    // Bare-query inputs caused Anthropic models to respond with prose
-    // like "Do you mean...?" before this wrap.
-    userMessage: `Classify the following memory query and decompose if composite. Respond with JSON only — do not answer the question, do not ask for clarification.\n\nQuery: ${trimmed}`,
-    // Decompose runs on the recall hot path — tighter than the
-    // portalLlm default (consolidate/extract can wait longer).
-    timeoutMs: 20_000,
-    tag: "memory/decompose",
-    ...(options.fetchFn && { fetchFn: options.fetchFn }),
-  });
+  let parsed: unknown;
+  try {
+    parsed = await callPortalJsonCompletion({
+      ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+      ...(options.getToken !== undefined && { getToken: options.getToken }),
+      ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      model: options.model ?? DEFAULT_MODEL,
+      systemPrompt: SYSTEM_PROMPT,
+      // Wrap the bare query in a task framing so the model treats it as
+      // input to classify, not as a question to answer conversationally.
+      // Bare-query inputs caused Anthropic models to respond with prose
+      // like "Do you mean...?" before this wrap.
+      userMessage: `Classify the following memory query and decompose if composite. Respond with JSON only — do not answer the question, do not ask for clarification.\n\nQuery: ${trimmed}`,
+      // Decompose runs on the recall hot path — tighter than the
+      // portalLlm default (consolidate/extract can wait longer).
+      timeoutMs: 20_000,
+      tag: "memory/decompose",
+      ...(options.fetchFn && { fetchFn: options.fetchFn }),
+    });
+  } catch (err) {
+    // Decomposition is an optional quality stage — a misconfigured or
+    // failing portal call must degrade to specific-mode, never reject
+    // the recall it decorates.
+    getLogger().warn("memoryVault/decompose: portal call failed, falling back to specific", err);
+    return fallback;
+  }
   if (parsed === null) return fallback;
 
   return validate(parsed, trimmed) ?? fallback;

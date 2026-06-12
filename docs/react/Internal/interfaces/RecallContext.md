@@ -1,6 +1,6 @@
 # RecallContext
 
-Defined in: [src/lib/memory/types.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#148)
+Defined in: [src/lib/memory/types.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#153)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:148](https://github.com/anuma-ai/sdk/blob/m
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#154)
+Defined in: [src/lib/memory/types.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#159)
 
 Embedding API options.
 
@@ -18,7 +18,7 @@ Embedding API options.
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/memory/types.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#163)
+Defined in: [src/lib/memory/types.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#168)
 
 Optional — when provided, recall extracts entities from the query
 and adds a graph lane to the RRF fusion (memories sharing entities
@@ -31,7 +31,7 @@ with the query rank higher). Build via `entityCollection` +
 
 > `optional` **storageCtx**: [`StorageOperationsContext`](StorageOperationsContext.md)
 
-Defined in: [src/lib/memory/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#152)
+Defined in: [src/lib/memory/types.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#157)
 
 Required when `types` includes 'chunk'.
 
@@ -41,7 +41,7 @@ Required when `types` includes 'chunk'.
 
 > `optional` **vaultCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memory/types.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#156)
+Defined in: [src/lib/memory/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#161)
 
 Vault embedding LRU cache.
 
@@ -51,6 +51,6 @@ Vault embedding LRU cache.
 
 > `optional` **vaultCtx**: [`VaultMemoryOperationsContext`](VaultMemoryOperationsContext.md)
 
-Defined in: [src/lib/memory/types.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#150)
+Defined in: [src/lib/memory/types.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#155)
 
 Required when `types` includes 'fact'.

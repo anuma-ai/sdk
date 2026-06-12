@@ -526,6 +526,12 @@ Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
 
 ***
 
+### PortalLlmAuth
+
+Re-exports [PortalLlmAuth](../react/Internal/interfaces/PortalLlmAuth.md)
+
+***
+
 ### QuantizedEmbedding
 
 Re-exports [QuantizedEmbedding](../react/Internal/interfaces/QuantizedEmbedding.md)

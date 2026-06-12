@@ -1,6 +1,6 @@
 # RecallToolOptions
 
-Defined in: [src/lib/memory/recallTool.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#25)
+Defined in: [src/lib/memory/recallTool.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#32)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/recallTool.ts:25](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **budget**: [`Budget`](../type-aliases/Budget.md)
 
-Defined in: [src/lib/memory/recallTool.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#31)
+Defined in: [src/lib/memory/recallTool.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#38)
 
 Retrieval depth. Default: "low".
 
@@ -16,15 +16,15 @@ Retrieval depth. Default: "low".
 
 ### decomposeOptions?
 
-> `optional` **decomposeOptions**: `object`
+> `optional` **decomposeOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/recallTool.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#41)
+Defined in: [src/lib/memory/recallTool.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#50)
 
-LLM-decompose options; only used at budget="high".
+LLM-decompose options; only used at budget="high". Auth follows the
+dual pattern: apiKey (server/CLI) or getToken (browser identity
+tokens) — at least one required.
 
-**apiKey**
-
-> **apiKey**: `string`
+**Type Declaration**
 
 **baseUrl?**
 
@@ -40,7 +40,7 @@ LLM-decompose options; only used at budget="high".
 
 > `optional` **excludeConversationId**: `string`
 
-Defined in: [src/lib/memory/recallTool.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#39)
+Defined in: [src/lib/memory/recallTool.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#46)
 
 Exclude one conversation from chunk results (typically the active one).
 
@@ -50,7 +50,7 @@ Exclude one conversation from chunk results (typically the active one).
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/recallTool.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#37)
+Defined in: [src/lib/memory/recallTool.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#44)
 
 Vault folder filter.
 
@@ -60,7 +60,7 @@ Vault folder filter.
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/memory/recallTool.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#29)
+Defined in: [src/lib/memory/recallTool.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#36)
 
 Max items returned to the LLM. Default: 8.
 
@@ -70,7 +70,7 @@ Max items returned to the LLM. Default: 8.
 
 > `optional` **minScore**: `number`
 
-Defined in: [src/lib/memory/recallTool.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#33)
+Defined in: [src/lib/memory/recallTool.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#40)
 
 Min score threshold. Defaults to recall()'s per-lane defaults.
 
@@ -80,7 +80,7 @@ Min score threshold. Defaults to recall()'s per-lane defaults.
 
 > `optional` **now**: `number`
 
-Defined in: [src/lib/memory/recallTool.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#51)
+Defined in: [src/lib/memory/recallTool.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#59)
 
 Reference "now" for resolving relative temporal phrases in the
 query ("last week", "yesterday", "N days ago"). Default: `Date.now()`.
@@ -94,7 +94,7 @@ against wall-clock today, which is wrong for any historical dataset.
 
 > `optional` **scopes**: `string`\[]
 
-Defined in: [src/lib/memory/recallTool.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#35)
+Defined in: [src/lib/memory/recallTool.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#42)
 
 Vault scope filter.
 
@@ -104,6 +104,6 @@ Vault scope filter.
 
 > `optional` **types**: [`MemoryKind`](../type-aliases/MemoryKind.md)\[]
 
-Defined in: [src/lib/memory/recallTool.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#27)
+Defined in: [src/lib/memory/recallTool.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#34)
 
 Lanes to search. Default: \["fact", "chunk"].

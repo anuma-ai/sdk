@@ -29,6 +29,7 @@ export type {
   Budget,
   ConsolidationFallbackReason,
   MemoryKind,
+  PortalLlmAuth,
   RankedMemory,
   RecallContext,
   RecallOptions,

@@ -1,14 +1,28 @@
 # ExtractFactsOptions
 
-Defined in: [src/lib/memory/autoExtract.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#101)
+Defined in: [src/lib/memory/autoExtract.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#106)
+
+Auth + endpoint for the extraction LLM call. Auth is the dual pattern —
+one of `apiKey` / `getToken` is required at runtime; see
+[PortalLlmAuth](PortalLlmAuth.md).
+
+## Extends
+
+* [`PortalLlmAuth`](PortalLlmAuth.md)
 
 ## Properties
 
-### apiKey
+### apiKey?
 
-> **apiKey**: `string`
+> `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#102)
+Defined in: [src/lib/memory/portalLlm.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#34)
+
+Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
+
+**Inherited from**
+
+[`PortalLlmAuth`](PortalLlmAuth.md).[`apiKey`](PortalLlmAuth.md#apikey)
 
 ***
 
@@ -16,7 +30,7 @@ Defined in: [src/lib/memory/autoExtract.ts:102](https://github.com/anuma-ai/sdk/
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#103)
+Defined in: [src/lib/memory/autoExtract.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#107)
 
 ***
 
@@ -24,7 +38,7 @@ Defined in: [src/lib/memory/autoExtract.ts:103](https://github.com/anuma-ai/sdk/
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/autoExtract.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#106)
+Defined in: [src/lib/memory/autoExtract.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#110)
 
 Override the global fetch implementation (useful for tests).
 
@@ -124,8 +138,26 @@ Override the global fetch implementation (useful for tests).
 
 ***
 
+### getToken()?
+
+> `optional` **getToken**: () => `Promise`<`string` | `null`>
+
+Defined in: [src/lib/memory/portalLlm.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#36)
+
+Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
+
+**Returns**
+
+`Promise`<`string` | `null`>
+
+**Inherited from**
+
+[`PortalLlmAuth`](PortalLlmAuth.md).[`getToken`](PortalLlmAuth.md#gettoken)
+
+***
+
 ### model?
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#104)
+Defined in: [src/lib/memory/autoExtract.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#108)
