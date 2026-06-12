@@ -479,8 +479,10 @@ export type {
   StreamingTransport,
   StreamingTransportOptions,
   StreamingTransportResult,
+  StreamMetaEvent,
+  StreamResumeHandle,
 } from "../lib/chat/toolLoop";
-export { runToolLoop } from "../lib/chat/toolLoop";
+export { INFERENCE_ID_HEADER, runToolLoop, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
