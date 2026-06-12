@@ -130,7 +130,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       },
     ],
     requiresContext: true,
-    submitLabel: "Review in Anuma Housing Agent chat",
+    submitLabel: "Review in Anuma Housing Agent",
     promptTitle: "Review this lease for red flags, tenant-risk clauses, and hidden fees",
     systemContext: [
       "Parse the lease clause by clause and cross-reference each clause with the state tenant protection laws provided.",
