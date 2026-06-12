@@ -1065,6 +1065,11 @@ export async function eagerEmbedContent(
   vaultCtx?: VaultMemoryOperationsContext,
   memoryId?: string
 ): Promise<void> {
+  // Same guard as preEmbedVaultMemories: never embed (or persist a
+  // vector for) content that is still ciphertext — a caller passing DB
+  // content while decryption is degraded would otherwise store a
+  // ciphertext embedding that poisons ranking even after the key returns.
+  if (isEncrypted(content)) return;
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
   if (vaultCtx && memoryId) {
@@ -1135,8 +1140,12 @@ export async function searchVaultMemoriesWithSize(
         "encrypted (key unavailable?) — excluded from search"
     );
   }
+  // vaultSize reports rows that EXIST (loaded), not rows that were
+  // searchable: callers treat vaultSize === 0 as "the vault is empty —
+  // nothing saved yet" and say so to the LLM, which would invite
+  // duplicate saves while decryption is temporarily unavailable.
   if (memories.length === 0) {
-    return { results: [], vaultSize: 0 };
+    return { results: [], vaultSize: loaded.length };
   }
 
   // Embed the query
@@ -1255,7 +1264,7 @@ export async function searchVaultMemoriesWithSize(
         ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
         ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
       });
-      return stampTimestamps({ results: composite, vaultSize: memories.length });
+      return stampTimestamps({ results: composite, vaultSize: loaded.length });
     }
     // mode === "specific" — fall through to V2/V2+CE below.
   }
@@ -1274,7 +1283,7 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
-    return stampTimestamps({ results, vaultSize: memories.length });
+    return stampTimestamps({ results, vaultSize: loaded.length });
   }
 
   if (useFusion) {
@@ -1285,7 +1294,7 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
-    return stampTimestamps({ results, vaultSize: memories.length });
+    return stampTimestamps({ results, vaultSize: loaded.length });
   }
 
   const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
@@ -1299,7 +1308,7 @@ export async function searchVaultMemoriesWithSize(
     }),
   });
 
-  return stampTimestamps({ results, vaultSize: memories.length });
+  return stampTimestamps({ results, vaultSize: loaded.length });
 }
 
 /**

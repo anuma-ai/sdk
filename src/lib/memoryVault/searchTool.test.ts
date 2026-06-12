@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   createMemoryVaultSearchTool,
   searchVaultMemories,
+  searchVaultMemoriesWithSize,
   preEmbedVaultMemories,
   eagerEmbedContent,
 } from "./searchTool";
@@ -69,6 +70,41 @@ describe("searchVaultMemories", () => {
     expect(results[0].uniqueId).toBe("m1");
     // The ciphertext row was never sent for embedding either.
     expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+  });
+
+  it("reports vaultSize from rows that EXIST when all content is still encrypted", async () => {
+    // vaultSize === 0 means "vault is empty — nothing saved yet" to tool
+    // callers, which would tell the LLM so and invite duplicate saves
+    // while decryption is temporarily unavailable.
+    const memories = [
+      makeMemory("m1", "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00"),
+      makeMemory("m2", "enc:v3:cafebabecafebabecafebabecafebabecafebabecafebabecafebabe00"),
+    ];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    const { results, vaultSize } = await searchVaultMemoriesWithSize(
+      "cats",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: false }
+    );
+
+    expect(results).toHaveLength(0);
+    expect(vaultSize).toBe(2);
+  });
+
+  it("eagerEmbedContent refuses to embed ciphertext", async () => {
+    const cache = createVaultEmbeddingCache();
+    await eagerEmbedContent(
+      "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
+      mockEmbeddingOptions,
+      cache
+    );
+    expect(vi.mocked(generateEmbedding)).not.toHaveBeenCalled();
+    expect(cache.size).toBe(0);
   });
 
   it("returns structured VaultSearchResult[] sorted by similarity", async () => {
