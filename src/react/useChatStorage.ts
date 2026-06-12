@@ -439,7 +439,9 @@ export async function previewToolSelection(options: {
   // consumer passes `activeToolSets`, and static server-tool lists, which
   // don't depend on embeddings. autoFilterClientTools implements the client
   // side of this; reuse it with null embeddings for an exact mirror.
-  if (prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+  // UNTRIMMED length, exactly like sendMessage's contentForStorage check —
+  // " hi  " (5 chars padded) runs full selection live, so it must here too.
+  if (prompt.length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
     const { tools: gatedTools } = await autoFilterClientTools(
       clientTools,
       null,
