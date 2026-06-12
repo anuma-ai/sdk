@@ -1,4 +1,5 @@
 import type { StreamingTransport, StreamingTransportResult } from "./toolLoop";
+import { INFERENCE_ID_HEADER } from "./toolLoop";
 
 /**
  * Parses raw SSE text into individual JSON-parsed data payloads.
@@ -116,7 +117,7 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       if (metaFired || xhr.readyState < 2) return;
       metaFired = true;
       if (xhr.status < 200 || xhr.status >= 300) return; // error responses carry no resumable stream
-      const id = xhr.getResponseHeader("X-Inference-ID");
+      const id = xhr.getResponseHeader(INFERENCE_ID_HEADER);
       if (id && options.onStreamMeta) {
         try {
           options.onStreamMeta({ inferenceId: id });
