@@ -444,6 +444,7 @@ When a fact in the memory has a different version mentioned at a later session d
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
+      ...(api.extractionModel && { extractionModel: api.extractionModel }),
       strategy: "memory-recall",
       messages: [...baseMessages],
       toolCalls: [] as unknown[],

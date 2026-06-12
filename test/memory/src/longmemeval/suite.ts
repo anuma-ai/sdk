@@ -305,11 +305,20 @@ export function getTranscriptPath(questionId: string): string {
   return join(getCacheDirectory(), "transcripts", `${questionId}.json`);
 }
 
-export async function transcriptMatchesModel(questionId: string, model: string): Promise<boolean> {
+export async function transcriptMatchesModel(
+  questionId: string,
+  llmModel: string,
+  extractionModel?: string
+): Promise<boolean> {
   try {
     const data = await readFile(getTranscriptPath(questionId), "utf-8");
-    const parsed = JSON.parse(data) as { llmModel?: string };
-    return parsed.llmModel === model;
+    const parsed = JSON.parse(data) as { llmModel?: string; extractionModel?: string };
+    if (parsed.llmModel !== llmModel) return false;
+    // If extraction model is specified, it must match too
+    if (extractionModel !== undefined && parsed.extractionModel !== extractionModel) {
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -972,7 +981,11 @@ export async function runLongMemEval(
 
       try {
         if (options.skipExisting) {
-          const hasTranscript = await transcriptMatchesModel(entry.question_id, llmModel);
+          const hasTranscript = await transcriptMatchesModel(
+            entry.question_id,
+            llmModel,
+            extractionModel
+          );
           if (hasTranscript) {
             completed++;
             console.log(`[${completed}/${entries.length}] ${entry.question_id} ↷ Skipping`);

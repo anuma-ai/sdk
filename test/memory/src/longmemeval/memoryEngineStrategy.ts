@@ -156,6 +156,7 @@ You are a personal assistant with access to the user's past conversation history
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
+      ...(api.extractionModel && { extractionModel: api.extractionModel }),
       strategy: "memory-engine",
       messages: [...baseMessages],
       toolCalls: [] as any[],
