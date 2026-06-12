@@ -218,7 +218,14 @@ async function autoFilterClientTools(
     model?: string;
   },
   extraToolSets: ToolSet[] = [],
-  activeToolSets: string[] = []
+  activeToolSets: string[] = [],
+  /**
+   * Why `promptEmbeddings` is null. "short-prompt" (the length gate —
+   * deliberate) sends NO tools; "error" (embedding generation failed —
+   * transient) degrades to the FULL catalog so an embeddings outage never
+   * strips every tool from every request.
+   */
+  noEmbeddingsReason: "short-prompt" | "error" = "short-prompt"
 ): Promise<{ tools: LlmapiChatCompletionTool[]; activatedSetNames?: ReadonlySet<string> }> {
   // Memory tools are always included — only filter connector tools
   // (Notion, Google). Matches both the legacy memory_vault_* surface and
@@ -236,6 +243,14 @@ async function autoFilterClientTools(
   // Nothing to filter (e.g. a memory-tools-only catalog): pass everything
   // through. Distinct from the no-embeddings case below.
   if (filterCandidates.length === 0) {
+    return { tools: clientTools, activatedSetNames: new Set() };
+  }
+
+  // No embeddings because generation FAILED (not the length gate): degrade
+  // to the full catalog, the pre-gate behavior — the model stays fully
+  // functional through a transient embeddings outage, just without semantic
+  // trimming. Empty activation set: no set genuinely activated, no persona.
+  if (!promptEmbeddings && noEmbeddingsReason === "error") {
     return { tools: clientTools, activatedSetNames: new Set() };
   }
 
@@ -477,7 +492,22 @@ export async function previewToolSelection(options: {
   try {
     promptEmbedding = await generateEmbedding(prompt, embeddingOptions);
   } catch {
-    return { clientToolNames: [], serverToolNames: [] };
+    // Mirror sendMessage's degradation: an embedding FAILURE (vs the length
+    // gate) falls back to the full client catalog with no semantic server
+    // tools — the model stays functional through an embeddings outage.
+    const { tools: degradedTools } = await autoFilterClientTools(
+      clientTools,
+      null,
+      clientToolEmbeddingsCache ?? new Map<string, number[]>(),
+      { getToken, apiKey, baseUrl, model: embeddingModel },
+      extraToolSets ?? [],
+      activeToolSets ?? [],
+      "error"
+    );
+    return {
+      clientToolNames: degradedTools.map(getToolName).filter(Boolean),
+      serverToolNames: [],
+    };
   }
 
   // Client tools — identical call path to sendMessage
@@ -2247,19 +2277,27 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Generate embeddings once for both server and client tool filtering
         let skipStorageEmbeddings: number[] | number[][] | null = null;
+        let skipStorageEmbeddingsFailed = false;
         if (needsEmbeddings && getToken) {
           const extracted = extractUserMessageFromMessages(messages);
           const messageContent = extracted?.content || "";
           if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
             const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
-            if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
-              const textChunks = chunkText(messageContent);
-              skipStorageEmbeddings = await generateEmbeddings(
-                textChunks.map((c) => c.text),
-                embeddingOptions
-              );
-            } else {
-              skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+            try {
+              if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
+                const textChunks = chunkText(messageContent);
+                skipStorageEmbeddings = await generateEmbeddings(
+                  textChunks.map((c) => c.text),
+                  embeddingOptions
+                );
+              } else {
+                skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+              }
+            } catch {
+              // Embedding generation failed — continue without semantic
+              // filtering (full client catalog, no semantic server tools)
+              // rather than failing the send or stripping every tool.
+              skipStorageEmbeddingsFailed = true;
             }
           }
         }
@@ -2310,7 +2348,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             clientToolEmbeddingsCacheRef.current,
             { getToken, baseUrl, model: embeddingModel },
             extraToolSets,
-            activeToolSetsRef.current
+            activeToolSetsRef.current,
+            skipStorageEmbeddingsFailed ? "error" : "short-prompt"
           );
           filteredClientTools = clientFilterResult.tools;
           clientActivatedSetNames = clientFilterResult.activatedSetNames;
@@ -2694,6 +2733,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Track embeddings generated for tool filtering (to reuse for message storage)
       let userMessageEmbeddings: number[] | number[][] | undefined;
+      let userMessageEmbeddingsFailed = false;
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
@@ -2712,6 +2752,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         } catch {
           // Embedding generation failed — continue without semantic filtering
+          // (full client catalog rather than no tools; see autoFilterClientTools).
+          userMessageEmbeddingsFailed = true;
         }
       }
 
@@ -2759,7 +2801,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientToolEmbeddingsCacheRef.current,
           { getToken, baseUrl, model: embeddingModel },
           extraToolSets,
-          activeToolSetsRef.current
+          activeToolSetsRef.current,
+          userMessageEmbeddingsFailed ? "error" : "short-prompt"
         );
         filteredClientTools = clientFilterResult.tools;
         clientActivatedSetNames = clientFilterResult.activatedSetNames;
