@@ -51,7 +51,11 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
 ): Promise<T> {
   let last: T | undefined;
   for (let attempt = 1; attempt <= EMBED_MAX_ATTEMPTS; attempt++) {
-    last = await call();
+    try {
+      last = await call();
+    } catch (error) {
+      last = { error } as T;
+    }
     if (!last.error) return last;
     // Only transient failures are worth retrying — a 4xx other than 429
     // (bad auth, bad request) will fail identically on every attempt.
