@@ -639,7 +639,12 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
             { role: "user", content: extractionPrompt },
           ],
           temperature: 0,
-          max_tokens: 2000,
+          // 6000, not 2000: gpt-5-family reasoning tokens count against
+          // this cap — at 2000 the entire budget goes to hidden reasoning
+          // and content comes back empty (finish_reason "length"). The
+          // production SDK path sends no cap at all; 6000 keeps runaway-CoT
+          // models (kimi) bounded while leaving reasoning room.
+          max_tokens: 6000,
         }),
       });
 
@@ -657,9 +662,26 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
       }
 
       const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
+        choices: Array<{ message: { content: string }; finish_reason?: string }>;
       };
-      const content = data.choices[0]?.message?.content || "{}";
+      if (process.env.DEBUG_EXTRACT) {
+        console.log(
+          `[debug-extract] model=${extractionModel} raw=${JSON.stringify(data).slice(0, 400)}`
+        );
+      }
+      const choice = data.choices[0];
+      const content = choice?.message?.content ?? "";
+      if (!content.trim()) {
+        // Reasoning models (gpt-5 family) can burn the entire completion
+        // budget on hidden reasoning tokens and return EMPTY content with
+        // finish_reason "length". Falling back to "{}" here would cache a
+        // pinned-empty extraction for the session — treat it as a failed
+        // attempt so the retry path (and ultimately the hard-fail warn)
+        // fires instead.
+        throw new SyntaxError(
+          `empty completion content (finish_reason=${choice?.finish_reason ?? "?"})`
+        );
+      }
       const jsonStr = extractJsonFromResponse(content);
 
       const parsed = JSON.parse(jsonStr) as {
