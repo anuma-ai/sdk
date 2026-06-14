@@ -51,6 +51,18 @@ export type ConfigCuratedModel = {
      */
     is_new?: boolean;
     is_private?: boolean;
+    /**
+     * MaxInputTokens is the authoritative input-context window for this model,
+     * in tokens, sourced from the provider's docs / model card. REQUIRED for
+     * every entry (ValidateCuratedModels rejects <= 0). It is the owned (#1)
+     * source for the credit-hold input clamp and the pre-413 over-context gate
+     * — see internal/llmgateway resolveContextWindow. For image models this is
+     * the text-prompt token budget. Keep generous rather than tight: the 413
+     * path is fail-open and a too-low window would false-reject affordable
+     * requests, so when a provider is ambiguous prefer the larger documented
+     * number.
+     */
+    max_input_tokens?: number;
     modalities?: Array<string>;
     name?: string;
     /**
@@ -78,33 +90,6 @@ export type McpToolSchema = {
     description?: string;
     name?: string;
     parameters?: unknown;
-};
-
-export type ModelsRegisterTextRequest = {
-    identifier: string;
-    preferred_model?: string;
-};
-
-export type ModelsTextChannel = string;
-
-export type ModelsTextLookupResult = {
-    account_id?: number;
-    app_id?: number;
-    channel?: string;
-    credits?: number;
-    identifier?: string;
-    linq_chat_id?: string;
-    preferred_model?: string;
-    wallet_address?: string;
-};
-
-export type ModelsTextStatusResponse = {
-    channel?: ModelsTextChannel;
-    created_at?: string;
-    identifier?: string;
-    preferred_model?: string;
-    registered: boolean;
-    verified?: boolean;
 };
 
 export type OpenmeteoDayData = {
@@ -1041,7 +1026,7 @@ export type ResponseErrorResponse = {
 export type ResponseInsufficientBalanceResponse = {
     /**
      * AvailableMicroUSD is the user's spendable balance at the moment of the
-     * failed reservation (cached_balance_usd - pending_cost_usd).
+     * failed reservation (cached_balance_usd; single-column model, epic #1092 PR4).
      */
     available_micro_usd?: number;
     code?: string;
@@ -1384,6 +1369,12 @@ export type HandlersBootstrapBuild = {
 export type HandlersBootstrapResponse = {
     build?: HandlersBootstrapBuild;
     /**
+     * Connectors lists every known connector with its effective enabled state for
+     * this environment. The client uses it to decide which connectors to surface;
+     * per-user connection state stays on GET /api/v1/connectors. Defaults to [].
+     */
+    connectors?: Array<HandlersConnectorSettingResponse>;
+    /**
      * Flags maps registered feature-flag keys to the variant assigned to this user.
      * Variant values are typed by PostHog: bool for boolean flags, string for multivariate.
      */
@@ -1439,6 +1430,14 @@ export type HandlersConfigurePrivyRequest = {
 
 export type HandlersConnectTicketRequest = {
     oauth_app?: string;
+    /**
+     * Provider is the optional logical connector (gmail, gdrive, gcalendar,
+     * github, notion, dropbox). One oauth_app (e.g. google) can back several
+     * providers, but the admin kill-switch toggles per provider — so we need
+     * it to gate disabled connectors here. Older clients omit it and skip the
+     * check (backward compatible).
+     */
+    provider?: string;
     requested_scopes?: Array<string>;
     return_to?: string;
 };
@@ -1446,6 +1445,15 @@ export type HandlersConnectTicketRequest = {
 export type HandlersConnectTicketResponse = {
     expires_in?: number;
     ticket_id?: string;
+};
+
+export type HandlersConnectorCapability = {
+    access?: string;
+    enabled?: boolean;
+    granted?: boolean;
+    id?: string;
+    label?: string;
+    scopes?: Array<string>;
 };
 
 export type HandlersConnectorImportRequest = {
@@ -1472,6 +1480,18 @@ export type HandlersConnectorMintErrorResponse = {
     missing_scopes?: Array<string>;
     provider?: string;
     retry_after_ms?: number;
+};
+
+export type HandlersConnectorScopesResponse = {
+    capabilities?: Array<HandlersConnectorCapability>;
+    connected?: boolean;
+    oauth_app?: string;
+    provider?: string;
+};
+
+export type HandlersConnectorSettingResponse = {
+    enabled?: boolean;
+    provider?: string;
 };
 
 export type HandlersConnectorTokenRequest = {
@@ -1727,6 +1747,8 @@ export type HandlersCustomerPortalResponse = {
 export type HandlersDeleteUserResponse = {
     account_id?: number;
     message?: string;
+    portal_account_deleted?: boolean;
+    privy_user_deleted?: boolean;
     stripe_cleanup_succeeded?: boolean;
     wallet_address?: string;
 };
@@ -1795,7 +1817,7 @@ export type HandlersDeveloperUserResponse = {
      */
     subscription_tier: string;
     /**
-     * credits used/pending
+     * consumed from active grants, excludes in-flight holds
      */
     used_credits: number;
 };
@@ -1959,8 +1981,6 @@ export type HandlersMfaStatusResponse = {
     methods?: Array<string>;
     passkey_credentials?: Array<HandlersPasskeyCredentialDto>;
     recovery_codes_remaining?: number;
-    sms?: HandlersSmsStatusDto;
-    sms_eligible_for_enrollment?: boolean;
 };
 
 export type HandlersMeResponse = {
@@ -2171,10 +2191,6 @@ export type HandlersRegisterDeviceRequest = {
     token?: string;
 };
 
-export type HandlersRegisterTextResponse = {
-    status: string;
-};
-
 export type HandlersRenewSubscriptionResponse = {
     current_period_end?: number;
     message: string;
@@ -2287,6 +2303,19 @@ export type HandlersSendTestPushResponse = {
     delivered_count?: number;
     error_count?: number;
     pruned_count?: number;
+};
+
+export type HandlersSetConnectorEnabledRequest = {
+    enabled?: boolean;
+};
+
+export type HandlersSetScopeItem = {
+    access?: string;
+    enabled?: boolean;
+};
+
+export type HandlersSetScopesRequest = {
+    capabilities?: Array<HandlersSetScopeItem>;
 };
 
 export type HandlersSetSubscriptionTierRequest = {
@@ -2409,10 +2438,6 @@ export type HandlersTopUpUserRequest = {
 
 export type HandlersUnregisterDeviceRequest = {
     token?: string;
-};
-
-export type HandlersUnregisterTextResponse = {
-    status: string;
 };
 
 export type HandlersUpdateApiKeyRequest = {
@@ -2650,6 +2675,10 @@ export type HandlersUserAgentPreferencesListResponse = {
     preferences: Array<HandlersUserAgentPreferenceResponse>;
 };
 
+/**
+ * Account is nil when the identifier resolves to a Privy user that has no
+ * portal account row yet (e.g. a Privy signup that never completed onboarding).
+ */
 export type HandlersUserLookupAccount = {
     created_at?: string;
     fraud_flag?: string;
@@ -2665,20 +2694,37 @@ export type HandlersUserLookupEnrollment = {
     app_id?: number;
     app_name?: string;
     balance_updated_at?: string;
+    /**
+     * = available (single-column model, epic #1092 PR4)
+     */
     cached_balance_usd?: number;
     created_at?: string;
     id?: number;
     lifetime_credits?: number;
-    pending_cost_usd?: number;
     pro_activated_at?: string;
     starter_activated_at?: string;
     subscription_tier?: string;
     updated_at?: string;
 };
 
+/**
+ * Privy is populated when the identifier was resolved through Privy (email
+ * lookup) or when there is no portal account but a Privy user exists for the
+ * wallet. nil when no Privy user was resolved.
+ */
+export type HandlersUserLookupPrivy = {
+    created_at?: string;
+    did?: string;
+    email?: string;
+    embedded_wallet?: string;
+    linked_account_types?: Array<string>;
+};
+
 export type HandlersUserLookupResponse = {
     account?: HandlersUserLookupAccount;
     enrollments?: Array<HandlersUserLookupEnrollment>;
+    portal_account_exists?: boolean;
+    privy?: HandlersUserLookupPrivy;
     text_registrations?: Array<HandlersUserLookupTextReg>;
 };
 
@@ -2705,7 +2751,7 @@ export type HandlersUserUsageResponse = {
     request_tokens: number;
     response_tokens: number;
     /**
-     * credits pending/in-flight
+     * consumed from active grants, excludes in-flight holds
      */
     used_credits: number;
 };
@@ -2724,13 +2770,9 @@ export type HandlersWalletDetails = {
      */
     balance_updated_at?: string;
     /**
-     * Balance in micro-dollars (USD * 1,000,000)
+     * Available balance in micro-USD (single-column model, epic #1092 PR4)
      */
     cached_balance_usd: number;
-    /**
-     * In-flight request holds in micro-dollars
-     */
-    pending_cost_usd: number;
     /**
      * When user became Pro subscriber
      */
@@ -2866,32 +2908,6 @@ export type HandlersPasskeyEnrollFinishResponse = {
 
 export type HandlersPasskeyVerifyFinishRequest = {
     credential?: Array<number>;
-};
-
-export type HandlersSmsEnrollInitRequest = {
-    phone_e164?: string;
-};
-
-export type HandlersSmsEnrollInitResponse = {
-    expires_at?: string;
-    phone_e164_masked?: string;
-    sent?: boolean;
-};
-
-export type HandlersSmsSendCodeResponse = {
-    expires_at?: string;
-    phone_e164_masked?: string;
-    sent?: boolean;
-};
-
-export type HandlersSmsStatusDto = {
-    enrolled?: boolean;
-    enrolled_at?: string;
-    phone_e164_masked?: string;
-};
-
-export type HandlersSmsVerifyRequest = {
-    code?: string;
 };
 
 export type HandlersTotpEnrollInitResponse = {
@@ -4646,6 +4662,88 @@ export type PutApiV1AdminAppsByIdResponses = {
 
 export type PutApiV1AdminAppsByIdResponse = PutApiV1AdminAppsByIdResponses[keyof PutApiV1AdminAppsByIdResponses];
 
+export type GetApiV1AdminConnectorsData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/connectors';
+};
+
+export type GetApiV1AdminConnectorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminConnectorsError = GetApiV1AdminConnectorsErrors[keyof GetApiV1AdminConnectorsErrors];
+
+export type GetApiV1AdminConnectorsResponses = {
+    /**
+     * OK
+     */
+    200: Array<HandlersConnectorSettingResponse>;
+};
+
+export type GetApiV1AdminConnectorsResponse = GetApiV1AdminConnectorsResponses[keyof GetApiV1AdminConnectorsResponses];
+
+export type PutApiV1AdminConnectorsByProviderData = {
+    /**
+     * Desired state
+     */
+    body: HandlersSetConnectorEnabledRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Logical connector provider
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/connectors/{provider}';
+};
+
+export type PutApiV1AdminConnectorsByProviderErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminConnectorsByProviderError = PutApiV1AdminConnectorsByProviderErrors[keyof PutApiV1AdminConnectorsByProviderErrors];
+
+export type PutApiV1AdminConnectorsByProviderResponses = {
+    /**
+     * OK
+     */
+    200: HandlersConnectorSettingResponse;
+};
+
+export type PutApiV1AdminConnectorsByProviderResponse = PutApiV1AdminConnectorsByProviderResponses[keyof PutApiV1AdminConnectorsByProviderResponses];
+
 export type PostApiV1AdminNotificationsSendData = {
     /**
      * Push payload
@@ -5324,6 +5422,10 @@ export type DeleteApiV1AdminUsersDeleteErrors = {
      * Internal Server Error
      */
     500: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
 };
 
 export type DeleteApiV1AdminUsersDeleteError = DeleteApiV1AdminUsersDeleteErrors[keyof DeleteApiV1AdminUsersDeleteErrors];
@@ -5759,158 +5861,6 @@ export type PostApiV1AuthMfaRecoveryCodesRegenerateResponses = {
 
 export type PostApiV1AuthMfaRecoveryCodesRegenerateResponse = PostApiV1AuthMfaRecoveryCodesRegenerateResponses[keyof PostApiV1AuthMfaRecoveryCodesRegenerateResponses];
 
-export type DeleteApiV1AuthMfaSmsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/mfa/sms';
-};
-
-export type DeleteApiV1AuthMfaSmsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-};
-
-export type DeleteApiV1AuthMfaSmsError = DeleteApiV1AuthMfaSmsErrors[keyof DeleteApiV1AuthMfaSmsErrors];
-
-export type DeleteApiV1AuthMfaSmsResponses = {
-    /**
-     * OK
-     */
-    200: {
-        [key: string]: boolean;
-    };
-};
-
-export type DeleteApiV1AuthMfaSmsResponse = DeleteApiV1AuthMfaSmsResponses[keyof DeleteApiV1AuthMfaSmsResponses];
-
-export type PostApiV1AuthMfaSmsEnrollInitData = {
-    /**
-     * phone_e164
-     */
-    body: HandlersSmsEnrollInitRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/mfa/sms/enroll/init';
-};
-
-export type PostApiV1AuthMfaSmsEnrollInitErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Forbidden
-     */
-    403: ResponseErrorResponse;
-    /**
-     * Conflict
-     */
-    409: ResponseErrorResponse;
-    /**
-     * Too Many Requests
-     */
-    429: ResponseErrorResponse;
-    /**
-     * Bad Gateway
-     */
-    502: ResponseErrorResponse;
-};
-
-export type PostApiV1AuthMfaSmsEnrollInitError = PostApiV1AuthMfaSmsEnrollInitErrors[keyof PostApiV1AuthMfaSmsEnrollInitErrors];
-
-export type PostApiV1AuthMfaSmsEnrollInitResponses = {
-    /**
-     * OK
-     */
-    200: HandlersSmsEnrollInitResponse;
-};
-
-export type PostApiV1AuthMfaSmsEnrollInitResponse = PostApiV1AuthMfaSmsEnrollInitResponses[keyof PostApiV1AuthMfaSmsEnrollInitResponses];
-
-export type PostApiV1AuthMfaSmsEnrollVerifyData = {
-    /**
-     * code
-     */
-    body: HandlersSmsVerifyRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/mfa/sms/enroll/verify';
-};
-
-export type PostApiV1AuthMfaSmsEnrollVerifyErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Locked
-     */
-    423: ResponseErrorResponse;
-};
-
-export type PostApiV1AuthMfaSmsEnrollVerifyError = PostApiV1AuthMfaSmsEnrollVerifyErrors[keyof PostApiV1AuthMfaSmsEnrollVerifyErrors];
-
-export type PostApiV1AuthMfaSmsEnrollVerifyResponses = {
-    /**
-     * OK
-     */
-    200: HandlersMfaSessionResponse;
-};
-
-export type PostApiV1AuthMfaSmsEnrollVerifyResponse = PostApiV1AuthMfaSmsEnrollVerifyResponses[keyof PostApiV1AuthMfaSmsEnrollVerifyResponses];
-
-export type PostApiV1AuthMfaSmsSendCodeData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/mfa/sms/send-code';
-};
-
-export type PostApiV1AuthMfaSmsSendCodeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Too Many Requests
-     */
-    429: ResponseErrorResponse;
-    /**
-     * Bad Gateway
-     */
-    502: ResponseErrorResponse;
-};
-
-export type PostApiV1AuthMfaSmsSendCodeError = PostApiV1AuthMfaSmsSendCodeErrors[keyof PostApiV1AuthMfaSmsSendCodeErrors];
-
-export type PostApiV1AuthMfaSmsSendCodeResponses = {
-    /**
-     * OK
-     */
-    200: HandlersSmsSendCodeResponse;
-};
-
-export type PostApiV1AuthMfaSmsSendCodeResponse = PostApiV1AuthMfaSmsSendCodeResponses[keyof PostApiV1AuthMfaSmsSendCodeResponses];
-
 export type GetApiV1AuthMfaStatusData = {
     body?: never;
     path?: never;
@@ -6063,6 +6013,12 @@ export type PostApiV1ChatCompletionsData = {
      * Chat completion request
      */
     body: LlmapiChatCompletionRequest;
+    headers?: {
+        /**
+         * Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
+         */
+        'X-Stream-Resumable'?: string;
+    };
     path?: never;
     query?: never;
     url: '/api/v1/chat/completions';
@@ -6081,6 +6037,10 @@ export type PostApiV1ChatCompletionsErrors = {
      * Model not available on current subscription tier
      */
     403: ResponseErrorResponse;
+    /**
+     * Input exceeds model context window
+     */
+    413: ResponseErrorResponse;
     /**
      * Model provider rate limit exceeded
      */
@@ -6146,6 +6106,10 @@ export type PostApiV1ConnectTicketsErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -6322,6 +6286,85 @@ export type PostApiV1ConnectorsByProviderDisconnectResponses = {
 };
 
 export type PostApiV1ConnectorsByProviderDisconnectResponse = PostApiV1ConnectorsByProviderDisconnectResponses[keyof PostApiV1ConnectorsByProviderDisconnectResponses];
+
+export type GetApiV1ConnectorsByProviderScopesData = {
+    body?: never;
+    path: {
+        /**
+         * Logical connector provider
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/api/v1/connectors/{provider}/scopes';
+};
+
+export type GetApiV1ConnectorsByProviderScopesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1ConnectorsByProviderScopesError = GetApiV1ConnectorsByProviderScopesErrors[keyof GetApiV1ConnectorsByProviderScopesErrors];
+
+export type GetApiV1ConnectorsByProviderScopesResponses = {
+    /**
+     * OK
+     */
+    200: HandlersConnectorScopesResponse;
+};
+
+export type GetApiV1ConnectorsByProviderScopesResponse = GetApiV1ConnectorsByProviderScopesResponses[keyof GetApiV1ConnectorsByProviderScopesResponses];
+
+export type PutApiV1ConnectorsByProviderScopesData = {
+    /**
+     * Capability toggles
+     */
+    body: HandlersSetScopesRequest;
+    path: {
+        /**
+         * Logical connector provider
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/api/v1/connectors/{provider}/scopes';
+};
+
+export type PutApiV1ConnectorsByProviderScopesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1ConnectorsByProviderScopesError = PutApiV1ConnectorsByProviderScopesErrors[keyof PutApiV1ConnectorsByProviderScopesErrors];
+
+export type PutApiV1ConnectorsByProviderScopesResponses = {
+    /**
+     * OK
+     */
+    200: HandlersConnectorScopesResponse;
+};
+
+export type PutApiV1ConnectorsByProviderScopesResponse = PutApiV1ConnectorsByProviderScopesResponses[keyof PutApiV1ConnectorsByProviderScopesResponses];
 
 export type GetApiV1CreditsBalanceData = {
     body?: never;
@@ -7969,6 +8012,12 @@ export type PostApiV1ResponsesData = {
      * Response request
      */
     body: LlmapiResponseRequest;
+    headers?: {
+        /**
+         * Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
+         */
+        'X-Stream-Resumable'?: string;
+    };
     path?: never;
     query?: never;
     url: '/api/v1/responses';
@@ -7987,6 +8036,10 @@ export type PostApiV1ResponsesErrors = {
      * Model not available on current subscription tier
      */
     403: ResponseErrorResponse;
+    /**
+     * Input exceeds model context window
+     */
+    413: ResponseErrorResponse;
     /**
      * Model provider rate limit exceeded
      */
@@ -8367,170 +8420,6 @@ export type PostApiV1SubscriptionsWebhookResponses = {
 };
 
 export type PostApiV1SubscriptionsWebhookResponse = PostApiV1SubscriptionsWebhookResponses[keyof PostApiV1SubscriptionsWebhookResponses];
-
-export type GetApiV1TextByChannelLookupData = {
-    body?: never;
-    path: {
-        /**
-         * Text channel (sms, telegram)
-         */
-        channel: string;
-    };
-    query: {
-        /**
-         * Channel identifier (e.g., E.164 phone number for SMS)
-         */
-        identifier: string;
-    };
-    url: '/api/v1/text/{channel}/lookup';
-};
-
-export type GetApiV1TextByChannelLookupErrors = {
-    /**
-     * Invalid channel or identifier format
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * No registration found
-     */
-    404: ResponseErrorResponse;
-};
-
-export type GetApiV1TextByChannelLookupError = GetApiV1TextByChannelLookupErrors[keyof GetApiV1TextByChannelLookupErrors];
-
-export type GetApiV1TextByChannelLookupResponses = {
-    /**
-     * OK
-     */
-    200: ModelsTextLookupResult;
-};
-
-export type GetApiV1TextByChannelLookupResponse = GetApiV1TextByChannelLookupResponses[keyof GetApiV1TextByChannelLookupResponses];
-
-export type PostApiV1TextByChannelRegisterData = {
-    /**
-     * Registration data
-     */
-    body: ModelsRegisterTextRequest;
-    path: {
-        /**
-         * Text channel (sms, telegram)
-         */
-        channel: string;
-    };
-    query?: never;
-    url: '/api/v1/text/{channel}/register';
-};
-
-export type PostApiV1TextByChannelRegisterErrors = {
-    /**
-     * Invalid channel, identifier, or identifier not in linked accounts
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Identifier registered to another account
-     */
-    409: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1TextByChannelRegisterError = PostApiV1TextByChannelRegisterErrors[keyof PostApiV1TextByChannelRegisterErrors];
-
-export type PostApiV1TextByChannelRegisterResponses = {
-    /**
-     * OK
-     */
-    200: HandlersRegisterTextResponse;
-};
-
-export type PostApiV1TextByChannelRegisterResponse = PostApiV1TextByChannelRegisterResponses[keyof PostApiV1TextByChannelRegisterResponses];
-
-export type GetApiV1TextByChannelStatusData = {
-    body?: never;
-    path: {
-        /**
-         * Text channel (sms, telegram)
-         */
-        channel: string;
-    };
-    query?: never;
-    url: '/api/v1/text/{channel}/status';
-};
-
-export type GetApiV1TextByChannelStatusErrors = {
-    /**
-     * Invalid channel
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type GetApiV1TextByChannelStatusError = GetApiV1TextByChannelStatusErrors[keyof GetApiV1TextByChannelStatusErrors];
-
-export type GetApiV1TextByChannelStatusResponses = {
-    /**
-     * OK
-     */
-    200: ModelsTextStatusResponse;
-};
-
-export type GetApiV1TextByChannelStatusResponse = GetApiV1TextByChannelStatusResponses[keyof GetApiV1TextByChannelStatusResponses];
-
-export type DeleteApiV1TextByChannelUnregisterData = {
-    body?: never;
-    path: {
-        /**
-         * Text channel (sms, telegram)
-         */
-        channel: string;
-    };
-    query?: never;
-    url: '/api/v1/text/{channel}/unregister';
-};
-
-export type DeleteApiV1TextByChannelUnregisterErrors = {
-    /**
-     * Invalid channel
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type DeleteApiV1TextByChannelUnregisterError = DeleteApiV1TextByChannelUnregisterErrors[keyof DeleteApiV1TextByChannelUnregisterErrors];
-
-export type DeleteApiV1TextByChannelUnregisterResponses = {
-    /**
-     * OK
-     */
-    200: HandlersUnregisterTextResponse;
-};
-
-export type DeleteApiV1TextByChannelUnregisterResponse = DeleteApiV1TextByChannelUnregisterResponses[keyof DeleteApiV1TextByChannelUnregisterResponses];
 
 export type GetApiV1ToolsData = {
     body?: never;

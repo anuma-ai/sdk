@@ -35,8 +35,8 @@ importers:
   .:
     dependencies:
       '@anuma/portal':
-        specifier: 1.0.0-next.20260603174411
-        version: 1.0.0-next.20260603174411
+        specifier: 1.0.0-next.20260613010918
+        version: 1.0.0-next.20260613010918
       '@babel/parser':
         specifier: ^7.29.2
         version: 7.29.2
@@ -292,8 +292,8 @@ packages:
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
 
-  '@anuma/portal@1.0.0-next.20260603174411':
-    resolution: {integrity: sha512-I+HwveFRMeDnAWqiHAEtmsHvkB1LEigmxwUSulJmZR5rR4xJzuRQDIlemNRPfmnHnGmOXMqQQ4PbKitrOXlsAA==}
+  '@anuma/portal@1.0.0-next.20260613010918':
+    resolution: {integrity: sha512-Pxhp3hEri6ctzpFYkH/oGlJVXsAfg006ez2co1WazUIweOYZ3mf/FGPjoCQTQ4gHpLYqGk6w5qbYmeyURTy9XA==}
 
   '@arethetypeswrong/cli@0.18.2':
     resolution: {integrity: sha512-PcFM20JNlevEDKBg4Re29Rtv2xvjvQZzg7ENnrWFSS0PHgdP2njibVFw+dRUhNkPgNfac9iUqO0ohAXqQL4hbw==}
@@ -1574,7 +1574,7 @@ packages:
 
   '@paulmillr/qr@0.2.1':
     resolution: {integrity: sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ==}
-    deprecated: 'The package is now available as "qr": npm install qr'
+    deprecated: 'Switch to "qr" (new package name) for security updates: npm install qr'
 
   '@phosphor-icons/webcomponents@2.1.5':
     resolution: {integrity: sha512-JcvQkZxvcX2jK+QCclm8+e8HXqtdFW9xV4/kk2aL9Y3dJA2oQVt+pzbv1orkumz3rfx4K9mn9fDoMr1He1yr7Q==}
@@ -7654,7 +7654,7 @@ snapshots:
 
   '@andrewbranch/untar.js@1.0.3': {}
 
-  '@anuma/portal@1.0.0-next.20260603174411': {}
+  '@anuma/portal@1.0.0-next.20260613010918': {}
 
   '@arethetypeswrong/cli@0.18.2':
     dependencies:
@@ -11227,7 +11227,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.2(@types/node@25.9.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.0.3)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.2(@types/node@25.0.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/expect@4.1.8':
     dependencies:
