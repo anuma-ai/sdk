@@ -3,10 +3,10 @@ import { requestEncryptionKey } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import {
   decryptField,
-  decryptJsonField,
   encryptField,
   encryptJsonField,
   isEncrypted,
+  tryDecryptField,
 } from "../encryption-utils";
 import type { CreateMessageOptions, StoredMessage, UpdateMessageOptions } from "./types";
 
@@ -116,28 +116,40 @@ export async function encryptMessageFields(
 async function decryptMaybeJsonField<T>(
   value: T | string | null | undefined,
   address: string
-): Promise<T | undefined> {
+): Promise<{ value: T | undefined; failed: boolean }> {
   // Preserve `null` vs `undefined` distinction at runtime. WatermelonDB
   // optional JSON columns can surface `null` and callers may do strict
-  // `=== null` guards, so we MUST NOT collapse one into the other. The
-  // return type stays `T | undefined` to match the existing StoredMessage
-  // shape — `null` is passed through unmodified, same as the original
-  // ternary behavior (`message.vector ? decrypt : message.vector`).
-  if (value === undefined) return undefined;
-  if (value === null) return value as unknown as undefined;
+  // `=== null` guards, so we MUST NOT collapse one into the other. `null`
+  // is passed through unmodified, same as the original ternary behavior
+  // (`message.vector ? decrypt : message.vector`).
+  //
+  // `failed` reports a genuine *decryption* failure (missing/wrong key) so
+  // callers can surface it via `decryptionFailed`, mirroring the string
+  // fields. A post-decrypt JSON.parse failure is NOT a decryption failure
+  // (the bytes decrypted fine, the payload was just malformed) and does not
+  // set `failed`.
+  if (value === undefined) return { value: undefined, failed: false };
+  if (value === null) return { value: value as unknown as undefined, failed: false };
   if (typeof value === "string") {
     if (isEncrypted(value)) {
-      return await decryptJsonField<T>(value, address);
+      const result = await tryDecryptField(value, address);
+      if (!result.ok) return { value: undefined, failed: true };
+      try {
+        return { value: JSON.parse(result.value) as T, failed: false };
+      } catch (error) {
+        getLogger().warn("Failed to parse decrypted JSON field:", error);
+        return { value: undefined, failed: false };
+      }
     }
     // Plaintext string column from a legacy/unencrypted message — parse once.
     try {
-      return JSON.parse(value) as T;
+      return { value: JSON.parse(value) as T, failed: false };
     } catch {
-      return undefined;
+      return { value: undefined, failed: false };
     }
   }
   // Already-parsed plaintext object/array — pass through, no copy.
-  return value;
+  return { value, failed: false };
 }
 
 /**
@@ -161,47 +173,73 @@ export async function decryptMessageFields(
     }
   }
 
-  // String fields: decryptField returns the input unchanged when it
-  // doesn't carry the enc: prefix, so the no-encryption path doesn't
-  // copy.
-  const decryptedContent = await decryptField(message.content, address);
+  // String fields: tryDecryptField returns the input unchanged when it
+  // doesn't carry the enc: prefix (no copy on the plaintext path), and
+  // reports `ok: false` when an encrypted value genuinely fails to decrypt
+  // (missing/wrong key) — distinct from plaintext. On failure we keep the
+  // ciphertext in place (never fabricate content) and flag the message via
+  // `decryptionFailed` so consumers can show a recoverable state and trigger
+  // key re-derivation instead of rendering undecryptable ciphertext.
+  const contentResult = await tryDecryptField(message.content, address);
+  const decryptedContent = contentResult.ok ? contentResult.value : contentResult.ciphertext;
 
-  const decryptedThinking = message.thinking
-    ? await decryptField(message.thinking, address)
-    : message.thinking;
+  let decryptedThinking = message.thinking;
+  let thinkingFailed = false;
+  if (message.thinking) {
+    const thinkingResult = await tryDecryptField(message.thinking, address);
+    decryptedThinking = thinkingResult.ok ? thinkingResult.value : thinkingResult.ciphertext;
+    thinkingFailed = !thinkingResult.ok;
+  }
 
-  // JSON fields: previously each of these always ran JSON.stringify on
-  // already-parsed objects only to feed decryptJsonField, which then
-  // JSON.parsed the same string back. The helper above skips the
-  // round-trip when the value is already an object, cutting one
-  // string-allocation + one parse per plaintext field per row.
-  const decryptedVector = await decryptMaybeJsonField<number[]>(
+  // JSON fields: the helper skips the stringify→decrypt→parse round-trip when
+  // the value is already a parsed object, and reports a genuine decryption
+  // failure via `failed` so it folds into `decryptionFailed` like the string
+  // fields (otherwise an undecryptable vector/sources would silently vanish).
+  const vectorResult = await decryptMaybeJsonField<number[]>(
     message.vector as number[] | string | undefined,
     address
   );
 
-  const decryptedChunks = await decryptMaybeJsonField<typeof message.chunks>(
+  const chunksResult = await decryptMaybeJsonField<typeof message.chunks>(
     message.chunks as typeof message.chunks | string | undefined,
     address
   );
 
-  const decryptedSources = await decryptMaybeJsonField<typeof message.sources>(
+  const sourcesResult = await decryptMaybeJsonField<typeof message.sources>(
     message.sources as typeof message.sources | string | undefined,
     address
   );
 
-  const decryptedThoughtProcess = await decryptMaybeJsonField<typeof message.thoughtProcess>(
+  const thoughtProcessResult = await decryptMaybeJsonField<typeof message.thoughtProcess>(
     message.thoughtProcess as typeof message.thoughtProcess | string | undefined,
     address
   );
+
+  const decryptionFailed =
+    !contentResult.ok ||
+    thinkingFailed ||
+    vectorResult.failed ||
+    chunksResult.failed ||
+    sourcesResult.failed ||
+    thoughtProcessResult.failed;
 
   return {
     ...message,
     content: decryptedContent,
     thinking: decryptedThinking,
-    vector: decryptedVector,
-    chunks: decryptedChunks,
-    sources: decryptedSources,
-    thoughtProcess: decryptedThoughtProcess,
+    // On a genuine decrypt failure keep the original (ciphertext) value rather
+    // than dropping it to `undefined` — mirrors content/thinking. This keeps
+    // the field recoverable: a re-run after the key is restored decrypts it and
+    // clears `decryptionFailed`, instead of leaving it permanently absent.
+    vector: vectorResult.failed ? message.vector : vectorResult.value,
+    chunks: chunksResult.failed ? message.chunks : chunksResult.value,
+    sources: sourcesResult.failed ? message.sources : sourcesResult.value,
+    thoughtProcess: thoughtProcessResult.failed
+      ? message.thoughtProcess
+      : thoughtProcessResult.value,
+    // Explicit (not conditional-spread) so a successful re-run clears any
+    // stale `decryptionFailed: true` carried in on `message` from a prior
+    // failed pass — `undefined` overrides it; the field stays optional.
+    decryptionFailed: decryptionFailed || undefined,
   };
 }
