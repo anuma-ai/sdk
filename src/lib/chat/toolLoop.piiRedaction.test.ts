@@ -32,7 +32,13 @@ function makeToolCallStream(opts: { callId: string; name: string; arguments: str
     yield { type: "response.created", response: { id: "r", model: "m" } };
     yield {
       type: "response.output_item.added",
-      item: { id: `item_${opts.callId}`, call_id: opts.callId, type: "function_call", name: opts.name, arguments: "" },
+      item: {
+        id: `item_${opts.callId}`,
+        call_id: opts.callId,
+        type: "function_call",
+        name: opts.name,
+        arguments: "",
+      },
     };
     yield {
       type: "response.function_call_arguments.done",
@@ -40,7 +46,10 @@ function makeToolCallStream(opts: { callId: string; name: string; arguments: str
       call_id: opts.callId,
       arguments: opts.arguments,
     };
-    yield { type: "response.completed", response: { usage: { input_tokens: 1, output_tokens: 1 } } };
+    yield {
+      type: "response.completed",
+      response: { usage: { input_tokens: 1, output_tokens: 1 } },
+    };
   })();
 }
 

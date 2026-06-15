@@ -75,7 +75,6 @@ function ChatComponent() {
 | [useBackup](Hooks/useBackup.md) | Unified React hook for backup and restore functionality. |
 | [useBackupAuth](Hooks/useBackupAuth.md) | Hook to access unified backup authentication state and methods. |
 | [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
-| [useChatStorage](Hooks/useChatStorage.md) | A React hook that wraps useChat with automatic message persistence using WatermelonDB. |
 | [useCredits](Hooks/useCredits.md) | React hook for managing credits: checking balance, browsing packs, and purchasing credits. |
 | [useDropboxAuth](Hooks/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
 | [useDropboxBackup](Hooks/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |

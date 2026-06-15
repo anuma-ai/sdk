@@ -1642,7 +1642,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     if (!getToken) return;
     void (async () => {
       try {
-        await preEmbedVaultMemories(vaultCtx, vaultEmbeddingOptions, vaultEmbeddingCacheRef.current);
+        await preEmbedVaultMemories(
+          vaultCtx,
+          vaultEmbeddingOptions,
+          vaultEmbeddingCacheRef.current
+        );
       } catch {
         // Non-critical: embeddings will be generated on first search
       }
