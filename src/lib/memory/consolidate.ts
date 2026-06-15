@@ -43,8 +43,10 @@ import type { ConsolidationFallbackReason } from "./types.js";
 // default): gpt-oss returns empty completion content ~30% of the time on
 // this single-decision prompt (measured 3/10), which silently degrades every
 // affected merge to a create fallback and defeats facet-dedup. ling-2.6-flash
-// is reliable here (0/10 empty), supports `response_format: json_object`, and
-// discriminates create/update/noop correctly on the benchmark cases.
+// is reliable here (0/10 empty) and discriminates create/update/noop correctly
+// on the benchmark cases. Unlike gpt-oss, ling ACCEPTS `response_format:
+// json_object` (verified), so portalLlm.ts sends it — the reliability numbers
+// above were measured with response_format on, matching production.
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
 
 const SYSTEM_PROMPT = `You consolidate a new memory against existing memories from the same user.

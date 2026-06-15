@@ -119,31 +119,38 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   ];
   if (prefill) messages.push({ role: "assistant", content: prefill });
 
-  // `response_format: json_object` is an OpenAI-specific request flag. The
-  // open models hosted on Fireworks/Cerebras (e.g. gpt-oss-120b) reject the
-  // whole request with a 400 if it's present — they only accept a bare
-  // prompt-instructed JSON request. Anthropic ignores the flag and uses the
-  // prefill path above. So only send it for OpenAI-family models; everyone
-  // else relies on the "strict JSON, no prose" system prompt plus the
-  // tolerant `extractJsonCandidate` parser below (which already strips
-  // fences / prose preambles). `.includes` rather than `.startsWith` so
-  // proxied ids like `openrouter/openai/…` are covered too.
-  const supportsJsonObjectFormat = req.model.includes("openai/");
+  // `response_format: json_object` support is model-specific, not universal.
+  // gpt-oss-120b (Cerebras) rejects the whole request with a 400 if it's
+  // present; OpenAI, ling-2.6-flash, and deepseek-v4 all accept it (verified
+  // 2026-06). Send it only to models confirmed to accept it; an UNKNOWN model
+  // defaults to OMITTING it, so a newly-added model degrades to a bare
+  // prompt-instructed request (which still works via the strict-JSON system
+  // prompt + the tolerant `extractJsonCandidate` parser below) rather than
+  // hard-failing on a 400. Anthropic ignores the flag and uses the prefill
+  // path above. `.includes` so proxied ids like `openrouter/openai/…` match.
+  const RESPONSE_FORMAT_OK = ["openai/", "inclusionai/", "deepseek/"];
+  const supportsJsonObjectFormat = RESPONSE_FORMAT_OK.some((p) => req.model.includes(p));
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Build the body explicitly so the gate has final say: callers can pass
+  // arbitrary overrides via `extra`, but a model that 400s on response_format
+  // must never receive it — not even through an accidental `extra` override.
+  const requestBody: Record<string, unknown> = {
+    model: req.model,
+    messages,
+    ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
+    ...req.extra,
+  };
+  if (!supportsJsonObjectFormat) delete requestBody.response_format;
 
   let response: Response;
   try {
     response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
       method: "POST",
       headers: { ...authHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: req.model,
-        messages,
-        ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
-        ...req.extra,
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
   } catch (err) {
