@@ -994,6 +994,23 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     thinkingDeAnon?.flush();
   };
 
+  // Final-output de-anonymization. The returned response, `onFinish`, and the
+  // `finalContent` reported to hooks must show the user real values — but the
+  // accumulator keeps placeholders because continuation rounds re-send them to
+  // the model. So de-anonymize a shallow clone rather than mutating the
+  // accumulator (which would leak real PII into the next round's prompt).
+  type Accumulator = ReturnType<typeof createStreamAccumulator>;
+  const buildResponseFinal = (acc: Accumulator): ApiResponse =>
+    redactor
+      ? strategy.buildFinalResponse({
+          ...acc,
+          content: redactor.deAnonymize(acc.content),
+          thinking: redactor.deAnonymize(acc.thinking),
+        })
+      : strategy.buildFinalResponse(acc);
+  const finalContentText = (acc: Accumulator): string =>
+    redactor ? redactor.deAnonymize(acc.content) : acc.content;
+
   try {
     let sseError: Error | null = null;
 
@@ -1102,7 +1119,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       await fireAfterModelCall(buildModelCallEndPayload(acc, { error: "detached" }));
       await fireRunError({ error: "Request detached", stage: "model" });
       return {
-        data: strategy.buildFinalResponse(acc),
+        data: buildResponseFinal(acc),
         error: "Request detached",
         detached: true,
         resume: makeResumeHandle(),
@@ -1189,7 +1206,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
             await fireRunError({ error: "Request aborted", stage: "model" });
             return {
-              data: strategy.buildFinalResponse(accumulator),
+              data: buildResponseFinal(accumulator),
               error: "Request aborted",
               toolsChecksum: accumulator.toolsChecksum,
             };
@@ -1248,7 +1265,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
           await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
           return {
-            data: strategy.buildFinalResponse(accumulator),
+            data: buildResponseFinal(accumulator),
             error: "Request aborted",
             toolsChecksum: accumulator.toolsChecksum,
           };
@@ -1293,7 +1310,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     flushDeAnon();
     await fireAfterModelCall(buildModelCallEndPayload(accumulator));
 
-    const response = strategy.buildFinalResponse(accumulator);
+    const response = buildResponseFinal(accumulator);
 
     // ── Multi-turn tool calling loop ──
     const executorMap = createToolExecutorMap(tools);
@@ -1658,10 +1675,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       // If ALL tools have skipContinuation, return early
       if (continueResults.length === 0) {
-        const skipResponse = strategy.buildFinalResponse(currentAccumulator);
+        const skipResponse = buildResponseFinal(currentAccumulator);
         if (onFinish) onFinish(skipResponse);
         await fireRunEnd({
-          finalContent: currentAccumulator.content,
+          finalContent: finalContentText(currentAccumulator),
           totalSteps: stepIndex + 1,
         });
         return {
@@ -1769,7 +1786,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           );
           await fireRunError({ error: "Request aborted", stage: "model" });
           return {
-            data: strategy.buildFinalResponse(currentAccumulator),
+            data: buildResponseFinal(currentAccumulator),
             error: "Request aborted",
             toolsChecksum: currentAccumulator.toolsChecksum,
           };
@@ -1836,7 +1853,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               );
               await fireRunError({ error: "Request aborted", stage: "model" });
               return {
-                data: strategy.buildFinalResponse(currentAccumulator),
+                data: buildResponseFinal(currentAccumulator),
                 error: "Request aborted",
                 toolsChecksum: currentAccumulator.toolsChecksum,
               };
@@ -1896,7 +1913,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
             await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
             return {
-              data: strategy.buildFinalResponse(currentAccumulator),
+              data: buildResponseFinal(currentAccumulator),
               error: "Request aborted",
               toolsChecksum: currentAccumulator.toolsChecksum,
             };
@@ -1951,10 +1968,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
     // Build final response from the last accumulator
     if (toolIteration > 0) {
-      const finalResponse = strategy.buildFinalResponse(currentAccumulator);
+      const finalResponse = buildResponseFinal(currentAccumulator);
       if (onFinish) onFinish(finalResponse);
       await fireRunEnd({
-        finalContent: currentAccumulator.content,
+        finalContent: finalContentText(currentAccumulator),
         totalSteps: stepIndex + 1,
       });
       return {
@@ -1967,7 +1984,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
     if (onFinish) onFinish(response);
     await fireRunEnd({
-      finalContent: accumulator.content,
+      finalContent: finalContentText(accumulator),
       totalSteps: stepIndex + 1,
     });
     return {
