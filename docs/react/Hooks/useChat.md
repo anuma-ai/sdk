@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#141)
+Defined in: [src/react/useChat.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#149)
 
 A React hook for managing chat completions with authentication.
 
@@ -259,8 +259,10 @@ Use for live preview of artifacts (HTML, slides) being generated.
 Pre-processors run after the last user message is received but before the
 first LLM request. Each receives the prompt text and a shared embedding
 (computed once per request) and may return messages to enrich the
-conversation. See `createWebSearchPreProcessor`, `createPricePreProcessor`,
-or write a custom one matching `PromptPreProcessor`.
+conversation. See `createWebSearchPreProcessor`,
+`createCryptoPricePreProcessor`, `createStockPricePreProcessor`,
+`createWeatherPreProcessor`, or write a custom one matching
+`PromptPreProcessor`.
 
 </td>
 </tr>

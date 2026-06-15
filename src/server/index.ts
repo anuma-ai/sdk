@@ -220,6 +220,7 @@ export {
   type MediaRole,
   mediaToStored,
   type MediaType,
+  relinkMisclassifiedVideosOp,
   searchMediaOp,
   type StoredMedia,
   updateMediaMessageIdBatchOp,
@@ -304,19 +305,65 @@ export {
   type VaultSearchResult,
 } from "../lib/memoryVault";
 
+// ── Unified Memory API (recall / retain / reflect) ──
+
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  ConsolidationFallbackReason,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  PortalLlmAuth,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
+  RecencyOptions,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+  reflect,
+  retain,
+} from "../lib/memory";
+
 // ── Server Tools ──
 
 export type {
   CachedServerTools,
   ParsedServerToolsResponse,
+  SelectServerToolsForPromptOptions,
   ServerTool,
+  ServerToolsFilterFunction,
   ServerToolsOptions,
   ServerToolsResponse,
   ToolMatchOptions,
   ToolMatchResult,
 } from "../lib/tools";
-export type { SelectServerToolsForPromptOptions, ServerToolsFilterFunction } from "../lib/tools";
 export {
+  activatedToolSetNames,
   clearServerToolsCache,
   createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
@@ -329,6 +376,7 @@ export {
   getToolsChecksum,
   selectServerToolsForPrompt,
   shouldRefreshTools,
+  toolSetSystemPrompts,
 } from "../lib/tools";
 
 // ── Encryption (non-React utilities) ──
@@ -393,13 +441,16 @@ export {
 
 // ── Tool Loop (framework-agnostic agent core) ──
 
-export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
-export type { PriceClassification, PricePreProcessorOptions } from "../lib/chat/priceClassifier";
+export type {
+  CryptoPriceClassification,
+  CryptoPricePreProcessorOptions,
+} from "../lib/chat/cryptoPriceClassifier";
 export {
-  classifyPrice,
-  classifyPriceBatch,
-  createPricePreProcessor,
-} from "../lib/chat/priceClassifier";
+  classifyCryptoPrice,
+  classifyCryptoPriceBatch,
+  createCryptoPricePreProcessor,
+} from "../lib/chat/cryptoPriceClassifier";
+export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type {
   LlmTokenUsage,
   ModelCallEndEvent,
@@ -413,6 +464,15 @@ export type {
 } from "../lib/chat/runHooks";
 export { composeHooks } from "../lib/chat/runHooks";
 export type {
+  StockPriceClassification,
+  StockPricePreProcessorOptions,
+} from "../lib/chat/stockPriceClassifier";
+export {
+  classifyStockPrice,
+  classifyStockPriceBatch,
+  createStockPricePreProcessor,
+} from "../lib/chat/stockPriceClassifier";
+export type {
   AutoExecutedToolResult,
   RunToolLoopOptions,
   RunToolLoopResult,
@@ -420,12 +480,23 @@ export type {
   StreamingTransport,
   StreamingTransportOptions,
   StreamingTransportResult,
+  StreamMetaEvent,
+  StreamResumeHandle,
 } from "../lib/chat/toolLoop";
-export { runToolLoop } from "../lib/chat/toolLoop";
+export { INFERENCE_ID_HEADER, runToolLoop, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
 export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
+export type {
+  WeatherClassification,
+  WeatherPreProcessorOptions,
+} from "../lib/chat/weatherClassifier";
+export {
+  classifyWeather,
+  classifyWeatherBatch,
+  createWeatherPreProcessor,
+} from "../lib/chat/weatherClassifier";
 export type {
   WebSearchClassification,
   WebSearchPreProcessorOptions,

@@ -1,0 +1,641 @@
+/**
+ * Calls the real `src/lib/memory/recall.ts` API end-to-end against a
+ * populated WatermelonDB (vault + chat storage). Both lanes drive a single
+ * `recall(query, ctx, { types: ["fact","chunk"], ... })` call, and results
+ * come back as `RankedMemory[]` with a `kind` discriminator.
+ */
+
+import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
+import { linkMemoryEntitiesOp } from "../../../../src/lib/db/entities/operations.js";
+import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
+import { recall } from "../../../../src/lib/memory/recall.js";
+import { RECALL_TOOL_NAME } from "../../../../src/lib/memory/recallTool.js";
+import { retain } from "../../../../src/lib/memory/retain.js";
+import {
+  preEmbedVaultMemories,
+  type VaultEmbeddingCache,
+} from "../../../../src/lib/memoryVault/searchTool.js";
+import {
+  buildRetrievalTuningOptions,
+  callChatCompletion,
+  clearProgress,
+  createConsolidationFallbackTracker,
+  createEntityContext,
+  createStorageContext,
+  createVaultContext,
+  evaluateAnswer,
+  extractMemoriesFromSession,
+  formatHaystackDateAsObservation,
+  logProgress,
+  saveTranscript,
+  selectSessions,
+  setupDatabase,
+} from "./suite.js";
+import type {
+  ApiConfig,
+  LongMemEvalEntry,
+  LongMemEvalResult,
+  RecallEmit,
+  RecallLaneMode,
+  RecallTypes,
+  RetrievalTuningKnobs,
+  TokenUsage,
+} from "./types.js";
+
+const DEFAULT_LIMIT = 14;
+const DEFAULT_CHUNK_LANE_LIMIT = 7;
+const DEFAULT_FACT_MIN_SCORE = 0.1;
+
+const TYPES_BY_FLAG: Record<RecallTypes, Array<"fact" | "chunk">> = {
+  fact: ["fact"],
+  chunk: ["chunk"],
+  "fact-chunk": ["fact", "chunk"],
+};
+
+/**
+ * Extract YYYY-MM-DD prefix from LongMemEval's `YYYY/MM/DD (Day) HH:MM`
+ * format and parse as midnight UTC. Returns NaN if the format isn't
+ * recognized — caller should fall back to Date.now() in that case to
+ * avoid silently corrupting the W6 lane with a NaN window.
+ */
+function parseQuestionDateUtc(raw: string): number {
+  const match = raw.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
+  if (!match) return NaN;
+  const [, yyyy, mm, dd] = match;
+  return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
+function budgetFor(decompose: boolean, rerank: boolean): "low" | "mid" | "high" {
+  if (decompose) return "high";
+  if (rerank) return "mid";
+  return "low";
+}
+
+export async function processEntryRecall(
+  entry: LongMemEvalEntry,
+  api: ApiConfig,
+  verbose: boolean,
+  maxSessions?: number,
+  searchPipeline?: {
+    rerank?: boolean;
+    decompose?: "off" | "llm";
+    consolidate?: boolean;
+    excerptMaxChars?: number;
+    recallTypes?: RecallTypes;
+    recallEmit?: RecallEmit;
+    recallLaneMode?: RecallLaneMode;
+  } & RetrievalTuningKnobs
+): Promise<LongMemEvalResult> {
+  const startTime = performance.now();
+  const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
+  const totalSessions = sessionIndices.length;
+
+  if (verbose) {
+    console.log(`\n  Processing: ${entry.question_id}`);
+    console.log(`  Type: ${entry.question_type}`);
+    const sessionInfo = limited
+      ? `${totalSessions}/${entry.haystack_sessions.length} (limited)`
+      : `${totalSessions}`;
+    console.log(`  Sessions: ${sessionInfo}`);
+    console.log(`  Question: ${entry.question}`);
+  }
+
+  logProgress("Setting up database...");
+  const database = await setupDatabase();
+  const vaultCtx = createVaultContext(database);
+  const storageCtx = createStorageContext(database);
+  const entityCtx = createEntityContext(database);
+
+  const vaultToSession = new Map<string, string>();
+  const convToSession = new Map<string, string>();
+
+  const tokenUsage: TokenUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    embeddingTokens: 0,
+  };
+
+  function addUsage(u?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }) {
+    if (!u) return;
+    tokenUsage.promptTokens += u.prompt_tokens;
+    tokenUsage.completionTokens += u.completion_tokens;
+    tokenUsage.totalTokens += u.total_tokens;
+  }
+
+  try {
+    const allMemories: Array<{
+      sessionId: string;
+      content: string;
+      kind: "state" | "event";
+      occurredAt: string | null;
+      entities: string[];
+    }> = [];
+    for (let i = 0; i < sessionIndices.length; i++) {
+      const sIdx = sessionIndices[i];
+      const session = entry.haystack_sessions[sIdx];
+      const sessionId = entry.haystack_session_ids[sIdx];
+      logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
+      // Use the session's own date as the observation date so the
+      // extractor resolves relative phrases ("today", "yesterday",
+      // "N days ago") against when the conversation HAPPENED, not when
+      // the question is being asked. Previously every session shared
+      // entry.question_date as obsDate, collapsing all `event:` dates
+      // onto the question date — the dominant temporal-reasoning
+      // failure mode at 51% of misses on full oracle.
+      const sessionDate = formatHaystackDateAsObservation(entry.haystack_dates[sIdx]);
+      const extracted = await extractMemoriesFromSession(
+        session,
+        sIdx,
+        sessionId,
+        api,
+        sessionDate
+      );
+      for (const mem of extracted) {
+        const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
+        allMemories.push({
+          sessionId: mem.sessionId,
+          content: `${mem.content}${dateSuffix}`,
+          kind: mem.kind,
+          occurredAt: mem.occurredAt ?? null,
+          entities: mem.entities ?? [],
+        });
+      }
+    }
+    clearProgress();
+
+    logProgress("Storing sessions as messages...");
+    for (let i = 0; i < sessionIndices.length; i++) {
+      const sIdx = sessionIndices[i];
+      const session = entry.haystack_sessions[sIdx];
+      const sessionId = entry.haystack_session_ids[sIdx];
+      const conversation = await createConversationOp(storageCtx, {
+        title: `Session ${sessionId}`,
+      });
+      convToSession.set(conversation.conversationId, sessionId);
+      for (const msg of session) {
+        await createMessageOp(storageCtx, {
+          conversationId: conversation.conversationId,
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        });
+      }
+    }
+    clearProgress();
+
+    const embeddingOptions = {
+      apiKey: api.apiKey,
+      baseUrl: api.baseUrl,
+      onUsage: (usage: { promptTokens: number; totalTokens: number }) => {
+        tokenUsage.embeddingTokens += usage.totalTokens;
+      },
+    };
+
+    logProgress("Chunking and embedding messages...");
+    const embeddedCount = await chunkAndEmbedAllMessages(storageCtx, embeddingOptions);
+    clearProgress();
+    if (verbose) {
+      console.log(`  Embedded ${embeddedCount} messages (chat storage chunks)`);
+    }
+
+    if (allMemories.length === 0) {
+      // No vault facts extracted — answer from chunks alone via recall().
+      return await answerFromChunksOnly(
+        entry,
+        api,
+        storageCtx,
+        embeddingOptions,
+        tokenUsage,
+        startTime
+      );
+    }
+
+    const answerSessionIdSet = new Set(entry.answer_session_ids);
+    const embeddingCache: VaultEmbeddingCache = new Map();
+    const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
+    const consolidateEnabled = searchPipeline?.consolidate ?? true;
+    const fallbackTracker = createConsolidationFallbackTracker();
+
+    for (const mem of allMemories) {
+      // W6 temporal lane — propagate the bench's `kind: 'event' | 'state'`
+      // + `occurredAt` (YYYY-MM-DD) into retain's `eventTime` shape so
+      // memory_vault.event_time_* columns get populated. The recall path
+      // then has a non-empty memory_vault to query for time-windowed
+      // results. State memories have no temporal anchor and stay null.
+      let eventTime: { kind: "point"; start: number; end: null } | undefined;
+      if (mem.kind === "event" && mem.occurredAt) {
+        const ms = Date.parse(mem.occurredAt);
+        if (Number.isFinite(ms)) {
+          eventTime = { kind: "point", start: ms, end: null };
+        }
+      }
+      const result = await retain(mem.content, retainCtx, {
+        source: "auto-extracted",
+        sourceChunkIds: [mem.sessionId],
+        ...(consolidateEnabled && {
+          consolidateOptions: {
+            apiKey: api.apiKey,
+            baseUrl: api.baseUrl,
+            onFallback: fallbackTracker.onFallback,
+          },
+        }),
+        ...(eventTime && { eventTime }),
+      });
+      const targetId = result.memoryId;
+      const existingSession = vaultToSession.get(targetId);
+      if (!existingSession || answerSessionIdSet.has(mem.sessionId)) {
+        vaultToSession.set(targetId, mem.sessionId);
+      }
+      // W5 graph lane — link the extracted entities so memory_entity rows
+      // exist for recall's graph-lane lookup. Best-effort; failures don't
+      // block the bench because the fact + chunk lanes still answer.
+      if (mem.entities.length > 0) {
+        try {
+          await linkMemoryEntitiesOp(entityCtx, targetId, mem.entities);
+        } catch {
+          /* swallow — graph lane gracefully degrades */
+        }
+      }
+    }
+    fallbackTracker.report(entry.question_id);
+    await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
+
+    const types = TYPES_BY_FLAG[searchPipeline?.recallTypes ?? "fact-chunk"];
+    const decomposeEnabled = (searchPipeline?.decompose ?? "llm") === "llm";
+    const rerankEnabled = searchPipeline?.rerank ?? true;
+    const budget = budgetFor(decomposeEnabled, rerankEnabled);
+    const emit: RecallEmit = searchPipeline?.recallEmit ?? "blocks";
+    const excerptMax = searchPipeline?.excerptMaxChars ?? 8000;
+    const laneMode: RecallLaneMode = searchPipeline?.recallLaneMode ?? "fused";
+    const wantsBothLanes = types.includes("fact") && types.includes("chunk");
+    const usePerLane = laneMode === "per-lane" && wantsBothLanes;
+
+    const retrievedVaultIds = new Set<string>();
+    const retrievedChunkConvIds = new Set<string>();
+
+    const recallCtx = {
+      vaultCtx,
+      storageCtx,
+      embeddingOptions,
+      vaultCache: embeddingCache,
+      // W5 graph lane — recall extracts query entities and looks up
+      // memories sharing them, RRF-fused with cosine + BM25. No-op when
+      // memory_entity is empty (e.g. older bench runs without entity
+      // extraction in the prompt).
+      entityCtx,
+    };
+    const decomposeOpts = decomposeEnabled
+      ? { decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl } }
+      : {};
+    // Ranking tuning knobs (--ce-weight, --rrf-k, …) forwarded to every
+    // recall() call. Empty object when no knob is set — pure no-op.
+    const tuningOpts = buildRetrievalTuningOptions(searchPipeline);
+
+    const recallExecutor = async (args: Record<string, unknown>): Promise<string> => {
+      const query = typeof args.query === "string" ? args.query : "";
+      if (!query) return "(no query)";
+
+      // Anchor relative-time parsing ("last week", "N days ago") to the
+      // question's reference date — LongMemEval entries are dated
+      // 2021–2023 but Date.now() resolves to today, so without this the
+      // W6 temporal lane returns empty windows for every question.
+      //
+      // question_date format is `YYYY/MM/DD (Day) HH:MM`. Date.parse
+      // accepts this in V8 but interprets the date in LOCAL time (no TZ
+      // designator), so the GitHub runner (UTC) and a developer's local
+      // machine (e.g. PDT) get different `now` values for the same
+      // question — leading to non-reproducible runs near day boundaries.
+      // Force UTC by extracting the YYYY-MM-DD prefix and parsing as an
+      // explicit ISO UTC date.
+      const nowForQueryRaw = parseQuestionDateUtc(entry.question_date);
+      // Fall back to undefined (recall defaults to Date.now()) on parse
+      // failure rather than letting NaN poison every downstream date.
+      const nowForQuery = Number.isFinite(nowForQueryRaw) ? nowForQueryRaw : undefined;
+
+      // Per-lane: separate calls so chunks don't compete with facts for
+      // a shared limit. Each lane gets its own pool. Skip when the fused
+      // path is taken — the single fused recall() below covers both
+      // kinds, so a separate fact-only call would just throw the result away.
+      const factResults =
+        usePerLane && types.includes("fact")
+          ? (
+              await recall(query, recallCtx, {
+                types: ["fact"],
+                limit: DEFAULT_LIMIT,
+                minScore: DEFAULT_FACT_MIN_SCORE,
+                budget,
+                now: nowForQuery,
+                ...tuningOpts,
+                ...decomposeOpts,
+              })
+            ).memories
+          : [];
+
+      const chunkResults = usePerLane
+        ? (
+            await recall(query, recallCtx, {
+              types: ["chunk"],
+              limit: DEFAULT_CHUNK_LANE_LIMIT,
+              budget,
+              now: nowForQuery,
+              ...tuningOpts,
+              ...decomposeOpts,
+            })
+          ).memories
+        : [];
+
+      // Fused path: single recall() call returns both kinds via RRF
+      const fused = !usePerLane
+        ? (
+            await recall(query, recallCtx, {
+              types,
+              limit: DEFAULT_LIMIT,
+              minScore: DEFAULT_FACT_MIN_SCORE,
+              budget,
+              now: nowForQuery,
+              ...tuningOpts,
+              ...decomposeOpts,
+            })
+          ).memories
+        : [];
+
+      const allMemories = usePerLane ? [...factResults, ...chunkResults] : fused;
+
+      for (const m of allMemories) {
+        if (m.kind === "fact") retrievedVaultIds.add(m.id);
+        if (m.kind === "chunk" && m.conversationId) retrievedChunkConvIds.add(m.conversationId);
+      }
+
+      if (emit === "blocks") {
+        const facts = usePerLane ? factResults : fused.filter((m) => m.kind === "fact");
+        const chunks = usePerLane ? chunkResults : fused.filter((m) => m.kind === "chunk");
+        const factsBlock =
+          facts.length === 0
+            ? "(no fact memories matched)"
+            : facts
+                .map(
+                  (m, i) =>
+                    `[${i + 1}] (id: ${m.id}, similarity: ${(m.scoreBreakdown?.cosine ?? m.score).toFixed(2)})\n${m.content}`
+                )
+                .join("\n\n");
+        const chunksBlock = chunks
+          .map(
+            (m, i) =>
+              `[excerpt ${i + 1}] (similarity: ${(m.scoreBreakdown?.cosine ?? m.score).toFixed(2)})\n${m.content.slice(0, excerptMax)}`
+          )
+          .join("\n\n");
+        const parts = [`Found ${facts.length} vault memories:\n\n${factsBlock}`];
+        if (chunksBlock) {
+          parts.push(`--- Raw conversation excerpts (${chunks.length}) ---\n\n${chunksBlock}`);
+        }
+        return parts.join("\n\n");
+      }
+
+      return allMemories
+        .map((m, i) => {
+          const tag = m.kind === "fact" ? "FACT" : "CHUNK";
+          const body = m.kind === "chunk" ? m.content.slice(0, excerptMax) : m.content;
+          return `[${i + 1}] ${tag} (id: ${m.id}, score: ${m.score.toFixed(4)})\n${body}`;
+        })
+        .join("\n\n");
+    };
+
+    const systemPrompt = `Today is ${entry.question_date}.
+You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.
+
+When the question enumerates a category — "what / which X have I attended / visited / tried / bought / read / discussed", "all the times I…", "everything I…", or any other listing-style question — list EVERY matching memory rather than only the most-recent or top-scoring one. Combine evidence across sessions and dates. The recall tool returns ranked memories but ranking is not exclusion; treat all returned items as candidates worth enumerating when the question shape calls for a list.
+
+When the question references a NAMED EVENT or activity as a temporal anchor — "before my Japan trip", "after Sara's wedding", "the day after the meeting", "when I started at Stripe", "how long after I started yoga" — your query MUST include both the named anchor AND the asked-about activity. Phrase the query to recall both at once (e.g. "Japan trip and what I did before it" rather than just "Japan trip"). Then in your answer, identify the anchor's date from one returned memory and reason about the asked-about activity relative to that date. If only the anchor is returned but not the asked-about side (or vice versa), the answer is "information not enough"; do not fabricate the missing leg.
+
+When a fact in the memory has a different version mentioned at a later session date (e.g. "user works at Stripe" written 2023-02-01 and "user just started at Anthropic" written 2023-09-15), the LATER fact is the current truth. The earlier one is historical. Prefer the most-recent applicable fact for current-state questions ("where does the user work?"), and use the older fact only for historical questions ("where did the user work before Anthropic?").`;
+
+    const toolDef = {
+      type: "function" as const,
+      function: {
+        name: RECALL_TOOL_NAME,
+        description:
+          "Search the user's memory across distilled facts and raw conversation chunks. Use the results to answer the user's question. " +
+          'When the question references a named event or activity as a temporal anchor ("before my Japan trip", "after Sara\'s wedding"), include BOTH the anchor and the asked-about activity in the same query so both surface together. ' +
+          'When the question asks about a current value or latest state ("where does the user work now", "what\'s the user\'s current phone"), recall and use the MOST RECENT applicable fact; older facts about the same property are historical.',
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Natural-language search query for the user's memory.",
+            },
+          },
+          required: ["query"],
+        },
+      },
+    };
+
+    const baseMessages = [
+      { role: "system" as const, content: systemPrompt },
+      { role: "user" as const, content: entry.question },
+    ];
+
+    const transcript: Record<string, unknown> = {
+      questionId: entry.question_id,
+      question: entry.question,
+      expectedAnswer: entry.answer,
+      llmModel: api.llmModel,
+      strategy: "memory-recall",
+      messages: [...baseMessages],
+      toolCalls: [] as unknown[],
+      toolResults: [] as unknown[],
+      finalAnswer: "",
+    };
+
+    let generatedAnswer = "";
+    try {
+      const firstResponse = await callChatCompletion(api, baseMessages, {
+        tools: [toolDef],
+        toolChoice: "required",
+        maxTokens: 500,
+      });
+      addUsage(firstResponse.usage);
+      transcript.firstResponse = firstResponse;
+
+      if (firstResponse.toolCalls && firstResponse.toolCalls.length > 0) {
+        for (const toolCall of firstResponse.toolCalls) {
+          if (toolCall.function?.name !== RECALL_TOOL_NAME) continue;
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(toolCall.function.arguments || "{}");
+          } catch {
+            args = {};
+          }
+          const toolResultStr = await recallExecutor(args);
+          (transcript.toolCalls as unknown[]).push({
+            id: toolCall.id,
+            name: toolCall.function?.name,
+            arguments: toolCall.function?.arguments,
+          });
+          (transcript.toolResults as unknown[]).push({ text: toolResultStr });
+
+          const secondSystemPrompt = [
+            systemPrompt,
+            "",
+            "The following are entries from the user's memory, retrieved by recall(). Use them to answer the user's question.",
+            "",
+            toolResultStr,
+          ].join("\n");
+
+          const secondResponse = await callChatCompletion(
+            api,
+            [
+              { role: "system", content: secondSystemPrompt },
+              { role: "user", content: entry.question },
+            ],
+            { maxTokens: 500 }
+          );
+          addUsage(secondResponse.usage);
+          transcript.secondResponse = secondResponse;
+          generatedAnswer = secondResponse.content || "";
+        }
+      } else {
+        generatedAnswer = firstResponse.content || "";
+      }
+    } catch (error) {
+      console.error("memory-recall answering failed:", error);
+      transcript.error = String(error);
+      generatedAnswer = "";
+    }
+
+    transcript.finalAnswer = generatedAnswer;
+
+    const retrievedSessionIds = new Set<string>();
+    for (const vId of retrievedVaultIds) {
+      const sid = vaultToSession.get(vId);
+      if (sid) retrievedSessionIds.add(sid);
+    }
+    for (const cId of retrievedChunkConvIds) {
+      const sid = convToSession.get(cId);
+      if (sid) retrievedSessionIds.add(sid);
+    }
+    const expectedSessionIds = new Set(entry.answer_session_ids);
+    const correctlyRetrieved = [...retrievedSessionIds].filter((id) =>
+      expectedSessionIds.has(id)
+    ).length;
+    const retrievalPrecision =
+      retrievedSessionIds.size > 0 ? correctlyRetrieved / retrievedSessionIds.size : 0;
+    const retrievalRecall =
+      expectedSessionIds.size > 0 ? correctlyRetrieved / expectedSessionIds.size : 0;
+
+    transcript.retrieval = {
+      precision: retrievalPrecision,
+      recall: retrievalRecall,
+      retrievedSessionIds: [...retrievedSessionIds],
+      expectedSessionIds: entry.answer_session_ids,
+    };
+
+    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+    addUsage(evalResult.usage);
+    const isCorrect = evalResult.isCorrect;
+    transcript.isCorrect = isCorrect;
+    await saveTranscript(`${entry.question_id}_recall`, transcript, verbose);
+
+    const elapsed = performance.now() - startTime;
+    if (verbose) {
+      console.log(`  Answer: ${generatedAnswer.slice(0, 100)}...`);
+      console.log(`  Expected: ${entry.answer}`);
+      console.log(`  Correct: ${isCorrect}`);
+      console.log(`  Time: ${elapsed.toFixed(0)}ms`);
+    }
+
+    tokenUsage.totalTokens += tokenUsage.embeddingTokens;
+
+    return {
+      questionId: entry.question_id,
+      questionType: entry.question_type,
+      question: entry.question,
+      expectedAnswer: entry.answer,
+      generatedAnswer,
+      isCorrect,
+      retrievedSessionIds: [...retrievedSessionIds],
+      expectedSessionIds: entry.answer_session_ids,
+      retrievalPrecision,
+      retrievalRecall,
+      latencyMs: elapsed,
+      tokenUsage,
+      strategy: "memory-recall",
+    };
+  } catch (error) {
+    clearProgress();
+    throw error;
+  } finally {
+    try {
+      await database.write(async () => {
+        await database.unsafeResetDatabase();
+      });
+    } catch {
+      // best-effort cleanup
+    }
+  }
+}
+
+async function answerFromChunksOnly(
+  entry: LongMemEvalEntry,
+  api: ApiConfig,
+  storageCtx: ReturnType<typeof createStorageContext>,
+  embeddingOptions: {
+    apiKey: string;
+    baseUrl?: string;
+    onUsage: (u: { promptTokens: number; totalTokens: number }) => void;
+  },
+  tokenUsage: TokenUsage,
+  startTime: number
+): Promise<LongMemEvalResult> {
+  const result = await recall(
+    entry.question,
+    { storageCtx, embeddingOptions },
+    { types: ["chunk"], limit: DEFAULT_LIMIT, minScore: 0.5, budget: "low" }
+  );
+  const context = result.memories
+    .map((m, i) => `[${i + 1}] ${m.content.slice(0, 4000)}`)
+    .join("\n\n");
+  const genAnswer = await callChatCompletion(
+    api,
+    [
+      {
+        role: "system",
+        content: `Today is ${entry.question_date}.\nUse the following excerpts to answer.\n\n${context}`,
+      },
+      { role: "user", content: entry.question },
+    ],
+    { maxTokens: 500 }
+  );
+  const generatedAnswer = genAnswer.content || "";
+  if (genAnswer.usage) {
+    tokenUsage.promptTokens += genAnswer.usage.prompt_tokens;
+    tokenUsage.completionTokens += genAnswer.usage.completion_tokens;
+    tokenUsage.totalTokens += genAnswer.usage.total_tokens;
+  }
+  const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+  if (evalResult.usage) {
+    tokenUsage.promptTokens += evalResult.usage.prompt_tokens;
+    tokenUsage.completionTokens += evalResult.usage.completion_tokens;
+    tokenUsage.totalTokens += evalResult.usage.total_tokens;
+  }
+  tokenUsage.totalTokens += tokenUsage.embeddingTokens;
+  return {
+    questionId: entry.question_id,
+    questionType: entry.question_type,
+    question: entry.question,
+    expectedAnswer: entry.answer,
+    generatedAnswer,
+    isCorrect: evalResult.isCorrect,
+    retrievedSessionIds: [],
+    expectedSessionIds: entry.answer_session_ids,
+    retrievalPrecision: 0,
+    retrievalRecall: 0,
+    latencyMs: performance.now() - startTime,
+    tokenUsage,
+    strategy: "memory-recall",
+  };
+}

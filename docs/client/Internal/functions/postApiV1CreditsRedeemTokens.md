@@ -2,11 +2,11 @@
 
 > **postApiV1CreditsRedeemTokens**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsRedeemTokensData`](../type-aliases/PostApiV1CreditsRedeemTokensData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsRedeemTokensResponses`](../type-aliases/PostApiV1CreditsRedeemTokensResponses.md), [`PostApiV1CreditsRedeemTokensErrors`](../type-aliases/PostApiV1CreditsRedeemTokensErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:708](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#708)
+Defined in: [src/client/sdk.gen.ts:860](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#860)
 
 Redeem Anuma Tokens for credits
 
-Burns the specified amount of Anuma Tokens via the portal operator and adds equivalent credits to the user's enrollment. User must have approved the portal operator to spend their tokens first.
+Burns the specified amount of Anuma Tokens via the portal operator (burnFor) and adds equivalent credits to the user's enrollment.
 
 ## Type Parameters
 

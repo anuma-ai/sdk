@@ -6,10 +6,12 @@
  */
 
 import type { LlmapiChatCompletionTool } from "../../client";
+import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import { cosineSimilarity } from "../memoryEngine/vector";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -607,29 +609,6 @@ export function mergeTools(
   return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error("Vectors must have the same length");
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-  if (denominator === 0) {
-    return 0;
-  }
-
-  return dotProduct / denominator;
-}
-
 /**
  * Result of tool matching with similarity score
  */
@@ -847,20 +826,63 @@ export interface ToolSet {
    * the global minSimilarity threshold. Default: 0.60
    */
   anchorMinSimilarity?: number;
+  /**
+   * System-prompt fragment to APPEND to the base prompt when this set
+   * activates. Additive, never a replacement — it composes with the host's
+   * persona / memory. Gated on genuine activation (anchor score ≥
+   * `anchorMinSimilarity`, or a forced set) via {@link activatedToolSetNames} →
+   * {@link toolSetSystemPrompts}, NOT on mere anchor presence — a borderline
+   * anchor kept by recall-over-precision must not drag this persona in. Write
+   * it to be self-limiting too (condition its behavior on the user actually
+   * wanting what the set does), so a borderline activation doesn't bias the turn.
+   */
+  systemPrompt?: string;
 }
 
 /** Built-in tool sets. Consumers can extend this with their own. */
 export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   {
     name: "app-generation",
-    members: ["create_file", "patch_file", "delete_file", "read_file", "list_files"],
+    // Appended to the base prompt (not replacing it) whenever this set
+    // activates, so the App Builder guidance — including the window.app.complete
+    // runtime-AI contract — rides in with the app-gen tools via the same
+    // semantic selection that includes them. Collected by toolSetSystemPrompts.
+    systemPrompt: APP_BUILDER_PROMPT,
+    // Must stay in sync with APP_FILE_TOOL_NAMES in src/tools/appGeneration.ts.
+    // If a new app-gen tool ships there but isn't added here, semantic
+    // selection will exclude it on every request — the model literally
+    // doesn't see it. The quality tools (audit_design / critique_design /
+    // verify_app) are non-obvious to a user prompt ("build me a kanban")
+    // and rely entirely on set expansion to reach the model.
+    members: [
+      "create_file",
+      "patch_file",
+      "delete_file",
+      "read_file",
+      "list_files",
+      "audit_design",
+      "critique_design",
+      "verify_app",
+    ],
+    // Anchors stay limited to the primary entry-point tools. Users phrase
+    // app intent as "build / make / fix" → semantic match on create_file
+    // or patch_file → full set pulled in. The quality tools fire later in
+    // the workflow and don't anchor on their own; including them as
+    // anchors would risk pulling the set in on unrelated "audit my code"
+    // prompts that have nothing to do with app generation.
     anchors: ["create_file", "patch_file"],
-    // Set above the global filter floor (0.53). The floor says "this tool
-    // might be relevant"; anchoring says "this is an app-building
-    // workflow". Equating them lets any tool that barely clears the filter
-    // pull in the full toolkit, amplifying false positives 5x. Legitimate
-    // app prompts score 0.57+ on create_file; chitchat false positives sit
-    // right at 0.53. 0.55 separates them with margin on both sides.
+    // 0.55: above the global filter floor (0.53) so a barely-relevant match
+    // can't pull in the whole toolkit, but no higher — and we tried higher.
+    // create_file scores chitchat ("what's up" ~0.56, "...about programming"
+    // ~0.57) in the SAME band as legitimate app-EDIT prompts: "Edit the app to
+    // change the background…" measured create_file 0.56 on one e2e run. Raising
+    // the floor to 0.575 to exclude the chitchat therefore also stripped the
+    // file tools from real edit requests — leaving the model unable to touch the
+    // app at all. The bands genuinely overlap; there is no clean cut. So we keep
+    // 0.55 (max recall) and rely on two safety nets instead: APP_BUILDER_PROMPT
+    // is conditional (it no-ops unless the user is actually asking for an app),
+    // and very short greetings ("hey") are filtered out earlier by the
+    // MIN_CONTENT_LENGTH_FOR_TOOLS length gate before embeddings even run.
     anchorMinSimilarity: 0.55,
   },
   {
@@ -995,6 +1017,82 @@ export function expandToolSetsAdditive(
     }
   }
   return result;
+}
+
+/**
+ * Names of the tool sets that *activated* for a request — the exact gate
+ * {@link expandToolSetsAdditive} uses to pull in members: an anchor whose
+ * similarity cleared `anchorMinSimilarity`, or a set the caller forced active
+ * via `activeSetNames`. Drives {@link toolSetSystemPrompts} so a set's persona
+ * rides in only on genuine activation, not on a borderline anchor that was kept
+ * by recall-over-precision (below the activation floor) without the set
+ * actually activating.
+ *
+ * @param scores - Tool name → similarity score (from semantic matching).
+ * @param toolSets - Tool sets to evaluate (defaults to {@link BUILT_IN_TOOL_SETS}).
+ * @param activeSetNames - Set names forced active regardless of score.
+ */
+export function activatedToolSetNames(
+  scores: ReadonlyMap<string, number>,
+  toolSets: ToolSet[] = BUILT_IN_TOOL_SETS,
+  activeSetNames?: ReadonlySet<string>
+): Set<string> {
+  const activated = new Set<string>();
+  for (const ts of toolSets) {
+    if (activeSetNames?.has(ts.name)) {
+      activated.add(ts.name);
+      continue;
+    }
+    const minSim = ts.anchorMinSimilarity ?? 0.6;
+    if (ts.anchors.some((a) => (scores.get(a) ?? 0) >= minSim)) {
+      activated.add(ts.name);
+    }
+  }
+  return activated;
+}
+
+/**
+ * Collect the `systemPrompt` of every tool set that activated for a request,
+ * for the caller to APPEND to its base system prompt.
+ *
+ * Pass `activatedSetNames` (from {@link activatedToolSetNames}) to gate on
+ * genuine activation — an anchor that cleared `anchorMinSimilarity` or a forced
+ * set. This is the correct gate: `expandToolSetsAdditive` keeps borderline
+ * anchor matches in the selection even when the set did NOT activate (recall
+ * over precision), so gating on mere anchor *presence* would inject a set's
+ * persona on prompts it has nothing to do with (e.g. the App Builder prompt on
+ * "write a story"). When `activatedSetNames` is omitted, falls back to anchor
+ * presence for legacy callers that don't compute scores.
+ *
+ * Additive by design: append the returned fragments, never replace the base
+ * prompt, so persona / memory survive. De-duplicated, order preserved.
+ *
+ * @param selectedToolNames - Final selected tool names (client + server tools).
+ * @param toolSets - Tool sets to consult (defaults to {@link BUILT_IN_TOOL_SETS}).
+ * @param activatedSetNames - Set names that genuinely activated (see above).
+ * @returns Mode prompts for active sets, in `toolSets` order, deduplicated.
+ */
+export function toolSetSystemPrompts(
+  selectedToolNames: Iterable<string>,
+  toolSets: ToolSet[] = BUILT_IN_TOOL_SETS,
+  activatedSetNames?: ReadonlySet<string>
+): string[] {
+  const selected =
+    selectedToolNames instanceof Set ? selectedToolNames : new Set(selectedToolNames);
+  const prompts: string[] = [];
+  const seen = new Set<string>();
+  for (const ts of toolSets) {
+    const prompt = ts.systemPrompt;
+    if (!prompt || seen.has(prompt)) continue;
+    const active = activatedSetNames
+      ? activatedSetNames.has(ts.name)
+      : ts.anchors.some((anchor) => selected.has(anchor));
+    if (active) {
+      prompts.push(prompt);
+      seen.add(prompt);
+    }
+  }
+  return prompts;
 }
 
 /**

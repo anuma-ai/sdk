@@ -87,6 +87,10 @@
  * @module
  */
 
+// Resumable streaming primitives (resume handles are persisted by apps, so the
+// types and header constants are part of the public surface here).
+export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export { INFERENCE_ID_HEADER, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";
@@ -218,6 +222,52 @@ export {
   generateEmbeddings,
   quantizeEmbedding,
 } from "../lib/memoryEngine";
+
+// Unified memory API surface — recall + retain + reflect + auto-extraction.
+// Mirrors the react and server barrels so Expo consumers can call the
+// programmatic API (recall/retain/reflect/...) in addition to wiring the
+// recall_memory tool.
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  ConsolidationFallbackReason,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  PortalLlmAuth,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
+  RecencyOptions,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+  reflect,
+  retain,
+} from "../lib/memory";
 
 // Notion OAuth primitives (platform-agnostic, no browser globals)
 export type {

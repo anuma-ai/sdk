@@ -2,7 +2,7 @@
 
 > **LlmapiResponseInput** = `object`
 
-Defined in: [src/client/types.gen.ts:2269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2269)
+Defined in: [src/client/types.gen.ts:736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#736)
 
 Input can be a simple text string or an array of messages for multi-turn conversations.
 When continuing after client tool calls, pass the messages array from the previous response.
@@ -13,7 +13,7 @@ When continuing after client tool calls, pass the messages array from the previo
 
 > `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
-Defined in: [src/client/types.gen.ts:2273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2273)
+Defined in: [src/client/types.gen.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#740)
 
 Messages is set when input is an array of messages (for multi-turn/tool continuations)
 
@@ -23,6 +23,6 @@ Messages is set when input is an array of messages (for multi-turn/tool continua
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:2277](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2277)
+Defined in: [src/client/types.gen.ts:744](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#744)
 
 Text is set when input is a simple string

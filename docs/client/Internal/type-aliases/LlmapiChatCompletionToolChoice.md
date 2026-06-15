@@ -2,9 +2,7 @@
 
 > **LlmapiChatCompletionToolChoice** = `object`
 
-Defined in: [src/client/types.gen.ts:1844](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1844)
-
-ToolChoice controls tool usage
+Defined in: [src/clientCompat.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/clientCompat.ts#33)
 
 ## Index Signature
 

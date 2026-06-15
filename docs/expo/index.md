@@ -94,6 +94,24 @@ function ChatScreen() {
 
 ## Other
 
+### AutoExtractMessage
+
+Re-exports [AutoExtractMessage](../react/Internal/interfaces/AutoExtractMessage.md)
+
+***
+
+### AutoExtractor
+
+Re-exports [AutoExtractor](../react/Internal/interfaces/AutoExtractor.md)
+
+***
+
+### Budget
+
+Re-exports [Budget](../react/Internal/type-aliases/Budget.md)
+
+***
+
 ### CachedServerTools
 
 Re-exports [CachedServerTools](../react/Internal/interfaces/CachedServerTools.md)
@@ -160,9 +178,27 @@ Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsC
 
 ***
 
+### ConsolidationFallbackReason
+
+Re-exports [ConsolidationFallbackReason](../react/Internal/type-aliases/ConsolidationFallbackReason.md)
+
+***
+
 ### cosineInt8
 
 Re-exports [cosineInt8](../react/Internal/functions/cosineInt8.md)
+
+***
+
+### createAutoExtractor
+
+Re-exports [createAutoExtractor](../react/Internal/functions/createAutoExtractor.md)
+
+***
+
+### CreateAutoExtractorOptions
+
+Re-exports [CreateAutoExtractorOptions](../react/Internal/interfaces/CreateAutoExtractorOptions.md)
 
 ***
 
@@ -187,6 +223,12 @@ Re-exports [createMemoryVaultTool](../react/Internal/functions/createMemoryVault
 ### CreateMessageOptions
 
 Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
+
+***
+
+### createRecallTool
+
+Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
 
 ***
 
@@ -298,6 +340,36 @@ Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFol
 
 ***
 
+### extractAndRetain
+
+Re-exports [extractAndRetain](../react/Internal/functions/extractAndRetain.md)
+
+***
+
+### ExtractedCandidate
+
+Re-exports [ExtractedCandidate](../react/Internal/interfaces/ExtractedCandidate.md)
+
+***
+
+### extractFacts
+
+Re-exports [extractFacts](../react/Internal/functions/extractFacts.md)
+
+***
+
+### ExtractFactsOptions
+
+Re-exports [ExtractFactsOptions](../react/Internal/interfaces/ExtractFactsOptions.md)
+
+***
+
+### FactType
+
+Re-exports [FactType](../react/Internal/type-aliases/FactType.md)
+
+***
+
 ### FileMetadata
 
 Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
@@ -394,6 +466,12 @@ Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
 
 ***
 
+### INFERENCE\_ID\_HEADER
+
+Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEADER.md)
+
+***
+
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
@@ -418,6 +496,18 @@ Re-exports [MemoryEngineSearchOptions](../react/Internal/interfaces/MemoryEngine
 
 ***
 
+### MemoryExtractedEvent
+
+Re-exports [MemoryExtractedEvent](../react/Internal/interfaces/MemoryExtractedEvent.md)
+
+***
+
+### MemoryKind
+
+Re-exports [MemoryKind](../react/Internal/type-aliases/MemoryKind.md)
+
+***
+
 ### MemoryVaultToolOptions
 
 Re-exports [MemoryVaultToolOptions](../react/Internal/interfaces/MemoryVaultToolOptions.md)
@@ -439,6 +529,12 @@ Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
 ### PlatformStorage
 
 Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
+
+***
+
+### PortalLlmAuth
+
+Re-exports [PortalLlmAuth](../react/Internal/interfaces/PortalLlmAuth.md)
 
 ***
 
@@ -472,9 +568,129 @@ Re-exports [QueueStatus](../react/Internal/interfaces/QueueStatus.md)
 
 ***
 
+### RankedMemory
+
+Re-exports [RankedMemory](../react/Internal/interfaces/RankedMemory.md)
+
+***
+
+### recall
+
+Re-exports [recall](../react/Internal/functions/recall.md)
+
+***
+
+### RECALL\_MAX\_LIMIT
+
+Re-exports [RECALL\_MAX\_LIMIT](../react/Internal/variables/RECALL_MAX_LIMIT.md)
+
+***
+
+### RECALL\_TOOL\_NAME
+
+Re-exports [RECALL\_TOOL\_NAME](../react/Internal/variables/RECALL_TOOL_NAME.md)
+
+***
+
+### RecallContext
+
+Re-exports [RecallContext](../react/Internal/interfaces/RecallContext.md)
+
+***
+
+### RecallOptions
+
+Re-exports [RecallOptions](../react/Internal/interfaces/RecallOptions.md)
+
+***
+
+### RecallResult
+
+Re-exports [RecallResult](../react/Internal/interfaces/RecallResult.md)
+
+***
+
+### RecallToolCallbacks
+
+Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallbacks.md)
+
+***
+
+### RecallToolOptions
+
+Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md)
+
+***
+
+### RecencyOptions
+
+Re-exports [RecencyOptions](../react/Internal/interfaces/RecencyOptions.md)
+
+***
+
+### reflect
+
+Re-exports [reflect](../react/Internal/functions/reflect.md)
+
+***
+
+### ReflectOptions
+
+Re-exports [ReflectOptions](../react/Internal/interfaces/ReflectOptions.md)
+
+***
+
+### ReflectResult
+
+Re-exports [ReflectResult](../react/Internal/interfaces/ReflectResult.md)
+
+***
+
 ### requestEncryptionKey
 
 Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionKey.md)
+
+***
+
+### retain
+
+Re-exports [retain](../react/Internal/functions/retain.md)
+
+***
+
+### RetainAction
+
+Re-exports [RetainAction](../react/Internal/type-aliases/RetainAction.md)
+
+***
+
+### RetainContext
+
+Re-exports [RetainContext](../react/Internal/interfaces/RetainContext.md)
+
+***
+
+### RetainOptions
+
+Re-exports [RetainOptions](../react/Internal/interfaces/RetainOptions.md)
+
+***
+
+### RetainResult
+
+Re-exports [RetainResult](../react/Internal/interfaces/RetainResult.md)
+
+***
+
+### RetainSource
+
+Re-exports [RetainSource](../react/Internal/type-aliases/RetainSource.md)
+
+***
+
+### ScoreBreakdown
+
+Re-exports [ScoreBreakdown](../react/Internal/interfaces/ScoreBreakdown.md)
 
 ***
 
@@ -571,6 +787,36 @@ Re-exports [StoredVaultMemory](../react/Internal/interfaces/StoredVaultMemory.md
 ### StoredVaultMemoryModel
 
 Re-exports [StoredVaultMemoryModel](../react/Internal/classes/StoredVaultMemoryModel.md)
+
+***
+
+### STREAM\_RESUMABLE\_HEADER
+
+Re-exports [STREAM\_RESUMABLE\_HEADER](../react/Internal/variables/STREAM_RESUMABLE_HEADER.md)
+
+***
+
+### StreamMetaEvent
+
+Re-exports [StreamMetaEvent](../react/Internal/type-aliases/StreamMetaEvent.md)
+
+***
+
+### StreamResumeHandle
+
+Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandle.md)
+
+***
+
+### TurnCompleteEvent
+
+Re-exports [TurnCompleteEvent](../react/Internal/interfaces/TurnCompleteEvent.md)
+
+***
+
+### TurnSkippedEvent
+
+Re-exports [TurnSkippedEvent](../react/Internal/interfaces/TurnSkippedEvent.md)
 
 ***
 

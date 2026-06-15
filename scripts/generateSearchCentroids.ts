@@ -13,6 +13,7 @@ import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
 import { BASE_URL } from "../src/clientConfig";
 import { writeFileSync } from "fs";
 import { resolve } from "path";
+import { averageVectors } from "./lib/centroids";
 
 const SEARCH_PHRASES = [
   // Time-sensitive / current events
@@ -36,18 +37,14 @@ const SEARCH_PHRASES = [
   "What are the latest NFL NBA MLB NHL FIFA rankings",
   "What happened at the Super Bowl World Cup or Olympics",
 
-  // Financial
-  "What is the current stock price and market trading data",
-  "What is the Bitcoin Ethereum cryptocurrency price right now",
-  "What are the Dow Jones Nasdaq S&P 500 earnings today",
-  "What is the exchange rate for this currency pair",
-  "How much is this stock share or token worth now",
+  // Note: pure price / quote / FX queries are handled by createCryptoPricePreProcessor
+  // and createStockPricePreProcessor — they no longer fire webSearch. News *about*
+  // financial markets ("Why is the market down today", "Latest news on the Fed
+  // rate decision") still belongs here via the News / Current-info sections.
 
-  // Weather
-  "What is the weather forecast and temperature today",
-  "Is it going to rain snow or be sunny this week",
-  "What is the air quality UV index and humidity right now",
-  "What is the sunrise sunset tide or flood risk",
+  // Note: pure weather queries are handled by createWeatherPreProcessor and no
+  // longer fire webSearch. Weather-flavored news (e.g. "Latest hurricane warnings",
+  // "Storm aftermath in Florida") still belongs here via News.
 
   // Local search
   "Find restaurants hotels stores or businesses near me",
@@ -76,6 +73,60 @@ const SEARCH_PHRASES = [
   "What is the latest version of this software or library",
   "What does the official documentation say about this API",
   "What are the current rules regulations or laws about this",
+
+  // Concrete examples mirroring real prompts the test corpus expects to
+  // trigger webSearch. Balances the concrete pure-data NO examples below
+  // so the YES centroid still recognizes common "What/Find/Show me" forms.
+  "What did Elon Musk tweet about today",
+  "What did the Supreme Court rule on today",
+  "What was just announced at Google IO",
+  "Any breaking news right now",
+  "Who won the Super Bowl this year",
+  "What's the score of the Manchester United match",
+  "Lakers score tonight",
+  "When is the next UFC fight",
+  "Find Italian restaurants near me",
+  "Where is the nearest pharmacy open right now",
+  "Coffee shops with wifi in downtown Austin",
+  "How do I get to JFK airport from Manhattan",
+  "Show me pictures of the new Tesla Roadster",
+  "Find me a YouTube tutorial on welding",
+  "Show me photos of the Northern Lights",
+  "Compare iPhone 16 vs Samsung Galaxy S25",
+  "Best budget laptop for students this year",
+  "Reviews of the Dyson V15 vacuum",
+  "What version of React was released most recently",
+  "What's new in Python 3.14",
+  "What are the current visa requirements for US citizens visiting Japan",
+  "What time does Costco close today",
+  "Is there a sale going on at Amazon right now",
+  "Is the Golden Gate Bridge open to traffic right now",
+  "Is TikTok banned in the US",
+  "How many people have COVID this week",
+  "What's the interest rate right now",
+  "What are Ethereum gas fees right now",
+  "flights to Tokyo",
+  "election results 2026",
+
+  // Visual / image / video search — the dominant FN pattern. Embedding
+  // model doesn't otherwise pull these toward webSearch's centroid.
+  "pictures of mountains",
+  "pictures of the Eiffel Tower",
+  "youtube python tutorials",
+  "pasta cooking video tutorial",
+  "images of cute cats",
+
+  // Opinion / comparison / recommendations on evolving topics — these
+  // benefit from current sources even though the LLM has some answer.
+  "Compare React vs Vue for web development",
+  "What are the pros and cons of Kubernetes",
+  "Which is better React or Vue",
+  "Recommend a good framework for mobile development",
+  "Comprehensive overview of blockchain technology",
+
+  // Terse current-data queries that fall through to webSearch
+  "Lakers score",
+  "interest rate right now",
 ];
 
 const NO_SEARCH_PHRASES = [
@@ -130,31 +181,68 @@ const NO_SEARCH_PHRASES = [
   "Parse this JSON and extract the relevant fields",
   "Format this data as a markdown table",
   "Clean up and normalize this dataset",
-];
 
-function averageVectors(vectors: number[][]): number[] {
-  if (vectors.length === 0) {
-    throw new Error("averageVectors: received an empty vector list");
-  }
-  const dim = vectors[0].length;
-  for (let i = 1; i < vectors.length; i++) {
-    if (vectors[i].length !== dim) {
-      throw new Error(
-        `averageVectors: dimension mismatch — vectors[0] has ${dim} dims, vectors[${i}] has ${vectors[i].length}`
-      );
-    }
-  }
-  const avg = new Array(dim).fill(0);
-  for (const v of vectors) {
-    for (let i = 0; i < dim; i++) {
-      avg[i] += v[i];
-    }
-  }
-  for (let i = 0; i < dim; i++) {
-    avg[i] /= vectors.length;
-  }
-  return avg;
-}
+  // Pure crypto price queries — handled by createCryptoPricePreProcessor
+  "What is the current price of Bitcoin",
+  "How much is Ethereum worth right now",
+  "BTC price",
+  "$ETH price today",
+  "Show me the ZETA token price",
+  "DOGE market cap",
+  "How much is one Solana coin",
+  "What is the all-time high for BTC",
+
+  // Pure stock / ETF / index / FX quotes — handled by createStockPricePreProcessor
+  "What is the current Nvidia stock price",
+  "Tesla stock price right now",
+  "How is Apple stock performing today",
+  "S&P 500 today",
+  "Dow Jones close today",
+  "QQQ ETF price",
+  "What is NVDA trading at",
+  "USD to EUR exchange rate",
+  "EUR/USD live rate",
+  "USD to JPY rate today",
+  "What's the market cap of Apple",
+  "P/E ratio of MSFT",
+
+  // Pure weather queries — handled by createWeatherPreProcessor
+  "What is the weather in San Francisco today",
+  "Will it rain in New York this weekend",
+  "Forecast for Tokyo tomorrow",
+  "What is the air quality in Delhi",
+  "Will it snow in Aspen this weekend",
+  "Temperature in Phoenix right now",
+  "UV index in Miami",
+  "Is there a flood warning in Houston",
+  "Wind speed in Wellington",
+
+  // Historical / encyclopedic — LLM knows, no web search needed. Was a
+  // dominant FP pattern ("What happened during X war", "Life in 19th
+  // century", etc.).
+  "What happened during World War 2",
+  "What was life like in the 19th century",
+  "What year did World War 2 end",
+  "Tell me about the French Revolution",
+  "When did the Roman Empire fall",
+  "How many continents are there",
+
+  // Personal / identity / calendar — tool territory or context-dependent,
+  // not search.
+  "Who am I and where do I live",
+  "List my calendar events for the next 7 days",
+  "What are my appointments today",
+  "Remind me what we talked about earlier",
+
+  // Follow-up to prior conversation — context-dependent, NOT a new search.
+  // Keep this list small and abstract: previous attempts to add
+  // article / YouTube / topic vocabulary pulled real news / sports queries
+  // ("What did Elon Musk tweet about today?") into NO. Phrasings here use
+  // generic "previous conversation" framing only.
+  "I wanted to follow up on our previous conversation about X",
+  "As we discussed yesterday, what was your recommendation",
+  "Going back to what you said earlier about Y",
+];
 
 async function main() {
   const apiKey = process.env.PORTAL_API_KEY;

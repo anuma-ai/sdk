@@ -1,18 +1,25 @@
 /**
- * GitHub OAuth 2.0 Authorization Code Flow
+ * GitHub OAuth 2.0 Authorization Code Flow — **LEGACY (v1) MODULE**.
  *
- * Uses the portal backend for token exchange.
- * The backend handles the client secret - client only sends auth code.
+ * As of the connector-vault rollout (`.claude-docs/connecters/DESIGN.md`),
+ * GitHub tokens are stored server-side on the portal. New code obtains a
+ * GitHub access token via:
  *
- * This implementation requests the `repo` scope for full repository access
- * (read/write to code, issues, pull requests).
+ * ```ts
+ * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
+ * const getToken = createConnectorTokenGetter(portalClient, "github");
+ * ```
  *
- * Token storage uses wallet-based encryption when a wallet address is provided.
- * Encrypted tokens are stored in localStorage with the "enc:oauth:" prefix.
- * When no wallet is available, tokens are stored temporarily in sessionStorage.
+ * The functions in this file remain published with their original
+ * signatures so existing consumers keep compiling and the legacy
+ * `/auth/oauth/github/{exchange,refresh,revoke}` portal endpoints keep
+ * working through the transition window. GitHub migrates silently per
+ * the design (1:1 mapping, no rotation). Each export is annotated
+ * `@deprecated` with the recommended replacement.
  *
- * Note: GitHub OAuth tokens may not expire (no refresh token). When tokens
- * have no expiry, they are returned directly without refresh attempts.
+ * TODO(connector-vault): once consumers migrate and the legacy endpoints
+ * sunset (PR 4 in the plan), collapse this module to a thin re-export
+ * over `createConnectorTokenGetter`.
  */
 
 import type { Client } from "../../client/client";

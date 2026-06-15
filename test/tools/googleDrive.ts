@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
+import { runToolLoop } from "./setup.js";
 import {
   createGoogleDriveSearchTool,
   createGoogleDriveListRecentTool,

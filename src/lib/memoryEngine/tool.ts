@@ -21,8 +21,6 @@ const DEFAULT_SEARCH_OPTIONS: Required<MemoryEngineSearchOptions> = {
   includeAssistant: false,
   conversationId: undefined as unknown as string,
   excludeConversationId: undefined as unknown as string,
-  startDate: undefined as unknown as string,
-  endDate: undefined as unknown as string,
   sortBy: "similarity",
   contextMessages: undefined as unknown as number,
 };

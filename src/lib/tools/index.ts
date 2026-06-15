@@ -5,6 +5,7 @@
  */
 
 export {
+  activatedToolSetNames,
   applyToolSets,
   BUILT_IN_TOOL_SETS,
   type CachedServerTools,
@@ -39,4 +40,5 @@ export {
   type ToolMatchOptions,
   type ToolMatchResult,
   type ToolSet,
+  toolSetSystemPrompts,
 } from "./serverTools";

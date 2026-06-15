@@ -16,14 +16,47 @@ import {
   dumpFiles,
   extractText,
   printResult,
+  shortHash,
+  summarizePhase,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
   writeIndex,
+  closeSharedBrowser,
+  writeRunMetrics,
 } from "./setup.js";
 import { createTestAppTools } from "./tools.js";
 
 const SYSTEM_PROMPT = buildAppSystemPrompt();
+const PROMPT_HASH = shortHash(SYSTEM_PROMPT);
+
+/** Record a one-phase scenario into a metrics.json under its output dir. */
+function recordScenario(opts: {
+  outputSubdir: string;
+  scenario: string;
+  store: Map<string, string>;
+  log: ToolCallLog[];
+  elapsedMs: number;
+  errored: boolean;
+  startedAt: string;
+}): void {
+  writeRunMetrics({
+    outputSubdir: opts.outputSubdir,
+    benchmark: "app-generation",
+    scenario: opts.scenario,
+    promptHash: PROMPT_HASH,
+    startedAt: opts.startedAt,
+    phases: [
+      summarizePhase({
+        label: opts.scenario,
+        elapsedMs: opts.elapsedMs,
+        toolCalls: opts.log,
+        files: opts.store,
+        errored: opts.errored,
+      }),
+    ],
+  });
+}
 
 function makeMessages(userText: string, systemPrompt?: string) {
   const msgs: Array<{
@@ -44,12 +77,16 @@ function makeMessages(userText: string, systemPrompt?: string) {
 }
 
 describe("app-generation", () => {
-  afterAll(() => writeIndex());
+  afterAll(async () => {
+    writeIndex();
+    await closeSharedBrowser();
+  });
 
   it("generates a multi-file React app with batch create_file", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
+    const startedAt = new Date().toISOString();
 
     const result = await timedToolLoop({
       messages: makeMessages(
@@ -86,14 +123,25 @@ describe("app-generation", () => {
     // package.json should be valid JSON with dependencies
     const pkgJson = JSON.parse(store.get("package.json")!);
     expect(pkgJson).toHaveProperty("dependencies");
+
+    recordScenario({
+      outputSubdir: "counter-app",
+      scenario: "counter-app",
+      store,
+      log,
+      elapsedMs: result.elapsedMs,
+      errored: result.error !== null,
+      startedAt,
+    });
   });
 
   it("uses batch mode (files array) instead of one-at-a-time", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
+    const startedAt = new Date().toISOString();
 
-    await timedToolLoop({
+    const batchResult = await timedToolLoop({
       messages: makeMessages(
         "Build a todo list app with add and remove functionality.",
         SYSTEM_PROMPT
@@ -122,12 +170,23 @@ describe("app-generation", () => {
     // We expect the LLM to use batch mode for initial creation
     expect(batchCalls.length).toBeGreaterThanOrEqual(1);
     dumpFiles(store, "todo-batch");
+
+    recordScenario({
+      outputSubdir: "todo-batch",
+      scenario: "todo-batch",
+      store,
+      log,
+      elapsedMs: batchResult.elapsedMs,
+      errored: batchResult.error !== null,
+      startedAt,
+    });
   });
 
   it("modifies only changed files when asked to update styles", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
+    const startedAt = new Date().toISOString();
 
     // Step 1: Generate the initial app
     const genResult = await timedToolLoop({
@@ -151,6 +210,13 @@ describe("app-generation", () => {
 
     const filesAfterGen = new Map(store);
     const callsAfterGen = log.length;
+    const genPhase = summarizePhase({
+      label: "step-1-gen",
+      elapsedMs: genResult.elapsedMs,
+      toolCalls: log.slice(0, callsAfterGen),
+      files: store,
+      errored: genResult.error !== null,
+    });
     console.log(`  After generation: ${store.size} files, ${callsAfterGen} tool calls`);
 
     // Step 2: Ask to change only the styles
@@ -219,12 +285,29 @@ describe("app-generation", () => {
     }
     expect(changedFiles).toBeGreaterThanOrEqual(1);
     console.log(`  Files changed in update: ${changedFiles} of ${store.size}`);
+
+    const updatePhase = summarizePhase({
+      label: "step-2-update",
+      elapsedMs: updateResult.elapsedMs,
+      toolCalls: log.slice(callsAfterGen),
+      files: store,
+      errored: updateResult.error !== null,
+    });
+    writeRunMetrics({
+      outputSubdir: "calculator-updated",
+      benchmark: "app-generation",
+      scenario: "calculator-style-update",
+      promptHash: PROMPT_HASH,
+      startedAt,
+      phases: [genPhase, updatePhase],
+    });
   });
 
   it("produces valid React code that can be parsed", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
+    const startedAt = new Date().toISOString();
 
     const result = await timedToolLoop({
       messages: makeMessages(
@@ -261,14 +344,25 @@ describe("app-generation", () => {
     // Should not create index.js or index.html (auto-generated)
     expect(store.has("index.js")).toBe(false);
     expect(store.has("index.html")).toBe(false);
+
+    recordScenario({
+      outputSubdir: "bmi-calculator",
+      scenario: "bmi-calculator",
+      store,
+      log,
+      elapsedMs: result.elapsedMs,
+      errored: result.error !== null,
+      startedAt,
+    });
   });
 
   it("generates a complex multi-feature app", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
+    const startedAt = new Date().toISOString();
 
-    const result = await timedToolLoop({
+    const mealResult = await timedToolLoop({
       messages: makeMessages(
         "Create me an app that helps me and my friends plan meals collaboratively. I want to be able to add recipes, suggest dishes for the week, and create a shared grocery list. Include a chat feature for us to discuss our meal ideas and preferences. It should have a colorful, inviting design that encourages creativity and fun in cooking together.",
         SYSTEM_PROMPT
@@ -282,9 +376,9 @@ describe("app-generation", () => {
       maxToolRounds: 10,
     });
 
-    printResult(result);
+    printResult(mealResult);
     dumpFiles(store, "meal-planner");
-    expect(result.error).toBeNull();
+    expect(mealResult.error).toBeNull();
     console.log(`  Files: ${store.size}, Tool calls: ${log.length}`);
     console.log(`  File list: ${Array.from(store.keys()).join(", ")}`);
 
@@ -300,5 +394,15 @@ describe("app-generation", () => {
     const createCalls = log.filter((l) => l.name === "create_file");
     const batchCalls = createCalls.filter((l) => Array.isArray(l.args.files));
     console.log(`  create_file calls: ${createCalls.length} (${batchCalls.length} batch)`);
+
+    recordScenario({
+      outputSubdir: "meal-planner",
+      scenario: "meal-planner",
+      store,
+      log,
+      elapsedMs: mealResult.elapsedMs,
+      errored: mealResult.error !== null,
+      startedAt,
+    });
   });
 });

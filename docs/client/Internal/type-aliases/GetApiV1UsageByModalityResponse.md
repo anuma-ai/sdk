@@ -2,4 +2,4 @@
 
 > **GetApiV1UsageByModalityResponse** = [`GetApiV1UsageByModalityResponses`](GetApiV1UsageByModalityResponses.md)\[keyof [`GetApiV1UsageByModalityResponses`](GetApiV1UsageByModalityResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6575](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6575)
+Defined in: [src/client/types.gen.ts:8604](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8604)

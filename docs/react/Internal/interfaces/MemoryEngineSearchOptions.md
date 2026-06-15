@@ -10,7 +10,7 @@ Options for memory engine search
 
 > `optional` **contextMessages**: `number`
 
-Defined in: [src/lib/memoryEngine/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#33)
+Defined in: [src/lib/memoryEngine/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#29)
 
 Number of surrounding messages to include around each match when expanding to full sessions. 0 returns only matched chunks (no expansion), undefined returns the entire conversation. Default: undefined (full session).
 
@@ -23,16 +23,6 @@ Number of surrounding messages to include around each match when expanding to fu
 Defined in: [src/lib/memoryEngine/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#23)
 
 Filter to a specific conversation
-
-***
-
-### endDate?
-
-> `optional` **endDate**: `string`
-
-Defined in: [src/lib/memoryEngine/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#29)
-
-Inclusive end date filter (currently disabled)
 
 ***
 
@@ -80,19 +70,9 @@ Minimum similarity threshold 0-1 (default: 0.3)
 
 > `optional` **sortBy**: `"similarity"` | `"chronological"`
 
-Defined in: [src/lib/memoryEngine/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#31)
-
-Sort order for results: "similarity" (most relevant first) or "chronological" (oldest first). Default: "similarity"
-
-***
-
-### startDate?
-
-> `optional` **startDate**: `string`
-
 Defined in: [src/lib/memoryEngine/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#27)
 
-Inclusive start date filter (currently disabled)
+Sort order for results: "similarity" (most relevant first) or "chronological" (oldest first). Default: "similarity"
 
 ***
 

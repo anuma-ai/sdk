@@ -17,7 +17,7 @@ unique constraints on feedback, etc).
 
 > **clearMessages**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#138)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#142)
 
 Clears all messages in a conversation (used for the "clear chat" action).
 
@@ -93,7 +93,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:102](https://github.com/anuma
 
 > **createMessage**(`options`: [`CreateMessageOptions`](CreateMessageOptions.md)): `Promise`<[`StoredMessage`](StoredMessage.md)>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#119)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#123)
 
 **Parameters**
 
@@ -130,7 +130,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:119](https://github.com/anuma
 
 > **deleteConversation**(`conversationId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#109)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#113)
 
 Soft delete. Implementations are responsible for cascading to messages/media.
 
@@ -169,7 +169,7 @@ Soft delete. Implementations are responsible for cascading to messages/media.
 
 > **getAllFiles**(): `Promise`<[`StoredFileWithContext`](StoredFileWithContext.md)\[]>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#144)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#148)
 
 **Returns**
 
@@ -255,7 +255,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:100](https://github.com/anuma
 
 > **getMessages**(`conversationId`: `string`): `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#117)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#121)
 
 **Parameters**
 
@@ -292,7 +292,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:117](https://github.com/anuma
 
 > **observeConversations**(`options?`: [`ConversationQueryOptions`](ConversationQueryOptions.md)): [`ChatStorageObservable`](ChatStorageObservable.md)<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#111)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#115)
 
 **Parameters**
 
@@ -329,7 +329,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:111](https://github.com/anuma
 
 > **observeMessages**(`conversationId`: `string`): [`ChatStorageObservable`](ChatStorageObservable.md)<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#140)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#144)
 
 **Parameters**
 
@@ -359,6 +359,58 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:140](https://github.com/anuma
 **Returns**
 
 [`ChatStorageObservable`](ChatStorageObservable.md)<[`StoredMessage`](StoredMessage.md)\[]>
+
+***
+
+### updateConversationPinned()
+
+> **updateConversationPinned**(`conversationId`: `string`, `pinned`: `boolean`): `Promise`<`boolean`>
+
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#110)
+
+Pin or unpin a conversation. Pinning stamps `pinnedAt`; list queries are
+NOT reordered — consumers sort pinned chats first using `pinnedAt`.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`pinned`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`boolean`>
 
 ***
 
@@ -464,7 +516,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:104](https://github.com/anuma
 
 > **updateMessageChunks**(`uniqueId`: `string`, `chunks`: [`MessageChunk`](MessageChunk.md)\[], `embeddingModel`: `string`): `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#127)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#131)
 
 **Parameters**
 
@@ -525,7 +577,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:127](https://github.com/anuma
 
 > **updateMessageEmbedding**(`uniqueId`: `string`, `vector`: `number`\[], `embeddingModel`: `string`): `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#121)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#125)
 
 **Parameters**
 
@@ -586,7 +638,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:121](https://github.com/anuma
 
 > **updateMessageError**(`uniqueId`: `string`, `error`: `string`): `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#133)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#137)
 
 **Parameters**
 
@@ -635,7 +687,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:133](https://github.com/anuma
 
 > **updateMessageFeedback**(`uniqueId`: `string`, `feedback`: [`MessageFeedback`](../type-aliases/MessageFeedback.md)): `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#135)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#139)
 
 **Parameters**
 
@@ -684,7 +736,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:135](https://github.com/anuma
 
 > **write**<`T`>(`fn`: (`adapter`: `ChatStorageAdapter`) => `Promise`<`T`>): `Promise`<`T`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#156)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#160)
 
 Run a set of mutations inside a single write transaction. Any mutation
 calls made on the adapter inside the callback are grouped into one atomic

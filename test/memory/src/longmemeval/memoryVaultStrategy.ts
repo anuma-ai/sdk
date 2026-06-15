@@ -7,37 +7,47 @@
  * createMemoryVaultSearchTool.
  */
 
-import type { Database } from "@nozbe/watermelondb";
-import {
-  createVaultMemoryOp,
-  type VaultMemoryOperationsContext,
-} from "../../../../src/lib/db/memoryVault/operations.js";
-import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
 import {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
-import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
+import { retain } from "../../../../src/lib/memory/retain.js";
+import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
+import type {
+  ApiConfig,
+  LongMemEvalEntry,
+  LongMemEvalResult,
+  RetrievalTuningKnobs,
+  TokenUsage,
+} from "./types.js";
 import {
-  setupDatabase,
-  selectSessions,
+  buildRetrievalTuningOptions,
   callChatCompletion,
+  clearProgress,
+  createConsolidationFallbackTracker,
+  createVaultContext,
   evaluateAnswer,
   extractMemoriesFromSession,
-  saveTranscript,
+  formatHaystackDateAsObservation,
   logProgress,
-  clearProgress,
+  saveTranscript,
+  selectSessions,
+  setupDatabase,
 } from "./suite.js";
 
-function createVaultContext(db: Database): VaultMemoryOperationsContext {
-  return {
-    database: db,
-    vaultMemoryCollection: db.collections.get<VaultMemory>("memory_vault"),
-    walletAddress: undefined,
-    signMessage: undefined,
-    embeddedWalletSigner: undefined,
-  } as VaultMemoryOperationsContext;
+function cosineSim(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  const d = Math.sqrt(na) * Math.sqrt(nb);
+  return d === 0 ? 0 : dot / d;
 }
 
 /**
@@ -54,7 +64,14 @@ export async function processEntryMemoryVault(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   verbose: boolean,
-  maxSessions?: number
+  maxSessions?: number,
+  searchPipeline?: {
+    rerank?: boolean;
+    decompose?: "off" | "llm";
+    consolidate?: boolean;
+    chunkSourceMaxChars?: number;
+    excerptMaxChars?: number;
+  } & RetrievalTuningKnobs
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -92,12 +109,23 @@ export async function processEntryMemoryVault(
 
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
 
-      const extracted = await extractMemoriesFromSession(session, sessionIdx, sessionId, api);
+      // Anchor relative-date resolution to the session's own date, not
+      // entry.question_date — collapsing all observations onto the
+      // question date was the 51%-of-misses temporal failure mode.
+      const sessionDate = formatHaystackDateAsObservation(entry.haystack_dates[sessionIdx]);
+      const extracted = await extractMemoriesFromSession(
+        session,
+        sessionIdx,
+        sessionId,
+        api,
+        sessionDate
+      );
 
       for (const mem of extracted) {
+        const dateSuffix = mem.kind === "event" && mem.occurredAt ? ` [${mem.occurredAt}]` : "";
         allMemories.push({
           sessionId: mem.sessionId,
-          content: `${mem.key}: ${mem.value}. ${mem.rawEvidence}`,
+          content: `${mem.content}${dateSuffix}`,
         });
       }
 
@@ -165,31 +193,45 @@ export async function processEntryMemoryVault(
       };
     }
 
-    // Step 2: Store each fact as a vault entry
+    // Step 2: Store each fact via retain() so we get cosine auto-merge +
+    // optional LLM consolidation against the growing vault. The previous
+    // path called createVaultMemoryOp directly, bypassing dedup entirely —
+    // which is why we saw 3 paraphrased "Zara boots pickup" memories
+    // coexist in the smoke test even with the new extraction prompt.
     logProgress(`Storing ${allMemories.length} vault entries...`);
     const answerSessionIdSet = new Set(entry.answer_session_ids);
+    const embeddingCache: VaultEmbeddingCache = new Map();
+    const embeddingOptions = { apiKey: api.apiKey, baseUrl: api.baseUrl };
+    const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
+    const consolidateEnabled = searchPipeline?.consolidate ?? true;
+    const fallbackTracker = createConsolidationFallbackTracker();
 
     for (const mem of allMemories) {
-      const created = await createVaultMemoryOp(vaultCtx, {
-        content: mem.content,
+      const result = await retain(mem.content, retainCtx, {
+        source: "auto-extracted",
+        sourceChunkIds: [mem.sessionId],
+        ...(consolidateEnabled && {
+          consolidateOptions: {
+            apiKey: api.apiKey,
+            baseUrl: api.baseUrl,
+            onFallback: fallbackTracker.onFallback,
+          },
+        }),
       });
 
-      // Track vault entry -> session mapping
-      // Prefer answer session attribution when duplicate content exists
-      const existingSession = vaultToSession.get(created.uniqueId);
+      const targetId = result.memoryId;
+      const existingSession = vaultToSession.get(targetId);
       if (!existingSession || answerSessionIdSet.has(mem.sessionId)) {
-        vaultToSession.set(created.uniqueId, mem.sessionId);
+        vaultToSession.set(targetId, mem.sessionId);
       }
     }
     clearProgress();
+    fallbackTracker.report(entry.question_id);
 
-    // Step 3: Pre-embed vault entries using SDK function
+    // Step 3: Pre-embed any vault entries that retain() didn't already cache
+    // (e.g. ones merged via cosine where embedding was reused). The cache
+    // is shared with retain() above so most lookups are free.
     logProgress("Embedding vault entries...");
-    const embeddingCache: VaultEmbeddingCache = new Map();
-    const embeddingOptions = {
-      apiKey: api.apiKey,
-      baseUrl: api.baseUrl,
-    };
     await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
     clearProgress();
 
@@ -197,11 +239,85 @@ export async function processEntryMemoryVault(
       console.log(`  Embedded ${embeddingCache.size} vault entries`);
     }
 
-    // Step 4: Create search tool via SDK
+    // Step 3.5: Build a parallel session-chunk index for hybrid retrieval.
+    // The vault stores compressed extracted facts (high-precision); chunks
+    // preserve raw conversation phrasing so multi-session questions can hit
+    // the actual user/assistant words when paraphrase distance trips the fact
+    // index. Both rankings are surfaced to the answer LLM in one tool result.
+    logProgress("Indexing session chunks...");
+    const chunkSourceMax = searchPipeline?.chunkSourceMaxChars ?? 12000;
+    const chunkSessionIds: string[] = [];
+    const chunkTexts: string[] = [];
+    for (let i = 0; i < sessionIndices.length; i++) {
+      const sIdx = sessionIndices[i];
+      const text = entry.haystack_sessions[sIdx]
+        .map((m) => `${m.role}: ${m.content}`)
+        .join("\n")
+        .slice(0, chunkSourceMax);
+      chunkSessionIds.push(entry.haystack_session_ids[sIdx]);
+      chunkTexts.push(text);
+    }
+    const chunkEmbeddings = chunkTexts.length
+      ? await generateEmbeddings(chunkTexts, {
+          ...embeddingOptions,
+          cache: embeddingCache,
+        })
+      : [];
+    clearProgress();
+    if (verbose) {
+      console.log(`  Indexed ${chunkEmbeddings.length} session chunks`);
+    }
+
+    // Step 4: Create search tool via SDK. The pipeline knobs default to the
+    // V2+CE+decompose stack (validated at 86.2% on the synthetic vault bench);
+    // callers can disable rerank/decompose to A/B against the V2-only baseline.
+    const rerankEnabled = searchPipeline?.rerank ?? true;
+    const decomposeMode = searchPipeline?.decompose ?? "llm";
     const searchTool = createMemoryVaultSearchTool(vaultCtx, embeddingOptions, embeddingCache, {
-      limit: 10,
+      limit: 14,
       minSimilarity: 0.1,
+      rerank: rerankEnabled,
+      decompose: decomposeMode,
+      ...buildRetrievalTuningOptions(searchPipeline),
+      ...(decomposeMode === "llm" && {
+        decomposeOptions: {
+          apiKey: api.apiKey,
+          baseUrl: api.baseUrl,
+        },
+      }),
     });
+
+    // Wrap the vault executor to fuse top-K raw conversation chunks alongside
+    // the extracted facts in a single tool response. We add chunk hits to the
+    // retrieved-session set so retrieval metrics reward chunk-only catches.
+    const retrievedChunkSessionIds = new Set<string>();
+    const vaultExecutor = searchTool.executor!;
+    searchTool.executor = async (args: Record<string, unknown>) => {
+      const vaultStr = await vaultExecutor(args);
+      const query = typeof args.query === "string" ? args.query : "";
+      if (!query || chunkEmbeddings.length === 0) return vaultStr;
+      const [queryEmbedding] = await generateEmbeddings([query], {
+        ...embeddingOptions,
+        cache: embeddingCache,
+      });
+      const ranked = chunkEmbeddings
+        .map((emb, i) => ({
+          sessionId: chunkSessionIds[i],
+          text: chunkTexts[i],
+          sim: cosineSim(queryEmbedding, emb),
+        }))
+        .sort((a, b) => b.sim - a.sim)
+        .slice(0, 7);
+      for (const r of ranked) retrievedChunkSessionIds.add(r.sessionId);
+      const excerptMax = searchPipeline?.excerptMaxChars ?? 8000;
+      const chunkBlock = ranked
+        .map(
+          (r, i) =>
+            `[excerpt ${i + 1}] (similarity: ${r.sim.toFixed(2)})\n${r.text.slice(0, excerptMax)}`
+        )
+        .join("\n\n");
+      return `${vaultStr}\n\n--- Raw conversation excerpts (${ranked.length}) ---\n\n${chunkBlock}`;
+    };
 
     // Step 5: Two-step LLM flow
     const systemPrompt = `Today is ${entry.question_date}.
@@ -346,6 +462,9 @@ You are a personal assistant with access to the user's past conversation history
     for (const vaultId of retrievedVaultIds) {
       const sessionId = vaultToSession.get(vaultId);
       if (sessionId) retrievedSessionIds.add(sessionId);
+    }
+    for (const sid of retrievedChunkSessionIds) {
+      retrievedSessionIds.add(sid);
     }
 
     const expectedSessionIds = new Set(entry.answer_session_ids);

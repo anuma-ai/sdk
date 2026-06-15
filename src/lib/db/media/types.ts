@@ -137,6 +137,8 @@ export interface UpdateMediaOptions {
   name?: string;
   /** Update the associated message ID (set after message creation) */
   messageId?: string;
+  /** Re-categorize the media (e.g. relinking a video mistakenly stored as image) */
+  mediaType?: MediaType;
   sourceUrl?: string;
   dimensions?: MediaDimensions;
   duration?: number;

@@ -55,8 +55,12 @@
  *
  * @module react
  */
-export type { StepFinishEvent } from "../lib/chat/toolLoop";
-export { ProviderStreamError } from "../lib/chat/toolLoop";
+export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export {
+  INFERENCE_ID_HEADER,
+  ProviderStreamError,
+  STREAM_RESUMABLE_HEADER,
+} from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
@@ -292,6 +296,63 @@ export {
   type VaultSaveOperation,
   type VaultSearchResult,
 } from "../lib/memoryVault";
+
+// Unified memory API surface — recall + retain + auto-extraction.
+export type {
+  AutoExtractMessage,
+  AutoExtractor,
+  Budget,
+  ConsolidationFallbackReason,
+  CreateAutoExtractorOptions,
+  ExtractedCandidate,
+  ExtractFactsOptions,
+  FactType,
+  MemoryExtractedEvent,
+  MemoryKind,
+  PortalLlmAuth,
+  RankedMemory,
+  RecallContext,
+  RecallOptions,
+  RecallResult,
+  RecallToolCallbacks,
+  RecallToolOptions,
+  RecencyOptions,
+  ReflectOptions,
+  ReflectResult,
+  RetainAction,
+  RetainContext,
+  RetainOptions,
+  RetainResult,
+  RetainSource,
+  ScoreBreakdown,
+  TurnCompleteEvent,
+  TurnSkippedEvent,
+} from "../lib/memory";
+export {
+  createAutoExtractor,
+  createRecallTool,
+  extractAndRetain,
+  extractFacts,
+  recall,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+  reflect,
+  retain,
+} from "../lib/memory";
+
+// Entity / memory_entity tables — the W5 graph-lane storage that
+// auto-extraction writes to and the recall graph lane reads from.
+export {
+  Entity as EntityModel,
+  MemoryEntity as MemoryEntityModel,
+} from "../lib/db/entities/models";
+export {
+  backfillMemoryEntityUserIdsOp,
+  type EntityOperationsContext,
+  getMemoriesByEntityNamesOp,
+  linkMemoryEntitiesOp,
+} from "../lib/db/entities/operations";
+export type { CreateEntityOptions, EntityKind, StoredEntity } from "../lib/db/entities/types";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";
 
@@ -354,6 +415,7 @@ export {
   mediaToStored,
   // Types
   type MediaType,
+  relinkMisclassifiedVideosOp,
   searchMediaOp,
   type StoredMedia,
   Media as StoredMediaModel,

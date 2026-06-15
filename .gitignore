@@ -151,4 +151,7 @@ etc/
 # Test output (generated app previews)
 test/**/.output/
 
+# E2E tool test run recordings (JSONL transcripts)
+test/tools/.runs/
+
 .claude/

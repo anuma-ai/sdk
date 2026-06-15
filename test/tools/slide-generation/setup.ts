@@ -15,14 +15,20 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
 import type { StepFinishEvent } from "../../../src/lib/chat/toolLoop.js";
 import type { AnumaNode } from "../../../src/tools/slides/index.js";
 import { parseJsx, SLIDES_FILE_PATH, walk } from "../../../src/tools/slides/index.js";
 import { renderDeckToHtml } from "./renderHtml.js";
+import { runToolLoop } from "../setup.js";
 
-export { config, extractText, printResult, wrapTool, type ToolCallLog } from "../setup.js";
-export { runToolLoop };
+export {
+  config,
+  extractText,
+  printResult,
+  runToolLoop,
+  wrapTool,
+  type ToolCallLog,
+} from "../setup.js";
 export type { StepFinishEvent };
 
 import { config as _config, requirePortalKey } from "../setup.js";

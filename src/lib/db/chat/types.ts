@@ -6,11 +6,18 @@ import type {
   LlmapiMessage,
   LlmapiResponseReasoning,
   LlmapiResponseResponse,
-  LlmapiResponseUsage,
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../client";
 import type { PromptPreProcessor } from "../../chat/preProcessor";
+// Import the cost/credit extraction helpers (and the response union) directly
+// from the strategies type module — it's pure (type-only imports), so this
+// adds no runtime dependency on the strategy singletons in the barrel.
+import {
+  type ApiResponse,
+  getCostMicroUsd,
+  getCreditsUsed,
+} from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
@@ -164,6 +171,9 @@ export interface StoredConversation {
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
+  /** When the conversation was pinned to the top of the list; null/unset = not pinned.
+   * `null` (not `undefined`) at runtime for unpinned rows — mirrors the model field. */
+  pinnedAt?: Date | null;
 }
 
 /**
@@ -415,7 +425,8 @@ export interface BaseUseChatStorageOptions {
    * the first LLM request. Each receives the prompt text and a shared
    * embedding (computed once per request) and may return messages to
    * enrich the conversation. Forwarded to the underlying `useChat` hook.
-   * See `createWebSearchPreProcessor`, `createPricePreProcessor`, or write
+   * See `createWebSearchPreProcessor`, `createCryptoPricePreProcessor`,
+   * `createStockPricePreProcessor`, `createWeatherPreProcessor`, or write
    * a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
@@ -746,14 +757,17 @@ export interface BaseSendMessageWithStorageArgs {
 }
 
 export interface BaseSendMessageSuccessResult {
-  data: LlmapiResponseResponse;
+  // `ApiResponse` (not `LlmapiResponseResponse`) because the Chat Completions
+  // strategy returns a `LlmapiChatCompletionResponse` here; narrowing to the
+  // Responses shape mistyped `data` for completions callers.
+  data: ApiResponse;
   error: null;
   userMessage: StoredMessage;
   assistantMessage: StoredMessage;
 }
 
 export interface BaseSendMessageSkippedResult {
-  data: LlmapiResponseResponse;
+  data: ApiResponse;
   error: null;
   userMessage?: undefined;
   assistantMessage?: undefined;
@@ -782,6 +796,7 @@ export interface BaseUseChatStorageResult {
   getConversation: (id: string) => Promise<StoredConversation | null>;
   getConversations: () => Promise<StoredConversation[]>;
   updateConversationTitle: (id: string, title: string) => Promise<boolean>;
+  updateConversationPinned: (id: string, pinned: boolean) => Promise<boolean>;
   deleteConversation: (id: string) => Promise<boolean>;
   getMessages: (conversationId: string) => Promise<StoredMessage[]>;
 }
@@ -792,14 +807,32 @@ export function generateConversationId(): string {
   return `conv_${uuidv7()}`;
 }
 
-export function convertUsageToStored(usage?: LlmapiResponseUsage): ChatCompletionUsage | undefined {
-  if (!usage) return undefined;
+/**
+ * Convert a chat/responses API response's usage into the stored shape.
+ *
+ * Token counts come straight from `usage`. The cost/credit fields differ by
+ * API — Chat Completions nests them under `portal`, the Responses API keeps
+ * them in `usage` — but that precedence rule lives in exactly one place
+ * (`getCostMicroUsd` / `getCreditsUsed`), which this function defers to rather
+ * than re-implementing. Pass the whole response; `null`/`undefined` yields
+ * `undefined`.
+ */
+export function convertUsageToStored(
+  response?: ApiResponse | null
+): ChatCompletionUsage | undefined {
+  if (!response) return undefined;
+  const usage = response.usage;
+  const costMicroUsd = getCostMicroUsd(response);
+  const creditsUsed = getCreditsUsed(response);
+  if (!usage && costMicroUsd === undefined && creditsUsed === undefined) {
+    return undefined;
+  }
   return {
-    promptTokens: usage.prompt_tokens,
-    completionTokens: usage.completion_tokens,
-    totalTokens: usage.total_tokens,
-    costMicroUsd: usage.cost_micro_usd,
-    creditsUsed: usage.credits_used,
+    promptTokens: usage?.prompt_tokens,
+    completionTokens: usage?.completion_tokens,
+    totalTokens: usage?.total_tokens,
+    costMicroUsd,
+    creditsUsed,
   };
 }
 

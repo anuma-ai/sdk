@@ -2,7 +2,7 @@
 
 > **HandlersCancelSubscriptionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:417](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#417)
+Defined in: [src/client/types.gen.ts:1414](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1414)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:417](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **cancel\_at**: `number`
 
-Defined in: [src/client/types.gen.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#418)
+Defined in: [src/client/types.gen.ts:1415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1415)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:418](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#419)
+Defined in: [src/client/types.gen.ts:1416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1416)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:419](https://github.com/anuma-ai/sdk/blob/m
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:420](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#420)
+Defined in: [src/client/types.gen.ts:1417](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1417)

@@ -2,7 +2,7 @@
 
 > **HandlersAppConfig** = `object`
 
-Defined in: [src/client/types.gen.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#312)
+Defined in: [src/client/types.gen.ts:1309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1309)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:312](https://github.com/anuma-ai/sdk/blob/m
 
 > **name**: `string`
 
-Defined in: [src/client/types.gen.ts:316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#316)
+Defined in: [src/client/types.gen.ts:1313](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1313)
 
 Name is the human-readable name of the app
 
@@ -20,6 +20,6 @@ Name is the human-readable name of the app
 
 > `optional` **phone\_call\_voice**: `string`
 
-Defined in: [src/client/types.gen.ts:320](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#320)
+Defined in: [src/client/types.gen.ts:1317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1317)
 
 PhoneCallVoice is the configured default voice for phone calls

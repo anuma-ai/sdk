@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, afterAll } from "vitest";
-import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
+import { runToolLoop } from "./setup.js";
 import {
   createGoogleCalendarTool,
   createGoogleCalendarCreateEventTool,

@@ -39,6 +39,14 @@ type SendMessageArgs = BaseSendMessageArgs & {
    */
   fileContext?: string;
   /**
+   * Tool-set guidance to inject as a system message — e.g. the App Builder
+   * prompt that rides with the app-generation tool set. Added as a separate
+   * system message (additive), so it composes with the persona / base prompt
+   * rather than replacing it. Typically computed by `useChatStorage` from the
+   * tool sets activated for the request via `toolSetSystemPrompts`.
+   */
+  toolGuidance?: string;
+  /**
    * Per-request callback for thinking/reasoning chunks. Called in addition to the global
    * `onThinking` callback if provided in `useChat` options.
    *
@@ -185,6 +193,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       memoryContext,
       searchContext,
       fileContext,
+      toolGuidance,
       // Responses API options
       temperature,
       maxOutputTokens,
@@ -260,6 +269,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             ],
           };
           messagesWithContext = [fileSystemMessage, ...messagesWithContext];
+        }
+
+        if (toolGuidance) {
+          const toolGuidanceMessage: LlmapiMessage = {
+            role: "system",
+            content: [{ type: "text", text: toolGuidance }],
+          };
+          messagesWithContext = [toolGuidanceMessage, ...messagesWithContext];
         }
 
         // Delegate to the framework-agnostic tool loop

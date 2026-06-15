@@ -11,6 +11,8 @@ on:
           - both
           - engine
           - vault
+          - recall
+          - ensemble
       variant:
         description: "Dataset variant"
         required: true
@@ -28,6 +30,7 @@ on:
         options:
           - cerebras/qwen-3-235b-a22b-instruct-2507
           - fireworks/accounts/fireworks/models/kimi-k2p5
+          - fireworks/accounts/fireworks/models/kimi-k2p6
           - fireworks/accounts/fireworks/models/deepseek-v3p2
           - fireworks/accounts/fireworks/models/glm-5
           - grok/grok-4-1-fast-non-reasoning
@@ -54,6 +57,86 @@ on:
         required: false
         type: string
         default: "100"
+      rerank:
+        description: "Vault: enable cross-encoder rerank"
+        required: false
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+      decompose:
+        description: "Vault: query decomposition for composite questions"
+        required: false
+        type: choice
+        default: "llm"
+        options:
+          - "llm"
+          - "off"
+      consolidate:
+        description: "Vault: LLM-based consolidation at retain time (cross-session dedup)"
+        required: false
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+      chunk_source:
+        description: "Vault: max chars per session when building chunk source (default 12000)"
+        required: false
+        type: string
+        default: ""
+      excerpt_cap:
+        description: "Vault: max chars per excerpt emitted to answer LLM (default 8000)"
+        required: false
+        type: string
+        default: ""
+      recall_types:
+        description: "Recall strategy: lanes to query (fact | chunk | fact-chunk, default fact-chunk)"
+        required: false
+        type: choice
+        default: "fact-chunk"
+        options:
+          - "fact-chunk"
+          - "fact"
+          - "chunk"
+      recall_emit:
+        description: "Recall strategy: emission style (rrf | blocks, default rrf)"
+        required: false
+        type: choice
+        default: "rrf"
+        options:
+          - "rrf"
+          - "blocks"
+      recall_lane_mode:
+        description: "Recall strategy: fused (one call) | per-lane (separate fact + chunk calls). Default fused."
+        required: false
+        type: choice
+        default: "fused"
+        options:
+          - "fused"
+          - "per-lane"
+      include_unsupported:
+        description: "Include temporal-reasoning + knowledge-update categories (skipped by default). Required to measure W6 temporal lane impact."
+        required: false
+        type: choice
+        default: "false"
+        options:
+          - "false"
+          - "true"
+      types:
+        description: "Comma-separated question types filter (e.g. 'temporal-reasoning' to run that category only). Blank = all surviving types."
+        required: false
+        type: string
+        default: ""
+      verbose:
+        description: "Include per-question results in the uploaded artifact (for debugging failure modes)."
+        required: false
+        type: choice
+        default: "false"
+        options:
+          - "false"
+          - "true"
 
 jobs:
   resolve-strategies:
@@ -90,11 +173,22 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Restore embedding cache
+      - name: Restore longmemeval cache (datasets + embeddings)
         uses: actions/cache@v4
         with:
-          path: ~/.cache/longmemeval/embedding-cache-*.json
-          key: longmemeval-embeddings-v1
+          # Cache the entire longmemeval cache dir so the HuggingFace
+          # dataset jsons survive across runs — HF rate-limits the
+          # endpoint and the preload step would otherwise hit 429 when
+          # we re-dispatch the workflow several times in quick succession.
+          path: |
+            ~/.cache/longmemeval/embedding-cache-*.json
+            ~/.cache/longmemeval/longmemeval_oracle.json
+            ~/.cache/longmemeval/longmemeval_s_cleaned.json
+            ~/.cache/longmemeval/longmemeval_m_cleaned.json
+          # Bump key suffix when the cache shape changes so a stale
+          # entry (e.g. embeddings-only from before this patch) doesn't
+          # shadow a new dataset addition.
+          key: longmemeval-cache-v2
 
       - name: Preload datasets
         run: pnpm eval:longmemeval --preload
@@ -105,13 +199,69 @@ jobs:
           EVAL_VARIANT: ${{ inputs.variant }}
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
+          # Free-form string inputs go through env vars (not ${{ }}) so
+          # the shell tokenizes after substitution, blocking command
+          # injection via the workflow_dispatch UI.
+          INPUTS_CHUNK_SOURCE: ${{ inputs.chunk_source }}
+          INPUTS_EXCERPT_CAP: ${{ inputs.excerpt_cap }}
+          INPUTS_CONCURRENCY: ${{ inputs.concurrency }}
+          INPUTS_RECALL_TYPES: ${{ inputs.recall_types }}
+          INPUTS_RECALL_EMIT: ${{ inputs.recall_emit }}
+          INPUTS_RECALL_LANE_MODE: ${{ inputs.recall_lane_mode }}
+          INPUTS_RERANK: ${{ inputs.rerank }}
+          INPUTS_DECOMPOSE: ${{ inputs.decompose }}
+          INPUTS_CONSOLIDATE: ${{ inputs.consolidate }}
+          INPUTS_STRATEGY: ${{ matrix.strategy }}
+          INPUTS_INCLUDE_UNSUPPORTED: ${{ inputs.include_unsupported }}
+          INPUTS_TYPES: ${{ inputs.types }}
+          INPUTS_VERBOSE: ${{ inputs.verbose }}
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
-          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency ${{ inputs.concurrency }} --output results.json"
+          # Accumulate into a bash array so each flag is one token —
+          # values with whitespace/globs don't get re-word-split when
+          # invoking pnpm.
+          args=(
+            --strategy "$INPUTS_STRATEGY"
+            --variant "$EVAL_VARIANT"
+            --llm "$EVAL_MODEL"
+            --concurrency "$INPUTS_CONCURRENCY"
+            --output results.json
+          )
           if [ -n "$EVAL_MAX" ]; then
-            args="$args --max $EVAL_MAX"
+            args+=(--max "$EVAL_MAX")
           fi
-          pnpm eval:longmemeval $args
+          if [ "$INPUTS_STRATEGY" = "vault" ]; then
+            args+=(
+              "--rerank=$INPUTS_RERANK"
+              "--decompose=$INPUTS_DECOMPOSE"
+              "--consolidate=$INPUTS_CONSOLIDATE"
+            )
+            if [ -n "$INPUTS_CHUNK_SOURCE" ]; then
+              args+=("--chunk-source=$INPUTS_CHUNK_SOURCE")
+            fi
+            if [ -n "$INPUTS_EXCERPT_CAP" ]; then
+              args+=("--excerpt-cap=$INPUTS_EXCERPT_CAP")
+            fi
+          fi
+          if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_TYPES" ]; then
+            args+=("--recall-types=$INPUTS_RECALL_TYPES")
+          fi
+          if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_EMIT" ]; then
+            args+=("--recall-emit=$INPUTS_RECALL_EMIT")
+          fi
+          if [ "$INPUTS_STRATEGY" = "recall" ] && [ -n "$INPUTS_RECALL_LANE_MODE" ]; then
+            args+=("--recall-lane-mode=$INPUTS_RECALL_LANE_MODE")
+          fi
+          if [ "$INPUTS_INCLUDE_UNSUPPORTED" = "true" ]; then
+            args+=(--include-unsupported)
+          fi
+          if [ -n "$INPUTS_TYPES" ]; then
+            args+=("--types=$INPUTS_TYPES")
+          fi
+          if [ "$INPUTS_VERBOSE" = "true" ]; then
+            args+=(--verbose)
+          fi
+          pnpm eval:longmemeval "${args[@]}"
 
       - name: Upload results
         if: always()
@@ -124,15 +274,35 @@ jobs:
         if: success()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUTS_MODEL: ${{ inputs.model }}
+          INPUTS_VARIANT: ${{ inputs.variant }}
+          INPUTS_STRATEGY: ${{ matrix.strategy }}
+          INPUTS_CONCURRENCY: ${{ inputs.concurrency }}
+          GH_SHA: ${{ github.sha }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_SERVER_URL: ${{ github.server_url }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
         run: |
           # Build a short model slug for the filename
-          model_slug=$(echo "${{ inputs.model }}" | sed 's|.*/||')
+          model_slug=$(echo "$INPUTS_MODEL" | sed 's|.*/||')
           commit=$(git rev-parse --short HEAD)
           ts=$(date -u +%Y-%m-%dT%H-%M-%SZ)
-          filename="${{ matrix.strategy }}_${{ inputs.variant }}_${model_slug}_${ts}_${commit}.json"
+          filename="${INPUTS_STRATEGY}_${INPUTS_VARIANT}_${model_slug}_${ts}_${commit}.json"
 
-          # Strip per-question results array, add run metadata
-          jq '{
+          # Strip per-question results array, add run metadata. All input
+          # values flow through --arg (jq quotes them) so a workflow_dispatch
+          # value can't escape the jq program.
+          run_url="${GH_SERVER_URL}/${GH_REPOSITORY}/actions/runs/${GH_RUN_ID}"
+          jq --arg commit "$GH_SHA" \
+             --arg commitShort "$commit" \
+             --arg branch "$GH_REF_NAME" \
+             --arg model "$INPUTS_MODEL" \
+             --arg variant "$INPUTS_VARIANT" \
+             --argjson concurrency "${INPUTS_CONCURRENCY:-1}" \
+             --arg runUrl "$run_url" \
+             --argjson runId "$GH_RUN_ID" \
+             '{
             timestamp,
             datasetName,
             strategy,
@@ -145,14 +315,14 @@ jobs:
             tokenUsage,
             cost,
             meta: {
-              commit: "${{ github.sha }}",
-              commitShort: "'"${commit}"'",
-              branch: "${{ github.ref_name }}",
-              model: "${{ inputs.model }}",
-              variant: "${{ inputs.variant }}",
-              concurrency: ${{ inputs.concurrency }},
-              runUrl: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-              runId: ${{ github.run_id }}
+              commit: $commit,
+              commitShort: $commitShort,
+              branch: $branch,
+              model: $model,
+              variant: $variant,
+              concurrency: $concurrency,
+              runUrl: $runUrl,
+              runId: $runId
             }
           }' results.json > summary.json
 

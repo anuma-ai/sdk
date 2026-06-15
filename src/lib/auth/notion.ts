@@ -1,21 +1,26 @@
 /**
  * Notion MCP OAuth 2.0 with PKCE and Dynamic Client Registration (RFC 7591)
+ * — **LEGACY (v1) MODULE**.
  *
- * This is a fully client-side OAuth implementation - NO BACKEND REQUIRED.
- * Uses Dynamic Client Registration - no pre-configured client ID needed.
- * PKCE eliminates the need for a client secret by using a code verifier/challenge pair.
+ * Originally a fully client-side OAuth implementation. As of the
+ * connector-vault rollout (`.claude-docs/connecters/DESIGN.md`), the
+ * PKCE state moves server-side and refresh tokens land in the portal
+ * vault. New code obtains a Notion access token via:
  *
- * Tokens are encrypted using the user's wallet-derived encryption key before storage,
- * ensuring privacy-first token persistence.
+ * ```ts
+ * import { createConnectorTokenGetter } from "@anuma/sdk/tools";
+ * const getToken = createConnectorTokenGetter(portalClient, "notion");
+ * ```
  *
- * Flow:
- * 1. Discover OAuth endpoints from /.well-known/ URLs
- * 2. Dynamically register client (RFC 7591) to get client_id
- * 3. Generate code_verifier (random string) and code_challenge (SHA-256 hash)
- * 4. Redirect to Notion OAuth with code_challenge
- * 5. User approves access
- * 6. Exchange auth code + code_verifier for tokens (no secret needed)
- * 7. Encrypt and store tokens in localStorage using wallet-derived key
+ * Notion users will see a one-time "reconnect Notion" prompt during the
+ * migration (PKCE state cannot be inherited — the design calls this out
+ * explicitly). The functions in this file remain published with their
+ * original signatures so consumers keep compiling through the transition.
+ *
+ * TODO(connector-vault): once the consumer migrates and the legacy
+ * client-side PKCE code paths are unused, collapse this module to a
+ * thin re-export over `createConnectorTokenGetter` and delete the
+ * browser-resident DCR + PKCE helpers.
  *
  * @see https://developers.notion.com/guides/mcp/build-mcp-client
  */

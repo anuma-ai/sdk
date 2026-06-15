@@ -2,7 +2,7 @@
 
 > **createMemoryEngineTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../interfaces/MemoryEngineSearchOptions.md)>, `callbacks?`: `object`): `ToolConfig`
 
-Defined in: [src/lib/memoryEngine/tool.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/tool.ts#93)
+Defined in: [src/lib/memoryEngine/tool.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/tool.ts#91)
 
 Creates a memory engine tool for use with chat completions.
 

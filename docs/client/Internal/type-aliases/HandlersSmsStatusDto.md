@@ -2,7 +2,7 @@
 
 > **HandlersSmsStatusDto** = `object`
 
-Defined in: [src/client/types.gen.ts:1711](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1711)
+Defined in: [src/client/types.gen.ts:2887](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2887)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1711](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enrolled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1712](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1712)
+Defined in: [src/client/types.gen.ts:2888](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2888)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1712](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enrolled\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1713](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1713)
+Defined in: [src/client/types.gen.ts:2889](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2889)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:1713](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **phone\_e164\_masked**: `string`
 
-Defined in: [src/client/types.gen.ts:1714](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1714)
+Defined in: [src/client/types.gen.ts:2890](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2890)

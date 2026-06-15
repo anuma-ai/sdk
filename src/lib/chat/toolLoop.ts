@@ -425,6 +425,18 @@ export type RunToolLoopOptions = {
    * @default 20
    */
   maxToolRounds?: number;
+  /**
+   * Token budget for the whole call: input + output tokens summed across
+   * rounds, as reported by the provider. Once cumulative usage reaches the
+   * budget, the next continuation forces `toolChoice: "none"` so the model
+   * wraps up with text instead of starting further tool rounds — the same
+   * mechanism `maxToolRounds` uses. Because a round's cost is only known
+   * after it completes, the budget can overshoot by at most one round plus
+   * the wrap-up response. Gives hosts a hard, predictable per-message cost
+   * ceiling independent of how chatty the model is. Providers that don't
+   * report usage never trigger it. No budget by default.
+   */
+  maxTurnTokens?: number;
   /** Reasoning configuration for o-series models. */
   reasoning?: LlmapiResponseReasoning;
   /** Extended thinking configuration. */
@@ -437,6 +449,30 @@ export type RunToolLoopOptions = {
   smoothing?: StreamSmoothingConfig | boolean;
   /** AbortSignal to cancel the request. */
   signal?: AbortSignal;
+  /**
+   * Opt into resumable streaming. Sends `X-Stream-Resumable: 1` on every
+   * streaming request so the portal keeps generating into its buffer after a
+   * client disconnect. Without this, detachSignal still ends the loop but
+   * `resume` is always null (the server kills generation on disconnect).
+   * @default false
+   */
+  resumable?: boolean;
+  /**
+   * Abort-like signal meaning "client is going away, keep generating server-side".
+   * Tears the stream down like `signal`, but the result is the detached variant:
+   * smoothers are FLUSHED (not destroyed), partial data is returned, and a
+   * StreamResumeHandle is included when available. An abort on `signal` always
+   * wins over a detach when both fire.
+   */
+  detachSignal?: AbortSignal;
+  /**
+   * Fires when a streaming response's headers arrive and carry X-Inference-ID.
+   * Happy path: once per round. Transport-level retries dispatch a fresh HTTP
+   * request with a fresh id, so this re-fires per attempt — the latest value is
+   * authoritative and is what the resume handle carries. Errors thrown by the
+   * callback are swallowed (observer contract, same as hooks).
+   */
+  onStreamMeta?: (event: StreamMetaEvent) => void;
   /** Called with content text deltas as they stream. */
   onData?: (chunk: string) => void;
   /** Called with thinking/reasoning deltas as they stream. */
@@ -548,17 +584,53 @@ export type RunToolLoopResult =
       statusCode?: number;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** True when the loop exited via detachSignal. `error` is "Request detached". */
+      detached?: true;
+      /** Non-null only when `resumable` was true AND an inference id was captured before detach. */
+      resume?: StreamResumeHandle | null;
     };
+
+/** Capability header: tells the portal this client can resume a detached stream. Pinned with zeta-chain/ai-portal#1139. */
+export const STREAM_RESUMABLE_HEADER = "X-Stream-Resumable";
+/** Response header carrying the per-request stream id, issued by the portal pre-stream. */
+export const INFERENCE_ID_HEADER = "X-Inference-ID";
+
+/**
+ * Everything resumeStream() needs to replay a detached stream.
+ * @public
+ */
+export type StreamResumeHandle = {
+  inferenceId: string;
+  /** The RESOLVED api type (never "auto") — resolveApiType() already ran inside runToolLoop. */
+  apiType: Exclude<ApiType, "auto">;
+  model?: string;
+  conversationId?: string;
+};
+
+/**
+ * Payload for RunToolLoopOptions.onStreamMeta.
+ * @public
+ */
+export type StreamMetaEvent = {
+  inferenceId: string;
+  /** 0 = initial request, 1+ = continuation round (same numbering as RequestEvent.round). */
+  round: number;
+};
 
 /** Options passed to a streaming transport function. */
 export type StreamingTransportOptions = {
   baseUrl: string;
   endpoint: string;
-  body: Record<string, unknown>;
+  /** @default "POST" */
+  method?: "GET" | "POST";
+  /** Request body. Optional — GET resume requests have no body. */
+  body?: Record<string, unknown>;
   token?: string;
   headers?: Record<string, string>;
   signal?: AbortSignal;
   onSseError?: (error: unknown) => void;
+  /** Fires once per request when response headers arrive with X-Inference-ID (2xx only). */
+  onStreamMeta?: (meta: { inferenceId: string }) => void;
 };
 
 /** Result returned by a streaming transport function. */
@@ -619,21 +691,73 @@ const errorCapturingFetch: typeof fetch = async (input, init) => {
  */
 const defaultTransport: StreamingTransport = (options) => {
   const url = `${options.baseUrl}${options.endpoint}`;
+  // Wrap the fetch so the X-Inference-ID response header can be captured.
+  // `errorCapturingFetch` throws on `!response.ok` before the capture runs,
+  // so meta only fires for 2xx — matching the xhr transport's gate.
+  const fetchWithMeta: typeof fetch = async (input, init) => {
+    const response = await errorCapturingFetch(input, init);
+    const id = response.headers.get(INFERENCE_ID_HEADER);
+    if (id) {
+      try {
+        options.onStreamMeta?.({ inferenceId: id });
+      } catch {
+        /* observer error, swallow */
+      }
+    }
+    return response;
+  };
   return createSseClient({
-    method: "POST",
+    method: options.method ?? "POST",
     url,
-    serializedBody: JSON.stringify(options.body),
+    serializedBody: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     headers: {
-      "Content-Type": "application/json",
+      ...(options.body !== undefined ? { "Content-Type": "application/json" } : undefined),
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : undefined),
       ...options.headers,
     },
     signal: options.signal,
+    // MUST stay at 1. The generated client has dormant Last-Event-ID reconnect
+    // machinery, but the portal emits no `id:` lines on live streams — stream
+    // sequencing is server-internal (explicit XADD entry IDs in the portal's
+    // Redis stream buffer) — so it stays inert. Raising this would let the
+    // generated client silently re-POST the request on a blip, which is
+    // regen, not replay.
     sseMaxRetryAttempts: 1,
     onSseError: options.onSseError,
-    fetch: errorCapturingFetch,
+    fetch: fetchWithMeta,
   });
 };
+
+/**
+ * Combine two abort signals into one that aborts when either does.
+ * `AbortSignal.any` is deliberately not used — it isn't reliably available
+ * on React Native / Hermes.
+ *
+ * The `!a || !b` fast path is deliberate: when one signal is absent (every
+ * existing caller), the other passes through **by identity** — zero
+ * behavioral delta on the default path.
+ */
+function linkAbortSignals(
+  a?: AbortSignal,
+  b?: AbortSignal
+): { signal: AbortSignal | undefined; cleanup: () => void } {
+  if (!a || !b) return { signal: a ?? b, cleanup: () => {} };
+  const controller = new AbortController();
+  if (a.aborted || b.aborted) {
+    controller.abort();
+    return { signal: controller.signal, cleanup: () => {} };
+  }
+  const onAbort = () => controller.abort();
+  a.addEventListener("abort", onAbort, { once: true });
+  b.addEventListener("abort", onAbort, { once: true });
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      a.removeEventListener("abort", onAbort);
+      b.removeEventListener("abort", onAbort);
+    },
+  };
+}
 
 /**
  * Framework-agnostic tool execution loop.
@@ -674,12 +798,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     tools,
     toolChoice: toolChoiceArg,
     maxToolRounds,
+    maxTurnTokens,
     reasoning,
     thinking,
     imageModel,
     conversationId,
     smoothing,
     signal,
+    resumable,
+    detachSignal,
+    onStreamMeta,
     onData,
     onThinking,
     onFinish,
@@ -769,7 +897,40 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: msg };
   }
 
-  if (signal?.aborted) {
+  // Combine the user abort signal with the detach signal. Linked after the
+  // validation returns above so the listeners it registers can't leak on a
+  // failed pre-flight check; every exit below cleans up — explicitly at the
+  // pre-start guard, via the `finally` on the main try/catch for the rest.
+  const { signal: combinedSignal, cleanup: cleanupSignalLink } = linkAbortSignals(
+    signal,
+    detachSignal
+  );
+  // Classification reads the ORIGINAL signals: an explicit user abort always
+  // wins over a detach when both fired — stop semantics are the billing-safe
+  // interpretation.
+  const isDetach = () => detachSignal?.aborted === true && signal?.aborted !== true;
+
+  // Capability header: computed once and read at BOTH transport call sites so
+  // it rides on the initial round, every continuation round, and every retry
+  // attempt. Off by default — no header is sent for existing callers.
+  const effectiveHeaders = resumable ? { ...headers, [STREAM_RESUMABLE_HEADER]: "1" } : headers;
+
+  // Latest inference id captured from a 2xx response's X-Inference-ID header.
+  // Transport-level retries dispatch a fresh HTTP request with a fresh id and
+  // overwrite this — the latest value is authoritative.
+  let lastInferenceId: string | null = null;
+  const makeResumeHandle = (): StreamResumeHandle | null =>
+    resumable === true && lastInferenceId !== null
+      ? { inferenceId: lastInferenceId, apiType: resolved, model, conversationId }
+      : null;
+
+  if (combinedSignal?.aborted) {
+    cleanupSignalLink();
+    if (isDetach()) {
+      // Nothing was dispatched, nothing is resumable.
+      await fireRunError({ error: "Request detached", stage: "model" });
+      return { data: null, error: "Request detached", detached: true, resume: null };
+    }
     await fireRunError({ error: "Request aborted", stage: "model" });
     return { data: null, error: "Request aborted" };
   }
@@ -788,7 +949,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         const results = await Promise.all(
           preProcessors.map(async (p) => {
             try {
-              return await p({ prompt: text, embedding, signal });
+              return await p({ prompt: text, embedding, signal: combinedSignal });
             } catch (err) {
               console.warn("[runToolLoop] pre-processor failed:", err);
               return undefined;
@@ -917,12 +1078,61 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     };
 
+    // Detach terminal: FLUSH (never destroy, never drain) the round's active
+    // smoothers so the UI synchronously receives every byte the accumulator
+    // holds before the result resolves — the resume replay starts a fresh
+    // accumulator from seq 0, so nothing may be left stranded in a smoother
+    // buffer at detach. destroy() would discard the buffer; drain() would
+    // pace it out over seconds. Then close the hook pair and return the
+    // detached result variant. `onError` is NOT called for detach — identical
+    // policy to aborts.
+    const returnDetached = async (
+      acc: ReturnType<typeof createStreamAccumulator>,
+      smoothers: StreamSmoother[]
+    ): Promise<RunToolLoopResult> => {
+      for (const smoother of smoothers) smoother.flush();
+      await fireAfterModelCall(buildModelCallEndPayload(acc, { error: "detached" }));
+      await fireRunError({ error: "Request detached", stage: "model" });
+      return {
+        data: strategy.buildFinalResponse(acc),
+        error: "Request detached",
+        detached: true,
+        resume: makeResumeHandle(),
+        toolsChecksum: acc.toolsChecksum,
+      };
+    };
+
     // Transport-level retry: only fires when the failure happens before
     // any chunk reached the smoothers / accumulator. Once user-visible
     // output has started, a retry would risk duplicate or contradictory
     // content (the LLM is stochastic), so we bail instead.
     for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
       sseError = null;
+
+      // Pre-dispatch guard: a detach/abort can land while nothing is in
+      // flight — e.g. during a retry backoff (sleep() resolves immediately
+      // on abort and would otherwise dispatch a doomed attempt). Dispatching
+      // anyway would let the transport short-circuit a pre-aborted signal
+      // into an orderly empty `done` that the loop would misread as an empty
+      // success — classify and return instead. Nothing user-visible has
+      // streamed at this point (pre-content failures are the only retried
+      // class), so the result carries no data.
+      if (combinedSignal?.aborted) {
+        if (isDetach()) {
+          await fireAfterModelCall({ content: "", toolCalls: [], error: "detached" });
+          await fireRunError({ error: "Request detached", stage: "model" });
+          return {
+            data: null,
+            error: "Request detached",
+            detached: true,
+            resume: makeResumeHandle(),
+          };
+        }
+        await fireAfterModelCall({ content: "", toolCalls: [], error: "aborted" });
+        await fireRunError({ error: "Request aborted", stage: "model" });
+        return { data: null, error: "Request aborted" };
+      }
+
       if (onRequest) onRequest(measureRequest(0, attempt, requestBody, messages, apiTools));
 
       const sseResult = makeStreamingRequest({
@@ -930,10 +1140,18 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         endpoint: strategy.endpoint,
         body: requestBody,
         token,
-        headers,
-        signal,
+        headers: effectiveHeaders,
+        signal: combinedSignal,
         onSseError: (error) => {
           sseError = wrapSseError(error);
+        },
+        onStreamMeta: (meta) => {
+          lastInferenceId = meta.inferenceId;
+          try {
+            onStreamMeta?.({ inferenceId: meta.inferenceId, round: 0 });
+          } catch {
+            /* observer error, swallow — same philosophy as safeAwait */
+          }
         },
       });
 
@@ -952,8 +1170,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           // `xhr.onload` (or fetch's equivalent) has run, the connection
           // closed cleanly and every byte was parsed; a late `signal.abort()`
           // from caller cleanup must not retroactively mark a completed
-          // response as aborted.
-          if (signal?.aborted) {
+          // response as aborted. The detach branch inherits the same
+          // property by living in the same spot.
+          if (combinedSignal?.aborted) {
+            if (isDetach()) {
+              return await returnDetached(accumulator, [contentSmoother, thinkingSmoother]);
+            }
             contentSmoother.destroy();
             thinkingSmoother.destroy();
             await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
@@ -1006,10 +1228,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         // Success.
         break;
       } catch (streamErr) {
-        contentSmoother.destroy();
-        thinkingSmoother.destroy();
-
-        if (isAbortError(streamErr) || signal?.aborted) {
+        // The destroy lives inside each branch (not unconditionally at the
+        // top) because the detach branch must FLUSH the smoothers instead.
+        if (isAbortError(streamErr) || combinedSignal?.aborted) {
+          if (isDetach()) {
+            return await returnDetached(accumulator, [contentSmoother, thinkingSmoother]);
+          }
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
           await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
           const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
           await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
@@ -1019,6 +1245,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             toolsChecksum: accumulator.toolsChecksum,
           };
         }
+
+        contentSmoother.destroy();
+        thinkingSmoother.destroy();
 
         const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
         if (!chunksEmittedDownstream && !lastAttempt && isRetriableStreamError(streamErr)) {
@@ -1033,7 +1262,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               error: err,
             });
           }
-          await sleep(backoff, signal);
+          await sleep(backoff, combinedSignal);
           continue;
         }
         const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
@@ -1084,9 +1313,21 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     // deck via parseDisplayResults.
     const accumulatedToolResults: AutoExecutedToolResult[] = [];
 
+    // Cumulative provider-reported usage for this call. Each iteration's
+    // accumulator holds the response that issued the tool calls we're about
+    // to execute (the initial response on iteration 1, continuation N's on
+    // iteration N+1), so summing at the top of the loop counts every
+    // response that can lead to another request. The final text-only
+    // response never re-enters the loop — its cost can't trigger anything,
+    // so it doesn't need counting.
+    let turnTokensUsed = 0;
+
     while (currentAccumulator.toolCalls.size > 0 && toolIteration < hardIterationCap) {
       toolIteration++;
       sseError = null;
+      turnTokensUsed +=
+        (currentAccumulator.usage.prompt_tokens ?? 0) +
+        (currentAccumulator.usage.completion_tokens ?? 0);
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
@@ -1452,7 +1693,19 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Continue the conversation with tool results
       currentMessages = [...currentMessages, ...toolResultMessages];
 
-      const continuationToolChoice = toolIteration >= effectiveMaxToolRounds ? "none" : toolChoice;
+      const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
+      // "required" exists to guarantee the FIRST round picks a tool (e.g.
+      // media modes forcing generate_image). Re-sending it on continuation
+      // rounds corners the model: it has finished the real work but is
+      // forbidden from answering with text, so it fabricates whatever tool
+      // call escapes the constraint (observed: junk memory_vault_save
+      // writes like "The user said: 'tiger'" after image generations).
+      // Once a tool round has executed, downgrade to "auto" so remaining
+      // calls are the model's judgment. Named-tool forcing is left
+      // untouched — slide/app flows rely on re-forcing a specific tool.
+      const relaxedToolChoice = toolChoice === "required" ? "auto" : toolChoice;
+      const continuationToolChoice =
+        toolIteration >= effectiveMaxToolRounds || turnBudgetExhausted ? "none" : relaxedToolChoice;
 
       const continuationRequestBody = strategy.buildRequestBody({
         messages: currentMessages,
@@ -1489,6 +1742,28 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
         sseError = null;
+
+        // Pre-dispatch guard — see the note on the initial attempt loop. On
+        // continuation rounds this additionally covers a detach/abort landing
+        // during tool execution between rounds. The result is built from the
+        // PREVIOUS round's accumulator, which still holds the last streamed
+        // content; its smoothers were already flushed/drained, so there is
+        // nothing left to flush here.
+        if (combinedSignal?.aborted) {
+          if (isDetach()) {
+            return await returnDetached(currentAccumulator, []);
+          }
+          await fireAfterModelCall(
+            buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
+          );
+          await fireRunError({ error: "Request aborted", stage: "model" });
+          return {
+            data: strategy.buildFinalResponse(currentAccumulator),
+            error: "Request aborted",
+            toolsChecksum: currentAccumulator.toolsChecksum,
+          };
+        }
+
         if (onRequest)
           onRequest(
             measureRequest(
@@ -1500,15 +1775,24 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             )
           );
 
+        const continuationRound = toolIteration;
         const continuationResult = makeStreamingRequest({
           baseUrl,
           endpoint: strategy.endpoint,
           body: continuationRequestBody,
           token,
-          headers,
-          signal,
+          headers: effectiveHeaders,
+          signal: combinedSignal,
           onSseError: (error) => {
             sseError = wrapSseError(error);
+          },
+          onStreamMeta: (meta) => {
+            lastInferenceId = meta.inferenceId;
+            try {
+              onStreamMeta?.({ inferenceId: meta.inferenceId, round: continuationRound });
+            } catch {
+              /* observer error, swallow — same philosophy as safeAwait */
+            }
           },
         });
 
@@ -1527,7 +1811,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             // belongs inside the for-await body, not after it, so a clean
             // completion followed by a late cleanup-time abort isn't
             // misreported as "Request aborted".
-            if (signal?.aborted) {
+            if (combinedSignal?.aborted) {
+              if (isDetach()) {
+                return await returnDetached(currentAccumulator, [
+                  contContentSmoother,
+                  contThinkingSmoother,
+                ]);
+              }
               contContentSmoother.destroy();
               contThinkingSmoother.destroy();
               await fireAfterModelCall(
@@ -1578,10 +1868,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           if (sseError !== null) throw sseError as Error;
           break; // success
         } catch (streamErr) {
-          contContentSmoother.destroy();
-          contThinkingSmoother.destroy();
-
-          if (isAbortError(streamErr) || signal?.aborted) {
+          // Same as the initial round's catch: the destroy lives inside each
+          // branch because the detach branch must FLUSH instead.
+          if (isAbortError(streamErr) || combinedSignal?.aborted) {
+            if (isDetach()) {
+              return await returnDetached(currentAccumulator, [
+                contContentSmoother,
+                contThinkingSmoother,
+              ]);
+            }
+            contContentSmoother.destroy();
+            contThinkingSmoother.destroy();
             await fireAfterModelCall(
               buildModelCallEndPayload(currentAccumulator, { error: "aborted" })
             );
@@ -1593,6 +1890,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               toolsChecksum: currentAccumulator.toolsChecksum,
             };
           }
+
+          contContentSmoother.destroy();
+          contThinkingSmoother.destroy();
 
           const lastAttempt = attempt >= STREAM_RETRY_MAX_ATTEMPTS - 1;
           if (!chunksEmittedDownstream && !lastAttempt && isRetriableStreamError(streamErr)) {
@@ -1607,7 +1907,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 error: err,
               });
             }
-            await sleep(backoff, signal);
+            await sleep(backoff, combinedSignal);
             continue;
           }
           const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
@@ -1663,6 +1963,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     };
   } catch (err) {
     if (isAbortError(err)) {
+      // Safety net: catches an `AbortError` escaping from a stage the
+      // in-loop exits don't cover (e.g. the embedding / pre-processor stage).
+      if (isDetach()) {
+        await fireRunError({ error: "Request detached", stage: "model" });
+        return {
+          data: null,
+          error: "Request detached",
+          detached: true,
+          resume: makeResumeHandle(),
+        };
+      }
       // `onRunStart` always fires before this try block opens, so any abort
       // that escapes here still needs a terminal hook to close the run.
       const abortErr = err instanceof Error ? err : new Error("Request aborted");
@@ -1683,5 +1994,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         ? (err as { statusCode: number }).statusCode
         : undefined;
     return { data: null, error: errorMsg, statusCode };
+  } finally {
+    cleanupSignalLink();
   }
 }

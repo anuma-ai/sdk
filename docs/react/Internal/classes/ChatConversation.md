@@ -157,6 +157,18 @@ Defined in: [src/lib/db/chat/models.ts:66](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
+### pinnedAt?
+
+> `optional` **pinnedAt**: `Date` | `null`
+
+Defined in: [src/lib/db/chat/models.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#70)
+
+When the conversation was pinned to the top of the list; null/unset = not pinned.
+`null` (not `undefined`) at runtime for unpinned rows — `@date` maps a null raw
+column to null, and unpin stores an explicit null.
+
+***
+
 ### projectId?
 
 > `optional` **projectId**: `string`

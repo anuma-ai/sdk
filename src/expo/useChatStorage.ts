@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import type { LlmapiMessage } from "../client";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
@@ -12,6 +12,12 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
+import {
+  type ApiResponse,
+  extractAssistantText,
+  getImageModel,
+  getToolCallEvents,
+} from "../lib/chat/useChat/strategies";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type BaseSendMessageWithStorageArgs,
@@ -38,6 +44,7 @@ import {
   type StorageOperationsContext,
   type StoredConversation,
   type StoredMessage,
+  updateConversationPinnedOp,
   updateConversationTitleOp,
   updateMessageErrorOp,
 } from "../lib/db/chat";
@@ -65,6 +72,11 @@ import {
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
 import {
+  createRecallTool as createRecallToolBase,
+  type RecallToolCallbacks,
+  type RecallToolOptions,
+} from "../lib/memory";
+import {
   createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
@@ -73,7 +85,9 @@ import {
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
+  createVaultEmbeddingCache,
   type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
 } from "../lib/memoryVault";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
@@ -287,6 +301,16 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   /** Create a memory vault tool pre-configured with hook's vault context and encryption. */
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
 
+  /**
+   * Create the unified recall tool — single chat-completion tool that
+   * searches both vault facts and conversation chunks via recall().
+   * Replaces the legacy createMemoryEngineTool / vault search pair.
+   */
+  createRecallTool: (
+    toolOptions?: RecallToolOptions,
+    callbacks?: RecallToolCallbacks
+  ) => ToolConfig;
+
   /** Get all vault memories for context injection. */
   getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
 
@@ -463,6 +487,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             ctx,
             operation.payload.conversationId as string,
             operation.payload.title as string
+          );
+          break;
+        case "updateConversationPinned":
+          await updateConversationPinnedOp(
+            ctx,
+            operation.payload.conversationId as string,
+            operation.payload.pinned as boolean
           );
           break;
         case "createMessage":
@@ -649,6 +680,43 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [vaultCtx]
   );
 
+  /** Shared embedding cache for vault memories on the recall path. */
+  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
+
+  /**
+   * Create the unified recall tool — fact + chunk fused via RRF in one
+   * tool. Replaces createMemoryEngineTool / createMemoryVaultSearchTool.
+   */
+  const createRecallTool = useCallback(
+    (toolOptions?: RecallToolOptions, callbacks?: RecallToolCallbacks): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for recall tool");
+      }
+      // Default excludeConversationId to the active conversation so
+      // recall doesn't surface chunks from the user's own current turns
+      // back as "memory". Caller can still override explicitly.
+      const resolvedToolOptions: RecallToolOptions | undefined =
+        toolOptions?.excludeConversationId !== undefined || !currentConversationId
+          ? toolOptions
+          : { ...toolOptions, excludeConversationId: currentConversationId };
+      return createRecallToolBase(
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+          // entityCtx is intentionally omitted on Expo for now — the
+          // W5 graph lane is a no-op without it (recall falls through
+          // to fact + chunk lanes). Wire it up when the Expo client
+          // grows an entity-extraction surface.
+        },
+        resolvedToolOptions,
+        callbacks
+      );
+    },
+    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel, currentConversationId]
+  );
+
   /**
    * Get all vault memories (for injecting as context into messages)
    */
@@ -732,6 +800,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         "updateConversationTitle",
         { conversationId: id, title },
         () => updateConversationTitleOp(storageCtx, id, title),
+        () => true
+      );
+      return result;
+    },
+    [storageCtx, writeOrQueue]
+  );
+
+  /**
+   * Pin or unpin a conversation. Pinning stamps `pinnedAt`; list queries are
+   * NOT reordered — consumers sort pinned chats first using `pinnedAt`.
+   * @returns true if updated, false if conversation not found
+   */
+  const updateConversationPinned = useCallback(
+    async (id: string, pinned: boolean): Promise<boolean> => {
+      const { result } = await writeOrQueue(
+        "updateConversationPinned",
+        { conversationId: id, pinned },
+        () => updateConversationPinnedOp(storageCtx, id, pinned),
         () => true
       );
       return result;
@@ -1275,24 +1361,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
         const abortedResult = result as {
-          data: LlmapiResponseResponse | null;
+          data: ApiResponse | null;
           error: string;
         };
 
         if (abortedResult.error === "Request aborted") {
-          // Extract content if we have partial data, otherwise empty string
-          // Find the message output item (type: "message") for main content
-          const abortOutput = (abortedResult.data?.output ?? []).filter(Boolean);
-          const messageOutput = abortOutput.find((item) => item?.type === "message");
-          const assistantContent =
-            messageOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
-            "";
-
-          // Find the reasoning output item (type: "reasoning") for thinking content
-          const reasoningOutput = abortOutput.find((item) => item?.type === "reasoning");
-          const abortedThinkingContent =
-            reasoningOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
-            undefined;
+          // Extract partial content from whichever response shape the strategy
+          // produced — Responses API ships it under output[], Chat Completions
+          // under choices[0].message.content.
+          const extracted = abortedResult.data
+            ? extractAssistantText(abortedResult.data)
+            : { content: "", thinking: undefined as string | undefined };
+          const assistantContent = extracted.content;
+          const abortedThinkingContent = extracted.thinking;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -1304,8 +1385,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
-              imageModel,
-              usage: convertUsageToStored(abortedResult.data?.usage),
+              imageModel:
+                imageModel || (abortedResult.data ? getImageModel(abortedResult.data) : undefined),
+              usage: convertUsageToStored(abortedResult.data),
               responseDuration,
               wasStopped: true,
               sources,
@@ -1317,8 +1399,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // Embed assistant message asynchronously (non-blocking)
             void embedMessageAsync(storedAssistantMessage);
 
-            // Build a valid response for the return (even if original was null)
-            const responseData: LlmapiResponseResponse = abortedResult.data || {
+            // Build a valid response for the return (even if original was null).
+            // Typed `ApiResponse`: when the strategy was Chat Completions,
+            // `abortedResult.data` is a `LlmapiChatCompletionResponse`, not the
+            // Responses shape — the synthesized fallback below is Responses-shaped.
+            const responseData: ApiResponse = abortedResult.data || {
               id: `aborted-${Date.now()}`,
               model: responseModel,
               object: "response",
@@ -1430,13 +1515,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Deduplicate tool_call_events: the backend returns accumulated events across
       // the entire conversation. Filter to only new events from this turn so we don't
       // re-extract images (or other artifacts) that already belong to earlier messages.
-      const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
+      const currentTurnToolCallEvents = getToolCallEvents(responseData)?.filter(
         (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
       );
 
-      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      // Resolve image model: prefer the caller's selection, then the portal's
+      // resolved `image_model` on the response, then MCP tool-event scraping.
       const resolvedImageModel =
-        imageModel || extractImageModelFromToolEvents(currentTurnToolCallEvents);
+        imageModel ||
+        getImageModel(responseData) ||
+        extractImageModelFromToolEvents(currentTurnToolCallEvents);
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -1445,7 +1533,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         content: cleanedContent,
         model: responseData.model || model,
         imageModel: resolvedImageModel,
-        usage: convertUsageToStored(responseData.usage),
+        usage: convertUsageToStored(responseData),
         responseDuration,
         sources: combinedSources,
         thoughtProcess: finalizeThoughtProcess(thoughtProcess),
@@ -1518,10 +1606,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getConversation,
     getConversations,
     updateConversationTitle,
+    updateConversationPinned,
     deleteConversation,
     getMessages,
     createMemoryEngineTool,
     createMemoryVaultTool,
+    createRecallTool,
     getVaultMemories,
     deleteVaultMemory,
     flushQueue,

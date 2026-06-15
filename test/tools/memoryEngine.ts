@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
+import { runToolLoop } from "./setup.js";
 import { createMemoryEngineTool } from "../../src/lib/memoryEngine/tool.js";
 import { generateEmbedding } from "../../src/lib/memoryEngine/embeddings.js";
 import { sdkSchema, sdkModelClasses } from "../../src/lib/db/schema.js";

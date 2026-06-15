@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:958](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#958)
+Defined in: [src/react/useChatStorage.ts:1040](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1040)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -615,7 +615,8 @@ Pre-processors run after the last user message is received but before
 the first LLM request. Each receives the prompt text and a shared
 embedding (computed once per request) and may return messages to
 enrich the conversation. Forwarded to the underlying `useChat` hook.
-See `createWebSearchPreProcessor`, `createPricePreProcessor`, or write
+See `createWebSearchPreProcessor`, `createCryptoPricePreProcessor`,
+`createStockPricePreProcessor`, `createWeatherPreProcessor`, or write
 a custom one matching `PromptPreProcessor`.
 
 </td>

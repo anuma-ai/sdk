@@ -9,8 +9,8 @@ describe("HAVEN_PROMPT", () => {
     expect(HAVEN_PROMPT.length).toBeGreaterThan(0);
   });
 
-  it("contains Haven identity marker", () => {
-    expect(HAVEN_PROMPT).toContain("You are Haven");
+  it("contains the agent identity marker", () => {
+    expect(HAVEN_PROMPT).toContain("You are Anuma Housing Agent");
   });
 
   it("contains core capability markers", () => {
@@ -26,7 +26,7 @@ describe("HAVEN_PROMPT", () => {
 
   it("works as basePrompt in buildSystemPrompt", () => {
     const result = buildSystemPrompt({ basePrompt: HAVEN_PROMPT });
-    expect(result.prompt).toContain("You are Haven");
+    expect(result.prompt).toContain("You are Anuma Housing Agent");
     expect(result.activeSections).toContain("base");
   });
 });

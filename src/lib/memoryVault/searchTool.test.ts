@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   createMemoryVaultSearchTool,
   searchVaultMemories,
+  searchVaultMemoriesWithSize,
   preEmbedVaultMemories,
   eagerEmbedContent,
 } from "./searchTool";
@@ -45,6 +46,67 @@ describe("searchVaultMemories", () => {
     vi.clearAllMocks();
   });
 
+  it("excludes still-encrypted content from search (key unavailable)", async () => {
+    // decryptField is best-effort: when the key is unavailable it returns
+    // the raw enc:vN: payload. Such content must never reach ranking —
+    // BM25 would tokenize hex, the embedder would embed ciphertext, and
+    // the recall tool would emit enc:vN: blocks to the answer model.
+    const memories = [
+      makeMemory("m1", "cats are great"),
+      makeMemory("m2", "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00"),
+    ];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("cats are great", [1, 0, 0]);
+
+    const results = await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].uniqueId).toBe("m1");
+    // The ciphertext row was never sent for embedding either.
+    expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+  });
+
+  it("reports vaultSize from rows that EXIST when all content is still encrypted", async () => {
+    // vaultSize === 0 means "vault is empty — nothing saved yet" to tool
+    // callers, which would tell the LLM so and invite duplicate saves
+    // while decryption is temporarily unavailable.
+    const memories = [
+      makeMemory("m1", "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00"),
+      makeMemory("m2", "enc:v3:cafebabecafebabecafebabecafebabecafebabecafebabecafebabe00"),
+    ];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    const { results, vaultSize } = await searchVaultMemoriesWithSize(
+      "cats",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: false }
+    );
+
+    expect(results).toHaveLength(0);
+    expect(vaultSize).toBe(2);
+  });
+
+  it("eagerEmbedContent refuses to embed ciphertext", async () => {
+    const cache = createVaultEmbeddingCache();
+    await eagerEmbedContent(
+      "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
+      mockEmbeddingOptions,
+      cache
+    );
+    expect(vi.mocked(generateEmbedding)).not.toHaveBeenCalled();
+    expect(cache.size).toBe(0);
+  });
+
   it("returns structured VaultSearchResult[] sorted by similarity", async () => {
     const memories = [
       makeMemory("m1", "cats are great"),
@@ -59,8 +121,11 @@ describe("searchVaultMemories", () => {
     cache.set("dogs are fun", [0.5, 0.5, 0]); // cos ≈ 0.71
     cache.set("birds can fly", [0, 1, 0]); // cos = 0.0
 
+    // Test cosine-ranker semantics directly; the fusion ranker has its
+    // own coverage in rankFusedVaultMemories.test.ts.
     const results = await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
+      useFusion: false,
     });
 
     expect(results).toHaveLength(3);

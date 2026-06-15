@@ -2,7 +2,7 @@
 
 > **GetApiV1SubscriptionsPlansData** = `object`
 
-Defined in: [src/client/types.gen.ts:6128](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6128)
+Defined in: [src/client/types.gen.ts:8157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8157)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6128](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6129)
+Defined in: [src/client/types.gen.ts:8158](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8158)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6129](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6130)
+Defined in: [src/client/types.gen.ts:8159](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8159)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:6130](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6131](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6131)
+Defined in: [src/client/types.gen.ts:8160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8160)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:6131](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/subscriptions/plans"`
 
-Defined in: [src/client/types.gen.ts:6132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6132)
+Defined in: [src/client/types.gen.ts:8161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8161)

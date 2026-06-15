@@ -10,10 +10,10 @@ import {
   normalizePath,
   type AppFileStorage,
 } from "../../../src/tools/appGeneration.js";
-import type { FileStore } from "./setup.js";
+import { createPlaywrightVerifier, type FileStore } from "./setup.js";
 
 /** Create an AppFileStorage adapter backed by an in-memory Map. */
-function createMapStorage(store: FileStore): AppFileStorage {
+export function createMapStorage(store: FileStore): AppFileStorage {
   return {
     getFile: async (_cid: string, p: string) => {
       const content = store.get(normalizePath(p));
@@ -33,7 +33,7 @@ function createMapStorage(store: FileStore): AppFileStorage {
   };
 }
 
-const TEST_CONVERSATION_ID = "test-conversation";
+export const TEST_CONVERSATION_ID = "test-conversation";
 
 export function createTestAppTools(store: FileStore) {
   return createAppGenerationTools({
@@ -45,5 +45,12 @@ export function createTestAppTools(store: FileStore) {
         interaction_id: `app_test_${Date.now()}`,
       };
     },
+    // verify_app: model asks the host's runtime "did this actually run?"
+    // and gets back any captured errors. The benchmark host is headless
+    // Chromium loading the current store as exported HTML — the same
+    // runtime overlay you ship to real users surfaces the failure
+    // string, the verifier hands it back to the model, the model
+    // patches before declaring done.
+    verifyApp: createPlaywrightVerifier(store),
   });
 }
