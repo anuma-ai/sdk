@@ -8,7 +8,12 @@ import type {
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { generateEmbedding } from "../memoryEngine/embeddings";
-import { createStreamingDeAnonymizer, type PiiRedactor, resolvePiiRedactor } from "../pii/redactor";
+import {
+  createStreamingDeAnonymizer,
+  type PiiMatch,
+  type PiiRedactor,
+  resolvePiiRedactor,
+} from "../pii/redactor";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -558,6 +563,14 @@ export type RunToolLoopOptions = {
    */
   piiRedaction?: boolean | PiiRedactor;
   /**
+   * Called with the PII matches found each time outbound messages are redacted
+   * (initial request, injected pre-processor context, and tool-result
+   * continuation rounds). Useful for surfacing "redacted N emails, 1 SSN" to
+   * the user for consent. Only fired when `piiRedaction` is active and at least
+   * one match was found. Errors thrown by the callback are swallowed.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
+  /**
    * Lifecycle hooks for observability (telemetry, tracing, UI surfaces).
    * All hooks are optional. Errors thrown by a hook are swallowed so a
    * buggy observer can't crash the loop. Hooks are awaited synchronously
@@ -823,6 +836,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     maxConnectorCalls = 2,
     hooks: hooksOption,
     piiRedaction,
+    onPiiRedacted,
   } = options;
   // Accept a single listener or an array — array form is composed into a
   // single dispatcher so the rest of the loop can stay shape-agnostic.
@@ -943,9 +957,22 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   // embeddings endpoint (the embedding is computed from redacted text).
   const redactor = resolvePiiRedactor(piiRedaction);
 
-  if (redactor) {
-    messages = redactor.redactMessages(messages).messages;
-  }
+  // Redact a batch of messages and surface the matches to onPiiRedacted.
+  // No-op (returns the input) when redaction is disabled.
+  const redactBatch = (msgs: LlmapiMessage[]): LlmapiMessage[] => {
+    if (!redactor) return msgs;
+    const { messages: redacted, matches } = redactor.redactMessages(msgs);
+    if (matches.length > 0 && onPiiRedacted) {
+      try {
+        onPiiRedacted(matches);
+      } catch {
+        /* observer error, swallow — same philosophy as the other hooks */
+      }
+    }
+    return redacted;
+  };
+
+  messages = redactBatch(messages);
 
   // Run pre-processors if any are provided. Each receives the shared
   // embedding and may return messages to enrich the conversation.
@@ -972,7 +999,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (extra.length > 0) {
           // Injected context (memory/search/file) can also contain PII — redact
           // it with the same redactor so placeholder numbering stays consistent.
-          messages = [...messages, ...(redactor ? redactor.redactMessages(extra).messages : extra)];
+          messages = [...messages, ...redactBatch(extra)];
         }
       }
     } catch (err) {
@@ -1726,10 +1753,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // systems, which would otherwise reach the provider in clear text. The
       // assistant message already holds model-emitted placeholders, which are
       // inert under redaction.
-      currentMessages = [
-        ...currentMessages,
-        ...(redactor ? redactor.redactMessages(toolResultMessages).messages : toolResultMessages),
-      ];
+      currentMessages = [...currentMessages, ...redactBatch(toolResultMessages)];
 
       const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
       // "required" exists to guarantee the FIRST round picks a tool (e.g.

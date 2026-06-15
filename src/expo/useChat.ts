@@ -133,6 +133,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     smoothing,
     preProcessors,
     piiRedaction,
+    onPiiRedacted,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -275,6 +276,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onStepFinish,
           preProcessors,
           piiRedaction,
+          onPiiRedacted,
         });
 
         return result;
@@ -305,6 +307,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       smoothing,
       preProcessors,
       piiRedaction,
+      onPiiRedacted,
     ]
   );
 

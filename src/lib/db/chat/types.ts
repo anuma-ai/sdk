@@ -19,7 +19,7 @@ import {
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
-import type { PiiRedactor } from "../../pii/redactor";
+import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
@@ -439,6 +439,11 @@ export interface BaseUseChatStorageOptions {
    * - `PiiRedactor` instance: share state across requests in a conversation
    */
   piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called with the PII matches found whenever outbound messages are redacted.
+   * Only fired when `piiRedaction` is active and at least one match was found.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
 /**

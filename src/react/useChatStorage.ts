@@ -1069,6 +1069,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     mcpR2Domain = MCP_R2_DOMAIN,
     preProcessors,
     piiRedaction,
+    onPiiRedacted,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1662,6 +1663,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     apiType,
     preProcessors,
     piiRedaction,
+    onPiiRedacted,
   });
 
   /**

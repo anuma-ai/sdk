@@ -6,7 +6,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
-import type { PiiRedactor } from "../../pii/redactor";
+import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { PromptPreProcessor } from "../preProcessor";
 import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
@@ -277,6 +277,12 @@ export type BaseUseChatOptions = {
    *   (recommended — keeps placeholder numbering consistent)
    */
   piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called with the PII matches found whenever outbound messages are redacted.
+   * Useful for surfacing what was redacted to the user. Only fired when
+   * `piiRedaction` is active and at least one match was found.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 };
 
 /**
