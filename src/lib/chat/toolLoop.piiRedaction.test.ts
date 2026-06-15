@@ -26,6 +26,24 @@ function makeStream(deltas: string[]) {
   })();
 }
 
+/** Build a Responses-API stream that emits a single function/tool call. */
+function makeToolCallStream(opts: { callId: string; name: string; arguments: string }) {
+  return (async function* () {
+    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield {
+      type: "response.output_item.added",
+      item: { id: `item_${opts.callId}`, call_id: opts.callId, type: "function_call", name: opts.name, arguments: "" },
+    };
+    yield {
+      type: "response.function_call_arguments.done",
+      item_id: `item_${opts.callId}`,
+      call_id: opts.callId,
+      arguments: opts.arguments,
+    };
+    yield { type: "response.completed", response: { usage: { input_tokens: 1, output_tokens: 1 } } };
+  })();
+}
+
 function getRequestMessages(callIndex: number): { role?: string; content?: unknown }[] {
   const opts = mockCreateSseClient.mock.calls[callIndex][0] as { serializedBody: string };
   const body = JSON.parse(opts.serializedBody);
@@ -158,5 +176,75 @@ describe("runToolLoop PII redaction", () => {
     const serialized = JSON.stringify(getRequestMessages(0));
     expect(serialized).toContain("bob@acme.com");
     expect(serialized).not.toContain("[EMAIL_1]");
+  });
+
+  it("de-anonymizes tool arguments for tools that opt in via deAnonymizeArgs", async () => {
+    // Round 1: model calls the tool with the placeholder it saw. Round 2: text.
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeToolCallStream({
+          callId: "c1",
+          name: "memory_save",
+          arguments: JSON.stringify({ content: "User's email is [EMAIL_1]" }),
+        }),
+      } as never)
+      .mockReturnValueOnce({ stream: makeStream(["done"]) } as never);
+
+    let received: unknown;
+    await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "my email is bob@acme.com" }] }],
+      model: "test-model",
+      token: "token",
+      piiRedaction: true,
+      smoothing: { enabled: false },
+      tools: [
+        {
+          type: "function",
+          function: { name: "memory_save", parameters: { type: "object", properties: {} } },
+          executor: async (args: Record<string, unknown>) => {
+            received = args.content;
+            return "saved";
+          },
+          deAnonymizeArgs: true,
+        },
+      ],
+    });
+
+    // The executor must receive the REAL value, not the placeholder.
+    expect(received).toBe("User's email is bob@acme.com");
+  });
+
+  it("leaves tool arguments redacted for tools that do NOT opt in", async () => {
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeToolCallStream({
+          callId: "c1",
+          name: "send_external",
+          arguments: JSON.stringify({ to: "[EMAIL_1]" }),
+        }),
+      } as never)
+      .mockReturnValueOnce({ stream: makeStream(["done"]) } as never);
+
+    let received: unknown;
+    await runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "my email is bob@acme.com" }] }],
+      model: "test-model",
+      token: "token",
+      piiRedaction: true,
+      smoothing: { enabled: false },
+      tools: [
+        {
+          type: "function",
+          function: { name: "send_external", parameters: { type: "object", properties: {} } },
+          executor: async (args: Record<string, unknown>) => {
+            received = args.to;
+            return "sent";
+          },
+          // no deAnonymizeArgs -> stays redacted (e.g. a connector/forwarding tool)
+        },
+      ],
+    });
+
+    expect(received).toBe("[EMAIL_1]");
   });
 });

@@ -111,6 +111,17 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    */
   executorTimeout?: number;
   /**
+   * When PII redaction is active, de-anonymize this tool's call arguments
+   * (restore original values for any `[CATEGORY_n]` placeholders) BEFORE the
+   * executor runs, using the same redactor that redacted the request this turn.
+   * Opt in only for tools that act on data that stays on the device — e.g.
+   * `memory_vault_save`, which must persist the real value, not a placeholder.
+   * Leave off for tools that forward arguments off-device (connectors), so PII
+   * stays redacted on the wire.
+   * @default false
+   */
+  deAnonymizeArgs?: boolean;
+  /**
    * Tool names that this tool depends on. When multiple tools are called in
    * the same response, tools with `dependsOn` will wait for the named tools
    * to finish executing before starting.

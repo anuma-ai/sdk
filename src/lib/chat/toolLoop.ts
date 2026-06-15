@@ -1536,8 +1536,18 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 error: `No executor found for tool: ${toolCall.name}`,
               };
             }
+            // Opt-in: restore original PII values in this tool's arguments
+            // before it runs, using runToolLoop's own redactor (which holds
+            // this turn's [EMAIL_1]->real mapping from the request redaction).
+            // Used by on-device tools like memory_vault_save so they persist the
+            // real value instead of a placeholder; connectors don't opt in, so
+            // their args stay redacted.
+            const toolCallForExec =
+              redactor && executorConfig.deAnonymizeArgs && toolCall.arguments
+                ? { ...toolCall, arguments: redactor.deAnonymize(toolCall.arguments) }
+                : toolCall;
             const { result, error, errorType } = await executeToolCall(
-              toolCall,
+              toolCallForExec,
               executorConfig.executor,
               executorConfig.executorTimeout
             );

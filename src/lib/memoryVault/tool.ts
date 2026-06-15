@@ -239,5 +239,9 @@ export function createMemoryVaultTool(
         }
       : undefined,
     removeAfterExecution: hasOnSave,
+    // Saved memories live on-device, so restore real PII values (runToolLoop
+    // de-anonymizes the call arguments with the turn's redactor) — the vault
+    // must store "bob@acme.com", not "[EMAIL_1]".
+    deAnonymizeArgs: true,
   };
 }
