@@ -36,6 +36,17 @@ describe("PiiRedactor", () => {
         expect(result.matches[0].placeholder).toBe("[EMAIL_1]");
         expect(result.matches[1].placeholder).toBe("[EMAIL_1]");
       });
+
+      it("does not backtrack quadratically on adversarial no-@ input (ReDoS guard)", () => {
+        // "a.a.a…" with no "@" forced O(n²) backtracking before the
+        // quantifiers were bounded. This must complete near-instantly.
+        const input = "a.".repeat(50_000);
+        const start = performance.now();
+        const result = redactor.redactText(input);
+        const elapsed = performance.now() - start;
+        expect(result.matches.filter((m) => m.category === "EMAIL")).toHaveLength(0);
+        expect(elapsed).toBeLessThan(500);
+      });
     });
 
     describe("phone numbers", () => {

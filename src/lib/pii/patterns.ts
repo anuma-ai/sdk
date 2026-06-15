@@ -49,10 +49,13 @@ function luhnCheck(digits: string): boolean {
  * phone, and IP addresses (dotted quads) must run before phone.
  */
 export const PII_PATTERNS: PiiPattern[] = [
-  // Email — standard RFC-ish pattern
+  // Email — standard RFC-ish pattern.
+  // Quantifiers are bounded (local-part ≤ 64, domain ≤ 255, TLD ≤ 24 —
+  // all at or above real RFC 5321 limits) so the engine cannot backtrack
+  // quadratically on adversarial input like "a.a.a.a…" with no "@".
   {
     category: "EMAIL",
-    regex: /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g,
+    regex: /\b[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,255}\.[a-zA-Z]{2,24}\b/g,
   },
 
   // SSN — US Social Security Number (must run before phone)
