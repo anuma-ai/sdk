@@ -60,14 +60,50 @@ describe("PiiRedactor", () => {
         expect(result.text).toBe("Call [PHONE_1]");
       });
 
-      it("redacts international phone", () => {
+      it("redacts US phone with +1 country code", () => {
         const result = redactor.redactText("My number is +1 555-123-4567");
         expect(result.text).toBe("My number is [PHONE_1]");
+      });
+
+      it("redacts E.164 numbers", () => {
+        const result = redactor.redactText("Reach me at +14155552671 anytime");
+        expect(result.text).toBe("Reach me at [PHONE_1] anytime");
       });
 
       it("does not match short digit sequences", () => {
         const result = redactor.redactText("I have 42 items and 100 pages");
         expect(result.matches.filter((m) => m.category === "PHONE")).toHaveLength(0);
+      });
+    });
+
+    describe("dashless SSN", () => {
+      it("redacts a 9-digit SSN when an SSN cue is present", () => {
+        const r1 = redactor.redactText("My SSN is 123456789");
+        const r2 = redactor.redactText("social security number 123 45 6789");
+        expect(r1.text).toBe("My SSN is [SSN_1]");
+        expect(r2.matches.filter((m) => m.category === "SSN")).toHaveLength(1);
+      });
+
+      it("does not redact a bare 9-digit run without an SSN cue", () => {
+        const result = redactor.redactText("Order reference 123456789 shipped");
+        expect(result.matches.filter((m) => m.category === "SSN")).toHaveLength(0);
+      });
+    });
+
+    describe("IPv6 addresses", () => {
+      it("redacts a full IPv6 address", () => {
+        const result = redactor.redactText("Host 2001:0db8:85a3:0000:0000:8a2e:0370:7334 up");
+        expect(result.text).toBe("Host [IP_ADDRESS_1] up");
+      });
+
+      it("redacts a compressed IPv6 address", () => {
+        const result = redactor.redactText("Bound to fe80::1ff:fe23:4567:890a now");
+        expect(result.matches.filter((m) => m.category === "IP_ADDRESS")).toHaveLength(1);
+      });
+
+      it("does not match a clock time", () => {
+        const result = redactor.redactText("The meeting is at 12:34:56 today");
+        expect(result.matches.filter((m) => m.category === "IP_ADDRESS")).toHaveLength(0);
       });
     });
 

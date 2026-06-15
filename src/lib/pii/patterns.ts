@@ -67,13 +67,28 @@ export const PII_PATTERNS: PiiPattern[] = [
     regex: /\b[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,255}\.[a-zA-Z]{2,24}\b/g,
   },
 
-  // SSN — US Social Security Number (must run before phone)
+  // SSN — US Social Security Number, dashed form (must run before phone)
   {
     category: "SSN",
     regex: /\b\d{3}-\d{2}-\d{4}\b/g,
     validate: (match: string) => {
       const parts = match.split("-");
       const area = parseInt(parts[0], 10);
+      return area !== 0 && area !== 666 && area < 900;
+    },
+  },
+
+  // SSN — dashless or space-separated form. Only redacted with an "SSN" /
+  // "social security" cue nearby: a bare 9-digit run is too ambiguous
+  // (ZIP+4, account numbers, etc.) to redact unconditionally.
+  {
+    category: "SSN",
+    regex: /\b\d{3}[ ]?\d{2}[ ]?\d{4}\b/g,
+    context: /(?:\bssn\b|\bsocial\s+security(?:\s+(?:number|no\.?|#))?\b)[^\d\n]{0,12}$/i,
+    validate: (match: string) => {
+      const digits = match.replace(/\D/g, "");
+      if (digits.length !== 9) return false;
+      const area = parseInt(digits.slice(0, 3), 10);
       return area !== 0 && area !== 666 && area < 900;
     },
   },
@@ -99,12 +114,26 @@ export const PII_PATTERNS: PiiPattern[] = [
     },
   },
 
-  // Phone numbers — US/international formats
-  // Requires separator characters (dashes, spaces, dots, parens) to avoid matching
-  // bare digit sequences that are actually credit cards, IPs, or years.
+  // IPv6 addresses — full and compressed (::) forms. Each alternative requires
+  // either a full 8-group address or a "::" compression, so ordinary
+  // colon-separated text (timestamps like 12:34:56) does not match. Loopback
+  // (::1) and unspecified (::) are excluded.
+  {
+    category: "IP_ADDRESS",
+    regex:
+      /(?:(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:))/g,
+    validate: (match: string) => match !== "::1" && match !== "::",
+  },
+
+  // Phone numbers. The separated form requires separator characters (dashes,
+  // spaces, dots, parens) to avoid matching bare digit sequences that are
+  // actually credit cards, IPs, or years. A second alternative matches E.164
+  // (a leading "+" then 10–15 digits, e.g. +14155552671), which is
+  // unambiguous; a bare 10-digit run with no "+" and no separators is
+  // intentionally not matched to avoid false positives.
   {
     category: "PHONE",
-    regex: /(?:\+\d{1,3}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g,
+    regex: /(?:\+\d{1,3}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b|\+\d{10,15}\b/g,
   },
 
   // API keys / secrets — long token with a key-like prefix. The validator
