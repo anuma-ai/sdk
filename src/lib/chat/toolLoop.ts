@@ -8,7 +8,7 @@ import type {
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { generateEmbedding } from "../memoryEngine/embeddings";
-import { PiiRedactor } from "../pii/redactor";
+import { createStreamingDeAnonymizer, PiiRedactor } from "../pii/redactor";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -980,12 +980,21 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     messages = result.messages;
   }
 
-  // Wrap onData to de-anonymize placeholders in streaming response chunks
-  const originalOnData = onData;
-  const wrappedOnData =
-    redactor && originalOnData
-      ? (chunk: string) => originalOnData(redactor.deAnonymize(chunk))
-      : originalOnData;
+  // De-anonymize placeholders in the streamed content/thinking before they
+  // reach the user. A stateful streaming de-anonymizer is required because the
+  // smoother emits a few characters at a time, so a placeholder ([EMAIL_1])
+  // is routinely split across emitted chunks; a per-chunk replace would never
+  // match it. Created once per run; flushed after each round's smoother drains.
+  const contentDeAnon =
+    redactor && onData ? createStreamingDeAnonymizer(redactor, onData) : null;
+  const thinkingDeAnon =
+    redactor && onThinking ? createStreamingDeAnonymizer(redactor, onThinking) : null;
+  const emitData = contentDeAnon ? contentDeAnon.push : onData;
+  const emitThinking = thinkingDeAnon ? thinkingDeAnon.push : onThinking;
+  const flushDeAnon = (): void => {
+    contentDeAnon?.flush();
+    thinkingDeAnon?.flush();
+  };
 
   try {
     let sseError: Error | null = null;
@@ -1091,6 +1100,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       smoothers: StreamSmoother[]
     ): Promise<RunToolLoopResult> => {
       for (const smoother of smoothers) smoother.flush();
+      flushDeAnon();
       await fireAfterModelCall(buildModelCallEndPayload(acc, { error: "detached" }));
       await fireRunError({ error: "Request detached", stage: "model" });
       return {
@@ -1157,10 +1167,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       accumulator = createStreamAccumulator(model || undefined);
       contentSmoother = new StreamSmoother((text) => {
-        if (wrappedOnData) wrappedOnData(text);
+        if (emitData) emitData(text);
       }, smoothing);
       thinkingSmoother = new StreamSmoother((text) => {
-        if (onThinking) onThinking(text);
+        if (emitThinking) emitThinking(text);
       }, smoothing);
 
       let chunksEmittedDownstream = false;
@@ -1281,6 +1291,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     } else {
       await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
     }
+    // Emit any placeholder fragment held back across the smoother's final slice.
+    flushDeAnon();
     await fireAfterModelCall(buildModelCallEndPayload(accumulator));
 
     const response = strategy.buildFinalResponse(accumulator);
@@ -1624,6 +1636,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // slide's full JSX, or plan_deck's recipe), and paced-draining them at the
       // smoother's char rate would block the loop for tens of seconds per round.
       thinkingSmoother.flush();
+      thinkingDeAnon?.flush();
 
       // Accumulate this round's successful results for the main return path.
       // Multi-round flows (e.g. plan_deck + add_slide × N) need every round's
@@ -1798,10 +1811,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
         currentAccumulator = createStreamAccumulator(model || undefined);
         contContentSmoother = new StreamSmoother((text) => {
-          if (wrappedOnData) wrappedOnData(text);
+          if (emitData) emitData(text);
         }, smoothing);
         contThinkingSmoother = new StreamSmoother((text) => {
-          if (onThinking) onThinking(text);
+          if (emitThinking) emitThinking(text);
         }, smoothing);
 
         let chunksEmittedDownstream = false;
@@ -1924,6 +1937,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       } else {
         await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
       }
+      // Emit any placeholder fragment held back across the smoother's final slice.
+      flushDeAnon();
       await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator));
     }
 
@@ -1931,7 +1946,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (connectorLimitHit) {
       const tip =
         "\n\n> **Tip:** Switch to a **Thinking model** for more detailed results with connectors like Notion, Google Calendar, and Drive.\n";
-      if (wrappedOnData) wrappedOnData(tip);
+      if (emitData) emitData(tip);
+      flushDeAnon();
       currentAccumulator.content += tip;
     }
 

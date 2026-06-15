@@ -1,4 +1,4 @@
-export { PiiRedactor } from "./redactor";
+export { PiiRedactor, createStreamingDeAnonymizer } from "./redactor";
 export type {
   PiiMatch,
   RedactionResult,

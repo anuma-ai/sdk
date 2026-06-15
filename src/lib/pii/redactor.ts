@@ -223,3 +223,47 @@ export class PiiRedactor {
     this.categoryCounters.clear();
   }
 }
+
+/**
+ * Wraps an output sink so a streamed sequence of chunks is de-anonymized
+ * correctly even when a placeholder ("[EMAIL_1]") is split across chunk
+ * boundaries — which happens routinely because the stream smoother emits text
+ * a few characters at a time.
+ *
+ * Each `push` emits everything that is safe to restore now and holds back any
+ * trailing fragment that could be the start of a placeholder ("[", optionally
+ * followed by placeholder-body characters) until it completes. Call `flush`
+ * when the stream ends to emit whatever remains.
+ */
+export function createStreamingDeAnonymizer(
+  redactor: PiiRedactor,
+  emit: (chunk: string) => void
+): { push: (chunk: string) => void; flush: () => void } {
+  let buffer = "";
+  // A "[" followed by zero or more placeholder-body chars, anchored to the end
+  // of the buffer — i.e. a possibly-incomplete placeholder to hold back.
+  const trailingFragment = /\[[A-Za-z0-9_]*$/;
+  return {
+    push(chunk: string): void {
+      if (!chunk) return;
+      buffer += chunk;
+      const m = buffer.match(trailingFragment);
+      if (!m || m.index === undefined) {
+        // No trailing fragment — the whole buffer is safe to restore.
+        emit(redactor.deAnonymize(buffer));
+        buffer = "";
+      } else if (m.index > 0) {
+        // Emit the safe prefix; keep the trailing fragment for the next push.
+        emit(redactor.deAnonymize(buffer.slice(0, m.index)));
+        buffer = buffer.slice(m.index);
+      }
+      // m.index === 0: the entire buffer is a potential placeholder — hold it.
+    },
+    flush(): void {
+      if (buffer) {
+        emit(redactor.deAnonymize(buffer));
+        buffer = "";
+      }
+    },
+  };
+}

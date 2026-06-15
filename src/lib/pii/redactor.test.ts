@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { PiiRedactor } from "./redactor";
+import { PiiRedactor, createStreamingDeAnonymizer } from "./redactor";
 import type { LlmapiMessage } from "../../client";
 
 describe("PiiRedactor", () => {
@@ -352,6 +352,47 @@ describe("PiiRedactor", () => {
 
     it("returns text unchanged if no placeholders", () => {
       expect(redactor.deAnonymize("No placeholders here")).toBe("No placeholders here");
+    });
+  });
+
+  describe("createStreamingDeAnonymizer", () => {
+    it("restores a placeholder split across single-character chunks", () => {
+      redactor.redactText("john@example.com");
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      // Simulate the smoother emitting one character at a time.
+      for (const ch of "Email [EMAIL_1] now") stream.push(ch);
+      stream.flush();
+      expect(out).toBe("Email john@example.com now");
+    });
+
+    it("restores placeholders split at arbitrary chunk boundaries", () => {
+      redactor.redactText("john@example.com and 555-123-4567");
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      // Boundaries deliberately fall inside the placeholders.
+      for (const chunk of ["Contact [EMA", "IL_1] or call [PHO", "NE_1] today"]) {
+        stream.push(chunk);
+      }
+      stream.flush();
+      expect(out).toBe("Contact john@example.com or call 555-123-4567 today");
+    });
+
+    it("flushes a trailing incomplete fragment as-is", () => {
+      redactor.redactText("john@example.com");
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      stream.push("ends with a bracket [");
+      stream.flush();
+      expect(out).toBe("ends with a bracket [");
+    });
+
+    it("does not hold back ordinary bracketed prose indefinitely", () => {
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      stream.push("array[i] = value[j]");
+      stream.flush();
+      expect(out).toBe("array[i] = value[j]");
     });
   });
 

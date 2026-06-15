@@ -840,7 +840,7 @@ export type {
   PiiPattern,
   PiiRedactorOptions,
 } from "./lib/pii";
-export { PiiRedactor, PII_PATTERNS } from "./lib/pii";
+export { PiiRedactor, PII_PATTERNS, createStreamingDeAnonymizer } from "./lib/pii";
 
 // Response field read-helpers for the chat-completions / responses APIs. After the
 // OpenAI-compliant migration, portal-specific fields (cost/credits, tool-call events, image
