@@ -377,6 +377,16 @@ describe("PiiRedactor", () => {
       expect(mappings.get("[EMAIL_1]")).toBe("john@example.com");
       expect(mappings.get("[PHONE_1]")).toBe("555-123-4567");
     });
+
+    it("returns a snapshot copy, not the live internal map", () => {
+      redactor.redactText("john@example.com");
+      const snapshot = redactor.getMappings();
+      expect(snapshot.size).toBe(1);
+      // A later redaction must not retroactively grow the earlier snapshot.
+      redactor.redactText("jane@other.com");
+      expect(snapshot.size).toBe(1);
+      expect(redactor.getMappings().size).toBe(2);
+    });
   });
 
   describe("clear", () => {

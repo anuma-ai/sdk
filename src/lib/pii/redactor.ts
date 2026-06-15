@@ -54,10 +54,11 @@ export class PiiRedactor {
 
   /**
    * Returns a snapshot of all placeholder → original value mappings.
-   * Useful for debugging or UI display.
+   * Useful for debugging or UI display. This is a copy — mutating it (or
+   * later redactions) does not affect the returned map and vice versa.
    */
   getMappings(): ReadonlyMap<string, string> {
-    return this.placeholderToValue;
+    return new Map(this.placeholderToValue);
   }
 
   /**
