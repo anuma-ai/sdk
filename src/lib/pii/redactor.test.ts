@@ -128,6 +128,19 @@ describe("PiiRedactor", () => {
         const result = redactor.redactText("Authorization: bearer_abc123def456ghi789jkl012");
         expect(result.text).toContain("[API_KEY_1]");
       });
+
+      it("does not redact long lowercase prose identifiers", () => {
+        const inputs = [
+          "accessibility_is_important_for_everyone",
+          "access-control-list-management-feature",
+          "secret_handshake_between_old_friends",
+          "api_documentation_reference_guide",
+        ];
+        for (const input of inputs) {
+          const result = redactor.redactText(input);
+          expect(result.matches.filter((m) => m.category === "API_KEY")).toHaveLength(0);
+        }
+      });
     });
 
     describe("US addresses", () => {

@@ -98,10 +98,20 @@ export const PII_PATTERNS: PiiPattern[] = [
     regex: /(?:\+\d{1,3}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g,
   },
 
-  // API keys / secrets — long alphanumeric strings with key-like prefixes
+  // API keys / secrets — long token with a key-like prefix. The validator
+  // requires entropy (at least one digit, or a mix of upper- and lower-case)
+  // so long all-lowercase prose identifiers like
+  // "accessibility_is_important_for_everyone" or
+  // "access-control-list-management-feature" are not redacted. Real keys and
+  // tokens essentially always contain digits or mixed case.
   {
     category: "API_KEY",
     regex: /\b(?:sk|pk|api|key|token|secret|bearer|access)[_-]?[a-zA-Z0-9_-]{20,}\b/gi,
+    validate: (match: string) => {
+      const hasDigit = /\d/.test(match);
+      const hasMixedCase = /[a-z]/.test(match) && /[A-Z]/.test(match);
+      return hasDigit || hasMixedCase;
+    },
   },
 
   // US street addresses — house number + Title-Case street name + suffix.
