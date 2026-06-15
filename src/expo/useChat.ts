@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
+import { PiiRedactor } from "../lib/pii/redactor";
 import {
   type ApiType,
   type AutoExecutedToolResult,
@@ -137,6 +138,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // When piiRedaction is `true`, upgrade it to a single redactor instance kept
+  // for the lifetime of this hook so placeholder state is shared across turns.
+  const piiRedactorRef = useRef<PiiRedactor | null>(null);
+  if (piiRedaction === true && !piiRedactorRef.current) {
+    piiRedactorRef.current = new PiiRedactor();
+  }
+  const resolvedPiiRedaction = piiRedaction === true ? piiRedactorRef.current! : piiRedaction;
 
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -275,7 +284,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
-          piiRedaction,
+          piiRedaction: resolvedPiiRedaction,
           onPiiRedacted,
         });
 
@@ -306,7 +315,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       defaultApiType,
       smoothing,
       preProcessors,
-      piiRedaction,
+      resolvedPiiRedaction,
       onPiiRedacted,
     ]
   );

@@ -13,6 +13,7 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
+import { PiiRedactor } from "../lib/pii/redactor";
 import {
   type ApiResponse,
   extractAssistantText,
@@ -1076,6 +1077,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     initialConversationId || null
   );
 
+  // When piiRedaction is `true`, upgrade it to a single redactor per
+  // conversation so placeholder state is shared across turns within a
+  // conversation and reset when switching conversations. An explicit instance
+  // or `false` is passed through unchanged.
+  const piiRedactorRef = useRef<{ id: string | null; redactor: PiiRedactor } | null>(null);
+  const resolvedPiiRedaction = useMemo(() => {
+    if (piiRedaction !== true) return piiRedaction;
+    if (!piiRedactorRef.current || piiRedactorRef.current.id !== currentConversationId) {
+      piiRedactorRef.current = { id: currentConversationId, redactor: new PiiRedactor() };
+    }
+    return piiRedactorRef.current.redactor;
+  }, [piiRedaction, currentConversationId]);
+
   // Blob URL manager for encrypted file storage
   const blobManagerRef = useRef<BlobUrlManager>(new BlobUrlManager());
 
@@ -1662,7 +1676,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onToolCallArgumentsDelta,
     apiType,
     preProcessors,
-    piiRedaction,
+    piiRedaction: resolvedPiiRedaction,
     onPiiRedacted,
   });
 
