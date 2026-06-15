@@ -129,18 +129,22 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   // Storage operation contexts for the mutation callbacks. Collection lookups
-  // are stable per-database in WatermelonDB so this is cheap.
-  const { storageCtx, legacyStorageCtx } = useMemo(() => {
-    const userPreferencesCollection = database.get<UserPreference>("userPreferences");
-    const modelPreferencesCollection = database.get<ModelPreference>("modelPreferences");
-    const sCtx: UserPreferencesStorageOperationsContext = {
+  // are stable per-database in WatermelonDB so these are cheap.
+  const storageCtx = useMemo<UserPreferencesStorageOperationsContext>(
+    () => ({
       database,
-      userPreferencesCollection,
-      modelPreferencesCollection,
-    };
-    const lCtx: SettingsStorageOperationsContext = { database, modelPreferencesCollection };
-    return { storageCtx: sCtx, legacyStorageCtx: lCtx };
-  }, [database]);
+      userPreferencesCollection: database.get<UserPreference>("userPreferences"),
+      modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
+    }),
+    [database]
+  );
+  const legacyStorageCtx = useMemo<SettingsStorageOperationsContext>(
+    () => ({
+      database,
+      modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
+    }),
+    [database]
+  );
 
   // ===== Legacy API (deprecated) =====
 

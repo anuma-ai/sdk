@@ -1,3 +1,5 @@
+"use client";
+
 import type { Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
@@ -36,15 +38,17 @@ interface SettingsSnapshot {
   isLoading: boolean;
 }
 
-export const EMPTY_SNAPSHOT: SettingsSnapshot = {
+// Frozen so a stray mutation can't poison the snapshot shared by every key
+// that has no entry yet (and the no-wallet fast paths below).
+export const EMPTY_SNAPSHOT: SettingsSnapshot = Object.freeze({
   modelPreference: null,
   userPreference: null,
   isLoading: false,
-};
+});
 
 interface PoolEntry {
   snapshot: SettingsSnapshot;
-  listeners: Set<() => void>;
+  listeners: Array<() => void>;
   refCount: number;
   observeSub: { unsubscribe: () => void } | null;
   loadCancelled: boolean;
@@ -52,7 +56,13 @@ interface PoolEntry {
   legacyStorageCtx: SettingsStorageOperationsContext;
 }
 
-const pool = new WeakMap<Database, Map<string, PoolEntry>>();
+// Outer map is a WeakMap keyed by `Database` so a torn-down database (and all
+// its pooled entries) can be garbage-collected without explicit cleanup. The
+// inner map is a plain `Map` because its `string` wallet-address keys aren't
+// independently reclaimable and we delete entries explicitly on last
+// unsubscribe. `let` (not `const`) so tests can swap in a fresh pool — see
+// `__resetPoolForTests`.
+let pool = new WeakMap<Database, Map<string, PoolEntry>>();
 
 function getOrCreatePerDb(database: Database): Map<string, PoolEntry> {
   let perDb = pool.get(database);
@@ -67,11 +77,21 @@ function createEntry(database: Database): PoolEntry {
   const userPreferencesCollection = database.get<UserPreference>("userPreferences");
   const modelPreferencesCollection = database.get<ModelPreference>("modelPreferences");
   return {
-    snapshot: EMPTY_SNAPSHOT,
-    listeners: new Set(),
+    // Seed `isLoading: true` directly: an entry is only created right before
+    // `startLoad` runs, so the very first snapshot a consumer sees should
+    // already reflect the in-flight load. This also lets `startLoad` avoid an
+    // out-of-band synchronous notification during `useSyncExternalStore`'s
+    // subscribe (which the contract forbids) — React picks up the change via
+    // its post-subscribe stale-snapshot check.
+    snapshot: { ...EMPTY_SNAPSHOT, isLoading: true },
+    listeners: [],
     refCount: 0,
     observeSub: null,
     loadCancelled: false,
+    // NOTE: this duplicates the `storageCtx`/`legacyStorageCtx` the hook builds
+    // in `useSettings`. The duplication is intentional — the pool's contexts
+    // live for the subscription's lifetime (load + observe), while the hook's
+    // live for the mutation callbacks' lifetime. Don't try to share one.
     storageCtx: { database, userPreferencesCollection, modelPreferencesCollection },
     legacyStorageCtx: { database, modelPreferencesCollection },
   };
@@ -83,18 +103,19 @@ function patchSnapshot(entry: PoolEntry, patch: Partial<SettingsSnapshot>): void
 }
 
 async function startLoad(entry: PoolEntry, walletAddress: string): Promise<void> {
-  patchSnapshot(entry, { isLoading: true });
   try {
-    let preference = await getUserPreferenceOp(entry.storageCtx, walletAddress);
-    if (!preference) {
-      preference = await migrateFromModelPreferencesOp(entry.storageCtx, walletAddress);
-    }
+    // The user-preference read (with its legacy-migration fallback) and the
+    // legacy model-preference read are independent, so fire them in parallel
+    // rather than paying two sequential worker-bridge round-trips.
+    const [preference, legacyPreference] = await Promise.all([
+      (async () => {
+        const existing = await getUserPreferenceOp(entry.storageCtx, walletAddress);
+        return existing ?? (await migrateFromModelPreferencesOp(entry.storageCtx, walletAddress));
+      })(),
+      getModelPreferenceOp(entry.legacyStorageCtx, walletAddress),
+    ]);
     if (entry.loadCancelled) return;
-    patchSnapshot(entry, { userPreference: preference });
-
-    const legacyPreference = await getModelPreferenceOp(entry.legacyStorageCtx, walletAddress);
-    if (entry.loadCancelled) return;
-    patchSnapshot(entry, { modelPreference: legacyPreference });
+    patchSnapshot(entry, { userPreference: preference, modelPreference: legacyPreference });
   } finally {
     if (!entry.loadCancelled) patchSnapshot(entry, { isLoading: false });
   }
@@ -111,22 +132,29 @@ function startObserve(entry: PoolEntry, walletAddress: string): void {
       "personality",
       "updated_at",
     ])
-    .subscribe((records) => {
-      const record = records[0];
-      if (!record) return;
-      patchSnapshot(entry, {
-        userPreference: {
-          uniqueId: record.id,
-          walletAddress: record.walletAddress,
-          nickname: record.nickname,
-          occupation: record.occupation,
-          description: record.description,
-          models: record.models,
-          personality: record.personality,
-          createdAt: record.createdAt,
-          updatedAt: record.updatedAt,
-        },
-      });
+    .subscribe({
+      next: (records) => {
+        const record = records[0];
+        if (!record) return;
+        patchSnapshot(entry, {
+          userPreference: {
+            uniqueId: record.id,
+            walletAddress: record.walletAddress,
+            nickname: record.nickname,
+            occupation: record.occupation,
+            description: record.description,
+            models: record.models,
+            personality: record.personality,
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt,
+          },
+        });
+      },
+      // Log observe failures instead of letting them silently break the
+      // snapshot for every consumer of this key.
+      error: (err: unknown) => {
+        console.error("[useSettings] userPreferences observe failed:", err);
+      },
     });
 }
 
@@ -151,23 +179,33 @@ export function subscribeUserSettings(
     entry = createEntry(database);
     perDb.set(walletAddress, entry);
   }
-  entry.listeners.add(listener);
+  entry.listeners.push(listener);
   entry.refCount++;
 
   if (entry.refCount === 1) {
     entry.loadCancelled = false;
-    void startLoad(entry, walletAddress);
+    // Fire-and-forget: `startLoad` already surfaces failures by clearing
+    // `isLoading` in its `finally`, but `.catch` here keeps a rejected load
+    // from bubbling up as an unhandled promise rejection.
+    void startLoad(entry, walletAddress).catch((err: unknown) => {
+      console.error("[useSettings] initial settings load failed:", err);
+    });
     startObserve(entry, walletAddress);
   }
 
+  // Capture the entry locally so a late-running cleanup (e.g. a StrictMode
+  // double-invoke that fires after the entry was re-created) tears down the
+  // entry it actually owns, never a fresh one.
+  const ownedEntry = entry;
   return () => {
-    entry.listeners.delete(listener);
-    entry.refCount--;
-    if (entry.refCount === 0) {
-      entry.loadCancelled = true;
-      entry.observeSub?.unsubscribe();
-      entry.observeSub = null;
-      perDb.delete(walletAddress);
+    const idx = ownedEntry.listeners.indexOf(listener);
+    if (idx >= 0) ownedEntry.listeners.splice(idx, 1);
+    ownedEntry.refCount--;
+    if (ownedEntry.refCount === 0) {
+      ownedEntry.loadCancelled = true;
+      ownedEntry.observeSub?.unsubscribe();
+      ownedEntry.observeSub = null;
+      if (perDb.get(walletAddress) === ownedEntry) perDb.delete(walletAddress);
     }
   };
 }
@@ -207,4 +245,14 @@ export function __hasUserSettingsPoolEntryForTests(
   walletAddress: string
 ): boolean {
   return pool.get(database)?.has(walletAddress) ?? false;
+}
+
+/**
+ * Test-only: discard all pooled state. `vi.resetModules()` does not
+ * re-initialize already-resolved module bindings, so the pool would otherwise
+ * persist across tests; call this in `beforeEach` for explicit isolation.
+ * Production code should not import this.
+ */
+export function __resetPoolForTests(): void {
+  pool = new WeakMap<Database, Map<string, PoolEntry>>();
 }

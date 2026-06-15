@@ -23,9 +23,11 @@ vi.mock("../lib/db/settings", async () => {
   };
 });
 
+import type { StoredUserPreference } from "../lib/db/userPreferences";
 import { getUserPreferenceOp } from "../lib/db/userPreferences";
 import {
   __hasUserSettingsPoolEntryForTests,
+  __resetPoolForTests,
   EMPTY_SNAPSHOT,
   getUserSettingsSnapshot,
   patchUserSettingsSnapshot,
@@ -53,9 +55,15 @@ function createFakeDatabase() {
       observeWithColumns: (columns: string[]) => {
         observeCalls.push({ columns });
         return {
-          subscribe: (cb: (records: unknown[]) => void) => {
+          subscribe: (
+            observerOrNext:
+              | ((records: unknown[]) => void)
+              | { next: (records: unknown[]) => void; error?: (err: unknown) => void }
+          ) => {
             subscribeCalls.push(Date.now());
-            const sub: ObserveSubscriber = { next: cb };
+            const next =
+              typeof observerOrNext === "function" ? observerOrNext : observerOrNext.next;
+            const sub: ObserveSubscriber = { next };
             observeSubscribers.push(sub);
             return {
               unsubscribe: () => {
@@ -85,6 +93,9 @@ function createFakeDatabase() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // `vi.resetModules()` doesn't re-initialize already-resolved module bindings,
+  // so reset the pool explicitly for reliable per-test isolation.
+  __resetPoolForTests();
   vi.mocked(getUserPreferenceOp).mockResolvedValue({
     uniqueId: "rec-1",
     walletAddress: "0xABC",
@@ -104,7 +115,7 @@ afterEach(() => {
 
 describe("subscribeUserSettings — deduplication", () => {
   it("creates a single observe subscription regardless of subscriber count", () => {
-    const { database, subscribeCalls } = createFakeDatabase();
+    const { database, subscribeCalls, observeCalls } = createFakeDatabase();
     const a = vi.fn();
     const b = vi.fn();
     const c = vi.fn();
@@ -114,6 +125,8 @@ describe("subscribeUserSettings — deduplication", () => {
     const unsubC = subscribeUserSettings(database, "0xABC", c);
 
     expect(subscribeCalls).toHaveLength(1);
+    // The single observe must watch the profile columns the snapshot reads.
+    expect(observeCalls[0].columns).toContain("nickname");
 
     unsubA();
     unsubB();
@@ -125,10 +138,9 @@ describe("subscribeUserSettings — deduplication", () => {
     const listeners = Array.from({ length: 5 }, () => vi.fn());
     const cleanups = listeners.map((l) => subscribeUserSettings(database, "0xABC", l));
 
-    // Allow the load promise to settle.
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(getUserPreferenceOp).toHaveBeenCalledTimes(1);
+    // `startLoad` has multiple awaits, so poll the snapshot rather than draining
+    // a single microtask tick — keeps this robust as the load path grows.
+    await vi.waitFor(() => expect(getUserPreferenceOp).toHaveBeenCalledTimes(1));
 
     cleanups.forEach((c) => c());
   });
@@ -195,7 +207,9 @@ describe("snapshot lifecycle", () => {
     const cleanupA = subscribeUserSettings(database, "0xABC", a);
     const cleanupB = subscribeUserSettings(database, "0xABC", b);
 
-    await new Promise((r) => setTimeout(r, 0));
+    await vi.waitFor(() =>
+      expect(getUserSettingsSnapshot(database, "0xABC").isLoading).toBe(false)
+    );
 
     // Both listeners should have been called at least once for the loaded
     // userPreference + isLoading transitions.
@@ -214,7 +228,9 @@ describe("snapshot lifecycle", () => {
     const a = vi.fn();
     const cleanup = subscribeUserSettings(database, "0xABC", a);
 
-    await new Promise((r) => setTimeout(r, 0));
+    await vi.waitFor(() =>
+      expect(getUserSettingsSnapshot(database, "0xABC").isLoading).toBe(false)
+    );
     a.mockClear();
 
     // Simulate WatermelonDB pushing a new record.
@@ -237,6 +253,49 @@ describe("snapshot lifecycle", () => {
 
     cleanup();
   });
+
+  it("ignores a load that resolves after the last subscriber unsubscribed", async () => {
+    const { database } = createFakeDatabase();
+
+    // Hold the initial load pending so we can unsubscribe before it resolves.
+    let resolveLoad!: (value: StoredUserPreference | null) => void;
+    vi.mocked(getUserPreferenceOp).mockImplementationOnce(
+      () =>
+        new Promise<StoredUserPreference | null>((resolve) => {
+          resolveLoad = resolve;
+        })
+    );
+
+    const listener = vi.fn();
+    const unsub = subscribeUserSettings(database, "0xABC", listener);
+    // Tear down while `getUserPreferenceOp` is still pending.
+    unsub();
+    listener.mockClear();
+
+    // The entry is gone; resolving the in-flight load must not patch anything.
+    resolveLoad({
+      uniqueId: "rec-late",
+      walletAddress: "0xABC",
+      nickname: "Late",
+      occupation: "",
+      description: "",
+      models: "",
+      personality: "",
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await vi.waitFor(() => expect(getUserPreferenceOp).toHaveBeenCalledTimes(1));
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(__hasUserSettingsPoolEntryForTests(database, "0xABC")).toBe(false);
+
+    // A fresh subscriber must start clean — no leaked snapshot from the
+    // cancelled load.
+    const fresh = vi.fn();
+    const cleanup = subscribeUserSettings(database, "0xABC", fresh);
+    expect(getUserSettingsSnapshot(database, "0xABC").userPreference).toBeNull();
+    cleanup();
+  });
 });
 
 describe("patchUserSettingsSnapshot", () => {
@@ -244,7 +303,9 @@ describe("patchUserSettingsSnapshot", () => {
     const { database } = createFakeDatabase();
     const a = vi.fn();
     const cleanup = subscribeUserSettings(database, "0xABC", a);
-    await new Promise((r) => setTimeout(r, 0));
+    await vi.waitFor(() =>
+      expect(getUserSettingsSnapshot(database, "0xABC").isLoading).toBe(false)
+    );
     a.mockClear();
 
     patchUserSettingsSnapshot(database, "0xABC", {
