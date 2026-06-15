@@ -74,10 +74,16 @@ export interface ExtractedMemory {
 // tuning knobs affect it. LongMemEval also reuses sessions across
 // questions' haystacks, so the cache pays off within a single run, and
 // ranking-knob sweeps with the same model become nearly extraction-free
-// after the first run. Bump EXTRACTION_PROMPT_VERSION when the
-// extraction prompt changes to invalidate stale entries.
-
-const EXTRACTION_PROMPT_VERSION = "v1";
+// after the first run. Bump EXTRACTION_PROMPT_VERSION when the extraction
+// prompt OR the extraction request/parse behavior changes, to invalidate
+// stale entries.
+//
+// v2 (2026-06): the extraction call now rejects empty completions and raises
+// max_tokens 2000→6000 — under v1, gpt-5-family reasoning-token starvation
+// had pinned ~77% of cached entries to empty results. The version bump forces
+// those (and any other v1 entries written under the old behavior) to
+// re-extract instead of serving stale empties.
+const EXTRACTION_PROMPT_VERSION = "v2";
 const EXTRACTION_CACHE_SAVE_EVERY = 25;
 
 type CachedExtraction = Omit<ExtractedMemory, "sessionIndex" | "sessionId">;
