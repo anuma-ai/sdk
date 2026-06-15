@@ -1038,6 +1038,38 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @category Hooks
  */
 
+/**
+ * One PiiRedactor per conversation, shared across every `useChatStorage`
+ * instance for that conversation. An app may mount several instances for the
+ * same conversation (e.g. a streaming manager plus a setup hook); without a
+ * shared redactor each instance would have independent placeholder mappings, so
+ * a tool created by one instance (e.g. memory_vault_save's de-anonymizer) could
+ * not restore a placeholder minted by another instance's runToolLoop. Keyed by
+ * conversation id; bounded so long sessions don't leak (an evicted redactor is
+ * safely re-derived — stored content is the real value and re-redacts the same).
+ */
+const CONVERSATION_REDACTOR_LIMIT = 50;
+const NO_CONVERSATION_KEY = "__no_conversation__";
+const conversationRedactors = new Map<string, PiiRedactor>();
+
+function getConversationRedactor(conversationId: string | null): PiiRedactor {
+  const key = conversationId ?? NO_CONVERSATION_KEY;
+  let redactor = conversationRedactors.get(key);
+  if (redactor) {
+    // Refresh recency (Map preserves insertion order → re-insert moves to end).
+    conversationRedactors.delete(key);
+    conversationRedactors.set(key, redactor);
+    return redactor;
+  }
+  redactor = new PiiRedactor();
+  conversationRedactors.set(key, redactor);
+  if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
+    const oldest = conversationRedactors.keys().next().value;
+    if (oldest !== undefined) conversationRedactors.delete(oldest);
+  }
+  return redactor;
+}
+
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,
@@ -1077,18 +1109,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     initialConversationId || null
   );
 
-  // When piiRedaction is `true`, upgrade it to a single redactor per
-  // conversation so placeholder state is shared across turns within a
-  // conversation and reset when switching conversations. An explicit instance
-  // or `false` is passed through unchanged.
-  const piiRedactorRef = useRef<{ id: string | null; redactor: PiiRedactor } | null>(null);
-  const resolvedPiiRedaction = useMemo(() => {
-    if (piiRedaction !== true) return piiRedaction;
-    if (!piiRedactorRef.current || piiRedactorRef.current.id !== currentConversationId) {
-      piiRedactorRef.current = { id: currentConversationId, redactor: new PiiRedactor() };
-    }
-    return piiRedactorRef.current.redactor;
-  }, [piiRedaction, currentConversationId]);
+  // When piiRedaction is `true`, resolve it to the redactor SHARED by all
+  // useChatStorage instances for this conversation (see getConversationRedactor)
+  // so placeholder mappings are consistent across instances and turns. An
+  // explicit instance or `false` is passed through unchanged.
+  const resolvedPiiRedaction = useMemo(
+    () => (piiRedaction === true ? getConversationRedactor(currentConversationId) : piiRedaction),
+    [piiRedaction, currentConversationId]
+  );
 
   // Redact text before it is sent to the embeddings endpoint. Embeddings are a
   // server call, so when PII redaction is on the input must be redacted too;
