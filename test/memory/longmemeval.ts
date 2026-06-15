@@ -72,6 +72,7 @@ const { values: args } = parseArgs({
     variant: { type: "string", default: "s", short: "v" },
     strategy: { type: "string" },
     llm: { type: "string" },
+    "extract-llm": { type: "string" },
     "skip-existing": { type: "boolean", default: false },
     "question-id": { type: "string" },
     max: { type: "string", short: "m" },
@@ -153,6 +154,10 @@ Options:
                               vault = memory vault (extracted facts retrieval)
                               both = run both and compare (default)
   --llm <model>               Override chat completion model
+  --extract-llm <model>       Override extraction model only (default: --llm).
+                              Use a JSON-reliable model when the answer model
+                              is reasoning-heavy (extraction results are cached
+                              per model)
   --skip-existing             Skip entries with existing transcript for same model
   --question-id <id>          Run only the specified question id
   -m, --max <n>               Maximum number of questions to evaluate
@@ -275,6 +280,7 @@ async function main(): Promise<void> {
     variant: variant === "oracle" ? "s" : variant,
     strategy,
     llmModel: args.llm,
+    extractionModel: args["extract-llm"],
     skipExisting: args["skip-existing"],
     questionId: args["question-id"],
     maxQuestions: args.max ? parseInt(args.max, 10) : undefined,

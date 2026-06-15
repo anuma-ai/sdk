@@ -341,6 +341,9 @@ You are a personal assistant with access to the user's past conversation history
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
+      // Resolved effective extractor (`--extract-llm` or, when unset, the
+      // answer model) — lets --skip-existing detect extractor-only changes.
+      extractionModel: api.extractionModel ?? api.llmModel,
       strategy: "memory-vault",
       messages: [...baseMessages],
       toolCalls: [] as any[],
