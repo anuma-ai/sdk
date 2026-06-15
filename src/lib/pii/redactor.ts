@@ -103,18 +103,21 @@ export class PiiRedactor {
         found.push({ match: value, index: m.index });
       }
 
-      // Replace forward, adjusting indices as we go
-      let offset = 0;
+      if (found.length === 0) continue;
+
+      // Rebuild the string in a single pass. `found` is non-overlapping and
+      // ascending (global regex advances lastIndex past each match), so a
+      // cursor walk is O(text length) rather than O(matches × text length).
+      let result = "";
+      let cursor = 0;
       for (const { match, index } of found) {
-        const adjustedIndex = index + offset;
         const placeholder = this.getPlaceholder(pattern.category, match);
         matches.push({ category: pattern.category, original: match, placeholder });
-        redacted =
-          redacted.slice(0, adjustedIndex) +
-          placeholder +
-          redacted.slice(adjustedIndex + match.length);
-        offset += placeholder.length - match.length;
+        result += redacted.slice(cursor, index) + placeholder;
+        cursor = index + match.length;
       }
+      result += redacted.slice(cursor);
+      redacted = result;
     }
 
     return { text: redacted, matches };
