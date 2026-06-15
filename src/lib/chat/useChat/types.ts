@@ -181,6 +181,13 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
   onData?: (chunk: string) => void;
   /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
   conversationId?: string;
+  /**
+   * Per-request override for PII redaction. When set, takes precedence over the
+   * hook-level `piiRedaction` for this call only — e.g. pass `false` to disable
+   * redaction for a single request, or a specific `PiiRedactor` instance. When
+   * omitted, the hook-level setting applies.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 };
 
 /**

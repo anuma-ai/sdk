@@ -184,6 +184,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
       if (abortControllerRef.current) {
@@ -284,7 +285,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
-          piiRedaction: resolvedPiiRedaction,
+          piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
           onPiiRedacted,
         });
 
