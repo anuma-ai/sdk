@@ -925,13 +925,13 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   {
     name: "google-drive",
     members: ["google_drive_search", "google_drive_list_recent", "google_drive_get_content"],
-    anchors: ["google_drive_search"],
+    anchors: ["google_drive_search", "google_drive_get_content"],
     anchorMinSimilarity: 0.53,
   },
   {
     name: "notion",
     members: ["notion-search", "notion-fetch", "notion-create-pages", "notion-update-page"],
-    anchors: ["notion-search"],
+    anchors: ["notion-search", "notion-create-pages"],
     anchorMinSimilarity: 0.53,
   },
 ];
