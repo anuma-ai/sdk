@@ -157,11 +157,16 @@ export class PiiRedactor {
    * Used to de-anonymize LLM responses before displaying to the user.
    */
   deAnonymize(text: string): string {
+    // Fast path: every placeholder starts with "[", so text without one
+    // cannot contain any placeholder.
+    if (!text.includes("[")) return text;
     let restored = text;
     for (const [placeholder, original] of this.placeholderToValue) {
-      // Replace all occurrences of the placeholder
-      while (restored.includes(placeholder)) {
-        restored = restored.replace(placeholder, original);
+      if (restored.includes(placeholder)) {
+        // split/join replaces every occurrence in a single pass and, unlike
+        // String.replace with a string pattern, does not interpret "$"
+        // sequences in the original value as replacement specials.
+        restored = restored.split(placeholder).join(original);
       }
     }
     return restored;
