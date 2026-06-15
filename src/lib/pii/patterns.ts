@@ -15,8 +15,12 @@ export type PiiCategory =
   | "US_ADDRESS"
   | "DATE_OF_BIRTH";
 
-interface PiiPattern {
-  category: PiiCategory;
+export interface PiiPattern {
+  /**
+   * Placeholder tag prefix for matches. Built-ins use {@link PiiCategory};
+   * custom patterns may use any string (e.g. "PASSPORT", "IBAN").
+   */
+  category: PiiCategory | (string & {});
   regex: RegExp;
   /** Optional post-match validation to reduce false positives. */
   validate?: (match: string) => boolean;

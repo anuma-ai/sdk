@@ -10,12 +10,35 @@
  */
 
 import type { LlmapiMessage, LlmapiMessageContentPart } from "../../client";
-import { type PiiCategory, PII_PATTERNS } from "./patterns";
+import { type PiiCategory, type PiiPattern, PII_PATTERNS } from "./patterns";
 
 export interface PiiMatch {
-  category: PiiCategory;
+  category: PiiCategory | (string & {});
   original: string;
   placeholder: string;
+}
+
+/**
+ * Options for constructing a {@link PiiRedactor}. Lets apps disable noisy
+ * built-in categories or supply their own detection patterns.
+ */
+export interface PiiRedactorOptions {
+  /**
+   * Replace the entire default pattern set. When set, `extraPatterns` and
+   * `excludeCategories` are ignored. Order matters — more specific patterns
+   * should come first (see {@link PII_PATTERNS}).
+   */
+  patterns?: PiiPattern[];
+  /**
+   * Additional patterns appended after the (optionally filtered) built-ins.
+   * Ignored when `patterns` is provided.
+   */
+  extraPatterns?: PiiPattern[];
+  /**
+   * Built-in categories to disable, e.g. the higher-false-positive
+   * `["US_ADDRESS", "DATE_OF_BIRTH"]`. Ignored when `patterns` is provided.
+   */
+  excludeCategories?: (PiiCategory | (string & {}))[];
 }
 
 export interface RedactionResult {
@@ -43,7 +66,22 @@ export class PiiRedactor {
   /** Maps placeholder tag → original PII value (reverse lookup for de-anonymization). */
   private placeholderToValue = new Map<string, string>();
   /** Next index per category for placeholder numbering. */
-  private categoryCounters = new Map<PiiCategory, number>();
+  private categoryCounters = new Map<string, number>();
+  /** The active detection patterns (defaults, optionally filtered/extended). */
+  private readonly patterns: PiiPattern[];
+
+  constructor(options: PiiRedactorOptions = {}) {
+    if (options.patterns) {
+      this.patterns = options.patterns;
+    } else {
+      let base = PII_PATTERNS;
+      if (options.excludeCategories?.length) {
+        const excluded = new Set<string>(options.excludeCategories);
+        base = base.filter((p) => !excluded.has(p.category));
+      }
+      this.patterns = options.extraPatterns ? [...base, ...options.extraPatterns] : base;
+    }
+  }
 
   /**
    * Returns the current number of unique PII values tracked.
@@ -65,7 +103,7 @@ export class PiiRedactor {
    * Get or create a placeholder for a PII value.
    * The same value always gets the same placeholder within a redactor instance.
    */
-  private getPlaceholder(category: PiiCategory, value: string): string {
+  private getPlaceholder(category: PiiCategory | (string & {}), value: string): string {
     const normalizedValue = value.trim();
     const existing = this.valueToPlaceholder.get(normalizedValue);
     if (existing) return existing;
@@ -86,7 +124,7 @@ export class PiiRedactor {
     const matches: PiiMatch[] = [];
     let redacted = text;
 
-    for (const pattern of PII_PATTERNS) {
+    for (const pattern of this.patterns) {
       // Clone regex to reset lastIndex
       const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
       const found: { match: string; index: number }[] = [];

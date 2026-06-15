@@ -389,6 +389,33 @@ describe("PiiRedactor", () => {
     });
   });
 
+  describe("configuration", () => {
+    it("disables excluded categories", () => {
+      const r = new PiiRedactor({ excludeCategories: ["US_ADDRESS", "DATE_OF_BIRTH"] });
+      const result = r.redactText("Born on 12-25-1985 at 123 Main Street, email a@b.com");
+      expect(result.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      expect(result.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+      // Other categories still detected.
+      expect(result.matches.filter((m) => m.category === "EMAIL")).toHaveLength(1);
+    });
+
+    it("supports extra custom patterns with custom categories", () => {
+      const r = new PiiRedactor({
+        extraPatterns: [{ category: "EMPLOYEE_ID", regex: /\bEMP-\d{6}\b/g }],
+      });
+      const result = r.redactText("Ref EMP-123456 and a@b.com");
+      expect(result.text).toContain("[EMPLOYEE_ID_1]");
+      expect(result.text).toContain("[EMAIL_1]");
+    });
+
+    it("replaces the entire pattern set when patterns is provided", () => {
+      const r = new PiiRedactor({ patterns: [{ category: "EMAIL", regex: /\bx@y\.z\b/g }] });
+      const result = r.redactText("a@b.com but x@y.z");
+      // Default email pattern is gone; only the custom one applies.
+      expect(result.text).toBe("a@b.com but [EMAIL_1]");
+    });
+  });
+
   describe("clear", () => {
     it("resets all state", () => {
       redactor.redactText("john@example.com");

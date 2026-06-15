@@ -832,7 +832,14 @@ export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 
 // PII redaction — client-side detection and anonymization of personally
 // identifiable information before prompts leave the device.
-export type { PiiMatch, RedactionResult, MessageRedactionResult, PiiCategory } from "./lib/pii";
+export type {
+  PiiMatch,
+  RedactionResult,
+  MessageRedactionResult,
+  PiiCategory,
+  PiiPattern,
+  PiiRedactorOptions,
+} from "./lib/pii";
 export { PiiRedactor, PII_PATTERNS } from "./lib/pii";
 
 // Response field read-helpers for the chat-completions / responses APIs. After the
