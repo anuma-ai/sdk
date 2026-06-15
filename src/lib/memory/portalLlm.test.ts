@@ -110,6 +110,25 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
     const messages = sentBody.messages as Array<{ role: string; content: string }>;
     expect(messages.map((m) => m.role)).toEqual(["system", "user"]);
   });
+
+  it("sends response_format: json_object for OpenAI-family models", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, model: "openai/gpt-5-mini", fetchFn });
+    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sentBody.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("omits response_format for open models that reject it (e.g. gpt-oss, ling)", async () => {
+    // gpt-oss-120b / ling-2.6-flash on Cerebras/Fireworks return HTTP 400 if
+    // response_format is present — they must get a bare prompt-instructed
+    // request and rely on the tolerant JSON extractor.
+    for (const model of ["gpt-oss/gpt-oss-120b", "inclusionai/ling-2.6-flash"]) {
+      const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+      await callPortalJsonCompletion({ ...baseArgs, model, fetchFn });
+      const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+      expect(sentBody.response_format, model).toBeUndefined();
+    }
+  });
 });
 
 describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {

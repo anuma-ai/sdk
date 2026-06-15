@@ -19,7 +19,16 @@ import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
-const DEFAULT_MODEL = "openai/gpt-5-mini";
+// Open-weights extractor (Apache-2.0, hosted on Cerebras via the portal).
+// Chosen over gpt-5-mini so that conversation content from privacy-mode
+// chats — where the user deliberately picked an open model — is never sent
+// to a closed third-party provider for background extraction. Benchmarked
+// against gpt-5-mini on the LongMemEval extraction prompt: comparable fact
+// yield and quality at ~7× lower latency. NOTE: gpt-oss rejects
+// `response_format: json_object` (see portalLlm.ts) and is a reasoning model,
+// so callers must NOT impose a small `max_tokens` cap — reasoning tokens
+// count against it and would starve the JSON output.
+const DEFAULT_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 

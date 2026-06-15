@@ -119,6 +119,17 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   ];
   if (prefill) messages.push({ role: "assistant", content: prefill });
 
+  // `response_format: json_object` is an OpenAI-specific request flag. The
+  // open models hosted on Fireworks/Cerebras (e.g. gpt-oss-120b) reject the
+  // whole request with a 400 if it's present — they only accept a bare
+  // prompt-instructed JSON request. Anthropic ignores the flag and uses the
+  // prefill path above. So only send it for OpenAI-family models; everyone
+  // else relies on the "strict JSON, no prose" system prompt plus the
+  // tolerant `extractJsonCandidate` parser below (which already strips
+  // fences / prose preambles). `.includes` rather than `.startsWith` so
+  // proxied ids like `openrouter/openai/…` are covered too.
+  const supportsJsonObjectFormat = req.model.includes("openai/");
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -130,7 +141,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       body: JSON.stringify({
         model: req.model,
         messages,
-        response_format: { type: "json_object" },
+        ...(supportsJsonObjectFormat && { response_format: { type: "json_object" } }),
         ...req.extra,
       }),
       signal: controller.signal,

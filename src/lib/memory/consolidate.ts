@@ -36,7 +36,16 @@ import { getLogger } from "../logger.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
-const DEFAULT_MODEL = "openai/gpt-5-mini";
+// Open-weights consolidator. Consolidation reasons over the SAME
+// private-chat-derived facts as extraction, so it must also stay on an open
+// provider — routing it to a closed third party would reopen the exact
+// privacy gap the extractor change closes. NOT gpt-oss-120b (the extraction
+// default): gpt-oss returns empty completion content ~30% of the time on
+// this single-decision prompt (measured 3/10), which silently degrades every
+// affected merge to a create fallback and defeats facet-dedup. ling-2.6-flash
+// is reliable here (0/10 empty), supports `response_format: json_object`, and
+// discriminates create/update/noop correctly on the benchmark cases.
+const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
 
 const SYSTEM_PROMPT = `You consolidate a new memory against existing memories from the same user.
 
