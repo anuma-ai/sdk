@@ -8,6 +8,7 @@ import type {
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { generateEmbedding } from "../memoryEngine/embeddings";
+import { PiiRedactor } from "../pii/redactor";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -248,7 +249,6 @@ function extractProviderStreamError(chunk: unknown): ProviderStreamError | null 
   }
   return null;
 }
-import { PiiRedactor } from "../pii/redactor";
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
