@@ -2,7 +2,7 @@
 
 > **StepFinishEvent** = `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#378)
+Defined in: [src/lib/chat/toolLoop.ts:383](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#383)
 
 Information emitted after each tool execution round completes.
 
@@ -12,7 +12,7 @@ Information emitted after each tool execution round completes.
 
 > **content**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#382)
+Defined in: [src/lib/chat/toolLoop.ts:387](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#387)
 
 Text content the model produced in this round (may be empty if the model only called tools).
 
@@ -22,7 +22,7 @@ Text content the model produced in this round (may be empty if the model only ca
 
 > **stepIndex**: `number`
 
-Defined in: [src/lib/chat/toolLoop.ts:380](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#380)
+Defined in: [src/lib/chat/toolLoop.ts:385](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#385)
 
 1-based index of this tool round.
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chat/toolLoop.ts:380](https://github.com/anuma-ai/sdk/blob/
 
 > **toolCalls**: `object`\[]
 
-Defined in: [src/lib/chat/toolLoop.ts:384](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#384)
+Defined in: [src/lib/chat/toolLoop.ts:389](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#389)
 
 Tool calls the model made in this round.
 
@@ -50,7 +50,7 @@ Tool calls the model made in this round.
 
 > **toolResults**: `object`\[]
 
-Defined in: [src/lib/chat/toolLoop.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#386)
+Defined in: [src/lib/chat/toolLoop.ts:391](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#391)
 
 Results from auto-executed tools in this round.
 
@@ -76,7 +76,7 @@ Results from auto-executed tools in this round.
 
 > **usage**: `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#393)
+Defined in: [src/lib/chat/toolLoop.ts:398](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#398)
 
 Token usage for this round, if available.
 

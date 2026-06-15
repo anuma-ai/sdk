@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#120)
+Defined in: [src/expo/useChat.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#121)
 
 A React hook for managing chat completions with authentication.
 
@@ -153,6 +153,25 @@ Receives raw API response - either Responses API or Completions API format.
 <tr>
 <td>
 
+`options.onPiiRedacted?`
+
+</td>
+<td>
+
+(`matches`: `PiiMatch`\[]) => `void`
+
+</td>
+<td>
+
+Called with the PII matches found whenever outbound messages are redacted.
+Useful for surfacing what was redacted to the user. Only fired when
+`piiRedaction` is active and at least one match was found.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onServerToolCall?`
 
 </td>
@@ -238,6 +257,36 @@ but no executor is registered for it (e.g. server-side tools).
 
 Called with partial tool call arguments as they stream in.
 Use for live preview of artifacts (HTML, slides) being generated.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.piiRedaction?`
+
+</td>
+<td>
+
+`boolean` | `PiiRedactor`
+
+</td>
+<td>
+
+Enable best-effort, client-side PII obfuscation (NOT a compliance
+guarantee). Outbound message text is scanned for personally identifiable
+information (emails, phone numbers, SSNs, credit cards, API keys,
+addresses) and matches are replaced with tagged placeholders before
+reaching the LLM provider; both streamed and final responses are
+de-anonymized automatically.
+
+Detection is regex-based and does not cover names, non-text content
+(images/files/attachments), or model-generated tool-call arguments.
+
+* `true`: the hook keeps one redactor and shares placeholder state across
+  turns (per conversation in `useChatStorage`)
+* `PiiRedactor` instance: bring your own; tune categories via
+  `new PiiRedactor({ excludeCategories, extraPatterns })`
 
 </td>
 </tr>
