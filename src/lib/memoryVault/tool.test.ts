@@ -66,6 +66,34 @@ describe("createMemoryVaultTool", () => {
     expect(result).toBe("Memory saved successfully (ID: new-1).");
   });
 
+  it("de-anonymizes placeholder content before storing (PII redaction)", async () => {
+    const created = makeStoredMemory({ uniqueId: "new-1" });
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
+
+    const deAnonymize = (t: string) => t.replace("[EMAIL_1]", "bob@acme.com");
+    const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, deAnonymize });
+    await tool.executor!({ content: "User's email is [EMAIL_1]" });
+
+    // The vault stores the restored, real value — not the placeholder.
+    expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
+      content: "User's email is bob@acme.com",
+      scope: "private",
+    });
+  });
+
+  it("surfaces the de-anonymized content to the onSave confirmation", async () => {
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
+    const onSave = vi.fn().mockResolvedValue(true);
+    const deAnonymize = (t: string) => t.replace("[EMAIL_1]", "bob@acme.com");
+
+    const tool = createMemoryVaultTool(mockVaultCtx, { onSave, deAnonymize });
+    await tool.executor!({ content: "User's email is [EMAIL_1]" });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ content: "User's email is bob@acme.com" })
+    );
+  });
+
   it("passes explicit scope to createVaultMemoryOp", async () => {
     vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory());
 

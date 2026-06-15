@@ -1492,14 +1492,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
       const embOpts = getToken ? { getToken, baseUrl, model: embeddingModel } : undefined;
+      // When PII redaction is active, the model saves placeholder content
+      // ("[EMAIL_1]") because that is all it saw. De-anonymize before storing so
+      // the vault holds the real fact.
+      const deAnonymize = isPiiRedactor(resolvedPiiRedaction)
+        ? (text: string) => resolvedPiiRedaction.deAnonymize(text)
+        : undefined;
       return createMemoryVaultToolBase(
         vaultCtx,
-        options,
+        { ...options, deAnonymize },
         embOpts,
         embOpts ? vaultEmbeddingCacheRef.current : undefined
       );
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, getToken, baseUrl, embeddingModel, resolvedPiiRedaction]
   );
 
   /**
