@@ -694,6 +694,7 @@ export function toolsToApiFormat(
       removeAfterExecution: _removeAfterExecution,
       executorTimeout: _executorTimeout,
       dependsOn: _dependsOn,
+      deAnonymizeArgs: _deAnonymizeArgs,
       ...apiTool
     } = tool as ToolConfig & Record<string, unknown>;
 
