@@ -14,10 +14,18 @@ import {
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
-import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";
+import type {
+  ApiConfig,
+  LongMemEvalEntry,
+  LongMemEvalResult,
+  RetrievalTuningKnobs,
+  TokenUsage,
+} from "./types.js";
 import {
+  buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
+  createConsolidationFallbackTracker,
   createVaultContext,
   evaluateAnswer,
   extractMemoriesFromSession,
@@ -63,7 +71,7 @@ export async function processEntryMemoryVault(
     consolidate?: boolean;
     chunkSourceMaxChars?: number;
     excerptMaxChars?: number;
-  }
+  } & RetrievalTuningKnobs
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -196,13 +204,18 @@ export async function processEntryMemoryVault(
     const embeddingOptions = { apiKey: api.apiKey, baseUrl: api.baseUrl };
     const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
     const consolidateEnabled = searchPipeline?.consolidate ?? true;
+    const fallbackTracker = createConsolidationFallbackTracker();
 
     for (const mem of allMemories) {
       const result = await retain(mem.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: [mem.sessionId],
         ...(consolidateEnabled && {
-          consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+          consolidateOptions: {
+            apiKey: api.apiKey,
+            baseUrl: api.baseUrl,
+            onFallback: fallbackTracker.onFallback,
+          },
         }),
       });
 
@@ -213,6 +226,7 @@ export async function processEntryMemoryVault(
       }
     }
     clearProgress();
+    fallbackTracker.report(entry.question_id);
 
     // Step 3: Pre-embed any vault entries that retain() didn't already cache
     // (e.g. ones merged via cosine where embedding was reused). The cache
@@ -264,6 +278,7 @@ export async function processEntryMemoryVault(
       minSimilarity: 0.1,
       rerank: rerankEnabled,
       decompose: decomposeMode,
+      ...buildRetrievalTuningOptions(searchPipeline),
       ...(decomposeMode === "llm" && {
         decomposeOptions: {
           apiKey: api.apiKey,

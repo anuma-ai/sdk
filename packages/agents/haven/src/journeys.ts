@@ -72,16 +72,16 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
   "housing.lease-review": {
     title: "Lease review",
     description:
-      "Haven reviews a lease for red flags, fee traps, ambiguous clauses, and state-specific tenant protections.",
+      "Anuma Housing Agent reviews a lease for red flags, fee traps, ambiguous clauses, and state-specific tenant protections.",
     steps: [
       "Add your state and paste the lease text or upload the PDF.",
-      "Haven highlights risks clause by clause.",
+      "Anuma Housing Agent highlights risks clause by clause.",
       "Keep chatting to ask about specific sections.",
     ],
     acceptsFiles: true,
     fileLabel: "Upload a lease PDF",
     fileHint:
-      "If the lease is scanned or very long, upload the PDF and use the notes field to point Haven to the most important sections.",
+      "If the lease is scanned or very long, upload the PDF and use the notes field to point Anuma Housing Agent to the most important sections.",
     fileExtractionStrategy: "pdf-text",
     extractedTextTarget: "lease_text",
     fields: [
@@ -89,7 +89,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         key: "home_type",
         label: "Home type",
         placeholder: "Select your home type",
-        helper: "Helps Haven identify red flags specific to your housing type.",
+        helper: "Helps Anuma Housing Agent identify red flags specific to your housing type.",
         chatPrompt:
           "First, what type of place is this — apartment, house, condo? You can skip if it doesn't fit cleanly.",
         type: "select",
@@ -120,7 +120,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         key: "lease_text",
         label: "Paste lease terms",
         placeholder:
-          "Paste lease text, key clauses, or the sections you want Haven to review first.",
+          "Paste lease text, key clauses, or the sections you want Anuma Housing Agent to review first.",
         helper: "Use this instead of upload, or add context for the attached lease.",
         chatPrompt:
           "Now the lease. Paste the text here, or skip if you already uploaded the PDF. Adding any context you want me to focus on also helps.",
@@ -130,7 +130,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       },
     ],
     requiresContext: true,
-    submitLabel: "Review in Haven chat",
+    submitLabel: "Review in Anuma Housing Agent",
     promptTitle: "Review this lease for red flags, tenant-risk clauses, and hidden fees",
     systemContext: [
       "Parse the lease clause by clause and cross-reference each clause with the state tenant protection laws provided.",
@@ -158,16 +158,16 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
   "housing.rent-increase-checker": {
     title: "Rent increase check",
     description:
-      "Haven checks whether a rent increase looks lawful and drafts a negotiation plan with local context.",
+      "Anuma Housing Agent checks whether a rent increase looks lawful and drafts a negotiation plan with local context.",
     steps: [
       "Enter your U.S. state, city, current rent, and proposed rent.",
-      "Haven checks the increase and outlines leverage.",
+      "Anuma Housing Agent checks the increase and outlines leverage.",
       "Refine the reply in chat.",
     ],
     acceptsFiles: true,
     fileLabel: "Upload the rent increase notice (optional)",
     fileHint:
-      "Attach the renewal offer, notice, or lease addendum if you want Haven to quote the exact language back in the reply.",
+      "Attach the renewal offer, notice, or lease addendum if you want Anuma Housing Agent to quote the exact language back in the reply.",
     fileExtractionStrategy: "pdf-text",
     extractedTextTarget: "rent_notice_text",
     fields: [
@@ -175,7 +175,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         key: "state",
         label: "U.S. state",
         placeholder: "Select your U.S. state",
-        helper: "Haven currently supports U.S. rental workflows.",
+        helper: "Anuma Housing Agent currently supports U.S. rental workflows.",
         chatPrompt: "And which U.S. state?",
         requiredNudge: "I need the state to know which rules apply — which one?",
         type: "select",
@@ -234,10 +234,10 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
   "housing.demand-letter": {
     title: "Demand letter draft",
     description:
-      "Haven drafts a professional demand letter with a clear timeline, requested remedy, and a cleaner tone than starting from scratch.",
+      "Anuma Housing Agent drafts a professional demand letter with a clear timeline, requested remedy, and a cleaner tone than starting from scratch.",
     steps: [
       "Add the parties, property, state, and issue details.",
-      "Haven drafts a structured letter in chat.",
+      "Anuma Housing Agent drafts a structured letter in chat.",
       "Revise tone or legal emphasis with follow-up messages.",
     ],
     acceptsFiles: true,
@@ -342,7 +342,7 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
   "housing.hoa-dispute": {
     title: "HOA dispute response",
     description:
-      "Haven reviews an HOA notice and drafts a response strategy that is firm, organized, and easier to send.",
+      "Anuma Housing Agent reviews an HOA notice and drafts a response strategy that is firm, organized, and easier to send.",
     steps: [
       "Add your state, HOA name, and dispute type.",
       "Paste or upload the HOA notice.",
@@ -388,7 +388,8 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
         key: "hoa_notice",
         label: "Paste the HOA notice or your notes",
         placeholder: "Paste the notice text or summarize the dispute.",
-        helper: "If the full notice is uploaded, add any extra context Haven should know.",
+        helper:
+          "If the full notice is uploaded, add any extra context Anuma Housing Agent should know.",
         chatPrompt:
           "Paste any HOA notice you've received, or add notes about what they're saying. Skip if you already uploaded the notice.",
         maxLength: MULTILINE_FIELD_MAX,

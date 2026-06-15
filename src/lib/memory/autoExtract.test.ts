@@ -408,4 +408,43 @@ describe("extractAndRetain", () => {
     expect(result.results).toHaveLength(2);
     expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledTimes(2);
   });
+
+  it("forwards consolidateOptions to each retain() call", async () => {
+    const candidates = {
+      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+    const onFallback = vi.fn();
+    const consolidateOptions = { apiKey: "k", model: "openai/gpt-5-mini", onFallback };
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        consolidateOptions,
+      }
+    );
+
+    expect(vi.mocked(retain)).toHaveBeenCalledWith(
+      "fact",
+      expect.anything(),
+      expect.objectContaining({ consolidateOptions })
+    );
+  });
+
+  it("does not pass consolidateOptions to retain when omitted", async () => {
+    const candidates = {
+      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) } }
+    );
+
+    expect(vi.mocked(retain).mock.calls[0][2]).not.toHaveProperty("consolidateOptions");
+  });
 });

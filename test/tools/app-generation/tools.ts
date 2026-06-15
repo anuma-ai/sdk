@@ -13,7 +13,7 @@ import {
 import { createPlaywrightVerifier, type FileStore } from "./setup.js";
 
 /** Create an AppFileStorage adapter backed by an in-memory Map. */
-function createMapStorage(store: FileStore): AppFileStorage {
+export function createMapStorage(store: FileStore): AppFileStorage {
   return {
     getFile: async (_cid: string, p: string) => {
       const content = store.get(normalizePath(p));
@@ -33,7 +33,7 @@ function createMapStorage(store: FileStore): AppFileStorage {
   };
 }
 
-const TEST_CONVERSATION_ID = "test-conversation";
+export const TEST_CONVERSATION_ID = "test-conversation";
 
 export function createTestAppTools(store: FileStore) {
   return createAppGenerationTools({

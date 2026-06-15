@@ -15,6 +15,10 @@
  * Pair with the tools returned by `createAppGenerationTools` — `create_file`,
  * `patch_file`, `read_file`, `delete_file`, `list_files`, `audit_design`,
  * `critique_design`, `verify_app`.
+ *
+ * The workflow this prompt mandates (create → critique → patch → audit →
+ * patch → verify) needs 7–8 tool rounds on a substantial turn. Hosts capping
+ * `maxToolRounds` below 8 starve the trailing `verify_app` step.
  */
 export const APP_BUILDER_PROMPT = `App Builder tools (create_file, patch_file, and the rest described below) are available this turn, but they are OPTIONAL — having them does not mean you should build anything.
 

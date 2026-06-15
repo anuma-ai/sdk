@@ -11,6 +11,7 @@ import {
   type AppFileRecord,
   type AppFileStorage,
   applyPatches,
+  buildAppFileManifest,
   createAppGenerationTools,
   DEFAULT_DESIGN_CRITIQUE_RUBRIC,
   type FileChangeEvent,
@@ -585,7 +586,8 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     // Conv-1: read so we may patch
     await readFile.executor!({ path: "App.js" });
 
-    // Two more conversations bump the cap and evict conv-1 (FIFO).
+    // Two more conversations bump the cap and evict conv-1 (least
+    // recently used — it never acted again after its initial read).
     convId = "conv-2";
     await readFile.executor!({ path: "App.js" });
     convId = "conv-3";
@@ -600,6 +602,63 @@ describe("create_file enforces Read-before-Write for overwrites", () => {
     })) as Record<string, unknown>;
     expect(result.success).toBeUndefined();
     expect(String(result.error)).toMatch(/read_file/);
+  });
+
+  it("keeps a recently active conversation when the cap evicts (LRU, not FIFO)", async () => {
+    // Regression: markFileSeen used to refresh a conversation's map
+    // position only on first insertion, so eviction was FIFO in practice —
+    // a conversation that kept writing could be evicted before an idle one
+    // that merely arrived later, hitting spurious "read_file first" errors
+    // mid-conversation.
+    const storage = new MapFileStorage();
+    storage.getAll().set("App.js", "const A = 1;\n");
+    let convId = "conv-1";
+    const tools = createAppGenerationTools({
+      getConversationId: () => convId,
+      storage,
+      logError: () => undefined,
+      maxConversations: 2,
+    });
+    const findTool = (name: string): ToolConfig =>
+      tools.find((t) => (t.function as { name: string }).name === name)!;
+    const readFile = findTool("read_file");
+    const patchFile = findTool("patch_file");
+
+    // conv-1 then conv-2 read (insertion order: conv-1, conv-2).
+    await readFile.executor!({ path: "App.js" });
+    convId = "conv-2";
+    await readFile.executor!({ path: "App.js" });
+
+    // conv-1 stays active by patching — a successful patch must promote
+    // it past the idle conv-2.
+    convId = "conv-1";
+    const patched = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 1;", replace: "const A = 2;" }],
+    })) as Record<string, unknown>;
+    expect(patched.success).toBe(true);
+
+    // conv-3 pushes the map over the cap → the idle conv-2 is evicted,
+    // not the active conv-1.
+    convId = "conv-3";
+    await readFile.executor!({ path: "App.js" });
+
+    // conv-1 can still patch without re-reading…
+    convId = "conv-1";
+    const again = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 2;", replace: "const A = 3;" }],
+    })) as Record<string, unknown>;
+    expect(again.success).toBe(true);
+
+    // …while conv-2 lost its seen-state and must re-read first.
+    convId = "conv-2";
+    const evicted = (await patchFile.executor!({
+      path: "App.js",
+      patches: [{ find: "const A = 3;", replace: "const A = 4;" }],
+    })) as Record<string, unknown>;
+    expect(evicted.success).toBeUndefined();
+    expect(String(evicted.error)).toMatch(/read_file/);
   });
 
   it("allows overwrite after read_file", async () => {
@@ -737,6 +796,33 @@ describe("critique_design", () => {
     const result = (await critique.executor!({})) as { rubric: readonly string[] };
     expect(result.rubric).toEqual(DEFAULT_DESIGN_CRITIQUE_RUBRIC);
     expect(result.rubric.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("truncates oversized files like read_file does, keeping head and tail", async () => {
+    // Without the cap, critique_design was the one tool result whose size
+    // grew with the app — unbounded per-turn cost on long edit sessions.
+    const head = "/* head marker */\n";
+    const tail = "\n/* tail marker */";
+    const bigJs = head + "x".repeat(10_000) + tail;
+    const { critique, createFile } = makeTools();
+    await createFile.executor!({
+      files: [
+        { path: "App.js", content: bigJs },
+        { path: "App.css", content: ":root { --bg: #fff; }\n" },
+      ],
+    });
+    const result = (await critique.executor!({})) as {
+      appJs: { content: string; lines: number };
+      appCss: { content: string };
+    };
+    expect(result.appJs.content.length).toBeLessThan(5_000);
+    expect(result.appJs.content).toContain("head marker");
+    expect(result.appJs.content).toContain("tail marker");
+    expect(result.appJs.content).toContain("characters omitted");
+    // `lines` still reports the real file size, not the truncated one.
+    expect(result.appJs.lines).toBe(bigJs.split("\n").length);
+    // Small files pass through untouched.
+    expect(result.appCss.content).toBe(":root { --bg: #fff; }\n");
   });
 
   it("honors a host-supplied rubric override", async () => {
@@ -1031,6 +1117,33 @@ describe("create_file result splits new writes from overwrites", () => {
     expect(result.note).toEqual(expect.stringContaining("App.js"));
   });
 
+  it("suggests audit_design when an audited file is rewritten", async () => {
+    // Rewrites of App.js/App.css are where class names and selectors
+    // desync — the note should point at the audit right then.
+    const { createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "App.css", content: ":root { --ink: #111; }\n" }],
+    });
+    const result = (await createFile.executor!({
+      files: [{ path: "App.css", content: ":root { --ink: #222; }\n" }],
+    })) as Record<string, unknown>;
+    expect(result.overwritten).toEqual(["App.css"]);
+    expect(result.note).toEqual(expect.stringContaining("audit_design"));
+  });
+
+  it("keeps the note free of the audit nudge for non-audited files", async () => {
+    const { createFile } = makeTools();
+    await createFile.executor!({
+      files: [{ path: "data.json", content: "[]\n" }],
+    });
+    const result = (await createFile.executor!({
+      files: [{ path: "data.json", content: "[1]\n" }],
+    })) as Record<string, unknown>;
+    expect(result.overwritten).toEqual(["data.json"]);
+    expect(result.note).toEqual(expect.stringContaining("prefer patch_file"));
+    expect(result.note).not.toEqual(expect.stringContaining("audit_design"));
+  });
+
   it("partitions a mixed batch — new and existing — into the two arrays", async () => {
     const { createFile } = makeTools();
     await createFile.executor!({
@@ -1252,5 +1365,36 @@ describe("patch_file thrash gating", () => {
     expect(String(result.message)).not.toContain("STOP retrying patches");
     // First-failure message: the "did not apply / File NOT modified" framing.
     expect(String(result.message)).toContain("File NOT modified");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildAppFileManifest — turn-envelope manifest
+// ---------------------------------------------------------------------------
+
+describe("buildAppFileManifest", () => {
+  it("lists files sorted by path with character counts", async () => {
+    const storage = new MapFileStorage();
+    storage.getAll().set("package.json", "{}");
+    storage.getAll().set("App.js", "x".repeat(123));
+    storage.getAll().set("App.css", "y".repeat(45));
+
+    const manifest = await buildAppFileManifest({ storage, conversationId: "c1" });
+    const lines = manifest.split("\n");
+    expect(lines[0]).toContain("Current app files");
+    expect(lines.slice(1, 4)).toEqual([
+      "- App.css (45 chars)",
+      "- App.js (123 chars)",
+      "- package.json (2 chars)",
+    ]);
+    // The re-read instruction is part of the contract: contents are not
+    // carried between turns, only the manifest is.
+    expect(manifest).toContain("read_file before patching");
+  });
+
+  it("reports an empty conversation without inventing structure", async () => {
+    const storage = new MapFileStorage();
+    const manifest = await buildAppFileManifest({ storage, conversationId: "c1" });
+    expect(manifest).toBe("No app files exist in this conversation yet.");
   });
 });

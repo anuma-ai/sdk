@@ -55,8 +55,12 @@
  *
  * @module react
  */
-export type { StepFinishEvent } from "../lib/chat/toolLoop";
-export { ProviderStreamError } from "../lib/chat/toolLoop";
+export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export {
+  INFERENCE_ID_HEADER,
+  ProviderStreamError,
+  STREAM_RESUMABLE_HEADER,
+} from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
@@ -298,18 +302,21 @@ export type {
   AutoExtractMessage,
   AutoExtractor,
   Budget,
+  ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   ExtractedCandidate,
   ExtractFactsOptions,
   FactType,
   MemoryExtractedEvent,
   MemoryKind,
+  PortalLlmAuth,
   RankedMemory,
   RecallContext,
   RecallOptions,
   RecallResult,
   RecallToolCallbacks,
   RecallToolOptions,
+  RecencyOptions,
   ReflectOptions,
   ReflectResult,
   RetainAction,

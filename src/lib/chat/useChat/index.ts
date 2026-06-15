@@ -1,4 +1,10 @@
-export type { AutoExecutedToolResult, RunToolLoopResult } from "../toolLoop";
+/** @public */
+export type {
+  AutoExecutedToolResult,
+  RunToolLoopResult,
+  StreamMetaEvent,
+  StreamResumeHandle,
+} from "../toolLoop";
 export { runToolLoop } from "../toolLoop";
 export * from "./strategies";
 export * from "./types";

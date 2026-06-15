@@ -16,8 +16,10 @@ import {
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import {
+  buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
+  createConsolidationFallbackTracker,
   createEntityContext,
   createStorageContext,
   createVaultContext,
@@ -36,6 +38,7 @@ import type {
   RecallEmit,
   RecallLaneMode,
   RecallTypes,
+  RetrievalTuningKnobs,
   TokenUsage,
 } from "./types.js";
 
@@ -81,7 +84,7 @@ export async function processEntryRecall(
     recallTypes?: RecallTypes;
     recallEmit?: RecallEmit;
     recallLaneMode?: RecallLaneMode;
-  }
+  } & RetrievalTuningKnobs
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
   const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
@@ -215,6 +218,7 @@ export async function processEntryRecall(
     const embeddingCache: VaultEmbeddingCache = new Map();
     const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
     const consolidateEnabled = searchPipeline?.consolidate ?? true;
+    const fallbackTracker = createConsolidationFallbackTracker();
 
     for (const mem of allMemories) {
       // W6 temporal lane — propagate the bench's `kind: 'event' | 'state'`
@@ -233,7 +237,11 @@ export async function processEntryRecall(
         source: "auto-extracted",
         sourceChunkIds: [mem.sessionId],
         ...(consolidateEnabled && {
-          consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+          consolidateOptions: {
+            apiKey: api.apiKey,
+            baseUrl: api.baseUrl,
+            onFallback: fallbackTracker.onFallback,
+          },
         }),
         ...(eventTime && { eventTime }),
       });
@@ -253,6 +261,7 @@ export async function processEntryRecall(
         }
       }
     }
+    fallbackTracker.report(entry.question_id);
     await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
 
     const types = TYPES_BY_FLAG[searchPipeline?.recallTypes ?? "fact-chunk"];
@@ -282,6 +291,9 @@ export async function processEntryRecall(
     const decomposeOpts = decomposeEnabled
       ? { decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl } }
       : {};
+    // Ranking tuning knobs (--ce-weight, --rrf-k, …) forwarded to every
+    // recall() call. Empty object when no knob is set — pure no-op.
+    const tuningOpts = buildRetrievalTuningOptions(searchPipeline);
 
     const recallExecutor = async (args: Record<string, unknown>): Promise<string> => {
       const query = typeof args.query === "string" ? args.query : "";
@@ -317,6 +329,7 @@ export async function processEntryRecall(
                 minScore: DEFAULT_FACT_MIN_SCORE,
                 budget,
                 now: nowForQuery,
+                ...tuningOpts,
                 ...decomposeOpts,
               })
             ).memories
@@ -329,6 +342,7 @@ export async function processEntryRecall(
               limit: DEFAULT_CHUNK_LANE_LIMIT,
               budget,
               now: nowForQuery,
+              ...tuningOpts,
               ...decomposeOpts,
             })
           ).memories
@@ -343,6 +357,7 @@ export async function processEntryRecall(
               minScore: DEFAULT_FACT_MIN_SCORE,
               budget,
               now: nowForQuery,
+              ...tuningOpts,
               ...decomposeOpts,
             })
           ).memories

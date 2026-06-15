@@ -842,7 +842,14 @@ function collectValidationErrors(
 
 /**
  * Creates the suite of app generation tools (create_file, patch_file, delete_file,
- * read_file, list_files) backed by the provided storage adapter.
+ * read_file, list_files, audit_design, critique_design, verify_app) backed by
+ * the provided storage adapter.
+ *
+ * Give the tool loop running these at least 8 tool rounds per turn
+ * (`maxToolRounds` in `runToolLoop` / `useChat`). The workflow the App Builder
+ * prompt mandates — re-orient, create, critique, patch, audit, patch, verify —
+ * takes 7–8 rounds on a substantial turn; a smaller budget silently starves
+ * the trailing `verify_app` call, so the host's runtime verification never runs.
  */
 export function createAppGenerationTools({
   getConversationId,
@@ -917,11 +924,12 @@ export function createAppGenerationTools({
   // same wrong mental model, even with snippets in hand.
   const patchFailuresByConv = new Map<string, Map<string, number>>();
   function bumpPatchFailure(conversationId: string, path: string): number {
-    let m = patchFailuresByConv.get(conversationId);
-    if (!m) {
-      m = new Map();
-      touchConv(patchFailuresByConv, conversationId, m);
-    }
+    // touchConv on every bump, not just first insertion — otherwise the
+    // conversation's map position is frozen at first failure and eviction
+    // degrades to FIFO (an active conversation can be dropped before idle
+    // ones that merely arrived later).
+    const m = patchFailuresByConv.get(conversationId) ?? new Map<string, number>();
+    touchConv(patchFailuresByConv, conversationId, m);
     const n = (m.get(path) ?? 0) + 1;
     m.set(path, n);
     return n;
@@ -931,17 +939,19 @@ export function createAppGenerationTools({
   }
 
   // Per-conversation set of file paths whose current content the model
-  // has seen — via a successful read_file or create_file. patch_file
-  // refuses to operate on files not in this set, mirroring Claude Code's
-  // "must Read before Edit" contract. Prevents the failure mode where
-  // the model patches against a hallucinated copy of the file.
+  // has seen — via a successful read_file, create_file, or patch_file
+  // (a successful patch means the model constructed the new content, so
+  // it still knows it). patch_file refuses to operate on files not in
+  // this set, mirroring Claude Code's "must Read before Edit" contract.
+  // Prevents the failure mode where the model patches against a
+  // hallucinated copy of the file.
   const seenFilesByConv = new Map<string, Set<string>>();
   function markFileSeen(conversationId: string, path: string): void {
-    let s = seenFilesByConv.get(conversationId);
-    if (!s) {
-      s = new Set();
-      touchConv(seenFilesByConv, conversationId, s);
-    }
+    // touchConv on every mark so each read/write refreshes the
+    // conversation's LRU position — see bumpPatchFailure for the
+    // FIFO-degradation failure mode this prevents.
+    const s = seenFilesByConv.get(conversationId) ?? new Set<string>();
+    touchConv(seenFilesByConv, conversationId, s);
     s.add(path);
   }
   function hasFileBeenSeen(conversationId: string, path: string): boolean {
@@ -1092,7 +1102,17 @@ export function createAppGenerationTools({
           ...display,
         };
         if (overwritten.length > 0) {
-          result.note = `Overwrote ${overwritten.length} existing file(s): ${overwritten.join(", ")}. For incremental changes, prefer patch_file — smaller diffs are easier to review and preserve more of the existing structure.`;
+          let note = `Overwrote ${overwritten.length} existing file(s): ${overwritten.join(", ")}. For incremental changes, prefer patch_file — smaller diffs are easier to review and preserve more of the existing structure.`;
+          // Rewrites of the audited files are where JSX class names and CSS
+          // selectors drift apart (rename in one file, forget the other →
+          // blank or unstyled render). Suggest the audit at the exact moment
+          // the risk is introduced, not just in the system prompt.
+          const auditedFiles = ["App.js", "App.jsx", "App.css"];
+          if (overwritten.some((p) => auditedFiles.includes(p))) {
+            note +=
+              " After rewriting App.js or App.css, call audit_design — it flags JSX class names and CSS selectors that no longer match across the two files.";
+          }
+          result.note = note;
         }
         return result;
       } catch (err) {
@@ -1236,6 +1256,10 @@ export function createAppGenerationTools({
         }
 
         await storage.putFile(conversationId, filePath, content);
+        // A successful patch is conversation activity: re-mark the path so
+        // a patch-only conversation keeps refreshing its LRU position
+        // instead of aging toward eviction while actively editing.
+        markFileSeen(conversationId, filePath);
         clearPatchFailure(conversationId, filePath);
         await emitFileChange({
           type: "modified",
@@ -1405,6 +1429,11 @@ export function createAppGenerationTools({
         // we don't try to evaluate design quality in code here, because
         // that's a regression to checklist-as-prompt. Taste belongs to
         // the model; the system supplies the moment for it to apply.
+        //
+        // Content is truncated like read_file: without the cap this was
+        // the one tool result whose size grew with the app instead of
+        // staying bounded, which breaks predictable per-turn token cost
+        // on long edit sessions.
         return {
           instruction:
             "Read your App.js and App.css below, then answer each of the rubric questions honestly in your next response — be specific (cite lines, name choices, don't hedge). After answering, identify the 2-3 weakest items you named and patch them now. The point is to step back from the keyboard and actually look, not to satisfy a checklist.",
@@ -1412,12 +1441,12 @@ export function createAppGenerationTools({
           appJs: {
             path: "App.js",
             lines: appJs.split("\n").length,
-            content: appJs,
+            content: truncateContent(appJs),
           },
           appCss: {
             path: "App.css",
             lines: appCss.split("\n").length,
-            content: appCss,
+            content: truncateContent(appCss),
           },
         };
       } catch (err) {
@@ -1502,4 +1531,57 @@ export { APP_BUILDER_PROMPT };
  */
 export function buildAppSystemPrompt(): string {
   return APP_BUILDER_PROMPT;
+}
+
+// ---------------------------------------------------------------------------
+// Turn envelope — bounded per-turn context for long edit sessions
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a compact manifest of the conversation's current app files, for
+ * injection into each turn's context as a system message.
+ *
+ * This is the anchor of the *turn envelope* pattern, which keeps per-request
+ * token cost flat across arbitrarily long edit sessions. The files in
+ * storage — not the conversation — are the durable state: every prior change
+ * is already encoded in them, so old tool traffic adds cost without adding
+ * information. Hosts that resend tool history across turns pay per-turn cost
+ * that grows linearly with turn count (quadratic total); hosts using the
+ * envelope pay a cost bounded by app size, the same at request 5 and
+ * request 100.
+ *
+ * The envelope recipe, per change request:
+ *   1. system: `APP_BUILDER_PROMPT`
+ *   2. system: this manifest (rebuilt from storage each turn)
+ *   3. the last few user/assistant TEXT exchanges (drop all tool messages)
+ *   4. the new user request
+ *
+ * In-turn tool traffic stays within the turn; `maxToolRounds` bounds the
+ * rounds and `maxTurnTokens` (on `runToolLoop`) gives a hard ceiling. The
+ * model re-reads the files it wants to edit (`read_file` results are
+ * truncation-bounded), so per-turn cost is a function of app size and the
+ * text window — never of how many turns came before.
+ *
+ * The manifest deliberately lists paths and sizes only, no content: the
+ * read-before-write contract tracks what the model has actually seen via
+ * `read_file`/`create_file`, and inlined-but-unread content would invite
+ * patches against text the gate can't vouch for.
+ */
+export async function buildAppFileManifest(opts: {
+  storage: AppFileStorage;
+  conversationId: string;
+}): Promise<string> {
+  const files = await opts.storage.getFiles(opts.conversationId);
+  if (files.length === 0) {
+    return "No app files exist in this conversation yet.";
+  }
+  const lines = files
+    .map((f) => ({ path: normalizePath(f.path), chars: f.content.length }))
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((f) => `- ${f.path} (${f.chars} chars)`);
+  return [
+    "Current app files (latest state; supersedes anything earlier in the conversation):",
+    ...lines,
+    "Your context does not carry file contents between turns — call read_file before patching.",
+  ].join("\n");
 }

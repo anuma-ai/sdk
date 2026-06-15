@@ -115,7 +115,40 @@ export type LongMemEvalStrategy =
   | "memory-ensemble"
   | "both";
 
-export interface LongMemEvalOptions {
+/**
+ * Retrieval-ranking tuning knobs swept by the eval harness. Every field is
+ * optional; when omitted the SDK's hardcoded defaults apply, so an empty
+ * object is always a behavioral no-op. Field names match the SDK option
+ * names (`MemoryVaultSearchOptions` / `RecallOptions`) except for
+ * `recencyDecay`/`recencyFloor`, which map onto `recency.perYearDecay` /
+ * `recency.floor`.
+ */
+export interface RetrievalTuningKnobs {
+  /** Cross-encoder multiplicative blend weight. SDK default 0.1. */
+  ceWeight?: number;
+  /** Recency boost slope in the fused ranker. SDK default 1.0. */
+  recencyAlpha?: number;
+  /** Recency per-year linear decay slope. SDK default 0.2. */
+  recencyDecay?: number;
+  /** Recency multiplier floor. SDK default 0.1. */
+  recencyFloor?: number;
+  /** RRF smoothing constant for lane fusion. SDK default 60. */
+  rrfK?: number;
+  /** Supersession score-gap transfer factor. SDK default 0.8. */
+  supersessionBoost?: number;
+  /** Hard cap on the supersession candidate window. SDK default 50. */
+  supersessionWindow?: number;
+  /** Proof-count log-boost scale. SDK default 0.1. */
+  proofCountAlpha?: number;
+  /** Enable MMR diversification (rerank pipeline only). SDK default off. */
+  mmr?: boolean;
+  /** Cross-encoder rerank candidate count (SDK `rerankTopN`). SDK default 30. */
+  rerankTopN?: number;
+  /** BM25 admission divisor (SDK `bm25AdmissionDivisor`). SDK default 50. */
+  bm25AdmissionDivisor?: number;
+}
+
+export interface LongMemEvalOptions extends RetrievalTuningKnobs {
   variant: "s" | "m";
   strategy?: LongMemEvalStrategy;
   llmModel?: string;

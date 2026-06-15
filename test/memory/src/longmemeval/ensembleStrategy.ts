@@ -20,8 +20,10 @@ import {
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import {
+  buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
+  createConsolidationFallbackTracker,
   createStorageContext,
   createVaultContext,
   evaluateAnswer,
@@ -32,7 +34,13 @@ import {
   selectSessions,
   setupDatabase,
 } from "./suite.js";
-import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";
+import type {
+  ApiConfig,
+  LongMemEvalEntry,
+  LongMemEvalResult,
+  RetrievalTuningKnobs,
+  TokenUsage,
+} from "./types.js";
 
 const DEFAULT_VAULT_LIMIT = 14;
 const DEFAULT_ENGINE_TOPK = 12;
@@ -46,7 +54,7 @@ export async function processEntryEnsemble(
     rerank?: boolean;
     decompose?: "off" | "llm";
     consolidate?: boolean;
-  }
+  } & RetrievalTuningKnobs
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
   const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
@@ -155,13 +163,18 @@ export async function processEntryEnsemble(
       const answerSessionIdSet = new Set(entry.answer_session_ids);
       const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
       const consolidateEnabled = searchPipeline?.consolidate ?? true;
+      const fallbackTracker = createConsolidationFallbackTracker();
 
       for (const mem of allMemories) {
         const result = await retain(mem.content, retainCtx, {
           source: "auto-extracted",
           sourceChunkIds: [mem.sessionId],
           ...(consolidateEnabled && {
-            consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+            consolidateOptions: {
+              apiKey: api.apiKey,
+              baseUrl: api.baseUrl,
+              onFallback: fallbackTracker.onFallback,
+            },
           }),
         });
         const targetId = result.memoryId;
@@ -170,6 +183,7 @@ export async function processEntryEnsemble(
           vaultToSession.set(targetId, mem.sessionId);
         }
       }
+      fallbackTracker.report(entry.question_id);
       await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
     }
 
@@ -186,6 +200,7 @@ export async function processEntryEnsemble(
       minSimilarity: 0.1,
       rerank: rerankEnabled,
       decompose: decomposeMode,
+      ...buildRetrievalTuningOptions(searchPipeline),
       ...(decomposeMode === "llm" && {
         decomposeOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
       }),

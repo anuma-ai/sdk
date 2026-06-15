@@ -17,6 +17,7 @@ import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memory
 import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
 import { Entity, MemoryEntity } from "../../../../src/lib/db/entities/models.js";
 import { type EntityOperationsContext } from "../../../../src/lib/db/entities/operations.js";
+import { type ConsolidationFallbackReason } from "../../../../src/lib/memory/types.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -26,6 +27,7 @@ import type {
   LongMemEvalOptions,
   LongMemEvalQuestionType,
   ApiConfig,
+  RetrievalTuningKnobs,
 } from "./types.js";
 import { calculatePercentiles } from "../metrics.js";
 import { getCacheDirectory } from "./dataset.js";
@@ -155,6 +157,59 @@ export function createStorageContext(db: Database): StorageOperationsContext {
     walletAddress: undefined,
     signMessage: undefined,
     embeddedWalletSigner: undefined,
+  };
+}
+
+// ── Retrieval tuning knobs ──
+
+/**
+ * SDK-shaped retrieval tuning options — spreadable into both
+ * `MemoryVaultSearchOptions` (createMemoryVaultSearchTool) and
+ * `RecallOptions` (recall()), whose knob field names are identical.
+ */
+export interface SdkRetrievalTuningOptions {
+  ceWeight?: number;
+  recencyAlpha?: number;
+  recency?: { perYearDecay?: number; floor?: number };
+  rrfK?: number;
+  supersessionBoost?: number;
+  supersessionWindow?: number;
+  proofCountAlpha?: number;
+  mmr?: boolean;
+  rerankTopN?: number;
+  bm25AdmissionDivisor?: number;
+}
+
+/**
+ * Map eval-harness tuning knobs onto SDK option fields. Only knobs that are
+ * actually set are emitted, so the SDK's own defaults stay authoritative —
+ * `buildRetrievalTuningOptions(undefined)` / `({})` is always a no-op.
+ * `recencyDecay`/`recencyFloor` fold into the `recency` sub-object
+ * (`perYearDecay` / `floor`).
+ */
+export function buildRetrievalTuningOptions(
+  knobs?: RetrievalTuningKnobs
+): SdkRetrievalTuningOptions {
+  if (!knobs) return {};
+  const recencyOverrides = {
+    ...(knobs.recencyDecay !== undefined && { perYearDecay: knobs.recencyDecay }),
+    ...(knobs.recencyFloor !== undefined && { floor: knobs.recencyFloor }),
+  };
+  return {
+    ...(knobs.ceWeight !== undefined && { ceWeight: knobs.ceWeight }),
+    ...(knobs.recencyAlpha !== undefined && { recencyAlpha: knobs.recencyAlpha }),
+    ...(Object.keys(recencyOverrides).length > 0 && { recency: recencyOverrides }),
+    ...(knobs.rrfK !== undefined && { rrfK: knobs.rrfK }),
+    ...(knobs.supersessionBoost !== undefined && { supersessionBoost: knobs.supersessionBoost }),
+    ...(knobs.supersessionWindow !== undefined && {
+      supersessionWindow: knobs.supersessionWindow,
+    }),
+    ...(knobs.proofCountAlpha !== undefined && { proofCountAlpha: knobs.proofCountAlpha }),
+    ...(knobs.mmr !== undefined && { mmr: knobs.mmr }),
+    ...(knobs.rerankTopN !== undefined && { rerankTopN: knobs.rerankTopN }),
+    ...(knobs.bm25AdmissionDivisor !== undefined && {
+      bm25AdmissionDivisor: knobs.bm25AdmissionDivisor,
+    }),
   };
 }
 
@@ -601,6 +656,41 @@ export function clearProgress(): void {
   }
 }
 
+// ── Consolidation fallback tracking ──
+
+/**
+ * Counts consolidator degradations during the retain loop. A degraded
+ * fallback writes a duplicate-prone "create" instead of a real decision,
+ * which silently inflates the vault and skews retrieval metrics — a
+ * nonzero rate here means the consolidation knob isn't doing what the
+ * run's config says it is.
+ */
+export function createConsolidationFallbackTracker(): {
+  onFallback: (reason: ConsolidationFallbackReason) => void;
+  report: (questionId: string) => void;
+} {
+  const counts: Record<ConsolidationFallbackReason, number> = {
+    llm_error: 0,
+    invalid_response: 0,
+  };
+  return {
+    onFallback: (reason) => {
+      counts[reason]++;
+    },
+    report: (questionId) => {
+      const total = counts.llm_error + counts.invalid_response;
+      if (total === 0) return;
+      console.warn(
+        `  ⚠ consolidation degraded to create ${total}x on ${questionId} ` +
+          `(llm_error: ${counts.llm_error}, invalid_response: ${counts.invalid_response})`
+      );
+      // Reset so a reused tracker reports per-call deltas, not a running total.
+      counts.llm_error = 0;
+      counts.invalid_response = 0;
+    },
+  };
+}
+
 // ── Session selection ──
 
 export function selectSessions(
@@ -779,6 +869,23 @@ export async function runLongMemEval(
     const orderedResults: (LongMemEvalResult | null)[] = new Array(entries.length).fill(null);
     let completed = 0;
 
+    // Retrieval-ranking tuning knobs shared by the vault/ensemble/recall
+    // strategies. Undefined fields are stripped downstream by
+    // buildRetrievalTuningOptions, so SDK defaults stay authoritative.
+    const tuningKnobs: RetrievalTuningKnobs = {
+      ceWeight: options.ceWeight,
+      recencyAlpha: options.recencyAlpha,
+      recencyDecay: options.recencyDecay,
+      recencyFloor: options.recencyFloor,
+      rrfK: options.rrfK,
+      supersessionBoost: options.supersessionBoost,
+      supersessionWindow: options.supersessionWindow,
+      proofCountAlpha: options.proofCountAlpha,
+      mmr: options.mmr,
+      rerankTopN: options.rerankTopN,
+      bm25AdmissionDivisor: options.bm25AdmissionDivisor,
+    };
+
     async function processEntry(i: number): Promise<void> {
       const entry = entries[i];
 
@@ -811,6 +918,7 @@ export async function runLongMemEval(
               rerank: options.rerank,
               decompose: options.decompose,
               consolidate: options.consolidate,
+              ...tuningKnobs,
             }
           );
         } else if (strat === "memory-recall") {
@@ -831,6 +939,7 @@ export async function runLongMemEval(
               recallTypes: options.recallTypes,
               recallEmit: options.recallEmit,
               recallLaneMode: options.recallLaneMode,
+              ...tuningKnobs,
             }
           );
         } else {
@@ -845,6 +954,7 @@ export async function runLongMemEval(
               consolidate: options.consolidate,
               chunkSourceMaxChars: options.chunkSourceMaxChars,
               excerptMaxChars: options.excerptMaxChars,
+              ...tuningKnobs,
             }
           );
         }

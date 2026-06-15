@@ -60,20 +60,35 @@ describe("consolidateMemory", () => {
   it("falls back to create when targetId references a memory not in candidates", async () => {
     const fetchFn = mockFetch(choices({ action: "update", targetId: "m99", content: "x" }));
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
-    expect(result).toEqual({ action: "create", content: "new fact" });
+    expect(result).toEqual({
+      action: "create",
+      content: "new fact",
+      fallbackReason: "invalid_response",
+    });
   });
 
-  it("falls back to create when no candidates", async () => {
+  it("falls back to create when no candidates — a short-circuit, not a degraded fallback", async () => {
     const fetchFn = vi.fn() as unknown as typeof fetch;
-    const result = await consolidateMemory("new fact", [], { apiKey: "k", fetchFn });
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("new fact", [], { apiKey: "k", fetchFn, onFallback });
     expect(result).toEqual({ action: "create", content: "new fact" });
     expect(fetchFn).not.toHaveBeenCalled();
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it("falls back to create on empty content — a short-circuit, not a degraded fallback", async () => {
+    const fetchFn = vi.fn() as unknown as typeof fetch;
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("   ", candidates, { apiKey: "k", fetchFn, onFallback });
+    expect(result).toEqual({ action: "create", content: "   " });
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(onFallback).not.toHaveBeenCalled();
   });
 
   it("falls back on network error", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
-    expect(result).toEqual({ action: "create", content: "new fact" });
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
   });
 
   it("falls back on non-OK response", async () => {
@@ -81,7 +96,7 @@ describe("consolidateMemory", () => {
       apiKey: "k",
       fetchFn: mockFetch({}, false),
     });
-    expect(result).toEqual({ action: "create", content: "new fact" });
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
   });
 
   it("falls back on malformed JSON", async () => {
@@ -89,19 +104,80 @@ describe("consolidateMemory", () => {
       choices: [{ message: { content: "{not json" } }],
     });
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
-    expect(result).toEqual({ action: "create", content: "new fact" });
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
   });
 
   it("falls back on invalid action enum", async () => {
     const fetchFn = mockFetch(choices({ action: "delete", targetId: "m1" }));
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
-    expect(result).toEqual({ action: "create", content: "new fact" });
+    expect(result).toEqual({
+      action: "create",
+      content: "new fact",
+      fallbackReason: "invalid_response",
+    });
   });
 
   it("falls back on update without content", async () => {
     const fetchFn = mockFetch(choices({ action: "update", targetId: "m1" }));
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
-    expect(result).toEqual({ action: "create", content: "new fact" });
+    expect(result).toEqual({
+      action: "create",
+      content: "new fact",
+      fallbackReason: "invalid_response",
+    });
+  });
+
+  it("degrades (not throws) when options carry no credentials — retain must survive misconfig", async () => {
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("new fact", candidates, {
+      onFallback,
+    } as never);
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    expect(onFallback).toHaveBeenCalledWith("llm_error");
+  });
+
+  it("notifies onFallback with llm_error on LLM failure", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
+    const onFallback = vi.fn();
+    await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn, onFallback });
+    expect(onFallback).toHaveBeenCalledTimes(1);
+    expect(onFallback).toHaveBeenCalledWith("llm_error");
+  });
+
+  it("notifies onFallback with invalid_response on schema violation", async () => {
+    const fetchFn = mockFetch(choices({ action: "delete" }));
+    const onFallback = vi.fn();
+    await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn, onFallback });
+    expect(onFallback).toHaveBeenCalledTimes(1);
+    expect(onFallback).toHaveBeenCalledWith("invalid_response");
+  });
+
+  it("a throwing onFallback cannot break the write path", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
+    const onFallback = vi.fn(() => {
+      throw new Error("metrics sink exploded");
+    });
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      onFallback,
+    });
+    // The degraded fallback still comes back — the observability hook's
+    // failure is swallowed rather than failing the retain write.
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    expect(onFallback).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify onFallback for a real LLM decision", async () => {
+    const fetchFn = mockFetch(choices({ action: "noop", targetId: "m1" }));
+    const onFallback = vi.fn();
+    const result = await consolidateMemory("dup fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      onFallback,
+    });
+    expect(result).toEqual({ action: "noop", targetId: "m1" });
+    expect(onFallback).not.toHaveBeenCalled();
   });
 
   it("uses LLM-empty content fallback for create", async () => {

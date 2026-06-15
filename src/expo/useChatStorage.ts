@@ -44,6 +44,7 @@ import {
   type StorageOperationsContext,
   type StoredConversation,
   type StoredMessage,
+  updateConversationPinnedOp,
   updateConversationTitleOp,
   updateMessageErrorOp,
 } from "../lib/db/chat";
@@ -492,6 +493,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             operation.payload.title as string
           );
           break;
+        case "updateConversationPinned":
+          await updateConversationPinnedOp(
+            ctx,
+            operation.payload.conversationId as string,
+            operation.payload.pinned as boolean
+          );
+          break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
           break;
@@ -796,6 +804,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         "updateConversationTitle",
         { conversationId: id, title },
         () => updateConversationTitleOp(storageCtx, id, title),
+        () => true
+      );
+      return result;
+    },
+    [storageCtx, writeOrQueue]
+  );
+
+  /**
+   * Pin or unpin a conversation. Pinning stamps `pinnedAt`; list queries are
+   * NOT reordered — consumers sort pinned chats first using `pinnedAt`.
+   * @returns true if updated, false if conversation not found
+   */
+  const updateConversationPinned = useCallback(
+    async (id: string, pinned: boolean): Promise<boolean> => {
+      const { result } = await writeOrQueue(
+        "updateConversationPinned",
+        { conversationId: id, pinned },
+        () => updateConversationPinnedOp(storageCtx, id, pinned),
         () => true
       );
       return result;
@@ -1587,6 +1613,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getConversation,
     getConversations,
     updateConversationTitle,
+    updateConversationPinned,
     deleteConversation,
     getMessages,
     createMemoryEngineTool,

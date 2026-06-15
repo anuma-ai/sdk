@@ -13,6 +13,7 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEn
 export type QueuedOperationType =
   | "createConversation"
   | "updateConversationTitle"
+  | "updateConversationPinned"
   | "createMessage"
   | "updateMessage"
   | "createMedia"

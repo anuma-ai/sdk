@@ -17,9 +17,25 @@
  * Schema versioning: bumped via `SCHEMA_VERSION`. Old runs in
  * `.output/{bench}/.history/` may carry older versions; the compare
  * helpers tolerate same-version comparisons only.
+ *
+ * v2: per-phase `auditScore` (deterministic `auditDesign()` on the
+ * post-phase file store) and `inputTokens` / `outputTokens`, plus token
+ * totals — elapsed/tool counts alone show efficiency regressions but
+ * not quality or cost ones.
  */
 
-export const SCHEMA_VERSION = 1 as const;
+import { auditDesign } from "./appAudit.js";
+
+export const SCHEMA_VERSION = 2 as const;
+
+/** LLM token usage for one phase, summed across the phase's rounds.
+ *  Consumed by the e2e harness (`timedToolLoop` returns it), which sits
+ *  outside knip's project scope — hence the tag.
+ *  @public */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
 
 /** Subset of a benchmark's tool-call log used by metrics. The full
  *  `ToolCallLog` in `test/tools/setup.ts` carries `args` too but
@@ -48,6 +64,16 @@ export interface PhaseRecord {
   files: Record<string, number>;
   /** Whether the model errored out of the tool loop in this phase. */
   errored: boolean;
+  /** Deterministic `auditDesign()` score (0–100) on the post-phase file
+   *  store. Null when there is nothing to audit (no App.js / App.jsx /
+   *  App.css yet). Measured by the harness, not the model — so it
+   *  reflects the phase's final state even when the model's own
+   *  audit_design call ran before its last fix. */
+  auditScore: number | null;
+  /** LLM tokens consumed by this phase across all rounds. Null when the
+   *  harness didn't measure usage (distinguishes "unmeasured" from 0). */
+  inputTokens: number | null;
+  outputTokens: number | null;
 }
 
 /** Final, persisted record for a benchmark run. */
@@ -70,6 +96,9 @@ export interface RunRecord {
     toolCalls: Record<string, number>;
     failedPatches: number;
     overwrites: number;
+    /** Summed across phases that measured usage; null when none did. */
+    inputTokens: number | null;
+    outputTokens: number | null;
   };
 }
 
@@ -83,6 +112,8 @@ export function summarizePhase(opts: {
   toolCalls: ToolCallRecord[];
   files: ReadonlyMap<string, string> | Record<string, string>;
   errored?: boolean;
+  /** Token usage for the phase, when the harness measured it. */
+  usage?: Partial<TokenUsage> | null;
 }): PhaseRecord {
   const counts: Record<string, number> = {};
   for (const c of opts.toolCalls) {
@@ -117,9 +148,18 @@ export function summarizePhase(opts: {
   }
 
   const files: Record<string, number> = {};
+  const contents: Record<string, string> = {};
   const fileEntries: Iterable<[string, string]> =
     opts.files instanceof Map ? opts.files : Object.entries(opts.files);
-  for (const [p, c] of fileEntries) files[p] = c.length;
+  for (const [p, c] of fileEntries) {
+    files[p] = c.length;
+    contents[p] = c;
+  }
+
+  // Audit the phase's final state directly — auditDesign is pure, so this
+  // costs no LLM round and runs even when the model skipped audit_design.
+  const auditable = "App.js" in contents || "App.jsx" in contents || "App.css" in contents;
+  const auditScore = auditable ? auditDesign(contents).score : null;
 
   return {
     label: opts.label,
@@ -129,6 +169,9 @@ export function summarizePhase(opts: {
     overwrites,
     files,
     errored: opts.errored ?? false,
+    auditScore,
+    inputTokens: opts.usage?.inputTokens ?? null,
+    outputTokens: opts.usage?.outputTokens ?? null,
   };
 }
 
@@ -146,12 +189,16 @@ export function finalizeRun(opts: {
     toolCalls: {} as Record<string, number>,
     failedPatches: 0,
     overwrites: 0,
+    inputTokens: null as number | null,
+    outputTokens: null as number | null,
   };
   let totalElapsedMs = 0;
   for (const p of opts.phases) {
     totalElapsedMs += p.elapsedMs;
     totals.failedPatches += p.failedPatches;
     totals.overwrites += p.overwrites;
+    if (p.inputTokens !== null) totals.inputTokens = (totals.inputTokens ?? 0) + p.inputTokens;
+    if (p.outputTokens !== null) totals.outputTokens = (totals.outputTokens ?? 0) + p.outputTokens;
     for (const [name, count] of Object.entries(p.toolCalls)) {
       totals.toolCalls[name] = (totals.toolCalls[name] ?? 0) + count;
     }
@@ -192,6 +239,21 @@ function formatDelta(before: number, after: number, unit: string = ""): string {
   return `${before}${unit} → ${after}${unit}  (${sign}${diff}${unit})`;
 }
 
+/** Like `formatDelta` but for fields that may be unmeasured (null) on
+ *  either side — e.g. tokens from a pre-v2 harness, or auditScore on a
+ *  phase with no app files. No delta is printed unless both sides have
+ *  a value. */
+function formatNullableDelta(
+  before: number | null,
+  after: number | null,
+  unit: string = ""
+): string {
+  if (before === null && after === null) return "n/a";
+  if (before === null) return `n/a → ${after}${unit}`;
+  if (after === null) return `${before}${unit} → n/a`;
+  return formatDelta(before, after, unit);
+}
+
 /**
  * Render a human-readable side-by-side diff between two runs. Used by
  * the `scripts/compare-app-gen-runs.ts` CLI and by tests that want to
@@ -219,6 +281,16 @@ export function compareRuns(before: RunRecord, after: RunRecord): string {
   lines.push("");
 
   lines.push(`elapsed: ${formatDelta(before.totalElapsedMs, after.totalElapsedMs, "ms")}`);
+  if (
+    before.totals.inputTokens !== null ||
+    after.totals.inputTokens !== null ||
+    before.totals.outputTokens !== null ||
+    after.totals.outputTokens !== null
+  ) {
+    lines.push(
+      `tokens:  in ${formatNullableDelta(before.totals.inputTokens, after.totals.inputTokens)}   out ${formatNullableDelta(before.totals.outputTokens, after.totals.outputTokens)}`
+    );
+  }
   lines.push("");
 
   lines.push("tool calls (totals):");
@@ -258,6 +330,19 @@ export function compareRuns(before: RunRecord, after: RunRecord): string {
     lines.push(`    elapsed:       ${formatDelta(bp.elapsedMs, ap.elapsedMs, "ms")}`);
     lines.push(`    failedPatches: ${formatDelta(bp.failedPatches, ap.failedPatches)}`);
     lines.push(`    overwrites:    ${formatDelta(bp.overwrites, ap.overwrites)}`);
+    if (bp.auditScore !== null || ap.auditScore !== null) {
+      lines.push(`    auditScore:    ${formatNullableDelta(bp.auditScore, ap.auditScore)}`);
+    }
+    if (
+      bp.inputTokens !== null ||
+      ap.inputTokens !== null ||
+      bp.outputTokens !== null ||
+      ap.outputTokens !== null
+    ) {
+      lines.push(
+        `    tokens:        in ${formatNullableDelta(bp.inputTokens, ap.inputTokens)}   out ${formatNullableDelta(bp.outputTokens, ap.outputTokens)}`
+      );
+    }
     const allFiles = new Set([...Object.keys(bp.files), ...Object.keys(ap.files)]);
     for (const f of [...allFiles].sort()) {
       const bsize = bp.files[f] ?? 0;

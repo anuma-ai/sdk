@@ -32,7 +32,9 @@
  * silently swallow a write.
  */
 
-import { callPortalJsonCompletion } from "./portalLlm.js";
+import { getLogger } from "../logger.js";
+import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
+import type { ConsolidationFallbackReason } from "./types.js";
 
 const DEFAULT_MODEL = "openai/gpt-5-mini";
 
@@ -78,12 +80,27 @@ interface ConsolidationResult {
   targetId?: string;
   /** Defined for create/update. The final content to persist. */
   content?: string;
+  /**
+   * Set when this "create" is a degraded fallback rather than a real
+   * decision (LLM failure or schema-violating response). Distinguishes
+   * "the model chose create" from "we couldn't get a usable answer" —
+   * the latter accumulates duplicates if it happens persistently.
+   *
+   * Note: retain()'s consolidation path drops the result on "create"
+   * (fallback or real), so this field only reaches direct
+   * consolidateMemory() callers and tests — `onFallback` is the live
+   * observability channel.
+   */
+  fallbackReason?: ConsolidationFallbackReason;
 }
 
-interface ConsolidateOptions {
-  apiKey: string;
+/** Auth is the dual pattern — one of `apiKey` / `getToken` is required at
+ * runtime; see {@link PortalLlmAuth}. */
+interface ConsolidateOptions extends PortalLlmAuth {
   baseUrl?: string;
   model?: string;
+  /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
+  onFallback?: (reason: ConsolidationFallbackReason) => void;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
 }
@@ -112,19 +129,47 @@ export async function consolidateMemory(
     .join("\n");
   const userMessage = `New memory:\n  ${trimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
 
-  const parsed = await callPortalJsonCompletion({
-    apiKey: options.apiKey,
-    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
-    model: options.model ?? DEFAULT_MODEL,
-    systemPrompt: SYSTEM_PROMPT,
-    userMessage,
-    tag: "memory/consolidate",
-    ...(options.fetchFn && { fetchFn: options.fetchFn }),
-  });
-  if (parsed === null) return fallback;
+  let parsed: unknown;
+  try {
+    parsed = await callPortalJsonCompletion({
+      ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+      ...(options.getToken !== undefined && { getToken: options.getToken }),
+      ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      model: options.model ?? DEFAULT_MODEL,
+      systemPrompt: SYSTEM_PROMPT,
+      userMessage,
+      tag: "memory/consolidate",
+      ...(options.fetchFn && { fetchFn: options.fetchFn }),
+    });
+  } catch (err) {
+    // Auth-resolution errors (no apiKey/getToken on a truthy options
+    // object) throw from callPortalJsonCompletion. Consolidation is an
+    // optional quality stage — it must never crash the retain it
+    // decorates, and the documented contract is fallback-to-create on
+    // ANY failure. Degrade and surface via onFallback + logger.
+    getLogger().warn("memory/consolidate: portal call failed, degrading to create", err);
+    return degrade("llm_error", fallback, options);
+  }
+  if (parsed === null) return degrade("llm_error", fallback, options);
 
   const validIds = new Set(candidates.map((c) => c.id));
-  return validate(parsed, trimmed, validIds) ?? fallback;
+  const result = validate(parsed, trimmed, validIds);
+  return result ?? degrade("invalid_response", fallback, options);
+}
+
+function degrade(
+  reason: ConsolidationFallbackReason,
+  fallback: ConsolidationResult,
+  options: ConsolidateOptions
+): ConsolidationResult {
+  try {
+    options.onFallback?.(reason);
+  } catch {
+    // Observability callback must not break the write path — a throwing
+    // metrics hook would otherwise propagate up through retain() and
+    // fail the very write the fallback is trying to preserve.
+  }
+  return { ...fallback, fallbackReason: reason };
 }
 
 function validate(

@@ -178,6 +178,12 @@ Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsC
 
 ***
 
+### ConsolidationFallbackReason
+
+Re-exports [ConsolidationFallbackReason](../react/Internal/type-aliases/ConsolidationFallbackReason.md)
+
+***
+
 ### cosineInt8
 
 Re-exports [cosineInt8](../react/Internal/functions/cosineInt8.md)
@@ -460,6 +466,12 @@ Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
 
 ***
 
+### INFERENCE\_ID\_HEADER
+
+Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEADER.md)
+
+***
+
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
@@ -517,6 +529,12 @@ Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
 ### PlatformStorage
 
 Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
+
+***
+
+### PortalLlmAuth
+
+Re-exports [PortalLlmAuth](../react/Internal/interfaces/PortalLlmAuth.md)
 
 ***
 
@@ -601,6 +619,12 @@ Re-exports [RecallToolCallbacks](../react/Internal/interfaces/RecallToolCallback
 ### RecallToolOptions
 
 Re-exports [RecallToolOptions](../react/Internal/interfaces/RecallToolOptions.md)
+
+***
+
+### RecencyOptions
+
+Re-exports [RecencyOptions](../react/Internal/interfaces/RecencyOptions.md)
 
 ***
 
@@ -763,6 +787,24 @@ Re-exports [StoredVaultMemory](../react/Internal/interfaces/StoredVaultMemory.md
 ### StoredVaultMemoryModel
 
 Re-exports [StoredVaultMemoryModel](../react/Internal/classes/StoredVaultMemoryModel.md)
+
+***
+
+### STREAM\_RESUMABLE\_HEADER
+
+Re-exports [STREAM\_RESUMABLE\_HEADER](../react/Internal/variables/STREAM_RESUMABLE_HEADER.md)
+
+***
+
+### StreamMetaEvent
+
+Re-exports [StreamMetaEvent](../react/Internal/type-aliases/StreamMetaEvent.md)
+
+***
+
+### StreamResumeHandle
+
+Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandle.md)
 
 ***
 
