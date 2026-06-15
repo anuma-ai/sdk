@@ -6,7 +6,7 @@ Defined in: [src/expo/useChatStorage.ts:259](https://github.com/anuma-ai/sdk/blo
 
 Arguments for sendMessage with storage (Expo version)
 
-Uses the base arguments without React-specific features (no runTools, no headers).
+Uses the base arguments without React-specific features (no runTools).
 
 ## Type Declaration
 
@@ -22,3 +22,9 @@ Useful when different models need different APIs.
 ```ts
 Uses the hook-level apiType or "responses"
 ```
+
+### headers?
+
+> `optional` **headers**: `Record`<`string`, `string`>
+
+Custom HTTP headers to include with the API request (e.g. X-Privacy-Mode).
