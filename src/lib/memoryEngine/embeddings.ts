@@ -50,19 +50,34 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
   call: () => Promise<T>
 ): Promise<T> {
   let last: T | undefined;
+  let lastThrown: unknown;
+  let threw = false;
   for (let attempt = 1; attempt <= EMBED_MAX_ATTEMPTS; attempt++) {
-    last = await call();
-    if (!last.error) return last;
-    // Only transient failures are worth retrying — a 4xx other than 429
-    // (bad auth, bad request) will fail identically on every attempt.
-    const status = last.response?.status;
-    const retryable = status === undefined || status === 429 || status >= 500;
-    if (!retryable) return last;
+    try {
+      threw = false;
+      last = await call();
+      if (!last.error) return last;
+      // Resolved with an HTTP-level error ({ error } set). Only transient
+      // statuses are worth retrying — a non-429 4xx (bad auth / bad request)
+      // fails identically every attempt, so surface it immediately.
+      const status = last.response?.status;
+      const retryable = status === undefined || status === 429 || status >= 500;
+      if (!retryable) return last;
+    } catch (err) {
+      // fetch itself rejected — ECONNRESET, DNS failure, connection timeout.
+      // These never come back as a `{ error }` object, so without this catch
+      // a real network fault would skip the retry entirely and hard-fail on
+      // the first attempt. Always transient: retry, then re-throw if we
+      // exhaust attempts (preserving the throw contract for callers).
+      threw = true;
+      lastThrown = err;
+    }
     if (attempt < EMBED_MAX_ATTEMPTS) {
       const base = 250 * 2 ** (attempt - 1);
       await new Promise((r) => setTimeout(r, base + Math.random() * 0.4 * base));
     }
   }
+  if (threw) throw lastThrown;
   return last as T;
 }
 

@@ -104,10 +104,13 @@ async function getExtractionCache(): Promise<Map<string, CachedExtraction[]>> {
 async function persistExtractionCache(force = false): Promise<void> {
   if (!extractionCache) return;
   if (!force && extractionCacheUnsaved < EXTRACTION_CACHE_SAVE_EVERY) return;
-  extractionCacheUnsaved = 0;
   try {
     await mkdir(join(extractionCachePath, ".."), { recursive: true });
     await writeFile(extractionCachePath, JSON.stringify([...extractionCache.entries()]));
+    // Only reset after the write actually lands — zeroing it before would
+    // mean a failed write silently drops the "needs save" signal until
+    // another full debounce window of entries accumulates.
+    extractionCacheUnsaved = 0;
   } catch {
     // Cache persistence is best-effort — next save retries.
   }
@@ -305,11 +308,26 @@ export function getTranscriptPath(questionId: string): string {
   return join(getCacheDirectory(), "transcripts", `${questionId}.json`);
 }
 
-export async function transcriptMatchesModel(questionId: string, model: string): Promise<boolean> {
+/**
+ * True when a cached transcript was produced with BOTH the same answer model
+ * and the same effective extraction model. `extractionModel` is the resolved
+ * extractor (i.e. `--extract-llm` or, when unset, the answer model itself).
+ * Transcripts written before extraction-model tracking lack the field; those
+ * were always run with extraction == answer model, so we reconstruct their
+ * effective extractor as `parsed.llmModel`. This makes `--skip-existing`
+ * correctly RE-RUN entries when only the extractor changed (same answer
+ * model, different `--extract-llm`) instead of wrongly skipping them.
+ */
+export async function transcriptMatchesModel(
+  questionId: string,
+  model: string,
+  extractionModel: string
+): Promise<boolean> {
   try {
     const data = await readFile(getTranscriptPath(questionId), "utf-8");
-    const parsed = JSON.parse(data) as { llmModel?: string };
-    return parsed.llmModel === model;
+    const parsed = JSON.parse(data) as { llmModel?: string; extractionModel?: string };
+    const transcriptExtractor = parsed.extractionModel ?? parsed.llmModel;
+    return parsed.llmModel === model && transcriptExtractor === extractionModel;
   } catch {
     return false;
   }
@@ -994,7 +1012,12 @@ export async function runLongMemEval(
 
       try {
         if (options.skipExisting) {
-          const hasTranscript = await transcriptMatchesModel(entry.question_id, llmModel);
+          // Effective extractor = --extract-llm, or the answer model when unset.
+          const hasTranscript = await transcriptMatchesModel(
+            entry.question_id,
+            llmModel,
+            extractionModel || llmModel
+          );
           if (hasTranscript) {
             completed++;
             console.log(`[${completed}/${entries.length}] ${entry.question_id} ↷ Skipping`);

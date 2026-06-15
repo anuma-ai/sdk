@@ -444,6 +444,9 @@ When a fact in the memory has a different version mentioned at a later session d
       question: entry.question,
       expectedAnswer: entry.answer,
       llmModel: api.llmModel,
+      // Resolved effective extractor (`--extract-llm` or, when unset, the
+      // answer model) — lets --skip-existing detect extractor-only changes.
+      extractionModel: api.extractionModel ?? api.llmModel,
       strategy: "memory-recall",
       messages: [...baseMessages],
       toolCalls: [] as unknown[],
