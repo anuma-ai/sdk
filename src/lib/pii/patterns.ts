@@ -20,6 +20,15 @@ interface PiiPattern {
   regex: RegExp;
   /** Optional post-match validation to reduce false positives. */
   validate?: (match: string) => boolean;
+  /**
+   * Optional context guard. When set, a match is only redacted if this regex
+   * matches the text immediately preceding it (a short window). Used to require
+   * a cue word — e.g. only treat a date as a date-of-birth when "DOB" / "born"
+   * appears just before it. Implemented with a window slice rather than a
+   * lookbehind so it works on engines without lookbehind support (Hermes,
+   * older Safari).
+   */
+  context?: RegExp;
 }
 
 // Luhn checksum for credit card validation
@@ -131,9 +140,25 @@ export const PII_PATTERNS: PiiPattern[] = [
     },
   },
 
-  // Dates of birth — common US date formats
+  // Dates of birth — common US date formats. Only redacted when a birth-date
+  // cue ("DOB", "born", "birthday", "date of birth") appears just before the
+  // date, so ordinary calendar dates ("meeting 12/25/2024", deadlines,
+  // invoices) are left intact for the model. A calendar validator also rejects
+  // impossible dates like 02/31/1990.
   {
     category: "DATE_OF_BIRTH",
     regex: /\b(?:(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2})\b/g,
+    context:
+      /(?:\bdob\b|\bd\.?o\.?b\.?|\bborn\b|\bbirth\s?date\b|\bbirthdate\b|\bbirthday\b|\bdate\s+of\s+birth\b)[^\d\n]{0,12}$/i,
+    validate: (match: string) => {
+      const m = match.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+      if (!m) return false;
+      const month = parseInt(m[1], 10);
+      const day = parseInt(m[2], 10);
+      const year = parseInt(m[3], 10);
+      const isLeap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+      const daysInMonth = [31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1];
+    },
   },
 ];

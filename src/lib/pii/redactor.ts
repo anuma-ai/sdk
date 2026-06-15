@@ -94,6 +94,12 @@ export class PiiRedactor {
       while ((m = regex.exec(redacted)) !== null) {
         const value = m[0];
         if (pattern.validate && !pattern.validate(value)) continue;
+        if (pattern.context) {
+          // Check a short preceding window for a required cue word. Uses a
+          // window slice (not a lookbehind) for engine portability.
+          const before = redacted.slice(Math.max(0, m.index - 40), m.index);
+          if (!pattern.context.test(before)) continue;
+        }
         found.push({ match: value, index: m.index });
       }
 

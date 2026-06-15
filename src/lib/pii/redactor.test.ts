@@ -184,6 +184,18 @@ describe("PiiRedactor", () => {
         const result = redactor.redactText("Born on 12-25-1985");
         expect(result.text).toBe("Born on [DATE_OF_BIRTH_1]");
       });
+
+      it("does not redact ordinary calendar dates without a DOB cue", () => {
+        const r1 = redactor.redactText("Let's meet on 12/25/2024");
+        const r2 = redactor.redactText("Invoice dated 06/15/2026");
+        expect(r1.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+        expect(r2.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+      });
+
+      it("rejects impossible calendar dates even with a DOB cue", () => {
+        const result = redactor.redactText("DOB: 02/31/2020");
+        expect(result.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+      });
     });
 
     describe("multiple categories", () => {
