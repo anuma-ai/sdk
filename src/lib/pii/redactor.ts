@@ -225,6 +225,40 @@ export class PiiRedactor {
 }
 
 /**
+ * Structural (duck-typed) check for a {@link PiiRedactor}. Used instead of
+ * `instanceof` because dual ESM/CJS packaging or an SSR/client boundary can
+ * produce a redactor from a *duplicate* class copy, for which `instanceof`
+ * silently returns false — the worst failure mode for a privacy feature.
+ */
+export function isPiiRedactor(value: unknown): value is PiiRedactor {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as PiiRedactor).redactMessages === "function" &&
+    typeof (value as PiiRedactor).deAnonymize === "function"
+  );
+}
+
+/**
+ * Resolve a `piiRedaction` option (`true` | `false` | `PiiRedactor`) into a
+ * redactor instance or `undefined`. `true` creates a fresh redactor; a
+ * redactor-like value is used as-is. Any other truthy value is a programming
+ * error: it warns loudly and disables redaction rather than failing silently.
+ */
+export function resolvePiiRedactor(
+  piiRedaction: boolean | PiiRedactor | undefined
+): PiiRedactor | undefined {
+  if (piiRedaction === true) return new PiiRedactor();
+  if (piiRedaction === false || piiRedaction == null) return undefined;
+  if (isPiiRedactor(piiRedaction)) return piiRedaction;
+  console.warn(
+    "[PiiRedactor] `piiRedaction` is neither `true` nor a PiiRedactor instance; " +
+      "PII redaction is DISABLED for this request."
+  );
+  return undefined;
+}
+
+/**
  * Wraps an output sink so a streamed sequence of chunks is de-anonymized
  * correctly even when a placeholder ("[EMAIL_1]") is split across chunk
  * boundaries — which happens routinely because the stream smoother emits text

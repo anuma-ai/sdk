@@ -8,7 +8,7 @@ import type {
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { generateEmbedding } from "../memoryEngine/embeddings";
-import { createStreamingDeAnonymizer, PiiRedactor } from "../pii/redactor";
+import { createStreamingDeAnonymizer, type PiiRedactor, resolvePiiRedactor } from "../pii/redactor";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -967,13 +967,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     }
   }
 
-  // PII redaction: resolve the redactor instance and transform messages
-  const redactor =
-    piiRedaction === true
-      ? new PiiRedactor()
-      : piiRedaction instanceof PiiRedactor
-        ? piiRedaction
-        : undefined;
+  // PII redaction: resolve the redactor instance and transform messages.
+  // resolvePiiRedactor uses a structural check (not instanceof) so a redactor
+  // from a duplicate class copy still works, and warns instead of silently
+  // disabling redaction for an unexpected value.
+  const redactor = resolvePiiRedactor(piiRedaction);
 
   if (redactor) {
     const result = redactor.redactMessages(messages);

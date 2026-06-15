@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { PiiRedactor, createStreamingDeAnonymizer } from "./redactor";
+import {
+  PiiRedactor,
+  createStreamingDeAnonymizer,
+  isPiiRedactor,
+  resolvePiiRedactor,
+} from "./redactor";
 import type { LlmapiMessage } from "../../client";
 
 describe("PiiRedactor", () => {
@@ -352,6 +357,32 @@ describe("PiiRedactor", () => {
 
     it("returns text unchanged if no placeholders", () => {
       expect(redactor.deAnonymize("No placeholders here")).toBe("No placeholders here");
+    });
+  });
+
+  describe("resolvePiiRedactor", () => {
+    it("creates a fresh redactor for true", () => {
+      expect(resolvePiiRedactor(true)).toBeInstanceOf(PiiRedactor);
+    });
+
+    it("returns undefined for false / undefined", () => {
+      expect(resolvePiiRedactor(false)).toBeUndefined();
+      expect(resolvePiiRedactor(undefined)).toBeUndefined();
+    });
+
+    it("accepts a real PiiRedactor instance", () => {
+      const r = new PiiRedactor();
+      expect(resolvePiiRedactor(r)).toBe(r);
+    });
+
+    it("accepts a duck-typed redactor from a duplicate class copy", () => {
+      // Simulates an instance whose prototype chain differs (dual ESM/CJS).
+      const lookalike = {
+        redactMessages: () => ({ messages: [], matches: [] }),
+        deAnonymize: (t: string) => t,
+      };
+      expect(isPiiRedactor(lookalike)).toBe(true);
+      expect(resolvePiiRedactor(lookalike as unknown as PiiRedactor)).toBe(lookalike);
     });
   });
 
