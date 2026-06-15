@@ -935,6 +935,18 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: "Request aborted" };
   }
 
+  // PII redaction: resolve the redactor instance and transform messages.
+  // resolvePiiRedactor uses a structural check (not instanceof) so a redactor
+  // from a duplicate class copy still works, and warns instead of silently
+  // disabling redaction for an unexpected value. This runs BEFORE the
+  // pre-processor/embedding stage below so raw PII is never sent to the
+  // embeddings endpoint (the embedding is computed from redacted text).
+  const redactor = resolvePiiRedactor(piiRedaction);
+
+  if (redactor) {
+    messages = redactor.redactMessages(messages).messages;
+  }
+
   // Run pre-processors if any are provided. Each receives the shared
   // embedding and may return messages to enrich the conversation.
   if (preProcessors?.length) {
@@ -958,24 +970,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         );
         const extra = results.flatMap((r) => (Array.isArray(r) ? r : []));
         if (extra.length > 0) {
-          messages = [...messages, ...extra];
+          // Injected context (memory/search/file) can also contain PII — redact
+          // it with the same redactor so placeholder numbering stays consistent.
+          messages = [...messages, ...(redactor ? redactor.redactMessages(extra).messages : extra)];
         }
       }
     } catch (err) {
       // Embedding / pre-processor stage failure is non-fatal
       console.warn("[runToolLoop] pre-processor stage failed:", err);
     }
-  }
-
-  // PII redaction: resolve the redactor instance and transform messages.
-  // resolvePiiRedactor uses a structural check (not instanceof) so a redactor
-  // from a duplicate class copy still works, and warns instead of silently
-  // disabling redaction for an unexpected value.
-  const redactor = resolvePiiRedactor(piiRedaction);
-
-  if (redactor) {
-    const result = redactor.redactMessages(messages);
-    messages = result.messages;
   }
 
   // De-anonymize placeholders in the streamed content/thinking before they
