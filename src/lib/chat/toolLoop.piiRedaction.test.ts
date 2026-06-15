@@ -41,9 +41,7 @@ describe("runToolLoop PII redaction", () => {
     mockCreateSseClient.mockReturnValue({ stream: makeStream(["ok"]) } as never);
 
     await runToolLoop({
-      messages: [
-        { role: "user", content: [{ type: "text", text: "My email is bob@acme.com" }] },
-      ],
+      messages: [{ role: "user", content: [{ type: "text", text: "My email is bob@acme.com" }] }],
       model: "test-model",
       token: "token",
       piiRedaction: true,

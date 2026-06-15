@@ -10,7 +10,7 @@
  */
 
 import type { LlmapiMessage, LlmapiMessageContentPart } from "../../client";
-import { type PiiCategory, type PiiPattern, PII_PATTERNS } from "./patterns";
+import { PII_PATTERNS, type PiiCategory, type PiiPattern } from "./patterns";
 
 export interface PiiMatch {
   category: PiiCategory | (string & {});
@@ -267,7 +267,7 @@ export function resolvePiiRedactor(
   piiRedaction: boolean | PiiRedactor | undefined
 ): PiiRedactor | undefined {
   if (piiRedaction === true) return new PiiRedactor();
-  if (piiRedaction === false || piiRedaction == null) return undefined;
+  if (!piiRedaction) return undefined; // false / null / undefined
   if (isPiiRedactor(piiRedaction)) return piiRedaction;
   console.warn(
     "[PiiRedactor] `piiRedaction` is neither `true` nor a PiiRedactor instance; " +

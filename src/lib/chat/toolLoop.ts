@@ -1020,8 +1020,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   // smoother emits a few characters at a time, so a placeholder ([EMAIL_1])
   // is routinely split across emitted chunks; a per-chunk replace would never
   // match it. Created once per run; flushed after each round's smoother drains.
-  const contentDeAnon =
-    redactor && onData ? createStreamingDeAnonymizer(redactor, onData) : null;
+  const contentDeAnon = redactor && onData ? createStreamingDeAnonymizer(redactor, onData) : null;
   const thinkingDeAnon =
     redactor && onThinking ? createStreamingDeAnonymizer(redactor, onThinking) : null;
   const emitData = contentDeAnon ? contentDeAnon.push : onData;

@@ -835,18 +835,18 @@ export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 // is NOT a compliance guarantee: it does not detect names and does not scan
 // non-text content (images/files) or tool-call arguments. See `piiRedaction`.
 export type {
-  PiiMatch,
-  RedactionResult,
   MessageRedactionResult,
   PiiCategory,
+  PiiMatch,
   PiiPattern,
   PiiRedactorOptions,
+  RedactionResult,
 } from "./lib/pii";
 export {
-  PiiRedactor,
-  PII_PATTERNS,
   createStreamingDeAnonymizer,
   isPiiRedactor,
+  PII_PATTERNS,
+  PiiRedactor,
   resolvePiiRedactor,
 } from "./lib/pii";
 
