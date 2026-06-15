@@ -285,7 +285,7 @@ describe("PiiRedactor", () => {
       expect(result.messages[0].content![0].text).toBe("User's email is [EMAIL_1]");
     });
 
-    it("does not redact assistant messages", () => {
+    it("redacts assistant messages (persisted history carries original values)", () => {
       const messages: LlmapiMessage[] = [
         {
           role: "assistant",
@@ -293,8 +293,33 @@ describe("PiiRedactor", () => {
         },
       ];
       const result = redactor.redactMessages(messages);
-      expect(result.messages[0].content![0].text).toBe("Send to user@test.com");
-      expect(result.matches).toHaveLength(0);
+      expect(result.messages[0].content![0].text).toBe("Send to [EMAIL_1]");
+      expect(result.matches).toHaveLength(1);
+    });
+
+    it("redacts tool-result messages (external systems can return PII)", () => {
+      const messages: LlmapiMessage[] = [
+        {
+          role: "tool",
+          content: [{ type: "text", text: "Lookup returned admin@corp.com" }],
+          tool_call_id: "call_1",
+        } as LlmapiMessage,
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("Lookup returned [EMAIL_1]");
+      expect(result.matches).toHaveLength(1);
+    });
+
+    it("leaves model-emitted placeholders inert", () => {
+      redactor.redactText("user@test.com");
+      const messages: LlmapiMessage[] = [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "I'll email [EMAIL_1]" }],
+        },
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("I'll email [EMAIL_1]");
     });
 
     it("does not mutate original messages", () => {

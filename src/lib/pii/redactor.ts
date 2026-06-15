@@ -165,16 +165,17 @@ export class PiiRedactor {
   /**
    * Redact PII from an array of LlmapiMessage objects.
    * Returns new message objects — originals are not mutated.
+   *
+   * All roles' text content is redacted, not just user/system: tool results
+   * can return PII fetched from external systems, and assistant history is
+   * persisted with original (de-anonymized) values, so both must be re-redacted
+   * before they go back over the wire. Placeholders the model already emitted
+   * are inert here (they don't match any PII pattern), so re-redaction is safe.
    */
   redactMessages(messages: LlmapiMessage[]): MessageRedactionResult {
     const allMatches: PiiMatch[] = [];
 
     const redactedMessages = messages.map((msg) => {
-      // Only redact user and system messages — don't touch assistant or tool responses
-      if (msg.role !== "user" && msg.role !== "system") {
-        return msg;
-      }
-
       if (!msg.content) return msg;
 
       const newContent: LlmapiMessageContentPart[] = msg.content.map((part) => {

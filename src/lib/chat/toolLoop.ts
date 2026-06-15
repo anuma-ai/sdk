@@ -1721,8 +1721,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         } as LlmapiMessage);
       }
 
-      // Continue the conversation with tool results
-      currentMessages = [...currentMessages, ...toolResultMessages];
+      // Continue the conversation with tool results. Redact the freshly
+      // appended messages: tool results can contain PII fetched from external
+      // systems, which would otherwise reach the provider in clear text. The
+      // assistant message already holds model-emitted placeholders, which are
+      // inert under redaction.
+      currentMessages = [
+        ...currentMessages,
+        ...(redactor ? redactor.redactMessages(toolResultMessages).messages : toolResultMessages),
+      ];
 
       const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
       // "required" exists to guarantee the FIRST round picks a tool (e.g.
