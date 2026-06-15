@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   PiiRedactor,
   createStreamingDeAnonymizer,
@@ -350,6 +350,24 @@ describe("PiiRedactor", () => {
         type: "image_url",
         image_url: { url: "https://example.com/img.png" },
       });
+    });
+
+    it("warns once when a message contains non-text content", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const messages: LlmapiMessage[] = [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "See test@example.com" },
+            { type: "image_url", image_url: { url: "https://example.com/img.png" } },
+          ],
+        },
+      ];
+      redactor.redactMessages(messages);
+      redactor.redactMessages(messages);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain("non-text content");
+      warn.mockRestore();
     });
 
     it("handles messages with no content", () => {

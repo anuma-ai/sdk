@@ -69,6 +69,8 @@ export class PiiRedactor {
   private categoryCounters = new Map<string, number>();
   /** The active detection patterns (defaults, optionally filtered/extended). */
   private readonly patterns: PiiPattern[];
+  /** Whether the non-text-content bypass warning has already been emitted. */
+  private warnedNonText = false;
 
   constructor(options: PiiRedactorOptions = {}) {
     if (options.patterns) {
@@ -185,6 +187,10 @@ export class PiiRedactor {
           if (result.matches.length > 0) {
             return { ...part, text: result.text };
           }
+        } else if (part.type !== "text") {
+          // Non-text parts (images, files, attachments) are not scanned. Warn
+          // once so callers know PII in those payloads is not redacted.
+          this.warnNonTextBypass();
         }
         return part;
       });
@@ -193,6 +199,16 @@ export class PiiRedactor {
     });
 
     return { messages: redactedMessages, matches: allMatches };
+  }
+
+  /** Emit the non-text bypass warning at most once per redactor instance. */
+  private warnNonTextBypass(): void {
+    if (this.warnedNonText) return;
+    this.warnedNonText = true;
+    console.warn(
+      "[PiiRedactor] A message contains non-text content (images, files, or " +
+        "attachments) that is NOT scanned for PII — only text parts are redacted."
+    );
   }
 
   /**
@@ -222,6 +238,7 @@ export class PiiRedactor {
     this.valueToPlaceholder.clear();
     this.placeholderToValue.clear();
     this.categoryCounters.clear();
+    this.warnedNonText = false;
   }
 }
 
