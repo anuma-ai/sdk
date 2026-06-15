@@ -13,7 +13,6 @@ import {
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
-import { PiiRedactor } from "../lib/pii/redactor";
 import {
   type ApiResponse,
   extractAssistantText,
@@ -119,6 +118,7 @@ import {
   type VaultEmbeddingCache,
   type VaultSearchResult,
 } from "../lib/memoryVault";
+import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { preprocessFiles } from "../lib/processors";
 import {
   BlobUrlManager,
@@ -1090,6 +1090,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     return piiRedactorRef.current.redactor;
   }, [piiRedaction, currentConversationId]);
 
+  // Redact text before it is sent to the embeddings endpoint. Embeddings are a
+  // server call, so when PII redaction is on the input must be redacted too;
+  // only the text sent to the server is redacted — locally stored content and
+  // chunk text remain the original values.
+  const redactForEmbedding = useCallback(
+    (text: string): string =>
+      isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction.redactText(text).text : text,
+    [resolvedPiiRedaction]
+  );
+
   // Blob URL manager for encrypted file storage
   const blobManagerRef = useRef<BlobUrlManager>(new BlobUrlManager());
 
@@ -1420,10 +1430,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           model: embeddingModel,
         };
 
-        // Use chunking for long messages
+        // Use chunking for long messages. Only the text sent to the embeddings
+        // server is redacted; the chunk text stored locally stays original.
         if (shouldChunkMessage(message.content, DEFAULT_CHUNK_SIZE)) {
           const textChunks = chunkText(message.content);
-          const chunkTexts = textChunks.map((c) => c.text);
+          const chunkTexts = textChunks.map((c) => redactForEmbedding(c.text));
           const embeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
 
           const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
@@ -1436,7 +1447,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           await updateMessageChunksOp(storageCtx, message.uniqueId, messageChunks, embeddingModel);
         } else {
           // Use whole-message embedding for short messages
-          const embedding = await generateEmbedding(message.content, embeddingOptions);
+          const embedding = await generateEmbedding(
+            redactForEmbedding(message.content),
+            embeddingOptions
+          );
           await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
         }
       } catch (err) {
@@ -1444,7 +1458,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         getLogger().warn("[useChatStorage] Failed to embed message:", err);
       }
     },
-    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
+    [
+      autoEmbedMessages,
+      getToken,
+      baseUrl,
+      embeddingModel,
+      storageCtx,
+      minContentLength,
+      redactForEmbedding,
+    ]
   );
 
   /**
@@ -2189,11 +2211,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
               const textChunks = chunkText(messageContent);
               skipStorageEmbeddings = await generateEmbeddings(
-                textChunks.map((c) => c.text),
+                textChunks.map((c) => redactForEmbedding(c.text)),
                 embeddingOptions
               );
             } else {
-              skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+              skipStorageEmbeddings = await generateEmbedding(
+                redactForEmbedding(messageContent),
+                embeddingOptions
+              );
             }
           }
         }
@@ -2627,10 +2652,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
           if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
             const textChunks = chunkText(contentForStorage);
-            const chunkTexts = textChunks.map((c) => c.text);
+            const chunkTexts = textChunks.map((c) => redactForEmbedding(c.text));
             userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
           } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-            userMessageEmbeddings = await generateEmbedding(contentForStorage, embeddingOptions);
+            userMessageEmbeddings = await generateEmbedding(
+              redactForEmbedding(contentForStorage),
+              embeddingOptions
+            );
           }
         } catch {
           // Embedding generation failed — continue without semantic filtering

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
-import { PiiRedactor } from "../lib/pii/redactor";
 import {
   type ApiType,
   type AutoExecutedToolResult,
@@ -18,6 +17,7 @@ import {
   validateTokenGetter,
 } from "../lib/chat/useChat";
 import { xhrTransport } from "../lib/chat/xhrTransport";
+import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**
