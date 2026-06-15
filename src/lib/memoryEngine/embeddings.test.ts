@@ -194,6 +194,22 @@ describe("generateEmbedding", () => {
     await generateEmbedding("text", { apiKey: "k", baseUrl: BASE, onUsage });
     expect(onUsage).not.toHaveBeenCalled();
   });
+
+  it("applies maskInput to the request body but keeps the cache keyed by original", async () => {
+    const fetchMock = stubFetchOk();
+    const cache = new Map<string, number[]>();
+    const maskInput = (t: string) => t.replace("bob@acme.com", "[EMAIL]");
+
+    await generateEmbedding("email bob@acme.com", { apiKey: "k", baseUrl: BASE, cache, maskInput });
+
+    // The server only ever sees the masked text.
+    expect(recorded[0].input).toBe("email [EMAIL]");
+    // The cache (and any caller lookups) still key on the original input.
+    expect(cache.has("email bob@acme.com")).toBe(true);
+    // A second call for the same original is served from cache (no extra request).
+    await generateEmbedding("email bob@acme.com", { apiKey: "k", baseUrl: BASE, cache, maskInput });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("generateEmbeddings (batch)", () => {

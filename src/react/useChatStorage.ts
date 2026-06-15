@@ -1100,6 +1100,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [resolvedPiiRedaction]
   );
 
+  // Vault/memory embeddings use a STATELESS mask (deterministic, unnumbered)
+  // rather than redactForEmbedding's numbered placeholders: the vault spans
+  // conversations, so stored-memory embeddings and search-query embeddings must
+  // mask identically to stay in the same vector space. The stored memory
+  // content itself remains the original (real) value — only the text sent to
+  // the embeddings endpoint is masked.
+  const maskEmbeddingInput = useMemo(
+    () =>
+      isPiiRedactor(resolvedPiiRedaction)
+        ? (text: string) => resolvedPiiRedaction.maskText(text)
+        : undefined,
+    [resolvedPiiRedaction]
+  );
+  const vaultEmbeddingOptions = useMemo(
+    () => ({ getToken, baseUrl, model: embeddingModel, maskInput: maskEmbeddingInput }),
+    [getToken, baseUrl, embeddingModel, maskEmbeddingInput]
+  );
+
   // Blob URL manager for encrypted file storage
   const blobManagerRef = useRef<BlobUrlManager>(new BlobUrlManager());
 
@@ -1477,13 +1495,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (!getToken) {
         throw new Error("getToken is required for memory engine tool");
       }
-      return createMemoryEngineToolBase(
-        storageCtx,
-        { getToken, baseUrl, model: embeddingModel },
-        searchOptions
-      );
+      return createMemoryEngineToolBase(storageCtx, vaultEmbeddingOptions, searchOptions);
     },
-    [storageCtx, getToken, baseUrl, embeddingModel]
+    [storageCtx, getToken, vaultEmbeddingOptions]
   );
 
   /**
@@ -1491,10 +1505,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
-      const embOpts = getToken ? { getToken, baseUrl, model: embeddingModel } : undefined;
       // When PII redaction is active, the model saves placeholder content
       // ("[EMAIL_1]") because that is all it saw. De-anonymize before storing so
-      // the vault holds the real fact.
+      // the vault holds the real fact; the embedding input is masked separately
+      // via vaultEmbeddingOptions.maskInput so PII still never hits the server.
+      const embOpts = getToken ? vaultEmbeddingOptions : undefined;
       const deAnonymize = isPiiRedactor(resolvedPiiRedaction)
         ? (text: string) => resolvedPiiRedaction.deAnonymize(text)
         : undefined;
@@ -1505,7 +1520,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         embOpts ? vaultEmbeddingCacheRef.current : undefined
       );
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel, resolvedPiiRedaction]
+    [vaultCtx, getToken, vaultEmbeddingOptions, resolvedPiiRedaction]
   );
 
   /**
@@ -1527,7 +1542,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (getToken) {
         eagerEmbedContent(
           content,
-          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingOptions,
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           result.uniqueId
@@ -1537,7 +1552,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, getToken, vaultEmbeddingOptions]
   );
 
   /**
@@ -1553,7 +1568,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
         eagerEmbedContent(
           content,
-          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingOptions,
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           id
@@ -1563,7 +1578,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, getToken, vaultEmbeddingOptions]
   );
 
   /**
@@ -1599,16 +1614,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     if (!getToken) return;
     void (async () => {
       try {
-        await preEmbedVaultMemories(
-          vaultCtx,
-          { getToken, baseUrl, model: embeddingModel },
-          vaultEmbeddingCacheRef.current
-        );
+        await preEmbedVaultMemories(vaultCtx, vaultEmbeddingOptions, vaultEmbeddingCacheRef.current);
       } catch {
         // Non-critical: embeddings will be generated on first search
       }
     })();
-  }, [vaultCtx, getToken, baseUrl, embeddingModel]);
+  }, [vaultCtx, getToken, vaultEmbeddingOptions]);
 
   /**
    * Create a vault search tool pre-configured with hook's context, auth, and cache
@@ -1620,12 +1631,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return createMemoryVaultSearchToolBase(
         vaultCtx,
-        { getToken, baseUrl, model: embeddingModel },
+        vaultEmbeddingOptions,
         vaultEmbeddingCacheRef.current,
         searchOptions
       );
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, getToken, vaultEmbeddingOptions]
   );
 
   /**
@@ -1651,7 +1662,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         {
           vaultCtx,
           storageCtx,
-          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          embeddingOptions: vaultEmbeddingOptions,
           vaultCache: vaultEmbeddingCacheRef.current,
           // Graph lane fires when entityCtx is present and the query
           // contains extractable entities. Empty memory_entity (e.g.
@@ -1663,7 +1674,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         callbacks
       );
     },
-    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel, currentConversationId]
+    [vaultCtx, storageCtx, entityCtx, getToken, vaultEmbeddingOptions, currentConversationId]
   );
 
   /**
@@ -1680,12 +1691,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       return searchVaultMemoriesBase(
         query,
         vaultCtx,
-        { getToken, baseUrl, model: embeddingModel },
+        vaultEmbeddingOptions,
         vaultEmbeddingCacheRef.current,
         searchOptions
       );
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, getToken, vaultEmbeddingOptions]
   );
 
   // Use the underlying useChat hook

@@ -403,6 +403,30 @@ describe("PiiRedactor", () => {
     });
   });
 
+  describe("maskText", () => {
+    it("masks PII with unnumbered, stateless tokens", () => {
+      const result = redactor.maskText("Email john@example.com or jane@corp.io, SSN 123-45-6789");
+      expect(result).toBe("Email [EMAIL] or [EMAIL], SSN [SSN]");
+    });
+
+    it("does not mutate redactor state", () => {
+      redactor.maskText("john@example.com");
+      expect(redactor.size).toBe(0);
+      expect(redactor.getMappings().size).toBe(0);
+    });
+
+    it("is deterministic — identical input masks identically every time", () => {
+      const a = redactor.maskText("Contact bob@acme.com and bob@acme.com");
+      const b = new PiiRedactor().maskText("Contact bob@acme.com and bob@acme.com");
+      expect(a).toBe("Contact [EMAIL] and [EMAIL]");
+      expect(a).toBe(b);
+    });
+
+    it("leaves non-PII text untouched", () => {
+      expect(redactor.maskText("what is my email")).toBe("what is my email");
+    });
+  });
+
   describe("edge cases", () => {
     it("handles empty input", () => {
       const result = redactor.redactText("");

@@ -67,7 +67,9 @@ export async function generateEmbedding(
   const response = await postApiV1Embeddings({
     baseUrl,
     body: {
-      input: text,
+      // Mask PII from the request body only — the cache above still keys on the
+      // original `text`, so callers keep their original values.
+      input: options.maskInput ? options.maskInput(text) : text,
       model: model ?? DEFAULT_API_EMBEDDING_MODEL,
     },
     headers,
@@ -114,11 +116,13 @@ async function generateEmbeddingsBatch(
   headers: Record<string, string>,
   baseUrl: string,
   model: string,
-  onUsage?: EmbeddingOptions["onUsage"]
+  onUsage?: EmbeddingOptions["onUsage"],
+  maskInput?: EmbeddingOptions["maskInput"]
 ): Promise<number[][]> {
   const response = await postApiV1Embeddings({
     baseUrl,
-    body: { input: texts, model },
+    // Mask PII from the request body only; cache/order still key on originals.
+    body: { input: maskInput ? texts.map(maskInput) : texts, model },
     headers,
   });
 
@@ -212,7 +216,8 @@ export async function generateEmbeddings(
       headers,
       baseUrl,
       embeddingModel,
-      options.onUsage
+      options.onUsage,
+      options.maskInput
     );
   } else {
     // Large inputs: chunk and process with bounded concurrency
@@ -232,7 +237,8 @@ export async function generateEmbeddings(
           headers,
           baseUrl,
           embeddingModel,
-          options.onUsage
+          options.onUsage,
+          options.maskInput
         );
       }
     };

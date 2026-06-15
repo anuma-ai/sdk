@@ -120,9 +120,14 @@ export class PiiRedactor {
   }
 
   /**
-   * Scan and redact PII from a single text string.
+   * Scan text for PII and rebuild it, replacing each match with whatever
+   * `makeReplacement(category, value)` returns. Shared by `redactText`
+   * (numbered, stateful placeholders) and `maskText` (unnumbered, stateless).
    */
-  redactText(text: string): RedactionResult {
+  private scan(
+    text: string,
+    makeReplacement: (category: PiiCategory | (string & {}), value: string) => string
+  ): RedactionResult {
     const matches: PiiMatch[] = [];
     let redacted = text;
 
@@ -152,7 +157,7 @@ export class PiiRedactor {
       let result = "";
       let cursor = 0;
       for (const { match, index } of found) {
-        const placeholder = this.getPlaceholder(pattern.category, match);
+        const placeholder = makeReplacement(pattern.category, match);
         matches.push({ category: pattern.category, original: match, placeholder });
         result += redacted.slice(cursor, index) + placeholder;
         cursor = index + match.length;
@@ -162,6 +167,25 @@ export class PiiRedactor {
     }
 
     return { text: redacted, matches };
+  }
+
+  /**
+   * Scan and redact PII from a single text string, using numbered, reversible
+   * placeholders ([EMAIL_1], …) tracked on this instance.
+   */
+  redactText(text: string): RedactionResult {
+    return this.scan(text, (category, value) => this.getPlaceholder(category, value));
+  }
+
+  /**
+   * Mask PII with unnumbered, NON-reversible tokens ([EMAIL], [SSN], …) without
+   * mutating this instance's state. Use for one-way purposes where the value is
+   * never restored — notably embedding inputs: it keeps real PII off the
+   * embeddings endpoint while staying deterministic, so the same content always
+   * masks identically and search stays consistent across conversations.
+   */
+  maskText(text: string): string {
+    return this.scan(text, (category) => `[${category}]`).text;
   }
 
   /**
