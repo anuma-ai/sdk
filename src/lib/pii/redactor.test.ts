@@ -403,6 +403,41 @@ describe("PiiRedactor", () => {
     });
   });
 
+  describe("edge cases", () => {
+    it("handles empty input", () => {
+      const result = redactor.redactText("");
+      expect(result.text).toBe("");
+      expect(result.matches).toHaveLength(0);
+    });
+
+    it("is idempotent — re-redacting redacted text changes nothing", () => {
+      const once = redactor.redactText("Email john@example.com and call 555-123-4567");
+      const twice = redactor.redactText(once.text);
+      expect(twice.text).toBe(once.text);
+      expect(twice.matches).toHaveLength(0);
+    });
+
+    it("redacts across multiple lines", () => {
+      const result = redactor.redactText("Email: a@b.com\nPhone: 555-123-4567");
+      expect(result.text).toBe("Email: [EMAIL_1]\nPhone: [PHONE_1]");
+    });
+
+    it("does not collide double-digit placeholder indices on de-anonymize", () => {
+      // Create 11 distinct emails so we get [EMAIL_1] .. [EMAIL_11].
+      for (let i = 1; i <= 11; i++) redactor.redactText(`user${i}@example.com`);
+      const mappings = redactor.getMappings();
+      expect(mappings.get("[EMAIL_10]")).toBe("user10@example.com");
+      expect(mappings.get("[EMAIL_11]")).toBe("user11@example.com");
+      // [EMAIL_1] must not eat the prefix of [EMAIL_11].
+      const restored = redactor.deAnonymize("a [EMAIL_1] b [EMAIL_11] c");
+      expect(restored).toBe("a user1@example.com b user11@example.com c");
+    });
+
+    it("deAnonymize on a fresh redactor returns text unchanged", () => {
+      expect(redactor.deAnonymize("[EMAIL_1] unknown")).toBe("[EMAIL_1] unknown");
+    });
+  });
+
   describe("resolvePiiRedactor", () => {
     it("creates a fresh redactor for true", () => {
       expect(resolvePiiRedactor(true)).toBeInstanceOf(PiiRedactor);
