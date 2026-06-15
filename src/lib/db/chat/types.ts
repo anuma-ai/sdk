@@ -431,12 +431,15 @@ export interface BaseUseChatStorageOptions {
    */
   preProcessors?: PromptPreProcessor[];
   /**
-   * Enable client-side PII redaction. When enabled, outbound messages are
-   * scanned for personally identifiable information and replaced with tagged
-   * placeholders before reaching the LLM provider.
+   * Enable best-effort, client-side PII obfuscation (NOT a compliance
+   * guarantee). Outbound message text is scanned for personally identifiable
+   * information and replaced with tagged placeholders before reaching the LLM
+   * provider; responses are de-anonymized automatically. Embedding inputs and
+   * the summarization prompt are redacted too. Regex-based detection does not
+   * cover names, non-text content, or tool-call arguments.
    *
-   * - `true`: create a fresh redactor per request
-   * - `PiiRedactor` instance: share state across requests in a conversation
+   * - `true`: one redactor is shared per conversation
+   * - `PiiRedactor` instance: bring your own (tune via constructor options)
    */
   piiRedaction?: boolean | PiiRedactor;
   /**

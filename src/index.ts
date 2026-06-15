@@ -830,8 +830,10 @@ export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memory
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 
-// PII redaction — client-side detection and anonymization of personally
-// identifiable information before prompts leave the device.
+// PII redaction — best-effort, client-side obfuscation of personally
+// identifiable information before prompts leave the device. Regex-based, so it
+// is NOT a compliance guarantee: it does not detect names and does not scan
+// non-text content (images/files) or tool-call arguments. See `piiRedaction`.
 export type {
   PiiMatch,
   RedactionResult,

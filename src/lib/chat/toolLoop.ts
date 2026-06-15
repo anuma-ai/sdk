@@ -553,13 +553,20 @@ export type RunToolLoopOptions = {
    */
   maxConnectorCalls?: number;
   /**
-   * When enabled, scans outbound messages for personally identifiable
-   * information (emails, phone numbers, SSNs, credit cards, API keys,
-   * addresses) and replaces them with tagged placeholders before they
-   * reach the LLM provider. Streaming responses are de-anonymized so the
-   * user sees original values. Pass `true` for default detection or a
-   * `PiiRedactor` instance to share state across calls in the same
-   * conversation.
+   * Best-effort, client-side PII obfuscation — NOT a compliance guarantee.
+   * When enabled, the text of outbound messages (all roles, plus tool results
+   * on continuation rounds and any injected pre-processor context) is scanned
+   * for personally identifiable information and matches are replaced with
+   * tagged placeholders before the request leaves the device. Both the
+   * streamed and final response are de-anonymized, so the user sees original
+   * values.
+   *
+   * Detection is regex-based, so it can miss or over-match: it does NOT detect
+   * names, and it does NOT scan non-text content (images, file uploads,
+   * attachments) or model-generated tool-call arguments. Pass `true` for
+   * default detection or a `PiiRedactor` instance to share placeholder state
+   * across calls in the same conversation (recommended). Categories can be
+   * tuned via `new PiiRedactor({ excludeCategories, extraPatterns })`.
    */
   piiRedaction?: boolean | PiiRedactor;
   /**
