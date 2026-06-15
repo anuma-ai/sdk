@@ -140,6 +140,25 @@ describe("PiiRedactor", () => {
         const result = redactor.redactText("Office at 456 Oak Ave");
         expect(result.text).toBe("Office at [US_ADDRESS_1]");
       });
+
+      it("does not match lowercase or all-caps non-addresses", () => {
+        const r1 = redactor.redactText("the 123 main street market");
+        const r2 = redactor.redactText("at 100 MAIN STREET downtown");
+        expect(r1.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+        expect(r2.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      });
+
+      it("does not match ordinary prose ending in a street word", () => {
+        const r1 = redactor.redactText("It is 3 blocks down the road from here");
+        const r2 = redactor.redactText("Only 5 minutes to drive there");
+        expect(r1.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+        expect(r2.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      });
+
+      it("does not span across newlines", () => {
+        const result = redactor.redactText("123\nMain Street");
+        expect(result.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      });
     });
 
     describe("dates of birth", () => {

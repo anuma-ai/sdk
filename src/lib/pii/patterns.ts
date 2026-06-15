@@ -104,11 +104,21 @@ export const PII_PATTERNS: PiiPattern[] = [
     regex: /\b(?:sk|pk|api|key|token|secret|bearer|access)[_-]?[a-zA-Z0-9_-]{20,}\b/gi,
   },
 
-  // US street addresses — number + street name + suffix
+  // US street addresses — house number + Title-Case street name + suffix.
+  // Intentionally NOT case-insensitive: the `[A-Z][a-z]+` guard requires
+  // properly-capitalized street words, so "123 main street", "100 MAIN
+  // STREET" and prose like "3 blocks down the road" / "5 minutes to drive"
+  // are not treated as addresses. Whitespace is `[ \t]` only (no newline
+  // spanning), and the suffix must end the segment (punctuation / newline /
+  // end of string) so "Driveway" or "Wayfair" don't match on the suffix.
   {
     category: "US_ADDRESS",
     regex:
-      /\b\d{1,5}\s+(?:[A-Z][a-z]+\s+){1,3}(?:St(?:reet)?|Ave(?:nue)?|Blvd|Boulevard|Dr(?:ive)?|Ln|Lane|Rd|Road|Ct|Court|Pl(?:ace)?|Way|Cir(?:cle)?|Pkwy|Parkway|Hwy|Highway)\b\.?/gi,
+      /\b\d{1,5}[ \t]+(?:[A-Z][a-z]+[ \t]+){1,3}(?:St(?:reet)?|Ave(?:nue)?|Blvd|Boulevard|Dr(?:ive)?|Ln|Lane|Rd|Road|Ct|Court|Pl(?:ace)?|Way|Cir(?:cle)?|Pkwy|Parkway|Hwy|Highway)\.?(?=[\s,.;:!?)]|$)/g,
+    validate: (match: string) => {
+      // House numbers don't have leading zeros.
+      return !/^0/.test(match.trim());
+    },
   },
 
   // Dates of birth — common US date formats
