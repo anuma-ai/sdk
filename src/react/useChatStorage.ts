@@ -2460,6 +2460,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           summaryModel,
           token: summaryToken ?? "",
           baseUrl,
+          redactor: isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction : undefined,
         });
 
         // Batch: collect all fileIds across all messages, resolve once

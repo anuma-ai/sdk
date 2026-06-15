@@ -20,6 +20,7 @@ import {
 } from "../db/chat/summaryOperations";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
 import { getLogger } from "../logger";
+import type { PiiRedactor } from "../pii/redactor";
 
 /** Default token threshold before summarization triggers */
 export const DEFAULT_SUMMARY_TOKEN_THRESHOLD = 4000;
@@ -219,6 +220,12 @@ interface SummarizeOptions {
   callLlm: (prompt: string, model: string) => Promise<string>;
   /** Model to use for summarization */
   model: string;
+  /**
+   * Optional PII redactor. When provided, the summarization prompt is redacted
+   * before it is sent to the summary model and the returned summary is
+   * de-anonymized, so raw PII never reaches the summary endpoint.
+   */
+  redactor?: PiiRedactor;
 }
 
 /** Result of progressive summarization */
@@ -245,8 +252,15 @@ interface SummarizeResult {
  * Falls back gracefully: if summarization fails, returns all messages verbatim.
  */
 export async function progressiveSummarize(options: SummarizeOptions): Promise<SummarizeResult> {
-  const { cachedSummary, unsummarizedMessages, tokenThreshold, minWindowMessages, callLlm, model } =
-    options;
+  const {
+    cachedSummary,
+    unsummarizedMessages,
+    tokenThreshold,
+    minWindowMessages,
+    callLlm,
+    model,
+    redactor,
+  } = options;
 
   const cachedTokens = cachedSummary?.tokenCount ?? 0;
   const messagesTokens = estimateMessagesTokens(unsummarizedMessages);
@@ -294,7 +308,11 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
 
   try {
     const prompt = buildSummarizationPrompt(cachedSummary?.summary, toSummarize);
-    const newSummary = await callLlm(prompt, model);
+    // Redact the prompt before it leaves the device, then restore original
+    // values in the returned summary so the stored summary holds real values.
+    const promptForModel = redactor ? redactor.redactText(prompt).text : prompt;
+    const rawSummary = await callLlm(promptForModel, model);
+    const newSummary = redactor ? redactor.deAnonymize(rawSummary) : rawSummary;
     if (!newSummary || newSummary.trim().length === 0) {
       throw new Error("Summarization returned empty response");
     }
@@ -452,6 +470,12 @@ interface MaybeSummarizeHistoryOptions {
   token: string;
   /** Base URL for the API */
   baseUrl?: string;
+  /**
+   * Optional PII redactor. When provided, the summarization prompt is redacted
+   * before it reaches the summary model and the returned summary is
+   * de-anonymized.
+   */
+  redactor?: PiiRedactor;
 }
 
 /** Result of `maybeSummarizeHistory` */
@@ -572,6 +596,7 @@ async function doSummarizeHistory(
     summaryModel,
     token,
     baseUrl,
+    redactor,
   } = options;
 
   try {
@@ -657,6 +682,7 @@ async function doSummarizeHistory(
       minWindowMessages: summaryMinWindowMessages,
       callLlm,
       model: summaryModel,
+      redactor,
     });
 
     // Persist the updated summary if summarization was performed
