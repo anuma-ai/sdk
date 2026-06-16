@@ -113,3 +113,36 @@ describe("activatedToolSetNames", () => {
     expect(activatedToolSetNames(new Map([["read_file", 0.99]]))).toEqual(new Set());
   });
 });
+
+describe("connector tool sets (#587)", () => {
+  it.each([
+    ["gmail", ["gmail_search_messages", "gmail_get_message", "gmail_send_message"]],
+    [
+      "google-calendar",
+      [
+        "google_calendar_list_events",
+        "google_calendar_create_event",
+        "google_calendar_update_event",
+      ],
+    ],
+    [
+      "google-drive",
+      ["google_drive_search", "google_drive_list_recent", "google_drive_get_content"],
+    ],
+    ["notion", ["notion-search", "notion-fetch", "notion-create-pages", "notion-update-page"]],
+  ])("defines %s with the expected members and no systemPrompt", (name, members) => {
+    const set = BUILT_IN_TOOL_SETS.find((s) => s.name === name);
+    expect(set).toBeDefined();
+    expect(set?.members).toEqual(members);
+    expect(set?.anchorMinSimilarity).toBe(0.53);
+    expect(set?.anchors.every((a) => set.members.includes(a))).toBe(true);
+    expect(set?.systemPrompt).toBeUndefined();
+  });
+
+  it("activates a connector set when its anchor clears the floor, pulling in every member", () => {
+    expect(activatedToolSetNames(new Map([["gmail_search_messages", 0.53]]))).toEqual(
+      new Set(["gmail"])
+    );
+    expect(activatedToolSetNames(new Map([["gmail_search_messages", 0.52]]))).toEqual(new Set());
+  });
+});

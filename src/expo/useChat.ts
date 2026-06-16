@@ -45,6 +45,10 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * @default Uses the hook-level apiType or "auto"
    */
   apiType?: ApiType;
+  /**
+   * Custom HTTP headers to include with the API request (e.g. X-Privacy-Mode).
+   */
+  headers?: Record<string, string>;
 };
 
 type SendMessageResult =
@@ -185,6 +189,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       apiType: requestApiType,
       conversationId,
       piiRedaction: requestPiiRedaction,
+      headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
       if (abortControllerRef.current) {
@@ -267,6 +272,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           thinking,
           imageModel,
           conversationId,
+          headers,
           smoothing,
           signal: abortController.signal,
           transport: xhrTransport,

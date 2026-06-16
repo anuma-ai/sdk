@@ -253,7 +253,7 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
 /**
  * Arguments for sendMessage with storage (Expo version)
  *
- * Uses the base arguments without React-specific features (no runTools, no headers).
+ * Uses the base arguments without React-specific features (no runTools).
 
  */
 export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
@@ -263,6 +263,10 @@ export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
    * @default Uses the hook-level apiType or "responses"
    */
   apiType?: ApiType;
+  /**
+   * Custom HTTP headers to include with the API request (e.g. X-Privacy-Mode).
+   */
+  headers?: Record<string, string>;
 };
 
 /**
@@ -1051,6 +1055,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel,
         parentMessageId,
         assistantUniqueId,
+        headers,
       } = args;
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1131,6 +1136,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           imageModel,
           apiType: effectiveApiType,
           conversationId: currentConversationId ?? undefined,
+          headers,
         });
 
         if (result.error || !result.data) {
@@ -1354,6 +1360,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         thinking,
         imageModel,
         conversationId: convId,
+        headers,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
