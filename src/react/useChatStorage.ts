@@ -1084,7 +1084,7 @@ function getConversationRedactor(conversationId: string | null): PiiRedactor {
 }
 
 /** Resolved PII redaction for a single `sendMessage` call. */
-export interface CallPiiResolution {
+interface CallPiiResolution {
   /**
    * Redactor for this call's embedding masking and summarization prompt.
    * `undefined` means no masking (redaction disabled for this call).
