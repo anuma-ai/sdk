@@ -122,6 +122,12 @@ async function startLoad(entry: PoolEntry, walletAddress: string): Promise<void>
 }
 
 function startObserve(entry: PoolEntry, walletAddress: string): void {
+  // WatermelonDB emits the initial query result synchronously when subscribed.
+  // If we allowed that to trigger `patchSnapshot` immediately, it would invoke
+  // React listeners before `subscribeUserSettings` returns, violating the
+  // useSyncExternalStore contract. Suppress notification for the first emission
+  // that occurs during the subscribe call itself.
+  let isInitialEmission = true;
   entry.observeSub = entry.storageCtx.userPreferencesCollection
     .query(Q.where("wallet_address", walletAddress))
     .observeWithColumns([
@@ -136,7 +142,7 @@ function startObserve(entry: PoolEntry, walletAddress: string): void {
       next: (records) => {
         const record = records[0];
         if (!record) return;
-        patchSnapshot(entry, {
+        const patch = {
           userPreference: {
             uniqueId: record.id,
             walletAddress: record.walletAddress,
@@ -148,7 +154,14 @@ function startObserve(entry: PoolEntry, walletAddress: string): void {
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
           },
-        });
+        };
+        if (isInitialEmission) {
+          // Update snapshot without notifying listeners to avoid synchronous
+          // notification during useSyncExternalStore's subscribe.
+          entry.snapshot = { ...entry.snapshot, ...patch };
+        } else {
+          patchSnapshot(entry, patch);
+        }
       },
       // Log observe failures instead of letting them silently break the
       // snapshot for every consumer of this key.
@@ -156,6 +169,10 @@ function startObserve(entry: PoolEntry, walletAddress: string): void {
         console.error("[useSettings] userPreferences observe failed:", err);
       },
     });
+  // Reset the flag immediately after subscribe completes. Any synchronous
+  // emission from WatermelonDB has already happened at this point, so future
+  // emissions should notify listeners normally.
+  isInitialEmission = false;
 }
 
 /**
