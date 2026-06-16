@@ -29,7 +29,6 @@ describe("decomposeQuery", () => {
       (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body
     );
     expect(sentBody.model).toBe("inclusionai/ling-2.6-flash");
-    expect(sentBody.model.startsWith("openai/")).toBe(false);
   });
 
   it("returns specific mode for a specific query", async () => {
