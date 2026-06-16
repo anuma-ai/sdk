@@ -29,9 +29,11 @@ import type { RetainOptions, RetainResult } from "./types.js";
 // to a third-party inference host (Cerebras), it's just not a closed model.
 //
 // Yield vs gpt-5-mini: on the LongMemEval extraction bench gpt-oss pulled ~19%
-// fewer facts (55 vs 68) at ~7× lower latency. Fact count isn't recall, but a
-// downstream LongMemEval accuracy comparison (extraction-model A/B) hasn't
-// completed yet — treat recall parity as unverified, not established.
+// fewer facts (55 vs 68) at ~7× lower latency, but the downstream A/B shows
+// that doesn't cost recall — a paired LongMemEval run (vault, variant s, n=50,
+// same answer model) scored 92% (gpt-oss) vs 94% (gpt-5-mini): 45/50 identical,
+// 3 discordant (gpt-oss −2 +1), McNemar non-significant. gpt-oss extracts the
+// facts that matter, just fewer of them.
 //
 // NOTE: gpt-oss rejects `response_format: json_object` (see portalLlm.ts) and
 // is a reasoning model, so callers must NOT impose a small `max_tokens` cap —
