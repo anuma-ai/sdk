@@ -5,18 +5,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
 import {
+  resumeStream as runResumeStream,
+  type ResumeStreamOptions,
+  type ResumeStreamResult,
+  streamCancelPath,
+} from "../lib/chat/resumeStream";
+import {
   type ApiType,
   type AutoExecutedToolResult,
   type BaseSendMessageArgs,
   type BaseUseChatOptions,
   type BaseUseChatResult,
   createErrorResult,
+  resolveApiType,
   runToolLoop,
   type RunToolLoopResult,
+  type StreamResumeHandle,
   validateToken,
   validateTokenGetter,
 } from "../lib/chat/useChat";
 import { xhrTransport } from "../lib/chat/xhrTransport";
+import { getLogger } from "../lib/logger";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**
@@ -64,6 +73,14 @@ type SendMessageResult =
       error: string;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+    }
+  | {
+      /** The detached variant from runToolLoop (resumable streams only). */
+      data: RunToolLoopResult["data"];
+      error: "Request detached";
+      detached: true;
+      /** Pass to `resumeStream` to replay; null when nothing was resumable. */
+      resume: StreamResumeHandle | null;
     };
 
 /**
@@ -77,10 +94,50 @@ interface UseChatOptions extends BaseUseChatOptions {
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
+  /**
+   * Opt into resumable streaming. When `true`, every `sendMessage` request
+   * sends `X-Stream-Resumable: 1` so the portal keeps generating into its
+   * buffer after a client disconnect, and `detach()` can hand back a
+   * {@link StreamResumeHandle} for {@link resumeStream}. Off by default — no
+   * header is sent and `detach()` always resolves to `null`.
+   * @default false
+   */
+  resumable?: boolean;
+  /**
+   * Observability for the fire-and-forget cancel POST that `stop()` issues for
+   * a resumable stream. The stop-without-cancel billing risk must be visible:
+   * once the capability header ships, the portal no longer treats a dropped
+   * socket as cancellation, so a `stop()` whose cancel POST silently fails
+   * bills the full generation.
+   */
+  onCancelResult?: (result: {
+    inferenceId: string;
+    ok: boolean;
+    status?: number;
+    error?: Error;
+  }) => void;
 }
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  /**
+   * Tear down the in-flight request as a DETACH rather than a stop: the portal
+   * keeps generating server-side and `sendMessage` resolves with the detached
+   * variant. Resolves to the {@link StreamResumeHandle} captured for the
+   * in-flight stream (or `null` when nothing is resumable — `resumable` was
+   * off, or no inference id had been issued yet). Pair with `resumeStream`.
+   */
+  detach: () => StreamResumeHandle | null;
+  /**
+   * Replay a detached stream from the portal's buffer (GET from seq 0, fresh
+   * accumulator). Thin hook wrapper over the library `resumeStream` — supplies
+   * the hook's `getToken`/`baseUrl`/`transport` defaults; the token is resolved
+   * at invocation so a refresh during the detach window is honored.
+   */
+  resumeStream: (
+    handle: StreamResumeHandle,
+    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing">
+  ) => Promise<ResumeStreamResult>;
 };
 
 /**
@@ -136,15 +193,71 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
+    resumable = false,
+    onCancelResult,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Distinct from abortControllerRef: aborting THIS one is a detach (keep
+  // generating server-side), aborting the abort controller is a stop.
+  const detachControllerRef = useRef<AbortController | null>(null);
+  // The latest resume handle we can build for the in-flight stream, refreshed
+  // from onStreamMeta as soon as the portal issues an X-Inference-ID. Read by
+  // stop() (to POST cancel) and detach() (to return the handle synchronously).
+  const pendingResumeRef = useRef<StreamResumeHandle | null>(null);
+
+  // Fire-and-forget cancel POST: tells the portal to stop generating into the
+  // buffer and release it. Errors are swallowed — a failed cancel must never
+  // surface to the user, and the buffer TTL reclaims it regardless. This is the
+  // billing-safe teardown for a stop that lands AFTER a resumable stream began.
+  const fireCancel = useCallback(
+    (handle: StreamResumeHandle) => {
+      const { inferenceId } = handle;
+      // Keep ONLY the fetch in the rejectable region and report the outcome from
+      // the settled handlers — so a consumer onCancelResult that throws on the
+      // success path can't fall into the catch and fire a contradictory second
+      // { ok: false }. A genuine fetch failure still reports a single ok:false.
+      void (async () => {
+        const token = getToken ? await getToken() : null;
+        const res = await fetch(`${baseUrl}${streamCancelPath(inferenceId)}`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        return { inferenceId, ok: res.ok, status: res.status };
+      })().then(
+        (result) => onCancelResult?.(result),
+        (err) => {
+          getLogger().warn("[useChat] stream cancel POST failed:", err);
+          onCancelResult?.({ inferenceId, ok: false, error: err as Error });
+        }
+      );
+    },
+    [getToken, baseUrl, onCancelResult]
+  );
 
   const stop = useCallback(() => {
+    // A stop on a resumable stream that already has an inference id must also
+    // cancel the server-side buffer, or the portal keeps billing for a
+    // generation nobody will read.
+    const pending = pendingResumeRef.current;
+    if (resumable && pending) fireCancel(pending);
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    detachControllerRef.current = null;
+    pendingResumeRef.current = null;
+  }, [resumable, fireCancel]);
+
+  const detach = useCallback((): StreamResumeHandle | null => {
+    // Abort via the detach signal (not the stop signal): runToolLoop tears the
+    // stream down but the portal keeps generating, and sendMessage resolves
+    // with the detached variant. No cancel POST — that would kill the buffer we
+    // intend to resume.
+    if (detachControllerRef.current) {
+      detachControllerRef.current.abort();
+    }
+    return pendingResumeRef.current;
   }, []);
 
   // Cleanup on unmount
@@ -154,8 +267,64 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
+      detachControllerRef.current = null;
+      pendingResumeRef.current = null;
     };
   }, []);
+
+  const resumeStream = useCallback(
+    async (
+      handle: StreamResumeHandle,
+      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing">
+    ): Promise<ResumeStreamResult> => {
+      // Validate the token getter, then resolve the token AT INVOCATION — a
+      // multi-minute background gap between detach and resume expires the
+      // bearer, so a token captured at hook-mount or detach time is never
+      // reused. The lib takes a concrete `token: string`; the hook owns the
+      // fetch-fresh-token contract.
+      const getterValidation = validateTokenGetter(getToken);
+      if (!getterValidation.valid) {
+        return { data: null, error: getterValidation.message, interrupted: false };
+      }
+      const token = await getToken!();
+      const tokenValidation = validateToken(token);
+      if (!tokenValidation.valid) {
+        return { data: null, error: tokenValidation.message, interrupted: false };
+      }
+
+      // A fresh controller stored in abortControllerRef so stop() also kills a
+      // resume in flight.
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      setIsLoading(true);
+      try {
+        return await runResumeStream({
+          handle,
+          token: token!,
+          baseUrl,
+          // RN can't stream fetch bodies — same transport the live stream used.
+          transport: xhrTransport,
+          smoothing,
+          signal: abortController.signal,
+          onData: (chunk) => {
+            if (globalOnData) globalOnData(chunk);
+          },
+          onThinking: (chunk) => {
+            if (globalOnThinking) globalOnThinking(chunk);
+          },
+          onFinish,
+          onError,
+          ...opts,
+        });
+      } finally {
+        setIsLoading(false);
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+        }
+      }
+    },
+    [getToken, baseUrl, smoothing, globalOnData, globalOnThinking, onFinish, onError]
+  );
 
   const sendMessage = useCallback(
     async ({
@@ -186,6 +355,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+      // Fresh detach controller + resume state for this request.
+      const detachController = new AbortController();
+      detachControllerRef.current = detachController;
+      pendingResumeRef.current = null;
 
       setIsLoading(true);
 
@@ -263,7 +436,23 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           headers,
           smoothing,
           signal: abortController.signal,
+          // Only opt into the resumable buffer + detach handshake when the hook
+          // was configured for it — otherwise this is a plain stop-only stream.
+          resumable,
+          detachSignal: detachController.signal,
           transport: xhrTransport,
+          onStreamMeta: (meta) => {
+            // Build the resume handle as soon as the portal issues an inference
+            // id, so stop()/detach() have something to act on even mid-stream.
+            // The resolved api type the stream actually used drives replay
+            // parsing — resolveApiType here matches what runToolLoop resolved.
+            pendingResumeRef.current = {
+              inferenceId: meta.inferenceId,
+              apiType: resolveApiType(requestApiType ?? defaultApiType, model),
+              model,
+              conversationId,
+            };
+          },
           onData: (chunk) => {
             if (onData) onData(chunk);
             if (globalOnData) globalOnData(chunk);
@@ -281,6 +470,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           preProcessors,
         });
 
+        // On a detach, runToolLoop returns the authoritative resume handle
+        // (resolved api type, latest inference id). Prefer it over the
+        // optimistic one we built from onStreamMeta.
+        if ("detached" in result && result.detached && result.resume) {
+          pendingResumeRef.current = result.resume;
+        } else {
+          // Any non-detached terminal (clean completion or an error on THIS
+          // connection) means the turn finished here — there is nothing left to
+          // resume or cancel. Drop the optimistic handle from onStreamMeta, or a
+          // later idle stop() would fire-and-forget a cancel POST for an
+          // already-finished inference id (spurious portal traffic + a
+          // misleading onCancelResult).
+          pendingResumeRef.current = null;
+        }
+
         return result;
       } catch (err) {
         return createErrorResult(
@@ -291,6 +495,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         setIsLoading(false);
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
+        }
+        if (detachControllerRef.current === detachController) {
+          detachControllerRef.current = null;
         }
       }
     },
@@ -308,6 +515,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       defaultApiType,
       smoothing,
       preProcessors,
+      resumable,
     ]
   );
 
@@ -315,5 +523,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     isLoading,
     sendMessage,
     stop,
+    detach,
+    resumeStream,
   };
 }

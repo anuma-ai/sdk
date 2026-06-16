@@ -2,6 +2,17 @@ import type { StreamingTransport, StreamingTransportResult } from "./toolLoop";
 import { INFERENCE_ID_HEADER } from "./toolLoop";
 
 /**
+ * Canonical message for a non-OK SSE response. This exact `SSE failed: {status}`
+ * prefix is a CONTRACT: `resumeStream`'s status classifier (parseSseStatusCode)
+ * and toolLoop's retry parser both extract the HTTP status from it to route 410
+ * → expired vs 401/5xx → transient. Build the message through here so the
+ * producer and those parsers can never drift apart (a contract test pins it).
+ */
+export function sseFailureMessage(status: number, statusText: string, detail = ""): string {
+  return `SSE failed: ${status} ${statusText}${detail}`;
+}
+
+/**
  * Parses raw SSE text into individual JSON-parsed data payloads.
  * Handles buffering of incomplete lines across XHR progress events.
  */
@@ -158,7 +169,7 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
         // error type instead of a bare HTTP status.
         const body = (xhr.responseText || "").slice(0, 500);
         const detail = body ? `: ${body}` : "";
-        const error = new Error(`SSE failed: ${xhr.status} ${xhr.statusText}${detail}`);
+        const error = new Error(sseFailureMessage(xhr.status, xhr.statusText, detail));
         if (options.onSseError) options.onSseError(error);
         push({ type: "done" });
       }

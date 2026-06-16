@@ -160,6 +160,39 @@ export function extractAssistantText(r: ApiResponse): {
 }
 
 /**
+ * Return a copy of `r` with any pending tool-call payload removed.
+ *
+ * `resumeStream` accepts no tools, so a tool-request terminal is finalized as an
+ * interrupted/stopped message. But `buildFinalResponse` still emits the
+ * accumulated tool call (a `function_call` item for the Responses shape, a
+ * `choices[].message.tool_calls` array for Completions). Persisting that dangling
+ * call into history — or returning it to a caller that re-stores `data` — yields
+ * an orphaned tool_call with no matching tool_result, which many providers reject
+ * (or the model hallucinates around) on the next turn. Stripping it here keeps the
+ * stopped row to content/thinking only, matching how `extractAssistantText`
+ * already ignores tool items.
+ */
+export function stripToolCalls(r: ApiResponse): ApiResponse {
+  if (isChatCompletionResponse(r)) {
+    if (!r.choices?.some((c) => c?.message?.tool_calls)) return r;
+    return {
+      ...r,
+      choices: r.choices.map((c) =>
+        c?.message?.tool_calls ? { ...c, message: { ...c.message, tool_calls: undefined } } : c
+      ),
+    };
+  }
+  const output = (r as { output?: Array<{ type?: string }> }).output;
+  if (!Array.isArray(output) || !output.some((item) => item?.type === "function_call")) {
+    return r;
+  }
+  return {
+    ...r,
+    output: output.filter((item) => item?.type !== "function_call"),
+  } as ApiResponse;
+}
+
+/**
  * Strategy interface for different LLM API backends.
  * Implementations handle request building, stream parsing, and response normalization.
  */
