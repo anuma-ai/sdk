@@ -782,6 +782,19 @@ export interface SendMessageWithStorageArgs extends BaseSendMessageWithStorageAr
    * to avoid race conditions with React state updates.
    */
   conversationId?: string;
+
+  /**
+   * Per-request override for PII redaction. When set, takes precedence over the
+   * hook-level `piiRedaction` for this call only — e.g. pass `false` to disable
+   * redaction for a single message, or a `PiiRedactor` instance to use your own.
+   *
+   * Scope: applies to this call's outbound LLM request, its embedding inputs
+   * (tool-filtering and the stored message/chunk embeddings), and the
+   * summarization prompt. Vault/memory tool embeddings are governed by the
+   * hook-level redactor since the vault spans conversations. `true` resolves to
+   * the conversation-shared redactor, matching the hook-level behavior.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 }
 
 /**
@@ -1068,6 +1081,49 @@ function getConversationRedactor(conversationId: string | null): PiiRedactor {
     if (oldest !== undefined) conversationRedactors.delete(oldest);
   }
   return redactor;
+}
+
+/** Resolved PII redaction for a single `sendMessage` call. */
+export interface CallPiiResolution {
+  /**
+   * Redactor for this call's embedding masking and summarization prompt.
+   * `undefined` means no masking (redaction disabled for this call).
+   */
+  redactor: PiiRedactor | undefined;
+  /**
+   * Value forwarded to the inner `useChat` for the LLM request. `undefined`
+   * keeps the inner hook on its hook-level redactor (no override); otherwise
+   * the resolved redactor instance, or `false` to force-disable for this call.
+   */
+  forInnerSend: boolean | PiiRedactor | undefined;
+}
+
+/**
+ * Resolve the effective redactor for one `sendMessage` call. A per-request
+ * `piiRedaction` takes precedence over the hook-level one: `false` disables
+ * redaction for this call, a `PiiRedactor` instance brings its own, and `true`
+ * resolves to the conversation-shared redactor (matching hook-level behavior).
+ * When omitted, falls back to the hook-level resolved redactor.
+ *
+ * Exported for unit testing; not part of the public API.
+ */
+export function resolveCallPii(
+  requestPiiRedaction: boolean | PiiRedactor | undefined,
+  hookRedactor: boolean | PiiRedactor | undefined,
+  getConversationRedactorFor: () => PiiRedactor
+): CallPiiResolution {
+  const redactor: PiiRedactor | undefined =
+    requestPiiRedaction === undefined
+      ? isPiiRedactor(hookRedactor)
+        ? hookRedactor
+        : undefined
+      : requestPiiRedaction === true
+        ? getConversationRedactorFor()
+        : isPiiRedactor(requestPiiRedaction)
+          ? requestPiiRedaction
+          : undefined;
+  const forInnerSend = requestPiiRedaction === undefined ? undefined : (redactor ?? false);
+  return { redactor, forInnerSend };
 }
 
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
@@ -1471,7 +1527,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // Helper to embed a message after creation (non-blocking)
   // Uses chunking for long messages to improve semantic search precision
   const embedMessageAsync = useCallback(
-    async (message: StoredMessage) => {
+    async (message: StoredMessage, mask: (text: string) => string = maskForEmbedding) => {
       if (!autoEmbedMessages || !getToken) return;
       // Skip short messages that won't provide useful search context
       if (message.content.length < minContentLength) return;
@@ -1483,10 +1539,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         };
 
         // Use chunking for long messages. Only the text sent to the embeddings
-        // server is redacted; the chunk text stored locally stays original.
+        // server is masked; the chunk text stored locally stays original. `mask`
+        // defaults to the hook-level masker but a per-request override can pass
+        // its own (e.g. identity when piiRedaction:false for this call).
         if (shouldChunkMessage(message.content, DEFAULT_CHUNK_SIZE)) {
           const textChunks = chunkText(message.content);
-          const chunkTexts = textChunks.map((c) => maskForEmbedding(c.text));
+          const chunkTexts = textChunks.map((c) => mask(c.text));
           const embeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
 
           const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
@@ -1499,10 +1557,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           await updateMessageChunksOp(storageCtx, message.uniqueId, messageChunks, embeddingModel);
         } else {
           // Use whole-message embedding for short messages
-          const embedding = await generateEmbedding(
-            maskForEmbedding(message.content),
-            embeddingOptions
-          );
+          const embedding = await generateEmbedding(mask(message.content), embeddingOptions);
           await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
         }
       } catch (err) {
@@ -2227,7 +2282,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         conversationId: explicitConversationId,
         parentMessageId,
         assistantUniqueId,
+        piiRedaction: requestPiiRedaction,
       } = args;
+
+      // Resolve the redactor for THIS call (per-request override > hook-level).
+      // Drives the LLM request, this call's embedding masking, and summarization.
+      const { redactor: callRedactor, forInnerSend: callPiiRedaction } = resolveCallPii(
+        requestPiiRedaction,
+        resolvedPiiRedaction,
+        () => getConversationRedactor(explicitConversationId ?? currentConversationId)
+      );
+      // Mask embedding inputs with the per-call redactor (identity when off), so
+      // a per-request override also governs this call's embeddings.
+      const maskForCall = (text: string): string =>
+        callRedactor ? callRedactor.maskText(text) : text;
 
       // Helper to resolve thought process from callback or static value
       const resolveThoughtProcess = (): ActivityPhase[] | undefined =>
@@ -2266,12 +2334,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
               const textChunks = chunkText(messageContent);
               skipStorageEmbeddings = await generateEmbeddings(
-                textChunks.map((c) => maskForEmbedding(c.text)),
+                textChunks.map((c) => maskForCall(c.text)),
                 embeddingOptions
               );
             } else {
               skipStorageEmbeddings = await generateEmbedding(
-                maskForEmbedding(messageContent),
+                maskForCall(messageContent),
                 embeddingOptions
               );
             }
@@ -2361,6 +2429,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           imageModel,
           apiType: effectiveApiType,
           conversationId: explicitConversationId ?? currentConversationId ?? undefined,
+          piiRedaction: callPiiRedaction,
         });
 
         if (result.error || !result.data) {
@@ -2515,7 +2584,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           summaryModel,
           token: summaryToken ?? "",
           baseUrl,
-          redactor: isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction : undefined,
+          redactor: callRedactor,
         });
 
         // Batch: collect all fileIds across all messages, resolve once
@@ -2708,11 +2777,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
           if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
             const textChunks = chunkText(contentForStorage);
-            const chunkTexts = textChunks.map((c) => maskForEmbedding(c.text));
+            const chunkTexts = textChunks.map((c) => maskForCall(c.text));
             userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
           } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
             userMessageEmbeddings = await generateEmbedding(
-              maskForEmbedding(contentForStorage),
+              maskForCall(contentForStorage),
               embeddingOptions
             );
           }
@@ -2814,7 +2883,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-          void embedMessageAsync(storedUserMessage);
+          void embedMessageAsync(storedUserMessage, maskForCall);
         }
       }
 
@@ -2853,6 +2922,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         onThinking,
         apiType: requestApiType,
         conversationId: convId,
+        piiRedaction: callPiiRedaction,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -2896,7 +2966,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             });
 
             // Embed assistant message (non-blocking)
-            void embedMessageAsync(storedAssistantMessage);
+            void embedMessageAsync(storedAssistantMessage, maskForCall);
 
             // Build a valid response for the return (even if original was null)
             const responseData: ApiResponse = abortedResult.data || {
@@ -3082,7 +3152,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
-          void embedMessageAsync(storedAssistantMessage);
+          void embedMessageAsync(storedAssistantMessage, maskForCall);
         }
       } catch (err) {
         // Clean up OPFS files and media records if message creation failed

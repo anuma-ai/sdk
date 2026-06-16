@@ -442,6 +442,24 @@ Parent message ID for branching (edit/regenerate). Sets on the user message.
 
 ***
 
+### piiRedaction?
+
+> `optional` **piiRedaction**: `boolean` | `PiiRedactor`
+
+Defined in: [src/react/useChatStorage.ts:797](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#797)
+
+Per-request override for PII redaction. When set, takes precedence over the
+hook-level `piiRedaction` for this call only — e.g. pass `false` to disable
+redaction for a single message, or a `PiiRedactor` instance to use your own.
+
+Scope: applies to this call's outbound LLM request, its embedding inputs
+(tool-filtering and the stored message/chunk embeddings), and the
+summarization prompt. Vault/memory tool embeddings are governed by the
+hook-level redactor since the vault spans conversations. `true` resolves to
+the conversation-shared redactor, matching the hook-level behavior.
+
+***
+
 ### reasoning?
 
 > `optional` **reasoning**: [`LlmapiResponseReasoning`](../../../client/Internal/type-aliases/LlmapiResponseReasoning.md)
