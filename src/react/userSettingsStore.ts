@@ -107,7 +107,7 @@ async function startLoad(entry: PoolEntry, walletAddress: string): Promise<void>
     // The user-preference read (with its legacy-migration fallback) and the
     // legacy model-preference read are independent, so fire them in parallel
     // rather than paying two sequential worker-bridge round-trips.
-    const [preference, legacyPreference] = await Promise.all([
+    const results = await Promise.allSettled([
       (async () => {
         const existing = await getUserPreferenceOp(entry.storageCtx, walletAddress);
         return existing ?? (await migrateFromModelPreferencesOp(entry.storageCtx, walletAddress));
@@ -115,7 +115,10 @@ async function startLoad(entry: PoolEntry, walletAddress: string): Promise<void>
       getModelPreferenceOp(entry.legacyStorageCtx, walletAddress),
     ]);
     if (entry.loadCancelled) return;
-    patchSnapshot(entry, { userPreference: preference, modelPreference: legacyPreference });
+    const patch: Partial<SettingsSnapshot> = {};
+    if (results[0].status === "fulfilled") patch.userPreference = results[0].value;
+    if (results[1].status === "fulfilled") patch.modelPreference = results[1].value;
+    patchSnapshot(entry, patch);
   } finally {
     if (!entry.loadCancelled) patchSnapshot(entry, { isLoading: false });
   }
