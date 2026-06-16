@@ -122,14 +122,19 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // `response_format: json_object` support is model-specific, not universal.
   // gpt-oss-120b (Cerebras) rejects the whole request with a 400 if it's
   // present; OpenAI, ling-2.6-flash, and deepseek-v4 all accept it (verified
-  // 2026-06). Send it only to models confirmed to accept it; an UNKNOWN model
-  // defaults to OMITTING it, so a newly-added model degrades to a bare
-  // prompt-instructed request (which still works via the strict-JSON system
-  // prompt + the tolerant `extractJsonCandidate` parser below) rather than
-  // hard-failing on a 400. Anthropic ignores the flag and uses the prefill
-  // path above. `.includes` so proxied ids like `openrouter/openai/…` match.
-  const RESPONSE_FORMAT_OK = ["openai/", "inclusionai/", "deepseek/"];
-  const supportsJsonObjectFormat = RESPONSE_FORMAT_OK.some((p) => req.model.includes(p));
+  // 2026-06). Send it only to models whose provider is confirmed to accept it;
+  // an UNKNOWN provider defaults to OMITTING it, so a newly-added model
+  // degrades to a bare prompt-instructed request (which still works via the
+  // strict-JSON system prompt + the tolerant `extractJsonCandidate` parser
+  // below) rather than hard-failing on a 400. Anthropic ignores the flag and
+  // uses the prefill path above.
+  //
+  // Match on path SEGMENTS, not a raw substring: model ids are
+  // `provider/model` (or proxied `openrouter/openai/model`), so splitting on
+  // `/` matches `openai` in both `openai/x` and `openrouter/openai/x` without
+  // a coincidental id like `someprovider-openai/x` wrongly qualifying.
+  const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
+  const supportsJsonObjectFormat = req.model.split("/").some((seg) => RESPONSE_FORMAT_OK.has(seg));
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

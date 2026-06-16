@@ -112,17 +112,27 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
   });
 
   it("sends response_format: json_object for models that accept it", async () => {
-    // openai/*, ling, deepseek all accept the flag (verified 2026-06).
+    // openai/*, ling, deepseek all accept the flag (verified 2026-06), and a
+    // proxied openrouter/openai/* id still matches on the `openai` segment.
     for (const model of [
       "openai/gpt-5-mini",
       "inclusionai/ling-2.6-flash",
       "deepseek/deepseek-v4-flash",
+      "openrouter/openai/gpt-5-mini",
     ]) {
       const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
       await callPortalJsonCompletion({ ...baseArgs, model, fetchFn });
       const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
       expect(sentBody.response_format, model).toEqual({ type: "json_object" });
     }
+  });
+
+  it("does not match a provider name as a coincidental id substring", async () => {
+    // Segment match, not substring: `someprovider-openai/x` must NOT qualify.
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"ok":true}'));
+    await callPortalJsonCompletion({ ...baseArgs, model: "someprovider-openai/x", fetchFn });
+    const sentBody = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(sentBody.response_format).toBeUndefined();
   });
 
   it("omits response_format for gpt-oss (it 400s on the flag)", async () => {

@@ -135,6 +135,49 @@ describe("extractFacts", () => {
     expect(result).toEqual([]);
   });
 
+  it("retries once on a failed/empty completion, then succeeds", async () => {
+    // First call: empty completion content (null) → retry. Second: real facts.
+    const candidates = {
+      candidates: [
+        {
+          content: "Lives in Portland",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m3"],
+        },
+      ],
+    };
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "" } }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: JSON.stringify(candidates) } }] }),
+      }) as unknown as typeof fetch;
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("Lives in Portland");
+  });
+
+  it("does not retry a successful empty result ({candidates: []})", async () => {
+    // A legit "no durable facts" is non-null and must not trigger a retry.
+    const fetchFn = mockFetch(JSON.stringify({ candidates: [] }));
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([]);
+  });
+
+  it("gives up after the retry when both attempts fail", async () => {
+    const fetchFn = mockFetch("not-valid-json");
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(result).toEqual([]);
+  });
+
   it("falls back to type=other for unknown types", async () => {
     const candidates = {
       candidates: [
