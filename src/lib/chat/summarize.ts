@@ -20,7 +20,7 @@ import {
 } from "../db/chat/summaryOperations";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
 import { getLogger } from "../logger";
-import type { PiiRedactor } from "../pii/redactor";
+import type { PiiMatch, PiiRedactor } from "../pii/redactor";
 
 /** Default token threshold before summarization triggers */
 export const DEFAULT_SUMMARY_TOKEN_THRESHOLD = 4000;
@@ -226,6 +226,8 @@ interface SummarizeOptions {
    * de-anonymized, so raw PII never reaches the summary endpoint.
    */
   redactor?: PiiRedactor;
+  /** Called with the PII matches found when the summarization prompt is redacted. */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
 /** Result of progressive summarization */
@@ -251,6 +253,28 @@ interface SummarizeResult {
  *
  * Falls back gracefully: if summarization fails, returns all messages verbatim.
  */
+/**
+ * Redact a summarization prompt and surface any matches to `onPiiRedacted`,
+ * mirroring runToolLoop's redactBatch so the consent UX sees PII detected on the
+ * summarization path too. Returns the prompt unchanged when redaction is off.
+ */
+function redactSummaryPrompt(
+  prompt: string,
+  redactor: PiiRedactor | undefined,
+  onPiiRedacted?: (matches: PiiMatch[]) => void
+): string {
+  if (!redactor) return prompt;
+  const { text, matches } = redactor.redactText(prompt);
+  if (matches.length > 0 && onPiiRedacted) {
+    try {
+      onPiiRedacted(matches);
+    } catch {
+      /* observer error, swallow — same philosophy as runToolLoop's hooks */
+    }
+  }
+  return text;
+}
+
 export async function progressiveSummarize(options: SummarizeOptions): Promise<SummarizeResult> {
   const {
     cachedSummary,
@@ -260,6 +284,7 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
     callLlm,
     model,
     redactor,
+    onPiiRedacted,
   } = options;
 
   const cachedTokens = cachedSummary?.tokenCount ?? 0;
@@ -310,7 +335,7 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
     const prompt = buildSummarizationPrompt(cachedSummary?.summary, toSummarize);
     // Redact the prompt before it leaves the device, then restore original
     // values in the returned summary so the stored summary holds real values.
-    const promptForModel = redactor ? redactor.redactText(prompt).text : prompt;
+    const promptForModel = redactSummaryPrompt(prompt, redactor, onPiiRedacted);
     const rawSummary = await callLlm(promptForModel, model);
     const newSummary = redactor ? redactor.deAnonymize(rawSummary) : rawSummary;
     if (!newSummary || newSummary.trim().length === 0) {
@@ -476,6 +501,8 @@ interface MaybeSummarizeHistoryOptions {
    * de-anonymized.
    */
   redactor?: PiiRedactor;
+  /** Called with the PII matches found when the summarization prompt is redacted. */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
 /** Result of `maybeSummarizeHistory` */
@@ -597,6 +624,7 @@ async function doSummarizeHistory(
     token,
     baseUrl,
     redactor,
+    onPiiRedacted,
   } = options;
 
   try {
@@ -622,7 +650,7 @@ async function doSummarizeHistory(
         // cachedSummary.summary holds real, de-anonymized values (see
         // progressiveSummarize). Redact before it leaves the device, then restore
         // the original values in the compacted summary so it stays usable as cache.
-        const promptForModel = redactor ? redactor.redactText(compactPrompt).text : compactPrompt;
+        const promptForModel = redactSummaryPrompt(compactPrompt, redactor, onPiiRedacted);
         const rawCompacted = await callSummarizationLlm(
           promptForModel,
           summaryModel,
@@ -688,6 +716,7 @@ async function doSummarizeHistory(
       callLlm,
       model: summaryModel,
       redactor,
+      onPiiRedacted,
     });
 
     // Persist the updated summary if summarization was performed

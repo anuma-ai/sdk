@@ -2610,6 +2610,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           token: summaryToken ?? "",
           baseUrl,
           redactor: callRedactor,
+          onPiiRedacted,
         });
 
         // Batch: collect all fileIds across all messages, resolve once

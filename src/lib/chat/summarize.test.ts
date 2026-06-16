@@ -247,6 +247,57 @@ describe("progressiveSummarize", () => {
     );
   });
 
+  it("fires onPiiRedacted with matches found in the summarization prompt", async () => {
+    const redactor = new PiiRedactor();
+    const onPiiRedacted = vi.fn();
+    const msgs = [
+      makeMsg("1", "user", `My email is bob@acme.com. ${"context ".repeat(50)}`),
+      makeMsg("2", "assistant", `Got it. ${"reply ".repeat(50)}`),
+      makeMsg("3", "user", `Thanks ${"again ".repeat(50)}`),
+    ];
+    const callLlm = makeCallLlm("The user shared contact details ([EMAIL_1]).");
+
+    await progressiveSummarize({
+      cachedSummary: null,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 150,
+      minWindowMessages: 1,
+      callLlm,
+      model: "test",
+      redactor,
+      onPiiRedacted,
+    });
+
+    expect(onPiiRedacted).toHaveBeenCalledTimes(1);
+    const matches = onPiiRedacted.mock.calls[0][0] as { category: string }[];
+    expect(matches.some((m) => m.category === "EMAIL")).toBe(true);
+    // The masked prompt — not the raw email — is what reached the model.
+    expect(callLlm.mock.calls[0][0]).not.toContain("bob@acme.com");
+  });
+
+  it("does not fire onPiiRedacted when the summarization prompt has no PII", async () => {
+    const redactor = new PiiRedactor();
+    const onPiiRedacted = vi.fn();
+    const msgs = [
+      makeMsgWithTokens("1", "user", 100),
+      makeMsgWithTokens("2", "assistant", 100),
+      makeMsgWithTokens("3", "user", 100),
+    ];
+
+    await progressiveSummarize({
+      cachedSummary: null,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 150,
+      minWindowMessages: 1,
+      callLlm: makeCallLlm("A plain summary."),
+      model: "test",
+      redactor,
+      onPiiRedacted,
+    });
+
+    expect(onPiiRedacted).not.toHaveBeenCalled();
+  });
+
   it("sets summarizedUpTo to the last summarized message ID", async () => {
     const msgs = [
       makeMsgWithTokens("msg-1", "user", 200),
@@ -975,7 +1026,14 @@ describe("maybeSummarizeHistory", () => {
     const msgs = Array.from({ length: 6 }, (_, i) =>
       makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 100)
     );
-    await maybeSummarizeHistory({ ...baseOptions, conversationId, messages: msgs, redactor });
+    const onPiiRedacted = vi.fn();
+    await maybeSummarizeHistory({
+      ...baseOptions,
+      conversationId,
+      messages: msgs,
+      redactor,
+      onPiiRedacted,
+    });
 
     // Leak prevention: the real email never left the device; a placeholder did.
     expect(compactionBody).not.toContain(realEmail);
@@ -988,6 +1046,11 @@ describe("maybeSummarizeHistory", () => {
       "msg-0",
       expect.any(Number)
     );
+    // The compaction path also reports its PII matches to the consent UX.
+    expect(onPiiRedacted).toHaveBeenCalled();
+    expect(
+      onPiiRedacted.mock.calls[0][0].some((m: { category: string }) => m.category === "EMAIL")
+    ).toBe(true);
 
     fetchSpy.mockRestore();
   });
