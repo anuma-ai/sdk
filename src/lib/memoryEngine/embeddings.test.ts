@@ -180,6 +180,35 @@ describe("generateEmbedding", () => {
     );
   });
 
+  it("retries when fetch itself throws (network error) and succeeds on a later attempt", async () => {
+    let calls = 0;
+    const fetchMock = vi.fn(async () => {
+      calls++;
+      if (calls < 2) throw new Error("ECONNRESET");
+      return new Response(
+        JSON.stringify({ data: [{ embedding: embeddingFor("net"), index: 0 }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await generateEmbedding("net", { apiKey: "k", baseUrl: BASE });
+    expect(result).toEqual(embeddingFor("net"));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-throws after exhausting retries when fetch keeps throwing", async () => {
+    // A network fault (fetch rejects) must NOT bypass the retry — the
+    // generated client propagates the throw rather than returning { error }.
+    const fetchMock = vi.fn(async () => {
+      throw new Error("ECONNRESET");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(generateEmbedding("text", { apiKey: "k", baseUrl: BASE })).rejects.toThrow(
+      "ECONNRESET"
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it("fires onUsage with mapped token counts when the API reports usage", async () => {
     stubFetchOk({ prompt_tokens: 7, total_tokens: 9 });
     const onUsage = vi.fn();

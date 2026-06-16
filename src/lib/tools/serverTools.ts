@@ -925,6 +925,39 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["github_api"],
     anchorMinSimilarity: 0.55,
   },
+  // Connector sets (#587). Connector chat tools belong to no set, so per-message
+  // semantic filtering silently prunes them on vague prompts ("check my email").
+  // Grouping each connector's tools behind a search/action anchor keeps the
+  // whole connector reachable once any one of its tools matches. Mirrors github:
+  // no systemPrompt rider — per-set prompt guidance is a follow-up.
+  {
+    name: "gmail",
+    members: ["gmail_search_messages", "gmail_get_message", "gmail_send_message"],
+    anchors: ["gmail_search_messages", "gmail_send_message"],
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "google-calendar",
+    members: [
+      "google_calendar_list_events",
+      "google_calendar_create_event",
+      "google_calendar_update_event",
+    ],
+    anchors: ["google_calendar_list_events", "google_calendar_create_event"],
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "google-drive",
+    members: ["google_drive_search", "google_drive_list_recent", "google_drive_get_content"],
+    anchors: ["google_drive_search", "google_drive_get_content"],
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "notion",
+    members: ["notion-search", "notion-fetch", "notion-create-pages", "notion-update-page"],
+    anchors: ["notion-search", "notion-create-pages"],
+    anchorMinSimilarity: 0.53,
+  },
 ];
 
 /**

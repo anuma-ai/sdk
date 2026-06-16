@@ -152,6 +152,7 @@ export interface LongMemEvalOptions extends RetrievalTuningKnobs {
   variant: "s" | "m";
   strategy?: LongMemEvalStrategy;
   llmModel?: string;
+  extractionModel?: string;
   skipExisting?: boolean;
   questionId?: string;
   maxQuestions?: number;
@@ -198,4 +199,8 @@ export interface ApiConfig {
   apiKey: string;
   baseUrl: string;
   llmModel: string;
+  /** Model for session-memory extraction. Defaults to llmModel. Lets a
+   *  reasoning-heavy answer model (e.g. kimi) pair with a JSON-reliable
+   *  extractor (e.g. gpt-5-mini, matching production autoExtract). */
+  extractionModel?: string;
 }

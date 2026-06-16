@@ -155,4 +155,53 @@ describe("createAutoExtractor", () => {
     extractor.dispose();
     expect(extractor.processTurn(messages)).toBe(false);
   });
+
+  it("wires consolidateOptions (reusing the extract auth) when consolidate is set", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [], failedCount: 0 });
+    const onFallback = vi.fn();
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      extract: { apiKey: "k", baseUrl: "https://portal.example" },
+      consolidate: { model: "openai/gpt-5-mini", onFallback },
+    });
+    extractor.processTurn(messages, "c1");
+    await new Promise((r) => setTimeout(r, 0));
+
+    const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
+    expect(callOptions.consolidateOptions).toEqual({
+      apiKey: "k",
+      baseUrl: "https://portal.example",
+      model: "openai/gpt-5-mini",
+      onFallback,
+    });
+  });
+
+  it("reuses getToken auth and lets consolidate.baseUrl override the extract baseUrl", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [], failedCount: 0 });
+    const getToken = vi.fn().mockResolvedValue("tok");
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      extract: { getToken, baseUrl: "https://extract.example" },
+      consolidate: { baseUrl: "https://consolidate.example" },
+    });
+    extractor.processTurn(messages, "c1");
+    await new Promise((r) => setTimeout(r, 0));
+
+    const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
+    expect(callOptions.consolidateOptions).toEqual({
+      getToken,
+      baseUrl: "https://consolidate.example",
+    });
+    expect(callOptions.consolidateOptions).not.toHaveProperty("apiKey");
+  });
+
+  it("calls extractAndRetain WITHOUT consolidateOptions when consolidate is omitted", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [], failedCount: 0 });
+    const extractor = createAutoExtractor(baseOptions);
+    extractor.processTurn(messages, "c1");
+    await new Promise((r) => setTimeout(r, 0));
+
+    const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
+    expect(callOptions).not.toHaveProperty("consolidateOptions");
+  });
 });

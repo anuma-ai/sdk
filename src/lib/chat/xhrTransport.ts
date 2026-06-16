@@ -1,4 +1,5 @@
 import type { StreamingTransport, StreamingTransportResult } from "./toolLoop";
+import { INFERENCE_ID_HEADER } from "./toolLoop";
 
 /**
  * Parses raw SSE text into individual JSON-parsed data payloads.
@@ -91,8 +92,10 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
   }
 
   if (!finished) {
-    xhr.open("POST", url, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.open(options.method ?? "POST", url, true);
+    if (options.body !== undefined) {
+      xhr.setRequestHeader("Content-Type", "application/json");
+    }
     if (options.token) {
       xhr.setRequestHeader("Authorization", `Bearer ${options.token}`);
     }
@@ -102,6 +105,27 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       }
     }
     xhr.setRequestHeader("Accept", "text/event-stream");
+
+    let metaFired = false;
+    xhr.onreadystatechange = () => {
+      // readyState 2 = HEADERS_RECEIVED. readystatechange re-fires for states
+      // 3 (repeatedly, per chunk) and 4 — gate on the flag, not the state.
+      // The numeric literal is used because RN's XHR exposes the constant
+      // inconsistently; the literal is portable. HEADERS_RECEIVED precedes
+      // the first `onprogress`, so the id is captured before any data chunk
+      // reaches the consumer.
+      if (metaFired || xhr.readyState < 2) return;
+      metaFired = true;
+      if (xhr.status < 200 || xhr.status >= 300) return; // error responses carry no resumable stream
+      const id = xhr.getResponseHeader(INFERENCE_ID_HEADER);
+      if (id && options.onStreamMeta) {
+        try {
+          options.onStreamMeta({ inferenceId: id });
+        } catch {
+          /* observer error, swallow */
+        }
+      }
+    };
 
     xhr.onprogress = () => {
       const newData = xhr.responseText.substring(lastProcessedIndex);
@@ -159,7 +183,7 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       finished = true;
     };
 
-    xhr.send(JSON.stringify(options.body));
+    xhr.send(options.body !== undefined ? JSON.stringify(options.body) : undefined);
   }
 
   async function* createStream() {

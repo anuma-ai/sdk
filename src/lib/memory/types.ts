@@ -13,7 +13,12 @@ import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
+import type { PortalLlmAuth } from "./portalLlm.js";
 import type { RecencyOptions } from "./recency.js";
+
+// Re-exported here so the public types surface is one module; the
+// interface lives next to the fetch helper that enforces it.
+export type { PortalLlmAuth } from "./portalLlm.js";
 
 export type MemoryKind = "fact" | "chunk";
 
@@ -103,10 +108,10 @@ export interface RecallOptions {
   /**
    * Auth + endpoint for the LLM-based query decomposition pass. Without
    * these, decompose is skipped even at `budget: 'high'`. Mirrors the
-   * shape used by `searchVaultMemories`.
+   * shape used by `searchVaultMemories`. Auth is the dual pattern — one
+   * of `apiKey` / `getToken` is required; see {@link PortalLlmAuth}.
    */
-  decomposeOptions?: {
-    apiKey: string;
+  decomposeOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
   };
@@ -198,10 +203,10 @@ export interface RetainOptions {
    * When provided, runs an LLM-based consolidation pass against the top-K
    * existing memories above `consolidateThreshold` (looser than auto-merge).
    * The LLM emits create/update/noop per Hindsight's facet-dedup rules.
-   * Auth/endpoint required; without these we keep the cosine-only path.
+   * Auth/endpoint required — one of `apiKey` / `getToken` (see
+   * {@link PortalLlmAuth}); without this option we keep the cosine-only path.
    */
-  consolidateOptions?: {
-    apiKey: string;
+  consolidateOptions?: PortalLlmAuth & {
     baseUrl?: string;
     model?: string;
     /**

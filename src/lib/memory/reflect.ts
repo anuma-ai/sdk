@@ -20,6 +20,7 @@
 
 import { BASE_URL } from "../../clientConfig.js";
 import { getLogger } from "../logger.js";
+import { type PortalLlmAuth, resolvePortalAuthHeaders } from "./portalLlm.js";
 import { recall } from "./recall.js";
 import type { RecallContext, RecallOptions } from "./types.js";
 
@@ -40,15 +41,19 @@ Rules:
 - Be concise and direct. Match the user's question style.
 - When citing a fact, prefer the exact phrasing the memory uses (numbers, names, dates).`;
 
-export interface ReflectOptions extends RecallOptions {
+/**
+ * Options for {@link reflect}. Auth for the answer LLM is the dual pattern
+ * inherited from {@link PortalLlmAuth} — one of `apiKey` / `getToken` is
+ * required at runtime; `apiKey` wins when both are set.
+ */
+export interface ReflectOptions extends RecallOptions, PortalLlmAuth {
   /** Override the answer model. Default: anthropic/claude-sonnet-4-6. */
   llmModel?: string;
   /** Cap response length. Default: 4096. */
   maxTokens?: number;
   /** Override the grounding system prompt. */
   systemPrompt?: string;
-  /** Auth + endpoint for the answer LLM. */
-  apiKey: string;
+  /** Endpoint for the answer LLM. */
   baseUrl?: string;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
@@ -131,6 +136,13 @@ export async function reflect(
   const fetchImpl = options.fetchFn ?? fetch;
 
   const log = getLogger();
+
+  // Dual-auth resolution (apiKey → x-api-key, else getToken → Bearer).
+  // A failed token fetch degrades to the no-answer result like any other
+  // LLM failure; providing neither credential throws (wiring bug).
+  const authHeaders = await resolvePortalAuthHeaders(options, "memory/reflect");
+  if (authHeaders === null) return baseResult;
+
   const controller = new AbortController();
   // Single end-to-end deadline so the header timer + body timer can't
   // double the budget (was up to ~2×REQUEST_TIMEOUT_MS before).
@@ -142,7 +154,7 @@ export async function reflect(
   try {
     response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
       method: "POST",
-      headers: { "x-api-key": options.apiKey, "Content-Type": "application/json" },
+      headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
         max_tokens: maxTokens,

@@ -66,6 +66,62 @@ export interface ExtractedMemory {
   embedding?: number[];
 }
 
+// ── Extraction cache persistence ──
+//
+// Extraction is the dominant LLM cost of a run (one call per haystack
+// session, ~50 sessions per question) and is fully determined by
+// (session content, observation date, model) — none of the retrieval
+// tuning knobs affect it. LongMemEval also reuses sessions across
+// questions' haystacks, so the cache pays off within a single run, and
+// ranking-knob sweeps with the same model become nearly extraction-free
+// after the first run. Bump EXTRACTION_PROMPT_VERSION when the extraction
+// prompt OR the extraction request/parse behavior changes, to invalidate
+// stale entries.
+//
+// v2 (2026-06): the extraction call now rejects empty completions and raises
+// max_tokens 2000→6000 — under v1, gpt-5-family reasoning-token starvation
+// had pinned ~77% of cached entries to empty results. The version bump forces
+// those (and any other v1 entries written under the old behavior) to
+// re-extract instead of serving stale empties.
+const EXTRACTION_PROMPT_VERSION = "v2";
+const EXTRACTION_CACHE_SAVE_EVERY = 25;
+
+type CachedExtraction = Omit<ExtractedMemory, "sessionIndex" | "sessionId">;
+
+let extractionCache: Map<string, CachedExtraction[]> | null = null;
+let extractionCachePath = "";
+let extractionCacheUnsaved = 0;
+
+async function getExtractionCache(): Promise<Map<string, CachedExtraction[]>> {
+  if (extractionCache) return extractionCache;
+  extractionCachePath = join(getCacheDirectory(), "extraction-cache.json");
+  try {
+    await access(extractionCachePath);
+    const data = await readFile(extractionCachePath, "utf-8");
+    const entries: [string, CachedExtraction[]][] = JSON.parse(data);
+    extractionCache = new Map(entries);
+    console.log(`Loaded ${entries.length} cached session extractions from disk`);
+  } catch {
+    extractionCache = new Map();
+  }
+  return extractionCache;
+}
+
+async function persistExtractionCache(force = false): Promise<void> {
+  if (!extractionCache) return;
+  if (!force && extractionCacheUnsaved < EXTRACTION_CACHE_SAVE_EVERY) return;
+  try {
+    await mkdir(join(extractionCachePath, ".."), { recursive: true });
+    await writeFile(extractionCachePath, JSON.stringify([...extractionCache.entries()]));
+    // Only reset after the write actually lands — zeroing it before would
+    // mean a failed write silently drops the "needs save" signal until
+    // another full debounce window of entries accumulates.
+    extractionCacheUnsaved = 0;
+  } catch {
+    // Cache persistence is best-effort — next save retries.
+  }
+}
+
 // ── Embedding cache persistence ──
 
 async function loadEmbeddingCache(path: string): Promise<Map<string, number[]>> {
@@ -258,11 +314,26 @@ export function getTranscriptPath(questionId: string): string {
   return join(getCacheDirectory(), "transcripts", `${questionId}.json`);
 }
 
-export async function transcriptMatchesModel(questionId: string, model: string): Promise<boolean> {
+/**
+ * True when a cached transcript was produced with BOTH the same answer model
+ * and the same effective extraction model. `extractionModel` is the resolved
+ * extractor (i.e. `--extract-llm` or, when unset, the answer model itself).
+ * Transcripts written before extraction-model tracking lack the field; those
+ * were always run with extraction == answer model, so we reconstruct their
+ * effective extractor as `parsed.llmModel`. This makes `--skip-existing`
+ * correctly RE-RUN entries when only the extractor changed (same answer
+ * model, different `--extract-llm`) instead of wrongly skipping them.
+ */
+export async function transcriptMatchesModel(
+  questionId: string,
+  model: string,
+  extractionModel: string
+): Promise<boolean> {
   try {
     const data = await readFile(getTranscriptPath(questionId), "utf-8");
-    const parsed = JSON.parse(data) as { llmModel?: string };
-    return parsed.llmModel === model;
+    const parsed = JSON.parse(data) as { llmModel?: string; extractionModel?: string };
+    const transcriptExtractor = parsed.extractionModel ?? parsed.llmModel;
+    return parsed.llmModel === model && transcriptExtractor === extractionModel;
   } catch {
     return false;
   }
@@ -493,6 +564,14 @@ export async function extractMemoriesFromSession(
   const conversationText = session.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
   const obsDate = observationDate ?? new Date().toISOString().split("T")[0];
 
+  const extractionModel = api.extractionModel ?? api.llmModel;
+  const cache = await getExtractionCache();
+  const cacheKey = `${sessionId}|${obsDate}|${extractionModel}|${EXTRACTION_PROMPT_VERSION}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached.map((item) => ({ ...item, sessionIndex, sessionId }));
+  }
+
   // Extraction prompt — adapted from Mem0 (contextual richness, absolute
   // dates, preserve specifics) + Hindsight's `fact_kind: event | conversation`
   // split. Designed to fix three failure modes we observed on LongMemEval:
@@ -557,6 +636,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
   // memory is gone for *every* downstream search. Retry hard before giving up.
   const maxAttempts = 6;
   let lastError: unknown;
+  let parseFailures = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
@@ -566,10 +646,29 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           "X-API-Key": api.apiKey,
         },
         body: JSON.stringify({
-          model: api.llmModel,
-          messages: [{ role: "user", content: extractionPrompt }],
+          model: extractionModel,
+          // After a parse failure, reinforce the output contract — at
+          // temperature 0 a bare retry replays the same prose response,
+          // so the retry must change the request to be useful.
+          messages: [
+            ...(parseFailures > 0
+              ? [
+                  {
+                    role: "system",
+                    content:
+                      "Output ONLY the strict JSON object requested. No prose, no explanation, no markdown.",
+                  },
+                ]
+              : []),
+            { role: "user", content: extractionPrompt },
+          ],
           temperature: 0,
-          max_tokens: 2000,
+          // 6000, not 2000: gpt-5-family reasoning tokens count against
+          // this cap — at 2000 the entire budget goes to hidden reasoning
+          // and content comes back empty (finish_reason "length"). The
+          // production SDK path sends no cap at all; 6000 keeps runaway-CoT
+          // models (kimi) bounded while leaving reasoning room.
+          max_tokens: 6000,
         }),
       });
 
@@ -587,9 +686,26 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
       }
 
       const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
+        choices: Array<{ message: { content: string }; finish_reason?: string }>;
       };
-      const content = data.choices[0]?.message?.content || "{}";
+      if (process.env.DEBUG_EXTRACT) {
+        console.log(
+          `[debug-extract] model=${extractionModel} raw=${JSON.stringify(data).slice(0, 400)}`
+        );
+      }
+      const choice = data.choices[0];
+      const content = choice?.message?.content ?? "";
+      if (!content.trim()) {
+        // Reasoning models (gpt-5 family) can burn the entire completion
+        // budget on hidden reasoning tokens and return EMPTY content with
+        // finish_reason "length". Falling back to "{}" here would cache a
+        // pinned-empty extraction for the session — treat it as a failed
+        // attempt so the retry path (and ultimately the hard-fail warn)
+        // fires instead.
+        throw new SyntaxError(
+          `empty completion content (finish_reason=${choice?.finish_reason ?? "?"})`
+        );
+      }
       const jsonStr = extractJsonFromResponse(content);
 
       const parsed = JSON.parse(jsonStr) as {
@@ -602,7 +718,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
         }>;
       };
 
-      return (parsed.items ?? [])
+      const extracted = (parsed.items ?? [])
         .map((item) => {
           const content = (item.content ?? "").trim();
           if (!content) return null;
@@ -626,8 +742,18 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           } satisfies ExtractedMemory;
         })
         .filter((m): m is ExtractedMemory => m !== null);
+      // Only successful parses are cached — HTTP/parse failures must
+      // retry on the next run rather than pinning an empty result.
+      cache.set(
+        cacheKey,
+        extracted.map(({ sessionIndex: _i, sessionId: _s, ...rest }) => rest)
+      );
+      extractionCacheUnsaved++;
+      await persistExtractionCache();
+      return extracted;
     } catch (error) {
       lastError = error;
+      if (error instanceof SyntaxError) parseFailures++;
       if (attempt < maxAttempts) {
         const exp = 250 * 2 ** (attempt - 1);
         await sleep(Math.min(15_000, exp + Math.random() * 0.4 * exp));
@@ -833,6 +959,7 @@ export async function runLongMemEval(
 
   const strategy = options.strategy || "both";
   const llmModel = options.llmModel || api.llmModel;
+  const extractionModel = options.extractionModel || api.extractionModel;
   const strategies: Array<"memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble"> =
     strategy === "both"
       ? ["memory-engine", "memory-vault"]
@@ -891,7 +1018,12 @@ export async function runLongMemEval(
 
       try {
         if (options.skipExisting) {
-          const hasTranscript = await transcriptMatchesModel(entry.question_id, llmModel);
+          // Effective extractor = --extract-llm, or the answer model when unset.
+          const hasTranscript = await transcriptMatchesModel(
+            entry.question_id,
+            llmModel,
+            extractionModel || llmModel
+          );
           if (hasTranscript) {
             completed++;
             console.log(`[${completed}/${entries.length}] ${entry.question_id} ↷ Skipping`);
@@ -903,7 +1035,7 @@ export async function runLongMemEval(
         if (strat === "memory-engine") {
           result = await processEntryMemoryEngine(
             entry,
-            { ...api, llmModel },
+            { ...api, llmModel, ...(extractionModel && { extractionModel }) },
             options.verbose || false,
             options.maxSessions,
             embeddingCache
@@ -911,7 +1043,7 @@ export async function runLongMemEval(
         } else if (strat === "memory-ensemble") {
           result = await processEntryEnsemble(
             entry,
-            { ...api, llmModel },
+            { ...api, llmModel, ...(extractionModel && { extractionModel }) },
             options.verbose || false,
             options.maxSessions,
             {
@@ -924,7 +1056,7 @@ export async function runLongMemEval(
         } else if (strat === "memory-recall") {
           result = await processEntryRecall(
             entry,
-            { ...api, llmModel },
+            { ...api, llmModel, ...(extractionModel && { extractionModel }) },
             options.verbose || false,
             options.maxSessions,
             {
@@ -945,7 +1077,7 @@ export async function runLongMemEval(
         } else {
           result = await processEntryMemoryVault(
             entry,
-            { ...api, llmModel },
+            { ...api, llmModel, ...(extractionModel && { extractionModel }) },
             options.verbose || false,
             options.maxSessions,
             {
@@ -1010,6 +1142,8 @@ export async function runLongMemEval(
 
     // Persist embedding cache to disk after each strategy completes
     await saveEmbeddingCache(embeddingCachePath, embeddingCache);
+    // Flush any extraction-cache entries below the debounce threshold.
+    await persistExtractionCache(true);
   }
 
   if (strategy === "both") {

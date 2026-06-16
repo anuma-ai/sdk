@@ -87,6 +87,10 @@
  * @module
  */
 
+// Resumable streaming primitives (resume handles are persisted by apps, so the
+// types and header constants are part of the public surface here).
+export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export { INFERENCE_ID_HEADER, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";
@@ -234,6 +238,7 @@ export type {
   FactType,
   MemoryExtractedEvent,
   MemoryKind,
+  PortalLlmAuth,
   RankedMemory,
   RecallContext,
   RecallOptions,

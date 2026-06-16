@@ -4,6 +4,70 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:55](https://github.com/anuma-ai
 
 ## Properties
 
+### consolidate?
+
+> `optional` **consolidate**: `object`
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#81)
+
+Enable the LLM-based consolidation pass (Hindsight facet-dedup) on
+every retain() write. Auth is NOT configured here — the consolidation
+call reuses the `extract` options' credentials (`apiKey` / `getToken`)
+and defaults to its `baseUrl` unless overridden below. Absent →
+identical behavior to today: retain() runs the strict cosine-only
+auto-merge with no consolidation LLM calls.
+
+**baseUrl?**
+
+> `optional` **baseUrl**: `string`
+
+Portal base URL for consolidation calls. Default: the `extract` options' `baseUrl`.
+
+**model?**
+
+> `optional` **model**: `string`
+
+Override the consolidation model. Default: see `consolidate.ts`.
+
+**onFallback()?**
+
+> `optional` **onFallback**: (`reason`: [`ConsolidationFallbackReason`](../type-aliases/ConsolidationFallbackReason.md)) => `void`
+
+Notified on each degraded create-fallback (LLM failure or
+schema-violating response). See
+`RetainOptions.consolidateOptions.onFallback`.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`reason`
+
+</td>
+<td>
+
+[`ConsolidationFallbackReason`](../type-aliases/ConsolidationFallbackReason.md)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+***
+
 ### entityCtx?
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
@@ -49,7 +113,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **onCandidateFailed**: (`event`: `object`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#87)
+Defined in: [src/lib/memory/autoExtractWorker.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#107)
 
 Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
 — couldn't save Lives in Portland") surface the specific fact that
@@ -127,7 +191,7 @@ once per filtered candidate that threw during retain.
 
 > `optional` **onError**: (`error`: `Error`, `conversationId?`: `string`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#80)
+Defined in: [src/lib/memory/autoExtractWorker.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#100)
 
 Diagnostic — fires on unexpected pipeline errors.
 
@@ -178,7 +242,7 @@ Diagnostic — fires on unexpected pipeline errors.
 
 > `optional` **onMemoryExtracted**: (`event`: [`MemoryExtractedEvent`](MemoryExtractedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#74)
+Defined in: [src/lib/memory/autoExtractWorker.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#94)
 
 Per-fact event — fires once per memory written.
 
@@ -217,7 +281,7 @@ Per-fact event — fires once per memory written.
 
 > `optional` **onSkipped**: (`event`: [`TurnSkippedEvent`](TurnSkippedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#78)
+Defined in: [src/lib/memory/autoExtractWorker.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#98)
 
 Diagnostic — fires when a turn is skipped.
 
@@ -256,7 +320,7 @@ Diagnostic — fires when a turn is skipped.
 
 > `optional` **onTurnComplete**: (`event`: [`TurnCompleteEvent`](TurnCompleteEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#76)
+Defined in: [src/lib/memory/autoExtractWorker.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#96)
 
 Per-turn event — fires once after the whole pipeline finishes.
 

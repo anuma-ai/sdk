@@ -466,6 +466,12 @@ Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
 
 ***
 
+### INFERENCE\_ID\_HEADER
+
+Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEADER.md)
+
+***
+
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
@@ -523,6 +529,12 @@ Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
 ### PlatformStorage
 
 Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
+
+***
+
+### PortalLlmAuth
+
+Re-exports [PortalLlmAuth](../react/Internal/interfaces/PortalLlmAuth.md)
 
 ***
 
@@ -775,6 +787,24 @@ Re-exports [StoredVaultMemory](../react/Internal/interfaces/StoredVaultMemory.md
 ### StoredVaultMemoryModel
 
 Re-exports [StoredVaultMemoryModel](../react/Internal/classes/StoredVaultMemoryModel.md)
+
+***
+
+### STREAM\_RESUMABLE\_HEADER
+
+Re-exports [STREAM\_RESUMABLE\_HEADER](../react/Internal/variables/STREAM_RESUMABLE_HEADER.md)
+
+***
+
+### StreamMetaEvent
+
+Re-exports [StreamMetaEvent](../react/Internal/type-aliases/StreamMetaEvent.md)
+
+***
+
+### StreamResumeHandle
+
+Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandle.md)
 
 ***
 
