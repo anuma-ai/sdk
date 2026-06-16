@@ -1,8 +1,8 @@
 /**
  * Query decomposition for composite/abstract memory questions.
  *
- * Calls Portal LLM (gpt-5-mini) to classify a query as "specific" or
- * "composite" and, if composite, decompose it into 3–5 concrete facet
+ * Calls Portal LLM (open-weights, see DEFAULT_MODEL) to classify a query as
+ * "specific" or "composite" and, if composite, decompose it into 3–5 concrete facet
  * sub-queries. The recall pipeline then runs the existing fused ranker
  * once per sub-query and RRF-fuses the result lists.
  *
@@ -22,7 +22,17 @@
 import { getLogger } from "../logger.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "../memory/portalLlm.js";
 
-const DEFAULT_MODEL = "openai/gpt-5-mini";
+// Open-weights, matching the extraction/consolidation defaults — closes the
+// last memory-pipeline path that sent private-mode content to a closed
+// provider: decomposition runs on the user's recall query, which in a
+// privacy-mode chat is private. ling-2.6-flash (not gpt-oss): this is a SHORT
+// single-decision prompt on the recall hot path, exactly the shape where
+// gpt-oss returns empty content ~30% of the time (see consolidate.ts); ling
+// is reliable here and accepts `response_format`. Verified on the decompose
+// prompt: correct specific/composite classification at ~1–2s. A failure
+// degrades to the safe `{specific, [query]}` fallback below, so recall never
+// breaks even on a hiccup.
+const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
 const MAX_SUB_QUERIES = 5;
 
 const SYSTEM_PROMPT = `You classify a memory query and, if needed, decompose it into concrete sub-queries.

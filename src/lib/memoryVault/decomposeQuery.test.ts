@@ -15,6 +15,22 @@ describe("decomposeQuery", () => {
     expect(result.mode).toBe("specific");
   });
 
+  it("defaults to an open-weights model (no closed provider for private recall queries)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          { message: { content: JSON.stringify({ mode: "specific", subQueries: ["q"] }) } },
+        ],
+      }),
+    }) as unknown as typeof fetch;
+    await decomposeQuery("q", { apiKey: "k", fetchFn });
+    const sentBody = JSON.parse(
+      (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body
+    );
+    expect(sentBody.model).toBe("inclusionai/ling-2.6-flash");
+  });
+
   it("returns specific mode for a specific query", async () => {
     const fetchFn = mockFetch({
       choices: [
