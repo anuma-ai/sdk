@@ -619,12 +619,17 @@ async function doSummarizeHistory(
         // if the summary contains $&, $', or $` characters.
         const [before, after] = COMPACTION_PROMPT.split("{summary}");
         const compactPrompt = before + cachedSummary.summary + after;
-        const compactedSummary = await callSummarizationLlm(
-          compactPrompt,
+        // cachedSummary.summary holds real, de-anonymized values (see
+        // progressiveSummarize). Redact before it leaves the device, then restore
+        // the original values in the compacted summary so it stays usable as cache.
+        const promptForModel = redactor ? redactor.redactText(compactPrompt).text : compactPrompt;
+        const rawCompacted = await callSummarizationLlm(
+          promptForModel,
           summaryModel,
           token,
           baseUrl
         );
+        const compactedSummary = redactor ? redactor.deAnonymize(rawCompacted) : rawCompacted;
         const compactedTokens = estimateTokens(compactedSummary);
         await upsertConversationSummaryOp(
           summaryCtx,

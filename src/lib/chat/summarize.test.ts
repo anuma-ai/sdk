@@ -5,6 +5,7 @@ import {
   getConversationSummaryOp,
   upsertConversationSummaryOp,
 } from "../db/chat/summaryOperations";
+import { PiiRedactor } from "../pii/redactor";
 
 import {
   callSummarizationLlm,
@@ -928,6 +929,63 @@ describe("maybeSummarizeHistory", () => {
       "conv-test",
       "Compacted summary.",
       "msg-0", // summarizedUpTo preserved
+      expect.any(Number)
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it("redacts the cached summary before compacting and de-anonymizes the result", async () => {
+    // The cached summary holds real, de-anonymized PII (progressiveSummarize
+    // stores redactor.deAnonymize(...)). When it grows large enough to compact,
+    // that real PII must NOT reach the summarization endpoint in the clear.
+    const realEmail = "bob@example.org";
+    const redactor = new PiiRedactor();
+    // Fresh conversationId so the module-level compaction cooldown (set by the
+    // H1 test above for "conv-test") doesn't divert us to the non-compaction path.
+    const conversationId = "conv-pii-compact";
+    const oversizedSummary: StoredConversationSummary = {
+      uniqueId: "s1",
+      conversationId,
+      summary: `User's email is ${realEmail}. ` + "x".repeat(14000), // > 80% of 4000
+      summarizedUpTo: "msg-0",
+      tokenCount: 3500,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockedGetSummary.mockResolvedValueOnce(oversizedSummary);
+
+    let fetchCallCount = 0;
+    let compactionBody = "";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((_url, init) => {
+      fetchCallCount++;
+      const body = typeof init?.body === "string" ? init.body : "";
+      // Echo the placeholder back so the de-anonymization round-trip is observable.
+      const placeholder = body.match(/\[EMAIL_\d+\]/)?.[0] ?? "[NO_MATCH]";
+      if (fetchCallCount === 1) compactionBody = body;
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: `Compacted. Email: ${placeholder}` } }],
+          }),
+      } as Response);
+    });
+
+    const msgs = Array.from({ length: 6 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 100)
+    );
+    await maybeSummarizeHistory({ ...baseOptions, conversationId, messages: msgs, redactor });
+
+    // Leak prevention: the real email never left the device; a placeholder did.
+    expect(compactionBody).not.toContain(realEmail);
+    expect(compactionBody).toMatch(/\[EMAIL_\d+\]/);
+    // De-anonymization: the persisted compacted summary restores the real value.
+    expect(mockedUpsertSummary).toHaveBeenCalledWith(
+      expect.anything(),
+      conversationId,
+      expect.stringContaining(realEmail),
+      "msg-0",
       expect.any(Number)
     );
 
