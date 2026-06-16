@@ -19,7 +19,26 @@ import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
-const DEFAULT_MODEL = "openai/gpt-5-mini";
+// GLOBAL default for ALL background extraction (not gated on privacy mode):
+// every conversation's auto-extract runs on this open-weights model
+// (Apache-2.0, hosted on Cerebras via the portal). The motivating win is
+// privacy-mode chats — where the user deliberately picked an open model and
+// shouldn't have their content quietly shipped to a closed provider for
+// background work — but the switch is intentionally repo-wide rather than
+// conditional. Note "open-weights provider" ≠ on-device: content still goes
+// to a third-party inference host (Cerebras), it's just not a closed model.
+//
+// Yield vs gpt-5-mini: on the LongMemEval extraction bench gpt-oss pulled ~19%
+// fewer facts (55 vs 68) at ~7× lower latency, but the downstream A/B shows
+// that doesn't cost recall — a paired LongMemEval run (vault, variant s, n=50,
+// same answer model) scored 92% (gpt-oss) vs 94% (gpt-5-mini): 45/50 identical,
+// 3 discordant (gpt-oss −2 +1), McNemar non-significant. gpt-oss extracts the
+// facts that matter, just fewer of them.
+//
+// NOTE: gpt-oss rejects `response_format: json_object` (see portalLlm.ts) and
+// is a reasoning model, so callers must NOT impose a small `max_tokens` cap —
+// reasoning tokens count against it and would starve the JSON output.
+const DEFAULT_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 
@@ -115,7 +134,18 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
  * conversation. Returns post-validated candidates only (confidence
  * threshold, source-id check, length cap, schema validation). Returns
  * an empty array if the LLM emits malformed JSON or no candidates.
+ *
+ * A null from `callPortalJsonCompletion` means a *failure* (empty completion,
+ * malformed JSON, network/HTTP error) — distinct from a successful
+ * `{candidates: []}`, which parses to a non-null object. Unlike consolidation
+ * (which degrades to a create), a failed extraction silently drops the whole
+ * turn's memories, so we retry once before giving up. Reasoning-class models
+ * like gpt-oss can occasionally return empty content; measured 0/20 on this
+ * extraction prompt, but the failure mode is silent data loss, so the cheap
+ * retry is worth it.
  */
+const EXTRACT_MAX_ATTEMPTS = 2;
+
 export async function extractFacts(
   messages: AutoExtractMessage[],
   options: ExtractFactsOptions
@@ -123,16 +153,22 @@ export async function extractFacts(
   if (messages.length === 0) return [];
 
   const transcript = messages.map((m) => `[${m.id}] ${m.role}: ${m.content}`).join("\n");
-  const parsed = await callPortalJsonCompletion({
-    ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
-    ...(options.getToken !== undefined && { getToken: options.getToken }),
-    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
-    model: options.model ?? DEFAULT_MODEL,
-    systemPrompt: SYSTEM_PROMPT,
-    userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
-    tag: "memory/extract",
-    ...(options.fetchFn && { fetchFn: options.fetchFn }),
-  });
+  let parsed: unknown = null;
+  for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
+    parsed = await callPortalJsonCompletion({
+      ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+      ...(options.getToken !== undefined && { getToken: options.getToken }),
+      ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      model: options.model ?? DEFAULT_MODEL,
+      systemPrompt: SYSTEM_PROMPT,
+      userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
+      tag: "memory/extract",
+      ...(options.fetchFn && { fetchFn: options.fetchFn }),
+    });
+    // A successful "no facts" response parses to {candidates: []} (non-null),
+    // so a null strictly signals a retryable failure, never a legit empty.
+    if (parsed !== null) break;
+  }
   if (parsed === null) return [];
 
   return validateCandidates(parsed, new Set(messages.map((m) => m.id)));
