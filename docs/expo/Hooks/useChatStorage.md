@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#378)
+Defined in: [src/expo/useChatStorage.ts:481](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#481)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -438,6 +438,27 @@ Messages shorter than this are skipped as they provide limited semantic value.
 <tr>
 <td>
 
+`options.onCancelResult?`
+
+</td>
+<td>
+
+(`result`: `object`) => `void`
+
+</td>
+<td>
+
+Observability for the fire-and-forget cancel POST that `stop()` issues for
+a resumable stream. Forwarded to the underlying `useChat`. The
+stop-without-cancel billing risk must be visible: once the capability
+header ships, the portal no longer treats a dropped socket as cancellation,
+so a `stop()` whose cancel POST silently fails bills the full generation.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onData?`
 
 </td>
@@ -559,6 +580,32 @@ enrich the conversation. Forwarded to the underlying `useChat` hook.
 See `createWebSearchPreProcessor`, `createCryptoPricePreProcessor`,
 `createStockPricePreProcessor`, `createWeatherPreProcessor`, or write
 a custom one matching `PromptPreProcessor`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.resumable?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Opt into resumable streaming. When `true`, `sendMessage` sends the
+resumable capability header, a stable `assistantUniqueId` is allocated for
+every turn (so the partial and the resumed completion reconcile onto ONE
+row), and `detach()` / `resumeStream()` become usable. Off by default.
+
+**Default**
+
+```ts
+false
+```
 
 </td>
 </tr>

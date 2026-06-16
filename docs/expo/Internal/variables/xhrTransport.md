@@ -2,7 +2,7 @@
 
 > `const` **xhrTransport**: `StreamingTransport`
 
-Defined in: [src/lib/chat/xhrTransport.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/xhrTransport.ts#41)
+Defined in: [src/lib/chat/xhrTransport.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/xhrTransport.ts#52)
 
 XHR-based streaming transport for React Native environments.
 

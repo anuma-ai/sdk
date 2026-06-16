@@ -652,6 +652,24 @@ Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionK
 
 ***
 
+### resumeStream
+
+Re-exports [resumeStream](../react/Internal/functions/resumeStream.md)
+
+***
+
+### ResumeStreamOptions
+
+Re-exports [ResumeStreamOptions](../react/Internal/interfaces/ResumeStreamOptions.md)
+
+***
+
+### ResumeStreamResult
+
+Re-exports [ResumeStreamResult](../react/Internal/type-aliases/ResumeStreamResult.md)
+
+***
+
 ### retain
 
 Re-exports [retain](../react/Internal/functions/retain.md)
@@ -796,9 +814,27 @@ Re-exports [STREAM\_RESUMABLE\_HEADER](../react/Internal/variables/STREAM_RESUMA
 
 ***
 
+### streamCancelPath
+
+Re-exports [streamCancelPath](../react/Internal/functions/streamCancelPath.md)
+
+***
+
+### StreamExpiredError
+
+Re-exports [StreamExpiredError](../react/Internal/classes/StreamExpiredError.md)
+
+***
+
 ### StreamMetaEvent
 
 Re-exports [StreamMetaEvent](../react/Internal/type-aliases/StreamMetaEvent.md)
+
+***
+
+### streamReplayPath
+
+Re-exports [streamReplayPath](../react/Internal/functions/streamReplayPath.md)
 
 ***
 

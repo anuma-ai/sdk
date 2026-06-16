@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:284](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#284)
+Defined in: [src/expo/useChatStorage.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#368)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Extends base result with Expo-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/expo/useChatStorage.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#328)
+Defined in: [src/expo/useChatStorage.ts:431](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#431)
 
 Clear all queued operations without writing them.
 
@@ -83,7 +83,7 @@ Defined in: [src/lib/db/chat/types.ts:785](https://github.com/anuma-ai/sdk/blob/
 
 > **createMemoryEngineTool**: (`searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../../../react/Internal/interfaces/MemoryEngineSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#303)
+Defined in: [src/expo/useChatStorage.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#406)
 
 Create a memory engine tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -141,7 +141,7 @@ await sendMessage({
 
 > **createMemoryVaultTool**: (`options?`: [`MemoryVaultToolOptions`](../../../react/Internal/interfaces/MemoryVaultToolOptions.md)) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#306)
+Defined in: [src/expo/useChatStorage.ts:409](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#409)
 
 Create a memory vault tool pre-configured with hook's vault context and encryption.
 
@@ -180,7 +180,7 @@ Create a memory vault tool pre-configured with hook's vault context and encrypti
 
 > **createRecallTool**: (`toolOptions?`: [`RecallToolOptions`](../../../react/Internal/interfaces/RecallToolOptions.md), `callbacks?`: [`RecallToolCallbacks`](../../../react/Internal/interfaces/RecallToolCallbacks.md)) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:313](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#313)
+Defined in: [src/expo/useChatStorage.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#416)
 
 Create the unified recall tool — single chat-completion tool that
 searches both vault facts and conversation chunks via recall().
@@ -274,7 +274,7 @@ Defined in: [src/lib/db/chat/types.ts:790](https://github.com/anuma-ai/sdk/blob/
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/expo/useChatStorage.ts:322](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#322)
+Defined in: [src/expo/useChatStorage.ts:425](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#425)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -309,11 +309,28 @@ Delete a vault memory by its ID (soft delete).
 
 ***
 
+### detach()
+
+> **detach**: () => [`StreamResumeHandle`](../../../react/Internal/type-aliases/StreamResumeHandle.md) | `null`
+
+Defined in: [src/expo/useChatStorage.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#377)
+
+Detach the in-flight stream (keep generating server-side). Resolves to the
+resume handle, or null when nothing is resumable. The partial assistant row
+is persisted by `sendMessage`'s detached branch — pair the handle with that
+row's `assistantUniqueId` to complete it via `resumeStream`.
+
+**Returns**
+
+[`StreamResumeHandle`](../../../react/Internal/type-aliases/StreamResumeHandle.md) | `null`
+
+***
+
 ### flushQueue()
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](../../../react/Internal/interfaces/FlushResult.md)>
 
-Defined in: [src/expo/useChatStorage.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#325)
+Defined in: [src/expo/useChatStorage.ts:428](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#428)
 
 Manually flush all queued operations for the current wallet.
 
@@ -425,7 +442,7 @@ Defined in: [src/lib/db/chat/types.ts:791](https://github.com/anuma-ai/sdk/blob/
 
 > **getVaultMemories**: (`options?`: `object`) => `Promise`<[`StoredVaultMemory`](../../../react/Internal/interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/expo/useChatStorage.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#319)
+Defined in: [src/expo/useChatStorage.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#422)
 
 Get all vault memories for context injection.
 
@@ -488,17 +505,64 @@ Defined in: [src/lib/db/chat/types.ts:781](https://github.com/anuma-ai/sdk/blob/
 
 > **queueStatus**: [`QueueStatus`](../../../react/Internal/interfaces/QueueStatus.md)
 
-Defined in: [src/expo/useChatStorage.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#331)
+Defined in: [src/expo/useChatStorage.ts:434](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#434)
 
 Current status of the write queue.
 
 ***
 
+### resumeStream()
+
+> **resumeStream**: (`handleOverride?`: [`StreamResumeHandle`](../../../react/Internal/type-aliases/StreamResumeHandle.md)) => `Promise`<[`ResumeStreamWithStorageResult`](ResumeStreamWithStorageResult.md)>
+
+Defined in: [src/expo/useChatStorage.ts:389](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#389)
+
+Replay a detached stream and reconcile the result onto the SAME assistant
+row (find→update via upsertMessageOp). Never creates a second row for the
+same `assistantUniqueId`.
+
+Uses the pending-resume context stowed by the detached `sendMessage` by
+default; pass `handleOverride` for a cold-launch resume (mobile PR5) where
+a deserialized handle has no in-memory context (the row is then created
+fresh). Replay is always from seq 0 — consumers reset accumulated streaming
+text before calling.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`handleOverride?`
+
+</td>
+<td>
+
+[`StreamResumeHandle`](../../../react/Internal/type-aliases/StreamResumeHandle.md)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`ResumeStreamWithStorageResult`](ResumeStreamWithStorageResult.md)>
+
+***
+
 ### sendMessage()
 
-> **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)) => `Promise`<`BaseSendMessageWithStorageResult`>
+> **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)) => `Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
-Defined in: [src/expo/useChatStorage.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#286)
+Defined in: [src/expo/useChatStorage.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#370)
 
 Send a message and automatically store it (Expo version)
 
@@ -529,7 +593,7 @@ Send a message and automatically store it (Expo version)
 
 **Returns**
 
-`Promise`<`BaseSendMessageWithStorageResult`>
+`Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
 ***
 

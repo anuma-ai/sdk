@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#124)
+Defined in: [src/expo/useChat.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#181)
 
 A React hook for managing chat completions with authentication.
 
@@ -90,6 +90,27 @@ Optional base URL for the API requests.
 <td>
 
 An async function that returns an authentication token.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onCancelResult?`
+
+</td>
+<td>
+
+(`result`: `object`) => `void`
+
+</td>
+<td>
+
+Observability for the fire-and-forget cancel POST that `stop()` issues for
+a resumable stream. The stop-without-cancel billing risk must be visible:
+once the capability header ships, the portal no longer treats a dropped
+socket as cancellation, so a `stop()` whose cancel POST silently fails
+bills the full generation.
 
 </td>
 </tr>
@@ -261,6 +282,33 @@ conversation. See `createWebSearchPreProcessor`,
 `createCryptoPricePreProcessor`, `createStockPricePreProcessor`,
 `createWeatherPreProcessor`, or write a custom one matching
 `PromptPreProcessor`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.resumable?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Opt into resumable streaming. When `true`, every `sendMessage` request
+sends `X-Stream-Resumable: 1` so the portal keeps generating into its
+buffer after a client disconnect, and `detach()` can hand back a
+[StreamResumeHandle](../../react/Internal/type-aliases/StreamResumeHandle.md) for [resumeStream](../../react/Internal/functions/resumeStream.md). Off by default — no
+header is sent and `detach()` always resolves to `null`.
+
+**Default**
+
+```ts
+false
+```
 
 </td>
 </tr>

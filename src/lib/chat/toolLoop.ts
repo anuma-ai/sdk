@@ -677,8 +677,10 @@ const errorCapturingFetch: typeof fetch = async (input, init) => {
 
 /**
  * Default fetch-based streaming transport for the Portal API.
+ * @internal — exported only so the resume primitive can share the same
+ * fetch-based default; not part of the public surface.
  */
-const defaultTransport: StreamingTransport = (options) => {
+export const defaultTransport: StreamingTransport = (options) => {
   const url = `${options.baseUrl}${options.endpoint}`;
   // Wrap the fetch so the X-Inference-ID response header can be captured.
   // `errorCapturingFetch` throws on `!response.ok` before the capture runs,
