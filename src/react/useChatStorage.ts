@@ -1118,18 +1118,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [piiRedaction, currentConversationId]
   );
 
-  // Redact text before it is sent to the embeddings endpoint. Embeddings are a
-  // server call, so when PII redaction is on the input must be redacted too;
-  // only the text sent to the server is redacted — locally stored content and
+  // Mask PII before text is sent to the embeddings endpoint. Embeddings are a
+  // server call, so when PII redaction is on the input must be masked too. This
+  // uses the STATELESS mask (maskText → unnumbered [EMAIL]), NOT redactText's
+  // numbered, per-conversation placeholders: stored message/chunk embeddings and
+  // any search-query embedding must mask identically to stay in the same vector
+  // space, so identical text always maps to the same token (numbered placeholders
+  // are order- and conversation-dependent and would break cosine similarity).
+  // Only the text sent to the server is masked — locally stored content and
   // chunk text remain the original values.
-  const redactForEmbedding = useCallback(
+  const maskForEmbedding = useCallback(
     (text: string): string =>
-      isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction.redactText(text).text : text,
+      isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction.maskText(text) : text,
     [resolvedPiiRedaction]
   );
 
-  // Vault/memory embeddings use a STATELESS mask (deterministic, unnumbered)
-  // rather than redactForEmbedding's numbered placeholders: the vault spans
+  // Vault/memory embeddings mask via the embeddings `maskInput` option (applied
+  // to the request body only, so the cache still keys on the original text).
+  // Uses the same STATELESS mask as maskForEmbedding above: the vault spans
   // conversations, so stored-memory embeddings and search-query embeddings must
   // mask identically to stay in the same vector space. The stored memory
   // content itself remains the original (real) value — only the text sent to
@@ -1480,7 +1486,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // server is redacted; the chunk text stored locally stays original.
         if (shouldChunkMessage(message.content, DEFAULT_CHUNK_SIZE)) {
           const textChunks = chunkText(message.content);
-          const chunkTexts = textChunks.map((c) => redactForEmbedding(c.text));
+          const chunkTexts = textChunks.map((c) => maskForEmbedding(c.text));
           const embeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
 
           const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
@@ -1494,7 +1500,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // Use whole-message embedding for short messages
           const embedding = await generateEmbedding(
-            redactForEmbedding(message.content),
+            maskForEmbedding(message.content),
             embeddingOptions
           );
           await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
@@ -1511,7 +1517,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       embeddingModel,
       storageCtx,
       minContentLength,
-      redactForEmbedding,
+      maskForEmbedding,
     ]
   );
 
@@ -2260,12 +2266,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
               const textChunks = chunkText(messageContent);
               skipStorageEmbeddings = await generateEmbeddings(
-                textChunks.map((c) => redactForEmbedding(c.text)),
+                textChunks.map((c) => maskForEmbedding(c.text)),
                 embeddingOptions
               );
             } else {
               skipStorageEmbeddings = await generateEmbedding(
-                redactForEmbedding(messageContent),
+                maskForEmbedding(messageContent),
                 embeddingOptions
               );
             }
@@ -2702,11 +2708,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
           if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
             const textChunks = chunkText(contentForStorage);
-            const chunkTexts = textChunks.map((c) => redactForEmbedding(c.text));
+            const chunkTexts = textChunks.map((c) => maskForEmbedding(c.text));
             userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
           } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
             userMessageEmbeddings = await generateEmbedding(
-              redactForEmbedding(contentForStorage),
+              maskForEmbedding(contentForStorage),
               embeddingOptions
             );
           }
