@@ -4,80 +4,101 @@ import { PiiRedactor } from "../lib/pii/redactor";
 import { resolveCallPii } from "./useChatStorage";
 
 /**
- * Unit tests for the per-request PII redaction override resolution used by
- * `useChatStorage().sendMessage`. The override must take precedence over the
- * hook-level redactor for a single call and reach both the LLM request
- * (`forInnerSend`) and this call's embedding/summarization masking (`redactor`).
+ * Unit tests for the per-call PII redaction resolution used by
+ * `useChatStorage().sendMessage`.
+ *
+ * Two behaviors are locked in here:
+ *  1. A per-request `piiRedaction` overrides the hook-level option for one call
+ *     (false disables, an instance overrides, true uses the conversation redactor).
+ *  2. `true` (hook- OR request-level) resolves via the injected
+ *     `getConversationRedactorFor` getter, so the caller keys on the conversation
+ *     ACTUALLY used for the call. `forInnerSend` is always forwarded so the LLM
+ *     request uses that redactor rather than the inner hook's own
+ *     `currentConversationId`-keyed one (null on turn 1 of an auto-created chat).
  */
 describe("resolveCallPii", () => {
-  const hookRedactor = new PiiRedactor();
   const customRedactor = new PiiRedactor();
-  // Stand-in for getConversationRedactor — the conversation-shared redactor that
-  // a per-request `true` resolves to.
+  // Stand-in for the conversation-shared redactor `getConversationRedactor(id)`
+  // would return — the `true` case must resolve to THIS, lazily.
   const conversationRedactor = new PiiRedactor();
   const getConversationRedactorFor = () => conversationRedactor;
 
-  it("falls back to the hook-level redactor when no override is given", () => {
-    const { redactor, forInnerSend } = resolveCallPii(
-      undefined,
-      hookRedactor,
-      getConversationRedactorFor
-    );
-    expect(redactor).toBe(hookRedactor);
-    // undefined → inner useChat keeps its hook-level redactor (no override).
-    expect(forInnerSend).toBeUndefined();
+  describe("no per-request override → falls back to the hook-level option", () => {
+    it("hook true → conversation redactor (resolved via the getter)", () => {
+      const { redactor, forInnerSend } = resolveCallPii(
+        undefined,
+        true,
+        getConversationRedactorFor
+      );
+      expect(redactor).toBe(conversationRedactor);
+      // Always forwarded so the LLM call uses the conversation redactor too.
+      expect(forInnerSend).toBe(conversationRedactor);
+    });
+
+    it("hook instance → that instance", () => {
+      const { redactor, forInnerSend } = resolveCallPii(
+        undefined,
+        customRedactor,
+        getConversationRedactorFor
+      );
+      expect(redactor).toBe(customRedactor);
+      expect(forInnerSend).toBe(customRedactor);
+    });
+
+    it.each([false, undefined])("hook %s → redaction off", (hookValue) => {
+      const { redactor, forInnerSend } = resolveCallPii(
+        undefined,
+        hookValue,
+        getConversationRedactorFor
+      );
+      expect(redactor).toBeUndefined();
+      expect(forInnerSend).toBe(false);
+    });
   });
 
-  it("no override with hook-level redaction off → no redaction, no inner override", () => {
-    const { redactor, forInnerSend } = resolveCallPii(undefined, false, getConversationRedactorFor);
-    expect(redactor).toBeUndefined();
-    // No override given → inner useChat keeps its (off) hook-level setting.
-    expect(forInnerSend).toBeUndefined();
+  describe("per-request override takes precedence", () => {
+    it("override false disables redaction even when hook-level is on", () => {
+      const { redactor, forInnerSend } = resolveCallPii(false, true, getConversationRedactorFor);
+      expect(redactor).toBeUndefined();
+      // Must force-disable on the inner send, not fall through to the hook-level redactor.
+      expect(forInnerSend).toBe(false);
+    });
+
+    it("override instance wins over hook-level true", () => {
+      const { redactor, forInnerSend } = resolveCallPii(
+        customRedactor,
+        true,
+        getConversationRedactorFor
+      );
+      expect(redactor).toBe(customRedactor);
+      expect(forInnerSend).toBe(customRedactor);
+    });
+
+    it("override true uses the conversation redactor even when hook-level is off", () => {
+      const { redactor, forInnerSend } = resolveCallPii(true, false, getConversationRedactorFor);
+      expect(redactor).toBe(conversationRedactor);
+      expect(forInnerSend).toBe(conversationRedactor);
+    });
   });
 
-  it("override false disables redaction for this call (even when hook-level is on)", () => {
-    const { redactor, forInnerSend } = resolveCallPii(
-      false,
-      hookRedactor,
-      getConversationRedactorFor
-    );
-    expect(redactor).toBeUndefined();
-    // Must force-disable on the inner send, NOT fall through to the hook-level one.
-    expect(forInnerSend).toBe(false);
-  });
-
-  it("override with a custom instance uses that instance (over hook-level)", () => {
-    const { redactor, forInnerSend } = resolveCallPii(
-      customRedactor,
-      hookRedactor,
-      getConversationRedactorFor
-    );
-    expect(redactor).toBe(customRedactor);
-    expect(forInnerSend).toBe(customRedactor);
-  });
-
-  it("override true resolves to the conversation-shared redactor (not a throwaway)", () => {
+  it("resolves the conversation redactor lazily — only for the `true` case", () => {
     const spy = vi.fn(getConversationRedactorFor);
-    const { redactor, forInnerSend } = resolveCallPii(true, false, spy);
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(redactor).toBe(conversationRedactor);
-    expect(forInnerSend).toBe(conversationRedactor);
-  });
-
-  it("only resolves the conversation redactor for the `true` case (lazy)", () => {
-    const spy = vi.fn(getConversationRedactorFor);
-    resolveCallPii(false, hookRedactor, spy);
-    resolveCallPii(customRedactor, hookRedactor, spy);
-    resolveCallPii(undefined, hookRedactor, spy);
+    resolveCallPii(false, true, spy); // override false
+    resolveCallPii(customRedactor, true, spy); // override instance
+    resolveCallPii(undefined, customRedactor, spy); // hook instance
+    resolveCallPii(undefined, false, spy); // hook off
     expect(spy).not.toHaveBeenCalled();
+
+    resolveCallPii(undefined, true, spy); // hook true → resolves
+    resolveCallPii(true, false, spy); // override true → resolves
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 
   it("treats a non-redactor truthy override as no redaction (defensive)", () => {
-    // Mirrors resolvePiiRedactor's guard: anything that isn't `true`/instance is off.
     const { redactor, forInnerSend } = resolveCallPii(
       // @ts-expect-error — exercising a malformed value at runtime
       {},
-      hookRedactor,
+      true,
       getConversationRedactorFor
     );
     expect(redactor).toBeUndefined();

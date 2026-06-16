@@ -1091,39 +1091,46 @@ export interface CallPiiResolution {
    */
   redactor: PiiRedactor | undefined;
   /**
-   * Value forwarded to the inner `useChat` for the LLM request. `undefined`
-   * keeps the inner hook on its hook-level redactor (no override); otherwise
-   * the resolved redactor instance, or `false` to force-disable for this call.
+   * Value forwarded to the inner `useChat` for the LLM request: the resolved
+   * redactor instance, or `false` to disable. Always forwarded (never
+   * `undefined`) so the LLM call uses the redactor keyed to THIS call's
+   * conversation rather than the inner hook's own `currentConversationId`-keyed
+   * one — the latter is `null` on the first turn of an auto-created conversation,
+   * which would orphan turn-1 placeholder mappings.
    */
-  forInnerSend: boolean | PiiRedactor | undefined;
+  forInnerSend: boolean | PiiRedactor;
 }
 
 /**
- * Resolve the effective redactor for one `sendMessage` call. A per-request
- * `piiRedaction` takes precedence over the hook-level one: `false` disables
- * redaction for this call, a `PiiRedactor` instance brings its own, and `true`
- * resolves to the conversation-shared redactor (matching hook-level behavior).
- * When omitted, falls back to the hook-level resolved redactor.
+ * Resolve the effective redactor for one `sendMessage` call.
+ *
+ * A per-request `piiRedaction` takes precedence over the hook-level option:
+ * `false` disables redaction for this call, a `PiiRedactor` instance brings its
+ * own, and `true` resolves (like the hook-level `true`) to the conversation
+ * redactor — but via `getConversationRedactorFor`, so the caller decides which
+ * conversation to key on. Resolving against the conversation actually used for
+ * the call (rather than the possibly-stale `currentConversationId`) keeps
+ * placeholder mappings consistent across turns.
+ *
+ * `hookPiiRedaction` is the ORIGINAL hook-level option (not the pre-resolved
+ * redactor) so a hook-level `true` can be re-keyed to this call's conversation.
  *
  * Exported for unit testing; not part of the public API.
  */
 export function resolveCallPii(
   requestPiiRedaction: boolean | PiiRedactor | undefined,
-  hookRedactor: boolean | PiiRedactor | undefined,
+  hookPiiRedaction: boolean | PiiRedactor | undefined,
   getConversationRedactorFor: () => PiiRedactor
 ): CallPiiResolution {
+  // Per-request override wins; otherwise fall back to the hook-level setting.
+  const effective = requestPiiRedaction === undefined ? hookPiiRedaction : requestPiiRedaction;
   const redactor: PiiRedactor | undefined =
-    requestPiiRedaction === undefined
-      ? isPiiRedactor(hookRedactor)
-        ? hookRedactor
-        : undefined
-      : requestPiiRedaction === true
-        ? getConversationRedactorFor()
-        : isPiiRedactor(requestPiiRedaction)
-          ? requestPiiRedaction
-          : undefined;
-  const forInnerSend = requestPiiRedaction === undefined ? undefined : (redactor ?? false);
-  return { redactor, forInnerSend };
+    effective === true
+      ? getConversationRedactorFor()
+      : isPiiRedactor(effective)
+        ? effective
+        : undefined;
+  return { redactor, forInnerSend: redactor ?? false };
 }
 
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
@@ -2285,17 +2292,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         piiRedaction: requestPiiRedaction,
       } = args;
 
-      // Resolve the redactor for THIS call (per-request override > hook-level).
-      // Drives the LLM request, this call's embedding masking, and summarization.
-      const { redactor: callRedactor, forInnerSend: callPiiRedaction } = resolveCallPii(
-        requestPiiRedaction,
-        resolvedPiiRedaction,
-        () => getConversationRedactor(explicitConversationId ?? currentConversationId)
-      );
-      // Mask embedding inputs with the per-call redactor (identity when off), so
-      // a per-request override also governs this call's embeddings.
-      const maskForCall = (text: string): string =>
-        callRedactor ? callRedactor.maskText(text) : text;
+      // Resolve PII redaction for THIS call against a specific conversation id.
+      // The redactor is keyed on the conversation (getConversationRedactor) so
+      // placeholder mappings stay consistent across turns — callers MUST pass the
+      // conversation actually used for the call. On the storage path that is the
+      // id resolved by ensureConversation() below (not the possibly-null
+      // currentConversationId), which is what fixes turn-1 placeholder orphaning.
+      const resolvePiiForCall = (conversationIdForCall: string | null) => {
+        const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
+          getConversationRedactor(conversationIdForCall)
+        );
+        return {
+          callRedactor: redactor,
+          callPiiRedaction: forInnerSend,
+          maskForCall: (text: string): string => (redactor ? redactor.maskText(text) : text),
+        };
+      };
 
       // Helper to resolve thought process from callback or static value
       const resolveThoughtProcess = (): ActivityPhase[] | undefined =>
@@ -2314,6 +2326,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
         const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
+        // No conversation is created on this ephemeral path; key on whatever id is
+        // available (no cross-turn history to keep consistent here).
+        const { callPiiRedaction, maskForCall } = resolvePiiForCall(
+          explicitConversationId ?? currentConversationId
+        );
 
         // Fetch server tools if needed (still useful for one-off requests)
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -2518,6 +2535,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           };
         }
       }
+
+      // Resolve PII redaction against the conversation actually used for this
+      // call. ensureConversation() above may have just minted convId on the first
+      // turn of an auto-created conversation (when currentConversationId is still
+      // null). Keying on convId — not currentConversationId — means turn 1 and
+      // every later turn share one conversation redactor, so placeholder mappings
+      // stay stable and turn-1 placeholders echoed back later still de-anonymize.
+      const { callRedactor, callPiiRedaction, maskForCall } = resolvePiiForCall(convId);
 
       // Build the messages array
       let messagesToSend: LlmapiMessage[];
