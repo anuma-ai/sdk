@@ -361,6 +361,7 @@ export type {
   ServerToolsResponse,
   ToolMatchOptions,
   ToolMatchResult,
+  ToolSet,
 } from "../lib/tools";
 export {
   activatedToolSetNames,
@@ -375,6 +376,7 @@ export {
   getServerTools,
   getToolsChecksum,
   selectServerToolsForPrompt,
+  SERVER_TOOL_DEPENDENCY_SETS,
   shouldRefreshTools,
   toolSetSystemPrompts,
 } from "../lib/tools";

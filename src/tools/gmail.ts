@@ -400,8 +400,13 @@ function createGmailSearchTool(
     type: "function",
     function: {
       name: "gmail_search_messages",
+      // Embedding-measured phrasing: "find an email from a specific sender,
+      // about a topic" mirrors how users actually ask ("find the email from
+      // John about the contract") — the previous syntax-focused description
+      // scored 0.528 on that prompt, just below the 0.53 selection floor, so
+      // the tool was never offered.
       description:
-        "Searches the user's Gmail mailbox using Gmail search syntax (the same syntax that works in the Gmail UI). Returns message IDs and thread IDs the model can pass to gmail_get_message.",
+        "Search the user's Gmail inbox for emails — find an email or message from a specific sender, about a topic, or in a date range. Uses Gmail search syntax (the same syntax as the Gmail UI). Returns message IDs and thread IDs the model can pass to gmail_get_message.",
       parameters: {
         type: "object",
         properties: {
