@@ -851,6 +851,11 @@ Replace a message's attached media ids (`fileIds`). Used to attach a
 generated artifact (e.g. a rendered document PDF) to the assistant message
 that produced it, after streaming. Pass the FULL desired list.
 
+Optional so this is an additive, non-breaking interface change: only hosts
+wiring document/artifact generation need it, and existing custom adapters
+keep compiling without implementing it. The default
+WatermelonChatStorageAdapter provides it.
+
 **Parameters**
 
 <table>
