@@ -428,13 +428,26 @@ function readAttributes(el: JSXElement, tag: string): Record<string, DocAttrValu
     out[name] = readAttrValue(attr);
   }
   // Privacy: images must be inlined as data: URIs — never a remote fetch.
+  // Validate EVERY src-like prop that is present, not just the first one:
+  // react-pdf accepts both `src` and `source`, so a benign `src="data:…"` must
+  // not become a license to smuggle a remote URL — or a `source={{ uri }}`
+  // object — through the other prop.
   if (tag === "Image") {
-    const src = out.src ?? out.source;
-    if (typeof src !== "string" || !src.startsWith("data:")) {
+    const srcProps = (["src", "source"] as const).filter((k) => out[k] !== undefined);
+    if (srcProps.length === 0) {
       throw new DocDslError(
-        `<Image> src must be an inline "data:" URI (e.g. data:image/png;base64,…). Remote image URLs are not allowed for privacy reasons.`,
+        `<Image> requires a "src" with an inline "data:" URI (e.g. data:image/png;base64,…).`,
         locOf(el.openingElement)
       );
+    }
+    for (const key of srcProps) {
+      const value = out[key];
+      if (typeof value !== "string" || !value.startsWith("data:")) {
+        throw new DocDslError(
+          `<Image> ${key} must be an inline "data:" URI (e.g. data:image/png;base64,…). Remote image URLs (and { uri } objects) are not allowed for privacy reasons.`,
+          locOf(el.openingElement)
+        );
+      }
     }
   }
   return out;

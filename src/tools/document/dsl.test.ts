@@ -96,6 +96,22 @@ describe("parseDocumentDsl — security / literal-only", () => {
       )
     ).toThrow(/must be an inline "data:" URI/);
   });
+
+  it("rejects a remote Image source even when a benign data: src is also present", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Image src="data:image/png;base64,AA==" source="https://evil.example/logo.png" /></Page></Document>`
+      )
+    ).toThrow(/source must be an inline "data:" URI/);
+  });
+
+  it("rejects an Image source={{ uri }} object", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Image source={{ uri: "https://evil.example/logo.png" }} /></Page></Document>`
+      )
+    ).toThrow(/source must be an inline "data:" URI/);
+  });
 });
 
 describe("parseDocumentDsl — style + font validation", () => {
