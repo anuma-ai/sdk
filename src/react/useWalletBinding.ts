@@ -193,6 +193,10 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   }, [getHeaders, handleError]);
 
   const refetch = useCallback(async () => {
+    // Reset before refetching so consumers can treat the empty/null state as a
+    // reload signal, matching useSubscription.refetch (which clears status first).
+    setWallets([]);
+    setTotals(null);
     await fetchBinding();
   }, [fetchBinding]);
 
