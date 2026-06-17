@@ -307,8 +307,26 @@ export function createDocumentTools({
         markSeen(conversationId, path);
         clearPatchFailure(conversationId, path);
 
-        const display = await triggerDocDisplay(documentId, path, title);
-        return { success: true, documentId, ...display };
+        // The display callback runs AFTER persist (the host renders by reading
+        // the file back). A render throw here therefore happens on an
+        // already-saved document — surface that instead of a misleading
+        // "Failed to create document": the source is on disk, so the model
+        // should fix and re-create (which overwrites) rather than assume
+        // nothing was written.
+        try {
+          const display = await triggerDocDisplay(documentId, path, title);
+          return { success: true, documentId, ...display };
+        } catch (renderErr) {
+          logError(
+            "create_document rendering failed after persist",
+            renderErr instanceof Error ? renderErr : undefined
+          );
+          return {
+            error: `The document source was saved but failed to render as a PDF: ${
+              renderErr instanceof Error ? renderErr.message : String(renderErr)
+            }. Fix the source and call create_document again (it overwrites the same document).`,
+          };
+        }
       } catch (err) {
         logError("create_document failed", err instanceof Error ? err : undefined);
         return {
@@ -453,8 +471,31 @@ export function createDocumentTools({
         markSeen(conversationId, path);
         clearPatchFailure(conversationId, path);
 
-        const display = await triggerDocDisplay(documentId, path, undefined);
-        return { success: true, documentId, applied: appliedCount, ...display };
+        // Persist happened above, then the host renders by reading the file
+        // back. If rendering throws now, the patch is ALREADY applied and
+        // saved — reporting a generic "Failed to patch document" would be a
+        // lie and, because patches are non-idempotent, would tempt the model
+        // to resend the same find/replace (which no longer matches). Report
+        // the persisted state explicitly instead.
+        try {
+          const display = await triggerDocDisplay(documentId, path, undefined);
+          return { success: true, documentId, applied: appliedCount, ...display };
+        } catch (renderErr) {
+          logError(
+            "patch_document rendering failed after persist",
+            renderErr instanceof Error ? renderErr : undefined
+          );
+          return {
+            success: false,
+            documentId,
+            applied: appliedCount,
+            persisted: true,
+            renderError: renderErr instanceof Error ? renderErr.message : String(renderErr),
+            message: `The patch was applied and the document source was saved — its "find" text no longer matches, so do NOT resend the same patch. Rendering the PDF failed: ${
+              renderErr instanceof Error ? renderErr.message : String(renderErr)
+            }. Call read_document for "${documentId}" to see the current source, then patch to fix the rendering problem.`,
+          };
+        }
       } catch (err) {
         logError("patch_document failed", err instanceof Error ? err : undefined);
         return {
