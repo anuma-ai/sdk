@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#181)
+Defined in: [src/expo/useChat.ts:215](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#215)
 
 A React hook for managing chat completions with authentication.
 
@@ -205,6 +205,29 @@ Use this to show activity indicators like "Searching..." in the UI.
 Called after each tool execution round completes.
 Receives the round index, model content, tool calls, results, and token usage.
 Useful for progress indicators, cost tracking, and custom early-exit logic.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onStreamMeta?`
+
+</td>
+<td>
+
+(`meta`: `object`) => `void`
+
+</td>
+<td>
+
+Observe the stream metadata the portal issues at HEADERS\_RECEIVED, once per
+round. Fires alongside the internal resume-handle capture — additive, never
+altering it. The payload is enriched beyond the lib's `{inferenceId, round}`
+with the RESOLVED `apiType` (completions vs responses event shapes differ;
+"auto" is not resumable) and the `model`, so a consumer can persist a
+rebuildable [StreamResumeHandle](../../react/Internal/type-aliases/StreamResumeHandle.md) (mobile PR5 cold-launch registry).
+Fires per round; the SDK keeps the latest round's id internally.
 
 </td>
 </tr>

@@ -54,6 +54,22 @@ function makeCompleteStream() {
   })();
 }
 
+/**
+ * A transport whose replay GET surfaces a transient (401) SSE failure, the
+ * lib's `interrupted: false` + statusCode path. The lib still fires onError on
+ * this path — which headless must withhold. POSTs (the original send) stay
+ * healthy so the hook can reach the resume.
+ */
+function makeTransientReplayTransport(): StreamingTransport {
+  return (options) => {
+    if (options.method === "GET") {
+      options.onSseError?.(new Error("SSE failed: 401 Unauthorized"));
+      return { stream: (async function* () {})() };
+    }
+    return { stream: makeCompleteStream() };
+  };
+}
+
 const userMessages = [{ role: "user" as const, content: [{ type: "text" as const, text: "hi" }] }];
 
 describe("useChat resumable surface", () => {
@@ -335,5 +351,284 @@ describe("useChat resumable surface", () => {
     expect(replaySeen?.method).toBe("GET");
     expect(replaySeen?.endpoint).toBe("/api/v1/chat/streams/inf-resume-1");
     expect(replaySeen?.token).toBe(`token-${tokenReads}`);
+  });
+
+  it("non-headless resume still emits onData AND onFinish (regression)", async () => {
+    const onData = vi.fn();
+    const onFinish = vi.fn();
+    transportImpl = (options) => {
+      // Replay GET streams one content delta the lib forwards to onData.
+      if (options.method === "GET") return { stream: makeCompleteStream() };
+      return { stream: makeCompleteStream() };
+    };
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "tok", resumable: true, onData, onFinish })
+    );
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream({
+        inferenceId: "inf-emit",
+        apiType: "responses",
+        model: "test-model",
+      });
+    });
+
+    // Smoothing flushes the replayed content as fine-grained deltas; the point
+    // is that the non-headless path feeds them through to the hook-level onData,
+    // AND a clean terminal still delivers the recovered response via onFinish.
+    expect(onData).toHaveBeenCalled();
+    const emitted = onData.mock.calls.map((c) => c[0]).join("");
+    expect(emitted).toBe("hello");
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(resumeResult!.error).toBeNull();
+  });
+
+  it("headless resume emits NOTHING to onData/onThinking/onFinish/onError on a clean completion (still replays)", async () => {
+    // Drives the REAL useChat → lib resumeStream path through the mock transport
+    // (no baseResumeStream mock), so the totality of the suppression is exercised
+    // end to end: a clean terminal would fire onFinish in the lib, headless must
+    // withhold it along with onData/onThinking — while the result still carries
+    // the recovered data and the consumer reads it from the return value.
+    const onData = vi.fn();
+    const onThinking = vi.fn();
+    const onFinish = vi.fn();
+    const onError = vi.fn();
+    let replaySeen: StreamingTransportOptions | undefined;
+    transportImpl = (options) => {
+      if (options.method === "GET") replaySeen = options;
+      return { stream: makeCompleteStream() };
+    };
+
+    const { result } = renderHook(() =>
+      useChat({
+        getToken: async () => "tok",
+        resumable: true,
+        onData,
+        onThinking,
+        onFinish,
+        onError,
+      })
+    );
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream(
+        { inferenceId: "inf-headless", apiType: "responses", model: "test-model" },
+        { headless: true }
+      );
+    });
+
+    // The replay still ran (GET fired, clean terminal). NONE of the four consumer
+    // callbacks fired — no recovered text, response, or error bled into the
+    // visible chat. The recovered data is delivered via the returned result only.
+    expect(replaySeen?.method).toBe("GET");
+    expect(resumeResult!.error).toBeNull();
+    expect(resumeResult!.data).not.toBeNull();
+    expect(onData).not.toHaveBeenCalled();
+    expect(onThinking).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("headless resume emits NOTHING to onData/onThinking/onFinish/onError on a transient failure (result still carries data)", async () => {
+    // The transient (401) terminal fires onError in the lib and returns
+    // { interrupted: false, statusCode }. Headless must withhold onError too, or
+    // a transient on an off-screen replay would surface a spurious error on the
+    // visible chat. The consumer learns the outcome from the returned result.
+    const onData = vi.fn();
+    const onThinking = vi.fn();
+    const onFinish = vi.fn();
+    const onError = vi.fn();
+    transportImpl = makeTransientReplayTransport();
+
+    const { result } = renderHook(() =>
+      useChat({
+        getToken: async () => "tok",
+        resumable: true,
+        onData,
+        onThinking,
+        onFinish,
+        onError,
+      })
+    );
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream(
+        { inferenceId: "inf-headless-transient", apiType: "responses", model: "test-model" },
+        { headless: true }
+      );
+    });
+
+    // Transient terminal surfaced on the RESULT (interrupted: false, a 401 error
+    // string), but NONE of the four consumer callbacks fired.
+    expect(resumeResult!.interrupted).toBe(false);
+    expect(resumeResult!.error).toContain("401");
+    expect(onData).not.toHaveBeenCalled();
+    expect(onThinking).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("non-headless transient resume DOES fire onError (regression for the suppression)", async () => {
+    // The mirror of the headless transient test: with headless OFF, a transient
+    // 401 on the replay MUST still reach the hook-level onError, proving headless
+    // is what suppresses it — not a blanket change to the resume path.
+    const onError = vi.fn();
+    transportImpl = makeTransientReplayTransport();
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "tok", resumable: true, onError })
+    );
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream({
+        inferenceId: "inf-transient-emit",
+        apiType: "responses",
+        model: "test-model",
+      });
+    });
+
+    expect(resumeResult!.interrupted).toBe(false);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("headless resume does NOT clobber a concurrent visible stream's abort controller (stop aborts the visible stream, not the headless resume)", async () => {
+    // The documented use case: reuse the on-screen hook for an off-screen
+    // recovery. A headless resume must not store its controller in the shared
+    // abortControllerRef, or it would overwrite a live visible stream's
+    // controller — then stop() would abort the headless resume and leave the
+    // visible stream running. Distinguish the two streams by HTTP method: the
+    // visible sendMessage POSTs; the headless replay GETs.
+    let visibleSignal: AbortSignal | undefined;
+    let headlessSignal: AbortSignal | undefined;
+    transportImpl = (options) => {
+      if (options.method === "GET") {
+        headlessSignal = options.signal;
+        return { stream: makeBlockingStream(options.signal, "recovered") };
+      }
+      visibleSignal = options.signal;
+      options.onStreamMeta?.({ inferenceId: "inf-visible" });
+      return { stream: makeBlockingStream(options.signal, "visible") };
+    };
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+
+    // A visible stream is in flight — its controller now lives in the shared ref.
+    await act(async () => {
+      void result.current.sendMessage({ messages: userMessages, model: "test-model" });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    // A headless resume overlaps it. If it clobbered the shared ref, the next
+    // stop() would hit the headless controller instead of the visible one.
+    await act(async () => {
+      void result.current.resumeStream(
+        { inferenceId: "inf-headless-overlap", apiType: "responses", model: "test-model" },
+        { headless: true }
+      );
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    await act(async () => {
+      result.current.stop();
+    });
+
+    // stop() aborted the VISIBLE stream (the shared ref was never overwritten),
+    // and the headless resume's signal survived — fully isolated from the
+    // visible UI's lifecycle.
+    expect(visibleSignal?.aborted).toBe(true);
+    expect(headlessSignal?.aborted).toBe(false);
+  });
+
+  it("fires onStreamMeta with the resolved apiType + model alongside the handle capture", async () => {
+    const onStreamMeta = vi.fn();
+    transportImpl = (options) => {
+      options.onStreamMeta?.({ inferenceId: "inf-meta-1" });
+      return { stream: makeCompleteStream() };
+    };
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "tok", resumable: true, onStreamMeta })
+    );
+
+    await act(async () => {
+      // apiType "auto" + a known completions-only model must RESOLVE to
+      // "completions" — proving the payload carries the resolved type, not "auto".
+      await result.current.sendMessage({
+        messages: userMessages,
+        model: "cerebras/llama3.1-8b",
+        apiType: "auto",
+      });
+    });
+
+    expect(onStreamMeta).toHaveBeenCalledTimes(1);
+    const meta = onStreamMeta.mock.calls[0][0] as {
+      inferenceId: string;
+      apiType: string;
+      model?: string;
+    };
+    expect(meta.inferenceId).toBe("inf-meta-1");
+    expect(meta.apiType).toBe("completions");
+    expect(meta.model).toBe("cerebras/llama3.1-8b");
+  });
+
+  it("a throwing consumer onStreamMeta does not break sendMessage and the resume handle is still built", async () => {
+    // The consumer onStreamMeta is fired synchronously inside the loop's
+    // onStreamMeta handler, right after the internal handle capture. A throwing
+    // consumer callback must be swallowed: sendMessage still resolves, and the
+    // internal pendingResumeRef handle is intact (detach hands it back).
+    const onStreamMeta = vi.fn(() => {
+      throw new Error("consumer onStreamMeta blew up");
+    });
+    transportImpl = (options) => {
+      options.onStreamMeta?.({ inferenceId: "inf-throwmeta" });
+      return { stream: makeBlockingStream(options.signal, "partial") };
+    };
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "tok", resumable: true, onStreamMeta })
+    );
+
+    let sendPromise: Promise<unknown>;
+    await act(async () => {
+      sendPromise = result.current.sendMessage({ messages: userMessages, model: "test-model" });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    // The throwing consumer callback did fire, but the handle was still captured.
+    expect(onStreamMeta).toHaveBeenCalledTimes(1);
+
+    let handle: ReturnType<typeof result.current.detach>;
+    await act(async () => {
+      handle = result.current.detach();
+    });
+    expect(handle!?.inferenceId).toBe("inf-throwmeta");
+
+    // sendMessage resolves cleanly (detached) — the throw never propagated out.
+    const sendResult = (await sendPromise!) as { error: string; detached?: true };
+    expect(sendResult.detached).toBe(true);
+  });
+
+  it("does not require onStreamMeta — absent callback is today's behavior", async () => {
+    transportImpl = (options) => {
+      options.onStreamMeta?.({ inferenceId: "inf-nometa" });
+      return { stream: makeCompleteStream() };
+    };
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+
+    // No onStreamMeta wired; sending must not throw and must complete normally.
+    let sendResult: Awaited<ReturnType<typeof result.current.sendMessage>>;
+    await act(async () => {
+      sendResult = await result.current.sendMessage({
+        messages: userMessages,
+        model: "test-model",
+      });
+    });
+    expect(sendResult!.error).toBeNull();
   });
 });
