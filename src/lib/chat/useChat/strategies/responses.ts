@@ -202,6 +202,10 @@ export class ResponsesStrategy implements ApiStrategy {
       const u = (resp.usage as Record<string, number | undefined>) || {};
       const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
       const completionTokens = u.output_tokens ?? u.completion_tokens ?? 0;
+      // Terminal boolean (ai-portal #1146): read off the usage object (boolean,
+      // so not via the number-typed `u` cast) and pass through like credits_used.
+      const creditsExhausted = (resp.usage as { credits_exhausted?: boolean } | undefined)
+        ?.credits_exhausted;
       accumulator.usage = {
         ...accumulator.usage,
         prompt_tokens: promptTokens,
@@ -211,6 +215,7 @@ export class ResponsesStrategy implements ApiStrategy {
           u.cost_micro_usd !== undefined && { cost_micro_usd: u.cost_micro_usd }),
         ...(u.credits_used !== null &&
           u.credits_used !== undefined && { credits_used: u.credits_used }),
+        ...(creditsExhausted !== undefined && { credits_exhausted: creditsExhausted }),
       };
 
       // Extract content from output array — but only if no content was already
@@ -297,6 +302,8 @@ export class ResponsesStrategy implements ApiStrategy {
         const u = typedChunk.response.usage as Record<string, number | undefined>;
         const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
         const completionTokens = u.output_tokens ?? u.completion_tokens ?? 0;
+        // Terminal boolean (ai-portal #1146): pass through like credits_used.
+        const creditsExhausted = typedChunk.response.usage.credits_exhausted;
         accumulator.usage = {
           ...accumulator.usage,
           prompt_tokens: promptTokens,
@@ -306,6 +313,7 @@ export class ResponsesStrategy implements ApiStrategy {
             u.cost_micro_usd !== undefined && { cost_micro_usd: u.cost_micro_usd }),
           ...(u.credits_used !== null &&
             u.credits_used !== undefined && { credits_used: u.credits_used }),
+          ...(creditsExhausted !== undefined && { credits_exhausted: creditsExhausted }),
         };
       }
 

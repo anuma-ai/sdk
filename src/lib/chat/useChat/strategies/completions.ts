@@ -122,6 +122,10 @@ type CompletionsStreamingChunk = {
     total_tokens?: number;
     cost_micro_usd?: number;
     credits_used?: number;
+    /** Per-step out-of-credits marker (ai-portal #1146); rides the flat `usage`
+     *  object (not the portal envelope), mirrored through like credits_used.
+     *  Terminal boolean — passed through as-is, never summed. */
+    credits_exhausted?: boolean;
   };
 };
 
@@ -176,6 +180,12 @@ function stringField<K extends string>(
   value: string | undefined
 ): Partial<Record<K, string>> {
   return value === undefined ? {} : ({ [key]: value } as Record<K, string>);
+}
+function booleanField<K extends string>(
+  key: K,
+  value: boolean | undefined
+): Partial<Record<K, boolean>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<K, boolean>);
 }
 
 /**
@@ -309,6 +319,11 @@ export class CompletionsStrategy implements ApiStrategy {
         }),
         ...(typedChunk.usage.credits_used !== undefined && {
           credits_used: typedChunk.usage.credits_used,
+        }),
+        // Terminal boolean (ai-portal #1146): take as-is from the flat usage
+        // frame, mirroring credits_used. Never summed.
+        ...(typedChunk.usage.credits_exhausted !== undefined && {
+          credits_exhausted: typedChunk.usage.credits_exhausted,
         }),
       };
     }
@@ -602,6 +617,10 @@ export class CompletionsStrategy implements ApiStrategy {
       ...numberField("completion_tokens", u.completion_tokens),
       ...numberField("total_tokens", u.total_tokens),
     };
+    // Per-step out-of-credits marker (ai-portal #1146) rides the `usage` object
+    // (where ai-portal injects it), NOT the portal envelope — so it goes here
+    // with the token fields, not in portalUsageExtras.
+    const creditsExhaustedField = booleanField("credits_exhausted", u.credits_exhausted);
     const portalUsageExtras = {
       ...numberField("cost_micro_usd", u.cost_micro_usd),
       ...numberField("credits_used", u.credits_used),
@@ -612,9 +631,10 @@ export class CompletionsStrategy implements ApiStrategy {
       ...numberField("tool_cost_micro_usd", u.tool_cost_micro_usd),
     };
     const hasUsageExtras = Object.keys(portalUsageExtras).length > 0;
+    const hasCreditsExhausted = Object.keys(creditsExhaustedField).length > 0;
     const usage =
-      Object.keys(tokenFields).length > 0 || hasUsageExtras
-        ? { ...tokenFields, ...portalUsageExtras }
+      Object.keys(tokenFields).length > 0 || hasUsageExtras || hasCreditsExhausted
+        ? { ...tokenFields, ...portalUsageExtras, ...creditsExhaustedField }
         : undefined;
 
     const hasPortalFields =

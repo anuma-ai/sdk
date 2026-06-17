@@ -16,6 +16,7 @@ import type { PromptPreProcessor } from "../../chat/preProcessor";
 import {
   type ApiResponse,
   getCostMicroUsd,
+  getCreditsExhausted,
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
@@ -108,6 +109,10 @@ export interface ChatCompletionUsage {
   totalTokens?: number;
   costMicroUsd?: number;
   creditsUsed?: number;
+  /** Per-step out-of-credits marker (ai-portal #1146): true when the run ended
+   *  via the mid-loop wrap-up. Passed through like creditsUsed (not summed) so
+   *  it reaches message.usage for the out-of-credits UX. */
+  creditsExhausted?: boolean;
 }
 
 export interface SearchSource {
@@ -814,7 +819,13 @@ export function convertUsageToStored(
   const usage = response.usage;
   const costMicroUsd = getCostMicroUsd(response);
   const creditsUsed = getCreditsUsed(response);
-  if (!usage && costMicroUsd === undefined && creditsUsed === undefined) {
+  const creditsExhausted = getCreditsExhausted(response);
+  if (
+    !usage &&
+    costMicroUsd === undefined &&
+    creditsUsed === undefined &&
+    creditsExhausted === undefined
+  ) {
     return undefined;
   }
   return {
@@ -823,6 +834,8 @@ export function convertUsageToStored(
     totalTokens: usage?.total_tokens,
     costMicroUsd,
     creditsUsed,
+    // Terminal boolean — passed through as-is (ai-portal #1146), never summed.
+    ...(creditsExhausted !== undefined && { creditsExhausted }),
   };
 }
 
