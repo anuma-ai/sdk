@@ -795,4 +795,234 @@ describe("useChatStorage detach → resume reconciliation", () => {
       fetchSpy.mockRestore();
     }
   });
+
+  it("headless cold-launch resume PERSISTS the row but never feeds ANY consumer callback (onData/onThinking/onFinish/onError) and never toggles isLoading", async () => {
+    const onData = vi.fn();
+    const onThinking = vi.fn();
+    const onFinish = vi.fn();
+    const onError = vi.fn();
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_headless",
+        getToken: async () => "tok",
+        resumable: true,
+        onData,
+        onThinking,
+        onFinish,
+        onError,
+      })
+    );
+
+    const override = {
+      inferenceId: "inf-headless",
+      apiType: "responses" as const,
+      model: "test-model",
+      conversationId: "conv_headless",
+    };
+
+    // The lib resumeStream is mocked to attempt ALL FOUR callbacks — content,
+    // thinking, a clean finish, and an error — then resolve clean via a manually
+    // controlled deferred. In headless mode the storage hook forwards none of the
+    // four into the inner useChat (which spreads `{}` in their place), so the lib
+    // receives no callbacks and every attempted invocation lands nowhere. A
+    // regression that forwarded any one of them (an accidental onFinish/onError
+    // leak) would be caught. The deferred lets us probe isLoading WHILE the
+    // resume is in flight (before resolution), which is where a FIX-2 regression
+    // would have flickered it true.
+    let releaseResume!: () => void;
+    const resumeReleased = new Promise<void>((r) => {
+      releaseResume = r;
+    });
+    mockResumeStream.mockImplementationOnce(async (libOpts) => {
+      const o = libOpts as {
+        onData?: (c: string) => void;
+        onThinking?: (c: string) => void;
+        onFinish?: (r: unknown) => void;
+        onError?: (e: unknown) => void;
+      };
+      o.onData?.("recovered text that must not bleed");
+      o.onThinking?.("recovered reasoning");
+      o.onFinish?.({ data: responsesShape("headless replay complete"), error: null });
+      o.onError?.(new Error("transient that must not surface"));
+      await resumeReleased;
+      return {
+        data: responsesShape("headless replay complete"),
+        error: null,
+        interrupted: false,
+      } as never;
+    });
+
+    // Kick the resume off WITHOUT awaiting — it parks on the deferred. Flushing
+    // act commits any pending state update so isLoading reflects the in-flight
+    // value. With the FIX-2 guard, headless never calls setIsLoading(true), so
+    // isLoading stays false mid-flight; without it, this would read true.
+    let resumePromise!: ReturnType<typeof result.current.resumeStream>;
+    await act(async () => {
+      resumePromise = result.current.resumeStream(override, { headless: true });
+    });
+    expect(result.current.isLoading).toBe(false);
+
+    // Release the deferred and let the resume settle.
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      releaseResume();
+      resumeResult = await resumePromise;
+    });
+    // Settled state is still false.
+    expect(result.current.isLoading).toBe(false);
+
+    // Row reconciled + persisted exactly as a normal resume.
+    expect(resumeResult!.error).toBeNull();
+    const rowId = resumeResult!.assistantMessage?.uniqueId;
+    expect(rowId).toBeTruthy();
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_headless")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    expect(assistantRows[0].content).toBe("headless replay complete");
+
+    // The headless invariant: NONE of the four consumer callbacks fired — no
+    // recovered text, reasoning, response, or error bled into the visible chat.
+    expect(onData).not.toHaveBeenCalled();
+    expect(onThinking).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("non-headless cold-launch resume feeds onData AND onFinish and toggles isLoading (regression baseline)", async () => {
+    const onData = vi.fn();
+    const onFinish = vi.fn();
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_notheadless",
+        getToken: async () => "tok",
+        resumable: true,
+        onData,
+        onFinish,
+      })
+    );
+
+    const override = {
+      inferenceId: "inf-notheadless",
+      apiType: "responses" as const,
+      model: "test-model",
+      conversationId: "conv_notheadless",
+    };
+
+    // Manually controlled deferred so we can observe isLoading WHILE the
+    // non-headless resume is in flight — it must toggle true (the byte-identical
+    // pre-FIX-2 behavior) and settle back to false.
+    let releaseResume!: () => void;
+    const resumeReleased = new Promise<void>((r) => {
+      releaseResume = r;
+    });
+    mockResumeStream.mockImplementationOnce(async (libOpts) => {
+      const o = libOpts as {
+        onData?: (c: string) => void;
+        onFinish?: (r: unknown) => void;
+      };
+      o.onData?.("live delta");
+      o.onFinish?.({ data: responsesShape("normal replay complete"), error: null });
+      await resumeReleased;
+      return {
+        data: responsesShape("normal replay complete"),
+        error: null,
+        interrupted: false,
+      } as never;
+    });
+
+    // No opts (or { headless: false }) keeps the path byte-identical to today:
+    // onData/onFinish flow through and isLoading toggles true then back.
+    let resumePromise!: ReturnType<typeof result.current.resumeStream>;
+    await act(async () => {
+      resumePromise = result.current.resumeStream(override);
+    });
+    // Mid-flight: the non-headless path DID set isLoading true.
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      releaseResume();
+      // Let the in-flight promise settle and the finally's setIsLoading(false) run.
+      await resumePromise;
+    });
+    expect(onData).toHaveBeenCalledWith("live delta");
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    // And it settles back to false once the resume resolves.
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("forwards a consumer onStreamMeta with the resolved apiType + model", async () => {
+    const onStreamMeta = vi.fn();
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_meta",
+        getToken: async () => "tok",
+        resumable: true,
+        onStreamMeta,
+      })
+    );
+
+    // Fire onStreamMeta from the loop with a known completions-only model under
+    // apiType "auto" — the forwarded payload must carry the RESOLVED type.
+    mockRunToolLoop.mockImplementationOnce((opts) => {
+      (
+        opts as { onStreamMeta?: (m: { inferenceId: string; round?: number }) => void }
+      ).onStreamMeta?.({ inferenceId: "inf-storage-meta", round: 0 });
+      return Promise.resolve({
+        data: responsesShape("answer"),
+        error: null,
+      } as never);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "q" }] }],
+        model: "cerebras/llama3.1-8b",
+        apiType: "auto",
+      });
+    });
+
+    expect(onStreamMeta).toHaveBeenCalledTimes(1);
+    const meta = onStreamMeta.mock.calls[0][0] as {
+      inferenceId: string;
+      apiType: string;
+      model?: string;
+      round?: number;
+    };
+    expect(meta.inferenceId).toBe("inf-storage-meta");
+    expect(meta.apiType).toBe("completions");
+    expect(meta.model).toBe("cerebras/llama3.1-8b");
+    expect(meta.round).toBe(0);
+  });
+
+  it("does not require onStreamMeta — a send with no consumer callback is unchanged", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_nometa",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    mockRunToolLoop.mockImplementationOnce((opts) => {
+      (opts as { onStreamMeta?: (m: { inferenceId: string }) => void }).onStreamMeta?.({
+        inferenceId: "inf-nometa-storage",
+      });
+      return Promise.resolve({ data: responsesShape("answer"), error: null } as never);
+    });
+
+    let sendResult: Awaited<ReturnType<typeof result.current.sendMessage>>;
+    await act(async () => {
+      sendResult = await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "q" }] }],
+        model: "test-model",
+      });
+    });
+    expect(sendResult!.error).toBeNull();
+  });
 });

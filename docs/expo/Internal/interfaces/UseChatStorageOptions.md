@@ -661,6 +661,98 @@ Use this to show activity indicators like "Searching..." in the UI.
 
 ***
 
+### onStreamMeta()?
+
+> `optional` **onStreamMeta**: (`meta`: `object`) => `void`
+
+Defined in: [src/expo/useChatStorage.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#291)
+
+Observe the stream metadata the portal issues at HEADERS\_RECEIVED, once per
+round. Forwarded to the underlying `useChat`. The enriched payload carries
+the RESOLVED `apiType` and `model` alongside `inferenceId`, so a consumer
+can persist a rebuildable [StreamResumeHandle](../../../react/Internal/type-aliases/StreamResumeHandle.md) for a cold-launch
+resume registry (mobile PR5). Additive — never alters the internal
+resume-handle capture.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`meta`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`meta.apiType`
+
+</td>
+<td>
+
+`"responses"` | `"completions"`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`meta.inferenceId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`meta.model?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`meta.round?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+***
+
 ### onThinking()?
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:495](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#495)
+Defined in: [src/expo/useChatStorage.ts:527](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#527)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -522,6 +522,28 @@ Callback invoked when the response completes successfully
 
 Callback invoked when a server-side tool (MCP) is called during streaming.
 Use this to show activity indicators like "Searching..." in the UI.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onStreamMeta?`
+
+</td>
+<td>
+
+(`meta`: `object`) => `void`
+
+</td>
+<td>
+
+Observe the stream metadata the portal issues at HEADERS\_RECEIVED, once per
+round. Forwarded to the underlying `useChat`. The enriched payload carries
+the RESOLVED `apiType` and `model` alongside `inferenceId`, so a consumer
+can persist a rebuildable [StreamResumeHandle](../../react/Internal/type-aliases/StreamResumeHandle.md) for a cold-launch
+resume registry (mobile PR5). Additive — never alters the internal
+resume-handle capture.
 
 </td>
 </tr>
