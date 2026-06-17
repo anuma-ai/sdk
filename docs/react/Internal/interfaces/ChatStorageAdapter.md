@@ -17,7 +17,7 @@ unique constraints on feedback, etc).
 
 > **clearMessages**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#142)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#149)
 
 Clears all messages in a conversation (used for the "clear chat" action).
 
@@ -169,7 +169,7 @@ Soft delete. Implementations are responsible for cascading to messages/media.
 
 > **getAllFiles**(): `Promise`<[`StoredFileWithContext`](StoredFileWithContext.md)\[]>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#148)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#155)
 
 **Returns**
 
@@ -329,7 +329,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:115](https://github.com/anuma
 
 > **observeMessages**(`conversationId`: `string`): [`ChatStorageObservable`](ChatStorageObservable.md)<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#144)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#151)
 
 **Parameters**
 
@@ -732,11 +732,64 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:139](https://github.com/anuma
 
 ***
 
+### updateMessageFileIds()
+
+> **updateMessageFileIds**(`uniqueId`: `string`, `fileIds`: `string`\[]): `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
+
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#146)
+
+Replace a message's attached media ids (`fileIds`). Used to attach a
+generated artifact (e.g. a rendered document PDF) to the assistant message
+that produced it, after streaming. Pass the FULL desired list.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`uniqueId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`fileIds`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
+
+***
+
 ### write()
 
 > **write**<`T`>(`fn`: (`adapter`: `ChatStorageAdapter`) => `Promise`<`T`>): `Promise`<`T`>
 
-Defined in: [src/lib/storage/ChatStorageAdapter.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#160)
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#167)
 
 Run a set of mutations inside a single write transaction. Any mutation
 calls made on the adapter inside the callback are grouped into one atomic
