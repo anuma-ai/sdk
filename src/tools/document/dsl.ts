@@ -376,7 +376,7 @@ export function parseDocumentDsl(source: string): DocNode {
       locOf(ast)
     );
   }
-  const root = parseElement(ast);
+  const root = parseElement(ast, 0);
   if (root.tag !== "Document") {
     throw new DocDslError(`Root element must be <Document>, got <${root.tag}>`, locOf(ast));
   }
@@ -390,10 +390,24 @@ export function parseDocumentDsl(source: string): DocNode {
   return root;
 }
 
-function parseElement(el: JSXElement): DocNode {
+/**
+ * Maximum element nesting depth. A real document nests only a handful of levels
+ * deep; this far-larger bound rejects pathological input that could exhaust the
+ * recursion stack (here and in the host renderer) without ever tripping on a
+ * legitimate document.
+ */
+const MAX_DEPTH = 100;
+
+function parseElement(el: JSXElement, depth: number): DocNode {
+  if (depth > MAX_DEPTH) {
+    throw new DocDslError(
+      `Document is nested too deeply (more than ${MAX_DEPTH} levels).`,
+      locOf(el)
+    );
+  }
   const tag = readTag(el);
   const attrs = readAttributes(el, tag);
-  const children = readChildren(el, tag);
+  const children = readChildren(el, tag, depth);
   return { tag, attrs, children };
 }
 
@@ -590,7 +604,7 @@ function assertSafeLinkHref(value: string, loc: SrcLoc): void {
   }
 }
 
-function readChildren(el: JSXElement, tag: string): DocChild[] {
+function readChildren(el: JSXElement, tag: string, depth: number): DocChild[] {
   const ordered: DocChild[] = [];
   let sawText = false;
 
@@ -619,7 +633,7 @@ function readChildren(el: JSXElement, tag: string): DocChild[] {
         locOf(child)
       );
     } else if (child.type === "JSXElement") {
-      ordered.push(parseElement(child));
+      ordered.push(parseElement(child, depth + 1));
     } else if (child.type === "JSXFragment") {
       throw new DocDslError(`<${tag}> cannot contain JSX fragments`, locOf(child));
     }

@@ -73,6 +73,22 @@ describe("parseDocumentDsl — structural rules", () => {
     expect(() => parseDocumentDsl(`<Document><Page></Page></Document>`)).not.toThrow();
   });
 
+  it("rejects pathologically deep nesting", () => {
+    const open = "<View>".repeat(150);
+    const close = "</View>".repeat(150);
+    expect(() =>
+      parseDocumentDsl(`<Document><Page>${open}<Text>x</Text>${close}</Page></Document>`)
+    ).toThrow(/nested too deeply/);
+  });
+
+  it("accepts ordinary nesting depth", () => {
+    const open = "<View>".repeat(20);
+    const close = "</View>".repeat(20);
+    expect(() =>
+      parseDocumentDsl(`<Document><Page>${open}<Text>x</Text>${close}</Page></Document>`)
+    ).not.toThrow();
+  });
+
   it("rejects an SVG primitive outside <Svg>", () => {
     expect(() =>
       parseDocumentDsl(
