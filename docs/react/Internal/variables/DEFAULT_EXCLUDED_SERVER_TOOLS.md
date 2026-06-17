@@ -2,7 +2,7 @@
 
 > `const` **DEFAULT\_EXCLUDED\_SERVER\_TOOLS**: readonly `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1257](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1257)
+Defined in: [src/lib/tools/serverTools.ts:1262](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1262)
 
 Default exclusions baked into `defaultServerToolsFilter`.
 

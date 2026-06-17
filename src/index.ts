@@ -741,6 +741,7 @@ export {
 export {
   activatedToolSetNames,
   applyToolSets,
+  buildDeniedToolsRider,
   BUILT_IN_TOOL_SETS,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
@@ -750,6 +751,7 @@ export {
   expandToolSetsAdditive,
   selectServerSideTools,
   type SelectServerSideToolsOptions,
+  TOOL_CATALOG,
   type ToolSet,
   toolSetSystemPrompts,
 } from "./lib/tools";

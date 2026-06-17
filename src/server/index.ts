@@ -366,6 +366,7 @@ export type {
 } from "../lib/tools";
 export {
   activatedToolSetNames,
+  buildDeniedToolsRider,
   clearServerToolsCache,
   createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
@@ -379,6 +380,7 @@ export {
   selectServerToolsForPrompt,
   SERVER_TOOL_DEPENDENCY_SETS,
   shouldRefreshTools,
+  TOOL_CATALOG,
   toolSetSystemPrompts,
 } from "../lib/tools";
 

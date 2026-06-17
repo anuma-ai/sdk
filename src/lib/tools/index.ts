@@ -47,3 +47,4 @@ export {
   type ToolSet,
   toolSetSystemPrompts,
 } from "./serverTools";
+export { buildDeniedToolsRider, TOOL_CATALOG } from "./toolCatalog";
