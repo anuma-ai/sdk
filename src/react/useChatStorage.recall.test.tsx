@@ -86,6 +86,42 @@ describe("useChatStorage bound recall", () => {
     expect(res!.memories).toHaveLength(1);
   });
 
+  it("defaults excludeConversationId to the active conversation (mirrors createRecallTool)", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_active",
+        getToken: async () => "tok",
+      })
+    );
+
+    await act(async () => {
+      await result.current.recall("chunks please", { types: ["fact", "chunk"] });
+    });
+
+    const [, , options] = mockRecall.mock.calls[0];
+    // The active conversation is excluded so a chunk-including recall can't
+    // surface the user's own current turns back as "memory".
+    expect(options?.excludeConversationId).toBe("conv_active");
+  });
+
+  it("respects an explicit excludeConversationId override", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_active",
+        getToken: async () => "tok",
+      })
+    );
+
+    await act(async () => {
+      await result.current.recall("q", { types: ["chunk"], excludeConversationId: "conv_other" });
+    });
+
+    const [, , options] = mockRecall.mock.calls[0];
+    expect(options?.excludeConversationId).toBe("conv_other");
+  });
+
   it("returns an empty result (no throw, no recall() call) when auth is unavailable", async () => {
     const { result } = renderHook(() =>
       useChatStorage({

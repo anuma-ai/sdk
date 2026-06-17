@@ -858,6 +858,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           candidateCount: 0,
         };
       }
+      // Mirror createRecallTool: default excludeConversationId to the active
+      // conversation so a chunk-including recall can't surface the user's own
+      // current turns back as "memory". Caller can still override explicitly.
+      const resolvedOptions: RecallOptions | undefined =
+        options?.excludeConversationId !== undefined || !currentConversationId
+          ? options
+          : { ...options, excludeConversationId: currentConversationId };
       return recallBase(
         query,
         {
@@ -866,10 +873,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           embeddingOptions: { getToken, baseUrl, model: embeddingModel },
           vaultCache: vaultEmbeddingCacheRef.current,
         },
-        options
+        resolvedOptions
       );
     },
-    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel, currentConversationId]
   );
 
   /**

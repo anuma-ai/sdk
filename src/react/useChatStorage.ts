@@ -1794,6 +1794,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           candidateCount: 0,
         };
       }
+      // Mirror createRecallTool: default excludeConversationId to the active
+      // conversation so a chunk-including recall can't surface the user's own
+      // current turns back as "memory". Caller can still override explicitly.
+      const resolvedOptions: RecallOptions | undefined =
+        options?.excludeConversationId !== undefined || !currentConversationId
+          ? options
+          : { ...options, excludeConversationId: currentConversationId };
       return recallBase(
         query,
         {
@@ -1806,10 +1813,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // no-op (falls through to fact + chunk lanes). Mirrors createRecallTool.
           entityCtx,
         },
-        options
+        resolvedOptions
       );
     },
-    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel]
+    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel, currentConversationId]
   );
 
   // Use the underlying useChat hook
