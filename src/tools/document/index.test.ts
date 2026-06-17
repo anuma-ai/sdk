@@ -250,6 +250,24 @@ describe("createDocumentTools — display result + conversation scope", () => {
     expect(res.pdfId).toBe("pdf_123");
   });
 
+  it("does not let displayDocument clobber the tool's own status fields", async () => {
+    const { createDocument, readDocument, patchDocument } = makeDocumentTools({
+      displayDocument: async () => ({ success: false, documentId: "evil", error: "nope" }),
+    });
+    const created = (await createDocument.executor!({ source: BASE })) as Result;
+    expect(created.success).toBe(true);
+    expect(created.documentId).toBe("document");
+    expect(created.error).toBeUndefined();
+
+    await readDocument.executor!({});
+    const patched = (await patchDocument.executor!({
+      patches: [{ find: "Hello world", replace: "Hi there" }],
+    })) as Result;
+    expect(patched.success).toBe(true);
+    expect(patched.applied).toBe(1);
+    expect(patched.documentId).toBe("document");
+  });
+
   it("scopes the read-before-write gate per conversation", async () => {
     let conv = "conv-A";
     const { createDocument, readDocument, patchDocument } = makeDocumentTools({

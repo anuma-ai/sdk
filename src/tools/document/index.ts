@@ -53,6 +53,27 @@ export const DOCUMENT_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
 );
 
 /**
+ * Result keys the tools own across all their return shapes. A host
+ * `displayDocument` callback may only ADD fields (e.g. a media id) to a tool
+ * result — these keys are stripped from its return value so it can never
+ * silently flip the tool's status (success/error) or other reported state.
+ */
+const RESERVED_RESULT_KEYS: ReadonlySet<string> = new Set([
+  "success",
+  "error",
+  "documentId",
+  "applied",
+  "persisted",
+  "renderError",
+  "dslError",
+  "message",
+  "failed",
+  "failedPatches",
+  "proposedSnippet",
+  "source",
+]);
+
+/**
  * Map a `documentId` to its storage path. Slug-validated to keep ids
  * filesystem-safe and prevent traversal via the storage key.
  */
@@ -169,7 +190,9 @@ export interface CreateDocumentToolsOptions {
    * Receives `{ documentId, path, title? }`. Unlike `displayApp`/`displaySlides`,
    * a THROW here is NOT swallowed: a render failure becomes a tool-error result
    * so the model can fix an unrenderable document and retry. Any object it
-   * returns is spread into the tool result.
+   * returns is spread into the tool result to ADD fields (e.g. a media id);
+   * the tool's own status fields (`success`, `documentId`, `applied`) always
+   * take precedence and cannot be overwritten by the callback.
    */
 
   displayDocument?: (
@@ -296,7 +319,13 @@ export function createDocumentTools({
   ): Promise<Record<string, unknown>> {
     if (!displayDocument) return {};
     const reply = await displayDocument({ documentId, path, ...(title ? { title } : {}) });
-    return reply && typeof reply === "object" ? reply : {};
+    if (!reply || typeof reply !== "object") return {};
+    // Keep only additive fields — reserved status keys can't be overwritten.
+    const additive: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(reply)) {
+      if (!RESERVED_RESULT_KEYS.has(k)) additive[k] = v;
+    }
+    return additive;
   }
 
   const createDocumentTool: ToolConfig = {
@@ -331,7 +360,10 @@ export function createDocumentTools({
         // nothing was written.
         try {
           const display = await triggerDocDisplay(documentId, path, title);
-          return { success: true, documentId, ...display };
+          // Spread display FIRST so the tool's own status fields are
+          // authoritative — a host callback can add fields (e.g. a media id)
+          // but cannot silently flip success/documentId.
+          return { ...display, success: true, documentId };
         } catch (renderErr) {
           logError(
             "create_document rendering failed after persist",
@@ -499,7 +531,8 @@ export function createDocumentTools({
             path,
             recallTitle(conversationId, path)
           );
-          return { success: true, documentId, applied: appliedCount, ...display };
+          // display spread first so it can't clobber the tool's own fields.
+          return { ...display, success: true, documentId, applied: appliedCount };
         } catch (renderErr) {
           logError(
             "patch_document rendering failed after persist",
