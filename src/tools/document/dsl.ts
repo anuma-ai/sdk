@@ -164,12 +164,21 @@ const SVG_TAGS = new Set<string>([
 ]);
 
 /**
- * SVG primitives that are only meaningful inside an `<Svg>` subtree. Derived as
- * `SVG_TAGS` minus the tags that are also valid in document body context
- * (`Text`, `Tspan`). Placing any of these outside an `<Svg>` renders nothing in
- * react-pdf, so we reject it — the mirror of the non-SVG-inside-`<Svg>` check.
+ * Tags from {@link SVG_TAGS} that are ALSO valid in document body context, so
+ * they must NOT be rejected outside `<Svg>`. Only `<Text>` qualifies: `<Tspan>`
+ * is an SVG-only text primitive (it maps to SVG `<tspan>` and is meaningful
+ * only inside `<Svg><Text>`), even though it carries text and so appears in
+ * {@link TEXT_TAGS}.
  */
-const SVG_ONLY_TAGS = new Set<string>([...SVG_TAGS].filter((t) => !TEXT_TAGS.has(t)));
+const SVG_BODY_SHARED_TAGS = new Set<string>(["Text"]);
+
+/**
+ * SVG primitives that are only meaningful inside an `<Svg>` subtree (everything
+ * in {@link SVG_TAGS} except the body-shared tags). Placing any of these
+ * outside an `<Svg>` renders nothing — or fails — in react-pdf, so we reject
+ * it: the mirror of the non-SVG-inside-`<Svg>` check.
+ */
+const SVG_ONLY_TAGS = new Set<string>([...SVG_TAGS].filter((t) => !SVG_BODY_SHARED_TAGS.has(t)));
 
 /**
  * Recognized react-pdf style keys for `style={{}}`. Mirrors the `Style` type

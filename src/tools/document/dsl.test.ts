@@ -110,6 +110,18 @@ describe("parseDocumentDsl — structural rules", () => {
       )
     ).not.toThrow();
   });
+
+  it("rejects <Tspan> outside <Svg> (it is an SVG-only text primitive)", () => {
+    expect(() =>
+      parseDocumentDsl(`<Document><Page><Text><Tspan>x</Tspan></Text></Page></Document>`)
+    ).toThrow(/<Tspan> is an SVG element and may only appear inside an <Svg>/);
+  });
+
+  it("accepts <Tspan> inside an <Svg> <Text>", () => {
+    expect(() =>
+      parseDocumentDsl(`<Document><Page><Svg><Text><Tspan>x</Tspan></Text></Svg></Page></Document>`)
+    ).not.toThrow();
+  });
 });
 
 describe("parseDocumentDsl — security / literal-only", () => {
