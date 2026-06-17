@@ -2,7 +2,7 @@
 
 > **LlmapiModelTopProvider** = `object`
 
-Defined in: [src/client/types.gen.ts:588](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#588)
+Defined in: [src/client/types.gen.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#582)
 
 TopProvider contains configuration details for the primary provider
 
@@ -12,7 +12,7 @@ TopProvider contains configuration details for the primary provider
 
 > `optional` **context\_length**: `number`
 
-Defined in: [src/client/types.gen.ts:589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#589)
+Defined in: [src/client/types.gen.ts:583](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#583)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:589](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **is\_moderated**: `boolean`
 
-Defined in: [src/client/types.gen.ts:590](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#590)
+Defined in: [src/client/types.gen.ts:584](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#584)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/client/types.gen.ts:590](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **max\_completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#591)
+Defined in: [src/client/types.gen.ts:585](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#585)

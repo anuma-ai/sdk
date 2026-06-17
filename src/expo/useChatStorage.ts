@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuidv7 } from "uuid";
 
 import type { LlmapiMessage } from "../client";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import type { StreamResumeHandle } from "../lib/chat/resumeStream";
+import { StreamExpiredError } from "../lib/chat/resumeStream";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -11,7 +14,7 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
-import { type ApiType, resolveApiType } from "../lib/chat/useChat";
+import { type ApiType, resolveApiType, type RunToolLoopResult } from "../lib/chat/useChat";
 import {
   type ApiResponse,
   extractAssistantText,
@@ -20,6 +23,7 @@ import {
 } from "../lib/chat/useChat/strategies";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
+  type ActivityPhase,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageOptions,
@@ -47,6 +51,7 @@ import {
   updateConversationPinnedOp,
   updateConversationTitleOp,
   updateMessageErrorOp,
+  upsertMessageOp,
 } from "../lib/db/chat";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
 import {
@@ -73,6 +78,9 @@ import {
 import { getLogger } from "../lib/logger";
 import {
   createRecallTool as createRecallToolBase,
+  recall as recallBase,
+  type RecallOptions,
+  type RecallResult,
   type RecallToolCallbacks,
   type RecallToolOptions,
 } from "../lib/memory";
@@ -248,6 +256,29 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * Auto-flush queued operations when key becomes available. @default true
    */
   autoFlushOnKeyAvailable?: boolean;
+
+  /**
+   * Opt into resumable streaming. When `true`, `sendMessage` sends the
+   * resumable capability header, a stable `assistantUniqueId` is allocated for
+   * every turn (so the partial and the resumed completion reconcile onto ONE
+   * row), and `detach()` / `resumeStream()` become usable. Off by default.
+   * @default false
+   */
+  resumable?: boolean;
+
+  /**
+   * Observability for the fire-and-forget cancel POST that `stop()` issues for
+   * a resumable stream. Forwarded to the underlying `useChat`. The
+   * stop-without-cancel billing risk must be visible: once the capability
+   * header ships, the portal no longer treats a dropped socket as cancellation,
+   * so a `stop()` whose cancel POST silently fails bills the full generation.
+   */
+  onCancelResult?: (result: {
+    inferenceId: string;
+    ok: boolean;
+    status?: number;
+    error?: Error;
+  }) => void;
 }
 
 /**
@@ -270,11 +301,67 @@ export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
 };
 
 /**
- * Result from sendMessage with storage (Expo version)
+ * Detached variant of the storage send result.
  *
- * Uses the base result without tool execution information.
+ * Returned only when `resumable` is on and the stream was torn down via
+ * `detach()` before completing. The partial assistant row is already persisted
+ * (under `assistantUniqueId`); call `resumeStream` with `handle` +
+ * `assistantUniqueId` to complete that SAME row.
  */
-export type SendMessageWithStorageResult = BaseSendMessageWithStorageResult;
+export interface SendMessageWithStorageDetachedResult {
+  data: ApiResponse | null;
+  error: "Request detached";
+  detached: true;
+  /** Pass to `resumeStream` to replay; null when nothing was resumable. */
+  resume: StreamResumeHandle | null;
+  /**
+   * The id the resumed/expired/interrupted completion reconciles onto. Nothing
+   * is persisted on detach — the row materializes when resumeStream() (or
+   * stop()) finalizes the turn under this id.
+   *
+   * Present whenever storage is active. Absent under `skipStorage`: there is no
+   * persisted row to reconcile, so drive `resumeStream(resume)` on the handle
+   * directly and manage the row yourself.
+   */
+  assistantUniqueId?: string;
+  /** The persisted user message. Absent under `skipStorage` (nothing is stored). */
+  userMessage?: StoredMessage;
+}
+
+/**
+ * Result from sendMessage with storage (Expo version).
+ *
+ * Adds the detached variant on top of the base success/skipped/error shapes.
+ */
+export type SendMessageWithStorageResult =
+  | BaseSendMessageWithStorageResult
+  | SendMessageWithStorageDetachedResult;
+
+/**
+ * Result of `resumeStream` on the storage hook.
+ *
+ * Mirrors the lib taxonomy onto the storage outcome:
+ * - clean completion → `{ error: null, assistantMessage }`
+ * - 410 expired → `{ error: null, expired: true, assistantMessage }` (the
+ *   stowed partial is finalized as `wasStopped`)
+ * - in-stream-interrupted → `{ error: <message>, interrupted: true,
+ *   assistantMessage }` (replayed content finalized as `wasStopped`)
+ * - transient (401/network) → `{ error, statusCode, assistantMessage: null }`
+ *   — nothing persisted, the handle is RETAINED for retry
+ * - no resumable stream → `{ error: "No resumable stream", assistantMessage: null }`
+ */
+export interface ResumeStreamWithStorageResult {
+  data: ApiResponse | null;
+  error: string | null;
+  /** True only for a 410: the buffer was gone and the stowed partial was finalized. */
+  expired?: boolean;
+  /** True for an in-stream/tool-request terminal: replayed content finalized as stopped. */
+  interrupted?: boolean;
+  /** HTTP status for a transient failure (e.g. 401) — retryable, handle retained. */
+  statusCode?: number;
+  /** The single reconciled assistant row, or null when nothing was persisted. */
+  assistantMessage: StoredMessage | null;
+}
 
 /**
  * Result returned by useChatStorage hook (Expo version)
@@ -284,6 +371,25 @@ export type SendMessageWithStorageResult = BaseSendMessageWithStorageResult;
 export interface UseChatStorageResult extends BaseUseChatStorageResult {
   /** Send a message and automatically store it (Expo version) */
   sendMessage: (args: SendMessageWithStorageArgs) => Promise<SendMessageWithStorageResult>;
+  /**
+   * Detach the in-flight stream (keep generating server-side). Resolves to the
+   * resume handle, or null when nothing is resumable. The partial assistant row
+   * is persisted by `sendMessage`'s detached branch — pair the handle with that
+   * row's `assistantUniqueId` to complete it via `resumeStream`.
+   */
+  detach: () => StreamResumeHandle | null;
+  /**
+   * Replay a detached stream and reconcile the result onto the SAME assistant
+   * row (find→update via upsertMessageOp). Never creates a second row for the
+   * same `assistantUniqueId`.
+   *
+   * Uses the pending-resume context stowed by the detached `sendMessage` by
+   * default; pass `handleOverride` for a cold-launch resume (mobile PR5) where
+   * a deserialized handle has no in-memory context (the row is then created
+   * fresh). Replay is always from seq 0 — consumers reset accumulated streaming
+   * text before calling.
+   */
+  resumeStream: (handleOverride?: StreamResumeHandle) => Promise<ResumeStreamWithStorageResult>;
   /**
    * Create a memory engine tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
@@ -314,6 +420,17 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     toolOptions?: RecallToolOptions,
     callbacks?: RecallToolCallbacks
   ) => ToolConfig;
+
+  /**
+   * Recall memories programmatically via the unified ranked pipeline — the
+   * programmatic twin of {@link createRecallTool}. Returns ranked memories
+   * for callers that inject memory into the prompt themselves (e.g.
+   * pre-retrieval injection) instead of exposing a tool to the LLM. Shares
+   * the hook's warm embedding cache. Defaults to `budget: 'low'`,
+   * `types: ['fact']`. Gracefully returns an empty result when auth is
+   * unavailable — pre-retrieval must never crash the submit path.
+   */
+  recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
 
   /** Get all vault memories for context injection. */
   getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
@@ -399,6 +516,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     preProcessors,
+    resumable = false,
+    onCancelResult,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -722,6 +841,45 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
+   * Recall memories programmatically via the unified ranked pipeline.
+   * Shares vaultCtx / storageCtx and the warm embedding cache with
+   * {@link createRecallTool}, so the ranking matches the recall_memory tool.
+   * Returns an empty result (not a throw) when auth is unavailable so
+   * pre-retrieval can't crash the submit path. entityCtx is omitted on Expo
+   * (W5 graph lane no-op) to match createRecallTool above.
+   */
+  const recallFn = useCallback(
+    async (query: string, options?: RecallOptions): Promise<RecallResult> => {
+      if (!getToken) {
+        return {
+          memories: [],
+          usedBudget: options?.budget ?? "low",
+          reranked: false,
+          candidateCount: 0,
+        };
+      }
+      // Mirror createRecallTool: default excludeConversationId to the active
+      // conversation so a chunk-including recall can't surface the user's own
+      // current turns back as "memory". Caller can still override explicitly.
+      const resolvedOptions: RecallOptions | undefined =
+        options?.excludeConversationId !== undefined || !currentConversationId
+          ? options
+          : { ...options, excludeConversationId: currentConversationId };
+      return recallBase(
+        query,
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+        },
+        resolvedOptions
+      );
+    },
+    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel, currentConversationId]
+  );
+
+  /**
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
@@ -745,7 +903,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const {
     isLoading,
     sendMessage: baseSendMessage,
-    stop,
+    stop: baseStop,
+    detach,
+    resumeStream: baseResumeStream,
   } = useChat({
     getToken,
     baseUrl,
@@ -755,7 +915,34 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onError,
     apiType,
     preProcessors,
+    resumable,
+    onCancelResult,
   });
+
+  // Pending-resume context: everything needed to FINISH a detached turn after
+  // the in-flight sendMessage promise has settled. Nothing is persisted on
+  // detach — the partial lives here in memory until a resumeStream() (or a
+  // stop()) finalizes it onto `assistantUniqueId`. Cleared at: the top of every
+  // sendMessage (a stale handle bleeding into a new turn is the prev+chunk
+  // corruption class — clear FIRST, before any await), a successful resume, an
+  // expired/interrupted finalization, and stop().
+  const pendingResumeRef = useRef<{
+    handle: StreamResumeHandle | null;
+    convId: string;
+    userMessageUniqueId: string;
+    assistantUniqueId?: string;
+    model?: string;
+    imageModel?: string;
+    sources?: SearchSource[];
+    thoughtProcess?: ActivityPhase[];
+    startTime: number;
+    partialData: ApiResponse | null;
+  } | null>(null);
+  // True while a storage resumeStream() is awaiting its terminal. stop() reads
+  // this to avoid racing a parallel finalize write against the resume's own
+  // stopped-finalization (base stop() aborts the in-flight resume, which then
+  // finalizes as stopped on its own).
+  const isResumingRef = useRef(false);
 
   /**
    * Create a new conversation
@@ -1058,6 +1245,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         headers,
       } = args;
 
+      // Clear any pending resume FIRST, before any await: a stale handle from a
+      // previous detached turn bleeding into this one is the prev+chunk
+      // duplication class. A new send supersedes an unfinished detach.
+      pendingResumeRef.current = null;
+
+      // When resumable, the assistant row MUST have a stable id before the
+      // stream starts so a detach and the later resume reconcile onto the SAME
+      // id via upsertMessageOp. Without a caller-supplied id we mint one so the
+      // single-bubble invariant holds either way.
+      const effectiveAssistantUniqueId =
+        assistantUniqueId ?? (resumable ? `msg_${uuidv7()}` : undefined);
+
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
       if (walletAddress && signMessage && !hasEncryptionKey(walletAddress)) {
         try {
@@ -1138,6 +1337,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           conversationId: currentConversationId ?? undefined,
           headers,
         });
+
+        // A detached resumable stream surfaces as error:"Request detached" while
+        // still carrying the partial data + resume handle. Forward it intact —
+        // collapsing it into the generic error below would null the data and
+        // drop the handle, leaving a skipStorage+resumable caller unable to
+        // resume. skipStorage persists nothing, so there is no row to reconcile;
+        // the caller drives resumeStream(resume) on the handle directly.
+        if ("detached" in result && result.detached) {
+          return {
+            data: result.data,
+            error: result.error,
+            detached: true,
+            resume: result.resume,
+          };
+        }
 
         if (result.error || !result.data) {
           return {
@@ -1365,6 +1579,42 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       const responseDuration = (Date.now() - startTime) / 1000;
 
+      // Detached: the stream was torn down via detach() but the portal keeps
+      // generating server-side. PERSIST NOTHING here — stow everything needed to
+      // finish the turn in pendingResumeRef and let resumeStream()/stop()
+      // reconcile onto `assistantUniqueId` later. This branch MUST come before
+      // the "Request aborted" branch below: routing a still-generating turn into
+      // the abort branch would write a wasStopped row, and routing it into the
+      // generic error branch would mark the USER message errored (filtering both
+      // from history). "Request detached" enters neither.
+      const detachedResult = result as RunToolLoopResult & {
+        detached?: true;
+        resume?: StreamResumeHandle | null;
+      };
+      if (detachedResult.detached) {
+        const rowId = effectiveAssistantUniqueId ?? `msg_${uuidv7()}`;
+        pendingResumeRef.current = {
+          handle: detachedResult.resume ?? null,
+          convId,
+          userMessageUniqueId: storedUserMessage.uniqueId,
+          assistantUniqueId: rowId,
+          model,
+          imageModel,
+          sources,
+          thoughtProcess,
+          startTime,
+          partialData: detachedResult.data ?? null,
+        };
+        return {
+          data: detachedResult.data ?? null,
+          error: "Request detached",
+          detached: true,
+          resume: detachedResult.resume ?? null,
+          assistantUniqueId: rowId,
+          userMessage: storedUserMessage,
+        };
+      }
+
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
         const abortedResult = result as {
@@ -1401,7 +1651,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
-              uniqueId: assistantUniqueId,
+              uniqueId: effectiveAssistantUniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
             void embedMessageAsync(storedAssistantMessage);
@@ -1458,7 +1708,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
-            uniqueId: assistantUniqueId,
+            uniqueId: effectiveAssistantUniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -1553,7 +1803,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
-        uniqueId: assistantUniqueId,
+        uniqueId: effectiveAssistantUniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -1600,13 +1850,271 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       enableQueue,
       getWalletAddress,
       refreshQueueStatus,
+      resumable,
     ]
   );
+
+  /**
+   * Upsert the reconciled assistant row onto `assistantUniqueId`. The partial
+   * was NOT persisted on detach, so the FIRST finalization for an id creates
+   * the row (where the `was_stopped` column defaults false), and any SUBSEQUENT
+   * finalization updates it in place — exactly one row either way. On the update
+   * path `wasStopped: false` actively CLEARS a prior interrupted finalization's
+   * stopped flag, because the upsert→_updateMessageOp path writes it on the
+   * `!== undefined` guard.
+   *
+   * Fidelity note (deliberate, out of §3 scope): this persists the raw
+   * `extractAssistantText(data).content`. The live send path additionally
+   * extracts/strips inline `sources` JSON blocks, strips R2 image markdown/URLs,
+   * and scrapes `image_model` + tool-call events. resumeStream structurally
+   * rejects tool streams, so the tool-event omission is moot; but a plain-text
+   * answer that embeds a sources block or an R2 URL stores it un-normalized on
+   * the resume path. Acceptable for the reconnect surface (the spec never
+   * promises content-normalization parity); tracked as a follow-up, not a §3
+   * contract gap.
+   */
+  const finalizeResumedRow = useCallback(
+    async (
+      ctx: NonNullable<typeof pendingResumeRef.current>,
+      data: ApiResponse,
+      wasStopped: boolean,
+      responseDuration: number
+    ): Promise<StoredMessage> => {
+      const { content, thinking } = extractAssistantText(data);
+      return upsertMessageOp(storageCtx, {
+        conversationId: ctx.convId,
+        role: "assistant",
+        content,
+        model: data.model || ctx.model || "",
+        imageModel: ctx.imageModel || getImageModel(data),
+        usage: convertUsageToStored(data),
+        responseDuration,
+        sources: ctx.sources,
+        thoughtProcess: finalizeThoughtProcess(ctx.thoughtProcess),
+        thinking,
+        wasStopped,
+        parentMessageId: ctx.userMessageUniqueId,
+        uniqueId: ctx.assistantUniqueId!,
+      });
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Replay a detached stream and reconcile onto the SAME assistant row.
+   *
+   * The replay rebuilds content from seq 0 (fresh accumulator inside the lib
+   * resumeStream); we then upsert onto `assistantUniqueId` — one row, completed
+   * (or finalized as stopped) in place, never a second bubble.
+   *
+   * Outcome taxonomy:
+   * - clean completion → upsert with `wasStopped: false`, clear the ref.
+   * - 410 `StreamExpiredError` (thrown by the lib) → finalize the stowed
+   *   partial as `wasStopped: true`, clear the ref, return `expired: true`.
+   * - interrupted terminal → finalize the REPLAYED content (≥ the partial) as
+   *   `wasStopped: true`, clear the ref.
+   * - transient (401/network, `interrupted: false`) → persist nothing, KEEP the
+   *   ref so the caller can retry with a force-refreshed token.
+   */
+  const resumeStream = useCallback(
+    async (handleOverride?: StreamResumeHandle): Promise<ResumeStreamWithStorageResult> => {
+      // Serialize concurrent resumes: a second resumeStream() while one is in
+      // flight would race the first (two replay GETs, two finalizations on the
+      // same id — the second replay would clobber the first). Reject it; the
+      // caller retries after the in-flight resume settles.
+      if (isResumingRef.current) {
+        return { data: null, error: "Resume already in progress", assistantMessage: null };
+      }
+      // Resolve context: the stowed pending-resume, or synthesize from an
+      // override (cold-launch: no in-memory context, so assistantUniqueId is
+      // undefined and the row is simply created on finalize).
+      const pending = pendingResumeRef.current;
+      const ctx: NonNullable<typeof pendingResumeRef.current> | null = pending
+        ? pending
+        : handleOverride
+          ? {
+              handle: handleOverride,
+              // The handle is authoritative for the resumed turn's thread: it
+              // carries the conversationId the original stream was sent under.
+              // On a relaunch/deep-link the app may already be viewing a
+              // DIFFERENT conversation (currentConversationId), so preferring
+              // current would misfile the reconciled row into the wrong thread
+              // (or "" if neither is set). currentConversationId only backfills
+              // a handle that predates the conversationId field.
+              convId: handleOverride.conversationId ?? currentConversationId ?? "",
+              userMessageUniqueId: "",
+              // Cold-launch (mobile PR5): no in-memory context, so the id must be
+              // STABLE across calls. Derive it deterministically from the
+              // inferenceId — the only anchor available cold — so every resume of
+              // the SAME buffered stream (re-tap, re-render, relaunch, retry after
+              // a transient) reconciles onto the SAME row. A random id per
+              // invocation would mint a second assistant bubble on any re-resume,
+              // breaking the one-row-per-stream invariant. The stowed ctx (below)
+              // keeps it stable within one session; this keeps it stable even
+              // after a clean terminal cleared the ref.
+              assistantUniqueId: `msg_resume_${handleOverride.inferenceId}`,
+              model: handleOverride.model,
+              imageModel: undefined,
+              sources: undefined,
+              thoughtProcess: undefined,
+              startTime: Date.now(),
+              partialData: null,
+            }
+          : null;
+
+      const handle = handleOverride ?? ctx?.handle ?? null;
+      if (!ctx || !handle) {
+        return { data: null, error: "No resumable stream", assistantMessage: null };
+      }
+      // Stow the (possibly freshly synthesized cold-launch) context BEFORE the
+      // await so the minted assistantUniqueId is reused on every subsequent call
+      // until a terminal clears it. Without this, a cold-launch resume mints a
+      // NEW id per invocation → a re-tap/re-render/relaunch creates a SECOND
+      // assistant row (breaking the one-row invariant), and a transient (401)
+      // terminal leaves nothing to retry ("No resumable stream"). The warm path
+      // assigns the same object back (no-op). Terminal branches below clear it
+      // (clean/410/interrupted) or retain it (transient) exactly as before.
+      pendingResumeRef.current = ctx;
+      // Stable, non-null context for use after the awaits.
+      const rctx = ctx;
+
+      // Finalize-write wrapper: a DB failure must surface as the structured
+      // result shape, never as a raw throw out of resumeStream. On failure the
+      // ref is RETAINED so the caller can retry the reconciliation.
+      const safeFinalize = async (
+        data: ApiResponse,
+        wasStopped: boolean,
+        responseDuration: number
+      ): Promise<{ message: StoredMessage } | { error: string }> => {
+        try {
+          return { message: await finalizeResumedRow(rctx, data, wasStopped, responseDuration) };
+        } catch (writeErr) {
+          return {
+            error:
+              writeErr instanceof Error ? writeErr.message : "Failed to reconcile resumed message",
+          };
+        }
+      };
+
+      isResumingRef.current = true;
+      try {
+        // baseResumeStream fetches a fresh token internally (at invocation time).
+        const result = await baseResumeStream(handle);
+        const responseDuration = (Date.now() - rctx.startTime) / 1000;
+
+        if (result.error === null) {
+          // Clean completion.
+          const written = await safeFinalize(result.data, false, responseDuration);
+          if ("error" in written) {
+            return { data: result.data, error: written.error, assistantMessage: null };
+          }
+          pendingResumeRef.current = null;
+          void embedMessageAsync(written.message);
+          return { data: result.data, error: null, assistantMessage: written.message };
+        }
+
+        if (result.interrupted) {
+          // In-stream/tool-request terminal: persist the replayed content
+          // (which is ≥ the detached partial) as a stopped message.
+          const data = result.data ?? rctx.partialData;
+          let assistantMessage: StoredMessage | null = null;
+          if (data) {
+            const written = await safeFinalize(data, true, responseDuration);
+            if ("error" in written) {
+              return { data, error: written.error, interrupted: true, assistantMessage: null };
+            }
+            assistantMessage = written.message;
+          }
+          pendingResumeRef.current = null;
+          return { data, error: result.error, interrupted: true, assistantMessage };
+        }
+
+        // Transient (401/network): persist nothing, KEEP the handle for retry.
+        return {
+          data: result.data,
+          error: result.error,
+          statusCode: result.statusCode,
+          assistantMessage: null,
+        };
+      } catch (err) {
+        if (err instanceof StreamExpiredError) {
+          // Buffer gone: finalize the stowed partial as stopped so the UI shows
+          // its interrupted state without a hard failure.
+          const responseDuration = (Date.now() - rctx.startTime) / 1000;
+          let assistantMessage: StoredMessage | null = null;
+          if (rctx.partialData) {
+            const written = await safeFinalize(rctx.partialData, true, responseDuration);
+            if ("error" in written) {
+              return {
+                data: rctx.partialData,
+                error: written.error,
+                expired: true,
+                assistantMessage: null,
+              };
+            }
+            assistantMessage = written.message;
+          }
+          pendingResumeRef.current = null;
+          return { data: rctx.partialData, error: null, expired: true, assistantMessage };
+        }
+        throw err;
+      } finally {
+        isResumingRef.current = false;
+      }
+    },
+    [baseResumeStream, currentConversationId, finalizeResumedRow, embedMessageAsync]
+  );
+
+  /**
+   * Stop wrapper: when a resume is pending AND idle (detached, nothing in flight
+   * to abort), finalize the stowed partial as a stopped message on the same
+   * `assistantUniqueId` and clear the ref. If a resumeStream() is currently in
+   * flight we do NOT finalize here — base stop() aborts that resume, whose own
+   * terminal finalizes the row as stopped, so a parallel write here would race
+   * the same id. The underlying useChat.stop() still fires the cancel POST (its
+   * streamMeta ref survives the detach).
+   */
+  const stop = useCallback(() => {
+    const pending = pendingResumeRef.current;
+    if (pending && pending.assistantUniqueId && !isResumingRef.current) {
+      const finalize = pending;
+      pendingResumeRef.current = null;
+      // Hold the resume guard across the fire-and-forget finalize. baseStop()
+      // below fires the cancel POST, which evicts the portal buffer; a
+      // resumeStream() racing this window (e.g. a cold-launch override on the
+      // same inferenceId) would otherwise 410 and double-upsert the same
+      // assistantUniqueId. With the guard set, that concurrent resume is
+      // rejected ("Resume already in progress") until this write commits.
+      isResumingRef.current = true;
+      void (async () => {
+        const responseDuration = (Date.now() - finalize.startTime) / 1000;
+        const data: ApiResponse = finalize.partialData ?? {
+          id: `stopped-${Date.now()}`,
+          model: finalize.model || "",
+          object: "response",
+          output: [],
+          usage: undefined,
+        };
+        try {
+          await finalizeResumedRow(finalize, data, true, responseDuration);
+        } catch (err) {
+          // Best-effort: a failed finalize must not break local stop, but a
+          // dropped stopped-row would vanish from history with no signal — log.
+          getLogger().warn("[useChatStorage] stop() finalize of detached partial failed:", err);
+        } finally {
+          isResumingRef.current = false;
+        }
+      })();
+    }
+    baseStop();
+  }, [baseStop, finalizeResumedRow]);
 
   return {
     isLoading,
     sendMessage,
     stop,
+    detach,
+    resumeStream,
     conversationId: currentConversationId,
     setConversationId: setCurrentConversationId,
     createConversation,
@@ -1619,6 +2127,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryEngineTool,
     createMemoryVaultTool,
     createRecallTool,
+    recall: recallFn,
     getVaultMemories,
     deleteVaultMemory,
     flushQueue,

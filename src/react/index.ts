@@ -55,12 +55,17 @@
  *
  * @module react
  */
-export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
 export {
   INFERENCE_ID_HEADER,
-  ProviderStreamError,
+  resumeStream,
   STREAM_RESUMABLE_HEADER,
-} from "../lib/chat/toolLoop";
+  streamCancelPath,
+  StreamExpiredError,
+  streamReplayPath,
+} from "../lib/chat/resumeStream";
+export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
+export { ProviderStreamError } from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
@@ -562,6 +567,7 @@ export {
   getServerTools,
   getToolsChecksum,
   selectServerToolsForPrompt,
+  SERVER_TOOL_DEPENDENCY_SETS,
   shouldRefreshTools,
 } from "../lib/tools";
 export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";

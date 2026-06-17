@@ -87,6 +87,7 @@ export {
   updateMessageErrorOp,
   updateMessageFeedbackOp,
   upsertConversationSummaryOp,
+  upsertMessageOp,
 } from "../lib/db/chat";
 export {
   type ChatCompletionUsage,
@@ -361,10 +362,15 @@ export type {
   ServerToolsResponse,
   ToolMatchOptions,
   ToolMatchResult,
+  ToolSet,
 } from "../lib/tools";
 export {
   activatedToolSetNames,
+  buildConnectorGuidance,
+  buildDeniedToolsRider,
   clearServerToolsCache,
+  type ConnectorGuidance,
+  type ConnectorGuidanceInput,
   createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
@@ -375,7 +381,9 @@ export {
   getServerTools,
   getToolsChecksum,
   selectServerToolsForPrompt,
+  SERVER_TOOL_DEPENDENCY_SETS,
   shouldRefreshTools,
+  TOOL_CATALOG,
   toolSetSystemPrompts,
 } from "../lib/tools";
 
@@ -451,6 +459,15 @@ export {
   createCryptoPricePreProcessor,
 } from "../lib/chat/cryptoPriceClassifier";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
+export {
+  INFERENCE_ID_HEADER,
+  resumeStream,
+  STREAM_RESUMABLE_HEADER,
+  streamCancelPath,
+  StreamExpiredError,
+  streamReplayPath,
+} from "../lib/chat/resumeStream";
 export type {
   LlmTokenUsage,
   ModelCallEndEvent,
@@ -483,7 +500,7 @@ export type {
   StreamMetaEvent,
   StreamResumeHandle,
 } from "../lib/chat/toolLoop";
-export { INFERENCE_ID_HEADER, runToolLoop, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
+export { runToolLoop } from "../lib/chat/toolLoop";
 export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";

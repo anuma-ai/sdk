@@ -11,6 +11,7 @@
  * Tool catalogue (matches portal scope `connector:gmail:*`):
  * - `gmail_search_messages` — list message IDs + snippets matching a query
  * - `gmail_get_message`     — fetch headers + plaintext body for a single message
+ * - `gmail_create_draft`    — create a draft message in the user's mailbox (does not send)
  * - `gmail_send_message`    — send a message via the user's mailbox
  *
  * Error contract: when the upstream Gmail API or the portal mint endpoint
@@ -54,6 +55,9 @@ export interface GmailSendMessageArgs {
   cc?: string;
   bcc?: string;
 }
+
+/** A draft has the same fields as a sent message — it just isn't sent. */
+type GmailCreateDraftArgs = GmailSendMessageArgs;
 
 export interface GmailMessageSummary {
   id: string;
@@ -102,6 +106,12 @@ interface GmailSendResponse {
   id?: string;
   threadId?: string;
   labelIds?: string[];
+  error?: { code?: number; message?: string };
+}
+
+interface GmailDraftResponse {
+  id?: string;
+  message?: { id?: string; threadId?: string };
   error?: { code?: number; message?: string };
 }
 
@@ -392,6 +402,41 @@ async function sendGmailMessage(
   };
 }
 
+async function createGmailDraft(
+  accessToken: string,
+  args: GmailCreateDraftArgs
+): Promise<{ id: string; messageId: string; threadId: string } | string> {
+  const raw = encodeBase64Url(buildRfc822(args));
+  let response: Response;
+  try {
+    response = await gmailFetch(`${GMAIL_BASE_URL}/drafts`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: { raw } }),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return gmailTimeoutError("create draft");
+    }
+    throw err;
+  }
+  if (!response.ok) {
+    const connectorError = maybeConnectorError(response.status);
+    if (connectorError) return connectorError;
+    const body = await response.text();
+    return `Error: Failed to create Gmail draft (${response.status}): ${body}`;
+  }
+  const data = (await response.json()) as GmailDraftResponse;
+  return {
+    id: data.id ?? "",
+    messageId: data.message?.id ?? "",
+    threadId: data.message?.threadId ?? "",
+  };
+}
+
 function createGmailSearchTool(
   getToken: GmailTokenGetter,
   requestAccess: GmailRequestAccess
@@ -400,8 +445,13 @@ function createGmailSearchTool(
     type: "function",
     function: {
       name: "gmail_search_messages",
+      // Embedding-measured phrasing: "find an email from a specific sender,
+      // about a topic" mirrors how users actually ask ("find the email from
+      // John about the contract") — the previous syntax-focused description
+      // scored 0.528 on that prompt, just below the 0.53 selection floor, so
+      // the tool was never offered.
       description:
-        "Searches the user's Gmail mailbox using Gmail search syntax (the same syntax that works in the Gmail UI). Returns message IDs and thread IDs the model can pass to gmail_get_message.",
+        "Search the user's Gmail inbox for emails — find an email or message from a specific sender, about a topic, or in a date range. Uses Gmail search syntax (the same syntax as the Gmail UI). Returns message IDs and thread IDs the model can pass to gmail_get_message.",
       parameters: {
         type: "object",
         properties: {
@@ -521,12 +571,64 @@ function createGmailSendMessageTool(
   };
 }
 
+function createGmailDraftTool(
+  getToken: GmailTokenGetter,
+  requestAccess: GmailRequestAccess
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "gmail_create_draft",
+      description:
+        "Creates a draft email in the user's Gmail account (does not send it). Use when the user wants to prepare or draft a reply/email for review.",
+      parameters: {
+        type: "object",
+        properties: {
+          to: {
+            type: "string",
+            description: "Primary recipient email address.",
+          },
+          subject: {
+            type: "string",
+            description: "Email subject line.",
+          },
+          body: {
+            type: "string",
+            description: "Plaintext message body.",
+          },
+          cc: {
+            type: "string",
+            description: "Optional Cc recipients (comma-separated).",
+          },
+          bcc: {
+            type: "string",
+            description: "Optional Bcc recipients (comma-separated).",
+          },
+        },
+        required: ["to", "subject", "body"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      const resolved = await resolveToken(getToken, requestAccess);
+      if ("error" in resolved) return resolved.error;
+      const typed: GmailCreateDraftArgs = {
+        to: args.to as string,
+        subject: args.subject as string,
+        body: args.body as string,
+        cc: args.cc as string | undefined,
+        bcc: args.bcc as string | undefined,
+      };
+      return createGmailDraft(resolved.token, typed);
+    },
+  };
+}
+
 /**
  * Build the Gmail tool set wired to the supplied token getter.
  *
  * The returned record keys (`gmail_search_messages`, `gmail_get_message`,
- * `gmail_send_message`) match the underlying tool names so callers can
- * forward a subset by destructuring.
+ * `gmail_create_draft`, `gmail_send_message`) match the underlying tool names
+ * so callers can forward a subset by destructuring.
  *
  * @param getToken     Async getter — typically `createConnectorTokenGetter(portal, "gmail")`.
  * @param requestAccess Fallback called when `getToken()` returns null.
@@ -541,6 +643,7 @@ export function createGmailTools(
   return {
     gmail_search_messages: createGmailSearchTool(getToken, requestAccess),
     gmail_get_message: createGmailGetMessageTool(getToken, requestAccess),
+    gmail_create_draft: createGmailDraftTool(getToken, requestAccess),
     gmail_send_message: createGmailSendMessageTool(getToken, requestAccess),
   };
 }

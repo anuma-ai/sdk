@@ -2,7 +2,7 @@
 
 > **LlmapiModelPricing** = `object`
 
-Defined in: [src/client/types.gen.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#578)
+Defined in: [src/client/types.gen.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#572)
 
 Pricing contains the pricing structure for using this model
 
@@ -12,7 +12,7 @@ Pricing contains the pricing structure for using this model
 
 > `optional` **completion**: `string`
 
-Defined in: [src/client/types.gen.ts:579](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#579)
+Defined in: [src/client/types.gen.ts:573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#573)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:579](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **image**: `string`
 
-Defined in: [src/client/types.gen.ts:580](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#580)
+Defined in: [src/client/types.gen.ts:574](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#574)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:580](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **prompt**: `string`
 
-Defined in: [src/client/types.gen.ts:581](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#581)
+Defined in: [src/client/types.gen.ts:575](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#575)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:581](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **request**: `string`
 
-Defined in: [src/client/types.gen.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#582)
+Defined in: [src/client/types.gen.ts:576](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#576)

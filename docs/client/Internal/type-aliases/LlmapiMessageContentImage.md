@@ -2,7 +2,7 @@
 
 > **LlmapiMessageContentImage** = `object`
 
-Defined in: [src/client/types.gen.ts:468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#468)
+Defined in: [src/client/types.gen.ts:462](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#462)
 
 ImageURL is used when Type=image\_url or Type=input\_image
 
@@ -12,7 +12,7 @@ ImageURL is used when Type=image\_url or Type=input\_image
 
 > `optional` **detail**: `string`
 
-Defined in: [src/client/types.gen.ts:472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#472)
+Defined in: [src/client/types.gen.ts:466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#466)
 
 Detail is the OpenAI detail hint (auto|low|high)
 
@@ -22,6 +22,6 @@ Detail is the OpenAI detail hint (auto|low|high)
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#476)
+Defined in: [src/client/types.gen.ts:470](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#470)
 
 URL is the image URL or data URI

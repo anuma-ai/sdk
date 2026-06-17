@@ -1,7 +1,6 @@
 "use client";
 
-import { Q } from "@nozbe/watermelondb";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 import {
   type BaseUseSettingsOptions,
@@ -16,7 +15,6 @@ import {
 import {
   deleteUserPreferenceOp,
   getUserPreferenceOp,
-  migrateFromModelPreferencesOp,
   type PersonalitySettings,
   type ProfileUpdate,
   setUserPreferenceOp,
@@ -28,6 +26,11 @@ import {
   UserPreference,
   type UserPreferencesStorageOperationsContext,
 } from "../lib/db/userPreferences";
+import {
+  getUserSettingsSnapshot,
+  patchUserSettingsSnapshot,
+  subscribeUserSettings,
+} from "./userSettingsStore";
 
 /**
  * Options for useSettings hook (React version)
@@ -62,8 +65,11 @@ export interface UseSettingsResult extends BaseUseSettingsResult {
 /**
  * A React hook for managing user settings with automatic persistence using WatermelonDB.
  *
- * This hook provides methods to get, set, and delete user preferences,
- * with automatic loading and migration when a wallet address is provided.
+ * Multiple components calling this hook with the same `(database, walletAddress)`
+ * share a single underlying fetch and observe subscription — without this
+ * deduplication, every consumer would pay an extra worker-bridge round-trip
+ * per mount and trigger WatermelonDB's "raw object sent over the bridge"
+ * warning. See `userSettingsStore.ts` for the pool implementation.
  *
  * The hook supports both the legacy `modelPreference` API (deprecated) and
  * the new unified `userPreference` API that stores profile data, model preferences,
@@ -110,42 +116,34 @@ export interface UseSettingsResult extends BaseUseSettingsResult {
 export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   const { database, walletAddress } = options;
 
-  // Legacy state (deprecated)
-  const [modelPreference, setModelPreferenceState] = useState<StoredModelPreference | null>(null);
-
-  // New unified state
-  const [userPreference, setUserPreferenceState] = useState<StoredUserPreference | null>(null);
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Get collections
-  const modelPreferencesCollection = useMemo(
-    () => database.get<ModelPreference>("modelPreferences"),
-    [database]
+  // Subscribe to the shared pool. The pool guarantees one fetch + one observe
+  // per (database, walletAddress) regardless of how many hook instances mount.
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeUserSettings(database, walletAddress, listener),
+    [database, walletAddress]
   );
-
-  const userPreferencesCollection = useMemo(
-    () => database.get<UserPreference>("userPreferences"),
-    [database]
+  const getSnapshot = useCallback(
+    () => getUserSettingsSnapshot(database, walletAddress),
+    [database, walletAddress]
   );
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  // Legacy storage operations context (deprecated)
-  const legacyStorageCtx = useMemo<SettingsStorageOperationsContext>(
-    () => ({
-      database,
-      modelPreferencesCollection,
-    }),
-    [database, modelPreferencesCollection]
-  );
-
-  // New storage operations context
+  // Storage operation contexts for the mutation callbacks. Collection lookups
+  // are stable per-database in WatermelonDB so these are cheap.
   const storageCtx = useMemo<UserPreferencesStorageOperationsContext>(
     () => ({
       database,
-      userPreferencesCollection,
-      modelPreferencesCollection, // For migration
+      userPreferencesCollection: database.get<UserPreference>("userPreferences"),
+      modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
     }),
-    [database, userPreferencesCollection, modelPreferencesCollection]
+    [database]
+  );
+  const legacyStorageCtx = useMemo<SettingsStorageOperationsContext>(
+    () => ({
+      database,
+      modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
+    }),
+    [database]
   );
 
   // ===== Legacy API (deprecated) =====
@@ -177,9 +175,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await setModelPreferenceOp(legacyStorageCtx, address, models);
-        // Update local state if this is for the current wallet
         if (walletAddress && address === walletAddress) {
-          setModelPreferenceState(result);
+          patchUserSettingsSnapshot(database, walletAddress, { modelPreference: result });
         }
         return result;
       } catch (error) {
@@ -187,7 +184,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
-    [legacyStorageCtx, walletAddress]
+    [database, legacyStorageCtx, walletAddress]
   );
 
   /**
@@ -199,9 +196,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       try {
         if (!address) throw new Error("Wallet address is required");
         const deleted = await deleteModelPreferenceOp(legacyStorageCtx, address);
-        // Clear local state if this is for the current wallet
         if (deleted && walletAddress && address === walletAddress) {
-          setModelPreferenceState(null);
+          patchUserSettingsSnapshot(database, walletAddress, { modelPreference: null });
         }
         return deleted;
       } catch (error) {
@@ -209,7 +205,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
-    [legacyStorageCtx, walletAddress]
+    [database, legacyStorageCtx, walletAddress]
   );
 
   // ===== New Unified API =====
@@ -239,9 +235,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await setUserPreferenceOp(storageCtx, address, opts);
-        // Update local state if this is for the current wallet
         if (walletAddress && address === walletAddress) {
-          setUserPreferenceState(result);
+          patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
         }
         return result;
       } catch (error) {
@@ -249,7 +244,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
-    [storageCtx, walletAddress]
+    [database, storageCtx, walletAddress]
   );
 
   /**
@@ -260,9 +255,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await updateProfileOp(storageCtx, address, profile);
-        // Update local state if this is for the current wallet
         if (result && walletAddress && address === walletAddress) {
-          setUserPreferenceState(result);
+          patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
         }
         return result;
       } catch (error) {
@@ -270,7 +264,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
-    [storageCtx, walletAddress]
+    [database, storageCtx, walletAddress]
   );
 
   /**
@@ -284,9 +278,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await updatePersonalityOp(storageCtx, address, personality);
-        // Update local state if this is for the current wallet
         if (result && walletAddress && address === walletAddress) {
-          setUserPreferenceState(result);
+          patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
         }
         return result;
       } catch (error) {
@@ -294,7 +287,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
-    [storageCtx, walletAddress]
+    [database, storageCtx, walletAddress]
   );
 
   /**
@@ -305,9 +298,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await updateModelsOp(storageCtx, address, models);
-        // Update local state if this is for the current wallet
         if (result && walletAddress && address === walletAddress) {
-          setUserPreferenceState(result);
+          patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
         }
         return result;
       } catch (error) {
@@ -315,7 +307,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
-    [storageCtx, walletAddress]
+    [database, storageCtx, walletAddress]
   );
 
   /**
@@ -326,9 +318,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       try {
         if (!address) throw new Error("Wallet address is required");
         const deleted = await deleteUserPreferenceOp(storageCtx, address);
-        // Clear local state if this is for the current wallet
         if (deleted && walletAddress && address === walletAddress) {
-          setUserPreferenceState(null);
+          patchUserSettingsSnapshot(database, walletAddress, { userPreference: null });
         }
         return deleted;
       } catch (error) {
@@ -336,100 +327,19 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
-    [storageCtx, walletAddress]
+    [database, storageCtx, walletAddress]
   );
-
-  // Auto-load and migrate preference when wallet address is provided
-  useEffect(() => {
-    if (!walletAddress) {
-      setModelPreferenceState(null);
-      setUserPreferenceState(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadPreference = async () => {
-      setIsLoading(true);
-      try {
-        // First, try to get existing userPreference
-        let preference = await getUserPreferenceOp(storageCtx, walletAddress);
-
-        // If not found, try to migrate from old modelPreferences
-        if (!preference) {
-          preference = await migrateFromModelPreferencesOp(storageCtx, walletAddress);
-        }
-
-        if (!cancelled) {
-          setUserPreferenceState(preference);
-        }
-
-        // Also load legacy modelPreference for backward compat
-        const legacyPreference = await getModelPreferenceOp(legacyStorageCtx, walletAddress);
-        if (!cancelled) {
-          setModelPreferenceState(legacyPreference);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadPreference();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [walletAddress, storageCtx, legacyStorageCtx]);
-
-  // Subscribe to userPreferences changes for real-time updates
-  // Using observeWithColumns to detect changes to specific columns
-  useEffect(() => {
-    if (!walletAddress) return;
-
-    const subscription = userPreferencesCollection
-      .query(Q.where("wallet_address", walletAddress))
-      .observeWithColumns([
-        "nickname",
-        "occupation",
-        "description",
-        "models",
-        "personality",
-        "updated_at",
-      ])
-      .subscribe((records) => {
-        const record = records[0];
-        if (record) {
-          setUserPreferenceState({
-            uniqueId: record.id,
-            walletAddress: record.walletAddress,
-            nickname: record.nickname,
-            occupation: record.occupation,
-            description: record.description,
-            models: record.models,
-            personality: record.personality,
-            createdAt: record.createdAt,
-            updatedAt: record.updatedAt,
-          });
-        }
-      });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [walletAddress, userPreferencesCollection]);
 
   return {
     // Legacy API (deprecated)
-    modelPreference,
+    modelPreference: snapshot.modelPreference,
     getModelPreference,
     setModelPreference,
     deleteModelPreference,
 
     // New unified API
-    userPreference,
-    isLoading,
+    userPreference: snapshot.userPreference,
+    isLoading: snapshot.isLoading,
     getUserPreference,
     setUserPreference,
     updateProfile,

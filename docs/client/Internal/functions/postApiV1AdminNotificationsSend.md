@@ -2,7 +2,7 @@
 
 > **postApiV1AdminNotificationsSend**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminNotificationsSendData`](../type-aliases/PostApiV1AdminNotificationsSendData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminNotificationsSendResponses`](../type-aliases/PostApiV1AdminNotificationsSendResponses.md), [`PostApiV1AdminNotificationsSendErrors`](../type-aliases/PostApiV1AdminNotificationsSendErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#246)
+Defined in: [src/client/sdk.gen.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#290)
 
 Send test push notification (admin)
 

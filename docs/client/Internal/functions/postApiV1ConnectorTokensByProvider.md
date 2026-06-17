@@ -2,7 +2,7 @@
 
 > **postApiV1ConnectorTokensByProvider**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ConnectorTokensByProviderData`](../type-aliases/PostApiV1ConnectorTokensByProviderData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ConnectorTokensByProviderResponses`](../type-aliases/PostApiV1ConnectorTokensByProviderResponses.md), [`PostApiV1ConnectorTokensByProviderErrors`](../type-aliases/PostApiV1ConnectorTokensByProviderErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:764](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#764)
+Defined in: [src/client/sdk.gen.ts:784](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#784)
 
 Mint a short-lived upstream connector access token
 

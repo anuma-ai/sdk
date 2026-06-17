@@ -2,7 +2,7 @@
 
 > **HandlersCreateDeveloperAppRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1623)
+Defined in: [src/client/types.gen.ts:1704](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1704)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1623](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **allowed\_origins**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1627)
+Defined in: [src/client/types.gen.ts:1708](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1708)
 
 allowed CORS origins for API key requests
 
@@ -20,7 +20,7 @@ allowed CORS origins for API key requests
 
 > `optional` **app\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:1631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1631)
+Defined in: [src/client/types.gen.ts:1712](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1712)
 
 "standard" (default) or "pooled\_api"
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:1631](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **default\_user\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1635)
+Defined in: [src/client/types.gen.ts:1716](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1716)
 
 credits per new user (1 credit = $0.01)
 
@@ -40,4 +40,4 @@ credits per new user (1 credit = $0.01)
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1636)
+Defined in: [src/client/types.gen.ts:1717](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1717)

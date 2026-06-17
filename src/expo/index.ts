@@ -89,8 +89,16 @@
 
 // Resumable streaming primitives (resume handles are persisted by apps, so the
 // types and header constants are part of the public surface here).
+export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
+export {
+  INFERENCE_ID_HEADER,
+  resumeStream,
+  STREAM_RESUMABLE_HEADER,
+  streamCancelPath,
+  StreamExpiredError,
+  streamReplayPath,
+} from "../lib/chat/resumeStream";
 export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
-export { INFERENCE_ID_HEADER, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";
@@ -98,7 +106,9 @@ export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 export { useModels } from "../react/useModels";
 export { useChat } from "./useChat";
 export type {
+  ResumeStreamWithStorageResult,
   SendMessageWithStorageArgs,
+  SendMessageWithStorageDetachedResult,
   SendMessageWithStorageResult,
   UseChatStorageOptions,
   UseChatStorageResult,
@@ -153,6 +163,7 @@ export {
   type StoredConversation,
   type StoredMessage,
   type StoredMessageWithSimilarity,
+  upsertMessageOp,
 } from "../lib/db/chat";
 
 // Memory vault

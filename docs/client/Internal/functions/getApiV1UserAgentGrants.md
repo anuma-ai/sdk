@@ -2,7 +2,7 @@
 
 > **getApiV1UserAgentGrants**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UserAgentGrantsData`](../type-aliases/GetApiV1UserAgentGrantsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1UserAgentGrantsResponses`](../type-aliases/GetApiV1UserAgentGrantsResponses.md), [`GetApiV1UserAgentGrantsErrors`](../type-aliases/GetApiV1UserAgentGrantsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1645](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1645)
+Defined in: [src/client/sdk.gen.ts:1669](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1669)
 
 Lookup active agent grant (service key)
 

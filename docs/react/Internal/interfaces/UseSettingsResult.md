@@ -1,6 +1,6 @@
 # UseSettingsResult
 
-Defined in: [src/react/useSettings.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#42)
+Defined in: [src/react/useSettings.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#45)
 
 Extended result returned by useSettings hook (React version)
 Includes both legacy modelPreference API and new userPreference API
@@ -56,7 +56,7 @@ Defined in: [src/lib/db/settings/types.ts:38](https://github.com/anuma-ai/sdk/bl
 
 > **deleteUserPreference**: (`walletAddress`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useSettings.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#59)
+Defined in: [src/react/useSettings.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#62)
 
 **Parameters**
 
@@ -134,7 +134,7 @@ Defined in: [src/lib/db/settings/types.ts:33](https://github.com/anuma-ai/sdk/bl
 
 > **getUserPreference**: (`walletAddress`: `string`) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#45)
+Defined in: [src/react/useSettings.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#48)
 
 **Parameters**
 
@@ -248,7 +248,7 @@ Defined in: [src/lib/db/settings/types.ts:34](https://github.com/anuma-ai/sdk/bl
 
 > **setUserPreference**: (`walletAddress`: `string`, `options`: [`UpdateUserPreferenceOptions`](UpdateUserPreferenceOptions.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md)>
 
-Defined in: [src/react/useSettings.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#46)
+Defined in: [src/react/useSettings.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#49)
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Defined in: [src/react/useSettings.ts:46](https://github.com/anuma-ai/sdk/blob/m
 
 > **updateModels**: (`walletAddress`: `string`, `models`: `string`) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#58)
+Defined in: [src/react/useSettings.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#61)
 
 **Parameters**
 
@@ -346,7 +346,7 @@ Defined in: [src/react/useSettings.ts:58](https://github.com/anuma-ai/sdk/blob/m
 
 > **updatePersonality**: (`walletAddress`: `string`, `personality`: [`PersonalitySettings`](PersonalitySettings.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#54)
+Defined in: [src/react/useSettings.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#57)
 
 **Parameters**
 
@@ -395,7 +395,7 @@ Defined in: [src/react/useSettings.ts:54](https://github.com/anuma-ai/sdk/blob/m
 
 > **updateProfile**: (`walletAddress`: `string`, `profile`: [`ProfileUpdate`](ProfileUpdate.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#50)
+Defined in: [src/react/useSettings.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#53)
 
 **Parameters**
 
@@ -444,4 +444,4 @@ Defined in: [src/react/useSettings.ts:50](https://github.com/anuma-ai/sdk/blob/m
 
 > **userPreference**: [`StoredUserPreference`](StoredUserPreference.md) | `null`
 
-Defined in: [src/react/useSettings.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#44)
+Defined in: [src/react/useSettings.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#47)

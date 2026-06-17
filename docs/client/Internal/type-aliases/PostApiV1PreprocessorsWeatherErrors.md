@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsWeatherErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7937](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7937)
+Defined in: [src/client/types.gen.ts:8312](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8312)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7937](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7941](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7941)
+Defined in: [src/client/types.gen.ts:8316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8316)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7945](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7945)
+Defined in: [src/client/types.gen.ts:8320](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8320)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7949](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7949)
+Defined in: [src/client/types.gen.ts:8324](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8324)
 
 Bad Gateway
 
@@ -40,6 +40,6 @@ Bad Gateway
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7953](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7953)
+Defined in: [src/client/types.gen.ts:8328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8328)
 
 Service Unavailable

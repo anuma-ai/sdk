@@ -24,6 +24,7 @@ export {
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
   updateMessageFeedbackOp,
+  upsertMessageOp,
 } from "./operations";
 export { chatStorageMigrations, chatStorageSchema } from "./schema";
 export {

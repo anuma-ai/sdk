@@ -495,6 +495,80 @@ async function _deleteMessageOp(
   return uniqueId;
 }
 
+/**
+ * Encrypt the message option fields when an encryption context is present.
+ * Returns a flat record whose string fields may now be ciphertext.
+ */
+async function encryptMessageOptsIfNeeded(
+  ctx: StorageOperationsContext,
+  opts: CreateMessageOptions
+): Promise<Record<string, unknown>> {
+  return ctx.walletAddress && ctx.signMessage
+    ? await encryptMessageFields(opts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : (opts as unknown as Record<string, unknown>);
+}
+
+/**
+ * Write the (possibly encrypted) message fields onto a WatermelonDB message
+ * record. Shared by createMessageOp and upsertMessageOp so create and update
+ * stay byte-for-byte consistent — the single-assistant-row reconciliation
+ * invariant depends on an update writing exactly what a create would.
+ *
+ * `message_id` is intentionally NOT written here: it's assigned once at create
+ * time (sequential within the conversation) and must stay stable across an
+ * upsert update so a reconciled row keeps its original ordinal.
+ */
+function applyMessageFields(msg: Message, encryptedOpts: Record<string, unknown>): void {
+  msg._setRaw("conversation_id", encryptedOpts.conversationId as string);
+  msg._setRaw("role", encryptedOpts.role as string);
+  msg._setRaw("content", encryptedOpts.content as string);
+  if (encryptedOpts.model) msg._setRaw("model", encryptedOpts.model as string);
+  if (encryptedOpts.imageModel) msg._setRaw("image_model", encryptedOpts.imageModel as string);
+  if (encryptedOpts.files) msg._setRaw("files", JSON.stringify(encryptedOpts.files));
+  if (encryptedOpts.fileIds) msg._setRaw("file_ids", JSON.stringify(encryptedOpts.fileIds));
+  if (encryptedOpts.usage) msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
+  if (encryptedOpts.sources) {
+    // Sources may already be encrypted as a string, or may be an object to serialize
+    const sourcesValue =
+      typeof encryptedOpts.sources === "string"
+        ? encryptedOpts.sources
+        : JSON.stringify(encryptedOpts.sources);
+    msg._setRaw("sources", sourcesValue);
+  }
+  if (encryptedOpts.responseDuration !== undefined)
+    msg._setRaw("response_duration", encryptedOpts.responseDuration as number);
+  if (encryptedOpts.vector) {
+    // Vector may already be encrypted as a string, or may be an array to serialize
+    const vectorValue =
+      typeof encryptedOpts.vector === "string"
+        ? encryptedOpts.vector
+        : JSON.stringify(encryptedOpts.vector);
+    msg._setRaw("vector", vectorValue);
+  }
+  if (encryptedOpts.embeddingModel)
+    msg._setRaw("embedding_model", encryptedOpts.embeddingModel as string);
+  if (encryptedOpts.wasStopped) msg._setRaw("was_stopped", encryptedOpts.wasStopped as boolean);
+  if (encryptedOpts.error) msg._setRaw("error", encryptedOpts.error as string);
+  if (encryptedOpts.thoughtProcess) {
+    // ThoughtProcess may already be encrypted as a string, or may be an object to serialize
+    const tpValue =
+      typeof encryptedOpts.thoughtProcess === "string"
+        ? encryptedOpts.thoughtProcess
+        : JSON.stringify(encryptedOpts.thoughtProcess);
+    msg._setRaw("thought_process", tpValue);
+  }
+  if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking as string);
+  if (encryptedOpts.parentMessageId)
+    msg._setRaw("parent_message_id", encryptedOpts.parentMessageId as string);
+  if (encryptedOpts.toolCallEvents) {
+    const tceValue =
+      typeof encryptedOpts.toolCallEvents === "string"
+        ? encryptedOpts.toolCallEvents
+        : JSON.stringify(encryptedOpts.toolCallEvents);
+    msg._setRaw("tool_call_events", tceValue);
+  }
+}
+
 export async function createMessageOp(
   ctx: StorageOperationsContext,
   opts: CreateMessageOptions
@@ -505,15 +579,7 @@ export async function createMessageOp(
   // Encrypt message fields if encryption context is available.
   // encryptMessageFields returns Record<string, unknown> with the same keys as opts,
   // but string fields may now be encrypted strings.
-  const encryptedOpts: Record<string, unknown> =
-    ctx.walletAddress && ctx.signMessage
-      ? await encryptMessageFields(
-          opts,
-          ctx.walletAddress,
-          ctx.signMessage,
-          ctx.embeddedWalletSigner
-        )
-      : (opts as unknown as Record<string, unknown>);
+  const encryptedOpts = await encryptMessageOptsIfNeeded(ctx, opts);
 
   const created = await ctx.database.write(async () => {
     return await ctx.messagesCollection.create((msg) => {
@@ -521,58 +587,81 @@ export async function createMessageOp(
       // same React key as the consumer's in-flight streaming placeholder.
       if (opts.uniqueId) msg._raw.id = opts.uniqueId;
       msg._setRaw("message_id", messageId);
-      msg._setRaw("conversation_id", encryptedOpts.conversationId as string);
-      msg._setRaw("role", encryptedOpts.role as string);
-      msg._setRaw("content", encryptedOpts.content as string);
-      if (encryptedOpts.model) msg._setRaw("model", encryptedOpts.model as string);
-      if (encryptedOpts.imageModel) msg._setRaw("image_model", encryptedOpts.imageModel as string);
-      if (encryptedOpts.files) msg._setRaw("files", JSON.stringify(encryptedOpts.files));
-      if (encryptedOpts.fileIds) msg._setRaw("file_ids", JSON.stringify(encryptedOpts.fileIds));
-      if (encryptedOpts.usage) msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
-      if (encryptedOpts.sources) {
-        // Sources may already be encrypted as a string, or may be an object to serialize
-        const sourcesValue =
-          typeof encryptedOpts.sources === "string"
-            ? encryptedOpts.sources
-            : JSON.stringify(encryptedOpts.sources);
-        msg._setRaw("sources", sourcesValue);
-      }
-      if (encryptedOpts.responseDuration !== undefined)
-        msg._setRaw("response_duration", encryptedOpts.responseDuration as number);
-      if (encryptedOpts.vector) {
-        // Vector may already be encrypted as a string, or may be an array to serialize
-        const vectorValue =
-          typeof encryptedOpts.vector === "string"
-            ? encryptedOpts.vector
-            : JSON.stringify(encryptedOpts.vector);
-        msg._setRaw("vector", vectorValue);
-      }
-      if (encryptedOpts.embeddingModel)
-        msg._setRaw("embedding_model", encryptedOpts.embeddingModel as string);
-      if (encryptedOpts.wasStopped) msg._setRaw("was_stopped", encryptedOpts.wasStopped as boolean);
-      if (encryptedOpts.error) msg._setRaw("error", encryptedOpts.error as string);
-      if (encryptedOpts.thoughtProcess) {
-        // ThoughtProcess may already be encrypted as a string, or may be an object to serialize
-        const tpValue =
-          typeof encryptedOpts.thoughtProcess === "string"
-            ? encryptedOpts.thoughtProcess
-            : JSON.stringify(encryptedOpts.thoughtProcess);
-        msg._setRaw("thought_process", tpValue);
-      }
-      if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking as string);
-      if (encryptedOpts.parentMessageId)
-        msg._setRaw("parent_message_id", encryptedOpts.parentMessageId as string);
-      if (encryptedOpts.toolCallEvents) {
-        const tceValue =
-          typeof encryptedOpts.toolCallEvents === "string"
-            ? encryptedOpts.toolCallEvents
-            : JSON.stringify(encryptedOpts.toolCallEvents);
-        msg._setRaw("tool_call_events", tceValue);
-      }
+      applyMessageFields(msg, encryptedOpts);
     });
   });
 
   return messageToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * Create-or-update a message keyed by `opts.uniqueId`.
+ *
+ * This is the reconciliation primitive behind detach → resume. When a stream
+ * is detached, the SDK persists the partial assistant row under a caller-owned
+ * `assistantUniqueId`. A later resume completes that same row — it must NOT
+ * create a second assistant message. WatermelonDB's `create()` throws on a
+ * duplicate id, which is exactly the race this op resolves: it `find()`s the
+ * existing row and `update()`s it in place, or `create()`s it when absent.
+ *
+ * The result is the single-assistant-row invariant: for a given
+ * `assistantUniqueId`, abort-then-resume yields one row, updated, never two.
+ *
+ * `uniqueId` is required (it's the reconciliation key). On UPDATE the work is
+ * delegated to the `_updateMessageOp` machinery, whose `!== undefined` field
+ * guards are load-bearing for the clear: the resume path passes
+ * `wasStopped: false` to CLEAR an earlier interrupted finalization's stopped
+ * flag — `_updateMessageOp` honors the explicit `false`, where the create
+ * path's truthy guard would not. On CREATE (the first persist for an id) there
+ * is no prior flag to clear and the `was_stopped` column defaults false, so the
+ * asymmetry is invisible. `message_id` (the conversation ordinal) is left
+ * untouched by the update path.
+ */
+export async function upsertMessageOp(
+  ctx: StorageOperationsContext,
+  opts: CreateMessageOptions & { uniqueId: string }
+): Promise<StoredMessage> {
+  let existing: Message | null;
+  try {
+    existing = await ctx.messagesCollection.find(opts.uniqueId);
+  } catch {
+    existing = null;
+  }
+
+  // No row yet — this is the first persist for this id. Delegate to create so
+  // the sequential message_id and pre-allocated id logic stay in one place.
+  if (!existing) {
+    return createMessageOp(ctx, opts);
+  }
+
+  // Map the create-shaped opts onto an UpdateMessageOptions and reuse the
+  // shared update machinery so create/update field semantics never drift and
+  // explicit `wasStopped: false` / `error: null` clears land.
+  const updateOpts: UpdateMessageOptions = {
+    content: opts.content,
+    model: opts.model,
+    imageModel: opts.imageModel,
+    files: opts.files,
+    fileIds: opts.fileIds,
+    usage: opts.usage,
+    sources: opts.sources,
+    responseDuration: opts.responseDuration,
+    vector: opts.vector,
+    embeddingModel: opts.embeddingModel,
+    wasStopped: opts.wasStopped,
+    error: opts.error,
+    thoughtProcess: opts.thoughtProcess,
+    thinking: opts.thinking,
+    toolCallEvents: opts.toolCallEvents,
+  };
+  const updated = await _updateMessageOp(ctx, opts.uniqueId, updateOpts);
+  // _updateMessageOp only returns null when the row vanished between our find
+  // and its own — re-find via create would violate the single-row invariant,
+  // so surface the original row's stored form instead.
+  return (
+    updated ??
+    messageToStored(existing, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
 }
 
 export async function updateMessageEmbeddingOp(

@@ -2,7 +2,7 @@
 
 > **PostApiV1ResponsesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8002)
+Defined in: [src/client/types.gen.ts:8387](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8387)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8002](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`LlmapiResponseResponse`](LlmapiResponseResponse.md) | `string`
 
-Defined in: [src/client/types.gen.ts:8006](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8006)
+Defined in: [src/client/types.gen.ts:8391](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8391)
 
 OK

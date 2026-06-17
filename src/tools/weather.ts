@@ -180,8 +180,16 @@ export function createWeatherTool(
 
   return createDisplayTool(options, {
     name: "display_weather",
+    // This description does double duty: the model reads it when deciding to
+    // call the tool, AND the semantic tool-filter embeds it to decide whether
+    // the tool is offered at all. Weather vocabulary (rain, snow, temperature,
+    // forecast) must appear literally so weather-phrased prompts embed close —
+    // "Will it rain this weekend?" scored below the selection floor against
+    // the previous "ALWAYS call this tool…" phrasing and the tool never
+    // reached the model. Matches the tightened description the web app had
+    // been overriding this with.
     description:
-      "Fetches and displays current weather as a visual card in the chat. ALWAYS call this tool when the user asks about weather, even if you already have weather data from another tool. The card displays temperature, conditions, and a 7-day forecast visually — do NOT repeat this data in your text response. Just add a brief conversational comment if appropriate.",
+      "Display a weather forecast card showing current temperature, conditions, and a 7-day forecast for a city or location. Call this when the user asks about the weather, the current temperature, how hot, warm, or cold it is somewhere right now, rain, snow, wind, humidity, or climate conditions — even if you already have weather data from another tool. The card displays the data visually; do NOT repeat it in your text response. Just add a brief conversational comment if appropriate.",
     parameters: {
       type: "object",
       properties: {
