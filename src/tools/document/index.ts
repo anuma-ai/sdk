@@ -370,9 +370,10 @@ export function createDocumentTools({
             renderErr instanceof Error ? renderErr : undefined
           );
           return {
-            error: `The document source was saved but failed to render as a PDF: ${
+            documentId,
+            error: `The document "${documentId}" was saved but failed to render as a PDF: ${
               renderErr instanceof Error ? renderErr.message : String(renderErr)
-            }. Fix the source and call create_document again (it overwrites the same document).`,
+            }. Fix the source and call create_document again with the same documentId (it overwrites).`,
           };
         }
       } catch (err) {

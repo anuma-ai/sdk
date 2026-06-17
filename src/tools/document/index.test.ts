@@ -38,12 +38,14 @@ describe("createDocumentTools — render failure after persist", () => {
       },
     });
 
-    const res = (await createDocument.executor!({ source: BASE })) as Result;
+    const res = (await createDocument.executor!({ documentId: "nda", source: BASE })) as Result;
 
     // The source is on disk even though rendering failed...
-    expect(storage.getAll().get("document.jsx")).toBe(BASE);
-    // ...and the error makes the persisted state explicit, not "Failed to create".
+    expect(storage.getAll().get("nda.jsx")).toBe(BASE);
+    // ...and the error makes the persisted state explicit, not "Failed to create",
+    // and carries the documentId so the model can retry the right document.
     expect(res.success).toBeUndefined();
+    expect(res.documentId).toBe("nda");
     expect(res.error).toMatch(/saved but failed to render/);
     expect(res.error).toMatch(/render boom/);
   });
