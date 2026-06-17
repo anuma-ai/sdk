@@ -155,3 +155,4 @@ test/**/.output/
 test/tools/.runs/
 
 .claude/
+test/memory/src/vault/embeddings-cache.json

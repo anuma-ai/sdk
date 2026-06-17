@@ -70,6 +70,7 @@ const { values: args } = parseArgs({
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
     compare: { type: "string" },
+    "refresh-embeddings": { type: "boolean", default: false },
     ranker: { type: "string", default: "cosine" },
     "recency-alpha": { type: "string" },
     rerank: { type: "boolean", default: false },
@@ -255,6 +256,61 @@ function mean(values: number[]): number {
 
 function formatPct(value: number, width: number): string {
   return (value * 100).toFixed(1).padStart(width) + "%";
+}
+
+// ---------------------------------------------------------------------------
+// Frozen embedding cache
+//
+// The benchmark re-embeds the corpus + queries on every run, and the embedding
+// service is not byte-deterministic — the same `cosine` config drifts ~2pp
+// recall run-to-run. That noise swamps the small deltas between rankers, so a
+// cross-run A/B (run cosine, run fused, diff) conflates the ranker change with
+// embedding jitter. This cache pins vectors by text: once populated, every
+// config scores against identical embeddings, so differences are purely the
+// ranker. It's a local, regenerable fixture (gitignored, ~MBs); `model` is
+// stored so a model change auto-invalidates, and `--refresh-embeddings` forces
+// a rebuild.
+// ---------------------------------------------------------------------------
+const EMBEDDING_CACHE_PATH = "test/memory/src/vault/embeddings-cache.json";
+
+async function loadEmbeddingCache(model: string, refresh: boolean): Promise<Map<string, number[]>> {
+  if (refresh) return new Map();
+  try {
+    const raw = JSON.parse(await readFile(EMBEDDING_CACHE_PATH, "utf-8"));
+    if (raw.model !== model) {
+      console.error(
+        `  Embedding cache model changed (${raw.model} → ${model}); rebuilding from scratch.`
+      );
+      return new Map();
+    }
+    return new Map(Object.entries(raw.vectors as Record<string, number[]>));
+  } catch {
+    return new Map();
+  }
+}
+
+async function saveEmbeddingCache(cache: Map<string, number[]>, model: string): Promise<void> {
+  await writeFile(
+    EMBEDDING_CACHE_PATH,
+    JSON.stringify({ model, count: cache.size, vectors: Object.fromEntries(cache) })
+  );
+}
+
+/**
+ * Embed `texts`, reusing cached vectors and only calling the API for misses.
+ * Returns vectors aligned to `texts` and whether the cache gained entries.
+ */
+async function embedWithCache(
+  texts: string[],
+  options: EmbeddingOptions,
+  cache: Map<string, number[]>
+): Promise<{ vectors: number[][]; misses: number }> {
+  const missing = [...new Set(texts.filter((t) => !cache.has(t)))];
+  if (missing.length > 0) {
+    const fresh = await generateEmbeddings(missing, options);
+    missing.forEach((t, i) => cache.set(t, fresh[i]));
+  }
+  return { vectors: texts.map((t) => cache.get(t)!), misses: missing.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -457,10 +513,14 @@ async function main() {
     queries = queries.slice(0, maxCount);
   }
 
+  const cacheModel = embeddingOptions.model ?? "default";
+  const embeddingCache = await loadEmbeddingCache(cacheModel, !!args["refresh-embeddings"]);
+
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
-  const memoryEmbeddings = await generateEmbeddings(
+  const { vectors: memoryEmbeddings, misses: memMisses } = await embedWithCache(
     VAULT_MEMORIES.map((m) => m.content),
-    embeddingOptions
+    embeddingOptions,
+    embeddingCache
   );
   const embeddingMap = new Map<string, number[]>();
   for (let i = 0; i < VAULT_MEMORIES.length; i++) {
@@ -506,10 +566,24 @@ async function main() {
       subQueriesSeen.size > 0 ? ` + ${subQueriesSeen.size} sub-queries` : ""
     }...`
   );
-  const allEmbeddings = await generateEmbeddings(allQueryTexts, embeddingOptions);
+  const { vectors: allEmbeddings, misses: qMisses } = await embedWithCache(
+    allQueryTexts,
+    embeddingOptions,
+    embeddingCache
+  );
   const queryEmbeddingMap = new Map<string, number[]>();
   for (let i = 0; i < allQueryTexts.length; i++) {
     queryEmbeddingMap.set(allQueryTexts[i], allEmbeddings[i]);
+  }
+
+  // Persist any newly-embedded texts so subsequent config runs reuse identical
+  // vectors. A run with 0 misses is fully deterministic (frozen embeddings).
+  const totalMisses = memMisses + qMisses;
+  if (totalMisses > 0) {
+    await saveEmbeddingCache(embeddingCache, cacheModel);
+    console.log(`Embedding cache: ${totalMisses} new, ${embeddingCache.size} total (saved).`);
+  } else {
+    console.log(`Embedding cache: 0 misses — frozen vectors (deterministic run).`);
   }
 
   console.log(`Running ${queries.length} queries...\n`);
