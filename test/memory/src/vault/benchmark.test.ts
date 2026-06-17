@@ -37,7 +37,14 @@ import {
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import type { DecomposedQuery } from "../../../../src/lib/memoryVault/decomposeQuery.js";
 import { preloadReranker } from "../../../../src/lib/memory/reranker.js";
-import { precisionAtK, recallAtK, reciprocalRank, ndcgAtK } from "../metrics.js";
+import {
+  precisionAtK,
+  recallAtK,
+  reciprocalRank,
+  ndcgAtK,
+  bootstrapMeanCI,
+  pairedBootstrapDelta,
+} from "../metrics.js";
 import {
   VAULT_MEMORIES,
   BENCHMARK_QUERIES,
@@ -62,6 +69,7 @@ const { values: args } = parseArgs({
     max: { type: "string", short: "m" },
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
+    compare: { type: "string" },
     ranker: { type: "string", default: "cosine" },
     "recency-alpha": { type: "string" },
     rerank: { type: "boolean", default: false },
@@ -623,6 +631,67 @@ async function main() {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   // ---------------------------------------------------------------------------
+  // Significance (bootstrap CIs + optional paired comparison)
+  //
+  // Printed to stderr so it never pollutes --json stdout. A single run's mean
+  // is one draw from a noisy ~100-query sample; the CI shows how far it could
+  // wobble, and --compare runs a paired bootstrap against a prior run's
+  // per-query results to say whether a delta is real or noise.
+  // ---------------------------------------------------------------------------
+  const perQueryRecall = results.map((r) => r.recall);
+  const perQueryNdcg = results.map((r) => r.ndcg);
+  const recallCI = bootstrapMeanCI(perQueryRecall);
+  const ndcgCI = bootstrapMeanCI(perQueryNdcg);
+  const fmtCI = (c: { mean: number; lo: number; hi: number }) =>
+    `${(c.mean * 100).toFixed(1)}% [95% CI ${(c.lo * 100).toFixed(1)}–${(c.hi * 100).toFixed(1)}]`;
+  console.error(`\n  Significance (n=${results.length}, 95% bootstrap CI):`);
+  console.error(`    recall@k  ${fmtCI(recallCI)}`);
+  console.error(`    ndcg      ${fmtCI(ndcgCI)}`);
+
+  if (args.compare) {
+    try {
+      const cmpRaw = await readFile(args.compare, "utf-8");
+      const cmp = JSON.parse(cmpRaw);
+      const cmpRows: Array<{ query: string; recall: number; ndcg: number }> =
+        cmp.perQuery ?? cmp.details ?? [];
+      if (cmpRows.length === 0) {
+        console.error(
+          `\n  --compare: "${args.compare}" has no per-query data ` +
+            `(re-run the baseline with --json --output <file>). Skipping paired test.`
+        );
+      } else {
+        // Pair by query text — the stable per-query key across runs.
+        const cmpByQuery = new Map(cmpRows.map((r) => [r.query, r]));
+        const curRecall: number[] = [];
+        const baseRecall: number[] = [];
+        const curNdcg: number[] = [];
+        const baseNdcg: number[] = [];
+        for (const r of results) {
+          const b = cmpByQuery.get(r.query.query);
+          if (!b) continue;
+          curRecall.push(r.recall);
+          baseRecall.push(b.recall);
+          curNdcg.push(r.ndcg);
+          baseNdcg.push(b.ndcg);
+        }
+        const dRecall = pairedBootstrapDelta(curRecall, baseRecall);
+        const dNdcg = pairedBootstrapDelta(curNdcg, baseNdcg);
+        const verdict = (d: { mean: number; lo: number; hi: number; significant: boolean }) =>
+          `${d.mean >= 0 ? "+" : ""}${(d.mean * 100).toFixed(2)}pp ` +
+          `[95% CI ${(d.lo * 100).toFixed(2)}, ${(d.hi * 100).toFixed(2)}] ` +
+          `${d.significant ? "SIGNIFICANT" : "not significant (within noise)"}`;
+        console.error(
+          `\n  Paired comparison vs ${args.compare} (${curRecall.length} shared queries):`
+        );
+        console.error(`    Δ recall@k  ${verdict(dRecall)}`);
+        console.error(`    Δ ndcg      ${verdict(dNdcg)}`);
+      }
+    } catch (err) {
+      console.error(`\n  --compare failed to load "${args.compare}": ${err}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Baseline comparison
   // ---------------------------------------------------------------------------
 
@@ -665,6 +734,14 @@ async function main() {
 
     const output = {
       ...buildBaselinePayload(overall, byCategory, elapsed),
+      // Compact per-query rows so this file can be a --compare target for a
+      // paired bootstrap against a later run (keyed by query text).
+      perQuery: results.map((r) => ({
+        query: r.query.query,
+        recall: r.recall,
+        ndcg: r.ndcg,
+        reciprocalRank: r.reciprocalRank,
+      })),
       ...(args.verbose && {
         details: results.map((r) => ({
           query: r.query.query,

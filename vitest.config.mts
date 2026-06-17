@@ -10,6 +10,9 @@ export default defineConfig({
       // need PORTAL_API_KEY — include it in the fast unit suite so it
       // runs on every change instead of only with the heavy e2e suite.
       "test/tools/slide-generation/dumpFiles.test.ts",
+      // Pure, deterministic bootstrap-significance helpers for the memory
+      // eval harness — no PORTAL_API_KEY needed, so run in the fast unit suite.
+      "test/memory/src/metrics.test.ts",
     ],
     // Browser tests need Playwright's Chromium binary and ~3-5s per case.
     // Skipped by default so `vitest run` stays fast; run via
