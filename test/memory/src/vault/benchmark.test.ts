@@ -748,17 +748,25 @@ async function main() {
           curNdcg.push(r.ndcg);
           baseNdcg.push(b.ndcg);
         }
-        const dRecall = pairedBootstrapDelta(curRecall, baseRecall);
-        const dNdcg = pairedBootstrapDelta(curNdcg, baseNdcg);
-        const verdict = (d: { mean: number; lo: number; hi: number; significant: boolean }) =>
-          `${d.mean >= 0 ? "+" : ""}${(d.mean * 100).toFixed(2)}pp ` +
-          `[95% CI ${(d.lo * 100).toFixed(2)}, ${(d.hi * 100).toFixed(2)}] ` +
-          `${d.significant ? "SIGNIFICANT" : "not significant (within noise)"}`;
-        console.error(
-          `\n  Paired comparison vs ${args.compare} (${curRecall.length} shared queries):`
-        );
-        console.error(`    Δ recall@k  ${verdict(dRecall)}`);
-        console.error(`    Δ ndcg      ${verdict(dNdcg)}`);
+        if (curRecall.length === 0) {
+          console.error(
+            `\n  --compare: no query text overlaps with "${args.compare}" ` +
+              `(${cmpRows.length} prior rows, ${results.length} current) — skipping paired test. ` +
+              `Both runs must cover the same query set.`
+          );
+        } else {
+          const dRecall = pairedBootstrapDelta(curRecall, baseRecall);
+          const dNdcg = pairedBootstrapDelta(curNdcg, baseNdcg);
+          const verdict = (d: { mean: number; lo: number; hi: number; significant: boolean }) =>
+            `${d.mean >= 0 ? "+" : ""}${(d.mean * 100).toFixed(2)}pp ` +
+            `[95% CI ${(d.lo * 100).toFixed(2)}, ${(d.hi * 100).toFixed(2)}] ` +
+            `${d.significant ? "SIGNIFICANT" : "not significant (within noise)"}`;
+          console.error(
+            `\n  Paired comparison vs ${args.compare} (${curRecall.length} shared queries):`
+          );
+          console.error(`    Δ recall@k  ${verdict(dRecall)}`);
+          console.error(`    Δ ndcg      ${verdict(dNdcg)}`);
+        }
       }
     } catch (err) {
       console.error(`\n  --compare failed to load "${args.compare}": ${err}`);

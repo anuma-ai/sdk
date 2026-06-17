@@ -42,6 +42,10 @@ describe("pairedBootstrapDelta", () => {
     expect(d.significant).toBe(true);
   });
 
+  it("throws on mismatched array lengths rather than silently truncating", () => {
+    expect(() => pairedBootstrapDelta([1, 0, 1], [1, 0])).toThrow(/equal-length/);
+  });
+
   it("treats a tiny one-query difference on a noisy sample as not significant", () => {
     // 39 ties + a single +1 → mean +0.025, CI must include 0.
     const base = Array(39).fill(1);

@@ -228,7 +228,15 @@ export function pairedBootstrapDelta(
   opts: BootstrapOptions = {}
 ): PairedDelta {
   const { iterations = 2000, alpha = 0.05, seed = 12345 } = opts;
-  const n = Math.min(a.length, b.length);
+  // Paired test requires 1:1 correspondence; mismatched lengths are a caller
+  // bug (e.g. unaligned query sets). Fail loud rather than silently truncate
+  // to the shorter array, which would bias the delta and fabricate a verdict.
+  if (a.length !== b.length) {
+    throw new Error(
+      `pairedBootstrapDelta requires equal-length arrays (got ${a.length} and ${b.length})`
+    );
+  }
+  const n = a.length;
   if (n === 0) return { mean: 0, lo: 0, hi: 0, significant: false };
   const diffs = Array.from({ length: n }, (_, i) => a[i] - b[i]);
   const rng = mulberry32(seed);
