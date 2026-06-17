@@ -164,6 +164,14 @@ const SVG_TAGS = new Set<string>([
 ]);
 
 /**
+ * SVG primitives that are only meaningful inside an `<Svg>` subtree. Derived as
+ * `SVG_TAGS` minus the tags that are also valid in document body context
+ * (`Text`, `Tspan`). Placing any of these outside an `<Svg>` renders nothing in
+ * react-pdf, so we reject it — the mirror of the non-SVG-inside-`<Svg>` check.
+ */
+const SVG_ONLY_TAGS = new Set<string>([...SVG_TAGS].filter((t) => !TEXT_TAGS.has(t)));
+
+/**
  * Recognized react-pdf style keys for `style={{}}`. Mirrors the `Style` type
  * exported by `@react-pdf/stylesheet` (border / color / dimension / flexbox /
  * gap / layout / margin / padding / text / transform / svg / image groups).
@@ -607,6 +615,9 @@ function normalizeJsxText(raw: string): string {
  * and the SVG vocabulary only inside an `<Svg>` subtree.
  */
 function enforceStructure(node: DocNode, parent: DocNode | null, inSvg: boolean): void {
+  if (!inSvg && SVG_ONLY_TAGS.has(node.tag)) {
+    throw new DocDslError(`<${node.tag}> is an SVG element and may only appear inside an <Svg>.`);
+  }
   if (node.tag === "Document" && parent !== null) {
     throw new DocDslError("<Document> may only appear as the root element");
   }

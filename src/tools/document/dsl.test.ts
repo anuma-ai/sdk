@@ -62,6 +62,28 @@ describe("parseDocumentDsl — structural rules", () => {
       parseDocumentDsl(`<Document><Page><Image src="data:,">x</Image></Page></Document>`)
     ).toThrow(/must be self-closing/);
   });
+
+  it("rejects an SVG primitive outside <Svg>", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><View><Rect width={10} height={10} /></View></Page></Document>`
+      )
+    ).toThrow(/<Rect> is an SVG element and may only appear inside an <Svg>/);
+  });
+
+  it("rejects an SVG primitive nested in <Text>", () => {
+    expect(() =>
+      parseDocumentDsl(`<Document><Page><Text><Circle r={3} /></Text></Page></Document>`)
+    ).toThrow(/may only appear inside an <Svg>/);
+  });
+
+  it("accepts SVG primitives inside <Svg>", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Svg><Rect width={10} height={10} /></Svg></Page></Document>`
+      )
+    ).not.toThrow();
+  });
 });
 
 describe("parseDocumentDsl — security / literal-only", () => {
