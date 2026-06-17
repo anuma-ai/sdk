@@ -2,11 +2,11 @@
 
 > **postApiV1SubscriptionsUpgrade**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsUpgradeData`](../type-aliases/PostApiV1SubscriptionsUpgradeData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsUpgradeResponses`](../type-aliases/PostApiV1SubscriptionsUpgradeResponses.md), [`PostApiV1SubscriptionsUpgradeErrors`](../type-aliases/PostApiV1SubscriptionsUpgradeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1485](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1485)
+Defined in: [src/client/sdk.gen.ts:1561](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1561)
 
 Upgrade subscription
 
-Upgrades the current subscription to a higher tier or from monthly to annual billing by modifying the existing Stripe subscription in-place. No extra credits are allocated for the current month; the new plan's credit amount starts at the next billing cycle.
+Upgrades the current subscription to a higher tier or from monthly to annual billing by modifying the existing Stripe subscription in-place. No extra credits are allocated for the current month; the new plan's credit amount starts at the next billing cycle. Requesting the plan the user is already on (same tier and interval) is an idempotent no-op that returns 200, so a stale client that re-submits an upgrade does not error.
 
 ## Type Parameters
 

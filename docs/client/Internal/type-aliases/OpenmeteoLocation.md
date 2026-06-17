@@ -2,7 +2,7 @@
 
 > **OpenmeteoLocation** = `object`
 
-Defined in: [src/client/types.gen.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#125)
+Defined in: [src/client/types.gen.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#119)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:125](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **admin1**: `string`
 
-Defined in: [src/client/types.gen.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#126)
+Defined in: [src/client/types.gen.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#120)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:126](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **country**: `string`
 
-Defined in: [src/client/types.gen.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#127)
+Defined in: [src/client/types.gen.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#121)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:127](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **latitude**: `number`
 
-Defined in: [src/client/types.gen.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#128)
+Defined in: [src/client/types.gen.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#122)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:128](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **longitude**: `number`
 
-Defined in: [src/client/types.gen.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#129)
+Defined in: [src/client/types.gen.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#123)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:129](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#130)
+Defined in: [src/client/types.gen.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#124)

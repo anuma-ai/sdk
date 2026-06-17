@@ -2,7 +2,7 @@
 
 > **OpenmeteoDayData** = `object`
 
-Defined in: [src/client/types.gen.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#110)
+Defined in: [src/client/types.gen.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#104)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:110](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **date**: `string`
 
-Defined in: [src/client/types.gen.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#111)
+Defined in: [src/client/types.gen.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#105)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:111](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **precipitationMm**: `number`
 
-Defined in: [src/client/types.gen.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#112)
+Defined in: [src/client/types.gen.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#106)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:112](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tempMaxC**: `number`
 
-Defined in: [src/client/types.gen.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#113)
+Defined in: [src/client/types.gen.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#107)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:113](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tempMinC**: `number`
 
-Defined in: [src/client/types.gen.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#114)
+Defined in: [src/client/types.gen.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#108)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:114](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **weatherCode**: `number`
 
-Defined in: [src/client/types.gen.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#115)
+Defined in: [src/client/types.gen.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#109)

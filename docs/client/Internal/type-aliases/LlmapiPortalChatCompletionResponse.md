@@ -2,7 +2,7 @@
 
 > **LlmapiPortalChatCompletionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:645](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#645)
+Defined in: [src/client/types.gen.ts:639](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#639)
 
 Portal carries non-OpenAI fields scoped to the portal under a single key so they don't
 collide with the embedded SDK type's custom JSON marshaling.
@@ -13,7 +13,7 @@ collide with the embedded SDK type's custom JSON marshaling.
 
 > `optional` **client\_injected\_tools**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#649)
+Defined in: [src/client/types.gen.ts:643](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#643)
 
 ClientInjectedTools are tool names the client provided in the original request.
 
@@ -23,7 +23,7 @@ ClientInjectedTools are tool names the client provided in the original request.
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:653](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#653)
+Defined in: [src/client/types.gen.ts:647](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#647)
 
 CostMicroUSD is what we charge the user (today identical to what we paid the provider).
 
@@ -33,7 +33,7 @@ CostMicroUSD is what we charge the user (today identical to what we paid the pro
 
 > `optional` **credits\_used**: `number`
 
-Defined in: [src/client/types.gen.ts:657](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#657)
+Defined in: [src/client/types.gen.ts:651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#651)
 
 CreditsUsed is CostMicroUSD in credits.
 
@@ -43,7 +43,7 @@ CreditsUsed is CostMicroUSD in credits.
 
 > `optional` **extra\_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:658](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#658)
+Defined in: [src/client/types.gen.ts:652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#652)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [src/client/types.gen.ts:658](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **image\_model**: `string`
 
-Defined in: [src/client/types.gen.ts:664](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#664)
+Defined in: [src/client/types.gen.ts:658](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#658)
 
 ImageModel is set when an image generation tool was called during the request.
 This allows the client to detect that the response contains generated images
@@ -63,7 +63,7 @@ and render them appropriately, even when the orchestrating model is a text model
 
 > `optional` **inference\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#668)
+Defined in: [src/client/types.gen.ts:662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#662)
 
 InferenceID is the unique identifier for this inference request.
 
@@ -73,7 +73,7 @@ InferenceID is the unique identifier for this inference request.
 
 > `optional` **init\_completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:672](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#672)
+Defined in: [src/client/types.gen.ts:666](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#666)
 
 InitCompletionTokens are the completion tokens from the first LLM call (before the MCP tool loop).
 
@@ -83,7 +83,7 @@ InitCompletionTokens are the completion tokens from the first LLM call (before t
 
 > `optional` **init\_prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:676](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#676)
+Defined in: [src/client/types.gen.ts:670](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#670)
 
 InitPromptTokens are the prompt tokens from the first LLM call (before the MCP tool loop).
 
@@ -93,7 +93,7 @@ InitPromptTokens are the prompt tokens from the first LLM call (before the MCP t
 
 > `optional` **messages**: [`OpenaiChatCompletionMessageParamUnion`](OpenaiChatCompletionMessageParamUnion.md)\[]
 
-Defined in: [src/client/types.gen.ts:683](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#683)
+Defined in: [src/client/types.gen.ts:677](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#677)
 
 Messages contains the full conversation history when local tools need execution.
 This is populated when the model requests tools that are not MCP tools (client-side tools).
@@ -106,7 +106,7 @@ plus the tool results appended.
 
 > `optional` **portal\_injected\_tools**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:687](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#687)
+Defined in: [src/client/types.gen.ts:681](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#681)
 
 PortalInjectedTools are tool names the portal's classifier added to the request.
 
@@ -116,7 +116,7 @@ PortalInjectedTools are tool names the portal's classifier added to the request.
 
 > `optional` **pricing\_source**: `string`
 
-Defined in: [src/client/types.gen.ts:691](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#691)
+Defined in: [src/client/types.gen.ts:685](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#685)
 
 PricingSource is which lookup calculated the costs.
 
@@ -126,7 +126,7 @@ PricingSource is which lookup calculated the costs.
 
 > `optional` **provider\_cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:695](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#695)
+Defined in: [src/client/types.gen.ts:689](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#689)
 
 ProviderCostMicroUSD is what we paid the provider.
 
@@ -136,7 +136,7 @@ ProviderCostMicroUSD is what we paid the provider.
 
 > `optional` **tool\_call\_events**: [`LlmapiToolCallEvent`](LlmapiToolCallEvent.md)\[]
 
-Defined in: [src/client/types.gen.ts:699](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#699)
+Defined in: [src/client/types.gen.ts:693](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#693)
 
 ToolCallEvents is an array of tool call events.
 
@@ -146,7 +146,7 @@ ToolCallEvents is an array of tool call events.
 
 > `optional` **tool\_cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:703](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#703)
+Defined in: [src/client/types.gen.ts:697](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#697)
 
 ToolCostMicroUSD is the aggregate cost from MCP tool calls (subset of CostMicroUSD).
 
@@ -156,6 +156,6 @@ ToolCostMicroUSD is the aggregate cost from MCP tool calls (subset of CostMicroU
 
 > `optional` **tools\_checksum**: `string`
 
-Defined in: [src/client/types.gen.ts:707](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#707)
+Defined in: [src/client/types.gen.ts:701](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#701)
 
 ToolsChecksum is the checksum of the tool schemas used by the AI Portal.

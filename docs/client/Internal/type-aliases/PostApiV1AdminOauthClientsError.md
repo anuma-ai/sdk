@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminOauthClientsError** = [`PostApiV1AdminOauthClientsErrors`](PostApiV1AdminOauthClientsErrors.md)\[keyof [`PostApiV1AdminOauthClientsErrors`](PostApiV1AdminOauthClientsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:4761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4761)
+Defined in: [src/client/types.gen.ts:5027](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5027)

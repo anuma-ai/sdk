@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderRefreshError** = [`PostAuthOauthByProviderRefreshErrors`](PostAuthOauthByProviderRefreshErrors.md)\[keyof [`PostAuthOauthByProviderRefreshErrors`](PostAuthOauthByProviderRefreshErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9142)
+Defined in: [src/client/types.gen.ts:9487](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9487)

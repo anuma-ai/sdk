@@ -2,7 +2,7 @@
 
 > **SharedChatModel** = `string`
 
-Defined in: [src/client/types.gen.ts:3820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3820)
+Defined in: [src/client/types.gen.ts:3954](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3954)
 
 Model ID used to generate the response, like `gpt-4o` or `o3`. OpenAI offers a
 wide range of models with different capabilities, performance characteristics,
