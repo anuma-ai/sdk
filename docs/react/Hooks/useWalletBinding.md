@@ -2,7 +2,7 @@
 
 > **useWalletBinding**(`options`: `object`): [`UseWalletBindingResult`](../Internal/type-aliases/UseWalletBindingResult.md)
 
-Defined in: src/react/useWalletBinding.ts:93
+Defined in: [src/react/useWalletBinding.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#93)
 
 React hook for managing ZETA wallet bindings and reading staked-based Pro status.
 Provides methods to list bound wallets, request a binding nonce, bind a wallet

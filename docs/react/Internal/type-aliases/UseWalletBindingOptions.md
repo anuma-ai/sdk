@@ -2,7 +2,7 @@
 
 > **UseWalletBindingOptions** = `object`
 
-Defined in: src/react/useWalletBinding.ts:23
+Defined in: [src/react/useWalletBinding.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#23)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/react/useWalletBinding.ts:23
 
 > `optional` **autoFetch**: `boolean`
 
-Defined in: src/react/useWalletBinding.ts:35
+Defined in: [src/react/useWalletBinding.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#35)
 
 Whether to fetch the bound wallets automatically on mount (default: true)
 
@@ -20,7 +20,7 @@ Whether to fetch the bound wallets automatically on mount (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: src/react/useWalletBinding.ts:31
+Defined in: [src/react/useWalletBinding.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#31)
 
 Optional base URL for the API requests.
 
@@ -30,7 +30,7 @@ Optional base URL for the API requests.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: src/react/useWalletBinding.ts:27
+Defined in: [src/react/useWalletBinding.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#27)
 
 Custom function to get auth token for API calls
 
@@ -44,7 +44,7 @@ Custom function to get auth token for API calls
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: src/react/useWalletBinding.ts:39
+Defined in: [src/react/useWalletBinding.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#39)
 
 Optional callback for error handling
 
