@@ -5,8 +5,9 @@ import { createGmailTools } from "../../tools/gmail.js";
 import { createChatTools as createCalendarTools } from "../../tools/googleCalendar.js";
 import { createDriveTools } from "../../tools/googleDrive.js";
 import { createNotionTools } from "../../tools/notion.js";
+import type { ToolConfig } from "../chat/useChat/types.js";
 import { BUILT_IN_TOOL_SETS } from "./serverTools.js";
-import { buildDeniedToolsRider, TOOL_CATALOG } from "./toolCatalog.js";
+import { buildConnectorGuidance, buildDeniedToolsRider, TOOL_CATALOG } from "./toolCatalog.js";
 
 const CONNECTOR_SET_NAMES = ["gmail", "google-calendar", "google-drive", "notion", "github"];
 
@@ -100,5 +101,114 @@ describe("buildDeniedToolsRider", () => {
     const rider = buildDeniedToolsRider(["nope", "gmail_send_message"]);
     expect(rider).toContain("Send an email");
     expect(rider).not.toContain("nope");
+  });
+});
+
+function fakeTool(name: string): ToolConfig {
+  return { type: "function", function: { name, description: "", parameters: {} } };
+}
+
+function names(tools: ToolConfig[]): string[] {
+  return tools.map((t) => (t as { function: { name: string } }).function.name);
+}
+
+const ALL_PROVIDERS = ["gmail", "gcalendar", "gdrive", "notion", "github"];
+
+describe("buildConnectorGuidance", () => {
+  test("removes denied tools from the returned set", () => {
+    const { tools } = buildConnectorGuidance({
+      tools: [fakeTool("gmail_search_messages"), fakeTool("gmail_send_message")],
+      connectedProviders: ["gmail"],
+      deniedToolNames: ["gmail_send_message"],
+    });
+    expect(names(tools)).toEqual(["gmail_search_messages"]);
+  });
+
+  test("state 1: names denied labels under the right connector", () => {
+    const { rider } = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: ["gmail"],
+      deniedToolNames: ["gmail_send_message", "gmail_create_draft"],
+    });
+    expect(rider).toContain("On Gmail, these are turned off: Draft a reply, Send an email.");
+    expect(rider).toContain("re-enable it in Connected Apps");
+  });
+
+  test("state 3: lists catalog connectors the user has not connected", () => {
+    const { rider } = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: ["gmail"],
+      deniedToolNames: [],
+    });
+    expect(rider).toContain("Not connected: Calendar, Drive, GitHub, Notion.");
+    expect(rider).toContain("connect them in Connected Apps");
+  });
+
+  test("denied tool on an unconnected provider is not double-reported as turned off", () => {
+    const { rider } = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: ["gmail"],
+      deniedToolNames: ["notion-search"],
+    });
+    // Notion isn't connected → it belongs in state 3, not state 1.
+    expect(rider).not.toContain("On Notion, these are turned off");
+    expect(rider).toContain("Not connected:");
+    expect(rider).toContain("Notion");
+  });
+
+  test("produces identical rider regardless of input order", () => {
+    const a = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: ["gmail", "notion"],
+      deniedToolNames: ["gmail_send_message", "notion-update-page"],
+    }).rider;
+    const b = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: ["notion", "gmail"],
+      deniedToolNames: ["notion-update-page", "gmail_send_message"],
+    }).rider;
+    expect(a).toBe(b);
+  });
+
+  test("nothing connected → state-3 list only, no general line", () => {
+    const { rider } = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: [],
+      deniedToolNames: [],
+    });
+    // Every catalog provider is unconnected, so state 3 is actionable; the
+    // general line is suppressed because there's no connected app to disown.
+    expect(rider).toBe(
+      "Not connected: Calendar, Drive, GitHub, Gmail, Notion. If the user asks to use them, tell them to connect them in Connected Apps."
+    );
+  });
+
+  test("every provider connected and nothing denied → empty rider", () => {
+    const { rider } = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: ALL_PROVIDERS,
+      deniedToolNames: [],
+    });
+    expect(rider).toBe("");
+  });
+
+  test("general line rides along when a denied section is present", () => {
+    const { rider } = buildConnectorGuidance({
+      tools: [],
+      connectedProviders: ALL_PROVIDERS,
+      deniedToolNames: ["gmail_send_message"],
+    });
+    expect(rider).toContain("On Gmail, these are turned off: Send an email.");
+    expect(rider).toContain("Never tell the user you lack access to a connected app");
+  });
+
+  test("a denied name not in the catalog is skipped safely", () => {
+    const { tools, rider } = buildConnectorGuidance({
+      tools: [fakeTool("gmail_search_messages")],
+      connectedProviders: ALL_PROVIDERS,
+      deniedToolNames: ["totally_made_up_tool"],
+    });
+    expect(names(tools)).toEqual(["gmail_search_messages"]);
+    expect(rider).not.toContain("turned off");
   });
 });

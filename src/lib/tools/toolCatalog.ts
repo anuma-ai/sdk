@@ -27,6 +27,8 @@
  * sensible.
  */
 
+import type { ToolConfig } from "../chat/useChat/types.js";
+
 interface ToolCatalogEntry {
   label: string;
   /** Canonical logical-provider id (e.g. "gmail", "gcalendar", "gdrive"). */
@@ -131,4 +133,128 @@ export function buildDeniedToolsRider(deniedToolNames: Iterable<string>): string
     groups,
     "If the user asks you to use one of these, do not attempt it. Tell them the specific capability is turned off and that they can re-enable that exact tool in their Connected Apps settings.",
   ].join("\n");
+}
+
+/**
+ * Read a tool's name. `ToolConfig` extends the loosely-typed generated
+ * `LlmapiChatCompletionTool` (`{ [key: string]: unknown }`), so the shape isn't
+ * statically known — handle both Completions (`function.name`) and Responses
+ * (top-level `name`) formats, mirroring `getToolName` in useChat/utils.
+ */
+function toolName(tool: ToolConfig): string | undefined {
+  const record = tool as Record<string, unknown>;
+  const func = record.function as Record<string, unknown> | undefined;
+  if (typeof func?.name === "string") return func.name;
+  if (typeof record.name === "string") return record.name;
+  return undefined;
+}
+
+/** All distinct connector display names known to the catalog. */
+function catalogConnectorsByProvider(): Map<string, string> {
+  const byProvider = new Map<string, string>();
+  for (const entry of Object.values(TOOL_CATALOG)) {
+    byProvider.set(entry.provider, entry.connector);
+  }
+  return byProvider;
+}
+
+export interface ConnectorGuidanceInput {
+  /** The candidate tools for this turn (the final assembled set). */
+  tools: ToolConfig[];
+  /**
+   * Logical provider codes connected for the user — the same codes used as
+   * {@link TOOL_CATALOG} `provider` values (e.g. "gmail", "gcalendar",
+   * "gdrive", "notion", "github", "dropbox").
+   */
+  connectedProviders: string[];
+  /** Exact SDK tool-name strings the user turned off ({@link TOOL_CATALOG} keys). */
+  deniedToolNames: string[];
+}
+
+export interface ConnectorGuidance {
+  /** `input.tools` with any denied tool removed (the helper owns filtering). */
+  tools: ToolConfig[];
+  /** Compact system-prompt block, or "" when there's nothing actionable. */
+  rider: string;
+}
+
+/**
+ * Single helper both web and mobile use so neither re-implements connector
+ * tool filtering or the accuracy messaging. It enforces denial (drops denied
+ * tools from the turn's toolset) AND builds a compact rider letting the model
+ * give an accurate message for each connector state instead of a generic
+ * "I don't have access":
+ *
+ * 1. Toggled off — connected provider whose tool is denied → "turned off,
+ *    re-enable in Connected Apps".
+ * 2a. Pruned / 2b. no tool — covered by a general line telling the model not to
+ *    claim no-access for a connected app. It rides along only when another
+ *    section is present (on its own it isn't actionable).
+ * 3. Not connected — catalog provider absent from `connectedProviders` →
+ *    "connect it in Connected Apps".
+ *
+ * State 3 is derived from {@link TOOL_CATALOG}'s provider set — providers with
+ * no tools (e.g. Disconnect-only Dropbox) aren't actionable via tools, so they
+ * aren't surfaced here. Everything is sorted alphabetically for deterministic
+ * output (no cache / snapshot churn). `rider` is "" when nothing is actionable
+ * (every catalog provider connected and nothing denied).
+ */
+export function buildConnectorGuidance(input: ConnectorGuidanceInput): ConnectorGuidance {
+  const denied = new Set(input.deniedToolNames);
+  const connected = new Set(input.connectedProviders);
+  const tools = input.tools.filter((tool) => {
+    const name = toolName(tool);
+    return name === undefined || !denied.has(name);
+  });
+
+  // State 1: denied tools on CONNECTED providers, grouped by connector. A denied
+  // tool on a not-connected provider is a state-3 concern, not state 1.
+  const deniedByConnector = new Map<string, string[]>();
+  for (const name of denied) {
+    const entry = TOOL_CATALOG[name];
+    if (!entry || !connected.has(entry.provider)) continue;
+    const labels = deniedByConnector.get(entry.connector) ?? [];
+    labels.push(entry.label);
+    deniedByConnector.set(entry.connector, labels);
+  }
+
+  // State 3: catalog providers the user hasn't connected, by display name.
+  const unconnected = new Set<string>();
+  for (const [provider, connector] of catalogConnectorsByProvider()) {
+    if (!connected.has(provider)) unconnected.add(connector);
+  }
+
+  const sections: string[] = [];
+
+  if (deniedByConnector.size > 0) {
+    const groups = [...deniedByConnector.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(
+        ([connector, labels]) =>
+          `On ${connector}, these are turned off: ${[...labels].sort((a, b) => a.localeCompare(b)).join(", ")}.`
+      )
+      .join("\n");
+    sections.push(
+      `${groups}\nIf the user asks to use one of these, tell them it's turned off and they can re-enable it in Connected Apps.`
+    );
+  }
+
+  if (unconnected.size > 0) {
+    const list = [...unconnected].sort((a, b) => a.localeCompare(b)).join(", ");
+    sections.push(
+      `Not connected: ${list}. If the user asks to use them, tell them to connect them in Connected Apps.`
+    );
+  }
+
+  // General line (states 2a + 2b) rides along only when there's already an
+  // actionable section AND the user has a connected app the model could
+  // mistakenly disown. On its own it's not actionable, so when nothing else
+  // fires (every catalog provider connected, nothing denied) the rider is "".
+  if (sections.length > 0 && connected.size > 0) {
+    sections.push(
+      "Never tell the user you lack access to a connected app; if you can't find a tool for a connected app's request, say that specific capability isn't available yet rather than that the app isn't connected."
+    );
+  }
+
+  return { tools, rider: sections.join("\n\n") };
 }

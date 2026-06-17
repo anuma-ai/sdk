@@ -366,8 +366,11 @@ export type {
 } from "../lib/tools";
 export {
   activatedToolSetNames,
+  buildConnectorGuidance,
   buildDeniedToolsRider,
   clearServerToolsCache,
+  type ConnectorGuidance,
+  type ConnectorGuidanceInput,
   createServerToolsFilter,
   DEFAULT_CACHE_EXPIRATION_MS,
   DEFAULT_EXCLUDED_SERVER_TOOLS,

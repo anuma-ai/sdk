@@ -741,8 +741,11 @@ export {
 export {
   activatedToolSetNames,
   applyToolSets,
+  buildConnectorGuidance,
   buildDeniedToolsRider,
   BUILT_IN_TOOL_SETS,
+  type ConnectorGuidance,
+  type ConnectorGuidanceInput,
   createServerToolsFilter,
   type CreateServerToolsFilterOptions,
   DEFAULT_EXCLUDED_SERVER_TOOLS,
