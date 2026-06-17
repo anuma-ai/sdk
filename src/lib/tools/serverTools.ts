@@ -950,7 +950,12 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   // no systemPrompt rider — per-set prompt guidance is a follow-up.
   {
     name: "gmail",
-    members: ["gmail_search_messages", "gmail_get_message", "gmail_send_message"],
+    members: [
+      "gmail_search_messages",
+      "gmail_get_message",
+      "gmail_create_draft",
+      "gmail_send_message",
+    ],
     anchors: ["gmail_search_messages", "gmail_send_message"],
     anchorMinSimilarity: 0.53,
   },

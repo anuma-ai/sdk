@@ -91,7 +91,10 @@ describe("activatedToolSetNames", () => {
 
 describe("connector tool sets (#587)", () => {
   it.each([
-    ["gmail", ["gmail_search_messages", "gmail_get_message", "gmail_send_message"]],
+    [
+      "gmail",
+      ["gmail_search_messages", "gmail_get_message", "gmail_create_draft", "gmail_send_message"],
+    ],
     [
       "google-calendar",
       [
