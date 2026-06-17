@@ -77,6 +77,14 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
     provider: "notion",
     connector: "Notion",
   },
+  "notion-create-comment": { label: "Add a comment", provider: "notion", connector: "Notion" },
+  "notion-get-comments": { label: "Read comments", provider: "notion", connector: "Notion" },
+  "notion-get-users": {
+    label: "List workspace members",
+    provider: "notion",
+    connector: "Notion",
+  },
+  "notion-get-teams": { label: "List teamspaces", provider: "notion", connector: "Notion" },
 
   // GitHub (src/tools/github.ts)
   github_api: { label: "Use GitHub", provider: "github", connector: "GitHub" },

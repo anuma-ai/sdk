@@ -37,6 +37,14 @@ describe("TOOL_CATALOG drift guard", () => {
     }
   });
 
+  test("every real connector tool has a catalog entry", () => {
+    const realNames = realConnectorToolNames();
+    expect(realNames.size).toBeGreaterThan(0);
+    for (const name of realNames) {
+      expect(TOOL_CATALOG[name], `real tool "${name}" is missing from TOOL_CATALOG`).toBeDefined();
+    }
+  });
+
   test("every connector tool-set member has a catalog entry", () => {
     const setMembers = BUILT_IN_TOOL_SETS.filter((set) =>
       CONNECTOR_SET_NAMES.includes(set.name)
