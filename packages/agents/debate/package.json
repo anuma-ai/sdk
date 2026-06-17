@@ -1,0 +1,46 @@
+{
+  "name": "@anuma/agent-debate",
+  "version": "1.0.0",
+  "description": "Council Debate multi-model adversarial agent for Anuma SDK",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "pnpm build",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anuma-ai/sdk.git",
+    "directory": "packages/agents/debate"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/anuma-ai/sdk/issues"
+  },
+  "homepage": "https://github.com/anuma-ai/sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@anuma/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@anuma/sdk": "workspace:*",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.8"
+  }
+}
