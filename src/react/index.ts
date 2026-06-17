@@ -508,6 +508,8 @@ export type {
 export { usePhoneCalls } from "./usePhoneCalls";
 export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
 export { useSubscription } from "./useSubscription";
+export type { UseWalletBindingOptions, UseWalletBindingResult } from "./useWalletBinding";
+export { useWalletBinding } from "./useWalletBinding";
 
 // Memory engine (semantic search over past messages)
 export type {
