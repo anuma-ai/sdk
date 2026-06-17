@@ -78,6 +78,9 @@ import {
 import { getLogger } from "../lib/logger";
 import {
   createRecallTool as createRecallToolBase,
+  recall as recallBase,
+  type RecallOptions,
+  type RecallResult,
   type RecallToolCallbacks,
   type RecallToolOptions,
 } from "../lib/memory";
@@ -417,6 +420,17 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     toolOptions?: RecallToolOptions,
     callbacks?: RecallToolCallbacks
   ) => ToolConfig;
+
+  /**
+   * Recall memories programmatically via the unified ranked pipeline — the
+   * programmatic twin of {@link createRecallTool}. Returns ranked memories
+   * for callers that inject memory into the prompt themselves (e.g.
+   * pre-retrieval injection) instead of exposing a tool to the LLM. Shares
+   * the hook's warm embedding cache. Defaults to `budget: 'low'`,
+   * `types: ['fact']`. Gracefully returns an empty result when auth is
+   * unavailable — pre-retrieval must never crash the submit path.
+   */
+  recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
 
   /** Get all vault memories for context injection. */
   getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
@@ -824,6 +838,38 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       );
     },
     [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel, currentConversationId]
+  );
+
+  /**
+   * Recall memories programmatically via the unified ranked pipeline.
+   * Shares vaultCtx / storageCtx and the warm embedding cache with
+   * {@link createRecallTool}, so the ranking matches the recall_memory tool.
+   * Returns an empty result (not a throw) when auth is unavailable so
+   * pre-retrieval can't crash the submit path. entityCtx is omitted on Expo
+   * (W5 graph lane no-op) to match createRecallTool above.
+   */
+  const recallFn = useCallback(
+    async (query: string, options?: RecallOptions): Promise<RecallResult> => {
+      if (!getToken) {
+        return {
+          memories: [],
+          usedBudget: options?.budget ?? "low",
+          reranked: false,
+          candidateCount: 0,
+        };
+      }
+      return recallBase(
+        query,
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+        },
+        options
+      );
+    },
+    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel]
   );
 
   /**
@@ -2074,6 +2120,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryEngineTool,
     createMemoryVaultTool,
     createRecallTool,
+    recall: recallFn,
     getVaultMemories,
     deleteVaultMemory,
     flushQueue,
