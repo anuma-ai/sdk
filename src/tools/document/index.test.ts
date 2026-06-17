@@ -77,3 +77,25 @@ describe("createDocumentTools — render failure after persist", () => {
     expect(res.error).toBeUndefined();
   });
 });
+
+describe("createDocumentTools — title carry-over", () => {
+  it("patch re-render reuses the title supplied to create_document", async () => {
+    const seenTitles: Array<string | undefined> = [];
+    const { createDocument, readDocument, patchDocument } = makeDocumentTools({
+      displayDocument: async (args) => {
+        seenTitles.push(args.title as string | undefined);
+        return {};
+      },
+    });
+
+    await createDocument.executor!({ documentId: "nda", title: "My NDA", source: BASE });
+    await readDocument.executor!({ documentId: "nda" });
+    await patchDocument.executor!({
+      documentId: "nda",
+      patches: [{ find: "Hello world", replace: "Hi there" }],
+    });
+
+    // Both the create render and the patch re-render carry the same title.
+    expect(seenTitles).toEqual(["My NDA", "My NDA"]);
+  });
+});

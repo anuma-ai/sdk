@@ -239,6 +239,21 @@ export function createDocumentTools({
     return seenByConv.get(conversationId)?.has(path) ?? false;
   }
 
+  // Per-(conversation, path) last title supplied to create_document. patch
+  // carries no title arg, so without this a re-render would reset the PDF
+  // filename/label. In-memory only: on a fresh factory the host can fall back
+  // to its own documentId-keyed title.
+  const titleByConv = new Map<string, Map<string, string>>();
+  function rememberTitle(conversationId: string, path: string, title: string | undefined): void {
+    if (!title) return;
+    const m = titleByConv.get(conversationId) ?? new Map<string, string>();
+    touchConv(titleByConv, conversationId, m);
+    m.set(path, title);
+  }
+  function recallTitle(conversationId: string, path: string): string | undefined {
+    return titleByConv.get(conversationId)?.get(path);
+  }
+
   // Per-(conversation, path) consecutive not-found patch failures.
   const patchFailuresByConv = new Map<string, Map<string, number>>();
   function bumpPatchFailure(conversationId: string, path: string): number {
@@ -306,6 +321,7 @@ export function createDocumentTools({
         // Model just wrote it, so it counts as seen for a follow-up patch.
         markSeen(conversationId, path);
         clearPatchFailure(conversationId, path);
+        rememberTitle(conversationId, path, title);
 
         // The display callback runs AFTER persist (the host renders by reading
         // the file back). A render throw here therefore happens on an
@@ -478,7 +494,11 @@ export function createDocumentTools({
         // to resend the same find/replace (which no longer matches). Report
         // the persisted state explicitly instead.
         try {
-          const display = await triggerDocDisplay(documentId, path, undefined);
+          const display = await triggerDocDisplay(
+            documentId,
+            path,
+            recallTitle(conversationId, path)
+          );
           return { success: true, documentId, applied: appliedCount, ...display };
         } catch (renderErr) {
           logError(
