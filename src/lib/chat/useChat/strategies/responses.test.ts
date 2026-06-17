@@ -223,3 +223,62 @@ describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => 
     expect(acc.content).toBe("## Heading\n\nBody");
   });
 });
+
+describe("ResponsesStrategy - credits_exhausted pass-through", () => {
+  const strategy = new ResponsesStrategy();
+
+  // ai-portal (#1146) injects credits_exhausted into the usage object on the
+  // out-of-credits wrap-up. These two accumulator sites are the only place the
+  // Responses chain carries it; convertUsageToStored forces the shape directly,
+  // so this is what catches a future refactor silently dropping either site.
+  const readExhausted = (usage: unknown) =>
+    (usage as { credits_exhausted?: boolean } | undefined)?.credits_exhausted;
+
+  it("passes credits_exhausted from a full 'response' event into the final usage", () => {
+    const acc = createAccumulator();
+    strategy.processStreamChunk(
+      {
+        type: "response",
+        response: {
+          id: "resp_1",
+          usage: { input_tokens: 10, output_tokens: 5, credits_exhausted: true },
+        },
+      },
+      acc
+    );
+    expect(acc.usage.credits_exhausted).toBe(true);
+
+    const res = strategy.buildFinalResponse(acc);
+    expect(readExhausted(res.usage)).toBe(true);
+  });
+
+  it("passes credits_exhausted from a response.completed event into the final usage", () => {
+    const acc = createAccumulator();
+    strategy.processStreamChunk(
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5, credits_exhausted: true } },
+      },
+      acc
+    );
+    expect(acc.usage.credits_exhausted).toBe(true);
+
+    const res = strategy.buildFinalResponse(acc);
+    expect(readExhausted(res.usage)).toBe(true);
+  });
+
+  it("leaves credits_exhausted undefined when the usage frame omits it", () => {
+    const acc = createAccumulator();
+    strategy.processStreamChunk(
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+      acc
+    );
+    expect(acc.usage.credits_exhausted).toBeUndefined();
+
+    const res = strategy.buildFinalResponse(acc);
+    expect(readExhausted(res.usage)).toBeUndefined();
+  });
+});
