@@ -63,6 +63,16 @@ describe("parseDocumentDsl — structural rules", () => {
     ).toThrow(/must be self-closing/);
   });
 
+  it("rejects a <Document> with no <Page>", () => {
+    expect(() => parseDocumentDsl(`<Document></Document>`)).toThrow(
+      /must contain at least one <Page>/
+    );
+  });
+
+  it("accepts a <Page> with no children (a blank page)", () => {
+    expect(() => parseDocumentDsl(`<Document><Page></Page></Document>`)).not.toThrow();
+  });
+
   it("rejects an SVG primitive outside <Svg>", () => {
     expect(() =>
       parseDocumentDsl(

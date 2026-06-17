@@ -381,6 +381,12 @@ export function parseDocumentDsl(source: string): DocNode {
     throw new DocDslError(`Root element must be <Document>, got <${root.tag}>`, locOf(ast));
   }
   enforceStructure(root, null, false);
+  // react-pdf throws when a <Document> has no <Page>; catch it here with a
+  // clear message rather than letting it surface as an opaque render failure.
+  // (An empty <Page> is fine — it renders a blank page.)
+  if (!root.children.some((c) => typeof c !== "string" && c.tag === "Page")) {
+    throw new DocDslError("<Document> must contain at least one <Page>.", locOf(ast));
+  }
   return root;
 }
 
