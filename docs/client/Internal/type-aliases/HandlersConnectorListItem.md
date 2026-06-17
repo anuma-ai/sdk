@@ -2,7 +2,7 @@
 
 > **HandlersConnectorListItem** = `object`
 
-Defined in: [src/client/types.gen.ts:1457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1457)
+Defined in: [src/client/types.gen.ts:1520](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1520)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1457](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **connected\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1458](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1458)
+Defined in: [src/client/types.gen.ts:1521](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1521)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1458](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **external\_account**: `string`
 
-Defined in: [src/client/types.gen.ts:1459](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1459)
+Defined in: [src/client/types.gen.ts:1522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1522)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1459](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **granted\_scopes**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1460](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1460)
+Defined in: [src/client/types.gen.ts:1523](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1523)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:1460](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **oauth\_app**: `string`
 
-Defined in: [src/client/types.gen.ts:1461](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1461)
+Defined in: [src/client/types.gen.ts:1524](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1524)

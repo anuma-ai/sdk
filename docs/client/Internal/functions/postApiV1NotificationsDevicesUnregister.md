@@ -2,7 +2,7 @@
 
 > **postApiV1NotificationsDevicesUnregister**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1NotificationsDevicesUnregisterData`](../type-aliases/PostApiV1NotificationsDevicesUnregisterData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1NotificationsDevicesUnregisterResponses`](../type-aliases/PostApiV1NotificationsDevicesUnregisterResponses.md), [`PostApiV1NotificationsDevicesUnregisterErrors`](../type-aliases/PostApiV1NotificationsDevicesUnregisterErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1228](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1228)
+Defined in: [src/client/sdk.gen.ts:1304](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1304)
 
 Unregister push-notification device
 

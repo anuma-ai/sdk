@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminAgentsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:4106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4106)
+Defined in: [src/client/types.gen.ts:4240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4240)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4106](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUpdateAgentRequest`](HandlersUpdateAgentRequest.md)
 
-Defined in: [src/client/types.gen.ts:4110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4110)
+Defined in: [src/client/types.gen.ts:4244](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4244)
 
 Update agent request
 
@@ -20,7 +20,7 @@ Update agent request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4111)
+Defined in: [src/client/types.gen.ts:4245](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4245)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4117](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4117)
+Defined in: [src/client/types.gen.ts:4251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4251)
 
 **id**
 
@@ -48,7 +48,7 @@ Agent ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4123)
+Defined in: [src/client/types.gen.ts:4257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4257)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/client/types.gen.ts:4123](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/agents/{id}"`
 
-Defined in: [src/client/types.gen.ts:4124](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4124)
+Defined in: [src/client/types.gen.ts:4258](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4258)

@@ -2,7 +2,7 @@
 
 > **McpToolSchema** = `object`
 
-Defined in: [src/client/types.gen.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#77)
+Defined in: [src/client/types.gen.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#98)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:77](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#78)
+Defined in: [src/client/types.gen.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#99)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:78](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#79)
+Defined in: [src/client/types.gen.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#100)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:79](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **parameters**: `unknown`
 
-Defined in: [src/client/types.gen.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#80)
+Defined in: [src/client/types.gen.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#101)

@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminPrivyIdentifiersAuditErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5085)
+Defined in: [src/client/types.gen.ts:5351](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5351)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5085](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5089](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5089)
+Defined in: [src/client/types.gen.ts:5355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5355)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5093](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5093)
+Defined in: [src/client/types.gen.ts:5359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5359)
 
 Internal Server Error

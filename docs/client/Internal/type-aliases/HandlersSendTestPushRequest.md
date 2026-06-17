@@ -2,7 +2,7 @@
 
 > **HandlersSendTestPushRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2275)
+Defined in: [src/client/types.gen.ts:2383](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2383)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2275](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2276](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2276)
+Defined in: [src/client/types.gen.ts:2384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2384)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2276](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `string`
 
-Defined in: [src/client/types.gen.ts:2277](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2277)
+Defined in: [src/client/types.gen.ts:2385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2385)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2277](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **data**: `object`
 
-Defined in: [src/client/types.gen.ts:2278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2278)
+Defined in: [src/client/types.gen.ts:2386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2386)
 
 **Index Signature**
 
@@ -38,7 +38,7 @@ Defined in: [src/client/types.gen.ts:2278](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **title**: `string`
 
-Defined in: [src/client/types.gen.ts:2281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2281)
+Defined in: [src/client/types.gen.ts:2389](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2389)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [src/client/types.gen.ts:2281](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:2282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2282)
+Defined in: [src/client/types.gen.ts:2390](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2390)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:2282](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2283)
+Defined in: [src/client/types.gen.ts:2391](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2391)

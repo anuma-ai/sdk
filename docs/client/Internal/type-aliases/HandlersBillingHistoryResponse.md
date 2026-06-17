@@ -2,7 +2,7 @@
 
 > **HandlersBillingHistoryResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1355)
+Defined in: [src/client/types.gen.ts:1367](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1367)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1355](https://github.com/anuma-ai/sdk/blob/
 
 > **pagination**: [`HandlersPaginationResponse`](HandlersPaginationResponse.md)
 
-Defined in: [src/client/types.gen.ts:1356](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1356)
+Defined in: [src/client/types.gen.ts:1368](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1368)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:1356](https://github.com/anuma-ai/sdk/blob/
 
 > **payments**: [`HandlersBillingRecordResponse`](HandlersBillingRecordResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:1357](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1357)
+Defined in: [src/client/types.gen.ts:1369](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1369)

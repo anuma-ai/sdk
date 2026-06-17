@@ -2,7 +2,7 @@
 
 > **HandlersCryptoPricesResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1719](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1719)
+Defined in: [src/client/types.gen.ts:1800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1800)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:1719](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **quotes**: [`CoingeckoQuote`](CoingeckoQuote.md)\[]
 
-Defined in: [src/client/types.gen.ts:1720](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1720)
+Defined in: [src/client/types.gen.ts:1801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1801)

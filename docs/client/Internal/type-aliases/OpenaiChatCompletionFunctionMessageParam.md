@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionFunctionMessageParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3202)
+Defined in: [src/client/types.gen.ts:3336](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3336)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3202](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3203](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3203)
+Defined in: [src/client/types.gen.ts:3337](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3337)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3203](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **content**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3204](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3204)
+Defined in: [src/client/types.gen.ts:3338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3338)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3204](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:3208](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3208)
+Defined in: [src/client/types.gen.ts:3342](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3342)
 
 The name of the function to call.
 
@@ -36,7 +36,7 @@ The name of the function to call.
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:3214](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3214)
+Defined in: [src/client/types.gen.ts:3348](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3348)
 
 The role of the messages author, in this case `function`.
 

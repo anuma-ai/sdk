@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:874](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#874)
+Defined in: [src/react/useChatStorage.ts:877](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#877)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:888](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#888)
+Defined in: [src/react/useChatStorage.ts:891](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#891)
 
 Override the API type for this specific request.
 
@@ -90,7 +90,7 @@ clientToolsFilter: (embeddings, tools) => {
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:896](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#896)
+Defined in: [src/react/useChatStorage.ts:899](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#899)
 
 Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
@@ -157,7 +157,7 @@ If both `thoughtProcess` and `getThoughtProcess` are provided, `getThoughtProces
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:879](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#879)
+Defined in: [src/react/useChatStorage.ts:882](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#882)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.

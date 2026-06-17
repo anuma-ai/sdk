@@ -2,7 +2,7 @@
 
 > **HandlersExpiringCredits** = `object`
 
-Defined in: [src/client/types.gen.ts:1811](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1811)
+Defined in: [src/client/types.gen.ts:1894](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1894)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1811](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1815](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1815)
+Defined in: [src/client/types.gen.ts:1898](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1898)
 
 Number of credits expiring (1 credit = $0.01)
 
@@ -20,6 +20,6 @@ Number of credits expiring (1 credit = $0.01)
 
 > `optional` **expires\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1819](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1819)
+Defined in: [src/client/types.gen.ts:1902](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1902)
 
 ISO8601 timestamp

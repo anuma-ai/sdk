@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionStreamOptionsParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3569](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3569)
+Defined in: [src/client/types.gen.ts:3703](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3703)
 
 Options for streaming response. Only set this when you set `stream: true`.
 
@@ -12,7 +12,7 @@ Options for streaming response. Only set this when you set `stream: true`.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3570](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3570)
+Defined in: [src/client/types.gen.ts:3704](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3704)
 
 ***
 
@@ -20,4 +20,4 @@ Defined in: [src/client/types.gen.ts:3570](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **include\_usage**: [`ParamOptBool`](ParamOptBool.md)
 
-Defined in: [src/client/types.gen.ts:3571](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3571)
+Defined in: [src/client/types.gen.ts:3705](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3705)

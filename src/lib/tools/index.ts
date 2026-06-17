@@ -47,3 +47,10 @@ export {
   type ToolSet,
   toolSetSystemPrompts,
 } from "./serverTools";
+export {
+  buildConnectorGuidance,
+  buildDeniedToolsRider,
+  type ConnectorGuidance,
+  type ConnectorGuidanceInput,
+  TOOL_CATALOG,
+} from "./toolCatalog";

@@ -2,7 +2,7 @@
 
 > **HandlersModalityUsageItem** = `object`
 
-Defined in: [src/client/types.gen.ts:1972](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1972)
+Defined in: [src/client/types.gen.ts:2063](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2063)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1972](https://github.com/anuma-ai/sdk/blob/
 
 > **cost\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1973)
+Defined in: [src/client/types.gen.ts:2064](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2064)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/
 
 > **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1974](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1974)
+Defined in: [src/client/types.gen.ts:2065](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2065)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1974](https://github.com/anuma-ai/sdk/blob/
 
 > **modality**: `string`
 
-Defined in: [src/client/types.gen.ts:1975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1975)
+Defined in: [src/client/types.gen.ts:2066](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2066)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:1975](https://github.com/anuma-ai/sdk/blob/
 
 > **request\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:1976](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1976)
+Defined in: [src/client/types.gen.ts:2067](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2067)

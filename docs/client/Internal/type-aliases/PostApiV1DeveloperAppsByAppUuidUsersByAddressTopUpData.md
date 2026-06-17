@@ -2,7 +2,7 @@
 
 > **PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData** = `object`
 
-Defined in: [src/client/types.gen.ts:7271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7271)
+Defined in: [src/client/types.gen.ts:7646](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7646)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7271](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersTopUpUserRequest`](HandlersTopUpUserRequest.md)
 
-Defined in: [src/client/types.gen.ts:7275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7275)
+Defined in: [src/client/types.gen.ts:7650](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7650)
 
 Top-up request
 
@@ -20,7 +20,7 @@ Top-up request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7276](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7276)
+Defined in: [src/client/types.gen.ts:7651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7651)
 
 **address**
 
@@ -40,7 +40,7 @@ App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7286)
+Defined in: [src/client/types.gen.ts:7661](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7661)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:7286](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/users/{address}/top-up"`
 
-Defined in: [src/client/types.gen.ts:7287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7287)
+Defined in: [src/client/types.gen.ts:7662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7662)

@@ -91,7 +91,10 @@ import {
 import { getLogger } from "../lib/logger";
 import {
   createRecallTool as createRecallToolBase,
+  recall as recallBase,
   RECALL_TOOL_NAME,
+  type RecallOptions,
+  type RecallResult,
   type RecallToolCallbacks,
   type RecallToolOptions,
 } from "../lib/memory";
@@ -1028,6 +1031,21 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   ) => ToolConfig;
 
   /**
+   * Recall memories programmatically via the unified ranked pipeline — the
+   * programmatic twin of {@link createRecallTool}. Returns ranked memories
+   * for callers that inject memory into the prompt themselves (e.g.
+   * pre-retrieval injection) instead of exposing a tool to the LLM. Shares
+   * the hook's warm embedding cache, so a warmed vault ranks in-memory with
+   * a single query-embedding round-trip. Defaults to `budget: 'low'`,
+   * `types: ['fact']`. Gracefully returns an empty result when auth is
+   * unavailable — pre-retrieval must never crash the submit path.
+   *
+   * @param query - Natural language recall query
+   * @param options - Optional recall configuration (types, budget, limit, scopes, …)
+   */
+  recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
+
+  /**
    * Search vault memories programmatically using semantic similarity.
    * Returns structured results sorted by descending similarity.
    * Gracefully returns [] when auth is unavailable.
@@ -1756,6 +1774,49 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       );
     },
     [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Recall memories programmatically via the unified ranked pipeline.
+   * Shares vaultCtx / storageCtx / entityCtx and the warm embedding cache
+   * with {@link createRecallTool} and {@link searchVaultMemoriesFn}, so the
+   * ranking matches the recall_memory tool exactly. Returns an empty result
+   * (not a throw) when auth is unavailable so pre-retrieval can't crash the
+   * submit path.
+   */
+  const recallFn = useCallback(
+    async (query: string, options?: RecallOptions): Promise<RecallResult> => {
+      if (!getToken) {
+        return {
+          memories: [],
+          usedBudget: options?.budget ?? "low",
+          reranked: false,
+          candidateCount: 0,
+        };
+      }
+      // Mirror createRecallTool: default excludeConversationId to the active
+      // conversation so a chunk-including recall can't surface the user's own
+      // current turns back as "memory". Caller can still override explicitly.
+      const resolvedOptions: RecallOptions | undefined =
+        options?.excludeConversationId !== undefined || !currentConversationId
+          ? options
+          : { ...options, excludeConversationId: currentConversationId };
+      return recallBase(
+        query,
+        {
+          vaultCtx,
+          storageCtx,
+          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          vaultCache: vaultEmbeddingCacheRef.current,
+          // Graph lane fires only when entityCtx is present and the query
+          // has extractable entities; empty memory_entity is a graceful
+          // no-op (falls through to fact + chunk lanes). Mirrors createRecallTool.
+          entityCtx,
+        },
+        resolvedOptions
+      );
+    },
+    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel, currentConversationId]
   );
 
   // Use the underlying useChat hook
@@ -3278,6 +3339,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryVaultTool,
     createMemoryVaultSearchTool,
     createRecallTool,
+    recall: recallFn,
     searchVaultMemories: searchVaultMemoriesFn,
     vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
     getVaultMemories,
