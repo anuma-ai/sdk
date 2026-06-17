@@ -95,6 +95,7 @@ function ChatComponent() {
 | [useSubscription](Hooks/useSubscription.md) | React hook for managing subscription status and billing operations. Provides methods to check status, upgrade, manage billing, cancel, and renew subscriptions. |
 | [useTools](Hooks/useTools.md) | React hook for fetching and caching server-side tools. |
 | [useVoice](Hooks/useVoice.md) | React hook for recording voice and transcribing it on-device using Whisper. |
+| [useWalletBinding](Hooks/useWalletBinding.md) | React hook for managing ZETA wallet bindings and reading staked-based Pro status. Provides methods to list bound wallets, request a binding nonce, bind a wallet with a signed proof, and unbind a wallet. |
 
 ## Other
 
