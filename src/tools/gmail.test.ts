@@ -277,4 +277,72 @@ describe("createGmailTools", () => {
     expect(headerLines.some((line) => line.startsWith("Bcc:"))).toBe(false);
     expect(headerLines).toContain("Subject: hello Bcc: evil@attacker.com");
   });
+
+  test("gmail_create_draft posts a base64url-encoded RFC822 message wrapped in {message:{raw}}", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: "draft-1", message: { id: "m9", threadId: "t9" } })
+    );
+    const tools = createGmailTools(
+      async () => "good-token",
+      async () => null
+    );
+    const result = (await runExecutor(tools.gmail_create_draft, {
+      to: "ada@example.com",
+      subject: "hi",
+      body: "let's chat",
+    })) as { id: string; messageId: string; threadId: string };
+    expect(result).toEqual({ id: "draft-1", messageId: "m9", threadId: "t9" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/gmail/v1/users/me/drafts");
+    const sent = JSON.parse((init as RequestInit).body as string) as { message: { raw: string } };
+    const decoded = Buffer.from(
+      sent.message.raw.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64"
+    ).toString("utf-8");
+    expect(decoded).toContain("To: ada@example.com");
+    expect(decoded).toContain("Subject: hi");
+    expect(decoded).toContain("let's chat");
+  });
+
+  test("gmail_create_draft strips CRLF from header values to block header injection", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: "draft-2", message: { id: "m10", threadId: "t10" } })
+    );
+    const tools = createGmailTools(
+      async () => "good-token",
+      async () => null
+    );
+    await runExecutor(tools.gmail_create_draft, {
+      to: "ada@example.com",
+      subject: "hello\r\nBcc: evil@attacker.com",
+      body: "hi",
+    });
+    const [, init] = fetchMock.mock.calls[0];
+    const sent = JSON.parse((init as RequestInit).body as string) as { message: { raw: string } };
+    const decoded = Buffer.from(
+      sent.message.raw.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64"
+    ).toString("utf-8");
+    const headerBlock = decoded.split("\r\n\r\n", 1)[0];
+    const headerLines = headerBlock.split("\r\n");
+    expect(headerLines.some((line) => line.startsWith("Bcc:"))).toBe(false);
+    expect(headerLines).toContain("Subject: hello Bcc: evil@attacker.com");
+  });
+
+  test("gmail_create_draft returns connector error when Gmail responds 403", async () => {
+    fetchMock.mockResolvedValueOnce(textResponse("forbidden", 403));
+    const tools = createGmailTools(
+      async () => "good-token",
+      async () => null
+    );
+    const raw = (await runExecutor(tools.gmail_create_draft, {
+      to: "ada@example.com",
+      subject: "hi",
+      body: "draft me",
+    })) as string;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect(parsed.__anuma_connector_error_v1).toBe(true);
+    expect(parsed.code).toBe("connector_not_connected");
+    expect(parsed.provider).toBe("gmail");
+  });
 });
