@@ -2,7 +2,7 @@
 
 > **LlmapiModelsListExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:597](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#597)
+Defined in: [src/client/types.gen.ts:591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#591)
 
 ExtraFields contains additional metadata
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata
 
 > `optional` **chunk\_index**: `number`
 
-Defined in: [src/client/types.gen.ts:601](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#601)
+Defined in: [src/client/types.gen.ts:595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#595)
 
 ChunkIndex is the chunk index (0 for single requests)
 
@@ -22,7 +22,7 @@ ChunkIndex is the chunk index (0 for single requests)
 
 > `optional` **latency**: `number`
 
-Defined in: [src/client/types.gen.ts:605](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#605)
+Defined in: [src/client/types.gen.ts:599](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#599)
 
 Latency is the request latency in milliseconds
 
@@ -32,6 +32,6 @@ Latency is the request latency in milliseconds
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:609](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#609)
+Defined in: [src/client/types.gen.ts:603](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#603)
 
 RequestType is always "list\_models"

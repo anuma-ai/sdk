@@ -2,7 +2,7 @@
 
 > **PostApiV1UserAgentConsentsData** = `object`
 
-Defined in: [src/client/types.gen.ts:8690](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8690)
+Defined in: [src/client/types.gen.ts:8911](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8911)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8690](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersCreateConsentRequest`](HandlersCreateConsentRequest.md)
 
-Defined in: [src/client/types.gen.ts:8694](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8694)
+Defined in: [src/client/types.gen.ts:8915](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8915)
 
 Consent body
 
@@ -20,7 +20,7 @@ Consent body
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8695](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8695)
+Defined in: [src/client/types.gen.ts:8916](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8916)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8695](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8696](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8696)
+Defined in: [src/client/types.gen.ts:8917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8917)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8696](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/user/agent-consents"`
 
-Defined in: [src/client/types.gen.ts:8697](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8697)
+Defined in: [src/client/types.gen.ts:8918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8918)

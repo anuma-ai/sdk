@@ -2,7 +2,7 @@
 
 > **HandlersPasskeyEnrollFinishResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2859](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2859)
+Defined in: [src/client/types.gen.ts:3019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3019)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2859](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credential\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:2860](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2860)
+Defined in: [src/client/types.gen.ts:3020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3020)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2860](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **expires\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2861](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2861)
+Defined in: [src/client/types.gen.ts:3021](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3021)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2861](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **label**: `string`
 
-Defined in: [src/client/types.gen.ts:2862](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2862)
+Defined in: [src/client/types.gen.ts:3022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3022)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:2862](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **mfa\_session\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:2863](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2863)
+Defined in: [src/client/types.gen.ts:3023](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3023)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:2863](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **recovery\_codes**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:2864](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2864)
+Defined in: [src/client/types.gen.ts:3024](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3024)

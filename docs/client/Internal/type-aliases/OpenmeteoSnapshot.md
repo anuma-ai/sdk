@@ -2,7 +2,7 @@
 
 > **OpenmeteoSnapshot** = `object`
 
-Defined in: [src/client/types.gen.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#133)
+Defined in: [src/client/types.gen.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#127)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:133](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **apparentC**: `number`
 
-Defined in: [src/client/types.gen.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#134)
+Defined in: [src/client/types.gen.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#128)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:134](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **humidity**: `number`
 
-Defined in: [src/client/types.gen.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#135)
+Defined in: [src/client/types.gen.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#129)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:135](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **isDay**: `boolean`
 
-Defined in: [src/client/types.gen.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#136)
+Defined in: [src/client/types.gen.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#130)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:136](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **precipitation**: `number`
 
-Defined in: [src/client/types.gen.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#137)
+Defined in: [src/client/types.gen.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#131)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:137](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **temperatureC**: `number`
 
-Defined in: [src/client/types.gen.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#138)
+Defined in: [src/client/types.gen.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#132)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:138](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **time**: `string`
 
-Defined in: [src/client/types.gen.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#139)
+Defined in: [src/client/types.gen.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#133)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/client/types.gen.ts:139](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **weatherCode**: `number`
 
-Defined in: [src/client/types.gen.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#140)
+Defined in: [src/client/types.gen.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#134)
 
 ***
 
@@ -66,4 +66,4 @@ Defined in: [src/client/types.gen.ts:140](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **windSpeedKmh**: `number`
 
-Defined in: [src/client/types.gen.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#141)
+Defined in: [src/client/types.gen.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#135)

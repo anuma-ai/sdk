@@ -2,11 +2,11 @@
 
 > **getApiV1Bootstrap**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1BootstrapData`](../type-aliases/GetApiV1BootstrapData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1BootstrapResponses`](../type-aliases/GetApiV1BootstrapResponses.md), [`GetApiV1BootstrapErrors`](../type-aliases/GetApiV1BootstrapErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:708](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#708)
+Defined in: [src/client/sdk.gen.ts:704](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#704)
 
 Bootstrap client session
 
-Returns the authenticated user identity, feature-flag assignments, and server build metadata in a single call. Intended to be called once after auth resolves on the client.
+Returns the authenticated user identity, feature-flag assignments, server build metadata, and the connector availability catalog in a single call. Intended to be called once after auth resolves on the client.
 
 ## Type Parameters
 

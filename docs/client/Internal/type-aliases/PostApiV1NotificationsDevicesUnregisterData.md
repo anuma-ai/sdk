@@ -2,7 +2,7 @@
 
 > **PostApiV1NotificationsDevicesUnregisterData** = `object`
 
-Defined in: [src/client/types.gen.ts:7612](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7612)
+Defined in: [src/client/types.gen.ts:7987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7987)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7612](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUnregisterDeviceRequest`](HandlersUnregisterDeviceRequest.md)
 
-Defined in: [src/client/types.gen.ts:7616](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7616)
+Defined in: [src/client/types.gen.ts:7991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7991)
 
 Token to unregister
 
@@ -20,7 +20,7 @@ Token to unregister
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:7617](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7617)
+Defined in: [src/client/types.gen.ts:7992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7992)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:7617](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7618)
+Defined in: [src/client/types.gen.ts:7993](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7993)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:7618](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/notifications/devices/unregister"`
 
-Defined in: [src/client/types.gen.ts:7619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7619)
+Defined in: [src/client/types.gen.ts:7994](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7994)

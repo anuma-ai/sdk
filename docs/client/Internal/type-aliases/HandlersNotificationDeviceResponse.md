@@ -2,7 +2,7 @@
 
 > **HandlersNotificationDeviceResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1994](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1994)
+Defined in: [src/client/types.gen.ts:2091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2091)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1994](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **app\_version**: `string`
 
-Defined in: [src/client/types.gen.ts:1995](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1995)
+Defined in: [src/client/types.gen.ts:2092](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2092)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1995](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `number`
 
-Defined in: [src/client/types.gen.ts:1996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1996)
+Defined in: [src/client/types.gen.ts:2093](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2093)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1996](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **platform**: `string`
 
-Defined in: [src/client/types.gen.ts:1997](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1997)
+Defined in: [src/client/types.gen.ts:2094](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2094)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:1997](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **token**: `string`
 
-Defined in: [src/client/types.gen.ts:1998](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1998)
+Defined in: [src/client/types.gen.ts:2095](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2095)

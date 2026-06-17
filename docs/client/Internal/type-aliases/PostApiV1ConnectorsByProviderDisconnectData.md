@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorsByProviderDisconnectData** = `object`
 
-Defined in: [src/client/types.gen.ts:6286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6286)
+Defined in: [src/client/types.gen.ts:6503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6503)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6286](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6287)
+Defined in: [src/client/types.gen.ts:6504](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6504)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6287](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:6288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6288)
+Defined in: [src/client/types.gen.ts:6505](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6505)
 
 **provider**
 
@@ -32,7 +32,7 @@ Logical connector provider
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6294)
+Defined in: [src/client/types.gen.ts:6511](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6511)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:6294](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/connectors/{provider}/disconnect"`
 
-Defined in: [src/client/types.gen.ts:6295](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6295)
+Defined in: [src/client/types.gen.ts:6512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6512)

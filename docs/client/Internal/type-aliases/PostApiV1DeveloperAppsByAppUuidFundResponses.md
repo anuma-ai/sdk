@@ -2,7 +2,7 @@
 
 > **PostApiV1DeveloperAppsByAppUuidFundResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6899](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6899)
+Defined in: [src/client/types.gen.ts:7274](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7274)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6899](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCheckoutSessionResponse`](HandlersCheckoutSessionResponse.md)
 
-Defined in: [src/client/types.gen.ts:6903](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6903)
+Defined in: [src/client/types.gen.ts:7278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7278)
 
 OK

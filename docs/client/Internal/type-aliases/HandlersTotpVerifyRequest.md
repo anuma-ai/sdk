@@ -2,7 +2,7 @@
 
 > **HandlersTotpVerifyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2902](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2902)
+Defined in: [src/client/types.gen.ts:3036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3036)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2902](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **code**: `string`
 
-Defined in: [src/client/types.gen.ts:2903](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2903)
+Defined in: [src/client/types.gen.ts:3037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3037)

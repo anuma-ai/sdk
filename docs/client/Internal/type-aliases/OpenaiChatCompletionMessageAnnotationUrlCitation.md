@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionMessageAnnotationUrlCitation** = `object`
 
-Defined in: [src/client/types.gen.ts:3257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3257)
+Defined in: [src/client/types.gen.ts:3391](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3391)
 
 A URL citation when using web search.
 
@@ -12,7 +12,7 @@ A URL citation when using web search.
 
 > `optional` **end\_index**: `number`
 
-Defined in: [src/client/types.gen.ts:3261](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3261)
+Defined in: [src/client/types.gen.ts:3395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3395)
 
 The index of the last character of the URL citation in the message.
 
@@ -22,7 +22,7 @@ The index of the last character of the URL citation in the message.
 
 > `optional` **start\_index**: `number`
 
-Defined in: [src/client/types.gen.ts:3265](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3265)
+Defined in: [src/client/types.gen.ts:3399](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3399)
 
 The index of the first character of the URL citation in the message.
 
@@ -32,7 +32,7 @@ The index of the first character of the URL citation in the message.
 
 > `optional` **title**: `string`
 
-Defined in: [src/client/types.gen.ts:3269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3269)
+Defined in: [src/client/types.gen.ts:3403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3403)
 
 The title of the web resource.
 
@@ -42,6 +42,6 @@ The title of the web resource.
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:3273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3273)
+Defined in: [src/client/types.gen.ts:3407](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3407)
 
 The URL of the web resource.

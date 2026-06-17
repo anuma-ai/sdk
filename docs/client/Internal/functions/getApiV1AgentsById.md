@@ -2,7 +2,7 @@
 
 > **getApiV1AgentsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AgentsByIdData`](../type-aliases/GetApiV1AgentsByIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AgentsByIdResponses`](../type-aliases/GetApiV1AgentsByIdResponses.md), [`GetApiV1AgentsByIdErrors`](../type-aliases/GetApiV1AgentsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:500](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#500)
+Defined in: [src/client/sdk.gen.ts:544](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#544)
 
 Get agent
 

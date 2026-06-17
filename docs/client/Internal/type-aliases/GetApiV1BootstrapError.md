@@ -2,4 +2,4 @@
 
 > **GetApiV1BootstrapError** = [`GetApiV1BootstrapErrors`](GetApiV1BootstrapErrors.md)\[keyof [`GetApiV1BootstrapErrors`](GetApiV1BootstrapErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6050](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6050)
+Defined in: [src/client/types.gen.ts:6168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6168)
