@@ -102,7 +102,12 @@ describe("convertUsageToStored", () => {
       object: "chat.completion",
       choices: [{ index: 0, message: { role: "assistant", content: "wrap-up" } }],
       // credits_exhausted is runtime-injected, not on the generated usage type.
-      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, credits_exhausted: true } as never,
+      usage: {
+        prompt_tokens: 10,
+        completion_tokens: 5,
+        total_tokens: 15,
+        credits_exhausted: true,
+      } as never,
     };
     expect(convertUsageToStored(res)?.creditsExhausted).toBe(true);
   });
@@ -112,7 +117,12 @@ describe("convertUsageToStored", () => {
       id: "r1",
       object: "response",
       output: [],
-      usage: { prompt_tokens: 8, completion_tokens: 4, total_tokens: 12, credits_exhausted: true } as never,
+      usage: {
+        prompt_tokens: 8,
+        completion_tokens: 4,
+        total_tokens: 12,
+        credits_exhausted: true,
+      } as never,
     };
     expect(convertUsageToStored(res)?.creditsExhausted).toBe(true);
   });

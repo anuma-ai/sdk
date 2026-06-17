@@ -414,7 +414,14 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
     // ai-portal injects credits_exhausted into the flat `usage` frame on the
     // out-of-credits wrap-up. It must accumulate and survive to the final usage.
     strategy.processStreamChunk(
-      { usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, credits_exhausted: true } },
+      {
+        usage: {
+          prompt_tokens: 10,
+          completion_tokens: 5,
+          total_tokens: 15,
+          credits_exhausted: true,
+        },
+      },
       acc
     );
     expect(acc.usage.credits_exhausted).toBe(true);
