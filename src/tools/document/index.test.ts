@@ -239,3 +239,30 @@ describe("createDocumentTools — patch_document", () => {
     expect(storage.getAll().get("document.jsx")).toBe(BASE);
   });
 });
+
+describe("createDocumentTools — display result + conversation scope", () => {
+  it("spreads the displayDocument return value into the create result", async () => {
+    const { createDocument } = makeDocumentTools({
+      displayDocument: async () => ({ pdfId: "pdf_123" }),
+    });
+    const res = (await createDocument.executor!({ source: BASE })) as Result;
+    expect(res.success).toBe(true);
+    expect(res.pdfId).toBe("pdf_123");
+  });
+
+  it("scopes the read-before-write gate per conversation", async () => {
+    let conv = "conv-A";
+    const { createDocument, readDocument, patchDocument } = makeDocumentTools({
+      getConversationId: () => conv,
+    });
+    await createDocument.executor!({ source: BASE });
+    await readDocument.executor!({});
+
+    // Same document, different conversation: the seen-state must not carry over.
+    conv = "conv-B";
+    const res = (await patchDocument.executor!({
+      patches: [{ find: "Hello world", replace: "Hi" }],
+    })) as Result;
+    expect(res.error).toMatch(/Call read_document/);
+  });
+});
