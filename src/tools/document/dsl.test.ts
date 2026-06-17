@@ -134,6 +134,30 @@ describe("parseDocumentDsl — security / literal-only", () => {
       )
     ).toThrow(/source must be an inline "data:" URI/);
   });
+
+  it("rejects a javascript: Link href", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text><Link src="javascript:alert(1)">x</Link></Text></Page></Document>`
+      )
+    ).toThrow(/unsafe URL scheme/);
+  });
+
+  it("rejects a whitespace-obfuscated javascript: Link href", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text><Link src="   javascript:alert(1)">x</Link></Text></Page></Document>`
+      )
+    ).toThrow(/unsafe URL scheme/);
+  });
+
+  it("allows an https Link href", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text><Link src="https://example.com">x</Link></Text></Page></Document>`
+      )
+    ).not.toThrow();
+  });
 });
 
 describe("parseDocumentDsl — style + font validation", () => {

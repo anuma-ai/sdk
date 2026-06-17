@@ -458,6 +458,11 @@ function readAttributes(el: JSXElement, tag: string): Record<string, DocAttrValu
       }
     }
   }
+  // Link hrefs: block script / local-file / data schemes (defense-in-depth for
+  // a document the user downloads and opens).
+  if (tag === "Link" && typeof out.src === "string") {
+    assertSafeLinkHref(out.src, locOf(el.openingElement));
+  }
   return out;
 }
 
@@ -549,6 +554,27 @@ function assertStandardFont(family: string, loc: SrcLoc): void {
     `fontFamily "${family}" is not a built-in PDF font. Use one of: Helvetica, Times-Roman, Courier (with their -Bold/-Oblique/-Italic variants), Symbol, ZapfDingbats. Custom fonts are not supported yet.`,
     loc
   );
+}
+
+/** URL schemes rejected on a `<Link>` href — dangerous in a downloadable PDF. */
+const UNSAFE_LINK_SCHEME_RE = /^(javascript|vbscript|data|file)\s*:/i;
+
+/**
+ * Reject dangerous URL schemes on a `<Link>` href. Mirrors the web renderer's
+ * `isUnsafeUrl` (anumaRuntime.tsx): strip leading C0 controls and spaces
+ * (` `–` `, per browser URL resolution) so an obfuscated
+ * `javascript:` can't slip past, then block script / local-file / data
+ * schemes. http(s), mailto, tel, and relative hrefs remain allowed.
+ */
+function assertSafeLinkHref(value: string, loc: SrcLoc): void {
+  let i = 0;
+  while (i < value.length && value.charCodeAt(i) <= 0x20) i++;
+  if (UNSAFE_LINK_SCHEME_RE.test(value.slice(i))) {
+    throw new DocDslError(
+      `<Link> src "${value}" uses an unsafe URL scheme. Use an http(s), mailto, tel, or relative link.`,
+      loc
+    );
+  }
 }
 
 function readChildren(el: JSXElement, tag: string): DocChild[] {
