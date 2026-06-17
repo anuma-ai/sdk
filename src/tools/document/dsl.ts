@@ -557,19 +557,26 @@ function assertStandardFont(family: string, loc: SrcLoc): void {
 }
 
 /** URL schemes rejected on a `<Link>` href — dangerous in a downloadable PDF. */
-const UNSAFE_LINK_SCHEME_RE = /^(javascript|vbscript|data|file)\s*:/i;
+const UNSAFE_LINK_SCHEME_RE = /^(javascript|vbscript|data|file):/i;
 
 /**
- * Reject dangerous URL schemes on a `<Link>` href. Mirrors the web renderer's
- * `isUnsafeUrl` (anumaRuntime.tsx): strip leading C0 controls and spaces
- * (` `–` `, per browser URL resolution) so an obfuscated
- * `javascript:` can't slip past, then block script / local-file / data
- * schemes. http(s), mailto, tel, and relative hrefs remain allowed.
+ * Reject dangerous URL schemes on a `<Link>` href, blocking script /
+ * local-file / data schemes; http(s), mailto, tel, and relative hrefs stay
+ * allowed.
+ *
+ * Browsers and PDF viewers strip ALL C0 control characters and spaces
+ * (charCode <= 0x20) from a URL — not just leading ones — before resolving its
+ * scheme, so an embedded NUL or TAB inside the scheme name normalizes back to
+ * a live script scheme. Drop every such char anywhere in the value before
+ * matching, so obfuscation can't split a blocked scheme past the denylist.
+ * Detection only — the original value is what gets stored if accepted.
  */
 function assertSafeLinkHref(value: string, loc: SrcLoc): void {
-  let i = 0;
-  while (i < value.length && value.charCodeAt(i) <= 0x20) i++;
-  if (UNSAFE_LINK_SCHEME_RE.test(value.slice(i))) {
+  let normalized = "";
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) > 0x20) normalized += value[i];
+  }
+  if (UNSAFE_LINK_SCHEME_RE.test(normalized)) {
     throw new DocDslError(
       `<Link> src "${value}" uses an unsafe URL scheme. Use an http(s), mailto, tel, or relative link.`,
       loc

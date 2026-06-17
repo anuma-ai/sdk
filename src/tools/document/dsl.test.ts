@@ -151,12 +151,38 @@ describe("parseDocumentDsl — security / literal-only", () => {
     ).toThrow(/unsafe URL scheme/);
   });
 
-  it("allows an https Link href", () => {
+  it("rejects a control-char-obfuscated javascript: Link href", () => {
+    // An embedded TAB splits the scheme name; PDF viewers strip it and execute.
     expect(() =>
       parseDocumentDsl(
-        `<Document><Page><Text><Link src="https://example.com">x</Link></Text></Page></Document>`
+        `<Document><Page><Text><Link src="java\tscript:alert(1)">x</Link></Text></Page></Document>`
       )
-    ).not.toThrow();
+    ).toThrow(/unsafe URL scheme/);
+  });
+
+  it("rejects an uppercase JAVASCRIPT: Link href", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text><Link src="JAVASCRIPT:alert(1)">x</Link></Text></Page></Document>`
+      )
+    ).toThrow(/unsafe URL scheme/);
+  });
+
+  it("allows http(s), mailto, tel, anchor, and relative Link hrefs", () => {
+    for (const href of [
+      "https://example.com",
+      "http://example.com",
+      "mailto:a@b.com",
+      "tel:+15551234",
+      "#section",
+      "/terms",
+    ]) {
+      expect(() =>
+        parseDocumentDsl(
+          `<Document><Page><Text><Link src="${href}">x</Link></Text></Page></Document>`
+        )
+      ).not.toThrow();
+    }
   });
 });
 
