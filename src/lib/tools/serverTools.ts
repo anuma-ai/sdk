@@ -7,6 +7,7 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
+import { DOCUMENT_BUILDER_PROMPT } from "../../tools/document/documentBuilderPrompt";
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
@@ -917,6 +918,23 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     // "make me a powerpoint about X" score plan_deck around 0.535 — above
     // the global floor but inside any anchor gap. plan_deck and patch_slides
     // are specific enough names that 0.53 won't false-positive in practice.
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "documents",
+    // Conditional rider (no-ops unless the user actually asks for a document),
+    // attached so the Document Builder guidance rides in with the document
+    // tools via the same semantic selection that includes them.
+    systemPrompt: DOCUMENT_BUILDER_PROMPT,
+    members: ["create_document", "read_document", "patch_document"],
+    // Entry-point tools anchor; read_document rides in via set expansion.
+    anchors: ["create_document", "patch_document"],
+    // 0.53: match the client-tool floor. "draft me a contract", "write a cover
+    // letter", "make a memo" should pull the set in. Like app-gen's create_file,
+    // document intent ("write me X") overlaps generic chitchat in this band, so
+    // the same two safety nets apply: DOCUMENT_BUILDER_PROMPT is conditional and
+    // the MIN_CONTENT_LENGTH_FOR_TOOLS gate drops bare greetings before
+    // embeddings run. Tune empirically against the tool-selection parity suite.
     anchorMinSimilarity: 0.53,
   },
   {

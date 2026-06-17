@@ -138,6 +138,13 @@ export interface ChatStorageAdapter {
 
   updateMessageFeedback(uniqueId: string, feedback: MessageFeedback): Promise<StoredMessage | null>;
 
+  /**
+   * Replace a message's attached media ids (`fileIds`). Used to attach a
+   * generated artifact (e.g. a rendered document PDF) to the assistant message
+   * that produced it, after streaming. Pass the FULL desired list.
+   */
+  updateMessageFileIds(uniqueId: string, fileIds: string[]): Promise<StoredMessage | null>;
+
   /** Clears all messages in a conversation (used for the "clear chat" action). */
   clearMessages(conversationId: string): Promise<void>;
 
