@@ -2,4 +2,4 @@
 
 > **FactType** = *typeof* `FACT_TYPES`\[`number`]
 
-Defined in: [src/lib/memory/autoExtract.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#63)
+Defined in: [src/lib/memory/autoExtract.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#56)
