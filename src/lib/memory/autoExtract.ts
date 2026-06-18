@@ -15,7 +15,7 @@
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
-import { PII_PLACEHOLDER_PATTERN, type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -131,10 +131,16 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   /**
    * When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
    * conversation transcript is replaced with tagged placeholders before the
-   * extraction call, and the returned facts + entities are de-anonymized so
-   * the vault keeps the real values while raw PII never reaches the provider.
-   * Pass `true` for a fresh per-call redactor, or a shared {@link PiiRedactor}
-   * to keep placeholder numbering consistent with other calls.
+   * extraction call, and the returned facts + entities are de-anonymized so the
+   * vault keeps the real values while raw PII never reaches the extraction
+   * model (and, via `extractAndRetain`, the consolidation model). Pass `true`
+   * for a fresh per-call redactor, or a shared {@link PiiRedactor} to keep
+   * placeholder numbering consistent with other calls.
+   *
+   * NOTE: this does NOT cover the embeddings provider. Facts are stored and
+   * embedded with their real values, so to keep PII out of embedding requests
+   * set `RetainContext.embeddingOptions.maskInput` (e.g. `redactor.maskText`)
+   * as well — the two are independent switches.
    */
   piiRedaction?: boolean | PiiRedactor;
 }
@@ -207,10 +213,10 @@ export async function extractFacts(
       content: redactor.deAnonymize(c.content),
       entities: c.entities
         .map((e) => redactor.deAnonymize(e))
-        .filter((e) => !PII_PLACEHOLDER_PATTERN.test(e)),
+        .filter((e) => !redactor.hasUnresolvedPlaceholder(e)),
     }))
     .filter(
-      (c) => c.content.length <= MAX_CONTENT_LENGTH && !PII_PLACEHOLDER_PATTERN.test(c.content)
+      (c) => c.content.length <= MAX_CONTENT_LENGTH && !redactor.hasUnresolvedPlaceholder(c.content)
     );
 }
 

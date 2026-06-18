@@ -33,7 +33,7 @@
  */
 
 import { getLogger } from "../logger.js";
-import { PII_PLACEHOLDER_PATTERN, type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
@@ -194,7 +194,7 @@ export async function consolidateMemory(
     // it literal. On the "update" path this content overwrites an existing
     // memory, so don't persist a bogus "[EMAIL_2]" over a good fact — degrade to
     // a create, which retain resolves by keeping the original (real) content.
-    if (PII_PLACEHOLDER_PATTERN.test(restored)) {
+    if (redactor.hasUnresolvedPlaceholder(restored)) {
       return degrade("invalid_response", fallback, options);
     }
     return { ...result, content: restored };

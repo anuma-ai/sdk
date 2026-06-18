@@ -164,6 +164,17 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     );
   }
 
+  // PII redaction protects the extraction + consolidation LLM calls, but facts
+  // are embedded with their real values — that path is masked only when
+  // embeddingOptions.maskInput is set. Warn once if redaction is on but the
+  // embedding masker is missing, so PII isn't silently shipped to the
+  // embeddings provider.
+  if (options.extract.piiRedaction && !options.retainCtx.embeddingOptions.maskInput) {
+    getLogger().warn(
+      "[memory/extract] extract.piiRedaction is enabled but retainCtx.embeddingOptions.maskInput is unset — extracted facts are embedded with their real values. Set maskInput (e.g. redactor.maskText) to keep PII out of embedding requests."
+    );
+  }
+
   function processTurn(messages: AutoExtractMessage[], conversationId?: string): boolean {
     if (disposed) return false;
     if (messages.length === 0) {

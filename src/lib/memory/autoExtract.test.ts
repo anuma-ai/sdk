@@ -670,4 +670,27 @@ describe("extractFacts — PII redaction", () => {
     // [EMAIL_1] resolves to the real email; the unresolved [SSN_1] is stripped.
     expect(result[0].entities).toEqual(["jane@example.com"]);
   });
+
+  it("keeps a fact with a non-PII bracketed token (e.g. [STEP_1]) — not a redactor category", async () => {
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "Walk me through deploy." },
+    ];
+    // [STEP_1] looks placeholder-shaped but STEP is not a PII category, so the
+    // residual guard must NOT treat it as a hallucinated placeholder and drop the fact.
+    const llm = {
+      candidates: [
+        {
+          content: "User's deploy has a [STEP_1] approval gate.",
+          type: "ongoing_context",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's deploy has a [STEP_1] approval gate.");
+  });
 });
