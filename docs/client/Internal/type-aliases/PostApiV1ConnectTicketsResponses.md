@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectTicketsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6374)
+Defined in: [src/client/types.gen.ts:6397](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6397)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6374](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersConnectTicketResponse`](HandlersConnectTicketResponse.md)
 
-Defined in: [src/client/types.gen.ts:6378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6378)
+Defined in: [src/client/types.gen.ts:6401](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6401)
 
 OK

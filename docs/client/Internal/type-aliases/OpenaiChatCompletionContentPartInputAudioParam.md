@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionContentPartInputAudioParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3260)
+Defined in: [src/client/types.gen.ts:3283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3283)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3260](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3261](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3261)
+Defined in: [src/client/types.gen.ts:3284](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3284)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3261](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **input\_audio**: [`OpenaiChatCompletionContentPartInputAudioInputAudioParam`](OpenaiChatCompletionContentPartInputAudioInputAudioParam.md)
 
-Defined in: [src/client/types.gen.ts:3262](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3262)
+Defined in: [src/client/types.gen.ts:3285](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3285)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3262](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:3268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3268)
+Defined in: [src/client/types.gen.ts:3291](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3291)
 
 The type of the content part. Always `input_audio`.
 

@@ -2,4 +2,4 @@
 
 > **PostApiV1NotificationsDevicesResponse** = [`PostApiV1NotificationsDevicesResponses`](PostApiV1NotificationsDevicesResponses.md)\[keyof [`PostApiV1NotificationsDevicesResponses`](PostApiV1NotificationsDevicesResponses.md)]
 
-Defined in: [src/client/types.gen.ts:7985](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7985)
+Defined in: [src/client/types.gen.ts:8008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8008)

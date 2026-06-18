@@ -2,4 +2,4 @@
 
 > **PostApiV1AuthMfaRecoveryCodesRegenerateError** = [`PostApiV1AuthMfaRecoveryCodesRegenerateErrors`](PostApiV1AuthMfaRecoveryCodesRegenerateErrors.md)\[keyof [`PostApiV1AuthMfaRecoveryCodesRegenerateErrors`](PostApiV1AuthMfaRecoveryCodesRegenerateErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6019)
+Defined in: [src/client/types.gen.ts:6042](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6042)

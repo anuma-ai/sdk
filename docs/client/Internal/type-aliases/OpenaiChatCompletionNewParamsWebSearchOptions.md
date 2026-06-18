@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsWebSearchOptions** = `object`
 
-Defined in: [src/client/types.gen.ts:3613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3613)
+Defined in: [src/client/types.gen.ts:3636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3636)
 
 This tool searches the web for relevant results to use in a response. Learn more
 about the
@@ -14,7 +14,7 @@ about the
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3614](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3614)
+Defined in: [src/client/types.gen.ts:3637](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3637)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [src/client/types.gen.ts:3614](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **search\_context\_size**: `string`
 
-Defined in: [src/client/types.gen.ts:3621](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3621)
+Defined in: [src/client/types.gen.ts:3644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3644)
 
 High level guidance for the amount of context window space to use for the
 search. One of `low`, `medium`, or `high`. `medium` is the default.
@@ -35,4 +35,4 @@ Any of "low", "medium", "high".
 
 > `optional` **user\_location**: [`OpenaiChatCompletionNewParamsWebSearchOptionsUserLocation`](OpenaiChatCompletionNewParamsWebSearchOptionsUserLocation.md)
 
-Defined in: [src/client/types.gen.ts:3622](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3622)
+Defined in: [src/client/types.gen.ts:3645](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3645)

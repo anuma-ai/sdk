@@ -2,7 +2,7 @@
 
 > **HandlersToolCallDetailItem** = `object`
 
-Defined in: [src/client/types.gen.ts:2527](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2527)
+Defined in: [src/client/types.gen.ts:2550](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2550)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2527](https://github.com/anuma-ai/sdk/blob/
 
 > **call\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2528](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2528)
+Defined in: [src/client/types.gen.ts:2551](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2551)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2528](https://github.com/anuma-ai/sdk/blob/
 
 > **cost\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:2529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2529)
+Defined in: [src/client/types.gen.ts:2552](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2552)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2529](https://github.com/anuma-ai/sdk/blob/
 
 > **tool**: `string`
 
-Defined in: [src/client/types.gen.ts:2530](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2530)
+Defined in: [src/client/types.gen.ts:2553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2553)

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionToolMessageParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3792)
+Defined in: [src/client/types.gen.ts:3815](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3815)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3792](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3793)
+Defined in: [src/client/types.gen.ts:3816](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3816)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3793](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **content**: [`OpenaiChatCompletionToolMessageParamContentUnion`](OpenaiChatCompletionToolMessageParamContentUnion.md)
 
-Defined in: [src/client/types.gen.ts:3794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3794)
+Defined in: [src/client/types.gen.ts:3817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3817)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3794](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:3800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3800)
+Defined in: [src/client/types.gen.ts:3823](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3823)
 
 The role of the messages author, in this case `tool`.
 
@@ -38,6 +38,6 @@ This field can be elided, and will marshal its zero value as "tool".
 
 > `optional` **tool\_call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:3804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3804)
+Defined in: [src/client/types.gen.ts:3827](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3827)
 
 Tool call that this message is responding to.

@@ -2,7 +2,7 @@
 
 > **GetOauthAuthorizeErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9670](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9670)
+Defined in: [src/client/types.gen.ts:9693](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9693)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9670](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9674](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9674)
+Defined in: [src/client/types.gen.ts:9697](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9697)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9678](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9678)
+Defined in: [src/client/types.gen.ts:9701](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9701)
 
 Unauthorized

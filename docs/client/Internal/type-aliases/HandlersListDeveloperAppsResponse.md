@@ -2,7 +2,7 @@
 
 > **HandlersListDeveloperAppsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2019)
+Defined in: [src/client/types.gen.ts:2042](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2042)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2019](https://github.com/anuma-ai/sdk/blob/
 
 > **apps**: [`HandlersDeveloperAppResponse`](HandlersDeveloperAppResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:2020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2020)
+Defined in: [src/client/types.gen.ts:2043](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2043)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2020](https://github.com/anuma-ai/sdk/blob/
 
 > **pagination**: [`HandlersPaginationResponse`](HandlersPaginationResponse.md)
 
-Defined in: [src/client/types.gen.ts:2021](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2021)
+Defined in: [src/client/types.gen.ts:2044](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2044)

@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsPacksResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6764](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6764)
+Defined in: [src/client/types.gen.ts:6787](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6787)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6764](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCreditPacksResponse`](HandlersCreditPacksResponse.md)
 
-Defined in: [src/client/types.gen.ts:6768](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6768)
+Defined in: [src/client/types.gen.ts:6791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6791)
 
 OK
