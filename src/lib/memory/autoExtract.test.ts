@@ -600,4 +600,29 @@ describe("extractFacts — PII redaction", () => {
     await extractFacts(piiMessages, { apiKey: "k", fetchFn });
     expect(bodies.join("")).toContain("jane@example.com");
   });
+
+  it("drops a fact that exceeds the content cap once de-anonymized", async () => {
+    // A long email maps to a short `[EMAIL_1]` token, so a fact that passes the
+    // 200-char cap in placeholder form can exceed it once the real value is
+    // restored — those must be dropped, not stored over-cap.
+    const longEmail = "jane.doe.test.account.1234567890@example-corp-domain.com";
+    const msgs: AutoExtractMessage[] = [{ id: "m1", role: "user", content: `Email: ${longEmail}` }];
+    // 181 filler chars + " [EMAIL_1]" = 191 chars (≤ 200, passes validation),
+    // but restoring the ~56-char email pushes the content well over 200.
+    const placeholderContent = `${"x".repeat(181)} [EMAIL_1]`;
+    const llm = {
+      candidates: [
+        {
+          content: placeholderContent,
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(0);
+  });
 });

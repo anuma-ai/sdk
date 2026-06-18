@@ -193,12 +193,17 @@ export async function extractFacts(
   const candidates = validateCandidates(parsed, new Set(messages.map((m) => m.id)));
   if (!redactor) return candidates;
   // Restore real values in the extracted facts (content + entities) — the LLM
-  // saw placeholders, so its output references them.
-  return candidates.map((c) => ({
-    ...c,
-    content: redactor.deAnonymize(c.content),
-    entities: c.entities.map((e) => redactor.deAnonymize(e)),
-  }));
+  // saw placeholders, so its output references them. validateCandidates applied
+  // the length cap to the placeholder form, but real values are usually longer
+  // than their `[EMAIL_1]`-style tokens, so re-apply the cap to the restored
+  // content to keep the stored-fact invariant (≤ MAX_CONTENT_LENGTH).
+  return candidates
+    .map((c) => ({
+      ...c,
+      content: redactor.deAnonymize(c.content),
+      entities: c.entities.map((e) => redactor.deAnonymize(e)),
+    }))
+    .filter((c) => c.content.length <= MAX_CONTENT_LENGTH);
 }
 
 /**
