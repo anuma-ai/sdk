@@ -1313,6 +1313,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [piiRedaction, currentConversationId]
   );
 
+  // The redactor for the in-flight sendMessage, keyed on the conversation that
+  // call actually resolves to (see resolvePiiForCall). Consumer-created tools
+  // that de-anonymize at execution time (e.g. the memory vault) read this so
+  // they use the SAME redactor the model's placeholders were minted with —
+  // resolvedPiiRedaction is keyed on currentConversationId, which is null on the
+  // first turn of an auto-created conversation. (Belt-and-suspenders: runToolLoop
+  // already de-anonymizes deAnonymizeArgs tools with the call redactor; this
+  // keeps the tool's own de-anonymizer correct if that path is ever bypassed.)
+  const activeCallRedactorRef = useRef<PiiRedactor | undefined>(undefined);
+
   // Mask PII before text is sent to the embeddings endpoint. Embeddings are a
   // server call, so when PII redaction is on the input must be masked too. This
   // uses the STATELESS mask (maskText → unnumbered [EMAIL]), NOT redactText's
@@ -1738,9 +1748,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // the vault holds the real fact; the embedding input is masked separately
       // via vaultEmbeddingOptions.maskInput so PII still never hits the server.
       const embOpts = getToken ? vaultEmbeddingOptions : undefined;
-      const deAnonymize = isPiiRedactor(resolvedPiiRedaction)
-        ? (text: string) => resolvedPiiRedaction.deAnonymize(text)
-        : undefined;
+      // Resolve the redactor at EXECUTION time, preferring the call-scoped one
+      // (set by resolvePiiForCall during the active send). resolvedPiiRedaction is
+      // keyed on currentConversationId, which is null on turn 1 of an auto-created
+      // conversation, so it would be the wrong (empty) redactor — the placeholders
+      // were minted by the call redactor. Falls back to the hook-level redactor.
+      const deAnonymize = (text: string): string => {
+        const redactor =
+          activeCallRedactorRef.current ??
+          (isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction : undefined);
+        return redactor ? redactor.deAnonymize(text) : text;
+      };
       return createMemoryVaultToolBase(
         vaultCtx,
         { ...options, deAnonymize },
@@ -2477,6 +2495,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
           getConversationRedactor(conversationIdForCall)
         );
+        // Expose the call-scoped redactor to consumer-created tools that
+        // de-anonymize at execution time (the memory vault runs synchronously
+        // within this send's runToolLoop, so the ref is current when it fires).
+        activeCallRedactorRef.current = redactor;
         return {
           callRedactor: redactor,
           callPiiRedaction: forInnerSend,
