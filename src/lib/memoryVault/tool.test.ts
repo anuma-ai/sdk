@@ -66,32 +66,30 @@ describe("createMemoryVaultTool", () => {
     expect(result).toBe("Memory saved successfully (ID: new-1).");
   });
 
-  it("de-anonymizes placeholder content before storing (PII redaction)", async () => {
-    const created = makeStoredMemory({ uniqueId: "new-1" });
-    vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
+  it("opts into runToolLoop PII de-anonymization and passes real content to onSave + storage", async () => {
+    // De-anonymization of saved content is delegated to runToolLoop: it restores
+    // placeholders in the arguments (with the call's redactor) BEFORE the executor
+    // runs — proven by toolLoop.piiRedaction.test.ts ("de-anonymizes tool arguments
+    // for tools that opt in via deAnonymizeArgs"). The tool just opts in; the
+    // executor then forwards the already-real content to both onSave and storage.
+    // (executor-receives-real-content + this passthrough = onSave/storage see real
+    // values, the guarantee the old per-tool deAnonymize option used to provide.)
+    const onSave = vi.fn().mockResolvedValue(true);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
 
-    const deAnonymize = (t: string) => t.replace("[EMAIL_1]", "bob@acme.com");
-    const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, deAnonymize });
-    await tool.executor!({ content: "User's email is [EMAIL_1]" });
+    const tool = createMemoryVaultTool(mockVaultCtx, { onSave });
+    expect(tool.deAnonymizeArgs).toBe(true);
 
-    // The vault stores the restored, real value — not the placeholder.
+    await tool.executor!({ content: "User's email is bob@acme.com" });
+
+    // The confirmation callback and the vault both receive the real value verbatim.
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ content: "User's email is bob@acme.com" })
+    );
     expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
       content: "User's email is bob@acme.com",
       scope: "private",
     });
-  });
-
-  it("surfaces the de-anonymized content to the onSave confirmation", async () => {
-    vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
-    const onSave = vi.fn().mockResolvedValue(true);
-    const deAnonymize = (t: string) => t.replace("[EMAIL_1]", "bob@acme.com");
-
-    const tool = createMemoryVaultTool(mockVaultCtx, { onSave, deAnonymize });
-    await tool.executor!({ content: "User's email is [EMAIL_1]" });
-
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ content: "User's email is bob@acme.com" })
-    );
   });
 
   it("passes explicit scope to createVaultMemoryOp", async () => {

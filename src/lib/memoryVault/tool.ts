@@ -56,18 +56,6 @@ export interface MemoryVaultToolOptions {
    * When provided, the LLM can specify a folderName argument.
    */
   folderMap?: Map<string, string>;
-
-  /**
-   * Optional de-anonymizer for PII-redacted conversations. When PII redaction
-   * is active the model only ever saw placeholders, so the `content` it sends
-   * to this tool contains them (e.g. "User's email is [EMAIL_1]"). This
-   * restores the original values before the memory is stored, so the local
-   * vault holds the real, useful fact rather than a meaningless placeholder.
-   * No-op when omitted. (Recall results are re-redacted by the tool loop
-   * before they go back to the provider, so restoring here does not leak PII
-   * to the model.)
-   */
-  deAnonymize?: (text: string) => string;
 }
 
 /**
@@ -147,18 +135,18 @@ export function createMemoryVaultTool(
     // and the host app can handle it.
     executor: hasOnSave
       ? async (args: Record<string, unknown>): Promise<string> => {
-          const rawContent = args.content as string;
+          // PII de-anonymization is handled by runToolLoop before the executor
+          // runs: this tool sets `deAnonymizeArgs: true`, so the loop restores the
+          // original values in the arguments (with the same redactor that minted
+          // the placeholders) before they reach here. The content we store is
+          // already the real fact, not "[EMAIL_1]".
+          const content = args.content as string;
           const id = args.id as string | undefined;
           const folderName = args.folderName as string | undefined;
 
-          if (!rawContent || typeof rawContent !== "string") {
+          if (!content || typeof content !== "string") {
             return "Error: content is required and must be a string.";
           }
-
-          // Restore original PII values before storing. With redaction active
-          // the model emits placeholder content (it never saw the originals);
-          // the vault must store the real fact, not "[EMAIL_1]".
-          const content = options?.deAnonymize ? options.deAnonymize(rawContent) : rawContent;
 
           try {
             const isUpdate = !!id;

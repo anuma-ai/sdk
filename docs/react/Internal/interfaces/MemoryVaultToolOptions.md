@@ -6,52 +6,6 @@ Options for creating a memory vault tool.
 
 ## Properties
 
-### deAnonymize()?
-
-> `optional` **deAnonymize**: (`text`: `string`) => `string`
-
-Defined in: [src/lib/memoryVault/tool.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#70)
-
-Optional de-anonymizer for PII-redacted conversations. When PII redaction
-is active the model only ever saw placeholders, so the `content` it sends
-to this tool contains them (e.g. "User's email is \[EMAIL\_1]"). This
-restores the original values before the memory is stored, so the local
-vault holds the real, useful fact rather than a meaningless placeholder.
-No-op when omitted. (Recall results are re-redacted by the tool loop
-before they go back to the provider, so restoring here does not leak PII
-to the model.)
-
-**Parameters**
-
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Type</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-
-`text`
-
-</td>
-<td>
-
-`string`
-
-</td>
-</tr>
-</tbody>
-</table>
-
-**Returns**
-
-`string`
-
-***
-
 ### folderMap?
 
 > `optional` **folderMap**: `Map`<`string`, `string`>
