@@ -33,6 +33,7 @@
  */
 
 import { getLogger } from "../logger.js";
+import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
@@ -114,6 +115,13 @@ interface ConsolidateOptions extends PortalLlmAuth {
   onFallback?: (reason: ConsolidationFallbackReason) => void;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
+  /**
+   * When set, the new fact and the existing candidate contents are PII-redacted
+   * before they reach the consolidation model, and the consolidated content it
+   * returns is de-anonymized before persistence — so consolidation never leaks
+   * the real values it dedups over. Pass `true` or a shared {@link PiiRedactor}.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 }
 
 /**
@@ -135,10 +143,21 @@ export async function consolidateMemory(
   if (trimmed.length === 0) return fallback;
   if (candidates.length === 0) return fallback;
 
+  // PII redaction: redact the new fact and the candidate contents before they
+  // reach the consolidation model, then de-anonymize the consolidated content
+  // it returns (below) so the vault still stores real values. A single
+  // redactor keeps placeholders consistent across the new fact and candidates,
+  // so the model can still match the same value across them.
+  const redactor = resolvePiiRedactor(options.piiRedaction);
+  const safeTrimmed = redactor ? redactor.redactText(trimmed).text : trimmed;
+
   const candidateText = candidates
-    .map((c, i) => `[${i + 1}] (id: ${c.id}, sim: ${c.similarity.toFixed(2)})\n  ${c.content}`)
+    .map((c, i) => {
+      const safeContent = redactor ? redactor.redactText(c.content).text : c.content;
+      return `[${i + 1}] (id: ${c.id}, sim: ${c.similarity.toFixed(2)})\n  ${safeContent}`;
+    })
     .join("\n");
-  const userMessage = `New memory:\n  ${trimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
+  const userMessage = `New memory:\n  ${safeTrimmed}\n\nExisting memories (top ${candidates.length} by cosine):\n${candidateText}`;
 
   let parsed: unknown;
   try {
@@ -164,8 +183,23 @@ export async function consolidateMemory(
   if (parsed === null) return degrade("llm_error", fallback, options);
 
   const validIds = new Set(candidates.map((c) => c.id));
+  // Fall back to the real `trimmed` (not the redacted form) so a create
+  // fallback persists the original; the model-authored content below is
+  // de-anonymized explicitly.
   const result = validate(parsed, trimmed, validIds);
-  return result ?? degrade("invalid_response", fallback, options);
+  if (!result) return degrade("invalid_response", fallback, options);
+  if (redactor && result.content !== undefined) {
+    const restored = redactor.deAnonymize(result.content);
+    // If the model invented a placeholder we never assigned, deAnonymize leaves
+    // it literal. On the "update" path this content overwrites an existing
+    // memory, so don't persist a bogus "[EMAIL_2]" over a good fact — degrade to
+    // a create, which retain resolves by keeping the original (real) content.
+    if (redactor.hasUnresolvedPlaceholder(restored)) {
+      return degrade("invalid_response", fallback, options);
+    }
+    return { ...result, content: restored };
+  }
+  return result;
 }
 
 function degrade(

@@ -122,6 +122,45 @@ describe("useChatStorage bound recall", () => {
     expect(options?.excludeConversationId).toBe("conv_other");
   });
 
+  it("masks the query embedding when PII redaction is on", async () => {
+    // Regression guard: recall() must forward the maskInput-bearing
+    // vaultEmbeddingOptions (like createRecallTool / searchVaultMemories), not an
+    // inline literal — otherwise the raw query (often PII) hits the embeddings
+    // endpoint even with redaction on.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_recall_pii",
+        getToken: async () => "tok",
+        piiRedaction: true,
+      })
+    );
+
+    await act(async () => {
+      await result.current.recall("contact me at jane@example.com");
+    });
+
+    const [, ctx] = mockRecall.mock.calls[0];
+    expect(typeof ctx.embeddingOptions.maskInput).toBe("function");
+  });
+
+  it("sets no embedding masker when redaction is off", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_recall_nopii",
+        getToken: async () => "tok",
+      })
+    );
+
+    await act(async () => {
+      await result.current.recall("contact me at jane@example.com");
+    });
+
+    const [, ctx] = mockRecall.mock.calls[0];
+    expect(ctx.embeddingOptions.maskInput).toBeUndefined();
+  });
+
   it("returns an empty result (no throw, no recall() call) when auth is unavailable", async () => {
     const { result } = renderHook(() =>
       useChatStorage({

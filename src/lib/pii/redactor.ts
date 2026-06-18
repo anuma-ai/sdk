@@ -55,6 +55,12 @@ export interface MessageRedactionResult {
   matches: PiiMatch[];
 }
 
+/** Escape a string for literal use inside a RegExp — category names are
+ *  normally simple identifiers but a custom pattern could supply metacharacters. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Stateful PII redactor that tracks placeholder assignments across multiple
  * calls. Create one per conversation so "[EMAIL_1]" always refers to the
@@ -69,6 +75,13 @@ export class PiiRedactor {
   private categoryCounters = new Map<string, number>();
   /** The active detection patterns (defaults, optionally filtered/extended). */
   private readonly patterns: PiiPattern[];
+  /**
+   * Matches a numbered placeholder this redactor could mint — `[<category>_N]`
+   * for one of its own active categories. Scoped to those categories so it
+   * neither false-matches unrelated bracketed text (`[STEP_1]`) nor misses
+   * custom / lowercase categories. Null only when there are no patterns.
+   */
+  private readonly residualPlaceholderPattern: RegExp | null;
   /** Whether the non-text-content bypass warning has already been emitted. */
   private warnedNonText = false;
 
@@ -83,6 +96,26 @@ export class PiiRedactor {
       }
       this.patterns = options.extraPatterns ? [...base, ...options.extraPatterns] : base;
     }
+    const categories = [...new Set(this.patterns.map((p) => String(p.category)))];
+    this.residualPlaceholderPattern =
+      categories.length > 0
+        ? new RegExp(`\\[(?:${categories.map(escapeRegExp).join("|")})_\\d+\\]`)
+        : null;
+  }
+
+  /**
+   * True when `text` still contains a token shaped like a placeholder THIS
+   * redactor could mint (`[EMAIL_1]`, `[passport_2]`, …).
+   *
+   * After {@link deAnonymize} restores every placeholder that was actually
+   * assigned, such a residual token is one the model invented (never assigned
+   * during redaction). Consumers persisting de-anonymized text use this to
+   * reject the value rather than store an opaque `[SSN_1]` literal. Scoped to
+   * this redactor's own categories — so legitimate bracketed text like
+   * `[STEP_1]` is not misread, and custom/lowercase categories are covered.
+   */
+  hasUnresolvedPlaceholder(text: string): boolean {
+    return this.residualPlaceholderPattern?.test(text) ?? false;
   }
 
   /**
