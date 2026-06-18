@@ -2,7 +2,7 @@
 
 > **extractFacts**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `options`: [`ExtractFactsOptions`](../interfaces/ExtractFactsOptions.md)): `Promise`<[`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]>
 
-Defined in: [src/lib/memory/autoExtract.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#159)
+Defined in: [src/lib/memory/autoExtract.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#166)
 
 ## Parameters
 
