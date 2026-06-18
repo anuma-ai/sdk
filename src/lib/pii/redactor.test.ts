@@ -403,6 +403,97 @@ describe("PiiRedactor", () => {
     });
   });
 
+  describe("restoreForStorage (storage paths)", () => {
+    it("chat-display deAnonymize stays exact — a bracket-dropped echo is NOT substituted", () => {
+      redactor.redactText("john@example.com");
+      // deAnonymize (no opts) must not rewrite a bare token a model may have
+      // written as genuine content; only restoreForStorage is tolerant.
+      expect(redactor.deAnonymize("Your email is EMAIL_1")).toBe("Your email is EMAIL_1");
+    });
+
+    it("restores a bracket-dropped echo of an assigned placeholder", () => {
+      redactor.redactText("john@example.com");
+      const r = redactor.restoreForStorage("Your email is EMAIL_1");
+      expect(r.text).toBe("Your email is john@example.com");
+      expect(r.unresolved).toBe(false);
+    });
+
+    it("restores the bracketed form too", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.restoreForStorage("Your email is [EMAIL_1]").text).toBe(
+        "Your email is john@example.com"
+      );
+    });
+
+    it("restores a CASE-VARIANT echo (email_1 / Email_1)", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.restoreForStorage("email is email_1").text).toBe("email is john@example.com");
+      expect(redactor.restoreForStorage("email is Email_1").text).toBe("email is john@example.com");
+    });
+
+    it("does not let a bare EMAIL_1 eat the prefix of EMAIL_11", () => {
+      for (let i = 1; i <= 11; i++) redactor.redactText(`user${i}@example.com`);
+      expect(redactor.restoreForStorage("a EMAIL_1 b EMAIL_11 c").text).toBe(
+        "a user1@example.com b user11@example.com c"
+      );
+    });
+
+    it("flags a never-assigned token (bracketed, bare, or re-cased) as unresolved", () => {
+      redactor.redactText("john@example.com"); // only [EMAIL_1] minted
+      expect(redactor.restoreForStorage("User's SSN is [SSN_1]").unresolved).toBe(true);
+      expect(redactor.restoreForStorage("User's SSN is SSN_1").unresolved).toBe(true);
+      expect(redactor.restoreForStorage("User's ssn is ssn_1").unresolved).toBe(true);
+    });
+
+    it("does not flag ordinary prose as unresolved", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.restoreForStorage("send email 1 of 3 to the list").unresolved).toBe(false);
+      // STEP is not a redactor category — never a placeholder.
+      expect(redactor.restoreForStorage("follow STEP_1 then STEP_2").unresolved).toBe(false);
+    });
+
+    it("does NOT false-flag a restored value that itself contains a category-shaped substring", () => {
+      // Regression: an email whose local part is "ssn_1" restores correctly and
+      // must NOT be flagged unresolved (a re-scan of the output would trip on the
+      // "ssn_1" substring and silently drop a good fact).
+      redactor.redactText("My email is ssn_1@example.com"); // mints [EMAIL_1]="ssn_1@example.com"
+      const r = redactor.restoreForStorage("User's email is [EMAIL_1]");
+      expect(r.text).toBe("User's email is ssn_1@example.com");
+      expect(r.unresolved).toBe(false);
+    });
+
+    it("does not re-scan a restored value containing a sibling placeholder body", () => {
+      // [TOKEN_1]'s value literally contains "EMAIL_1"; a two-pass design would
+      // splice EMAIL_1's value into it. A single pass over the source restores
+      // TOKEN_1 verbatim.
+      const r = new PiiRedactor({
+        patterns: [
+          { category: "EMAIL", regex: /alice@corp\.com/g },
+          { category: "TOKEN", regex: /sk-[A-Za-z0-9_-]+/g },
+        ],
+      });
+      r.redactText("alice@corp.com"); // [EMAIL_1]
+      const minted = r.redactText("sk-zzzz-EMAIL_1-tail"); // [TOKEN_1]
+      expect(minted.matches[0].original).toBe("sk-zzzz-EMAIL_1-tail");
+      const out = r.restoreForStorage("key [TOKEN_1]");
+      expect(out.text).toBe("key sk-zzzz-EMAIL_1-tail");
+      expect(out.unresolved).toBe(false);
+    });
+
+    it("resolves the correct value when two categories collide on upper-cased body", () => {
+      // Built-in EMAIL plus a custom category "email" mint distinct placeholders
+      // [EMAIL_1] and [email_1]; an exact-case echo must resolve to its OWN value,
+      // never the other's.
+      const r = new PiiRedactor({
+        extraPatterns: [{ category: "email", regex: /ATTACKER-DOMAIN/g }],
+      });
+      r.redactText("real-user@corp.com"); // [EMAIL_1]
+      r.redactText("ATTACKER-DOMAIN"); // [email_1]
+      expect(r.restoreForStorage("contact [EMAIL_1]").text).toBe("contact real-user@corp.com");
+      expect(r.restoreForStorage("see [email_1]").text).toBe("see ATTACKER-DOMAIN");
+    });
+  });
+
   describe("maskText", () => {
     it("masks PII with unnumbered, stateless tokens", () => {
       const result = redactor.maskText("Email john@example.com or jane@corp.io, SSN 123-45-6789");

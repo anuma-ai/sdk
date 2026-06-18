@@ -262,4 +262,44 @@ describe("consolidateMemory — PII redaction", () => {
       fallbackReason: "invalid_response",
     });
   });
+
+  it("de-anonymizes a BRACKET-DROPPED echo in the consolidated content", async () => {
+    // The consolidation model echoes "[EMAIL_1]" back as bare "EMAIL_1"; the
+    // storage-path loose restore must still recover the real value so the vault
+    // never stores the opaque token.
+    const { fetchFn } = capturingFetch({
+      action: "update",
+      targetId: "m1",
+      content: "User's email is EMAIL_1.",
+    });
+    const result = await consolidateMemory("Reach me at jane@example.com", piiCandidates, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+    });
+
+    expect(result.action).toBe("update");
+    expect(result.content).toBe("User's email is jane@example.com.");
+  });
+
+  it("degrades to create when the consolidated content has a BRACKET-DROPPED hallucinated placeholder", async () => {
+    // Bare, never-assigned "EMAIL_2" — the loose guard must catch it so a bogus
+    // token never overwrites the existing memory.
+    const { fetchFn } = capturingFetch({
+      action: "update",
+      targetId: "m1",
+      content: "User's backup email is EMAIL_2.",
+    });
+    const result = await consolidateMemory("Reach jane@example.com", piiCandidates, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+    });
+
+    expect(result).toEqual({
+      action: "create",
+      content: "Reach jane@example.com",
+      fallbackReason: "invalid_response",
+    });
+  });
 });

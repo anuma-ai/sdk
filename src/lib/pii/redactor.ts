@@ -82,6 +82,26 @@ export class PiiRedactor {
    * custom / lowercase categories. Null only when there are no patterns.
    */
   private readonly residualPlaceholderPattern: RegExp | null;
+  /**
+   * Matches any placeholder-shaped token for this redactor's categories —
+   * bracketed `[EMAIL_1]` OR bare `EMAIL_1`, case-insensitive — capturing the
+   * body. Drives {@link restoreForStorage}: the extraction / consolidation
+   * models echo placeholders mangled (brackets dropped, re-cased), and a single
+   * pass with this matcher restores the assigned ones and flags the rest in one
+   * go. Built from the (constant) category set; null only when there are none.
+   */
+  private readonly storagePattern: RegExp | null;
+  /**
+   * Cached body→value lookups for {@link restoreForStorage}, built lazily from
+   * the assigned placeholders and invalidated on each mint. `exact` is keyed by
+   * the literal body (collision-proof); `ci` by upper-cased body for re-cased
+   * echoes, minus any `ciCollisions` where two distinct bodies share a form.
+   */
+  private storageLookup: {
+    exact: Map<string, string>;
+    ci: Map<string, string>;
+    ciCollisions: Set<string>;
+  } | null = null;
   /** Whether the non-text-content bypass warning has already been emitted. */
   private warnedNonText = false;
 
@@ -97,9 +117,21 @@ export class PiiRedactor {
       this.patterns = options.extraPatterns ? [...base, ...options.extraPatterns] : base;
     }
     const categories = [...new Set(this.patterns.map((p) => String(p.category)))];
+    // Longest category first so a category that is a prefix of another can't
+    // shadow it in the alternation.
+    const categoryAlt = categories
+      .slice()
+      .sort((a, b) => b.length - a.length)
+      .map(escapeRegExp)
+      .join("|");
     this.residualPlaceholderPattern =
+      categories.length > 0 ? new RegExp(`\\[(?:${categoryAlt})_\\d+\\]`) : null;
+    // Storage-path matcher: bracketed `[EMAIL_1]` OR bare `EMAIL_1`, capturing
+    // the body, case-insensitive, global. `\d+` (not a fixed body) so it spans
+    // any index, and `\b` on the bare arm keeps it off prose like "email 1 of 3".
+    this.storagePattern =
       categories.length > 0
-        ? new RegExp(`\\[(?:${categories.map(escapeRegExp).join("|")})_\\d+\\]`)
+        ? new RegExp(`\\[((?:${categoryAlt})_\\d+)\\]|\\b((?:${categoryAlt})_\\d+)\\b`, "gi")
         : null;
   }
 
@@ -113,6 +145,12 @@ export class PiiRedactor {
    * reject the value rather than store an opaque `[SSN_1]` literal. Scoped to
    * this redactor's own categories — so legitimate bracketed text like
    * `[STEP_1]` is not misread, and custom/lowercase categories are covered.
+   *
+   * Exact (bracketed) only. The storage paths use {@link restoreForStorage},
+   * which detects unresolved tokens during the restore pass over the ORIGINAL
+   * text — so it tolerates bracket-dropped / re-cased echoes without re-scanning
+   * a restored value (which would false-fire on a real value that happens to
+   * contain a `<CATEGORY>_<n>` substring, e.g. the email `ssn_1@example.com`).
    */
   hasUnresolvedPlaceholder(text: string): boolean {
     return this.residualPlaceholderPattern?.test(text) ?? false;
@@ -149,6 +187,8 @@ export class PiiRedactor {
     const placeholder = `[${category}_${count}]`;
     this.valueToPlaceholder.set(normalizedValue, placeholder);
     this.placeholderToValue.set(placeholder, normalizedValue);
+    // A new placeholder joined the set — the cached storage lookup is now stale.
+    this.storageLookup = null;
     return placeholder;
   }
 
@@ -271,10 +311,13 @@ export class PiiRedactor {
   /**
    * Restore original PII values in text that contains placeholders.
    * Used to de-anonymize LLM responses before displaying to the user.
+   *
+   * Exact: matches the literal `[EMAIL_1]` form only. The storage paths use
+   * {@link restoreForStorage} instead, which tolerates the mangled echoes the
+   * extraction models produce.
    */
   deAnonymize(text: string): string {
-    // Fast path: every placeholder starts with "[", so text without one
-    // cannot contain any placeholder.
+    // Fast path: every placeholder is "[...]", so skip when there's no "[".
     if (!text.includes("[")) return text;
     let restored = text;
     for (const [placeholder, original] of this.placeholderToValue) {
@@ -289,12 +332,84 @@ export class PiiRedactor {
   }
 
   /**
+   * De-anonymize for PERSISTENCE (auto-extraction / consolidation), tolerant of
+   * the ways the extraction models mangle a placeholder when echoing it back:
+   * dropped brackets (`EMAIL_1`) and changed case (`email_1` / `Email_1`).
+   *
+   * Returns the restored text plus `unresolved` — true when a placeholder-shaped
+   * token for one of this redactor's categories was NOT assigned during
+   * redaction (a model hallucination, or an ambiguous re-cased collision).
+   * Callers drop/degrade such facts so an opaque token never reaches the vault.
+   *
+   * One left-to-right pass over the ORIGINAL text. Two properties matter:
+   * - a restored value is never re-scanned — so a real value that happens to
+   *   contain a `<CATEGORY>_<n>` substring (e.g. the email `ssn_1@example.com`,
+   *   or an API key containing `EMAIL_1`) is neither corrupted nor false-flagged;
+   * - `unresolved` is derived from the lookup miss during this pass, not from a
+   *   regex re-scan of the output — so it can't trip over a restored value.
+   */
+  restoreForStorage(text: string): { text: string; unresolved: boolean } {
+    if (!this.storagePattern || this.placeholderToValue.size === 0) {
+      return { text, unresolved: false };
+    }
+    this.storageLookup ??= this.buildStorageLookup();
+    const { exact, ci, ciCollisions } = this.storageLookup;
+    let unresolved = false;
+    const restored = text.replace(
+      this.storagePattern,
+      (match: string, bracketed?: string, bare?: string) => {
+        const body = bracketed ?? bare ?? "";
+        // Exact-case body always resolves to its own value (collision-proof).
+        const exactHit = exact.get(body);
+        if (exactHit !== undefined) return exactHit;
+        // Re-cased echo: resolve via upper-cased key only when unambiguous.
+        const key = body.toUpperCase();
+        if (!ciCollisions.has(key)) {
+          const ciHit = ci.get(key);
+          if (ciHit !== undefined) return ciHit;
+        }
+        // Placeholder-shaped but never assigned (hallucinated), or an ambiguous
+        // re-cased collision: leave literal and tell the caller to drop it.
+        unresolved = true;
+        return match;
+      }
+    );
+    return { text: restored, unresolved };
+  }
+
+  /**
+   * Build the {@link restoreForStorage} body→value lookups from the assigned
+   * placeholders. `exact` (literal body) is collision-proof; `ci` (upper-cased
+   * body) handles re-cased echoes, except where two distinct bodies share an
+   * upper-cased form — those are recorded in `ciCollisions` so a re-cased echo
+   * of them is left unresolved rather than resolved to the wrong value.
+   */
+  private buildStorageLookup(): {
+    exact: Map<string, string>;
+    ci: Map<string, string>;
+    ciCollisions: Set<string>;
+  } {
+    const exact = new Map<string, string>();
+    const ci = new Map<string, string>();
+    const ciCollisions = new Set<string>();
+    for (const [placeholder, value] of this.placeholderToValue) {
+      const body = placeholder.slice(1, -1);
+      exact.set(body, value);
+      const key = body.toUpperCase();
+      if (ci.has(key) && ci.get(key) !== value) ciCollisions.add(key);
+      else ci.set(key, value);
+    }
+    return { exact, ci, ciCollisions };
+  }
+
+  /**
    * Reset all state. Useful for testing or when starting a fresh conversation.
    */
   clear(): void {
     this.valueToPlaceholder.clear();
     this.placeholderToValue.clear();
     this.categoryCounters.clear();
+    this.storageLookup = null;
     this.warnedNonText = false;
   }
 }

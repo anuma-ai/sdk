@@ -595,6 +595,56 @@ describe("extractFacts — PII redaction", () => {
     expect(result[0].entities).toEqual(["jane@example.com"]);
   });
 
+  it("de-anonymizes a BRACKET-DROPPED echo back to the real value (vault-pollution fix)", async () => {
+    // The extraction model sometimes echoes "[EMAIL_1]" back as bare "EMAIL_1".
+    // The exact pass misses it; without the storage-path loose restore the vault
+    // would persist the opaque token "EMAIL_1" instead of the real email.
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is EMAIL_1",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: ["EMAIL_1"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(piiMessages, { apiKey: "k", fetchFn, piiRedaction: true });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's email is jane@example.com");
+    expect(result[0].entities).toEqual(["jane@example.com"]);
+  });
+
+  it("keeps a fact whose restored value contains a category-shaped substring (no false drop)", async () => {
+    // The user's email local part is itself "ssn_1": redacts to [EMAIL_1]. The
+    // restored value "ssn_1@example.com" contains the substring "ssn_1" — a
+    // guard that re-scanned the restored text would false-flag it and silently
+    // drop a good fact. It must be retained.
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "My email is ssn_1@example.com" },
+    ];
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is [EMAIL_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: ["[EMAIL_1]"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's email is ssn_1@example.com");
+    expect(result[0].entities).toEqual(["ssn_1@example.com"]);
+  });
+
   it("leaves the transcript raw when redaction is disabled (default)", async () => {
     const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
     await extractFacts(piiMessages, { apiKey: "k", fetchFn });
@@ -636,6 +686,29 @@ describe("extractFacts — PII redaction", () => {
       candidates: [
         {
           content: "User's SSN is [SSN_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(0);
+  });
+
+  it("drops a fact carrying a BRACKET-DROPPED hallucinated placeholder", async () => {
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "Email me at jane@example.com" },
+    ];
+    // Only [EMAIL_1] was assigned; the model invents a bare, never-mapped
+    // "SSN_1". The loose guard must catch the bracket-dropped form too, so the
+    // opaque token is never persisted into the vault.
+    const llm = {
+      candidates: [
+        {
+          content: "User's SSN is SSN_1",
           type: "identity",
           confidence: 0.95,
           sourceMessageIds: ["m1"],
