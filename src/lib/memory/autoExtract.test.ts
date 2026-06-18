@@ -491,3 +491,61 @@ describe("extractAndRetain", () => {
     expect(vi.mocked(retain).mock.calls[0][2]).not.toHaveProperty("consolidateOptions");
   });
 });
+
+describe("extractFacts — PII redaction", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /** Fetch mock that records each request body so we can assert what reached the wire. */
+  function capturingFetch(content: string): { fetchFn: typeof fetch; bodies: string[] } {
+    const bodies: string[] = [];
+    const fetchFn = vi.fn().mockImplementation((_url: string, init?: { body?: unknown }) => {
+      bodies.push(typeof init?.body === "string" ? init.body : "");
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content } }] }),
+      });
+    }) as unknown as typeof fetch;
+    return { fetchFn, bodies };
+  }
+
+  const piiMessages: AutoExtractMessage[] = [
+    { id: "m1", role: "user", content: "Reach me at jane@example.com or 415-555-0199." },
+  ];
+
+  it("redacts the transcript before it reaches the extraction model", async () => {
+    const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
+    await extractFacts(piiMessages, { apiKey: "k", fetchFn, piiRedaction: true });
+
+    const sent = bodies.join("");
+    expect(sent).not.toContain("jane@example.com");
+    expect(sent).not.toContain("415-555-0199");
+    expect(sent).toContain("[EMAIL_1]");
+    expect(sent).toContain("[PHONE_1]");
+  });
+
+  it("de-anonymizes returned fact content and entities back to the real values", async () => {
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is [EMAIL_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: ["[EMAIL_1]"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(piiMessages, { apiKey: "k", fetchFn, piiRedaction: true });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's email is jane@example.com");
+    expect(result[0].entities).toEqual(["jane@example.com"]);
+  });
+
+  it("leaves the transcript raw when redaction is disabled (default)", async () => {
+    const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
+    await extractFacts(piiMessages, { apiKey: "k", fetchFn });
+    expect(bodies.join("")).toContain("jane@example.com");
+  });
+});

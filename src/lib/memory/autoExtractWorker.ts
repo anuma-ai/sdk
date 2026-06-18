@@ -149,6 +149,12 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         ...(options.consolidate.onFallback !== undefined && {
           onFallback: options.consolidate.onFallback,
         }),
+        // Inherit PII redaction from the extract options — if extraction
+        // redacts, consolidation (which reasons over the same chat-derived
+        // facts) must too, or it would re-leak the values extraction protected.
+        ...(options.extract.piiRedaction !== undefined && {
+          piiRedaction: options.extract.piiRedaction,
+        }),
       }
     : undefined;
 

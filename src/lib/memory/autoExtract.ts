@@ -15,6 +15,7 @@
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
+import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -127,6 +128,15 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
+  /**
+   * When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
+   * conversation transcript is replaced with tagged placeholders before the
+   * extraction call, and the returned facts + entities are de-anonymized so
+   * the vault keeps the real values while raw PII never reaches the provider.
+   * Pass `true` for a fresh per-call redactor, or a shared {@link PiiRedactor}
+   * to keep placeholder numbering consistent with other calls.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 }
 
 /**
@@ -152,7 +162,16 @@ export async function extractFacts(
 ): Promise<ExtractedCandidate[]> {
   if (messages.length === 0) return [];
 
-  const transcript = messages.map((m) => `[${m.id}] ${m.role}: ${m.content}`).join("\n");
+  // PII redaction: scrub the transcript before it reaches the extraction model,
+  // then de-anonymize the returned facts so the vault keeps real values. Only
+  // the message *content* is redacted — the `[id]` provenance markers stay
+  // intact so `sourceMessageIds` still validates against the original ids.
+  const redactor = resolvePiiRedactor(options.piiRedaction);
+  const transcript = messages
+    .map(
+      (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
+    )
+    .join("\n");
   let parsed: unknown = null;
   for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
     parsed = await callPortalJsonCompletion({
@@ -171,7 +190,15 @@ export async function extractFacts(
   }
   if (parsed === null) return [];
 
-  return validateCandidates(parsed, new Set(messages.map((m) => m.id)));
+  const candidates = validateCandidates(parsed, new Set(messages.map((m) => m.id)));
+  if (!redactor) return candidates;
+  // Restore real values in the extracted facts (content + entities) — the LLM
+  // saw placeholders, so its output references them.
+  return candidates.map((c) => ({
+    ...c,
+    content: redactor.deAnonymize(c.content),
+    entities: c.entities.map((e) => redactor.deAnonymize(e)),
+  }));
 }
 
 /**
