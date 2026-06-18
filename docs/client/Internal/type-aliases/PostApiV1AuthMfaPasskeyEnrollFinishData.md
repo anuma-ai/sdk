@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyEnrollFinishData** = `object`
 
-Defined in: [src/client/types.gen.ts:5906](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5906)
+Defined in: [src/client/types.gen.ts:5929](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5929)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5906](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersPasskeyEnrollFinishRequest`](HandlersPasskeyEnrollFinishRequest.md)
 
-Defined in: [src/client/types.gen.ts:5910](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5910)
+Defined in: [src/client/types.gen.ts:5933](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5933)
 
 credential + label
 
@@ -20,7 +20,7 @@ credential + label
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:5911](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5911)
+Defined in: [src/client/types.gen.ts:5934](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5934)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:5911](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5912](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5912)
+Defined in: [src/client/types.gen.ts:5935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5935)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:5912](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/passkey/enroll/finish"`
 
-Defined in: [src/client/types.gen.ts:5913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5913)
+Defined in: [src/client/types.gen.ts:5936](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5936)

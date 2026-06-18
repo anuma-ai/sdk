@@ -36,6 +36,14 @@ export type ConfigCompactLists = {
 export type ConfigCuratedModel = {
     active?: boolean;
     /**
+     * BestFor lists the use cases this model is well-suited to, e.g.
+     * "coding", "writing", "reasoning", "vision", "creative". Drives the
+     * task-aware smart groups on the client ("Best for Coding", …). Product-
+     * curated and optional — a model with no entries simply won't be offered by
+     * a task group. Free-form strings; the client matches case-insensitively.
+     */
+    best_for?: Array<string>;
+    /**
      * "text" | "image" | "vision"
      */
     category?: string;
@@ -87,12 +95,27 @@ export type ConfigCuratedModel = {
      * (e.g. a demoted-but-live former default) — do NOT mark those Retired.
      */
     retired?: boolean;
+    /**
+     * SpeedTier is a coarse latency class — "fast" | "balanced" | "slow" —
+     * independent of Quality (a high-quality model can still be fast). Lets the
+     * "Speed Round" group select on real speed rather than inferring it from
+     * price/quality. Optional; empty means "unspecified".
+     */
+    speed_tier?: string;
 };
 
 export type ConfigCuratedModelsResponse = {
     compact?: ConfigCompactLists;
     models?: Array<ConfigCuratedModel>;
+    smart_groups?: Array<ConfigSmartGroup>;
     version?: string;
+};
+
+export type ConfigSmartGroup = {
+    description_key?: string;
+    id?: string;
+    model_ids?: Array<string>;
+    name_key?: string;
 };
 
 export type McpToolSchema = {

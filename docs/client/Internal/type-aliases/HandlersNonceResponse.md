@@ -2,7 +2,7 @@
 
 > **HandlersNonceResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2085)
+Defined in: [src/client/types.gen.ts:2108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2108)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2085](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **expires\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2086)
+Defined in: [src/client/types.gen.ts:2109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2109)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2086](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:2087](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2087)
+Defined in: [src/client/types.gen.ts:2110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2110)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2087](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **nonce**: `string`
 
-Defined in: [src/client/types.gen.ts:2088](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2088)
+Defined in: [src/client/types.gen.ts:2111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2111)

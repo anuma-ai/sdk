@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserAgentConsentsByAgentIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:8951](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8951)
+Defined in: [src/client/types.gen.ts:8974](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8974)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8951](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:8952](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8952)
+Defined in: [src/client/types.gen.ts:8975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8975)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:8952](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:8953](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8953)
+Defined in: [src/client/types.gen.ts:8976](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8976)
 
 **agent\_id**
 
@@ -32,7 +32,7 @@ Agent ID (OAuth client\_id)
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:8959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8959)
+Defined in: [src/client/types.gen.ts:8982](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8982)
 
 **platform**
 
@@ -46,4 +46,4 @@ Platform ('sms')
 
 > **url**: `"/api/v1/user/agent-consents/{agent_id}"`
 
-Defined in: [src/client/types.gen.ts:8965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8965)
+Defined in: [src/client/types.gen.ts:8988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8988)

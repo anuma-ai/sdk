@@ -2,7 +2,7 @@
 
 > **ResponseInsufficientBalanceResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1035](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1035)
+Defined in: [src/client/types.gen.ts:1058](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1058)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1035](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **available\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:1040](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1040)
+Defined in: [src/client/types.gen.ts:1063](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1063)
 
 AvailableMicroUSD is the user's spendable balance at the moment of the
 failed reservation (cached\_balance\_usd; single-column model, epic #1092 PR4).
@@ -21,7 +21,7 @@ failed reservation (cached\_balance\_usd; single-column model, epic #1092 PR4).
 
 > `optional` **code**: `string`
 
-Defined in: [src/client/types.gen.ts:1041](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1041)
+Defined in: [src/client/types.gen.ts:1064](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1064)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/client/types.gen.ts:1041](https://github.com/anuma-ai/sdk/blob/
 
 > **error**: `string`
 
-Defined in: [src/client/types.gen.ts:1042](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1042)
+Defined in: [src/client/types.gen.ts:1065](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1065)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/client/types.gen.ts:1042](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **gate**: `string`
 
-Defined in: [src/client/types.gen.ts:1046](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1046)
+Defined in: [src/client/types.gen.ts:1069](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1069)
 
 Gate disambiguates the failure source — see BalanceGate\* constants.
 
@@ -47,7 +47,7 @@ Gate disambiguates the failure source — see BalanceGate\* constants.
 
 > `optional` **request\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1047](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1047)
+Defined in: [src/client/types.gen.ts:1070](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1070)
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: [src/client/types.gen.ts:1047](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **required\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:1053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1053)
+Defined in: [src/client/types.gen.ts:1076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1076)
 
 RequiredMicroUSD is the hold the server attempted to reserve. For
 Gate=BalanceGateMinimum this is the global per-request floor; for
@@ -67,7 +67,7 @@ Gate=BalanceGateModel this is the model-aware worst-case cost.
 
 > `optional` **trace\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1054)
+Defined in: [src/client/types.gen.ts:1077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1077)
 
 ***
 
@@ -75,4 +75,4 @@ Defined in: [src/client/types.gen.ts:1054](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:1055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1055)
+Defined in: [src/client/types.gen.ts:1078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1078)

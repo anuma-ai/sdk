@@ -2,7 +2,7 @@
 
 > **HandlersSearchResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2316)
+Defined in: [src/client/types.gen.ts:2339](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2339)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2316](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **results**: [`HandlersSearchResult`](HandlersSearchResult.md)\[]
 
-Defined in: [src/client/types.gen.ts:2317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2317)
+Defined in: [src/client/types.gen.ts:2340](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2340)

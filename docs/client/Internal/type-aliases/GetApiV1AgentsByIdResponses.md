@@ -2,7 +2,7 @@
 
 > **GetApiV1AgentsByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5753](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5753)
+Defined in: [src/client/types.gen.ts:5776](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5776)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5753](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersAgentResponse`](HandlersAgentResponse.md)
 
-Defined in: [src/client/types.gen.ts:5757](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5757)
+Defined in: [src/client/types.gen.ts:5780](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5780)
 
 OK

@@ -2,7 +2,7 @@
 
 > **HandlersConfigResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1470](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1470)
+Defined in: [src/client/types.gen.ts:1493](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1493)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1470](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **apps**: [`HandlersAppConfig`](HandlersAppConfig.md)\[]
 
-Defined in: [src/client/types.gen.ts:1474](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1474)
+Defined in: [src/client/types.gen.ts:1497](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1497)
 
 Apps is the list of active apps
 
@@ -20,6 +20,6 @@ Apps is the list of active apps
 
 > `optional` **phone\_calls\_enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1478)
+Defined in: [src/client/types.gen.ts:1501](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1501)
 
 PhoneCallsEnabled indicates whether Bland phone calling is available
