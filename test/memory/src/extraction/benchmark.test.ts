@@ -86,7 +86,9 @@ interface CaseResult {
   matchedExpected: number; // gold facts a candidate matched
   goodCandidates: number; // candidates that matched a gold fact
   expectedDetail: { fact: string; matched: boolean; best: number }[];
-  candidateDetail: { content: string; matched: boolean; best: number }[];
+  candidateDetail: { content: string; matched: boolean; best: number; forbidden: boolean }[];
+  /** Candidates that matched a `forbidden` fact — confirmed junk, the strongest signal. */
+  forbiddenHits: number;
 }
 
 async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
@@ -95,12 +97,14 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     { apiKey: API_KEY, baseUrl: BASE_URL, ...(args.model && { model: args.model }) }
   );
   const candTexts = candidates.map((c2) => c2.content);
+  const forbidden = c.forbidden ?? [];
 
-  // Embed gold + candidate texts together, then match by cosine.
-  const texts = [...c.expected, ...candTexts];
+  // Embed gold + forbidden + candidate texts together, then match by cosine.
+  const texts = [...c.expected, ...forbidden, ...candTexts];
   const embeddings = texts.length > 0 ? await generateEmbeddings(texts, embeddingOptions) : [];
   const goldEmb = embeddings.slice(0, c.expected.length);
-  const candEmb = embeddings.slice(c.expected.length);
+  const forbiddenEmb = embeddings.slice(c.expected.length, c.expected.length + forbidden.length);
+  const candEmb = embeddings.slice(c.expected.length + forbidden.length);
 
   const expectedDetail = c.expected.map((fact, i) => {
     let best = 0;
@@ -110,7 +114,19 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
   const candidateDetail = candTexts.map((content, i) => {
     let best = 0;
     for (const ge of goldEmb) best = Math.max(best, cosine(candEmb[i], ge));
-    return { content, matched: best >= MATCH_THRESHOLD, best };
+    let forbiddenBest = 0;
+    for (const fe of forbiddenEmb) forbiddenBest = Math.max(forbiddenBest, cosine(candEmb[i], fe));
+    const matched = best >= MATCH_THRESHOLD;
+    return {
+      content,
+      matched,
+      best,
+      // A forbidden hit only counts as junk when the candidate ISN'T also a
+      // legitimate gold match — gold and forbidden often share a template
+      // ("lives in SF" vs "lives in Portland"), so a correct extraction sits
+      // above the threshold for both. Require it to match forbidden AND miss gold.
+      forbidden: forbiddenBest >= MATCH_THRESHOLD && !matched,
+    };
   });
 
   return {
@@ -122,6 +138,7 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     goodCandidates: candidateDetail.filter((e) => e.matched).length,
     expectedDetail,
     candidateDetail,
+    forbiddenHits: candidateDetail.filter((e) => e.forbidden).length,
   };
 }
 
@@ -144,6 +161,7 @@ async function main(): Promise<void> {
   const totalGoodCandidates = results.reduce((s, r) => s + r.goodCandidates, 0);
   const negativeCandidates = negatives.reduce((s, r) => s + r.candidates.length, 0);
   const cleanNegatives = negatives.filter((r) => r.candidates.length === 0).length;
+  const forbiddenHits = results.reduce((s, r) => s + r.forbiddenHits, 0);
 
   const overall = {
     recall: totalMatchedExpected / (totalExpected || 1),
@@ -151,6 +169,7 @@ async function main(): Promise<void> {
     avgCandidatesPerCase: totalCandidates / results.length,
     negativeJunkCandidates: negativeCandidates,
     negativeCleanRate: cleanNegatives / (negatives.length || 1),
+    forbiddenHits,
     totalCandidates,
   };
 
@@ -198,6 +217,7 @@ async function main(): Promise<void> {
         `(${cleanNegatives}/${negatives.length} negatives produced 0 facts)`
     );
     console.log(`  Junk on negatives              ${negativeCandidates} candidates`);
+    console.log(`  Forbidden-fact hits            ${forbiddenHits} (matched a known junk pattern)`);
     console.log(`  Avg candidates/case            ${overall.avgCandidatesPerCase.toFixed(2)}`);
   }
 
@@ -210,7 +230,11 @@ async function main(): Promise<void> {
         console.error(`  ${e.matched ? "✓" : "✗ MISS"} gold: ${e.fact}  (${e.best.toFixed(2)})`);
       }
       for (const cd of r.candidateDetail) {
-        if (!cd.matched) console.error(`  • extra: ${cd.content}  (best ${cd.best.toFixed(2)})`);
+        if (cd.forbidden) {
+          console.error(`  ✗ FORBIDDEN: ${cd.content}  (matched a junk pattern)`);
+        } else if (!cd.matched) {
+          console.error(`  • extra: ${cd.content}  (best ${cd.best.toFixed(2)})`);
+        }
       }
     }
   }

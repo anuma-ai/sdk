@@ -101,8 +101,8 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
       "I have two kids — Leo is 7 and Mia is 4. My partner Jordan teaches high-school chemistry."
     ),
     expected: [
-      "User has a son named Leo who is 7.",
-      "User has a daughter named Mia who is 4.",
+      "User has a child named Leo who is 7.",
+      "User has a child named Mia who is 4.",
       "User's partner is named Jordan.",
       "Jordan teaches high-school chemistry.",
     ],

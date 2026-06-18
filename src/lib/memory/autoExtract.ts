@@ -62,8 +62,8 @@ A "durable fact" is something the user shared about themselves that should still
 - "Working on a Rust side project"
 - "Prefers async communication over meetings"
 - "Has a golden retriever named Biscuit"
-- "Switched from coffee to matcha in September 2025"
-- "Lives in San Francisco, moved from Portland in November 2025"
+- "Prefers matcha over coffee"
+- "Lives in San Francisco (since November 2025)"
 
 NOT durable — do NOT extract:
 - Search queries or questions ("what time does the gym open?")
