@@ -490,6 +490,58 @@ describe("extractAndRetain", () => {
 
     expect(vi.mocked(retain).mock.calls[0][2]).not.toHaveProperty("consolidateOptions");
   });
+
+  it("inherits extract.piiRedaction into consolidateOptions for direct callers", async () => {
+    const candidates = {
+      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch(JSON.stringify(candidates)),
+          piiRedaction: true,
+        },
+        // No piiRedaction here — it must be inherited from `extract`, or the
+        // consolidation LLM would receive the (de-anonymized) facts in the clear.
+        consolidateOptions: { apiKey: "k" },
+      }
+    );
+
+    const retainOpts = vi.mocked(retain).mock.calls[0][2] as {
+      consolidateOptions?: { piiRedaction?: unknown };
+    };
+    expect(retainOpts.consolidateOptions?.piiRedaction).toBe(true);
+  });
+
+  it("lets an explicit consolidateOptions.piiRedaction win over extract", async () => {
+    const candidates = {
+      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch(JSON.stringify(candidates)),
+          piiRedaction: true,
+        },
+        consolidateOptions: { apiKey: "k", piiRedaction: false },
+      }
+    );
+
+    const retainOpts = vi.mocked(retain).mock.calls[0][2] as {
+      consolidateOptions?: { piiRedaction?: unknown };
+    };
+    expect(retainOpts.consolidateOptions?.piiRedaction).toBe(false);
+  });
 });
 
 describe("extractFacts — PII redaction", () => {

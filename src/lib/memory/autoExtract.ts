@@ -248,6 +248,20 @@ export async function extractAndRetain(
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
+  // Consolidation reasons over the same chat-derived facts as extraction and
+  // hits an LLM, so it must redact too — otherwise enabling `extract.piiRedaction`
+  // alone would still leak the (de-anonymized) facts to the consolidator. Inherit
+  // the extraction setting unless the caller set one explicitly on consolidateOptions.
+  const resolvedConsolidatePii =
+    options.consolidateOptions?.piiRedaction ?? options.extract.piiRedaction;
+  const consolidateOptions: RetainOptions["consolidateOptions"] =
+    options.consolidateOptions !== undefined
+      ? {
+          ...options.consolidateOptions,
+          ...(resolvedConsolidatePii !== undefined && { piiRedaction: resolvedConsolidatePii }),
+        }
+      : undefined;
+
   const candidates = await extractFacts(messages, options.extract);
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
@@ -264,9 +278,7 @@ export async function extractAndRetain(
         sourceChunkIds: candidate.sourceMessageIds,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
-        ...(options.consolidateOptions !== undefined && {
-          consolidateOptions: options.consolidateOptions,
-        }),
+        ...(consolidateOptions !== undefined && { consolidateOptions }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
       });
       succeededCandidates.push(candidate);
