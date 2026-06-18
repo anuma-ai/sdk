@@ -26,6 +26,7 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { readFile, writeFile } from "node:fs/promises";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
 import {
@@ -513,7 +514,10 @@ async function main() {
     queries = queries.slice(0, maxCount);
   }
 
-  const cacheModel = embeddingOptions.model ?? "default";
+  // Resolve to the same model generateEmbeddings actually calls, so the cache
+  // auto-invalidates if DEFAULT_API_EMBEDDING_MODEL changes (keying on a literal
+  // "default" would silently reuse stale vectors after a model bump).
+  const cacheModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const embeddingCache = await loadEmbeddingCache(cacheModel, !!args["refresh-embeddings"]);
 
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
