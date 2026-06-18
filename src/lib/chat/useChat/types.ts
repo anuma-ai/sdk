@@ -14,6 +14,17 @@ import type { StreamSmoothingConfig } from "./StreamSmoother";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "./utils";
 
 /**
+ * `LlmapiResponseUsage` plus the per-step out-of-credits marker. ai-portal
+ * (#1146) injects `credits_exhausted: true` into the `usage` object at runtime
+ * via MarshalJSON — it is NOT a declared field on the OpenAPI usage schema, so
+ * codegen omits it from `LlmapiResponseUsage`. We expose it hand-written here
+ * (the runtime value is retained by JSON.parse) and pass it through alongside
+ * `credits_used`, so it survives the next codegen. Terminal boolean — passed
+ * through as-is, never summed.
+ */
+export type ResponseUsage = LlmapiResponseUsage & { credits_exhausted?: boolean };
+
+/**
  * Streaming chunk structure received from SSE events (Responses API format)
  */
 export type StreamingChunk = {
@@ -21,7 +32,7 @@ export type StreamingChunk = {
   model?: string;
   type?: string;
   delta?: string | { OfString?: string; OfResponseReasoningSummaryDeltaEventDelta?: string };
-  usage?: LlmapiResponseUsage;
+  usage?: ResponseUsage;
   // For response.created and response.completed events
   response?: {
     id?: string;
@@ -31,6 +42,7 @@ export type StreamingChunk = {
       output_tokens?: number;
       cost_micro_usd?: number;
       credits_used?: number;
+      credits_exhausted?: boolean;
     };
     /** Checksum of tools used to generate this response */
     tools_checksum?: string;
@@ -344,7 +356,7 @@ export type StreamAccumulator = {
   thinking: string;
   responseId: string;
   responseModel: string;
-  usage: Partial<LlmapiResponseUsage>;
+  usage: Partial<ResponseUsage>;
   toolCalls: Map<string, AccumulatedToolCall>;
   /** Track incomplete reasoning tags across chunks */
   partialReasoningTag?: string;

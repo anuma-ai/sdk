@@ -279,6 +279,21 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
     status?: number;
     error?: Error;
   }) => void;
+
+  /**
+   * Observe the stream metadata the portal issues at HEADERS_RECEIVED, once per
+   * round. Forwarded to the underlying `useChat`. The enriched payload carries
+   * the RESOLVED `apiType` and `model` alongside `inferenceId`, so a consumer
+   * can persist a rebuildable {@link StreamResumeHandle} for a cold-launch
+   * resume registry (mobile PR5). Additive — never alters the internal
+   * resume-handle capture.
+   */
+  onStreamMeta?: (meta: {
+    inferenceId: string;
+    apiType: "responses" | "completions";
+    model?: string;
+    round?: number;
+  }) => void;
 }
 
 /**
@@ -388,8 +403,25 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * a deserialized handle has no in-memory context (the row is then created
    * fresh). Replay is always from seq 0 — consumers reset accumulated streaming
    * text before calling.
+   *
+   * Pass `{ headless: true }` for a cold-launch replay of a conversation that is
+   * NOT the one on screen: the row is still reconciled + PERSISTED exactly as
+   * normal, but NOTHING is emitted to ANY consumer callback — `onData` /
+   * `onThinking` / `onFinish` / `onError` are all withheld (forwarded into the
+   * inner `useChat`, which spreads `{}` in place of all four). `isLoading` is
+   * also left untouched, so reusing the on-screen chat's hook for an off-screen
+   * recovery can't flicker the visible loading state. A headless resume also
+   * does NOT touch the inner hook's shared abort controller, so the visible UI's
+   * `stop()` can't abort it and it can't clobber a concurrently-visible stream's
+   * controller. Recovered text can't bleed into the visible chat's streaming
+   * buffer, nor can the recovered response (onFinish) or a transient error
+   * (onError) reach the on-screen consumer; the caller uses the returned result
+   * instead (mobile PR5 worker).
    */
-  resumeStream: (handleOverride?: StreamResumeHandle) => Promise<ResumeStreamWithStorageResult>;
+  resumeStream: (
+    handleOverride?: StreamResumeHandle,
+    opts?: { headless?: boolean }
+  ) => Promise<ResumeStreamWithStorageResult>;
   /**
    * Create a memory engine tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
@@ -518,6 +550,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     preProcessors,
     resumable = false,
     onCancelResult,
+    onStreamMeta,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -917,6 +950,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     preProcessors,
     resumable,
     onCancelResult,
+    onStreamMeta,
   });
 
   // Pending-resume context: everything needed to FINISH a detached turn after
@@ -1917,7 +1951,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    *   ref so the caller can retry with a force-refreshed token.
    */
   const resumeStream = useCallback(
-    async (handleOverride?: StreamResumeHandle): Promise<ResumeStreamWithStorageResult> => {
+    async (
+      handleOverride?: StreamResumeHandle,
+      opts?: { headless?: boolean }
+    ): Promise<ResumeStreamWithStorageResult> => {
       // Serialize concurrent resumes: a second resumeStream() while one is in
       // flight would race the first (two replay GETs, two finalizations on the
       // same id — the second replay would clobber the first). Reject it; the
@@ -1999,7 +2036,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       isResumingRef.current = true;
       try {
         // baseResumeStream fetches a fresh token internally (at invocation time).
-        const result = await baseResumeStream(handle);
+        // Headless forwards through to useChat.resumeStream, which withholds the
+        // hook-level onData/onThinking so a cold-launch replay of an off-screen
+        // conversation reconciles + persists the row WITHOUT feeding the visible
+        // chat's streaming buffer (mobile PR5). The DB reconciliation below is
+        // unchanged — the row still lands.
+        const result = await baseResumeStream(handle, { headless: opts?.headless });
         const responseDuration = (Date.now() - rctx.startTime) / 1000;
 
         if (result.error === null) {

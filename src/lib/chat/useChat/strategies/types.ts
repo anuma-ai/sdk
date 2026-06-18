@@ -112,6 +112,18 @@ export function getCreditsUsed(r: ApiResponse): number | undefined {
 }
 
 /**
+ * Per-step out-of-credits marker (ai-portal #1146). Unlike cost/credits (which
+ * ride the `portal` envelope on chat completions), ai-portal injects
+ * `credits_exhausted` into the `usage` object on BOTH shapes via MarshalJSON —
+ * so it's read off `usage` for both. Not a declared OpenAPI field (hence the
+ * cast); the runtime value is retained by JSON.parse. Terminal boolean — taken
+ * as-is, never summed.
+ */
+export function getCreditsExhausted(r: ApiResponse): boolean | undefined {
+  return (r.usage as { credits_exhausted?: boolean } | undefined)?.credits_exhausted;
+}
+
+/**
  * Image model the portal resolved for the request (set when an image-generation
  * tool ran). Chat Completions ships it under `portal.image_model` with a legacy
  * top-level mirror; the Responses API keeps it at the top level.
