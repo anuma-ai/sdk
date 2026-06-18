@@ -835,6 +835,26 @@ export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memory
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 
+// PII redaction — best-effort, client-side obfuscation of personally
+// identifiable information before prompts leave the device. Regex-based, so it
+// is NOT a compliance guarantee: it does not detect names and does not scan
+// non-text content (images/files) or tool-call arguments. See `piiRedaction`.
+export type {
+  MessageRedactionResult,
+  PiiCategory,
+  PiiMatch,
+  PiiPattern,
+  PiiRedactorOptions,
+  RedactionResult,
+} from "./lib/pii";
+export {
+  createStreamingDeAnonymizer,
+  isPiiRedactor,
+  PII_PATTERNS,
+  PiiRedactor,
+  resolvePiiRedactor,
+} from "./lib/pii";
+
 // Response field read-helpers for the chat-completions / responses APIs. After the
 // OpenAI-compliant migration, portal-specific fields (cost/credits, tool-call events, image
 // model) live under a `portal` envelope on chat-completions responses and at the top level on

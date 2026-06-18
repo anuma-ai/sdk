@@ -28,6 +28,7 @@ import {
 import type { StoredConversation, StoredMessage } from "../db/chat/types";
 
 import { embedAllMessages, generateEmbedding, generateEmbeddings } from "./embeddings";
+import { PiiRedactor } from "../pii/redactor";
 
 /** text → deterministic embedding the fake API returns. */
 function embeddingFor(text: string): number[] {
@@ -223,6 +224,22 @@ describe("generateEmbedding", () => {
     await generateEmbedding("text", { apiKey: "k", baseUrl: BASE, onUsage });
     expect(onUsage).not.toHaveBeenCalled();
   });
+
+  it("applies maskInput to the request body but keeps the cache keyed by original", async () => {
+    const fetchMock = stubFetchOk();
+    const cache = new Map<string, number[]>();
+    const maskInput = (t: string) => t.replace("bob@acme.com", "[EMAIL]");
+
+    await generateEmbedding("email bob@acme.com", { apiKey: "k", baseUrl: BASE, cache, maskInput });
+
+    // The server only ever sees the masked text.
+    expect(recorded[0].input).toBe("email [EMAIL]");
+    // The cache (and any caller lookups) still key on the original input.
+    expect(cache.has("email bob@acme.com")).toBe(true);
+    // A second call for the same original is served from cache (no extra request).
+    await generateEmbedding("email bob@acme.com", { apiKey: "k", baseUrl: BASE, cache, maskInput });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("generateEmbeddings (batch)", () => {
@@ -250,6 +267,26 @@ describe("generateEmbeddings (batch)", () => {
     // New embeddings were written back to the cache.
     expect(cache.get("alpha")).toEqual(embeddingFor("alpha"));
     expect(cache.get("gamma")).toEqual(embeddingFor("gamma"));
+  });
+
+  it("masks repeated PII to the same stateless token across batched chunks", async () => {
+    // Message chunks are embedded through this batch path. They must mask with
+    // the STATELESS mask (PiiRedactor.maskText → [EMAIL]) so identical PII embeds
+    // identically: redactText's numbered placeholders ([EMAIL_1], [EMAIL_2]) are
+    // order- and conversation-dependent and would break vector-space consistency
+    // for semantic search (the query side has no matching numbering).
+    stubFetchOk();
+    const redactor = new PiiRedactor();
+    const maskInput = (t: string) => redactor.maskText(t);
+
+    await generateEmbeddings(["contact bob@acme.com now", "email bob@acme.com again"], {
+      apiKey: "k",
+      baseUrl: BASE,
+      maskInput,
+    });
+
+    // Both chunks send the SAME unnumbered token to the server.
+    expect(recorded[0].input).toEqual(["contact [EMAIL] now", "email [EMAIL] again"]);
   });
 
   it("returns entirely from cache without an API call when all texts are cached", async () => {

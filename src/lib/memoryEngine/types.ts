@@ -76,6 +76,14 @@ export interface EmbeddingOptions {
   cache?: Map<string, number[]>;
   /** Called after each embedding API call with the token usage from the response. */
   onUsage?: (usage: { promptTokens: number; totalTokens: number }) => void;
+  /**
+   * Optional transform applied to each text immediately before it is sent to
+   * the embeddings endpoint (e.g. `PiiRedactor.maskText`). The cache and result
+   * ordering still key on the original text — only the API request body is
+   * transformed — so callers can keep storing/displaying the original value
+   * while real PII never reaches the server. Used when PII redaction is active.
+   */
+  maskInput?: (text: string) => string;
 }
 
 /**

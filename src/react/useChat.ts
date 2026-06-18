@@ -17,6 +17,7 @@ import {
   validateToken,
   validateTokenGetter,
 } from "../lib/chat/useChat";
+import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**
@@ -161,9 +162,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
+    piiRedaction,
+    onPiiRedacted,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // When piiRedaction is `true`, upgrade it to a single redactor instance kept
+  // for the lifetime of this hook so placeholder state is shared across turns
+  // (matching the documented behavior of passing an instance). An explicit
+  // instance or `false` is passed through unchanged.
+  const piiRedactorRef = useRef<PiiRedactor | null>(null);
+  if (piiRedaction === true && !piiRedactorRef.current) {
+    piiRedactorRef.current = new PiiRedactor();
+  }
+  const resolvedPiiRedaction = piiRedaction === true ? piiRedactorRef.current! : piiRedaction;
 
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -204,6 +217,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
       if (abortControllerRef.current) {
@@ -312,6 +326,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
+          piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
+          onPiiRedacted,
         });
 
         return result;
@@ -341,6 +357,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       defaultApiType,
       smoothing,
       preProcessors,
+      resolvedPiiRedaction,
+      onPiiRedacted,
     ]
   );
 

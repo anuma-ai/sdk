@@ -20,6 +20,7 @@ import {
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
@@ -434,6 +435,23 @@ export interface BaseUseChatStorageOptions {
    * a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Enable best-effort, client-side PII obfuscation (NOT a compliance
+   * guarantee). Outbound message text is scanned for personally identifiable
+   * information and replaced with tagged placeholders before reaching the LLM
+   * provider; responses are de-anonymized automatically. Embedding inputs and
+   * the summarization prompt are redacted too. Regex-based detection does not
+   * cover names, non-text content, or tool-call arguments.
+   *
+   * - `true`: one redactor is shared per conversation
+   * - `PiiRedactor` instance: bring your own (tune via constructor options)
+   */
+  piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called with the PII matches found whenever outbound messages are redacted.
+   * Only fired when `piiRedaction` is active and at least one match was found.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
 /**

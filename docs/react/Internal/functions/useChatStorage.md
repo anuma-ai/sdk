@@ -1,14 +1,8 @@
 # useChatStorage
 
-> **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
+> **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1171](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1171)
-
-A React hook that wraps useChat with automatic message persistence using WatermelonDB.
-
-This hook provides all the functionality of useChat plus automatic storage of
-messages and conversations to a WatermelonDB database. Messages are automatically
-saved when sent and when responses are received.
+Defined in: [src/react/useChatStorage.ts:1267](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1267)
 
 ## Parameters
 
@@ -34,7 +28,7 @@ saved when sent and when responses are received.
 </td>
 <td>
 
-Configuration options
+‐
 
 </td>
 </tr>
@@ -227,7 +221,7 @@ Title for auto-created conversations (default: "New conversation")
 </td>
 <td>
 
-[`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)
+[`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
 </td>
 <td>
@@ -294,7 +288,7 @@ true
 </td>
 <td>
 
-[`ToolSet`](../Internal/interfaces/ToolSet.md)\[]
+[`ToolSet`](../interfaces/ToolSet.md)\[]
 
 </td>
 <td>
@@ -402,7 +396,7 @@ Callback for progress updates
 </td>
 <td>
 
-[`FileProcessor`](../Internal/interfaces/FileProcessor.md)\[] | `null`
+[`FileProcessor`](../interfaces/FileProcessor.md)\[] | `null`
 
 </td>
 <td>
@@ -536,12 +530,30 @@ Callback invoked when an error occurs during the request
 </td>
 <td>
 
-(`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
+(`response`: [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
 
 </td>
 <td>
 
 Callback invoked when the response completes successfully
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onPiiRedacted?`
+
+</td>
+<td>
+
+(`matches`: `PiiMatch`\[]) => `void`
+
+</td>
+<td>
+
+Called with the PII matches found whenever outbound messages are redacted.
+Only fired when `piiRedaction` is active and at least one match was found.
 
 </td>
 </tr>
@@ -588,7 +600,7 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 </td>
 <td>
 
-(`event`: [`ToolCallArgumentsDeltaEvent`](../Internal/type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
+(`event`: [`ToolCallArgumentsDeltaEvent`](../type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
 
 </td>
 <td>
@@ -616,6 +628,31 @@ selection — after semantic filtering, tool-set expansion, and exclusions;
 exactly the tools the request carries. Intended for debug logging and
 selection QA (e.g. a prefixed plain-text console line you can filter on).
 Errors thrown by the callback are swallowed.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.piiRedaction?`
+
+</td>
+<td>
+
+`boolean` | `PiiRedactor`
+
+</td>
+<td>
+
+Enable best-effort, client-side PII obfuscation (NOT a compliance
+guarantee). Outbound message text is scanned for personally identifiable
+information and replaced with tagged placeholders before reaching the LLM
+provider; responses are de-anonymized automatically. Embedding inputs and
+the summarization prompt are redacted too. Regex-based detection does not
+cover names, non-text content, or tool-call arguments.
+
+* `true`: one redactor is shared per conversation
+* `PiiRedactor` instance: bring your own (tune via constructor options)
 
 </td>
 </tr>
@@ -685,7 +722,7 @@ Cache expiration time in milliseconds (default: 86400000 = 1 day)
 </td>
 <td>
 
-[`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md)
+[`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
 </td>
 <td>
@@ -727,48 +764,4 @@ When not provided, data is stored in plaintext (backwards compatible).
 
 ## Returns
 
-[`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
-
-An object containing chat state, methods, and storage operations
-
-## Example
-
-```tsx
-import { Database } from '@nozbe/watermelondb';
-import { useChatStorage } from '@anuma/sdk/react';
-
-function ChatComponent({ database }: { database: Database }) {
-  const {
-    isLoading,
-    sendMessage,
-    conversationId,
-    getMessages,
-    createConversation,
-  } = useChatStorage({
-    database,
-    getToken: async () => getAuthToken(),
-    onData: (chunk) => setResponse((prev) => prev + chunk),
-  });
-
-  const handleSend = async () => {
-    const result = await sendMessage({
-      content: 'Hello, how are you?',
-      model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
-      includeHistory: true, // Include previous messages from this conversation
-    });
-
-    if (result.error) {
-      console.error('Error:', result.error);
-    } else {
-      console.log('User message stored:', result.userMessage);
-      console.log('Assistant message stored:', result.assistantMessage);
-    }
-  };
-
-  return (
-    <div>
-      <button onClick={handleSend} disabled={isLoading}>Send</button>
-    </div>
-  );
-}
-```
+[`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)

@@ -548,6 +548,7 @@ export function createToolExecutorMap(
     skipContinuation: boolean;
     executorTimeout?: number;
     dependsOn?: string[];
+    deAnonymizeArgs?: boolean;
   }
 > {
   const map = new Map<
@@ -557,6 +558,7 @@ export function createToolExecutorMap(
       skipContinuation: boolean;
       executorTimeout?: number;
       dependsOn?: string[];
+      deAnonymizeArgs?: boolean;
     }
   >();
 
@@ -585,6 +587,7 @@ export function createToolExecutorMap(
           executorTimeout: toolWithExecutor.executorTimeout,
         }),
         ...(toolWithExecutor.dependsOn && { dependsOn: toolWithExecutor.dependsOn }),
+        ...(toolWithExecutor.deAnonymizeArgs && { deAnonymizeArgs: true }),
       });
     }
   }
@@ -691,6 +694,7 @@ export function toolsToApiFormat(
       removeAfterExecution: _removeAfterExecution,
       executorTimeout: _executorTimeout,
       dependsOn: _dependsOn,
+      deAnonymizeArgs: _deAnonymizeArgs,
       ...apiTool
     } = tool as ToolConfig & Record<string, unknown>;
 
