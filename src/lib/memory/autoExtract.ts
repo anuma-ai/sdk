@@ -43,6 +43,13 @@ const DEFAULT_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 
+// Shape of a numbered redaction placeholder (`[EMAIL_1]`, `[SSN_2]`, …). After
+// deAnonymize() restores every placeholder the redactor actually assigned, any
+// token still matching this shape is one the extraction model hallucinated
+// (never assigned during redaction) — we drop it rather than persist an opaque
+// "[SSN_1]" string into the vault. Non-global so `.test()` stays stateless.
+const RESIDUAL_PLACEHOLDER = /\[[A-Z][A-Z0-9_]*_\d+\]/;
+
 const FACT_TYPES = [
   "identity",
   "preference",
@@ -193,17 +200,23 @@ export async function extractFacts(
   const candidates = validateCandidates(parsed, new Set(messages.map((m) => m.id)));
   if (!redactor) return candidates;
   // Restore real values in the extracted facts (content + entities) — the LLM
-  // saw placeholders, so its output references them. validateCandidates applied
-  // the length cap to the placeholder form, but real values are usually longer
-  // than their `[EMAIL_1]`-style tokens, so re-apply the cap to the restored
-  // content to keep the stored-fact invariant (≤ MAX_CONTENT_LENGTH).
+  // saw placeholders, so its output references them. Then guard the output:
+  // - strip any entity that is still a placeholder the model hallucinated
+  //   (no mapping existed, so deAnonymize left it literal);
+  // - drop the whole fact when its content still carries a residual placeholder
+  //   (an unreliable fact built on an unresolved value), or when restoring real
+  //   values pushed it past MAX_CONTENT_LENGTH (validateCandidates capped the
+  //   shorter placeholder form). Both keep opaque tokens / over-cap text out of
+  //   the vault.
   return candidates
     .map((c) => ({
       ...c,
       content: redactor.deAnonymize(c.content),
-      entities: c.entities.map((e) => redactor.deAnonymize(e)),
+      entities: c.entities
+        .map((e) => redactor.deAnonymize(e))
+        .filter((e) => !RESIDUAL_PLACEHOLDER.test(e)),
     }))
-    .filter((c) => c.content.length <= MAX_CONTENT_LENGTH);
+    .filter((c) => c.content.length <= MAX_CONTENT_LENGTH && !RESIDUAL_PLACEHOLDER.test(c.content));
 }
 
 /**

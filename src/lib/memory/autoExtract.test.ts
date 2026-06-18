@@ -625,4 +625,49 @@ describe("extractFacts — PII redaction", () => {
     const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
     expect(result).toHaveLength(0);
   });
+
+  it("drops a fact whose content still contains a hallucinated placeholder", async () => {
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "Email me at jane@example.com" },
+    ];
+    // Only [EMAIL_1] was assigned during redaction; the model emits [SSN_1],
+    // which has no mapping — deAnonymize leaves it literal, so the fact is dropped.
+    const llm = {
+      candidates: [
+        {
+          content: "User's SSN is [SSN_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(0);
+  });
+
+  it("strips hallucinated placeholder entities but keeps the fact", async () => {
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "Email me at jane@example.com" },
+    ];
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is [EMAIL_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: ["[EMAIL_1]", "[SSN_1]"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's email is jane@example.com");
+    // [EMAIL_1] resolves to the real email; the unresolved [SSN_1] is stripped.
+    expect(result[0].entities).toEqual(["jane@example.com"]);
+  });
 });
