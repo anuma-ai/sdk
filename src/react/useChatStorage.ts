@@ -1959,7 +1959,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         {
           vaultCtx,
           storageCtx,
-          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          // Use vaultEmbeddingOptions (not an inline literal) so the query
+          // embedding is masked via maskInput when PII redaction is on — mirrors
+          // createRecallTool / searchVaultMemoriesFn. Without this, recall()
+          // would embed the raw query (often containing the user's PII).
+          embeddingOptions: vaultEmbeddingOptions,
           vaultCache: vaultEmbeddingCacheRef.current,
           // Graph lane fires only when entityCtx is present and the query
           // has extractable entities; empty memory_entity is a graceful
@@ -1969,7 +1973,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         resolvedOptions
       );
     },
-    [vaultCtx, storageCtx, entityCtx, getToken, baseUrl, embeddingModel, currentConversationId]
+    [vaultCtx, storageCtx, entityCtx, getToken, currentConversationId, vaultEmbeddingOptions]
   );
 
   // Use the underlying useChat hook
