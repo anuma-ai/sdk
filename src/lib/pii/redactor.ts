@@ -56,6 +56,18 @@ export interface MessageRedactionResult {
 }
 
 /**
+ * Matches the numbered placeholder shape `redactText` emits — `[EMAIL_1]`,
+ * `[SSN_2]`, `[CREDIT_CARD_1]`, … — for the built-in (uppercase) categories.
+ *
+ * After {@link PiiRedactor.deAnonymize} restores every placeholder that was
+ * actually assigned, any token still matching this shape is one the model
+ * invented (never assigned during redaction). Consumers that persist
+ * de-anonymized text use this to detect and reject such residue rather than
+ * storing an opaque `[SSN_1]` literal. Non-global so `.test()` stays stateless.
+ */
+export const PII_PLACEHOLDER_PATTERN = /\[[A-Z][A-Z0-9_]*_\d+\]/;
+
+/**
  * Stateful PII redactor that tracks placeholder assignments across multiple
  * calls. Create one per conversation so "[EMAIL_1]" always refers to the
  * same email address throughout the conversation.

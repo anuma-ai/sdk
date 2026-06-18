@@ -33,7 +33,7 @@
  */
 
 import { getLogger } from "../logger.js";
-import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { PII_PLACEHOLDER_PATTERN, type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
@@ -189,7 +189,15 @@ export async function consolidateMemory(
   const result = validate(parsed, trimmed, validIds);
   if (!result) return degrade("invalid_response", fallback, options);
   if (redactor && result.content !== undefined) {
-    return { ...result, content: redactor.deAnonymize(result.content) };
+    const restored = redactor.deAnonymize(result.content);
+    // If the model invented a placeholder we never assigned, deAnonymize leaves
+    // it literal. On the "update" path this content overwrites an existing
+    // memory, so don't persist a bogus "[EMAIL_2]" over a good fact — degrade to
+    // a create, which retain resolves by keeping the original (real) content.
+    if (PII_PLACEHOLDER_PATTERN.test(restored)) {
+      return degrade("invalid_response", fallback, options);
+    }
+    return { ...result, content: restored };
   }
   return result;
 }

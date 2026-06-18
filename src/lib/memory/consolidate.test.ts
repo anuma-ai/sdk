@@ -240,4 +240,26 @@ describe("consolidateMemory — PII redaction", () => {
     });
     expect(bodies.join("")).toContain("jane@example.com");
   });
+
+  it("degrades to create when the consolidated content has a hallucinated placeholder", async () => {
+    // Only [EMAIL_1] is assigned (jane@example.com); the model emits an update
+    // referencing [EMAIL_2], which has no mapping. Rather than overwrite the
+    // existing memory with a literal "[EMAIL_2]", degrade to create.
+    const { fetchFn } = capturingFetch({
+      action: "update",
+      targetId: "m1",
+      content: "User's email is [EMAIL_2].",
+    });
+    const result = await consolidateMemory("Reach jane@example.com", piiCandidates, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+    });
+
+    expect(result).toEqual({
+      action: "create",
+      content: "Reach jane@example.com",
+      fallbackReason: "invalid_response",
+    });
+  });
 });

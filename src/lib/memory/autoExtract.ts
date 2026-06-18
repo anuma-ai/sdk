@@ -15,7 +15,7 @@
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
-import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { PII_PLACEHOLDER_PATTERN, type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -42,13 +42,6 @@ import type { RetainOptions, RetainResult } from "./types.js";
 const DEFAULT_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
-
-// Shape of a numbered redaction placeholder (`[EMAIL_1]`, `[SSN_2]`, …). After
-// deAnonymize() restores every placeholder the redactor actually assigned, any
-// token still matching this shape is one the extraction model hallucinated
-// (never assigned during redaction) — we drop it rather than persist an opaque
-// "[SSN_1]" string into the vault. Non-global so `.test()` stays stateless.
-const RESIDUAL_PLACEHOLDER = /\[[A-Z][A-Z0-9_]*_\d+\]/;
 
 const FACT_TYPES = [
   "identity",
@@ -214,9 +207,11 @@ export async function extractFacts(
       content: redactor.deAnonymize(c.content),
       entities: c.entities
         .map((e) => redactor.deAnonymize(e))
-        .filter((e) => !RESIDUAL_PLACEHOLDER.test(e)),
+        .filter((e) => !PII_PLACEHOLDER_PATTERN.test(e)),
     }))
-    .filter((c) => c.content.length <= MAX_CONTENT_LENGTH && !RESIDUAL_PLACEHOLDER.test(c.content));
+    .filter(
+      (c) => c.content.length <= MAX_CONTENT_LENGTH && !PII_PLACEHOLDER_PATTERN.test(c.content)
+    );
 }
 
 /**
