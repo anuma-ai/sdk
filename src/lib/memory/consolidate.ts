@@ -189,15 +189,18 @@ export async function consolidateMemory(
   const result = validate(parsed, trimmed, validIds);
   if (!result) return degrade("invalid_response", fallback, options);
   if (redactor && result.content !== undefined) {
-    const restored = redactor.deAnonymize(result.content);
-    // If the model invented a placeholder we never assigned, deAnonymize leaves
-    // it literal. On the "update" path this content overwrites an existing
-    // memory, so don't persist a bogus "[EMAIL_2]" over a good fact — degrade to
-    // a create, which retain resolves by keeping the original (real) content.
-    if (redactor.hasUnresolvedPlaceholder(restored)) {
+    // The consolidation model sometimes echoes "[EMAIL_1]" back mangled (bare
+    // "EMAIL_1", re-cased "email_1"); restoreForStorage recovers the real value
+    // and reports whether a placeholder-shaped token was left UNRESOLVED.
+    const restored = redactor.restoreForStorage(result.content);
+    // An unresolved token is one the model invented (never assigned). On the
+    // "update" path this content overwrites an existing memory, so don't persist
+    // a bogus "[EMAIL_2]" over a good fact — degrade to a create, which retain
+    // resolves by keeping the original (real) content.
+    if (restored.unresolved) {
       return degrade("invalid_response", fallback, options);
     }
-    return { ...result, content: restored };
+    return { ...result, content: restored.text };
   }
   return result;
 }

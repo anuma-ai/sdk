@@ -208,16 +208,24 @@ export async function extractFacts(
   //   shorter placeholder form). Both keep opaque tokens / over-cap text out of
   //   the vault.
   return candidates
-    .map((c) => ({
-      ...c,
-      content: redactor.deAnonymize(c.content),
-      entities: c.entities
-        .map((e) => redactor.deAnonymize(e))
-        .filter((e) => !redactor.hasUnresolvedPlaceholder(e)),
-    }))
-    .filter(
-      (c) => c.content.length <= MAX_CONTENT_LENGTH && !redactor.hasUnresolvedPlaceholder(c.content)
-    );
+    .map((c) => {
+      const content = redactor.restoreForStorage(c.content);
+      return {
+        candidate: {
+          ...c,
+          content: content.text,
+          entities: c.entities
+            .map((e) => redactor.restoreForStorage(e))
+            .filter((e) => !e.unresolved)
+            .map((e) => e.text),
+        },
+        // Drop the whole fact when its content still carries an unresolved
+        // (hallucinated / mangled-beyond-recognition) placeholder.
+        unresolved: content.unresolved,
+      };
+    })
+    .filter((c) => c.candidate.content.length <= MAX_CONTENT_LENGTH && !c.unresolved)
+    .map((c) => c.candidate);
 }
 
 /**
