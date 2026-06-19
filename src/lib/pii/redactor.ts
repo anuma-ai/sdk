@@ -76,13 +76,6 @@ export class PiiRedactor {
   /** The active detection patterns (defaults, optionally filtered/extended). */
   private readonly patterns: PiiPattern[];
   /**
-   * Matches a numbered placeholder this redactor could mint — `[<category>_N]`
-   * for one of its own active categories. Scoped to those categories so it
-   * neither false-matches unrelated bracketed text (`[STEP_1]`) nor misses
-   * custom / lowercase categories. Null only when there are no patterns.
-   */
-  private readonly residualPlaceholderPattern: RegExp | null;
-  /**
    * Matches any placeholder-shaped token for this redactor's categories —
    * bracketed `[EMAIL_1]` OR bare `EMAIL_1`, case-insensitive — capturing the
    * body. Drives {@link restoreForStorage}: the extraction / consolidation
@@ -124,8 +117,6 @@ export class PiiRedactor {
       .sort((a, b) => b.length - a.length)
       .map(escapeRegExp)
       .join("|");
-    this.residualPlaceholderPattern =
-      categories.length > 0 ? new RegExp(`\\[(?:${categoryAlt})_\\d+\\]`) : null;
     // Storage-path matcher: bracketed `[EMAIL_1]` OR bare `EMAIL_1`, capturing
     // the body, case-insensitive, global. `\d+` (not a fixed body) so it spans
     // any index, and `\b` on the bare arm keeps it off prose like "email 1 of 3".
@@ -133,27 +124,6 @@ export class PiiRedactor {
       categories.length > 0
         ? new RegExp(`\\[((?:${categoryAlt})_\\d+)\\]|\\b((?:${categoryAlt})_\\d+)\\b`, "gi")
         : null;
-  }
-
-  /**
-   * True when `text` still contains a token shaped like a placeholder THIS
-   * redactor could mint (`[EMAIL_1]`, `[passport_2]`, …).
-   *
-   * After {@link deAnonymize} restores every placeholder that was actually
-   * assigned, such a residual token is one the model invented (never assigned
-   * during redaction). Consumers persisting de-anonymized text use this to
-   * reject the value rather than store an opaque `[SSN_1]` literal. Scoped to
-   * this redactor's own categories — so legitimate bracketed text like
-   * `[STEP_1]` is not misread, and custom/lowercase categories are covered.
-   *
-   * Exact (bracketed) only. The storage paths use {@link restoreForStorage},
-   * which detects unresolved tokens during the restore pass over the ORIGINAL
-   * text — so it tolerates bracket-dropped / re-cased echoes without re-scanning
-   * a restored value (which would false-fire on a real value that happens to
-   * contain a `<CATEGORY>_<n>` substring, e.g. the email `ssn_1@example.com`).
-   */
-  hasUnresolvedPlaceholder(text: string): boolean {
-    return this.residualPlaceholderPattern?.test(text) ?? false;
   }
 
   /**
