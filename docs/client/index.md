@@ -11,6 +11,7 @@
 | [ConfigCompactLists](Internal/type-aliases/ConfigCompactLists.md) | - |
 | [ConfigCuratedModel](Internal/type-aliases/ConfigCuratedModel.md) | - |
 | [ConfigCuratedModelsResponse](Internal/type-aliases/ConfigCuratedModelsResponse.md) | - |
+| [ConfigSmartGroup](Internal/type-aliases/ConfigSmartGroup.md) | - |
 | [DeleteApiV1AccountData](Internal/type-aliases/DeleteApiV1AccountData.md) | - |
 | [DeleteApiV1AccountError](Internal/type-aliases/DeleteApiV1AccountError.md) | - |
 | [DeleteApiV1AccountErrors](Internal/type-aliases/DeleteApiV1AccountErrors.md) | - |

@@ -2,7 +2,7 @@
 
 > **HandlersCreditBalanceResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1766)
+Defined in: [src/client/types.gen.ts:1789](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1789)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1766](https://github.com/anuma-ai/sdk/blob/
 
 > **available\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1770)
+Defined in: [src/client/types.gen.ts:1793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1793)
 
 Available credits (1 credit = $0.01)
 
@@ -20,7 +20,7 @@ Available credits (1 credit = $0.01)
 
 > `optional` **expiring\_credits**: [`HandlersExpiringCredits`](HandlersExpiringCredits.md)\[]
 
-Defined in: [src/client/types.gen.ts:1774](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1774)
+Defined in: [src/client/types.gen.ts:1797](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1797)
 
 Upcoming credit expirations (soonest first)
 
@@ -30,7 +30,7 @@ Upcoming credit expirations (soonest first)
 
 > **lifetime\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1778)
+Defined in: [src/client/types.gen.ts:1801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1801)
 
 Total credits ever received (1 credit = $0.01)
 
@@ -40,7 +40,7 @@ Total credits ever received (1 credit = $0.01)
 
 > **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:1782](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1782)
+Defined in: [src/client/types.gen.ts:1805](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1805)
 
 "basic" or "pro"
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:1782](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **total\_tokens\_redeemed**: `string`
 
-Defined in: [src/client/types.gen.ts:1786](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1786)
+Defined in: [src/client/types.gen.ts:1809](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1809)
 
 Sum of on-chain token amounts redeemed (raw units, format with token decimals)
 
@@ -60,4 +60,4 @@ Sum of on-chain token amounts redeemed (raw units, format with token decimals)
 
 > **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:1787](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1787)
+Defined in: [src/client/types.gen.ts:1810](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1810)

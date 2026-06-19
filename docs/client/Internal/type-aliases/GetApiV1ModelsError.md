@@ -2,4 +2,4 @@
 
 > **GetApiV1ModelsError** = [`GetApiV1ModelsErrors`](GetApiV1ModelsErrors.md)\[keyof [`GetApiV1ModelsErrors`](GetApiV1ModelsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7932](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7932)
+Defined in: [src/client/types.gen.ts:7955](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7955)

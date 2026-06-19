@@ -2,7 +2,7 @@
 
 > **HandlersBootstrapUser** = `object`
 
-Defined in: [src/client/types.gen.ts:1434](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1434)
+Defined in: [src/client/types.gen.ts:1457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1457)
 
 User is the authenticated identity context.
 
@@ -12,7 +12,7 @@ User is the authenticated identity context.
 
 > `optional` **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:1438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1438)
+Defined in: [src/client/types.gen.ts:1461](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1461)
 
 SubscriptionTier reflects the user's tier (e.g., "basic", "starter", "pro").
 
@@ -22,6 +22,6 @@ SubscriptionTier reflects the user's tier (e.g., "basic", "starter", "pro").
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:1442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1442)
+Defined in: [src/client/types.gen.ts:1465](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1465)
 
 UserAddress is the EVM address resolved from the auth token.

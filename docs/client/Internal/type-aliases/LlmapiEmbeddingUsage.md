@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#374)
+Defined in: [src/client/types.gen.ts:397](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#397)
 
 Usage contains token usage information
 
@@ -12,7 +12,7 @@ Usage contains token usage information
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#378)
+Defined in: [src/client/types.gen.ts:401](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#401)
 
 CostMicroUSD is the inference cost for this embedding request
 
@@ -22,7 +22,7 @@ CostMicroUSD is the inference cost for this embedding request
 
 > `optional` **credits\_used**: `number`
 
-Defined in: [src/client/types.gen.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#382)
+Defined in: [src/client/types.gen.ts:405](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#405)
 
 CreditsUsed is the number of credits consumed by this embedding request
 
@@ -32,7 +32,7 @@ CreditsUsed is the number of credits consumed by this embedding request
 
 > `optional` **pricing\_source**: `string`
 
-Defined in: [src/client/types.gen.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#386)
+Defined in: [src/client/types.gen.ts:409](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#409)
 
 PricingSource identifies which lookup produced CostMicroUSD; see internal/pricing/source.go.
 
@@ -42,7 +42,7 @@ PricingSource identifies which lookup produced CostMicroUSD; see internal/pricin
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:390](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#390)
+Defined in: [src/client/types.gen.ts:413](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#413)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -52,7 +52,7 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **provider\_cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#395)
+Defined in: [src/client/types.gen.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#418)
 
 ProviderCostMicroUSD is what we believe the provider charged us in micro-USD.
 Today equals CostMicroUSD (no markup); kept distinct so future per-tier pricing preserves history.
@@ -63,6 +63,6 @@ Today equals CostMicroUSD (no markup); kept distinct so future per-tier pricing 
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:399](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#399)
+Defined in: [src/client/types.gen.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#422)
 
 TotalTokens is the total number of tokens used
