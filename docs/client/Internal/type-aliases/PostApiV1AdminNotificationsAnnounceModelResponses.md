@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminNotificationsAnnounceModelResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4929](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4929)
+Defined in: [src/client/types.gen.ts:4962](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4962)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4929](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersAnnounceModelResponse`](HandlersAnnounceModelResponse.md)
 
-Defined in: [src/client/types.gen.ts:4933](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4933)
+Defined in: [src/client/types.gen.ts:4966](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4966)
 
 OK

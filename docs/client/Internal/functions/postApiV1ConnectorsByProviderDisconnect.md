@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:828](https://github.com/anuma-ai/sdk/blob/mai
 
 Disconnect a connector
 
-Revokes the upstream refresh token (best-effort), marks the local credential as user-revoked, and purges the in-process token cache. Returns 200 even if the upstream revoke call fails — the local revoke is the source of truth.
+Marks the local credential as user-revoked and purges the in-process token cache. For most providers it also revokes the upstream refresh token (best-effort); shared-consent providers (Google's gmail/gdrive/gcalendar share one consent screen) revoke locally only, since an upstream /revoke would cascade and disconnect the sibling connectors. Returns 200 even if any upstream revoke fails — the local revoke is the source of truth.
 
 ## Type Parameters
 

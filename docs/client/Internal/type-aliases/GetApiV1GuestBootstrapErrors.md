@@ -2,7 +2,7 @@
 
 > **GetApiV1GuestBootstrapErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7831](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7831)
+Defined in: [src/client/types.gen.ts:7868](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7868)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7831](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7835](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7835)
+Defined in: [src/client/types.gen.ts:7872](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7872)
 
 Bad Request

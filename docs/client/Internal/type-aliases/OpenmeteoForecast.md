@@ -2,7 +2,7 @@
 
 > **OpenmeteoForecast** = `object`
 
-Defined in: [src/client/types.gen.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#135)
+Defined in: [src/client/types.gen.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#136)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:135](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **current**: [`OpenmeteoSnapshot`](OpenmeteoSnapshot.md)
 
-Defined in: [src/client/types.gen.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#136)
+Defined in: [src/client/types.gen.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#137)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:136](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **daily**: [`OpenmeteoDayData`](OpenmeteoDayData.md)\[]
 
-Defined in: [src/client/types.gen.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#137)
+Defined in: [src/client/types.gen.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#138)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:137](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **location**: [`OpenmeteoLocation`](OpenmeteoLocation.md)
 
-Defined in: [src/client/types.gen.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#138)
+Defined in: [src/client/types.gen.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#139)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:138](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **temperatureUnit**: `string`
 
-Defined in: [src/client/types.gen.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#139)
+Defined in: [src/client/types.gen.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#140)

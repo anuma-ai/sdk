@@ -2,7 +2,7 @@
 
 > **PostApiV1EmbeddingsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7792)
+Defined in: [src/client/types.gen.ts:7829](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7829)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7792](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7796](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7796)
+Defined in: [src/client/types.gen.ts:7833](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7833)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7800)
+Defined in: [src/client/types.gen.ts:7837](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7837)
 
 Model provider rate limit exceeded
 
@@ -30,6 +30,6 @@ Model provider rate limit exceeded
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7804)
+Defined in: [src/client/types.gen.ts:7841](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7841)
 
 Internal Server Error

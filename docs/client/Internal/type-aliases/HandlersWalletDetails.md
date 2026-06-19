@@ -2,7 +2,7 @@
 
 > **HandlersWalletDetails** = `object`
 
-Defined in: [src/client/types.gen.ts:2896](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2896)
+Defined in: [src/client/types.gen.ts:2910](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2910)
 
 Wallet account details
 
@@ -12,7 +12,7 @@ Wallet account details
 
 > `optional` **account\_created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2900](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2900)
+Defined in: [src/client/types.gen.ts:2914](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2914)
 
 When account was first created
 
@@ -22,7 +22,7 @@ When account was first created
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2901](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2901)
+Defined in: [src/client/types.gen.ts:2915](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2915)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:2901](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **balance\_updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2905](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2905)
+Defined in: [src/client/types.gen.ts:2919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2919)
 
 When balance was last synced from chain
 
@@ -40,7 +40,7 @@ When balance was last synced from chain
 
 > **cached\_balance\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:2909](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2909)
+Defined in: [src/client/types.gen.ts:2923](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2923)
 
 Available balance in micro-USD (single-column model, epic #1092 PR4)
 
@@ -50,7 +50,7 @@ Available balance in micro-USD (single-column model, epic #1092 PR4)
 
 > `optional` **pro\_activated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2913)
+Defined in: [src/client/types.gen.ts:2927](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2927)
 
 When user became Pro subscriber
 
@@ -60,7 +60,7 @@ When user became Pro subscriber
 
 > `optional` **starter\_activated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2917)
+Defined in: [src/client/types.gen.ts:2931](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2931)
 
 When user first became Starter subscriber
 
@@ -70,6 +70,6 @@ When user first became Starter subscriber
 
 > **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:2921](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2921)
+Defined in: [src/client/types.gen.ts:2935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2935)
 
 "basic", "starter", or "pro"

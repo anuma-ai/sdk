@@ -2,7 +2,7 @@
 
 > **getApiV1WalletsBinding**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1WalletsBindingData`](../type-aliases/GetApiV1WalletsBindingData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1WalletsBindingResponses`](../type-aliases/GetApiV1WalletsBindingResponses.md), [`GetApiV1WalletsBindingErrors`](../type-aliases/GetApiV1WalletsBindingErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1759](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1759)
+Defined in: [src/client/sdk.gen.ts:1769](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1769)
 
 List bound wallets
 

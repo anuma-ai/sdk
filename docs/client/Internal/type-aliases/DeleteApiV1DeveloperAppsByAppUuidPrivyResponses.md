@@ -2,7 +2,7 @@
 
 > **DeleteApiV1DeveloperAppsByAppUuidPrivyResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7339](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7339)
+Defined in: [src/client/types.gen.ts:7376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7376)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7339](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersDeveloperAppResponse`](HandlersDeveloperAppResponse.md)
 
-Defined in: [src/client/types.gen.ts:7343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7343)
+Defined in: [src/client/types.gen.ts:7380](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7380)
 
 OK

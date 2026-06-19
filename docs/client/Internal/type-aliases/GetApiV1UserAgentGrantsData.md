@@ -2,7 +2,7 @@
 
 > **GetApiV1UserAgentGrantsData** = `object`
 
-Defined in: [src/client/types.gen.ts:9019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9019)
+Defined in: [src/client/types.gen.ts:9077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9077)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9019](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9020)
+Defined in: [src/client/types.gen.ts:9078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9078)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9020](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:9021](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9021)
+Defined in: [src/client/types.gen.ts:9079](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9079)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:9021](https://github.com/anuma-ai/sdk/blob/
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:9022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9022)
+Defined in: [src/client/types.gen.ts:9080](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9080)
 
 **agent\_id**
 
@@ -52,4 +52,4 @@ User wallet address
 
 > **url**: `"/api/v1/user/agent-grants"`
 
-Defined in: [src/client/types.gen.ts:9036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9036)
+Defined in: [src/client/types.gen.ts:9094](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9094)

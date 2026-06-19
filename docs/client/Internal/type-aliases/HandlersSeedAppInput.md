@@ -2,7 +2,7 @@
 
 > **HandlersSeedAppInput** = `object`
 
-Defined in: [src/client/types.gen.ts:2359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2359)
+Defined in: [src/client/types.gen.ts:2373](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2373)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2359](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **api\_keys**: [`HandlersSeedApiKeyInput`](HandlersSeedApiKeyInput.md)\[]
 
-Defined in: [src/client/types.gen.ts:2360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2360)
+Defined in: [src/client/types.gen.ts:2374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2374)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2360](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **app\_balance\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:2364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2364)
+Defined in: [src/client/types.gen.ts:2378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2378)
 
 Developer app balance in micro-USD
 
@@ -28,7 +28,7 @@ Developer app balance in micro-USD
 
 > `optional` **credit\_reset\_enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2365](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2365)
+Defined in: [src/client/types.gen.ts:2379](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2379)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/client/types.gen.ts:2365](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credits\_token\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2369](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2369)
+Defined in: [src/client/types.gen.ts:2383](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2383)
 
 Per-app ERC20 credits token address
 
@@ -46,7 +46,7 @@ Per-app ERC20 credits token address
 
 > `optional` **default\_user\_cost\_limit\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:2373](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2373)
+Defined in: [src/client/types.gen.ts:2387](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2387)
 
 Default credits for auto-enrollment in micro-USD
 
@@ -56,7 +56,7 @@ Default credits for auto-enrollment in micro-USD
 
 > `optional` **developer\_account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2377](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2377)
+Defined in: [src/client/types.gen.ts:2391](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2391)
 
 Developer account ID (makes app developer-owned)
 
@@ -66,7 +66,7 @@ Developer account ID (makes app developer-owned)
 
 > `optional` **developer\_wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2381](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2381)
+Defined in: [src/client/types.gen.ts:2395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2395)
 
 Developer wallet (auto-creates account if not exists)
 
@@ -76,7 +76,7 @@ Developer wallet (auto-creates account if not exists)
 
 > `optional` **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2382)
+Defined in: [src/client/types.gen.ts:2396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2396)
 
 ***
 
@@ -84,7 +84,7 @@ Defined in: [src/client/types.gen.ts:2382](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:2383](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2383)
+Defined in: [src/client/types.gen.ts:2397](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2397)
 
 ***
 
@@ -92,7 +92,7 @@ Defined in: [src/client/types.gen.ts:2383](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **phone\_call\_voice**: `string`
 
-Defined in: [src/client/types.gen.ts:2384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2384)
+Defined in: [src/client/types.gen.ts:2398](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2398)
 
 ***
 
@@ -100,7 +100,7 @@ Defined in: [src/client/types.gen.ts:2384](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_app\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:2385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2385)
+Defined in: [src/client/types.gen.ts:2399](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2399)
 
 ***
 
@@ -108,4 +108,4 @@ Defined in: [src/client/types.gen.ts:2385](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_verification\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:2386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2386)
+Defined in: [src/client/types.gen.ts:2400](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2400)

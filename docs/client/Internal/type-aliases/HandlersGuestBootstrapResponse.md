@@ -2,7 +2,7 @@
 
 > **HandlersGuestBootstrapResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1962](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1962)
+Defined in: [src/client/types.gen.ts:1972](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1972)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1962](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **build**: [`HandlersBootstrapBuild`](HandlersBootstrapBuild.md)
 
-Defined in: [src/client/types.gen.ts:1963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1963)
+Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1973)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1963](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **flags**: `object`
 
-Defined in: [src/client/types.gen.ts:1967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1967)
+Defined in: [src/client/types.gen.ts:1977](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1977)
 
 Flags maps registered feature-flag keys to variants assigned to this guest.
 

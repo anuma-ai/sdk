@@ -2,4 +2,4 @@
 
 > **PostApiV1EmbeddingsError** = [`PostApiV1EmbeddingsErrors`](PostApiV1EmbeddingsErrors.md)\[keyof [`PostApiV1EmbeddingsErrors`](PostApiV1EmbeddingsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7807](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7807)
+Defined in: [src/client/types.gen.ts:7844](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7844)

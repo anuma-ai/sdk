@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsFunctionCallUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:3571](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3571)
+Defined in: [src/client/types.gen.ts:3604](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3604)
 
 Deprecated in favor of `tool_choice`.
 
@@ -25,7 +25,7 @@ functions are present.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3572)
+Defined in: [src/client/types.gen.ts:3605](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3605)
 
 ***
 
@@ -33,7 +33,7 @@ Defined in: [src/client/types.gen.ts:3572](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofFunctionCallMode**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3573)
+Defined in: [src/client/types.gen.ts:3606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3606)
 
 ***
 
@@ -41,4 +41,4 @@ Defined in: [src/client/types.gen.ts:3573](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofFunctionCallOption**: [`OpenaiChatCompletionFunctionCallOptionParam`](OpenaiChatCompletionFunctionCallOptionParam.md)
 
-Defined in: [src/client/types.gen.ts:3574](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3574)
+Defined in: [src/client/types.gen.ts:3607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3607)

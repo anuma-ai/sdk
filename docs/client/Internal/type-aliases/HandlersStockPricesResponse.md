@@ -2,7 +2,7 @@
 
 > **HandlersStockPricesResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2471](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2471)
+Defined in: [src/client/types.gen.ts:2485](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2485)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2471](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **quotes**: [`TwelvedataQuote`](TwelvedataQuote.md)\[]
 
-Defined in: [src/client/types.gen.ts:2472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2472)
+Defined in: [src/client/types.gen.ts:2486](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2486)

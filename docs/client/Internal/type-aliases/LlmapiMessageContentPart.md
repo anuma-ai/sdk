@@ -2,7 +2,7 @@
 
 > **LlmapiMessageContentPart** = `object`
 
-Defined in: [src/client/types.gen.ts:496](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#496)
+Defined in: [src/client/types.gen.ts:497](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#497)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:496](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **file**: [`LlmapiMessageContentFile`](LlmapiMessageContentFile.md)
 
-Defined in: [src/client/types.gen.ts:497](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#497)
+Defined in: [src/client/types.gen.ts:498](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#498)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:497](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **image\_url**: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md)
 
-Defined in: [src/client/types.gen.ts:498](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#498)
+Defined in: [src/client/types.gen.ts:499](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#499)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:498](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:502](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#502)
+Defined in: [src/client/types.gen.ts:503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#503)
 
 Text holds the text content when Type=text or Type=input\_text
 
@@ -36,6 +36,6 @@ Text holds the text content when Type=text or Type=input\_text
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:506](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#506)
+Defined in: [src/client/types.gen.ts:507](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#507)
 
 Type is the block type (`text`, `image_url`, or `input_file`)

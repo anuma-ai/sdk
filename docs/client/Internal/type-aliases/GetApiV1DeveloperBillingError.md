@@ -2,4 +2,4 @@
 
 > **GetApiV1DeveloperBillingError** = [`GetApiV1DeveloperBillingErrors`](GetApiV1DeveloperBillingErrors.md)\[keyof [`GetApiV1DeveloperBillingErrors`](GetApiV1DeveloperBillingErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7753](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7753)
+Defined in: [src/client/types.gen.ts:7790](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7790)

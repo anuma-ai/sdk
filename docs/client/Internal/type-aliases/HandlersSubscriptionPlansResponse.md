@@ -2,7 +2,7 @@
 
 > **HandlersSubscriptionPlansResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2484](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2484)
+Defined in: [src/client/types.gen.ts:2498](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2498)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2484](https://github.com/anuma-ai/sdk/blob/
 
 > **plans**: [`HandlersSubscriptionPlan`](HandlersSubscriptionPlan.md)\[]
 
-Defined in: [src/client/types.gen.ts:2485](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2485)
+Defined in: [src/client/types.gen.ts:2499](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2499)

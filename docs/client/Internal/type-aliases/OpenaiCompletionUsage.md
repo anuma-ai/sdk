@@ -2,7 +2,7 @@
 
 > **OpenaiCompletionUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:3874](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3874)
+Defined in: [src/client/types.gen.ts:3907](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3907)
 
 Usage statistics for the completion request.
 
@@ -12,7 +12,7 @@ Usage statistics for the completion request.
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:3878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3878)
+Defined in: [src/client/types.gen.ts:3911](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3911)
 
 Number of tokens in the generated completion.
 
@@ -22,7 +22,7 @@ Number of tokens in the generated completion.
 
 > `optional` **completion\_tokens\_details**: [`OpenaiCompletionUsageCompletionTokensDetails`](OpenaiCompletionUsageCompletionTokensDetails.md)
 
-Defined in: [src/client/types.gen.ts:3879](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3879)
+Defined in: [src/client/types.gen.ts:3912](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3912)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:3879](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:3883](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3883)
+Defined in: [src/client/types.gen.ts:3916](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3916)
 
 Number of tokens in the prompt.
 
@@ -40,7 +40,7 @@ Number of tokens in the prompt.
 
 > `optional` **prompt\_tokens\_details**: [`OpenaiCompletionUsagePromptTokensDetails`](OpenaiCompletionUsagePromptTokensDetails.md)
 
-Defined in: [src/client/types.gen.ts:3884](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3884)
+Defined in: [src/client/types.gen.ts:3917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3917)
 
 ***
 
@@ -48,6 +48,6 @@ Defined in: [src/client/types.gen.ts:3884](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:3888](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3888)
+Defined in: [src/client/types.gen.ts:3921](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3921)
 
 Total number of tokens used in the request (prompt + completion).

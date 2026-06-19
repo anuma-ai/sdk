@@ -2,7 +2,7 @@
 
 > **patchApiV1UserOauthGrantsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PatchApiV1UserOauthGrantsByIdData`](../type-aliases/PatchApiV1UserOauthGrantsByIdData.md), `ThrowOnError`>): `RequestResult`<[`PatchApiV1UserOauthGrantsByIdResponses`](../type-aliases/PatchApiV1UserOauthGrantsByIdResponses.md), [`PatchApiV1UserOauthGrantsByIdErrors`](../type-aliases/PatchApiV1UserOauthGrantsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1745](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1745)
+Defined in: [src/client/sdk.gen.ts:1755](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1755)
 
 Update OAuth grant
 
