@@ -1,6 +1,6 @@
 # ExtractFactsOptions
 
-Defined in: [src/lib/memory/autoExtract.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#125)
+Defined in: [src/lib/memory/autoExtract.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#126)
 
 Auth + endpoint for the extraction LLM call. Auth is the dual pattern —
 one of `apiKey` / `getToken` is required at runtime; see
@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#126)
+Defined in: [src/lib/memory/autoExtract.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#127)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/memory/autoExtract.ts:126](https://github.com/anuma-ai/sdk/
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#129)
+Defined in: [src/lib/memory/autoExtract.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#130)
 
 Override the global fetch implementation (useful for tests).
 
@@ -160,4 +160,25 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#127)
+Defined in: [src/lib/memory/autoExtract.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#128)
+
+***
+
+### piiRedaction?
+
+> `optional` **piiRedaction**: `boolean` | `PiiRedactor`
+
+Defined in: [src/lib/memory/autoExtract.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#145)
+
+When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
+conversation transcript is replaced with tagged placeholders before the
+extraction call, and the returned facts + entities are de-anonymized so the
+vault keeps the real values while raw PII never reaches the extraction
+model (and, via `extractAndRetain`, the consolidation model). Pass `true`
+for a fresh per-call redactor, or a shared PiiRedactor to keep
+placeholder numbering consistent with other calls.
+
+NOTE: this does NOT cover the embeddings provider. Facts are stored and
+embedded with their real values, so to keep PII out of embedding requests
+set `RetainContext.embeddingOptions.maskInput` (e.g. `redactor.maskText`)
+as well — the two are independent switches.

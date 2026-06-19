@@ -186,3 +186,80 @@ describe("consolidateMemory", () => {
     expect(result).toEqual({ action: "create", content: "new fact" });
   });
 });
+
+describe("consolidateMemory — PII redaction", () => {
+  /** Fetch mock that records request bodies and returns the given decision JSON. */
+  function capturingFetch(decision: unknown): { fetchFn: typeof fetch; bodies: string[] } {
+    const bodies: string[] = [];
+    const fetchFn = vi.fn().mockImplementation((_url: string, init?: { body?: unknown }) => {
+      bodies.push(typeof init?.body === "string" ? init.body : "");
+      return Promise.resolve({ ok: true, json: async () => choices(decision) });
+    }) as unknown as typeof fetch;
+    return { fetchFn, bodies };
+  }
+
+  const piiCandidates = [
+    { id: "m1", content: "User's email is jane@example.com.", similarity: 0.8 },
+  ];
+
+  it("redacts the new fact and candidates before the consolidation model sees them", async () => {
+    const { fetchFn, bodies } = capturingFetch({ action: "noop", targetId: "m1" });
+    await consolidateMemory("Email jane@example.com again", piiCandidates, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+    });
+
+    const sent = bodies.join("");
+    expect(sent).not.toContain("jane@example.com");
+    expect(sent).toContain("[EMAIL_1]");
+  });
+
+  it("de-anonymizes the consolidated content the model returns", async () => {
+    // The model reasons over placeholders and echoes one back in its content.
+    const { fetchFn } = capturingFetch({
+      action: "update",
+      targetId: "m1",
+      content: "User's email is [EMAIL_1].",
+    });
+    const result = await consolidateMemory("Reach me at jane@example.com", piiCandidates, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+    });
+
+    expect(result.action).toBe("update");
+    expect(result.content).toBe("User's email is jane@example.com.");
+  });
+
+  it("leaves inputs raw when redaction is disabled (default)", async () => {
+    const { fetchFn, bodies } = capturingFetch({ action: "noop", targetId: "m1" });
+    await consolidateMemory("Email jane@example.com again", piiCandidates, {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(bodies.join("")).toContain("jane@example.com");
+  });
+
+  it("degrades to create when the consolidated content has a hallucinated placeholder", async () => {
+    // Only [EMAIL_1] is assigned (jane@example.com); the model emits an update
+    // referencing [EMAIL_2], which has no mapping. Rather than overwrite the
+    // existing memory with a literal "[EMAIL_2]", degrade to create.
+    const { fetchFn } = capturingFetch({
+      action: "update",
+      targetId: "m1",
+      content: "User's email is [EMAIL_2].",
+    });
+    const result = await consolidateMemory("Reach jane@example.com", piiCandidates, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+    });
+
+    expect(result).toEqual({
+      action: "create",
+      content: "Reach jane@example.com",
+      fallbackReason: "invalid_response",
+    });
+  });
+});

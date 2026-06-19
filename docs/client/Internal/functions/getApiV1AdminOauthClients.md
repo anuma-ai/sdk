@@ -2,7 +2,7 @@
 
 > **getApiV1AdminOauthClients**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminOauthClientsData`](../type-aliases/GetApiV1AdminOauthClientsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminOauthClientsResponses`](../type-aliases/GetApiV1AdminOauthClientsResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#262)
+Defined in: [src/client/sdk.gen.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#306)
 
 List OAuth clients
 

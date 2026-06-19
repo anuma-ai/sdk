@@ -1,12 +1,37 @@
 import { describe, expect, it } from "vitest";
 
+import type { ToolConfig } from "../chat/useChat/types";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
+  mergeTools,
   type ToolSet,
   toolSetSystemPrompts,
 } from "./serverTools";
+
+describe("mergeTools — client-side field preservation", () => {
+  const clientTool: ToolConfig = {
+    type: "function",
+    function: { name: "memory_vault_save", parameters: { type: "object", properties: {} } },
+    executor: async () => "ok",
+    skipContinuation: true,
+    deAnonymizeArgs: true,
+    dependsOn: ["other"],
+  };
+
+  for (const apiType of ["responses", "completions"] as const) {
+    it(`preserves executor/deAnonymizeArgs/dependsOn through ${apiType} normalization`, () => {
+      const [merged] = mergeTools([], [clientTool], apiType) as Array<Record<string, unknown>>;
+      // These client-side-only fields must survive normalization so runToolLoop
+      // can build the executor map (deAnonymizeArgs drives PII de-anonymization).
+      expect(typeof merged.executor).toBe("function");
+      expect(merged.deAnonymizeArgs).toBe(true);
+      expect(merged.skipContinuation).toBe(true);
+      expect(merged.dependsOn).toEqual(["other"]);
+    });
+  }
+});
 
 describe("toolSetSystemPrompts", () => {
   it("attaches APP_BUILDER_PROMPT to the built-in app-generation set", () => {

@@ -2,7 +2,7 @@
 
 > **HandlersRegisterDeviceRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2168)
+Defined in: [src/client/types.gen.ts:2280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2280)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2168](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **app\_version**: `string`
 
-Defined in: [src/client/types.gen.ts:2169](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2169)
+Defined in: [src/client/types.gen.ts:2281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2281)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2169](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **platform**: `string`
 
-Defined in: [src/client/types.gen.ts:2170](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2170)
+Defined in: [src/client/types.gen.ts:2282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2282)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2170](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **token**: `string`
 
-Defined in: [src/client/types.gen.ts:2171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2171)
+Defined in: [src/client/types.gen.ts:2283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2283)

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:481](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#481)
+Defined in: [src/expo/useChatStorage.ts:527](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#527)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -510,6 +510,24 @@ Callback invoked when the response completes successfully
 <tr>
 <td>
 
+`options.onPiiRedacted?`
+
+</td>
+<td>
+
+(`matches`: `PiiMatch`\[]) => `void`
+
+</td>
+<td>
+
+Called with the PII matches found whenever outbound messages are redacted.
+Only fired when `piiRedaction` is active and at least one match was found.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onServerToolCall?`
 
 </td>
@@ -522,6 +540,28 @@ Callback invoked when the response completes successfully
 
 Callback invoked when a server-side tool (MCP) is called during streaming.
 Use this to show activity indicators like "Searching..." in the UI.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onStreamMeta?`
+
+</td>
+<td>
+
+(`meta`: `object`) => `void`
+
+</td>
+<td>
+
+Observe the stream metadata the portal issues at HEADERS\_RECEIVED, once per
+round. Forwarded to the underlying `useChat`. The enriched payload carries
+the RESOLVED `apiType` and `model` alongside `inferenceId`, so a consumer
+can persist a rebuildable [StreamResumeHandle](../../react/Internal/type-aliases/StreamResumeHandle.md) for a cold-launch
+resume registry (mobile PR5). Additive — never alters the internal
+resume-handle capture.
 
 </td>
 </tr>
@@ -557,6 +597,31 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 
 Called with partial tool call arguments as they stream in.
 Use for live preview of artifacts (HTML, slides) being generated.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.piiRedaction?`
+
+</td>
+<td>
+
+`boolean` | `PiiRedactor`
+
+</td>
+<td>
+
+Enable best-effort, client-side PII obfuscation (NOT a compliance
+guarantee). Outbound message text is scanned for personally identifiable
+information and replaced with tagged placeholders before reaching the LLM
+provider; responses are de-anonymized automatically. Embedding inputs and
+the summarization prompt are redacted too. Regex-based detection does not
+cover names, non-text content, or tool-call arguments.
+
+* `true`: one redactor is shared per conversation
+* `PiiRedactor` instance: bring your own (tune via constructor options)
 
 </td>
 </tr>

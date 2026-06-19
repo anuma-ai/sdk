@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsPurchaseErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6408](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6408)
+Defined in: [src/client/types.gen.ts:6783](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6783)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6408](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6412)
+Defined in: [src/client/types.gen.ts:6787](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6787)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6416)
+Defined in: [src/client/types.gen.ts:6791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6791)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6420](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6420)
+Defined in: [src/client/types.gen.ts:6795](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6795)
 
 Forbidden
 
@@ -40,6 +40,6 @@ Forbidden
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6424](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6424)
+Defined in: [src/client/types.gen.ts:6799](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6799)
 
 Internal Server Error

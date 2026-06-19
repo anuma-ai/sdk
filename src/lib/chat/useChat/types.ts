@@ -6,11 +6,23 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
+import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { PromptPreProcessor } from "../preProcessor";
 import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "./utils";
+
+/**
+ * `LlmapiResponseUsage` plus the per-step out-of-credits marker. ai-portal
+ * (#1146) injects `credits_exhausted: true` into the `usage` object at runtime
+ * via MarshalJSON — it is NOT a declared field on the OpenAPI usage schema, so
+ * codegen omits it from `LlmapiResponseUsage`. We expose it hand-written here
+ * (the runtime value is retained by JSON.parse) and pass it through alongside
+ * `credits_used`, so it survives the next codegen. Terminal boolean — passed
+ * through as-is, never summed.
+ */
+export type ResponseUsage = LlmapiResponseUsage & { credits_exhausted?: boolean };
 
 /**
  * Streaming chunk structure received from SSE events (Responses API format)
@@ -20,7 +32,7 @@ export type StreamingChunk = {
   model?: string;
   type?: string;
   delta?: string | { OfString?: string; OfResponseReasoningSummaryDeltaEventDelta?: string };
-  usage?: LlmapiResponseUsage;
+  usage?: ResponseUsage;
   // For response.created and response.completed events
   response?: {
     id?: string;
@@ -30,6 +42,7 @@ export type StreamingChunk = {
       output_tokens?: number;
       cost_micro_usd?: number;
       credits_used?: number;
+      credits_exhausted?: boolean;
     };
     /** Checksum of tools used to generate this response */
     tools_checksum?: string;
@@ -110,6 +123,17 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    */
   executorTimeout?: number;
   /**
+   * When PII redaction is active, de-anonymize this tool's call arguments
+   * (restore original values for any `[CATEGORY_n]` placeholders) BEFORE the
+   * executor runs, using the same redactor that redacted the request this turn.
+   * Opt in only for tools that act on data that stays on the device — e.g.
+   * `memory_vault_save`, which must persist the real value, not a placeholder.
+   * Leave off for tools that forward arguments off-device (connectors), so PII
+   * stays redacted on the wire.
+   * @default false
+   */
+  deAnonymizeArgs?: boolean;
+  /**
    * Tool names that this tool depends on. When multiple tools are called in
    * the same response, tools with `dependsOn` will wait for the named tools
    * to finish executing before starting.
@@ -180,6 +204,13 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
   onData?: (chunk: string) => void;
   /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
   conversationId?: string;
+  /**
+   * Per-request override for PII redaction. When set, takes precedence over the
+   * hook-level `piiRedaction` for this call only — e.g. pass `false` to disable
+   * redaction for a single request, or a specific `PiiRedactor` instance. When
+   * omitted, the hook-level setting applies.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 };
 
 /**
@@ -264,6 +295,29 @@ export type BaseUseChatOptions = {
    * `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Enable best-effort, client-side PII obfuscation (NOT a compliance
+   * guarantee). Outbound message text is scanned for personally identifiable
+   * information (emails, phone numbers, SSNs, credit cards, API keys,
+   * addresses) and matches are replaced with tagged placeholders before
+   * reaching the LLM provider; both streamed and final responses are
+   * de-anonymized automatically.
+   *
+   * Detection is regex-based and does not cover names, non-text content
+   * (images/files/attachments), or model-generated tool-call arguments.
+   *
+   * - `true`: the hook keeps one redactor and shares placeholder state across
+   *   turns (per conversation in `useChatStorage`)
+   * - `PiiRedactor` instance: bring your own; tune categories via
+   *   `new PiiRedactor({ excludeCategories, extraPatterns })`
+   */
+  piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called with the PII matches found whenever outbound messages are redacted.
+   * Useful for surfacing what was redacted to the user. Only fired when
+   * `piiRedaction` is active and at least one match was found.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 };
 
 /**
@@ -302,7 +356,7 @@ export type StreamAccumulator = {
   thinking: string;
   responseId: string;
   responseModel: string;
-  usage: Partial<LlmapiResponseUsage>;
+  usage: Partial<ResponseUsage>;
   toolCalls: Map<string, AccumulatedToolCall>;
   /** Track incomplete reasoning tags across chunks */
   partialReasoningTag?: string;

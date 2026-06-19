@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { DeleteApiV1AccountData, DeleteApiV1AccountErrors, DeleteApiV1AccountResponses, DeleteApiV1AdminAgentsByIdData, DeleteApiV1AdminAgentsByIdErrors, DeleteApiV1AdminAgentsByIdResponses, DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, DeleteApiV1AdminOauthClientsByClientIdData, DeleteApiV1AdminOauthClientsByClientIdErrors, DeleteApiV1AdminOauthClientsByClientIdResponses, DeleteApiV1AdminPersonasByIdData, DeleteApiV1AdminPersonasByIdErrors, DeleteApiV1AdminPersonasByIdResponses, DeleteApiV1AdminTextResetData, DeleteApiV1AdminTextResetErrors, DeleteApiV1AdminTextResetResponses, DeleteApiV1AdminUsersDeleteData, DeleteApiV1AdminUsersDeleteErrors, DeleteApiV1AdminUsersDeleteResponses, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses, DeleteApiV1AuthMfaSmsData, DeleteApiV1AuthMfaSmsErrors, DeleteApiV1AuthMfaSmsResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidData, DeleteApiV1DeveloperAppsByAppUuidErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyData, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1TextByChannelUnregisterData, DeleteApiV1TextByChannelUnregisterErrors, DeleteApiV1TextByChannelUnregisterResponses, DeleteApiV1UserAgentConsentsByAgentIdData, DeleteApiV1UserAgentConsentsByAgentIdErrors, DeleteApiV1UserAgentConsentsByAgentIdResponses, DeleteApiV1UserApiKeysByKeyIdData, DeleteApiV1UserApiKeysByKeyIdErrors, DeleteApiV1UserApiKeysByKeyIdResponses, DeleteApiV1UserOauthGrantsByIdData, DeleteApiV1UserOauthGrantsByIdErrors, DeleteApiV1UserOauthGrantsByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1AdminOauthClientsByClientIdData, GetApiV1AdminOauthClientsByClientIdErrors, GetApiV1AdminOauthClientsByClientIdResponses, GetApiV1AdminOauthClientsData, GetApiV1AdminOauthClientsResponses, GetApiV1AdminPrivyIdentifiersAuditData, GetApiV1AdminPrivyIdentifiersAuditErrors, GetApiV1AdminPrivyIdentifiersAuditResponses, GetApiV1AdminUsersLookupData, GetApiV1AdminUsersLookupErrors, GetApiV1AdminUsersLookupResponses, GetApiV1AgentPreferencesData, GetApiV1AgentPreferencesErrors, GetApiV1AgentPreferencesResponses, GetApiV1AgentsByIdData, GetApiV1AgentsByIdErrors, GetApiV1AgentsByIdResponses, GetApiV1AgentsData, GetApiV1AgentsErrors, GetApiV1AgentsResponses, GetApiV1AuthMfaStatusData, GetApiV1AuthMfaStatusErrors, GetApiV1AuthMfaStatusResponses, GetApiV1BootstrapData, GetApiV1BootstrapErrors, GetApiV1BootstrapResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1ConnectorsData, GetApiV1ConnectorsErrors, GetApiV1ConnectorsResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1CuratedModelsData, GetApiV1CuratedModelsResponses, GetApiV1DeveloperAppsByAppUuidApiKeysData, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidData, GetApiV1DeveloperAppsByAppUuidErrors, GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidUsageData, GetApiV1DeveloperAppsByAppUuidUsageErrors, GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersData, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressData, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersData, GetApiV1DeveloperAppsByAppUuidUsersErrors, GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsData, GetApiV1DeveloperAppsErrors, GetApiV1DeveloperAppsResponses, GetApiV1DeveloperBillingData, GetApiV1DeveloperBillingErrors, GetApiV1DeveloperBillingResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1GuestBootstrapData, GetApiV1GuestBootstrapErrors, GetApiV1GuestBootstrapResponses, GetApiV1MeData, GetApiV1MeErrors, GetApiV1MeResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1PersonasByIdData, GetApiV1PersonasByIdErrors, GetApiV1PersonasByIdResponses, GetApiV1PersonasData, GetApiV1PersonasErrors, GetApiV1PersonasResponses, GetApiV1PhoneCallsByCallIdData, GetApiV1PhoneCallsByCallIdErrors, GetApiV1PhoneCallsByCallIdResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1TextByChannelLookupData, GetApiV1TextByChannelLookupErrors, GetApiV1TextByChannelLookupResponses, GetApiV1TextByChannelStatusData, GetApiV1TextByChannelStatusErrors, GetApiV1TextByChannelStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetApiV1UsageByModalityData, GetApiV1UsageByModalityErrors, GetApiV1UsageByModalityResponses, GetApiV1UsageModelsData, GetApiV1UsageModelsErrors, GetApiV1UsageModelsResponses, GetApiV1UserAgentConsentsData, GetApiV1UserAgentConsentsErrors, GetApiV1UserAgentConsentsResponses, GetApiV1UserAgentGrantsData, GetApiV1UserAgentGrantsErrors, GetApiV1UserAgentGrantsResponses, GetApiV1UserApiKeysData, GetApiV1UserApiKeysErrors, GetApiV1UserApiKeysResponses, GetApiV1UserOauthGrantsData, GetApiV1UserOauthGrantsErrors, GetApiV1UserOauthGrantsResponses, GetConnectorsByProviderCallbackData, GetConnectorsByProviderCallbackErrors, GetConnectorsByProviderConnectData, GetConnectorsByProviderConnectErrors, GetHealthData, GetHealthErrors, GetHealthResponses, GetOauthAuthorizeData, GetOauthAuthorizeErrors, GetOauthConsentData, GetOauthConsentErrors, GetOauthConsentResponses, GetWellKnownJwksJsonData, GetWellKnownJwksJsonResponses, PatchApiV1AdminOauthClientsByClientIdData, PatchApiV1AdminOauthClientsByClientIdErrors, PatchApiV1AdminOauthClientsByClientIdResponses, PatchApiV1DeveloperAppsByAppUuidData, PatchApiV1DeveloperAppsByAppUuidErrors, PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PatchApiV1UserOauthGrantsByIdData, PatchApiV1UserOauthGrantsByIdErrors, PatchApiV1UserOauthGrantsByIdResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAgentsData, PostApiV1AdminAgentsErrors, PostApiV1AdminAgentsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminNotificationsSendData, PostApiV1AdminNotificationsSendErrors, PostApiV1AdminNotificationsSendResponses, PostApiV1AdminOauthClientsData, PostApiV1AdminOauthClientsErrors, PostApiV1AdminOauthClientsResponses, PostApiV1AdminPersonasData, PostApiV1AdminPersonasErrors, PostApiV1AdminPersonasResponses, PostApiV1AdminPrivyDevWipeData, PostApiV1AdminPrivyDevWipeErrors, PostApiV1AdminPrivyDevWipeResponses, PostApiV1AdminPrivyIdentifiersMigrateData, PostApiV1AdminPrivyIdentifiersMigrateErrors, PostApiV1AdminPrivyIdentifiersMigrateResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1AuthMfaDisableData, PostApiV1AuthMfaDisableErrors, PostApiV1AuthMfaDisableResponses, PostApiV1AuthMfaPasskeyEnrollBeginData, PostApiV1AuthMfaPasskeyEnrollBeginErrors, PostApiV1AuthMfaPasskeyEnrollBeginResponses, PostApiV1AuthMfaPasskeyEnrollFinishData, PostApiV1AuthMfaPasskeyEnrollFinishErrors, PostApiV1AuthMfaPasskeyEnrollFinishResponses, PostApiV1AuthMfaPasskeyVerifyBeginData, PostApiV1AuthMfaPasskeyVerifyBeginErrors, PostApiV1AuthMfaPasskeyVerifyBeginResponses, PostApiV1AuthMfaPasskeyVerifyFinishData, PostApiV1AuthMfaPasskeyVerifyFinishErrors, PostApiV1AuthMfaPasskeyVerifyFinishResponses, PostApiV1AuthMfaRecoveryCodesRegenerateData, PostApiV1AuthMfaRecoveryCodesRegenerateErrors, PostApiV1AuthMfaRecoveryCodesRegenerateResponses, PostApiV1AuthMfaSmsEnrollInitData, PostApiV1AuthMfaSmsEnrollInitErrors, PostApiV1AuthMfaSmsEnrollInitResponses, PostApiV1AuthMfaSmsEnrollVerifyData, PostApiV1AuthMfaSmsEnrollVerifyErrors, PostApiV1AuthMfaSmsEnrollVerifyResponses, PostApiV1AuthMfaSmsSendCodeData, PostApiV1AuthMfaSmsSendCodeErrors, PostApiV1AuthMfaSmsSendCodeResponses, PostApiV1AuthMfaTotpEnrollInitData, PostApiV1AuthMfaTotpEnrollInitErrors, PostApiV1AuthMfaTotpEnrollInitResponses, PostApiV1AuthMfaTotpEnrollVerifyData, PostApiV1AuthMfaTotpEnrollVerifyErrors, PostApiV1AuthMfaTotpEnrollVerifyResponses, PostApiV1AuthMfaVerifyData, PostApiV1AuthMfaVerifyErrors, PostApiV1AuthMfaVerifyResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1ConnectorsByProviderDisconnectData, PostApiV1ConnectorsByProviderDisconnectErrors, PostApiV1ConnectorsByProviderDisconnectResponses, PostApiV1ConnectorsImportData, PostApiV1ConnectorsImportErrors, PostApiV1ConnectorsImportResponses, PostApiV1ConnectorTokensByProviderData, PostApiV1ConnectorTokensByProviderErrors, PostApiV1ConnectorTokensByProviderResponses, PostApiV1ConnectTicketsData, PostApiV1ConnectTicketsErrors, PostApiV1ConnectTicketsResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsRedeemTokensData, PostApiV1CreditsRedeemTokensErrors, PostApiV1CreditsRedeemTokensResponses, PostApiV1DeveloperAppsByAppUuidApiKeysData, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidFundData, PostApiV1DeveloperAppsByAppUuidFundErrors, PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidPrivyData, PostApiV1DeveloperAppsByAppUuidPrivyErrors, PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsData, PostApiV1DeveloperAppsErrors, PostApiV1DeveloperAppsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1GuestChatCompletionsData, PostApiV1GuestChatCompletionsErrors, PostApiV1GuestChatCompletionsResponses, PostApiV1NotificationsDevicesData, PostApiV1NotificationsDevicesErrors, PostApiV1NotificationsDevicesResponses, PostApiV1NotificationsDevicesUnregisterData, PostApiV1NotificationsDevicesUnregisterErrors, PostApiV1NotificationsDevicesUnregisterResponses, PostApiV1PhoneCallsData, PostApiV1PhoneCallsErrors, PostApiV1PhoneCallsResponses, PostApiV1PreprocessorsCryptoPricesData, PostApiV1PreprocessorsCryptoPricesErrors, PostApiV1PreprocessorsCryptoPricesResponses, PostApiV1PreprocessorsSearchData, PostApiV1PreprocessorsSearchErrors, PostApiV1PreprocessorsSearchResponses, PostApiV1PreprocessorsStockPricesData, PostApiV1PreprocessorsStockPricesErrors, PostApiV1PreprocessorsStockPricesResponses, PostApiV1PreprocessorsWeatherData, PostApiV1PreprocessorsWeatherErrors, PostApiV1PreprocessorsWeatherResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelScheduledDowngradeData, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsScheduleDowngradeData, PostApiV1SubscriptionsScheduleDowngradeErrors, PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsUpgradeData, PostApiV1SubscriptionsUpgradeErrors, PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostApiV1TextByChannelRegisterData, PostApiV1TextByChannelRegisterErrors, PostApiV1TextByChannelRegisterResponses, PostApiV1UserAgentConsentsData, PostApiV1UserAgentConsentsErrors, PostApiV1UserAgentConsentsResponses, PostApiV1UserApiKeysData, PostApiV1UserApiKeysErrors, PostApiV1UserApiKeysResponses, PostApiV1WebhooksRevenuecatData, PostApiV1WebhooksRevenuecatErrors, PostApiV1WebhooksRevenuecatResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PostOauthConsentData, PostOauthConsentErrors, PostOauthConsentResponses, PostOauthRevokeData, PostOauthRevokeErrors, PostOauthRevokeResponses, PostOauthTokenData, PostOauthTokenErrors, PostOauthTokenResponses, PutApiV1AdminAgentsByIdData, PutApiV1AdminAgentsByIdErrors, PutApiV1AdminAgentsByIdResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses, PutApiV1AdminPersonasByIdData, PutApiV1AdminPersonasByIdErrors, PutApiV1AdminPersonasByIdResponses, PutApiV1AgentsByIdPreferenceData, PutApiV1AgentsByIdPreferenceErrors, PutApiV1AgentsByIdPreferenceResponses } from './types.gen';
+import type { DeleteApiV1AccountData, DeleteApiV1AccountErrors, DeleteApiV1AccountResponses, DeleteApiV1AdminAgentsByIdData, DeleteApiV1AdminAgentsByIdErrors, DeleteApiV1AdminAgentsByIdResponses, DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, DeleteApiV1AdminOauthClientsByClientIdData, DeleteApiV1AdminOauthClientsByClientIdErrors, DeleteApiV1AdminOauthClientsByClientIdResponses, DeleteApiV1AdminPersonasByIdData, DeleteApiV1AdminPersonasByIdErrors, DeleteApiV1AdminPersonasByIdResponses, DeleteApiV1AdminTextResetData, DeleteApiV1AdminTextResetErrors, DeleteApiV1AdminTextResetResponses, DeleteApiV1AdminUsersDeleteData, DeleteApiV1AdminUsersDeleteErrors, DeleteApiV1AdminUsersDeleteResponses, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidData, DeleteApiV1DeveloperAppsByAppUuidErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyData, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1UserAgentConsentsByAgentIdData, DeleteApiV1UserAgentConsentsByAgentIdErrors, DeleteApiV1UserAgentConsentsByAgentIdResponses, DeleteApiV1UserApiKeysByKeyIdData, DeleteApiV1UserApiKeysByKeyIdErrors, DeleteApiV1UserApiKeysByKeyIdResponses, DeleteApiV1UserOauthGrantsByIdData, DeleteApiV1UserOauthGrantsByIdErrors, DeleteApiV1UserOauthGrantsByIdResponses, DeleteApiV1WalletsBindingByAddressData, DeleteApiV1WalletsBindingByAddressErrors, DeleteApiV1WalletsBindingByAddressResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1AdminConnectorsData, GetApiV1AdminConnectorsErrors, GetApiV1AdminConnectorsResponses, GetApiV1AdminOauthClientsByClientIdData, GetApiV1AdminOauthClientsByClientIdErrors, GetApiV1AdminOauthClientsByClientIdResponses, GetApiV1AdminOauthClientsData, GetApiV1AdminOauthClientsResponses, GetApiV1AdminPrivyIdentifiersAuditData, GetApiV1AdminPrivyIdentifiersAuditErrors, GetApiV1AdminPrivyIdentifiersAuditResponses, GetApiV1AdminUsersLookupData, GetApiV1AdminUsersLookupErrors, GetApiV1AdminUsersLookupResponses, GetApiV1AgentPreferencesData, GetApiV1AgentPreferencesErrors, GetApiV1AgentPreferencesResponses, GetApiV1AgentsByIdData, GetApiV1AgentsByIdErrors, GetApiV1AgentsByIdResponses, GetApiV1AgentsData, GetApiV1AgentsErrors, GetApiV1AgentsResponses, GetApiV1AuthMfaStatusData, GetApiV1AuthMfaStatusErrors, GetApiV1AuthMfaStatusResponses, GetApiV1BootstrapData, GetApiV1BootstrapErrors, GetApiV1BootstrapResponses, GetApiV1ChatStreamsByInferenceIdData, GetApiV1ChatStreamsByInferenceIdErrors, GetApiV1ChatStreamsByInferenceIdResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1ConnectorsByProviderScopesData, GetApiV1ConnectorsByProviderScopesErrors, GetApiV1ConnectorsByProviderScopesResponses, GetApiV1ConnectorsByProviderToolsData, GetApiV1ConnectorsByProviderToolsErrors, GetApiV1ConnectorsByProviderToolsResponses, GetApiV1ConnectorsData, GetApiV1ConnectorsErrors, GetApiV1ConnectorsResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1CuratedModelsData, GetApiV1CuratedModelsResponses, GetApiV1DeveloperAppsByAppUuidApiKeysData, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidData, GetApiV1DeveloperAppsByAppUuidErrors, GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidUsageData, GetApiV1DeveloperAppsByAppUuidUsageErrors, GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersData, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressData, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersData, GetApiV1DeveloperAppsByAppUuidUsersErrors, GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsData, GetApiV1DeveloperAppsErrors, GetApiV1DeveloperAppsResponses, GetApiV1DeveloperBillingData, GetApiV1DeveloperBillingErrors, GetApiV1DeveloperBillingResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1GuestBootstrapData, GetApiV1GuestBootstrapErrors, GetApiV1GuestBootstrapResponses, GetApiV1MeData, GetApiV1MeErrors, GetApiV1MeResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1PersonasByIdData, GetApiV1PersonasByIdErrors, GetApiV1PersonasByIdResponses, GetApiV1PersonasData, GetApiV1PersonasErrors, GetApiV1PersonasResponses, GetApiV1PhoneCallsByCallIdData, GetApiV1PhoneCallsByCallIdErrors, GetApiV1PhoneCallsByCallIdResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetApiV1UsageByModalityData, GetApiV1UsageByModalityErrors, GetApiV1UsageByModalityResponses, GetApiV1UsageModelsData, GetApiV1UsageModelsErrors, GetApiV1UsageModelsResponses, GetApiV1UserAgentConsentsData, GetApiV1UserAgentConsentsErrors, GetApiV1UserAgentConsentsResponses, GetApiV1UserAgentGrantsData, GetApiV1UserAgentGrantsErrors, GetApiV1UserAgentGrantsResponses, GetApiV1UserApiKeysData, GetApiV1UserApiKeysErrors, GetApiV1UserApiKeysResponses, GetApiV1UserOauthGrantsData, GetApiV1UserOauthGrantsErrors, GetApiV1UserOauthGrantsResponses, GetApiV1WalletsBindingData, GetApiV1WalletsBindingErrors, GetApiV1WalletsBindingResponses, GetConnectorsByProviderCallbackData, GetConnectorsByProviderCallbackErrors, GetConnectorsByProviderConnectData, GetConnectorsByProviderConnectErrors, GetHealthData, GetHealthErrors, GetHealthResponses, GetOauthAuthorizeData, GetOauthAuthorizeErrors, GetOauthConsentData, GetOauthConsentErrors, GetOauthConsentResponses, GetWellKnownJwksJsonData, GetWellKnownJwksJsonResponses, PatchApiV1AdminOauthClientsByClientIdData, PatchApiV1AdminOauthClientsByClientIdErrors, PatchApiV1AdminOauthClientsByClientIdResponses, PatchApiV1DeveloperAppsByAppUuidData, PatchApiV1DeveloperAppsByAppUuidErrors, PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PatchApiV1UserOauthGrantsByIdData, PatchApiV1UserOauthGrantsByIdErrors, PatchApiV1UserOauthGrantsByIdResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAgentsData, PostApiV1AdminAgentsErrors, PostApiV1AdminAgentsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminNotificationsAnnounceModelData, PostApiV1AdminNotificationsAnnounceModelErrors, PostApiV1AdminNotificationsAnnounceModelResponses, PostApiV1AdminNotificationsSendData, PostApiV1AdminNotificationsSendErrors, PostApiV1AdminNotificationsSendResponses, PostApiV1AdminOauthClientsData, PostApiV1AdminOauthClientsErrors, PostApiV1AdminOauthClientsResponses, PostApiV1AdminPersonasData, PostApiV1AdminPersonasErrors, PostApiV1AdminPersonasResponses, PostApiV1AdminPrivyDevWipeData, PostApiV1AdminPrivyDevWipeErrors, PostApiV1AdminPrivyDevWipeResponses, PostApiV1AdminPrivyIdentifiersMigrateData, PostApiV1AdminPrivyIdentifiersMigrateErrors, PostApiV1AdminPrivyIdentifiersMigrateResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1AuthMfaDisableData, PostApiV1AuthMfaDisableErrors, PostApiV1AuthMfaDisableResponses, PostApiV1AuthMfaPasskeyEnrollBeginData, PostApiV1AuthMfaPasskeyEnrollBeginErrors, PostApiV1AuthMfaPasskeyEnrollBeginResponses, PostApiV1AuthMfaPasskeyEnrollFinishData, PostApiV1AuthMfaPasskeyEnrollFinishErrors, PostApiV1AuthMfaPasskeyEnrollFinishResponses, PostApiV1AuthMfaPasskeyVerifyBeginData, PostApiV1AuthMfaPasskeyVerifyBeginErrors, PostApiV1AuthMfaPasskeyVerifyBeginResponses, PostApiV1AuthMfaPasskeyVerifyFinishData, PostApiV1AuthMfaPasskeyVerifyFinishErrors, PostApiV1AuthMfaPasskeyVerifyFinishResponses, PostApiV1AuthMfaRecoveryCodesRegenerateData, PostApiV1AuthMfaRecoveryCodesRegenerateErrors, PostApiV1AuthMfaRecoveryCodesRegenerateResponses, PostApiV1AuthMfaTotpEnrollInitData, PostApiV1AuthMfaTotpEnrollInitErrors, PostApiV1AuthMfaTotpEnrollInitResponses, PostApiV1AuthMfaTotpEnrollVerifyData, PostApiV1AuthMfaTotpEnrollVerifyErrors, PostApiV1AuthMfaTotpEnrollVerifyResponses, PostApiV1AuthMfaVerifyData, PostApiV1AuthMfaVerifyErrors, PostApiV1AuthMfaVerifyResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1ChatStreamsByInferenceIdCancelData, PostApiV1ChatStreamsByInferenceIdCancelErrors, PostApiV1ChatStreamsByInferenceIdCancelResponses, PostApiV1ConnectorsByProviderDisconnectData, PostApiV1ConnectorsByProviderDisconnectErrors, PostApiV1ConnectorsByProviderDisconnectResponses, PostApiV1ConnectorsImportData, PostApiV1ConnectorsImportErrors, PostApiV1ConnectorsImportResponses, PostApiV1ConnectorTokensByProviderData, PostApiV1ConnectorTokensByProviderErrors, PostApiV1ConnectorTokensByProviderResponses, PostApiV1ConnectTicketsData, PostApiV1ConnectTicketsErrors, PostApiV1ConnectTicketsResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsRedeemTokensData, PostApiV1CreditsRedeemTokensErrors, PostApiV1CreditsRedeemTokensResponses, PostApiV1DeveloperAppsByAppUuidApiKeysData, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidFundData, PostApiV1DeveloperAppsByAppUuidFundErrors, PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidPrivyData, PostApiV1DeveloperAppsByAppUuidPrivyErrors, PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsData, PostApiV1DeveloperAppsErrors, PostApiV1DeveloperAppsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1GuestChatCompletionsData, PostApiV1GuestChatCompletionsErrors, PostApiV1GuestChatCompletionsResponses, PostApiV1NotificationsDevicesData, PostApiV1NotificationsDevicesErrors, PostApiV1NotificationsDevicesResponses, PostApiV1NotificationsDevicesUnregisterData, PostApiV1NotificationsDevicesUnregisterErrors, PostApiV1NotificationsDevicesUnregisterResponses, PostApiV1PhoneCallsData, PostApiV1PhoneCallsErrors, PostApiV1PhoneCallsResponses, PostApiV1PreprocessorsCryptoPricesData, PostApiV1PreprocessorsCryptoPricesErrors, PostApiV1PreprocessorsCryptoPricesResponses, PostApiV1PreprocessorsSearchData, PostApiV1PreprocessorsSearchErrors, PostApiV1PreprocessorsSearchResponses, PostApiV1PreprocessorsStockPricesData, PostApiV1PreprocessorsStockPricesErrors, PostApiV1PreprocessorsStockPricesResponses, PostApiV1PreprocessorsWeatherData, PostApiV1PreprocessorsWeatherErrors, PostApiV1PreprocessorsWeatherResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelScheduledDowngradeData, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsScheduleDowngradeData, PostApiV1SubscriptionsScheduleDowngradeErrors, PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsUpgradeData, PostApiV1SubscriptionsUpgradeErrors, PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostApiV1UserAgentConsentsData, PostApiV1UserAgentConsentsErrors, PostApiV1UserAgentConsentsResponses, PostApiV1UserApiKeysData, PostApiV1UserApiKeysErrors, PostApiV1UserApiKeysResponses, PostApiV1WalletsBindingData, PostApiV1WalletsBindingErrors, PostApiV1WalletsBindingNonceData, PostApiV1WalletsBindingNonceErrors, PostApiV1WalletsBindingNonceResponses, PostApiV1WalletsBindingResponses, PostApiV1WebhooksRevenuecatData, PostApiV1WebhooksRevenuecatErrors, PostApiV1WebhooksRevenuecatResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PostOauthConsentData, PostOauthConsentErrors, PostOauthConsentResponses, PostOauthRevokeData, PostOauthRevokeErrors, PostOauthRevokeResponses, PostOauthTokenData, PostOauthTokenErrors, PostOauthTokenResponses, PutApiV1AdminAgentsByIdData, PutApiV1AdminAgentsByIdErrors, PutApiV1AdminAgentsByIdResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses, PutApiV1AdminConnectorsByProviderData, PutApiV1AdminConnectorsByProviderErrors, PutApiV1AdminConnectorsByProviderResponses, PutApiV1AdminPersonasByIdData, PutApiV1AdminPersonasByIdErrors, PutApiV1AdminPersonasByIdResponses, PutApiV1AgentsByIdPreferenceData, PutApiV1AgentsByIdPreferenceErrors, PutApiV1AgentsByIdPreferenceResponses, PutApiV1ConnectorsByProviderScopesData, PutApiV1ConnectorsByProviderScopesErrors, PutApiV1ConnectorsByProviderScopesResponses, PutApiV1ConnectorsByProviderToolsData, PutApiV1ConnectorsByProviderToolsErrors, PutApiV1ConnectorsByProviderToolsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -239,6 +239,50 @@ export const putApiV1AdminAppsById = <ThrowOnError extends boolean = false>(opti
 };
 
 /**
+ * List connector enable/disable state (admin)
+ *
+ * Returns the kill-switch state for every logical connector. Connectors with no stored setting default to enabled. Requires admin API key.
+ */
+export const getApiV1AdminConnectors = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminConnectorsData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1AdminConnectorsResponses, GetApiV1AdminConnectorsErrors, ThrowOnError>({
+        url: '/api/v1/admin/connectors',
+        ...options
+    });
+};
+
+/**
+ * Enable or disable a connector (admin)
+ *
+ * Sets the kill-switch state for one logical connector. Disabling blocks new connects and stops the vault from minting new tokens; already-issued ~5min tokens expire on their own and the upstream refresh token is untouched, so re-enabling needs no reconnect. Requires admin API key.
+ */
+export const putApiV1AdminConnectorsByProvider = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminConnectorsByProviderData, ThrowOnError>) => {
+    return (options.client ?? client).put<PutApiV1AdminConnectorsByProviderResponses, PutApiV1AdminConnectorsByProviderErrors, ThrowOnError>({
+        url: '/api/v1/admin/connectors/{provider}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Announce a new model via push notification (admin)
+ *
+ * Broadcasts an Expo push to every registered device announcing a curated model. Title and body default from the catalog entry; the tap deep-links to the in-app models screen. Idempotent per model_id — repeat calls return 409 unless force=true is set, which also re-announces after a partial delivery.
+ */
+export const postApiV1AdminNotificationsAnnounceModel = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminNotificationsAnnounceModelData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminNotificationsAnnounceModelResponses, PostApiV1AdminNotificationsAnnounceModelErrors, ThrowOnError>({
+        url: '/api/v1/admin/notifications/announce-model',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
  * Send test push notification (admin)
  *
  * Sends an Expo push to every device registered under the resolved account. Exactly one of account_id or user_address must be provided. Returns the per-device delivery breakdown including any rows pruned because Expo reported DeviceNotRegistered.
@@ -447,7 +491,7 @@ export const deleteApiV1AdminTextReset = <ThrowOnError extends boolean = false>(
 /**
  * Delete user account (admin)
  *
- * Permanently deletes a user account and all associated cascading data (enrollments, requests, credit claims, etc.) and best-effort cancels any Stripe subscription. Accepts wallet_address, phone, telegram, or email (exactly one required). Returns stripe_cleanup_succeeded=false when the account was deleted but the Stripe customer cleanup failed — operator must clean up Stripe manually.
+ * Permanently deletes a user's data for a support or compliance request. Deletes the portal account and all associated cascading data (enrollments, requests, credit claims, etc.), best-effort cancels any Stripe subscription, AND deletes the Privy user. Accepts wallet_address, phone, telegram, or email (exactly one required). Works even when there is no portal account (Privy-only user) — in that case only the Privy user is deleted. Returns portal_account_deleted / privy_user_deleted flags indicating what was removed, and stripe_cleanup_succeeded=false when the account was deleted but the Stripe customer cleanup failed (operator must clean up Stripe manually). Returns 502 if the Privy user deletion fails.
  */
 export const deleteApiV1AdminUsersDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminUsersDeleteData, ThrowOnError>) => {
     return (options.client ?? client).delete<DeleteApiV1AdminUsersDeleteResponses, DeleteApiV1AdminUsersDeleteErrors, ThrowOnError>({
@@ -459,7 +503,7 @@ export const deleteApiV1AdminUsersDelete = <ThrowOnError extends boolean = false
 /**
  * Lookup user by identifier
  *
- * Retrieves account details, all app enrollments with balances, and text registrations. Accepts wallet_address, phone, telegram, or email (exactly one required).
+ * Retrieves account details, all app enrollments with balances, and text registrations. Accepts wallet_address, phone, telegram, or email (exactly one required). When the identifier resolves to a Privy user that has no portal account (e.g. a Privy signup that never onboarded), returns 200 with account=null, portal_account_exists=false, and a privy block describing the Privy identity, instead of 404 — so an operator can still see (and delete) the Privy user.
  */
 export const getApiV1AdminUsersLookup = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminUsersLookupData, ThrowOnError>) => {
     return (options.client ?? client).get<GetApiV1AdminUsersLookupResponses, GetApiV1AdminUsersLookupErrors, ThrowOnError>({
@@ -603,54 +647,6 @@ export const postApiV1AuthMfaRecoveryCodesRegenerate = <ThrowOnError extends boo
 };
 
 /**
- * Disable SMS factor
- */
-export const deleteApiV1AuthMfaSms = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiV1AuthMfaSmsData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeleteApiV1AuthMfaSmsResponses, DeleteApiV1AuthMfaSmsErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/sms',
-        ...options
-    });
-};
-
-/**
- * Begin SMS enrollment
- */
-export const postApiV1AuthMfaSmsEnrollInit = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaSmsEnrollInitData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AuthMfaSmsEnrollInitResponses, PostApiV1AuthMfaSmsEnrollInitErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/sms/enroll/init',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
-
-/**
- * Verify SMS enrollment
- */
-export const postApiV1AuthMfaSmsEnrollVerify = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaSmsEnrollVerifyData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AuthMfaSmsEnrollVerifyResponses, PostApiV1AuthMfaSmsEnrollVerifyErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/sms/enroll/verify',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
-
-/**
- * Send SMS login OTP
- */
-export const postApiV1AuthMfaSmsSendCode = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaSmsSendCodeData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1AuthMfaSmsSendCodeResponses, PostApiV1AuthMfaSmsSendCodeErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/sms/send-code',
-        ...options
-    });
-};
-
-/**
  * MFA status
  *
  * Returns whether MFA is enabled and which factors are enrolled.
@@ -703,7 +699,7 @@ export const postApiV1AuthMfaVerify = <ThrowOnError extends boolean = false>(opt
 /**
  * Bootstrap client session
  *
- * Returns the authenticated user identity, feature-flag assignments, and server build metadata in a single call. Intended to be called once after auth resolves on the client.
+ * Returns the authenticated user identity, feature-flag assignments, server build metadata, and the connector availability catalog in a single call. Intended to be called once after auth resolves on the client.
  */
 export const getApiV1Bootstrap = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1BootstrapData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1BootstrapResponses, GetApiV1BootstrapErrors, ThrowOnError>({
@@ -725,6 +721,30 @@ export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(o
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * Resume (replay + tail) a buffered chat stream
+ *
+ * Replays the buffered SSE prefix of an interrupted chat stream from the Redis buffer, byte-identical to the original wire, then live-tails it to its terminal state. The response is an SSE stream (text/event-stream) terminated by `data: [DONE]`. A non-completed terminal (tool calls awaited, deadline exceeded, generation error, or a cancel raced in during tail) is delivered as an in-stream error event (`code: stream_interrupted`) followed by `[DONE]`; raw tool-request frames are never replayed. Unknown, expired, cancelled, or not-owned ids all return 410 (no existence oracle). Bearer auth; the caller must own the stream.
+ */
+export const getApiV1ChatStreamsByInferenceId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ChatStreamsByInferenceIdData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1ChatStreamsByInferenceIdResponses, GetApiV1ChatStreamsByInferenceIdErrors, ThrowOnError>({
+        url: '/api/v1/chat/streams/{inference_id}',
+        ...options
+    });
+};
+
+/**
+ * Cancel a buffered chat stream
+ *
+ * Cancels an in-flight or detached chat generation identified by its inference ID, from any pod. Writes the first-terminal-wins cancel tombstone, broadcasts a cross-pod cancel, and (on the generating pod) stops generation immediately. Idempotent: a stream already in a terminal state returns `{"status":"noop"}`, distinguishing an explicit cancel from a mere disconnect. Unknown, expired, or not-owned ids return 410 (no existence oracle). Bearer auth; the caller must own the stream. Credits are untouched — the generation goroutine settles partial usage through its existing path.
+ */
+export const postApiV1ChatStreamsByInferenceIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ChatStreamsByInferenceIdCancelData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1ChatStreamsByInferenceIdCancelResponses, PostApiV1ChatStreamsByInferenceIdCancelErrors, ThrowOnError>({
+        url: '/api/v1/chat/streams/{inference_id}/cancel',
+        ...options
     });
 };
 
@@ -775,7 +795,7 @@ export const postApiV1ConnectorTokensByProvider = <ThrowOnError extends boolean 
 /**
  * List the user's connected connectors
  *
- * Returns the set of active connector credentials owned by the authenticated user. The encrypted_refresh_token is never exposed; the response is safe to ship to the browser.
+ * Returns the set of active connector credentials owned by the authenticated user plus denied_tools, a flat provider-independent list of the tool names the user has disabled (the SDK hides these client-side). The encrypted_refresh_token is never exposed; the response is safe to ship to the browser.
  */
 export const getApiV1Connectors = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConnectorsData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1ConnectorsResponses, GetApiV1ConnectorsErrors, ThrowOnError>({
@@ -809,6 +829,62 @@ export const postApiV1ConnectorsByProviderDisconnect = <ThrowOnError extends boo
     return (options.client ?? client).post<PostApiV1ConnectorsByProviderDisconnectResponses, PostApiV1ConnectorsByProviderDisconnectErrors, ThrowOnError>({
         url: '/api/v1/connectors/{provider}/disconnect',
         ...options
+    });
+};
+
+/**
+ * Capability catalog + Allow/Disable state for a connector
+ *
+ * Returns every capability (access level) the provider exposes with its upstream scopes, a server-owned label, whether the user's credential currently grants it, and the user's Allow/Disable policy (missing row → enabled). connected reflects an active credential row.
+ */
+export const getApiV1ConnectorsByProviderScopes = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ConnectorsByProviderScopesData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1ConnectorsByProviderScopesResponses, GetApiV1ConnectorsByProviderScopesErrors, ThrowOnError>({
+        url: '/api/v1/connectors/{provider}/scopes',
+        ...options
+    });
+};
+
+/**
+ * Batch Allow/Disable connector capabilities
+ *
+ * Upserts the user's per-capability Allow/Disable policy for one provider. Each access level is validated against the provider registry (400 unknown). On any disable, the (user, oauth_app) mint cache is purged so the change takes effect immediately rather than after the cache TTL. Returns the updated capability states.
+ */
+export const putApiV1ConnectorsByProviderScopes = <ThrowOnError extends boolean = false>(options: Options<PutApiV1ConnectorsByProviderScopesData, ThrowOnError>) => {
+    return (options.client ?? client).put<PutApiV1ConnectorsByProviderScopesResponses, PutApiV1ConnectorsByProviderScopesErrors, ThrowOnError>({
+        url: '/api/v1/connectors/{provider}/scopes',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Denied tools for a connector
+ *
+ * Returns the tools the user has explicitly denied for one provider. Tools absent from the list are enabled (default-open). The provider is validated against the registry (400 unknown); tool names are opaque and never validated.
+ */
+export const getApiV1ConnectorsByProviderTools = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ConnectorsByProviderToolsData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1ConnectorsByProviderToolsResponses, GetApiV1ConnectorsByProviderToolsErrors, ThrowOnError>({
+        url: '/api/v1/connectors/{provider}/tools',
+        ...options
+    });
+};
+
+/**
+ * Batch ALLOW/DENY connector tools
+ *
+ * Upserts the user's per-tool ALLOW/DENY policy for one provider. The provider is validated against the registry (400 unknown); tool names are opaque (not parsed) but must be 1-255 chars, and the batch is capped at 100 items. Returns the post-write denied set.
+ */
+export const putApiV1ConnectorsByProviderTools = <ThrowOnError extends boolean = false>(options: Options<PutApiV1ConnectorsByProviderToolsData, ThrowOnError>) => {
+    return (options.client ?? client).put<PutApiV1ConnectorsByProviderToolsResponses, PutApiV1ConnectorsByProviderToolsErrors, ThrowOnError>({
+        url: '/api/v1/connectors/{provider}/tools',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
     });
 };
 
@@ -1480,7 +1556,7 @@ export const getApiV1SubscriptionsStatus = <ThrowOnError extends boolean = false
 /**
  * Upgrade subscription
  *
- * Upgrades the current subscription to a higher tier or from monthly to annual billing by modifying the existing Stripe subscription in-place. No extra credits are allocated for the current month; the new plan's credit amount starts at the next billing cycle.
+ * Upgrades the current subscription to a higher tier or from monthly to annual billing by modifying the existing Stripe subscription in-place. No extra credits are allocated for the current month; the new plan's credit amount starts at the next billing cycle. Requesting the plan the user is already on (same tier and interval) is an idempotent no-op that returns 200, so a stale client that re-submits an upgrade does not error.
  */
 export const postApiV1SubscriptionsUpgrade = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsUpgradeData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsUpgradeErrors, ThrowOnError>({
@@ -1506,58 +1582,6 @@ export const postApiV1SubscriptionsWebhook = <ThrowOnError extends boolean = fal
             'Content-Type': 'application/json',
             ...options.headers
         }
-    });
-};
-
-/**
- * Lookup text channel registration by identifier
- *
- * Looks up an active text channel registration by identifier. Requires service-level API key authentication. Results are scoped to the calling app.
- */
-export const getApiV1TextByChannelLookup = <ThrowOnError extends boolean = false>(options: Options<GetApiV1TextByChannelLookupData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1TextByChannelLookupResponses, GetApiV1TextByChannelLookupErrors, ThrowOnError>({
-        url: '/api/v1/text/{channel}/lookup',
-        ...options
-    });
-};
-
-/**
- * Register identifier for text channel
- *
- * Registers an identifier (phone, email, etc.) for text channel interaction. The identifier must be linked in the user's Privy account (for SMS). Idempotent for the same account+channel (updates preferred model).
- */
-export const postApiV1TextByChannelRegister = <ThrowOnError extends boolean = false>(options: Options<PostApiV1TextByChannelRegisterData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1TextByChannelRegisterResponses, PostApiV1TextByChannelRegisterErrors, ThrowOnError>({
-        url: '/api/v1/text/{channel}/register',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
-
-/**
- * Get text channel registration status
- *
- * Returns the text channel registration status for the authenticated user.
- */
-export const getApiV1TextByChannelStatus = <ThrowOnError extends boolean = false>(options: Options<GetApiV1TextByChannelStatusData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1TextByChannelStatusResponses, GetApiV1TextByChannelStatusErrors, ThrowOnError>({
-        url: '/api/v1/text/{channel}/status',
-        ...options
-    });
-};
-
-/**
- * Unregister text channel
- *
- * Deactivates the text channel registration for the authenticated user.
- */
-export const deleteApiV1TextByChannelUnregister = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1TextByChannelUnregisterData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1TextByChannelUnregisterResponses, DeleteApiV1TextByChannelUnregisterErrors, ThrowOnError>({
-        url: '/api/v1/text/{channel}/unregister',
-        ...options
     });
 };
 
@@ -1726,6 +1750,50 @@ export const patchApiV1UserOauthGrantsById = <ThrowOnError extends boolean = fal
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * List bound wallets
+ */
+export const getApiV1WalletsBinding = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1WalletsBindingData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1WalletsBindingResponses, GetApiV1WalletsBindingErrors, ThrowOnError>({
+        url: '/api/v1/wallets/binding',
+        ...options
+    });
+};
+
+/**
+ * Bind a wallet
+ */
+export const postApiV1WalletsBinding = <ThrowOnError extends boolean = false>(options: Options<PostApiV1WalletsBindingData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1WalletsBindingResponses, PostApiV1WalletsBindingErrors, ThrowOnError>({
+        url: '/api/v1/wallets/binding',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Issue a wallet-binding nonce
+ */
+export const postApiV1WalletsBindingNonce = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1WalletsBindingNonceData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1WalletsBindingNonceResponses, PostApiV1WalletsBindingNonceErrors, ThrowOnError>({
+        url: '/api/v1/wallets/binding/nonce',
+        ...options
+    });
+};
+
+/**
+ * Unbind a wallet
+ */
+export const deleteApiV1WalletsBindingByAddress = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1WalletsBindingByAddressData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteApiV1WalletsBindingByAddressResponses, DeleteApiV1WalletsBindingByAddressErrors, ThrowOnError>({
+        url: '/api/v1/wallets/binding/{address}',
+        ...options
     });
 };
 

@@ -2,6 +2,6 @@
 
 > `const` **INFERENCE\_ID\_HEADER**: `"X-Inference-ID"` = `"X-Inference-ID"`
 
-Defined in: [src/lib/chat/toolLoop.ts:585](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#585)
+Defined in: [src/lib/chat/toolLoop.ts:616](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#616)
 
 Response header carrying the per-request stream id, issued by the portal pre-stream.

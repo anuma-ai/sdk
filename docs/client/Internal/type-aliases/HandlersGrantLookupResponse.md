@@ -2,7 +2,7 @@
 
 > **HandlersGrantLookupResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2812](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2812)
+Defined in: [src/client/types.gen.ts:2972](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2972)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2812](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **grant**: [`HandlersGrantLookupBody`](HandlersGrantLookupBody.md)
 
-Defined in: [src/client/types.gen.ts:2813](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2813)
+Defined in: [src/client/types.gen.ts:2973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2973)

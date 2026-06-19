@@ -2,7 +2,7 @@
 
 > **getApiV1GuestBootstrap**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1GuestBootstrapData`](../type-aliases/GetApiV1GuestBootstrapData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1GuestBootstrapResponses`](../type-aliases/GetApiV1GuestBootstrapResponses.md), [`GetApiV1GuestBootstrapErrors`](../type-aliases/GetApiV1GuestBootstrapErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1160](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1160)
+Defined in: [src/client/sdk.gen.ts:1236](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1236)
 
 Bootstrap guest session
 

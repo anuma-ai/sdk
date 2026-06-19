@@ -2,7 +2,7 @@
 
 > **HandlersDeveloperApiKeyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1734](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1734)
+Defined in: [src/client/types.gen.ts:1817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1817)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:1734](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1735](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1735)
+Defined in: [src/client/types.gen.ts:1818](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1818)

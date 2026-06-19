@@ -6,6 +6,7 @@ import { CompletionsStrategy } from "./completions";
 import {
   extractAssistantText,
   getCostMicroUsd,
+  getCreditsExhausted,
   getCreditsUsed,
   getImageModel,
   getToolCallEvents,
@@ -406,6 +407,41 @@ describe("processStreamChunk — usage cost fields are not clobbered", () => {
     expect(acc.usage.provider_cost_micro_usd).toBe(1000);
     expect(acc.usage.pricing_source).toBe("table-v2");
     expect(acc.usage.tool_cost_micro_usd).toBe(200);
+  });
+
+  it("passes credits_exhausted through the accumulator and into the final usage", () => {
+    const acc = createAccumulator();
+    // ai-portal injects credits_exhausted into the flat `usage` frame on the
+    // out-of-credits wrap-up. It must accumulate and survive to the final usage.
+    strategy.processStreamChunk(
+      {
+        usage: {
+          prompt_tokens: 10,
+          completion_tokens: 5,
+          total_tokens: 15,
+          credits_exhausted: true,
+        },
+      },
+      acc
+    );
+    expect(acc.usage.credits_exhausted).toBe(true);
+
+    const res = strategy.buildFinalResponse(acc) as LlmapiChatCompletionResponse;
+    // Lives on `usage` (terminal boolean), readable via the helper.
+    expect((res.usage as { credits_exhausted?: boolean }).credits_exhausted).toBe(true);
+    expect(getCreditsExhausted(res)).toBe(true);
+  });
+
+  it("leaves credits_exhausted undefined when the stream never signals it", () => {
+    const acc = createAccumulator();
+    strategy.processStreamChunk(
+      { usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } },
+      acc
+    );
+    expect(acc.usage.credits_exhausted).toBeUndefined();
+
+    const res = strategy.buildFinalResponse(acc) as LlmapiChatCompletionResponse;
+    expect(getCreditsExhausted(res)).toBeUndefined();
   });
 
   it("never writes undefined-valued token keys from an empty usage frame", () => {

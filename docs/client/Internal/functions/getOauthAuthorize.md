@@ -2,7 +2,7 @@
 
 > **getOauthAuthorize**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetOauthAuthorizeData`](../type-aliases/GetOauthAuthorizeData.md), `ThrowOnError`>): `RequestResult`<`unknown`, [`GetOauthAuthorizeErrors`](../type-aliases/GetOauthAuthorizeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1837](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1837)
+Defined in: [src/client/sdk.gen.ts:1905](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1905)
 
 OAuth 2.0 authorization endpoint
 

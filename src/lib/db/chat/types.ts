@@ -16,9 +16,11 @@ import type { PromptPreProcessor } from "../../chat/preProcessor";
 import {
   type ApiResponse,
   getCostMicroUsd,
+  getCreditsExhausted,
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
@@ -108,6 +110,10 @@ export interface ChatCompletionUsage {
   totalTokens?: number;
   costMicroUsd?: number;
   creditsUsed?: number;
+  /** Per-step out-of-credits marker (ai-portal #1146): true when the run ended
+   *  via the mid-loop wrap-up. Passed through like creditsUsed (not summed) so
+   *  it reaches message.usage for the out-of-credits UX. */
+  creditsExhausted?: boolean;
 }
 
 export interface SearchSource {
@@ -429,6 +435,23 @@ export interface BaseUseChatStorageOptions {
    * a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Enable best-effort, client-side PII obfuscation (NOT a compliance
+   * guarantee). Outbound message text is scanned for personally identifiable
+   * information and replaced with tagged placeholders before reaching the LLM
+   * provider; responses are de-anonymized automatically. Embedding inputs and
+   * the summarization prompt are redacted too. Regex-based detection does not
+   * cover names, non-text content, or tool-call arguments.
+   *
+   * - `true`: one redactor is shared per conversation
+   * - `PiiRedactor` instance: bring your own (tune via constructor options)
+   */
+  piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called with the PII matches found whenever outbound messages are redacted.
+   * Only fired when `piiRedaction` is active and at least one match was found.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
 /**
@@ -814,7 +837,13 @@ export function convertUsageToStored(
   const usage = response.usage;
   const costMicroUsd = getCostMicroUsd(response);
   const creditsUsed = getCreditsUsed(response);
-  if (!usage && costMicroUsd === undefined && creditsUsed === undefined) {
+  const creditsExhausted = getCreditsExhausted(response);
+  if (
+    !usage &&
+    costMicroUsd === undefined &&
+    creditsUsed === undefined &&
+    creditsExhausted === undefined
+  ) {
     return undefined;
   }
   return {
@@ -823,6 +852,8 @@ export function convertUsageToStored(
     totalTokens: usage?.total_tokens,
     costMicroUsd,
     creditsUsed,
+    // Terminal boolean — passed through as-is (ai-portal #1146), never summed.
+    ...(creditsExhausted !== undefined && { creditsExhausted }),
   };
 }
 

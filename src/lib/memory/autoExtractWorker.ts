@@ -149,6 +149,8 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         ...(options.consolidate.onFallback !== undefined && {
           onFallback: options.consolidate.onFallback,
         }),
+        // PII redaction is inherited from `extract.piiRedaction` inside
+        // extractAndRetain (so direct callers are covered too), not copied here.
       }
     : undefined;
 
@@ -159,6 +161,17 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   if (options.retainCtx.vaultCtx.entityCtx && !options.entityCtx) {
     getLogger().warn(
       "[memory/extract] retainCtx.vaultCtx.entityCtx is set but extractor was created without `entityCtx` — W5 graph lane will receive no writes"
+    );
+  }
+
+  // PII redaction protects the extraction + consolidation LLM calls, but facts
+  // are embedded with their real values — that path is masked only when
+  // embeddingOptions.maskInput is set. Warn once if redaction is on but the
+  // embedding masker is missing, so PII isn't silently shipped to the
+  // embeddings provider.
+  if (options.extract.piiRedaction && !options.retainCtx.embeddingOptions.maskInput) {
+    getLogger().warn(
+      "[memory/extract] extract.piiRedaction is enabled but retainCtx.embeddingOptions.maskInput is unset — extracted facts are embedded with their real values. Set maskInput (e.g. redactor.maskText) to keep PII out of embedding requests."
     );
   }
 

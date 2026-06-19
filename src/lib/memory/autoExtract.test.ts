@@ -490,4 +490,207 @@ describe("extractAndRetain", () => {
 
     expect(vi.mocked(retain).mock.calls[0][2]).not.toHaveProperty("consolidateOptions");
   });
+
+  it("inherits extract.piiRedaction into consolidateOptions for direct callers", async () => {
+    const candidates = {
+      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch(JSON.stringify(candidates)),
+          piiRedaction: true,
+        },
+        // No piiRedaction here — it must be inherited from `extract`, or the
+        // consolidation LLM would receive the (de-anonymized) facts in the clear.
+        consolidateOptions: { apiKey: "k" },
+      }
+    );
+
+    const retainOpts = vi.mocked(retain).mock.calls[0][2] as {
+      consolidateOptions?: { piiRedaction?: unknown };
+    };
+    expect(retainOpts.consolidateOptions?.piiRedaction).toBe(true);
+  });
+
+  it("lets an explicit consolidateOptions.piiRedaction win over extract", async () => {
+    const candidates = {
+      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch(JSON.stringify(candidates)),
+          piiRedaction: true,
+        },
+        consolidateOptions: { apiKey: "k", piiRedaction: false },
+      }
+    );
+
+    const retainOpts = vi.mocked(retain).mock.calls[0][2] as {
+      consolidateOptions?: { piiRedaction?: unknown };
+    };
+    expect(retainOpts.consolidateOptions?.piiRedaction).toBe(false);
+  });
+});
+
+describe("extractFacts — PII redaction", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /** Fetch mock that records each request body so we can assert what reached the wire. */
+  function capturingFetch(content: string): { fetchFn: typeof fetch; bodies: string[] } {
+    const bodies: string[] = [];
+    const fetchFn = vi.fn().mockImplementation((_url: string, init?: { body?: unknown }) => {
+      bodies.push(typeof init?.body === "string" ? init.body : "");
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content } }] }),
+      });
+    }) as unknown as typeof fetch;
+    return { fetchFn, bodies };
+  }
+
+  const piiMessages: AutoExtractMessage[] = [
+    { id: "m1", role: "user", content: "Reach me at jane@example.com or 415-555-0199." },
+  ];
+
+  it("redacts the transcript before it reaches the extraction model", async () => {
+    const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
+    await extractFacts(piiMessages, { apiKey: "k", fetchFn, piiRedaction: true });
+
+    const sent = bodies.join("");
+    expect(sent).not.toContain("jane@example.com");
+    expect(sent).not.toContain("415-555-0199");
+    expect(sent).toContain("[EMAIL_1]");
+    expect(sent).toContain("[PHONE_1]");
+  });
+
+  it("de-anonymizes returned fact content and entities back to the real values", async () => {
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is [EMAIL_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: ["[EMAIL_1]"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(piiMessages, { apiKey: "k", fetchFn, piiRedaction: true });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's email is jane@example.com");
+    expect(result[0].entities).toEqual(["jane@example.com"]);
+  });
+
+  it("leaves the transcript raw when redaction is disabled (default)", async () => {
+    const { fetchFn, bodies } = capturingFetch(JSON.stringify({ candidates: [] }));
+    await extractFacts(piiMessages, { apiKey: "k", fetchFn });
+    expect(bodies.join("")).toContain("jane@example.com");
+  });
+
+  it("drops a fact that exceeds the content cap once de-anonymized", async () => {
+    // A long email maps to a short `[EMAIL_1]` token, so a fact that passes the
+    // 200-char cap in placeholder form can exceed it once the real value is
+    // restored — those must be dropped, not stored over-cap.
+    const longEmail = "jane.doe.test.account.1234567890@example-corp-domain.com";
+    const msgs: AutoExtractMessage[] = [{ id: "m1", role: "user", content: `Email: ${longEmail}` }];
+    // 181 filler chars + " [EMAIL_1]" = 191 chars (≤ 200, passes validation),
+    // but restoring the ~56-char email pushes the content well over 200.
+    const placeholderContent = `${"x".repeat(181)} [EMAIL_1]`;
+    const llm = {
+      candidates: [
+        {
+          content: placeholderContent,
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(0);
+  });
+
+  it("drops a fact whose content still contains a hallucinated placeholder", async () => {
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "Email me at jane@example.com" },
+    ];
+    // Only [EMAIL_1] was assigned during redaction; the model emits [SSN_1],
+    // which has no mapping — deAnonymize leaves it literal, so the fact is dropped.
+    const llm = {
+      candidates: [
+        {
+          content: "User's SSN is [SSN_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(0);
+  });
+
+  it("strips hallucinated placeholder entities but keeps the fact", async () => {
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "Email me at jane@example.com" },
+    ];
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is [EMAIL_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: ["[EMAIL_1]", "[SSN_1]"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's email is jane@example.com");
+    // [EMAIL_1] resolves to the real email; the unresolved [SSN_1] is stripped.
+    expect(result[0].entities).toEqual(["jane@example.com"]);
+  });
+
+  it("keeps a fact with a non-PII bracketed token (e.g. [STEP_1]) — not a redactor category", async () => {
+    const msgs: AutoExtractMessage[] = [
+      { id: "m1", role: "user", content: "Walk me through deploy." },
+    ];
+    // [STEP_1] looks placeholder-shaped but STEP is not a PII category, so the
+    // residual guard must NOT treat it as a hallucinated placeholder and drop the fact.
+    const llm = {
+      candidates: [
+        {
+          content: "User's deploy has a [STEP_1] approval gate.",
+          type: "ongoing_context",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe("User's deploy has a [STEP_1] approval gate.");
+  });
 });

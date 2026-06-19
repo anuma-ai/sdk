@@ -26,6 +26,7 @@ import {
 } from "../lib/chat/useChat";
 import { xhrTransport } from "../lib/chat/xhrTransport";
 import { getLogger } from "../lib/logger";
+import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**
@@ -116,6 +117,21 @@ interface UseChatOptions extends BaseUseChatOptions {
     status?: number;
     error?: Error;
   }) => void;
+  /**
+   * Observe the stream metadata the portal issues at HEADERS_RECEIVED, once per
+   * round. Fires alongside the internal resume-handle capture — additive, never
+   * altering it. The payload is enriched beyond the lib's `{inferenceId, round}`
+   * with the RESOLVED `apiType` (completions vs responses event shapes differ;
+   * "auto" is not resumable) and the `model`, so a consumer can persist a
+   * rebuildable {@link StreamResumeHandle} (mobile PR5 cold-launch registry).
+   * Fires per round; the SDK keeps the latest round's id internally.
+   */
+  onStreamMeta?: (meta: {
+    inferenceId: string;
+    apiType: "responses" | "completions";
+    model?: string;
+    round?: number;
+  }) => void;
 }
 
 type UseChatResult = BaseUseChatResult & {
@@ -136,7 +152,26 @@ type UseChatResult = BaseUseChatResult & {
    */
   resumeStream: (
     handle: StreamResumeHandle,
-    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing">
+    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & {
+      /**
+       * Replay + reconcile + persist exactly as normal, but emit NOTHING to any
+       * consumer callback — `onData` / `onThinking` / `onFinish` / `onError` are
+       * all withheld; the caller uses the returned result. `isLoading` is also
+       * left untouched, so reusing the on-screen chat's hook for an off-screen
+       * recovery can't flicker the visible loading state. A headless resume also
+       * does NOT touch the shared abort controller: its abort signal lives only
+       * in a local controller, so the visible UI's `stop()` can't abort it, and
+       * it can't clobber a concurrently-visible stream's controller (a later
+       * `stop()` still aborts the visible stream, not the headless resume). A
+       * cold-launch replay of a conversation that is NOT the one on screen
+       * (mobile PR5) must not bleed recovered text into the visible chat's
+       * streaming buffer, nor deliver the recovered response (onFinish) or a
+       * transient error (onError) to the on-screen consumer. The row still
+       * persists internally regardless.
+       * @default false
+       */
+      headless?: boolean;
+    }
   ) => Promise<ResumeStreamResult>;
 };
 
@@ -193,8 +228,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
+    piiRedaction,
+    onPiiRedacted,
     resumable = false,
     onCancelResult,
+    onStreamMeta: onStreamMetaConsumer,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -234,6 +272,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     },
     [getToken, baseUrl, onCancelResult]
   );
+
+  // When piiRedaction is `true`, upgrade it to a single redactor instance kept
+  // for the lifetime of this hook so placeholder state is shared across turns.
+  const piiRedactorRef = useRef<PiiRedactor | null>(null);
+  if (piiRedaction === true && !piiRedactorRef.current) {
+    piiRedactorRef.current = new PiiRedactor();
+  }
+  const resolvedPiiRedaction = piiRedaction === true ? piiRedactorRef.current! : piiRedaction;
 
   const stop = useCallback(() => {
     // A stop on a resumable stream that already has an inference id must also
@@ -275,7 +321,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resumeStream = useCallback(
     async (
       handle: StreamResumeHandle,
-      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing">
+      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
     ): Promise<ResumeStreamResult> => {
       // Validate the token getter, then resolve the token AT INVOCATION — a
       // multi-minute background gap between detach and resume expires the
@@ -292,11 +338,37 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         return { data: null, error: tokenValidation.message, interrupted: false };
       }
 
-      // A fresh controller stored in abortControllerRef so stop() also kills a
-      // resume in flight.
+      // Headless: replay/reconcile/persist exactly as normal but emit nothing to
+      // ANY hook-level consumer callback. The lib no-ops missing callbacks, so
+      // headless mode simply withholds all four (onData/onThinking AND
+      // onFinish/onError) — a cold-launch replay of an off-screen conversation
+      // can't bleed recovered text into the visible chat's streaming buffer, nor
+      // can a clean terminal (onFinish) or a transient failure (onError) deliver
+      // the recovered ApiResponse to the on-screen consumer. The cold-launch
+      // worker (mobile PR5) consumes the RETURNED result, never these callbacks,
+      // so suppressing them here is correct. `headless` is stripped from `opts`
+      // so it never reaches the lib as an unknown option.
+      const { headless, ...resumeOpts } = opts ?? {};
+      // A fresh controller drives this resume's abort signal regardless. But only
+      // the NON-headless path stores it in the shared abortControllerRef — the
+      // same ref sendMessage/stop/detach mutate. Headless is documented as
+      // "reuse the on-screen hook for an off-screen recovery", so if a headless
+      // resume overlapped a live visible stream it would otherwise clobber the
+      // visible stream's controller, and a later stop() would abort the wrong
+      // one (the headless resume) while leaving the visible stream running.
+      // Guarding with `!headless` — exactly like the isLoading guard below —
+      // keeps headless fully isolated from the shared lifecycle: its abort lives
+      // only in this local, passed to runResumeStream as the signal but never
+      // reachable from the visible UI's stop(). The finally reset is already
+      // conditional on `abortControllerRef.current === abortController`, so it
+      // stays a no-op for headless (the ref was never set to this controller).
       const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-      setIsLoading(true);
+      if (!headless) abortControllerRef.current = abortController;
+      // Headless means "invisible": besides withholding the four consumer
+      // callbacks below, never toggle the shared isLoading. A caller reusing the
+      // on-screen chat's hook for an off-screen headless recovery would otherwise
+      // flicker the visible loading state. The non-headless path is unchanged.
+      if (!headless) setIsLoading(true);
       try {
         return await runResumeStream({
           handle,
@@ -306,18 +378,22 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           transport: xhrTransport,
           smoothing,
           signal: abortController.signal,
-          onData: (chunk) => {
-            if (globalOnData) globalOnData(chunk);
-          },
-          onThinking: (chunk) => {
-            if (globalOnThinking) globalOnThinking(chunk);
-          },
-          onFinish,
-          onError,
-          ...opts,
+          ...(headless
+            ? {}
+            : {
+                onData: (chunk) => {
+                  if (globalOnData) globalOnData(chunk);
+                },
+                onThinking: (chunk) => {
+                  if (globalOnThinking) globalOnThinking(chunk);
+                },
+                onFinish,
+                onError,
+              }),
+          ...resumeOpts,
         });
       } finally {
-        setIsLoading(false);
+        if (!headless) setIsLoading(false);
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
@@ -346,6 +422,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      piiRedaction: requestPiiRedaction,
       headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
@@ -446,12 +523,31 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             // id, so stop()/detach() have something to act on even mid-stream.
             // The resolved api type the stream actually used drives replay
             // parsing — resolveApiType here matches what runToolLoop resolved.
+            const resolvedApiType = resolveApiType(requestApiType ?? defaultApiType, model);
             pendingResumeRef.current = {
               inferenceId: meta.inferenceId,
-              apiType: resolveApiType(requestApiType ?? defaultApiType, model),
+              apiType: resolvedApiType,
               model,
               conversationId,
             };
+            // Additive consumer observability: fire alongside the internal
+            // handle capture with the SAME resolved apiType + model, so a
+            // consumer can persist a rebuildable handle (mobile PR5). Never
+            // alters the handle behavior above; fires per round. Guarded: a
+            // throwing consumer callback must not disrupt the handle capture
+            // above or the stream itself — log via the SDK logger and swallow.
+            if (onStreamMetaConsumer) {
+              try {
+                onStreamMetaConsumer({
+                  inferenceId: meta.inferenceId,
+                  apiType: resolvedApiType,
+                  model,
+                  round: meta.round,
+                });
+              } catch (metaErr) {
+                getLogger().warn("[useChat] consumer onStreamMeta threw:", metaErr);
+              }
+            }
           },
           onData: (chunk) => {
             if (onData) onData(chunk);
@@ -468,6 +564,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
+          piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
+          onPiiRedacted,
         });
 
         // On a detach, runToolLoop returns the authoritative resume handle
@@ -515,7 +613,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       defaultApiType,
       smoothing,
       preProcessors,
+      resolvedPiiRedaction,
+      onPiiRedacted,
       resumable,
+      onStreamMetaConsumer,
     ]
   );
 

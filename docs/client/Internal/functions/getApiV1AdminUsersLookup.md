@@ -2,11 +2,11 @@
 
 > **getApiV1AdminUsersLookup**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminUsersLookupData`](../type-aliases/GetApiV1AdminUsersLookupData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminUsersLookupResponses`](../type-aliases/GetApiV1AdminUsersLookupResponses.md), [`GetApiV1AdminUsersLookupErrors`](../type-aliases/GetApiV1AdminUsersLookupErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:464](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#464)
+Defined in: [src/client/sdk.gen.ts:508](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#508)
 
 Lookup user by identifier
 
-Retrieves account details, all app enrollments with balances, and text registrations. Accepts wallet\_address, phone, telegram, or email (exactly one required).
+Retrieves account details, all app enrollments with balances, and text registrations. Accepts wallet\_address, phone, telegram, or email (exactly one required). When the identifier resolves to a Privy user that has no portal account (e.g. a Privy signup that never onboarded), returns 200 with account=null, portal\_account\_exists=false, and a privy block describing the Privy identity, instead of 404 — so an operator can still see (and delete) the Privy user.
 
 ## Type Parameters
 

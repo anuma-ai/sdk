@@ -135,6 +135,11 @@ export function createMemoryVaultTool(
     // and the host app can handle it.
     executor: hasOnSave
       ? async (args: Record<string, unknown>): Promise<string> => {
+          // PII de-anonymization is handled by runToolLoop before the executor
+          // runs: this tool sets `deAnonymizeArgs: true`, so the loop restores the
+          // original values in the arguments (with the same redactor that minted
+          // the placeholders) before they reach here. The content we store is
+          // already the real fact, not "[EMAIL_1]".
           const content = args.content as string;
           const id = args.id as string | undefined;
           const folderName = args.folderName as string | undefined;
@@ -222,5 +227,9 @@ export function createMemoryVaultTool(
         }
       : undefined,
     removeAfterExecution: hasOnSave,
+    // Saved memories live on-device, so restore real PII values (runToolLoop
+    // de-anonymizes the call arguments with the turn's redactor) — the vault
+    // must store "bob@acme.com", not "[EMAIL_1]".
+    deAnonymizeArgs: true,
   };
 }

@@ -2,4 +2,4 @@
 
 > **GetOauthConsentResponse** = [`GetOauthConsentResponses`](GetOauthConsentResponses.md)\[keyof [`GetOauthConsentResponses`](GetOauthConsentResponses.md)]
 
-Defined in: [src/client/types.gen.ts:9394](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9394)
+Defined in: [src/client/types.gen.ts:9739](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9739)

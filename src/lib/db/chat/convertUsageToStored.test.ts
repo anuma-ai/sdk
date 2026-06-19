@@ -93,4 +93,50 @@ describe("convertUsageToStored", () => {
     };
     expect(convertUsageToStored(res)).toBeUndefined();
   });
+
+  // Per-step out-of-credits marker (ai-portal #1146): injected into the `usage`
+  // object (not portal). Passed through as-is to stored.creditsExhausted.
+  it("passes credits_exhausted through from usage (Chat Completions)", () => {
+    const res: LlmapiChatCompletionResponse = {
+      id: "r1",
+      object: "chat.completion",
+      choices: [{ index: 0, message: { role: "assistant", content: "wrap-up" } }],
+      // credits_exhausted is runtime-injected, not on the generated usage type.
+      usage: {
+        prompt_tokens: 10,
+        completion_tokens: 5,
+        total_tokens: 15,
+        credits_exhausted: true,
+      } as never,
+    };
+    expect(convertUsageToStored(res)?.creditsExhausted).toBe(true);
+  });
+
+  it("passes credits_exhausted through from usage (Responses API)", () => {
+    const res: LlmapiResponseResponse = {
+      id: "r1",
+      object: "response",
+      output: [],
+      usage: {
+        prompt_tokens: 8,
+        completion_tokens: 4,
+        total_tokens: 12,
+        credits_exhausted: true,
+      } as never,
+    };
+    expect(convertUsageToStored(res)?.creditsExhausted).toBe(true);
+  });
+
+  it("omits creditsExhausted when absent (unchanged credits_used behavior)", () => {
+    const res: LlmapiChatCompletionResponse = {
+      id: "r1",
+      object: "chat.completion",
+      choices: [],
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      portal: { credits_used: 2 },
+    };
+    const stored = convertUsageToStored(res);
+    expect(stored).not.toHaveProperty("creditsExhausted");
+    expect(stored?.creditsUsed).toBe(2); // existing behavior unchanged
+  });
 });

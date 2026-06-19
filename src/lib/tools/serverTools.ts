@@ -530,6 +530,10 @@ function clientToolToResponsesFormat(
     ...(toolConfig.executorTimeout !== undefined && {
       executorTimeout: toolConfig.executorTimeout,
     }),
+    ...(toolConfig.dependsOn !== undefined && { dependsOn: toolConfig.dependsOn }),
+    ...(toolConfig.deAnonymizeArgs !== undefined && {
+      deAnonymizeArgs: toolConfig.deAnonymizeArgs,
+    }),
   };
 }
 
@@ -573,6 +577,10 @@ function clientToolToCompletionsFormat(
     }),
     ...(toolConfig.executorTimeout !== undefined && {
       executorTimeout: toolConfig.executorTimeout,
+    }),
+    ...(toolConfig.dependsOn !== undefined && { dependsOn: toolConfig.dependsOn }),
+    ...(toolConfig.deAnonymizeArgs !== undefined && {
+      deAnonymizeArgs: toolConfig.deAnonymizeArgs,
     }),
   };
 }

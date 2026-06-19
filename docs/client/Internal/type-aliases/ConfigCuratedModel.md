@@ -77,11 +77,29 @@ Defined in: [src/client/types.gen.ts:53](https://github.com/anuma-ai/sdk/blob/ma
 
 ***
 
+### max\_input\_tokens?
+
+> `optional` **max\_input\_tokens**: `number`
+
+Defined in: [src/client/types.gen.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#65)
+
+MaxInputTokens is the authoritative input-context window for this model,
+in tokens, sourced from the provider's docs / model card. REQUIRED for
+every entry (ValidateCuratedModels rejects <= 0). It is the owned (#1)
+source for the credit-hold input clamp and the pre-413 over-context gate
+— see internal/llmgateway resolveContextWindow. For image models this is
+the text-prompt token budget. Keep generous rather than tight: the 413
+path is fail-open and a too-low window would false-reject affordable
+requests, so when a provider is ambiguous prefer the larger documented
+number.
+
+***
+
 ### modalities?
 
 > `optional` **modalities**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#54)
+Defined in: [src/client/types.gen.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#66)
 
 ***
 
@@ -89,7 +107,7 @@ Defined in: [src/client/types.gen.ts:54](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#55)
+Defined in: [src/client/types.gen.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#67)
 
 ***
 
@@ -97,7 +115,7 @@ Defined in: [src/client/types.gen.ts:55](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **price\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#59)
+Defined in: [src/client/types.gen.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#71)
 
 "$" | "$$" | "$$$"
 
@@ -107,7 +125,7 @@ Defined in: [src/client/types.gen.ts:59](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#60)
+Defined in: [src/client/types.gen.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#72)
 
 ***
 
@@ -115,7 +133,7 @@ Defined in: [src/client/types.gen.ts:60](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **quality**: `string`
 
-Defined in: [src/client/types.gen.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#64)
+Defined in: [src/client/types.gen.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#76)
 
 "high" | "medium" | "low"
 
@@ -125,6 +143,21 @@ Defined in: [src/client/types.gen.ts:64](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **required\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#68)
+Defined in: [src/client/types.gen.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#80)
 
 "" | "Starter" | "Pro"
+
+***
+
+### retired?
+
+> `optional` **retired**: `boolean`
+
+Defined in: [src/client/types.gen.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#89)
+
+Retired marks a model whose upstream route is dead (the provider dropped
+the slug) — distinct from Active:false, which only hides a model from the
+picker. resolveAutoModel reroutes an explicitly-requested Retired model to
+the tier default so stale client selections don't 404 (#1188). A model can
+be Active:false yet still serve fine for users who explicitly picked it
+(e.g. a demoted-but-live former default) — do NOT mark those Retired.

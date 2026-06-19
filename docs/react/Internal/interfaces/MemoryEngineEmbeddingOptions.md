@@ -70,6 +70,49 @@ Function to get auth token (e.g., Privy's getIdentityToken). Uses Authorization:
 
 ***
 
+### maskInput()?
+
+> `optional` **maskInput**: (`text`: `string`) => `string`
+
+Defined in: [src/lib/memoryEngine/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#86)
+
+Optional transform applied to each text immediately before it is sent to
+the embeddings endpoint (e.g. `PiiRedactor.maskText`). The cache and result
+ordering still key on the original text — only the API request body is
+transformed — so callers can keep storing/displaying the original value
+while real PII never reaches the server. Used when PII redaction is active.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`text`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`string`
+
+***
+
 ### model?
 
 > `optional` **model**: `string`

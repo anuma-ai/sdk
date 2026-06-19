@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#181)
+Defined in: [src/expo/useChat.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#216)
 
 A React hook for managing chat completions with authentication.
 
@@ -174,6 +174,25 @@ Receives raw API response - either Responses API or Completions API format.
 <tr>
 <td>
 
+`options.onPiiRedacted?`
+
+</td>
+<td>
+
+(`matches`: `PiiMatch`\[]) => `void`
+
+</td>
+<td>
+
+Called with the PII matches found whenever outbound messages are redacted.
+Useful for surfacing what was redacted to the user. Only fired when
+`piiRedaction` is active and at least one match was found.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onServerToolCall?`
 
 </td>
@@ -205,6 +224,29 @@ Use this to show activity indicators like "Searching..." in the UI.
 Called after each tool execution round completes.
 Receives the round index, model content, tool calls, results, and token usage.
 Useful for progress indicators, cost tracking, and custom early-exit logic.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onStreamMeta?`
+
+</td>
+<td>
+
+(`meta`: `object`) => `void`
+
+</td>
+<td>
+
+Observe the stream metadata the portal issues at HEADERS\_RECEIVED, once per
+round. Fires alongside the internal resume-handle capture — additive, never
+altering it. The payload is enriched beyond the lib's `{inferenceId, round}`
+with the RESOLVED `apiType` (completions vs responses event shapes differ;
+"auto" is not resumable) and the `model`, so a consumer can persist a
+rebuildable [StreamResumeHandle](../../react/Internal/type-aliases/StreamResumeHandle.md) (mobile PR5 cold-launch registry).
+Fires per round; the SDK keeps the latest round's id internally.
 
 </td>
 </tr>
@@ -259,6 +301,36 @@ but no executor is registered for it (e.g. server-side tools).
 
 Called with partial tool call arguments as they stream in.
 Use for live preview of artifacts (HTML, slides) being generated.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.piiRedaction?`
+
+</td>
+<td>
+
+`boolean` | `PiiRedactor`
+
+</td>
+<td>
+
+Enable best-effort, client-side PII obfuscation (NOT a compliance
+guarantee). Outbound message text is scanned for personally identifiable
+information (emails, phone numbers, SSNs, credit cards, API keys,
+addresses) and matches are replaced with tagged placeholders before
+reaching the LLM provider; both streamed and final responses are
+de-anonymized automatically.
+
+Detection is regex-based and does not cover names, non-text content
+(images/files/attachments), or model-generated tool-call arguments.
+
+* `true`: the hook keeps one redactor and shares placeholder state across
+  turns (per conversation in `useChatStorage`)
+* `PiiRedactor` instance: bring your own; tune categories via
+  `new PiiRedactor({ excludeCategories, extraPatterns })`
 
 </td>
 </tr>

@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#176)
+Defined in: [src/client/types.gen.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#170)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:176](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#177)
+Defined in: [src/client/types.gen.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#171)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:177](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **audio**: [`OpenaiChatCompletionAudioParam`](OpenaiChatCompletionAudioParam.md)
 
-Defined in: [src/client/types.gen.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#178)
+Defined in: [src/client/types.gen.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#172)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:178](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **frequency\_penalty**: [`ParamOptFloat64`](ParamOptFloat64.md)
 
-Defined in: [src/client/types.gen.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#179)
+Defined in: [src/client/types.gen.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#173)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:179](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **function\_call**: [`OpenaiChatCompletionNewParamsFunctionCallUnion`](OpenaiChatCompletionNewParamsFunctionCallUnion.md)
 
-Defined in: [src/client/types.gen.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#180)
+Defined in: [src/client/types.gen.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#174)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:180](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **functions**: [`OpenaiChatCompletionNewParamsFunction`](OpenaiChatCompletionNewParamsFunction.md)\[]
 
-Defined in: [src/client/types.gen.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#186)
+Defined in: [src/client/types.gen.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#180)
 
 Deprecated in favor of `tools`.
 
@@ -54,7 +54,7 @@ A list of functions the model may generate JSON inputs for.
 
 > `optional` **logit\_bias**: `object`
 
-Defined in: [src/client/types.gen.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#197)
+Defined in: [src/client/types.gen.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#191)
 
 Modify the likelihood of specified tokens appearing in the completion.
 
@@ -75,7 +75,7 @@ or exclusive selection of the relevant token.
 
 > `optional` **logprobs**: [`ParamOptBool`](ParamOptBool.md)
 
-Defined in: [src/client/types.gen.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#200)
+Defined in: [src/client/types.gen.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#194)
 
 ***
 
@@ -83,7 +83,7 @@ Defined in: [src/client/types.gen.ts:200](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **max\_completion\_tokens**: [`ParamOptInt64`](ParamOptInt64.md)
 
-Defined in: [src/client/types.gen.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#201)
+Defined in: [src/client/types.gen.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#195)
 
 ***
 
@@ -91,7 +91,7 @@ Defined in: [src/client/types.gen.ts:201](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **max\_tokens**: [`ParamOptInt64`](ParamOptInt64.md)
 
-Defined in: [src/client/types.gen.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#202)
+Defined in: [src/client/types.gen.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#196)
 
 ***
 
@@ -99,7 +99,7 @@ Defined in: [src/client/types.gen.ts:202](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **messages**: [`OpenaiChatCompletionMessageParamUnion`](OpenaiChatCompletionMessageParamUnion.md)\[]
 
-Defined in: [src/client/types.gen.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#211)
+Defined in: [src/client/types.gen.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#205)
 
 A list of messages comprising the conversation so far. Depending on the
 [model](https://platform.openai.com/docs/models) you use, different message
@@ -114,7 +114,7 @@ types (modalities) are supported, like
 
 > `optional` **metadata**: [`SharedMetadata`](SharedMetadata.md)
 
-Defined in: [src/client/types.gen.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#212)
+Defined in: [src/client/types.gen.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#206)
 
 ***
 
@@ -122,7 +122,7 @@ Defined in: [src/client/types.gen.ts:212](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **modalities**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#227)
+Defined in: [src/client/types.gen.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#221)
 
 Output types that you would like the model to generate. Most models are capable
 of generating text, which is the default:
@@ -143,7 +143,7 @@ Any of "text", "audio".
 
 > `optional` **model**: [`SharedChatModel`](SharedChatModel.md)
 
-Defined in: [src/client/types.gen.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#228)
+Defined in: [src/client/types.gen.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#222)
 
 ***
 
@@ -151,7 +151,7 @@ Defined in: [src/client/types.gen.ts:228](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **n**: [`ParamOptInt64`](ParamOptInt64.md)
 
-Defined in: [src/client/types.gen.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#229)
+Defined in: [src/client/types.gen.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#223)
 
 ***
 
@@ -159,7 +159,7 @@ Defined in: [src/client/types.gen.ts:229](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **parallel\_tool\_calls**: [`ParamOptBool`](ParamOptBool.md)
 
-Defined in: [src/client/types.gen.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#230)
+Defined in: [src/client/types.gen.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#224)
 
 ***
 
@@ -167,7 +167,7 @@ Defined in: [src/client/types.gen.ts:230](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **portal**: [`LlmapiPortalChatCompletionRequest`](LlmapiPortalChatCompletionRequest.md)
 
-Defined in: [src/client/types.gen.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#231)
+Defined in: [src/client/types.gen.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#225)
 
 ***
 
@@ -175,7 +175,7 @@ Defined in: [src/client/types.gen.ts:231](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **prediction**: [`OpenaiChatCompletionPredictionContentParam`](OpenaiChatCompletionPredictionContentParam.md)
 
-Defined in: [src/client/types.gen.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#232)
+Defined in: [src/client/types.gen.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#226)
 
 ***
 
@@ -183,7 +183,7 @@ Defined in: [src/client/types.gen.ts:232](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **presence\_penalty**: [`ParamOptFloat64`](ParamOptFloat64.md)
 
-Defined in: [src/client/types.gen.ts:233](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#233)
+Defined in: [src/client/types.gen.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#227)
 
 ***
 
@@ -191,7 +191,7 @@ Defined in: [src/client/types.gen.ts:233](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **prompt\_cache\_key**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#234)
+Defined in: [src/client/types.gen.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#228)
 
 ***
 
@@ -199,7 +199,7 @@ Defined in: [src/client/types.gen.ts:234](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **reasoning\_effort**: [`SharedReasoningEffort`](SharedReasoningEffort.md)
 
-Defined in: [src/client/types.gen.ts:235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#235)
+Defined in: [src/client/types.gen.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#229)
 
 ***
 
@@ -207,7 +207,7 @@ Defined in: [src/client/types.gen.ts:235](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **response\_format**: [`OpenaiChatCompletionNewParamsResponseFormatUnion`](OpenaiChatCompletionNewParamsResponseFormatUnion.md)
 
-Defined in: [src/client/types.gen.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#236)
+Defined in: [src/client/types.gen.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#230)
 
 ***
 
@@ -215,7 +215,7 @@ Defined in: [src/client/types.gen.ts:236](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **safety\_identifier**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#237)
+Defined in: [src/client/types.gen.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#231)
 
 ***
 
@@ -223,7 +223,7 @@ Defined in: [src/client/types.gen.ts:237](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **seed**: [`ParamOptInt64`](ParamOptInt64.md)
 
-Defined in: [src/client/types.gen.ts:238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#238)
+Defined in: [src/client/types.gen.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#232)
 
 ***
 
@@ -231,7 +231,7 @@ Defined in: [src/client/types.gen.ts:238](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **service\_tier**: [`OpenaiChatCompletionNewParamsServiceTier`](OpenaiChatCompletionNewParamsServiceTier.md)
 
-Defined in: [src/client/types.gen.ts:239](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#239)
+Defined in: [src/client/types.gen.ts:233](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#233)
 
 ***
 
@@ -239,7 +239,7 @@ Defined in: [src/client/types.gen.ts:239](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **stop**: [`OpenaiChatCompletionNewParamsStopUnion`](OpenaiChatCompletionNewParamsStopUnion.md)
 
-Defined in: [src/client/types.gen.ts:240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#240)
+Defined in: [src/client/types.gen.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#234)
 
 ***
 
@@ -247,7 +247,7 @@ Defined in: [src/client/types.gen.ts:240](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **store**: [`ParamOptBool`](ParamOptBool.md)
 
-Defined in: [src/client/types.gen.ts:241](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#241)
+Defined in: [src/client/types.gen.ts:235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#235)
 
 ***
 
@@ -255,7 +255,7 @@ Defined in: [src/client/types.gen.ts:241](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **stream\_options**: [`OpenaiChatCompletionStreamOptionsParam`](OpenaiChatCompletionStreamOptionsParam.md)
 
-Defined in: [src/client/types.gen.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#242)
+Defined in: [src/client/types.gen.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#236)
 
 ***
 
@@ -263,7 +263,7 @@ Defined in: [src/client/types.gen.ts:242](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **temperature**: [`ParamOptFloat64`](ParamOptFloat64.md)
 
-Defined in: [src/client/types.gen.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#243)
+Defined in: [src/client/types.gen.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#237)
 
 ***
 
@@ -271,7 +271,7 @@ Defined in: [src/client/types.gen.ts:243](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tool\_choice**: [`OpenaiChatCompletionToolChoiceOptionUnionParam`](OpenaiChatCompletionToolChoiceOptionUnionParam.md)
 
-Defined in: [src/client/types.gen.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#244)
+Defined in: [src/client/types.gen.ts:238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#238)
 
 ***
 
@@ -279,7 +279,7 @@ Defined in: [src/client/types.gen.ts:244](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tools**: [`OpenaiChatCompletionToolParam`](OpenaiChatCompletionToolParam.md)\[]
 
-Defined in: [src/client/types.gen.ts:250](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#250)
+Defined in: [src/client/types.gen.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#244)
 
 A list of tools the model may call. Currently, only functions are supported as a
 tool. Use this to provide a list of functions the model may generate JSON inputs
@@ -291,7 +291,7 @@ for. A max of 128 functions are supported.
 
 > `optional` **top\_logprobs**: [`ParamOptInt64`](ParamOptInt64.md)
 
-Defined in: [src/client/types.gen.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#251)
+Defined in: [src/client/types.gen.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#245)
 
 ***
 
@@ -299,7 +299,7 @@ Defined in: [src/client/types.gen.ts:251](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **top\_p**: [`ParamOptFloat64`](ParamOptFloat64.md)
 
-Defined in: [src/client/types.gen.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#252)
+Defined in: [src/client/types.gen.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#246)
 
 ***
 
@@ -307,7 +307,7 @@ Defined in: [src/client/types.gen.ts:252](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **user**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#253)
+Defined in: [src/client/types.gen.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#247)
 
 ***
 
@@ -315,4 +315,4 @@ Defined in: [src/client/types.gen.ts:253](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **web\_search\_options**: [`OpenaiChatCompletionNewParamsWebSearchOptions`](OpenaiChatCompletionNewParamsWebSearchOptions.md)
 
-Defined in: [src/client/types.gen.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#254)
+Defined in: [src/client/types.gen.ts:248](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#248)
