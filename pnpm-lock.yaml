@@ -36,6 +36,9 @@ importers:
 
   .:
     dependencies:
+      '@anuma/portal':
+        specifier: 1.0.0-next.20260619004207
+        version: 1.0.0-next.20260619004207
       '@babel/parser':
         specifier: ^7.29.2
         version: 7.29.2
@@ -82,9 +85,6 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
     devDependencies:
-      '@anuma/portal':
-        specifier: 1.0.0-next.20260619004207
-        version: 1.0.0-next.20260619004207
       '@arethetypeswrong/cli':
         specifier: ^0.18.2
         version: 0.18.2
@@ -11223,7 +11223,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.0.3)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.2(@types/node@25.0.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.2(@types/node@25.9.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/expect@4.1.8':
     dependencies:
