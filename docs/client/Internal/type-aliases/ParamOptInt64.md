@@ -2,7 +2,7 @@
 
 > **ParamOptInt64** = `object`
 
-Defined in: [src/client/types.gen.ts:3958](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3958)
+Defined in: [src/client/types.gen.ts:3991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3991)
 
 An integer between 0 and 20 specifying the number of most likely tokens to
 return at each token position, each with an associated log probability.
@@ -14,4 +14,4 @@ return at each token position, each with an associated log probability.
 
 > `optional` **value**: `number`
 
-Defined in: [src/client/types.gen.ts:3959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3959)
+Defined in: [src/client/types.gen.ts:3992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3992)

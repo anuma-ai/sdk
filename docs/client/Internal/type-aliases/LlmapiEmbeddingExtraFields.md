@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#326)
+Defined in: [src/client/types.gen.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#327)
 
 ExtraFields contains additional metadata
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata
 
 > `optional` **chunk\_index**: `number`
 
-Defined in: [src/client/types.gen.ts:330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#330)
+Defined in: [src/client/types.gen.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#331)
 
 ChunkIndex is the chunk index (0 for single requests)
 
@@ -22,7 +22,7 @@ ChunkIndex is the chunk index (0 for single requests)
 
 > `optional` **latency**: `number`
 
-Defined in: [src/client/types.gen.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#334)
+Defined in: [src/client/types.gen.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#335)
 
 Latency is the request latency in milliseconds
 
@@ -32,7 +32,7 @@ Latency is the request latency in milliseconds
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [src/client/types.gen.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#338)
+Defined in: [src/client/types.gen.ts:339](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#339)
 
 ModelRequested is the model that was requested
 
@@ -42,7 +42,7 @@ ModelRequested is the model that was requested
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:342](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#342)
+Defined in: [src/client/types.gen.ts:343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#343)
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
@@ -52,6 +52,6 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:346](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#346)
+Defined in: [src/client/types.gen.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#347)
 
 RequestType is always "embedding"

@@ -2,7 +2,7 @@
 
 > **PostApiV1UserApiKeysResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9129)
+Defined in: [src/client/types.gen.ts:9187](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9187)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9129](https://github.com/anuma-ai/sdk/blob/
 
 > **201**: [`HandlersUserApiKeyWithSecretResponse`](HandlersUserApiKeyWithSecretResponse.md)
 
-Defined in: [src/client/types.gen.ts:9133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9133)
+Defined in: [src/client/types.gen.ts:9191](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9191)
 
 Created

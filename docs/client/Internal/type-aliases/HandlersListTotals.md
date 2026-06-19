@@ -2,7 +2,7 @@
 
 > **HandlersListTotals** = `object`
 
-Defined in: [src/client/types.gen.ts:2057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2057)
+Defined in: [src/client/types.gen.ts:2071](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2071)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2057](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pro**: [`HandlersProInfo`](HandlersProInfo.md)
 
-Defined in: [src/client/types.gen.ts:2058](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2058)
+Defined in: [src/client/types.gen.ts:2072](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2072)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2058](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **staked\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2059](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2059)
+Defined in: [src/client/types.gen.ts:2073](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2073)

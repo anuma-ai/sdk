@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionToolMessageParamContentUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:3833](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3833)
+Defined in: [src/client/types.gen.ts:3866](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3866)
 
 The contents of the tool message.
 
@@ -12,7 +12,7 @@ The contents of the tool message.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3834](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3834)
+Defined in: [src/client/types.gen.ts:3867](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3867)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:3834](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofArrayOfContentParts**: [`OpenaiChatCompletionContentPartTextParam`](OpenaiChatCompletionContentPartTextParam.md)\[]
 
-Defined in: [src/client/types.gen.ts:3835](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3835)
+Defined in: [src/client/types.gen.ts:3868](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3868)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/client/types.gen.ts:3835](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofString**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3836](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3836)
+Defined in: [src/client/types.gen.ts:3869](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3869)

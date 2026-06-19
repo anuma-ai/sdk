@@ -2,7 +2,7 @@
 
 > **GetConnectorsByProviderCallbackData** = `object`
 
-Defined in: [src/client/types.gen.ts:9560](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9560)
+Defined in: [src/client/types.gen.ts:9650](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9650)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9560](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9561](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9561)
+Defined in: [src/client/types.gen.ts:9651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9651)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9561](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:9562](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9562)
+Defined in: [src/client/types.gen.ts:9652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9652)
 
 **provider**
 
@@ -32,7 +32,7 @@ Logical connector provider
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:9568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9568)
+Defined in: [src/client/types.gen.ts:9658](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9658)
 
 **code**
 
@@ -52,4 +52,4 @@ ticket\_id:csrf\_state encoded value
 
 > **url**: `"/connectors/{provider}/callback"`
 
-Defined in: [src/client/types.gen.ts:9578](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9578)
+Defined in: [src/client/types.gen.ts:9668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9668)

@@ -112,6 +112,7 @@ export type ConfigCuratedModelsResponse = {
 };
 
 export type ConfigSmartGroup = {
+    best_for?: string;
     description_key?: string;
     id?: string;
     model_ids?: Array<string>;
@@ -1820,6 +1821,15 @@ export type HandlersCreditPacksResponse = {
     packs: Array<HandlersCreditPack>;
 };
 
+export type HandlersCreditRateResponse = {
+    apy_bps?: number;
+    apy_percent?: number;
+    credits_per_zeta_per_year?: number;
+    staking_apr_bps?: number;
+    staking_apr_percent?: number;
+    zeta_price_usd?: number;
+};
+
 export type HandlersCryptoPricesResponse = {
     quotes?: Array<CoingeckoQuote>;
 };
@@ -2022,6 +2032,10 @@ export type HandlersHealthResponse = {
      * Version is the current API version
      */
     version: string;
+};
+
+export type HandlersInferenceWeeklyResponse = {
+    weeks?: Array<HandlersWeeklyInferenceItem>;
 };
 
 export type HandlersListApiKeysResponse = {
@@ -2269,7 +2283,7 @@ export type HandlersPrivyIdentifierMigrateResponse = {
 export type HandlersProInfo = {
     /**
      * ProActive is the authoritative state: whether the account is actually Pro via stake right now,
-     * derived from the grant — so it stays true through the grace window even if Qualified dips.
+     * derived from the grant row (true while the grant is active, i.e. not revoked).
      */
     pro_active?: boolean;
     /**
@@ -2960,6 +2974,16 @@ export type HandlersWipePrivyDevUsersUserResult = {
     wallet_address?: string;
 };
 
+export type HandlersZetaMarketResponse = {
+    circulating_supply?: number;
+    locked_zeta?: number;
+    market_cap_usd?: number;
+    price_usd?: number;
+    staked_zeta?: number;
+    total_supply?: number;
+    warnings?: Array<string>;
+};
+
 export type HandlersCancelResponse = {
     /**
      * "cancelled" | "noop"
@@ -3067,6 +3091,15 @@ export type HandlersUpdateGrantRequest = {
 export type HandlersVerifyRequest = {
     code?: string;
     method?: string;
+};
+
+export type HandlersWeeklyInferenceItem = {
+    requests?: number;
+    tokens?: number;
+    /**
+     * ISO 8601 date (YYYY-MM-DD) of the ISO week start (Monday, UTC)
+     */
+    week_start?: string;
 };
 
 export type OpenaiChatCompletionAssistantMessageParam = {
@@ -6209,6 +6242,10 @@ export type PostApiV1ChatCompletionsData = {
          * Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
          */
         'X-Stream-Resumable'?: string;
+        /**
+         * Set to 'openai' to receive standard OpenAI chat.completion.chunk streaming instead of the native response envelope
+         */
+        'X-Anuma-Stream-Format'?: string;
     };
     path?: never;
     query?: never;
@@ -8847,6 +8884,27 @@ export type GetApiV1UsageByModalityResponses = {
 
 export type GetApiV1UsageByModalityResponse = GetApiV1UsageByModalityResponses[keyof GetApiV1UsageByModalityResponses];
 
+export type GetApiV1UsageInferenceWeeklyData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Number of ISO weeks to return (1–52, default 12)
+         */
+        weeks?: number;
+    };
+    url: '/api/v1/usage/inference-weekly';
+};
+
+export type GetApiV1UsageInferenceWeeklyResponses = {
+    /**
+     * OK
+     */
+    200: HandlersInferenceWeeklyResponse;
+};
+
+export type GetApiV1UsageInferenceWeeklyResponse = GetApiV1UsageInferenceWeeklyResponses[keyof GetApiV1UsageInferenceWeeklyResponses];
+
 export type GetApiV1UsageModelsData = {
     body?: never;
     path?: never;
@@ -9443,6 +9501,38 @@ export type PostApiV1WebhooksRevenuecatResponses = {
 };
 
 export type PostApiV1WebhooksRevenuecatResponse = PostApiV1WebhooksRevenuecatResponses[keyof PostApiV1WebhooksRevenuecatResponses];
+
+export type GetApiV1ZetaCreditRateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/zeta/credit-rate';
+};
+
+export type GetApiV1ZetaCreditRateResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCreditRateResponse;
+};
+
+export type GetApiV1ZetaCreditRateResponse = GetApiV1ZetaCreditRateResponses[keyof GetApiV1ZetaCreditRateResponses];
+
+export type GetApiV1ZetaMarketData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/zeta/market';
+};
+
+export type GetApiV1ZetaMarketResponses = {
+    /**
+     * OK
+     */
+    200: HandlersZetaMarketResponse;
+};
+
+export type GetApiV1ZetaMarketResponse = GetApiV1ZetaMarketResponses[keyof GetApiV1ZetaMarketResponses];
 
 export type PostAuthOauthByProviderExchangeData = {
     /**

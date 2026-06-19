@@ -2,7 +2,7 @@
 
 > **GetApiV1AuthMfaStatusData** = `object`
 
-Defined in: [src/client/types.gen.ts:6055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6055)
+Defined in: [src/client/types.gen.ts:6088](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6088)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6055](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6056)
+Defined in: [src/client/types.gen.ts:6089](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6089)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6056](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6057)
+Defined in: [src/client/types.gen.ts:6090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6090)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:6057](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6058](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6058)
+Defined in: [src/client/types.gen.ts:6091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6091)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:6058](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/status"`
 
-Defined in: [src/client/types.gen.ts:6059](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6059)
+Defined in: [src/client/types.gen.ts:6092](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6092)

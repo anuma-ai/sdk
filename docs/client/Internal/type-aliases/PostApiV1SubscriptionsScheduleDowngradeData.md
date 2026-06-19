@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsScheduleDowngradeData** = `object`
 
-Defined in: [src/client/types.gen.ts:8627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8627)
+Defined in: [src/client/types.gen.ts:8664](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8664)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8627](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersScheduleDowngradeRequest`](HandlersScheduleDowngradeRequest.md)
 
-Defined in: [src/client/types.gen.ts:8631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8631)
+Defined in: [src/client/types.gen.ts:8668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8668)
 
 Downgrade request with target tier and optional interval
 
@@ -20,7 +20,7 @@ Downgrade request with target tier and optional interval
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8632)
+Defined in: [src/client/types.gen.ts:8669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8669)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8632](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8633](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8633)
+Defined in: [src/client/types.gen.ts:8670](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8670)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8633](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/subscriptions/schedule-downgrade"`
 
-Defined in: [src/client/types.gen.ts:8634](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8634)
+Defined in: [src/client/types.gen.ts:8671](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8671)

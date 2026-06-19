@@ -2,7 +2,7 @@
 
 > **PatchApiV1UserOauthGrantsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:9247](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9247)
+Defined in: [src/client/types.gen.ts:9305](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9305)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9247](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUpdateGrantRequest`](HandlersUpdateGrantRequest.md)
 
-Defined in: [src/client/types.gen.ts:9251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9251)
+Defined in: [src/client/types.gen.ts:9309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9309)
 
 Update body
 
@@ -20,7 +20,7 @@ Update body
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:9252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9252)
+Defined in: [src/client/types.gen.ts:9310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9310)
 
 **id**
 
@@ -34,7 +34,7 @@ Grant ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9258](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9258)
+Defined in: [src/client/types.gen.ts:9316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9316)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:9258](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/user/oauth/grants/{id}"`
 
-Defined in: [src/client/types.gen.ts:9259](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9259)
+Defined in: [src/client/types.gen.ts:9317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9317)

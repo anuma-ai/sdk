@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingData** = `object`
 
-Defined in: [src/client/types.gen.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#308)
+Defined in: [src/client/types.gen.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#309)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:308](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#312)
+Defined in: [src/client/types.gen.ts:313](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#313)
 
 Embedding vector
 
@@ -20,7 +20,7 @@ Embedding vector
 
 > `optional` **index**: `number`
 
-Defined in: [src/client/types.gen.ts:316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#316)
+Defined in: [src/client/types.gen.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#317)
 
 Index of the embedding
 
@@ -30,6 +30,6 @@ Index of the embedding
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:320](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#320)
+Defined in: [src/client/types.gen.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#321)
 
 Object type identifier

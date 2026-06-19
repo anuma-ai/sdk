@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminOauthClientsByClientIdError** = [`GetApiV1AdminOauthClientsByClientIdErrors`](GetApiV1AdminOauthClientsByClientIdErrors.md)\[keyof [`GetApiV1AdminOauthClientsByClientIdErrors`](GetApiV1AdminOauthClientsByClientIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5122](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5122)
+Defined in: [src/client/types.gen.ts:5155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5155)

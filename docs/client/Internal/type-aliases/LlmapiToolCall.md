@@ -2,7 +2,7 @@
 
 > **LlmapiToolCall** = `object`
 
-Defined in: [src/client/types.gen.ts:1016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1016)
+Defined in: [src/client/types.gen.ts:1017](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1017)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1016](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **function**: [`LlmapiToolCallFunction`](LlmapiToolCallFunction.md)
 
-Defined in: [src/client/types.gen.ts:1017](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1017)
+Defined in: [src/client/types.gen.ts:1018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1018)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1017](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:1021](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1021)
+Defined in: [src/client/types.gen.ts:1022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1022)
 
 ID is the unique identifier for this tool call
 
@@ -28,6 +28,6 @@ ID is the unique identifier for this tool call
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:1025](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1025)
+Defined in: [src/client/types.gen.ts:1026](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1026)
 
 Type is the type of tool call (always "function" for now)

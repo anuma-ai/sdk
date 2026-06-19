@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminAddCreditsResponse** = [`PostApiV1AdminAddCreditsResponses`](PostApiV1AdminAddCreditsResponses.md)\[keyof [`PostApiV1AdminAddCreditsResponses`](PostApiV1AdminAddCreditsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:4169](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4169)
+Defined in: [src/client/types.gen.ts:4202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4202)

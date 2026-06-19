@@ -2,7 +2,7 @@
 
 > **PostApiV1ChatCompletionsData** = `object`
 
-Defined in: [src/client/types.gen.ts:6202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6202)
+Defined in: [src/client/types.gen.ts:6235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6235)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6202](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [src/client/types.gen.ts:6206](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6206)
+Defined in: [src/client/types.gen.ts:6239](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6239)
 
 Chat completion request
 
@@ -20,7 +20,13 @@ Chat completion request
 
 > `optional` **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:6207](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6207)
+Defined in: [src/client/types.gen.ts:6240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6240)
+
+**X-Anuma-Stream-Format?**
+
+> `optional` **X-Anuma-Stream-Format**: `string`
+
+Set to 'openai' to receive standard OpenAI chat.completion.chunk streaming instead of the native response envelope
 
 **X-Stream-Resumable?**
 
@@ -34,7 +40,7 @@ Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6213)
+Defined in: [src/client/types.gen.ts:6250](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6250)
 
 ***
 
@@ -42,7 +48,7 @@ Defined in: [src/client/types.gen.ts:6213](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6214](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6214)
+Defined in: [src/client/types.gen.ts:6251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6251)
 
 ***
 
@@ -50,4 +56,4 @@ Defined in: [src/client/types.gen.ts:6214](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/chat/completions"`
 
-Defined in: [src/client/types.gen.ts:6215](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6215)
+Defined in: [src/client/types.gen.ts:6252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6252)

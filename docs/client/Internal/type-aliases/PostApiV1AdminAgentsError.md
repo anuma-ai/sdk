@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminAgentsError** = [`PostApiV1AdminAgentsErrors`](PostApiV1AdminAgentsErrors.md)\[keyof [`PostApiV1AdminAgentsErrors`](PostApiV1AdminAgentsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:4202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4202)
+Defined in: [src/client/types.gen.ts:4235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4235)

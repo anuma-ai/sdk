@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAppsByAppIdApiKeysData** = `object`
 
-Defined in: [src/client/types.gen.ts:4461](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4461)
+Defined in: [src/client/types.gen.ts:4494](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4494)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4461](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersCreateApiKeyRequest`](HandlersCreateApiKeyRequest.md)
 
-Defined in: [src/client/types.gen.ts:4465](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4465)
+Defined in: [src/client/types.gen.ts:4498](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4498)
 
 Create API key request
 
@@ -20,7 +20,7 @@ Create API key request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4466)
+Defined in: [src/client/types.gen.ts:4499](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4499)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4472)
+Defined in: [src/client/types.gen.ts:4505](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4505)
 
 **app\_id**
 
@@ -48,7 +48,7 @@ App ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4478)
+Defined in: [src/client/types.gen.ts:4511](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4511)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/client/types.gen.ts:4478](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{app_id}/api-keys"`
 
-Defined in: [src/client/types.gen.ts:4479](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4479)
+Defined in: [src/client/types.gen.ts:4512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4512)

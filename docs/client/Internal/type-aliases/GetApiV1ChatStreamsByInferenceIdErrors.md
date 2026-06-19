@@ -2,7 +2,7 @@
 
 > **GetApiV1ChatStreamsByInferenceIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6273)
+Defined in: [src/client/types.gen.ts:6310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6310)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6273](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6277](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6277)
+Defined in: [src/client/types.gen.ts:6314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6314)
 
 Missing or invalid bearer token
 
@@ -20,7 +20,7 @@ Missing or invalid bearer token
 
 > **410**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6281)
+Defined in: [src/client/types.gen.ts:6318](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6318)
 
 Stream unknown, expired, cancelled, or not owned by the caller
 
@@ -30,7 +30,7 @@ Stream unknown, expired, cancelled, or not owned by the caller
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6285](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6285)
+Defined in: [src/client/types.gen.ts:6322](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6322)
 
 Internal Server Error
 
@@ -40,6 +40,6 @@ Internal Server Error
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6289](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6289)
+Defined in: [src/client/types.gen.ts:6326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6326)
 
 Replay capacity saturated; retry

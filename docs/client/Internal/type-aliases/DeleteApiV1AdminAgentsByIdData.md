@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAgentsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:4213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4213)
+Defined in: [src/client/types.gen.ts:4246](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4246)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4213](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4214](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4214)
+Defined in: [src/client/types.gen.ts:4247](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4247)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4214](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4215](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4215)
+Defined in: [src/client/types.gen.ts:4248](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4248)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4221](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4221)
+Defined in: [src/client/types.gen.ts:4254](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4254)
 
 **id**
 
@@ -46,7 +46,7 @@ Agent ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4227](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4227)
+Defined in: [src/client/types.gen.ts:4260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4260)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:4227](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/agents/{id}"`
 
-Defined in: [src/client/types.gen.ts:4228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4228)
+Defined in: [src/client/types.gen.ts:4261](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4261)
