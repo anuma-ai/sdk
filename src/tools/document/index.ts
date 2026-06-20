@@ -73,11 +73,14 @@ const RESERVED_RESULT_KEYS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Map a `documentId` to its storage path. Slug-validated to keep ids
- * filesystem-safe and prevent traversal via the storage key.
+ * Map a `documentId` to its storage path. The id is run through
+ * {@link normalizeDocumentId}, which slug-validates it (throwing on anything
+ * outside `[a-z0-9][a-z0-9-]{0,63}`), so the returned storage key stays
+ * filesystem-safe and cannot traverse outside the conversation directory —
+ * including when a host calls this public helper directly on untrusted input.
  */
 export function documentPath(documentId: string): string {
-  return `${documentId}.jsx`;
+  return `${normalizeDocumentId(documentId)}.jsx`;
 }
 
 function normalizeDocumentId(raw: unknown): string {

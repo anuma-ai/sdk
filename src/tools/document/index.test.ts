@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import { MapFileStorage } from "../appGeneration.js";
-import { createDocumentTools, type CreateDocumentToolsOptions } from "./index.js";
+import {
+  createDocumentTools,
+  type CreateDocumentToolsOptions,
+  documentPath,
+} from "./index.js";
 
 const BASE = `<Document><Page><Text>Hello world</Text></Page></Document>`;
 
@@ -29,6 +33,19 @@ function makeDocumentTools(overrides?: Overrides) {
 }
 
 type Result = Record<string, unknown>;
+
+describe("documentPath", () => {
+  it("maps a valid slug to its <id>.jsx storage key", () => {
+    expect(documentPath("nda")).toBe("nda.jsx");
+    expect(documentPath("Cover-Letter")).toBe("cover-letter.jsx");
+  });
+
+  it("validates the id so a host cannot traverse via the storage key", () => {
+    // The public helper must not return a traversing path on untrusted input.
+    expect(() => documentPath("../../etc/passwd")).toThrow(/Invalid documentId/);
+    expect(() => documentPath("../../../foo")).toThrow(/Invalid documentId/);
+  });
+});
 
 describe("createDocumentTools — render failure after persist", () => {
   it("create_document: a displayDocument throw reports the saved-but-unrendered state", async () => {
