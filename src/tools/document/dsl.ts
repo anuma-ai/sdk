@@ -181,6 +181,27 @@ const SVG_BODY_SHARED_TAGS = new Set<string>(["Text"]);
 const SVG_ONLY_TAGS = new Set<string>([...SVG_TAGS].filter((t) => !SVG_BODY_SHARED_TAGS.has(t)));
 
 /**
+ * Element children each text-bearing tag accepts, mirroring the react-pdf node
+ * children unions (`@react-pdf/layout` `types/{text,link,note,tspan}.ts`). Raw
+ * string children are always allowed and handled separately. A tag NOT listed
+ * here (e.g. `<View>`, `<Page>`) is a block/structure element that react-pdf
+ * does not lay out inside a text run — it silently flattens it into text,
+ * dropping its box, background, and borders — so we reject it at parse time
+ * with a clear error instead of letting it misrender.
+ *
+ * `Text` upstream permits Text/Image/Tspan; `Link` is added pragmatically
+ * because the DSL has long accepted (and react-pdf renders) an inline `<Link>`
+ * inside `<Text>`. `Link` permits block children (`View`/`Image`/`Text`).
+ * `Note`/`Tspan` take plain text only.
+ */
+const TEXT_TAG_ELEMENT_CHILDREN: Record<string, ReadonlySet<string>> = {
+  Text: new Set(["Text", "Link", "Image", "Tspan"]),
+  Link: new Set(["View", "Image", "Text"]),
+  Note: new Set<string>([]),
+  Tspan: new Set<string>([]),
+};
+
+/**
  * Recognized react-pdf style keys for `style={{}}`. Mirrors the `Style` type
  * exported by `@react-pdf/stylesheet` (border / color / dimension / flexbox /
  * gap / layout / margin / padding / text / transform / svg / image groups).
@@ -701,6 +722,17 @@ function enforceStructure(node: DocNode, parent: DocNode | null, inSvg: boolean)
   const nowInSvg = inSvg || node.tag === "Svg";
   for (const child of node.children) {
     if (typeof child === "string") continue;
+    // Reject block/structure tags nested in a text tag — react-pdf would
+    // silently flatten them. SVG-only primitives are skipped here so a
+    // misplaced one keeps its more specific "only inside <Svg>" diagnostic
+    // (raised by the SVG check below, or on recursion).
+    const inlineChildren = TEXT_TAG_ELEMENT_CHILDREN[node.tag];
+    if (inlineChildren && !SVG_ONLY_TAGS.has(child.tag) && !inlineChildren.has(child.tag)) {
+      throw new DocDslError(
+        `<${child.tag}> cannot appear inside <${node.tag}>: text tags hold only inline content` +
+          (inlineChildren.size ? ` (text plus ${[...inlineChildren].join(", ")}).` : " (plain text only).")
+      );
+    }
     if (nowInSvg && !SVG_TAGS.has(child.tag) && child.tag !== "Svg") {
       throw new DocDslError(`<${child.tag}> is not a valid SVG element inside <Svg>`, undefined);
     }

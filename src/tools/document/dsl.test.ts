@@ -122,6 +122,38 @@ describe("parseDocumentDsl — structural rules", () => {
       parseDocumentDsl(`<Document><Page><Svg><Text><Tspan>x</Tspan></Text></Svg></Page></Document>`)
     ).not.toThrow();
   });
+
+  it("rejects a block element (View) nested in a text tag", () => {
+    // react-pdf would silently flatten the View into the text run, dropping its
+    // box/background/borders — convert that opaque misrender into a parse error.
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text><View><Text>x</Text></View></Text></Page></Document>`
+      )
+    ).toThrow(/<View> cannot appear inside <Text>/);
+  });
+
+  it("rejects an element child in a <Note> (it takes plain text only)", () => {
+    expect(() =>
+      parseDocumentDsl(`<Document><Page><Note><Text>x</Text></Note></Page></Document>`)
+    ).toThrow(/<Text> cannot appear inside <Note>/);
+  });
+
+  it("accepts an inline <Image> inside <Text> (a legal react-pdf attachment)", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text>see <Image src="data:image/png;base64,iVBORw0KGgo=" />here</Text></Page></Document>`
+      )
+    ).not.toThrow();
+  });
+
+  it("accepts a block child inside <Link> (Link permits View/Image/Text)", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Link src="https://example.com"><View><Text>x</Text></View></Link></Page></Document>`
+      )
+    ).not.toThrow();
+  });
 });
 
 describe("parseDocumentDsl — security / literal-only", () => {
