@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import { MapFileStorage } from "../appGeneration.js";
-import {
-  createDocumentTools,
-  type CreateDocumentToolsOptions,
-  documentPath,
-} from "./index.js";
+import { createDocumentTools, type CreateDocumentToolsOptions, documentPath } from "./index.js";
 
 const BASE = `<Document><Page><Text>Hello world</Text></Page></Document>`;
 
@@ -189,7 +185,10 @@ describe("createDocumentTools — create_document", () => {
     const { createDocument, readDocument } = makeDocumentTools({ storage });
     await readDocument.executor!({ documentId: "nda" });
     const rewritten = `<Document><Page><Text>Rewritten</Text></Page></Document>`;
-    const res = (await createDocument.executor!({ documentId: "nda", source: rewritten })) as Result;
+    const res = (await createDocument.executor!({
+      documentId: "nda",
+      source: rewritten,
+    })) as Result;
     expect(res.success).toBe(true);
     expect(storage.getAll().get("nda.jsx")).toBe(rewritten);
   });

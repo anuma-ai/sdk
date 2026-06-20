@@ -127,9 +127,7 @@ describe("parseDocumentDsl — structural rules", () => {
     // react-pdf would silently flatten the View into the text run, dropping its
     // box/background/borders — convert that opaque misrender into a parse error.
     expect(() =>
-      parseDocumentDsl(
-        `<Document><Page><Text><View><Text>x</Text></View></Text></Page></Document>`
-      )
+      parseDocumentDsl(`<Document><Page><Text><View><Text>x</Text></View></Text></Page></Document>`)
     ).toThrow(/<View> cannot appear inside <Text>/);
   });
 

@@ -730,7 +730,9 @@ function enforceStructure(node: DocNode, parent: DocNode | null, inSvg: boolean)
     if (inlineChildren && !SVG_ONLY_TAGS.has(child.tag) && !inlineChildren.has(child.tag)) {
       throw new DocDslError(
         `<${child.tag}> cannot appear inside <${node.tag}>: text tags hold only inline content` +
-          (inlineChildren.size ? ` (text plus ${[...inlineChildren].join(", ")}).` : " (plain text only).")
+          (inlineChildren.size
+            ? ` (text plus ${[...inlineChildren].join(", ")}).`
+            : " (plain text only).")
       );
     }
     if (nowInSvg && !SVG_TAGS.has(child.tag) && child.tag !== "Svg") {
