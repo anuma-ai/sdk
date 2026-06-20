@@ -222,6 +222,25 @@ describe("parseDocumentDsl — security / literal-only", () => {
       ).not.toThrow();
     }
   });
+
+  it("rejects an unsafe scheme carried via the href prop", () => {
+    // react-pdf resolves a link's destination as `src || href`, so a script
+    // scheme on href is just as dangerous as on src and must not bypass the
+    // check by avoiding the src prop entirely.
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text><Link href="javascript:alert(1)">x</Link></Text></Page></Document>`
+      )
+    ).toThrow(/href .* unsafe URL scheme/);
+  });
+
+  it("allows a safe href prop", () => {
+    expect(() =>
+      parseDocumentDsl(
+        `<Document><Page><Text><Link href="https://example.com">x</Link></Text></Page></Document>`
+      )
+    ).not.toThrow();
+  });
 });
 
 describe("parseDocumentDsl — style + font validation", () => {

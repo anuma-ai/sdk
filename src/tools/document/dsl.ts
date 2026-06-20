@@ -488,9 +488,18 @@ function readAttributes(el: JSXElement, tag: string): Record<string, DocAttrValu
     }
   }
   // Link hrefs: block script / local-file / data schemes (defense-in-depth for
-  // a document the user downloads and opens).
-  if (tag === "Link" && typeof out.src === "string") {
-    assertSafeLinkHref(out.src, locOf(el.openingElement));
+  // a document the user downloads and opens). react-pdf resolves a link's
+  // destination as `src || href` (see @react-pdf/layout getAttributedString),
+  // so validate EVERY link-href-like prop that's present — guarding only `src`
+  // would let `<Link href="javascript:…">` smuggle a script scheme through the
+  // other prop, mirroring the Image src/source loop above.
+  if (tag === "Link") {
+    for (const key of ["src", "href"] as const) {
+      const value = out[key];
+      if (typeof value === "string") {
+        assertSafeLinkHref(key, value, locOf(el.openingElement));
+      }
+    }
   }
   return out;
 }
@@ -600,14 +609,14 @@ const UNSAFE_LINK_SCHEME_RE = /^(javascript|vbscript|data|file):/i;
  * matching, so obfuscation can't split a blocked scheme past the denylist.
  * Detection only — the original value is what gets stored if accepted.
  */
-function assertSafeLinkHref(value: string, loc: SrcLoc): void {
+function assertSafeLinkHref(prop: string, value: string, loc: SrcLoc): void {
   let normalized = "";
   for (let i = 0; i < value.length; i++) {
     if (value.charCodeAt(i) > 0x20) normalized += value[i];
   }
   if (UNSAFE_LINK_SCHEME_RE.test(normalized)) {
     throw new DocDslError(
-      `<Link> src "${value}" uses an unsafe URL scheme. Use an http(s), mailto, tel, or relative link.`,
+      `<Link> ${prop} "${value}" uses an unsafe URL scheme. Use an http(s), mailto, tel, or relative link.`,
       loc
     );
   }
