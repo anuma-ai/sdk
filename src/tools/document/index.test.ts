@@ -166,6 +166,35 @@ describe("createDocumentTools — read_document", () => {
     expect(res.documentId).toBe("document");
     expect((res.source as string).startsWith("1: ")).toBe(true);
   });
+
+  it("returns the full source untruncated so the middle of a long document stays patchable", async () => {
+    const { createDocument, readDocument, patchDocument, storage } = makeDocumentTools();
+    const MIDDLE = "Confidentiality clause unique marker XYZ";
+    const lines = Array.from(
+      { length: 200 },
+      (_, i) => `  <Text>Filler paragraph number ${i} with several words of body text.</Text>`
+    );
+    lines.splice(100, 0, `  <Text>${MIDDLE}</Text>`);
+    const longSource = `<Document><Page>\n${lines.join("\n")}\n</Page></Document>`;
+    // Well past the old 4000-char truncation cap, with the marker in the middle.
+    expect(longSource.length).toBeGreaterThan(4000);
+
+    await createDocument.executor!({ source: longSource });
+    const res = (await readDocument.executor!({})) as Result;
+    const source = res.source as string;
+
+    // No head+tail slice: no "omitted" marker and the middle clause is visible.
+    expect(source).not.toMatch(/characters omitted/);
+    expect(source).toContain(MIDDLE);
+
+    // And because the middle is visible, a patch targeting it applies cleanly.
+    const patched = (await patchDocument.executor!({
+      patches: [{ find: MIDDLE, replace: "Updated confidentiality clause" }],
+    })) as Result;
+    expect(patched.success).toBe(true);
+    expect(patched.applied).toBe(1);
+    expect(storage.getAll().get("document.jsx")).toContain("Updated confidentiality clause");
+  });
 });
 
 describe("createDocumentTools — patch_document", () => {

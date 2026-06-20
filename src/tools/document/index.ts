@@ -11,9 +11,9 @@
  * applies find/replace patches.
  *
  * This is a single-file sibling of {@link createAppGenerationTools}: it reuses
- * that module's pure patch engine (`applyPatches`, `truncateContent`,
- * `snippetForFailedPatch`, `snippetAroundLine`) and the read-before-write
- * contract, but validates content with {@link parseDocumentDsl} (react-pdf
+ * that module's pure patch engine (`applyPatches`, `snippetForFailedPatch`,
+ * `snippetAroundLine`) and the read-before-write contract, but validates
+ * content with {@link parseDocumentDsl} (react-pdf
  * DSL) rather than the JS/JSX syntax checker, and has no multi-file batch.
  *
  * Multiple distinct documents per conversation are supported via an optional
@@ -30,7 +30,6 @@ import {
   applyPatches,
   snippetAroundLine,
   snippetForFailedPatch,
-  truncateContent,
 } from "../appGeneration.js";
 import { DocDslError, parseDocumentDsl } from "./dsl.js";
 
@@ -404,7 +403,12 @@ export function createDocumentTools({
         markSeen(conversationId, path);
         clearPatchFailure(conversationId, path);
 
-        const numbered = truncateContent(file.content)
+        // Return the FULL source — never truncated. patch_document matches
+        // each `find` against the complete file, so the model must see every
+        // line to write a patch that can match. A head+tail slice would make
+        // edits to the middle of a long document impossible and would renumber
+        // the tail to describe the slice rather than the real file.
+        const numbered = file.content
           .split("\n")
           .map((l, i) => `${i + 1}: ${l}`)
           .join("\n");
