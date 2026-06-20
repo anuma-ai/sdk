@@ -252,8 +252,10 @@ export function createDocumentTools({
 
   // Per-(conversation, path) set of documents whose current source the model
   // has seen (via read_document, or by writing them this turn). patch_document
-  // refuses on an unseen document — mirrors the app/slide read-before-write
-  // contract, preventing patches against a hallucinated copy.
+  // refuses to patch — and create_document refuses to overwrite — an unseen
+  // document, mirroring the app/slide read-before-write contract: it prevents
+  // patches against a hallucinated copy and full rewrites that silently
+  // discard a document the model never read.
   const seenByConv = new Map<string, Set<string>>();
   function markSeen(conversationId: string, path: string): void {
     const s = seenByConv.get(conversationId) ?? new Set<string>();
@@ -347,6 +349,20 @@ export function createDocumentTools({
 
         const validationError = validateOrError(source);
         if (validationError) return validationError;
+
+        // Read-before-overwrite: refuse to clobber an existing document whose
+        // current source the model has not seen this conversation — the same
+        // guard the sibling create_file applies. A brand-new document has no
+        // file on disk and proceeds; a document created or read this turn is
+        // already marked seen (so the post-persist render-failure retry below
+        // still works). This stops a full rewrite from silently discarding a
+        // document the model never looked at.
+        const existing = await storage.getFile(conversationId, path);
+        if (existing && !hasBeenSeen(conversationId, path)) {
+          return {
+            error: `Cannot overwrite document "${documentId}" — you have not read its current source in this conversation. Call read_document for "${documentId}" first, or use patch_document for an incremental change. (Creating a brand-new document does not require a read.)`,
+          };
+        }
 
         await storage.putFile(conversationId, path, source);
         // Model just wrote it, so it counts as seen for a follow-up patch.

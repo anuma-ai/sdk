@@ -167,6 +167,43 @@ describe("createDocumentTools — create_document", () => {
     expect(storage.getAll().has("nda.jsx")).toBe(true);
     expect(storage.getAll().has("cover-letter.jsx")).toBe(true);
   });
+
+  it("refuses to overwrite an existing document not read this session", async () => {
+    // A doc on disk from a prior session: a fresh factory has not seen it.
+    const storage = new MapFileStorage();
+    storage.getAll().set("nda.jsx", BASE);
+    const { createDocument } = makeDocumentTools({ storage });
+    const res = (await createDocument.executor!({
+      documentId: "nda",
+      source: `<Document><Page><Text>Rewritten</Text></Page></Document>`,
+    })) as Result;
+    expect(res.success).toBeUndefined();
+    expect(res.error).toMatch(/have not read its current source/);
+    // The pre-existing content is untouched.
+    expect(storage.getAll().get("nda.jsx")).toBe(BASE);
+  });
+
+  it("allows overwriting after read_document in the same session", async () => {
+    const storage = new MapFileStorage();
+    storage.getAll().set("nda.jsx", BASE);
+    const { createDocument, readDocument } = makeDocumentTools({ storage });
+    await readDocument.executor!({ documentId: "nda" });
+    const rewritten = `<Document><Page><Text>Rewritten</Text></Page></Document>`;
+    const res = (await createDocument.executor!({ documentId: "nda", source: rewritten })) as Result;
+    expect(res.success).toBe(true);
+    expect(storage.getAll().get("nda.jsx")).toBe(rewritten);
+  });
+
+  it("allows re-creating a document it authored earlier this session", async () => {
+    // create_document marks the doc seen, so a same-session rewrite is allowed
+    // (this also keeps the post-persist render-failure retry path working).
+    const { createDocument, storage } = makeDocumentTools();
+    await createDocument.executor!({ documentId: "nda", source: BASE });
+    const v2 = `<Document><Page><Text>v2</Text></Page></Document>`;
+    const res = (await createDocument.executor!({ documentId: "nda", source: v2 })) as Result;
+    expect(res.success).toBe(true);
+    expect(storage.getAll().get("nda.jsx")).toBe(v2);
+  });
 });
 
 describe("createDocumentTools — read_document", () => {
