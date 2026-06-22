@@ -95,6 +95,10 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
     provider: "github",
     connector: "GitHub",
   },
+
+  // X / Twitter (src/tools/x.ts)
+  x_get_me: { label: "Get my X profile", provider: "x", connector: "X" },
+  x_get_my_posts: { label: "Read my recent posts", provider: "x", connector: "X" },
 };
 
 /**

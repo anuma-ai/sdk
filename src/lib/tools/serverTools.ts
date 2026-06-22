@@ -989,6 +989,12 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["notion-search", "notion-create-pages"],
     anchorMinSimilarity: 0.53,
   },
+  {
+    name: "x",
+    members: ["x_get_me", "x_get_my_posts"],
+    anchors: ["x_get_me", "x_get_my_posts"],
+    anchorMinSimilarity: 0.53,
+  },
 ];
 
 /**
