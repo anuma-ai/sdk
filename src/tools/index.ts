@@ -285,3 +285,29 @@ export {
   updateAttrs,
   walk,
 } from "./slides";
+
+// Document generation tools (react-pdf DSL → vector PDF)
+export type {
+  CreateDocumentToolsOptions,
+  DocAttrValue,
+  DocChild,
+  DocNode,
+  PdfTag,
+} from "./document";
+export {
+  buildDocumentSystemPrompt,
+  CREATE_DOCUMENT_SCHEMA,
+  createDocumentTools,
+  DEFAULT_DOCUMENT_ID,
+  DEFAULT_MAX_DOCUMENT_CONVERSATIONS,
+  DocDslError,
+  DOCUMENT_BUILDER_PROMPT,
+  DOCUMENT_TOOL_NAMES,
+  documentPath,
+  isPdfTag,
+  parseDocumentDsl,
+  PATCH_DOCUMENT_SCHEMA,
+  pdfStyleKeys,
+  pdfTags,
+  READ_DOCUMENT_SCHEMA,
+} from "./document";

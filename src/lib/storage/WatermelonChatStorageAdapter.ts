@@ -34,6 +34,7 @@ import {
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
   updateMessageFeedbackOp,
+  updateMessageFileIdsOp,
 } from "../db/chat/operations";
 import type {
   CreateConversationOptions,
@@ -178,6 +179,10 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
     feedback: MessageFeedback
   ): Promise<StoredMessage | null> {
     return updateMessageFeedbackOp(this.ctx, uniqueId, feedback);
+  }
+
+  updateMessageFileIds(uniqueId: string, fileIds: string[]): Promise<StoredMessage | null> {
+    return updateMessageFileIdsOp(this.ctx, uniqueId, fileIds);
   }
 
   clearMessages(conversationId: string): Promise<void> {

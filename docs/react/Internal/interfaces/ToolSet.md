@@ -1,6 +1,6 @@
 # ToolSet
 
-Defined in: [src/lib/tools/serverTools.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#844)
+Defined in: [src/lib/tools/serverTools.ts:845](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#845)
 
 A tool set defines a group of tools that work together. When any "anchor"
 tool in the set is matched semantically (with a score at or above
@@ -25,7 +25,7 @@ matches stripped on activation.
 
 > `optional` **anchorMinSimilarity**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:860](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#860)
+Defined in: [src/lib/tools/serverTools.ts:861](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#861)
 
 Minimum similarity an anchor must reach to activate the set.
 Prevents false activation on prompts where the anchor barely passes
@@ -37,7 +37,7 @@ the global minSimilarity threshold. Default: 0.60
 
 > **anchors**: `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:854](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#854)
+Defined in: [src/lib/tools/serverTools.ts:855](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#855)
 
 Tools that trigger the set when selected. If any anchor appears in the
 semantic match results with a score at or above `anchorMinSimilarity`,
@@ -49,7 +49,7 @@ all members are pulled in.
 
 > **members**: `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:848](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#848)
+Defined in: [src/lib/tools/serverTools.ts:849](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#849)
 
 All tool names in the set
 
@@ -59,7 +59,7 @@ All tool names in the set
 
 > **name**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:846](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#846)
+Defined in: [src/lib/tools/serverTools.ts:847](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#847)
 
 Human-readable name for logging/debugging
 
@@ -69,7 +69,7 @@ Human-readable name for logging/debugging
 
 > `optional` **systemPrompt**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:871](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#871)
+Defined in: [src/lib/tools/serverTools.ts:872](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#872)
 
 System-prompt fragment to APPEND to the base prompt when this set
 activates. Additive, never a replacement — it composes with the host's

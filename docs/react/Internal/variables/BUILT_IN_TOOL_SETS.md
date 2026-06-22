@@ -2,6 +2,6 @@
 
 > `const` **BUILT\_IN\_TOOL\_SETS**: [`ToolSet`](../interfaces/ToolSet.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:875](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#875)
+Defined in: [src/lib/tools/serverTools.ts:876](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#876)
 
 Built-in tool sets. Consumers can extend this with their own.

@@ -768,6 +768,27 @@ export async function updateMessageFeedbackOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+/**
+ * Replace the `fileIds` (attached media ids) of an existing message.
+ *
+ * Used to attach generated artifacts (e.g. a rendered document PDF) to the
+ * assistant message that produced them, after streaming completes. Pass the
+ * FULL desired list — callers read the current `fileIds` and append before
+ * calling, so a concurrent write can't clobber prior attachments.
+ *
+ * @param ctx - Storage operations context
+ * @param uniqueId - The unique ID of the message to update
+ * @param fileIds - The complete new list of attached media ids
+ * @returns The updated message or null if not found
+ */
+export async function updateMessageFileIdsOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  fileIds: string[]
+): Promise<StoredMessage | null> {
+  return _updateMessageOp(ctx, uniqueId, { fileIds });
+}
+
 async function _updateMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
