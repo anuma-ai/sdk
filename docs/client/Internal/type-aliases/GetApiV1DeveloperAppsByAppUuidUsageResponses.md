@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperAppsByAppUuidUsageResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7484](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7484)
+Defined in: [src/client/types.gen.ts:7499](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7499)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7484](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersAppUsageResponse`](HandlersAppUsageResponse.md)
 
-Defined in: [src/client/types.gen.ts:7488](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7488)
+Defined in: [src/client/types.gen.ts:7503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7503)
 
 OK

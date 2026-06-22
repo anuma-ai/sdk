@@ -1475,6 +1475,11 @@ export type HandlersBoundWalletResponse = {
     last_polled_at?: string;
     staked_zeta?: string;
     wallet_type?: string;
+    /**
+     * ZetaRewards is this wallet's pending (unclaimed) on-chain staking rewards, in ZETA. Omitted
+     * when the chain reader is unavailable for this request.
+     */
+    zeta_rewards?: string;
 };
 
 export type HandlersCancelScheduledDowngradeResponse = {
@@ -2069,8 +2074,18 @@ export type HandlersListResponse = {
 };
 
 export type HandlersListTotals = {
+    /**
+     * AICredits is the account's current spendable credit balance accrued from staking — active
+     * (unspent, unexpired) grants from the stake-to-earn drip, in whole credits.
+     */
+    ai_credits?: number;
     pro?: HandlersProInfo;
     staked_zeta?: string;
+    /**
+     * ZetaRewards is the account's total pending (unclaimed) on-chain staking rewards across all
+     * bound wallets, in ZETA.
+     */
+    zeta_rewards?: string;
 };
 
 export type HandlersListUserApiKeysResponse = {

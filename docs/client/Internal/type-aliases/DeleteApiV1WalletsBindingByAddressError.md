@@ -2,4 +2,4 @@
 
 > **DeleteApiV1WalletsBindingByAddressError** = [`DeleteApiV1WalletsBindingByAddressErrors`](DeleteApiV1WalletsBindingByAddressErrors.md)\[keyof [`DeleteApiV1WalletsBindingByAddressErrors`](DeleteApiV1WalletsBindingByAddressErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9461](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9461)
+Defined in: [src/client/types.gen.ts:9476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9476)

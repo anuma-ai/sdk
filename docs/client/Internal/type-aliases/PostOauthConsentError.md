@@ -2,4 +2,4 @@
 
 > **PostOauthConsentError** = [`PostOauthConsentErrors`](PostOauthConsentErrors.md)\[keyof [`PostOauthConsentErrors`](PostOauthConsentErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9875](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9875)
+Defined in: [src/client/types.gen.ts:9890](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9890)

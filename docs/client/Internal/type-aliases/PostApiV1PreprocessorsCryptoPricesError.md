@@ -2,4 +2,4 @@
 
 > **PostApiV1PreprocessorsCryptoPricesError** = [`PostApiV1PreprocessorsCryptoPricesErrors`](PostApiV1PreprocessorsCryptoPricesErrors.md)\[keyof [`PostApiV1PreprocessorsCryptoPricesErrors`](PostApiV1PreprocessorsCryptoPricesErrors.md)]
 
-Defined in: [src/client/types.gen.ts:8271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8271)
+Defined in: [src/client/types.gen.ts:8286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8286)
