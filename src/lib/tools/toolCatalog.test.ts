@@ -28,7 +28,8 @@ function realConnectorToolNames(): Set<string> {
   for (const tool of createDriveTools(getToken, request)) names.add(tool.function.name);
   for (const tool of createNotionTools(getToken, request)) names.add(tool.function.name);
   for (const tool of createGitHubTools(getToken, request)) names.add(tool.function.name);
-  for (const [name] of Object.entries(createXTools(async () => null))) names.add(name);
+  for (const tool of Object.values(createXTools(async () => null)))
+    names.add((tool as { function: { name: string } }).function.name);
   return names;
 }
 

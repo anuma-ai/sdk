@@ -83,25 +83,29 @@ function maybeConnectorError(status: number): string | null {
   return null;
 }
 
-async function getXMe(
+/**
+ * Resolve the authenticated user's id (and optionally full profile) from
+ * /users/me. Returns the parsed data on success, or an error string on any
+ * failure path (timeout, auth error, non-ok status, missing data).
+ */
+type XUserData = NonNullable<XUserResponse["data"]>;
+
+async function resolveMyUserId(
   accessToken: string,
-  args: XGetMeArgs
-): Promise<
-  | {
-      id: string;
-      name: string;
-      username: string;
-      description?: string;
-      public_metrics?: object;
-    }
-  | string
-> {
-  const fields = ["description", "public_metrics"];
-  const params = new URLSearchParams({ "user.fields": fields.join(",") });
+  signal?: AbortSignal,
+  extraFields?: string[]
+): Promise<XUserData | string> {
+  const params = new URLSearchParams();
+  if (extraFields && extraFields.length > 0) {
+    params.set("user.fields", extraFields.join(","));
+  }
+  const qs = params.toString();
+  const url = qs ? `${X_BASE_URL}/users/me?${qs}` : `${X_BASE_URL}/users/me`;
   let response: Response;
   try {
-    response = await xFetch(`${X_BASE_URL}/users/me?${params.toString()}`, {
+    response = await xFetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal,
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -119,20 +123,51 @@ async function getXMe(
   if (!data.data) {
     return `Error: X API returned no user data`;
   }
+  return data.data;
+}
+
+async function getXMe(
+  accessToken: string,
+  args: XGetMeArgs
+): Promise<
+  | {
+      id: string;
+      name: string;
+      username: string;
+      description?: string;
+      public_metrics?: {
+        followers_count: number;
+        following_count: number;
+        tweet_count: number;
+      };
+    }
+  | string
+> {
+  // Request public_metrics and description so the API actually returns them.
+  const extraFields = ["description"];
+  if (args.includePublicMetrics !== false) extraFields.push("public_metrics");
+
+  const userData = await resolveMyUserId(accessToken, undefined, extraFields);
+  if (typeof userData === "string") return userData;
+
   const result: {
     id: string;
     name: string;
     username: string;
     description?: string;
-    public_metrics?: object;
+    public_metrics?: {
+      followers_count: number;
+      following_count: number;
+      tweet_count: number;
+    };
   } = {
-    id: data.data.id,
-    name: data.data.name,
-    username: data.data.username,
+    id: userData.id,
+    name: userData.name,
+    username: userData.username,
   };
-  if (data.data.description !== undefined) result.description = data.data.description;
-  if (args.includePublicMetrics !== false && data.data.public_metrics !== undefined) {
-    result.public_metrics = data.data.public_metrics;
+  if (userData.description !== undefined) result.description = userData.description;
+  if (args.includePublicMetrics !== false && userData.public_metrics !== undefined) {
+    result.public_metrics = userData.public_metrics;
   }
   return result;
 }
@@ -141,34 +176,15 @@ async function getXMyPosts(
   accessToken: string,
   args: XGetMyPostsArgs
 ): Promise<{ id: string; text: string }[] | string> {
-  // First resolve the authenticated user's id.
-  const meParams = new URLSearchParams();
-  let meResponse: Response;
-  try {
-    meResponse = await xFetch(`${X_BASE_URL}/users/me?${meParams.toString()}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      return xTimeoutError("resolve user id for posts");
-    }
-    throw err;
-  }
-  if (!meResponse.ok) {
-    const connectorError = maybeConnectorError(meResponse.status);
-    if (connectorError) return connectorError;
-    const body = await meResponse.text();
-    return `Error: Failed to resolve X user id (${meResponse.status}): ${body}`;
-  }
-  const meData = (await meResponse.json()) as XUserResponse;
-  if (!meData.data?.id) {
-    return `Error: X API returned no user id`;
-  }
-  const userId = meData.data.id;
+  // Resolve the authenticated user's id.
+  const userData = await resolveMyUserId(accessToken);
+  if (typeof userData === "string") return userData;
+  const userId = userData.id;
 
-  // Clamp max_results to the API-allowed range [5, 100].
-  const rawMax = args.maxResults ?? 10;
-  const maxResults = Math.min(100, Math.max(5, rawMax));
+  // Guard against NaN from non-numeric model input before clamping.
+  const rawMax = args.maxResults;
+  const safeMax = typeof rawMax === "number" && Number.isFinite(rawMax) ? rawMax : 10;
+  const maxResults = Math.min(100, Math.max(5, safeMax));
 
   const tweetsParams = new URLSearchParams({ max_results: String(maxResults) });
   let tweetsResponse: Response;
