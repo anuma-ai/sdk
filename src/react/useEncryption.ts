@@ -744,15 +744,6 @@ export function hasEncryptionKey(address: string): boolean {
 }
 
 /**
- * Encrypts data using a pre-fetched CryptoKey.
- * Use this for batch operations to avoid repeated key lookups.
- *
- * @param plaintext - The data to encrypt (string or Uint8Array)
- * @param key - The CryptoKey for AES-GCM encryption
- * @returns Encrypted data as hex string (IV + ciphertext + auth tag)
- * @internal
- */
-/**
  * Core AES-GCM encrypt with a pre-fetched key. Returns the raw
  * `[IV][ciphertext+tag]` bytes. Single source of the encryption scheme, shared
  * by {@link encryptDataWithKey} (which hex-encodes the result) and
@@ -789,6 +780,15 @@ async function encryptBytesWithKey(
   return combined;
 }
 
+/**
+ * Encrypts data using a pre-fetched CryptoKey.
+ * Use this for batch operations to avoid repeated key lookups.
+ *
+ * @param plaintext - The data to encrypt (string or Uint8Array)
+ * @param key - The CryptoKey for AES-GCM encryption
+ * @returns Encrypted data as hex string (IV + ciphertext + auth tag)
+ * @internal
+ */
 export async function encryptDataWithKey(
   plaintext: string | Uint8Array,
   key: CryptoKey
