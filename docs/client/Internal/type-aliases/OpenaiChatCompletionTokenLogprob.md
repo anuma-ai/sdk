@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionTokenLogprob** = `object`
 
-Defined in: [src/client/types.gen.ts:3785](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3785)
+Defined in: [src/client/types.gen.ts:3800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3800)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3785](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **bytes**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:3792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3792)
+Defined in: [src/client/types.gen.ts:3807](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3807)
 
 A list of integers representing the UTF-8 bytes representation of the token.
 Useful in instances where characters are represented by multiple tokens and
@@ -23,7 +23,7 @@ representation. Can be `null` if there is no bytes representation for the token.
 
 > `optional` **logprob**: `number`
 
-Defined in: [src/client/types.gen.ts:3798](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3798)
+Defined in: [src/client/types.gen.ts:3813](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3813)
 
 The log probability of this token, if it is within the top 20 most likely
 tokens. Otherwise, the value `-9999.0` is used to signify that the token is very
@@ -35,7 +35,7 @@ unlikely.
 
 > `optional` **token**: `string`
 
-Defined in: [src/client/types.gen.ts:3802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3802)
+Defined in: [src/client/types.gen.ts:3817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3817)
 
 The token.
 
@@ -45,7 +45,7 @@ The token.
 
 > `optional` **top\_logprobs**: [`OpenaiChatCompletionTokenLogprobTopLogprob`](OpenaiChatCompletionTokenLogprobTopLogprob.md)\[]
 
-Defined in: [src/client/types.gen.ts:3808](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3808)
+Defined in: [src/client/types.gen.ts:3823](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3823)
 
 List of the most likely tokens and their log probability, at this token
 position. In rare cases, there may be fewer than the number of requested

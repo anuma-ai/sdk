@@ -67,3 +67,14 @@ Defined in: [src/client/types.gen.ts:1476](https://github.com/anuma-ai/sdk/blob/
 > `optional` **wallet\_type**: `string`
 
 Defined in: [src/client/types.gen.ts:1477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1477)
+
+***
+
+### zeta\_rewards?
+
+> `optional` **zeta\_rewards**: `string`
+
+Defined in: [src/client/types.gen.ts:1482](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1482)
+
+ZetaRewards is this wallet's pending (unclaimed) on-chain staking rewards, in ZETA. Omitted
+when the chain reader is unavailable for this request.

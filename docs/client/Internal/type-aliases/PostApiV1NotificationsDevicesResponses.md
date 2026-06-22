@@ -2,7 +2,7 @@
 
 > **PostApiV1NotificationsDevicesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8038](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8038)
+Defined in: [src/client/types.gen.ts:8053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8053)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8038](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersNotificationDeviceResponse`](HandlersNotificationDeviceResponse.md)
 
-Defined in: [src/client/types.gen.ts:8042](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8042)
+Defined in: [src/client/types.gen.ts:8057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8057)
 
 OK

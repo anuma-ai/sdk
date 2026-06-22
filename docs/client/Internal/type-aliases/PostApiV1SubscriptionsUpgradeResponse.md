@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsUpgradeResponse** = [`PostApiV1SubscriptionsUpgradeResponses`](PostApiV1SubscriptionsUpgradeResponses.md)\[keyof [`PostApiV1SubscriptionsUpgradeResponses`](PostApiV1SubscriptionsUpgradeResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8779](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8779)
+Defined in: [src/client/types.gen.ts:8794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8794)
