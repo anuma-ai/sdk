@@ -618,24 +618,7 @@ export async function encryptDataBytes(
   }
 
   const key = await getEncryptionKey(address);
-
-  // Random 12-byte IV (matches encryptDataWithKey).
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-
-  // Pass the view directly (not `.buffer`) so a caller's subarray is encrypted
-  // by its own window, not the whole backing buffer.
-  const encryptedData = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    plaintext as Uint8Array<ArrayBuffer>
-  );
-
-  // Combine IV + ciphertext (which includes the auth tag) into raw bytes.
-  const encryptedBytes = new Uint8Array(encryptedData);
-  const combined = new Uint8Array(iv.length + encryptedBytes.length);
-  combined.set(iv, 0);
-  combined.set(encryptedBytes, iv.length);
-  return combined;
+  return encryptBytesWithKey(plaintext, key);
 }
 
 /**
@@ -724,7 +707,9 @@ export async function decryptDataBytes(
  *
  * @param encrypted - Raw encrypted bytes (IV + ciphertext + auth tag), no hex
  * @param address - The wallet address associated with the encryption key
+ * @param version - Encryption key version to decrypt with (defaults to "v3")
  * @returns Decrypted data as Uint8Array
+ * @category Encryption
  */
 export async function decryptDataBytesFromBytes(
   encrypted: Uint8Array,
@@ -767,10 +752,17 @@ export function hasEncryptionKey(address: string): boolean {
  * @returns Encrypted data as hex string (IV + ciphertext + auth tag)
  * @internal
  */
-export async function encryptDataWithKey(
+/**
+ * Core AES-GCM encrypt with a pre-fetched key. Returns the raw
+ * `[IV][ciphertext+tag]` bytes. Single source of the encryption scheme, shared
+ * by {@link encryptDataWithKey} (which hex-encodes the result) and
+ * {@link encryptDataBytes} (which returns the bytes directly).
+ * @internal
+ */
+async function encryptBytesWithKey(
   plaintext: string | Uint8Array,
   key: CryptoKey
-): Promise<string> {
+): Promise<Uint8Array> {
   // Convert plaintext to Uint8Array if it's a string
   const plaintextBytes =
     typeof plaintext === "string" ? SHARED_TEXT_ENCODER.encode(plaintext) : plaintext;
@@ -778,14 +770,15 @@ export async function encryptDataWithKey(
   // Generate a random 12-byte IV (initialization vector)
   const iv = crypto.getRandomValues(new Uint8Array(12));
 
-  // Encrypt the data
+  // Encrypt the data. Pass the view directly (not `.buffer`) so a caller's
+  // subarray is encrypted by its own window, not the whole backing buffer.
   const encryptedData = await crypto.subtle.encrypt(
     {
       name: "AES-GCM",
       iv: iv,
     },
     key,
-    plaintextBytes.buffer as ArrayBuffer
+    plaintextBytes as Uint8Array<ArrayBuffer>
   );
 
   // Combine IV + encrypted data (which includes auth tag)
@@ -793,9 +786,14 @@ export async function encryptDataWithKey(
   const combined = new Uint8Array(iv.length + encryptedBytes.length);
   combined.set(iv, 0);
   combined.set(encryptedBytes, iv.length);
+  return combined;
+}
 
-  // Return as hex string
-  return bytesToHex(combined);
+export async function encryptDataWithKey(
+  plaintext: string | Uint8Array,
+  key: CryptoKey
+): Promise<string> {
+  return bytesToHex(await encryptBytesWithKey(plaintext, key));
 }
 
 /**
