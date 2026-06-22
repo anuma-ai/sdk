@@ -596,6 +596,49 @@ export async function encryptData(
 }
 
 /**
+ * Like {@link encryptData} but takes raw bytes and returns the raw encrypted
+ * `[IV][ciphertext+tag]` Uint8Array instead of a hex string. Avoids the hex
+ * round-trip (`encryptData` returns hex, which callers immediately convert back
+ * to bytes) — for large binary media that hex string is a ~1.37x copy of the
+ * whole payload. Use for binary uploads (e.g. enc:v3 media frames).
+ *
+ * @param plaintext - The raw bytes to encrypt
+ * @param address - The wallet address associated with the encryption key
+ * @returns Encrypted data as raw bytes (IV + ciphertext + auth tag)
+ * @category Encryption
+ */
+export async function encryptDataBytes(
+  plaintext: Uint8Array,
+  address: string
+): Promise<Uint8Array> {
+  if (!isValidWalletAddress(address)) {
+    throw new Error(
+      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
+    );
+  }
+
+  const key = await getEncryptionKey(address);
+
+  // Random 12-byte IV (matches encryptDataWithKey).
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  // Pass the view directly (not `.buffer`) so a caller's subarray is encrypted
+  // by its own window, not the whole backing buffer.
+  const encryptedData = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    plaintext as Uint8Array<ArrayBuffer>
+  );
+
+  // Combine IV + ciphertext (which includes the auth tag) into raw bytes.
+  const encryptedBytes = new Uint8Array(encryptedData);
+  const combined = new Uint8Array(iv.length + encryptedBytes.length);
+  combined.set(iv, 0);
+  combined.set(encryptedBytes, iv.length);
+  return combined;
+}
+
+/**
  * Decrypts data using AES-GCM with the stored encryption key.
  *
  * This function uses the encryption key previously generated via `requestEncryptionKey`
@@ -659,6 +702,43 @@ export async function decryptDataBytes(
   const encryptedData = combined.subarray(12) as Uint8Array<ArrayBuffer>;
 
   // Decrypt the data
+  const decryptedData = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: iv,
+    },
+    key,
+    encryptedData
+  );
+
+  return new Uint8Array(decryptedData);
+}
+
+/**
+ * Like {@link decryptDataBytes} but takes the raw encrypted bytes
+ * (`[IV][ciphertext+tag]`) directly instead of a hex string. Skips the
+ * `hexToBytes` conversion — for large binary media the hex string the caller
+ * would otherwise build is a ~1.37x copy of the whole payload (a ~1GB string
+ * for a 500MB video), plus this avoids a second byte copy. Same key resolution
+ * as decryptDataBytes.
+ *
+ * @param encrypted - Raw encrypted bytes (IV + ciphertext + auth tag), no hex
+ * @param address - The wallet address associated with the encryption key
+ * @returns Decrypted data as Uint8Array
+ */
+export async function decryptDataBytesFromBytes(
+  encrypted: Uint8Array,
+  address: string,
+  version: EncryptionKeyVersion = "v3"
+): Promise<Uint8Array> {
+  const key = await getEncryptionKey(address, version);
+
+  // Input is already the raw [IV][ciphertext+tag] — no hex round-trip.
+  // `subarray` returns views (no copy). Cast to `Uint8Array<ArrayBuffer>` for
+  // the same reason as decryptDataBytes (subarray widens to ArrayBufferLike).
+  const iv = encrypted.subarray(0, 12) as Uint8Array<ArrayBuffer>;
+  const encryptedData = encrypted.subarray(12) as Uint8Array<ArrayBuffer>;
+
   const decryptedData = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
