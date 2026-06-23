@@ -163,6 +163,30 @@ describe("xhrTransport", () => {
     expect(order).toEqual(["meta:inf-1", "data", "data"]);
   });
 
+  it("fires onActivity on keep-alive comment bytes (watchdog liveness) without yielding a data chunk", async () => {
+    // The production line behind the #620 resume-watchdog fix: any wire bytes —
+    // including a `: keep-alive` comment that parseSseChunks discards — must
+    // surface as onActivity so a consumer's idle watchdog re-arms on liveness,
+    // not just on data frames.
+    const onActivity = vi.fn();
+    const result = xhrTransport({ ...baseOptions, onActivity });
+
+    const xhr = lastXhr();
+    xhr.receiveHeaders(200, { "X-Inference-ID": "inf-1" });
+    // A keep-alive comment line: bytes on the wire, but NOT a `data:` frame.
+    xhr.receiveChunk(": keep-alive\n");
+    expect(onActivity).toHaveBeenCalledTimes(1);
+    // A real data frame also counts as activity (and yields a chunk).
+    xhr.receiveChunk('data: {"x":1}\n');
+    expect(onActivity).toHaveBeenCalledTimes(2);
+    xhr.finish();
+
+    const received: unknown[] = [];
+    for await (const chunk of result.stream) received.push(chunk);
+    // Only the data frame became a chunk; the keep-alive comment did not.
+    expect(received).toEqual([{ x: 1 }]);
+  });
+
   it("does not fire onStreamMeta for non-2xx responses", async () => {
     const onStreamMeta = vi.fn();
     const onSseError = vi.fn();

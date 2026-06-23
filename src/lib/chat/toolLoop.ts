@@ -651,6 +651,15 @@ export type StreamingTransportOptions = {
   onSseError?: (error: unknown) => void;
   /** Fires once per request when response headers arrive with X-Inference-ID (2xx only). */
   onStreamMeta?: (meta: { inferenceId: string }) => void;
+  /**
+   * Fires whenever bytes arrive on the wire — data frames AND the keep-alive
+   * comment lines (`: ...`) the SSE parser otherwise discards. A pure liveness
+   * signal: a consumer running an idle watchdog uses it to tell a slow-but-alive
+   * stream (the server still heart-beating through a long reasoning silence)
+   * apart from a dead connection (no bytes at all). Not every transport emits it
+   * — the xhr transport does; treat its absence as "no extra liveness info".
+   */
+  onActivity?: () => void;
 };
 
 /** Result returned by a streaming transport function. */

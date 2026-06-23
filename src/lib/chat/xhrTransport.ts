@@ -142,6 +142,12 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       const newData = xhr.responseText.substring(lastProcessedIndex);
       lastProcessedIndex = xhr.responseText.length;
 
+      // Any bytes on the wire — including the keep-alive comment lines that
+      // parseSseChunks discards — are a liveness signal. Surface them so an idle
+      // watchdog can tell a slow-but-alive stream (server heart-beating through a
+      // long reasoning silence) from a dead connection.
+      if (newData.length > 0) options.onActivity?.();
+
       const { chunks, remaining } = parseSseChunks(newData, incompleteBuffer);
       incompleteBuffer = remaining;
 
