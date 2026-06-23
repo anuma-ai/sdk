@@ -537,6 +537,33 @@ describe("recall — dedupe", () => {
     expect(result.memories.map((m) => m.id)).toEqual(["c1"]);
     expect(result.candidateCount).toBe(1);
   });
+
+  it("dedupes per-lane before fusion, so candidateCount counts unique records", async () => {
+    // Both lanes active → the fused (RRF) path. Each lane carries duplicates;
+    // dedupeBy runs per-lane before fusion, so candidateCount (byId.size) must
+    // reflect unique records, not raw lane hits.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("dup-a", M1),
+      makeMemory("dup-b", M1), // same content, distinct id
+      makeMemory("m2", M2),
+    ]);
+    const c1 = makeChunk("c1", "conv1", 0.9);
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      c1,
+      makeChunk("c1", "conv1", 0.9), // repeated id
+      { ...makeChunk("c2", "conv2", 0.8), chunkText: c1.chunkText }, // repeated content
+    ]);
+
+    const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["fact", "chunk"] });
+
+    // 2 unique facts (M1 once, M2) + 1 unique chunk.
+    expect(result.candidateCount).toBe(3);
+    const contents = result.memories.map((m) => m.content);
+    expect(new Set(contents).size).toBe(contents.length); // no duplicate content
+    expect(contents).toContain(M1);
+    expect(contents).toContain(M2);
+    expect(contents).toContain(c1.chunkText);
+  });
 });
 
 describe("createRecallTool executor", () => {
