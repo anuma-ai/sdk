@@ -498,6 +498,47 @@ describe("recall — result shape", () => {
   });
 });
 
+describe("recall — dedupe", () => {
+  it("collapses vault rows with identical content to one result (distinct ids)", async () => {
+    // The extraction/consolidation pipeline can persist the same fact as
+    // several distinct rows. All match the query identically (same vector →
+    // same score), so without content dedupe the caller gets N identical
+    // rows — the reported bug: the "drew on your memory" pill listed the same
+    // memory five times. Keep the first occurrence, drop the rest.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("dup-a", M1),
+      makeMemory("dup-b", M1),
+      makeMemory("dup-c", M1),
+      makeMemory("m2", M2),
+    ]);
+
+    const result = await recall(QUERY, makeCtx());
+
+    expect(result.memories).toHaveLength(2);
+    expect(result.memories.map((m) => m.content)).toEqual([M1, M2]);
+    const ids = result.memories.map((m) => m.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids.filter((id) => id.startsWith("dup-"))).toHaveLength(1);
+    expect(ids).toContain("m2");
+    // candidateCount reflects unique candidates, not raw lane hits.
+    expect(result.candidateCount).toBe(2);
+  });
+
+  it("dedupes chunk results by both id and content", async () => {
+    const c1 = makeChunk("c1", "conv1", 0.9);
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      c1,
+      makeChunk("c1", "conv1", 0.9), // same id repeated across lanes
+      { ...makeChunk("c2", "conv2", 0.8), chunkText: c1.chunkText }, // new id, same text
+    ]);
+
+    const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["chunk"] });
+
+    expect(result.memories.map((m) => m.id)).toEqual(["c1"]);
+    expect(result.candidateCount).toBe(1);
+  });
+});
+
 describe("createRecallTool executor", () => {
   function bulkVault(count: number): StoredVaultMemory[] {
     return Array.from({ length: count }, (_, i) => {
