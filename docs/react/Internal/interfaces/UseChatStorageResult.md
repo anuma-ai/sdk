@@ -31,7 +31,7 @@ Discards pending operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:825](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#825)
+Defined in: [src/lib/db/chat/types.ts:831](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#831)
 
 **Inherited from**
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:825](https://github.com/anuma-ai/sdk/blob/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:827](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#827)
+Defined in: [src/lib/db/chat/types.ts:833](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#833)
 
 **Parameters**
 
@@ -355,7 +355,7 @@ Optional scope (defaults to "private")
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:832](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#832)
+Defined in: [src/lib/db/chat/types.ts:838](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#838)
 
 **Parameters**
 
@@ -517,7 +517,7 @@ Returns files with conversation context for building file browser UIs.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:828](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#828)
+Defined in: [src/lib/db/chat/types.ts:834](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#834)
 
 **Parameters**
 
@@ -558,7 +558,7 @@ Defined in: [src/lib/db/chat/types.ts:828](https://github.com/anuma-ai/sdk/blob/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:829](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#829)
+Defined in: [src/lib/db/chat/types.ts:835](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#835)
 
 **Returns**
 
@@ -574,7 +574,7 @@ Defined in: [src/lib/db/chat/types.ts:829](https://github.com/anuma-ai/sdk/blob/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:833](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#833)
+Defined in: [src/lib/db/chat/types.ts:839](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#839)
 
 **Parameters**
 
@@ -678,7 +678,7 @@ Optional filtering (scopes to include)
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:823](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#823)
+Defined in: [src/lib/db/chat/types.ts:829](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#829)
 
 **Inherited from**
 
@@ -1501,10 +1501,16 @@ wire needs the context but storage must NOT: otherwise the injected labels
 are persisted, shown in the user's bubble, and re-fed as history every turn.
 
 Set this to the user's actual text so the wire keeps the injected context
-while the DB row, the chat bubble, and the message embedding all reflect
-only what the user typed. When omitted, falls back to extracting the last
-user turn's text (the prior behavior). Files are still taken from `files`
-(or extracted) independently of this override.
+while the persisted user content reflects only what the user typed. This
+drives everything derived from the stored user text: the DB row, the chat
+bubble, the stored message embedding, AND the embedding reused for
+server/client tool selection (so tool filtering keys off the typed text,
+not the injected context). Files are still taken from `files` (or
+extracted) independently of this override.
+
+Pass `undefined` to fall back to extracting the last user turn's text (the
+prior behavior); an empty string is a real override that persists empty
+user content (matching a textless turn), NOT a request to fall back.
 
 </td>
 </tr>
@@ -1736,7 +1742,7 @@ if (result.error) {
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:826](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#826)
+Defined in: [src/lib/db/chat/types.ts:832](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#832)
 
 **Parameters**
 
@@ -1777,7 +1783,7 @@ Defined in: [src/lib/db/chat/types.ts:826](https://github.com/anuma-ai/sdk/blob/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:824](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#824)
+Defined in: [src/lib/db/chat/types.ts:830](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#830)
 
 **Returns**
 
@@ -1793,7 +1799,7 @@ Defined in: [src/lib/db/chat/types.ts:824](https://github.com/anuma-ai/sdk/blob/
 
 > **updateConversationPinned**: (`id`: `string`, `pinned`: `boolean`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:831](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#831)
+Defined in: [src/lib/db/chat/types.ts:837](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#837)
 
 **Parameters**
 
@@ -1846,7 +1852,7 @@ Defined in: [src/lib/db/chat/types.ts:831](https://github.com/anuma-ai/sdk/blob/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:830](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#830)
+Defined in: [src/lib/db/chat/types.ts:836](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#836)
 
 **Parameters**
 

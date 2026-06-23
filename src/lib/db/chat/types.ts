@@ -619,10 +619,16 @@ export interface BaseSendMessageWithStorageArgs {
    * are persisted, shown in the user's bubble, and re-fed as history every turn.
    *
    * Set this to the user's actual text so the wire keeps the injected context
-   * while the DB row, the chat bubble, and the message embedding all reflect
-   * only what the user typed. When omitted, falls back to extracting the last
-   * user turn's text (the prior behavior). Files are still taken from `files`
-   * (or extracted) independently of this override.
+   * while the persisted user content reflects only what the user typed. This
+   * drives everything derived from the stored user text: the DB row, the chat
+   * bubble, the stored message embedding, AND the embedding reused for
+   * server/client tool selection (so tool filtering keys off the typed text,
+   * not the injected context). Files are still taken from `files` (or
+   * extracted) independently of this override.
+   *
+   * Pass `undefined` to fall back to extracting the last user turn's text (the
+   * prior behavior); an empty string is a real override that persists empty
+   * user content (matching a textless turn), NOT a request to fall back.
    */
   storedUserContent?: string;
 
