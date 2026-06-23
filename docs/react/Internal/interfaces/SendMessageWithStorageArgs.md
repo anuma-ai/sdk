@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:878](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#878)
+Defined in: [src/react/useChatStorage.ts:879](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#879)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:892](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#892)
+Defined in: [src/react/useChatStorage.ts:893](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#893)
 
 Override the API type for this specific request.
 
@@ -31,7 +31,7 @@ Useful when different models need different APIs within the same hook instance.
 
 > `optional` **assistantUniqueId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:769](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#769)
+Defined in: [src/lib/db/chat/types.ts:794](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#794)
 
 Pre-generated unique ID for the assistant response message.
 When provided, the persisted assistant message will use this ID instead of
@@ -49,7 +49,7 @@ when streaming completes and the message is loaded from the database.
 
 > `optional` **clientTools**: [`LlmapiChatCompletionTool`](../../../client/Internal/type-aliases/LlmapiChatCompletionTool.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:679](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#679)
+Defined in: [src/lib/db/chat/types.ts:704](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#704)
 
 Client-side tools with optional executors.
 These tools run in the browser/app and can have JavaScript executor functions.
@@ -64,7 +64,7 @@ These tools run in the browser/app and can have JavaScript executor functions.
 
 > `optional` **clientToolsFilter**: [`ClientToolsFilterFn`](../type-aliases/ClientToolsFilterFn.md)
 
-Defined in: [src/lib/db/chat/types.ts:716](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#716)
+Defined in: [src/lib/db/chat/types.ts:741](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#741)
 
 Dynamic filter for client-side tools based on prompt embeddings.
 Receives the prompt embedding(s) (or null for short messages) and all client tools,
@@ -90,7 +90,7 @@ clientToolsFilter: (embeddings, tools) => {
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:900](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#900)
+Defined in: [src/react/useChatStorage.ts:901](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#901)
 
 Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
@@ -103,7 +103,7 @@ to avoid race conditions with React state updates.
 
 > `optional` **fileContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:634](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#634)
+Defined in: [src/lib/db/chat/types.ts:659](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#659)
 
 Additional context from preprocessed file attachments.
 Contains extracted text from Excel, Word, PDF, and other document files.
@@ -135,7 +135,7 @@ File metadata is stored with the message (URLs are stripped if they're data URIs
 
 > `optional` **getThoughtProcess**: () => `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/types.ts:659](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#659)
+Defined in: [src/lib/db/chat/types.ts:684](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#684)
 
 Callback to get activity phases AFTER streaming completes.
 Use this instead of `thoughtProcess` when phases are added dynamically during streaming
@@ -157,7 +157,7 @@ If both `thoughtProcess` and `getThoughtProcess` are provided, `getThoughtProces
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:883](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#883)
+Defined in: [src/react/useChatStorage.ts:884](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#884)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.
@@ -168,7 +168,7 @@ Useful for passing additional authentication, tracking, or feature flags.
 
 > `optional` **imageModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:750](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#750)
+Defined in: [src/lib/db/chat/types.ts:775](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#775)
 
 User-selected image generation model for server-side enforcement.
 
@@ -225,7 +225,7 @@ Only the most recent N messages are included to manage context window size.
 
 > `optional` **maxOutputTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:673](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#673)
+Defined in: [src/lib/db/chat/types.ts:698](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#698)
 
 Maximum number of tokens to generate in the response.
 Use this to limit response length and control costs.
@@ -240,7 +240,7 @@ Use this to limit response length and control costs.
 
 > `optional` **maxToolRounds**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:734](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#734)
+Defined in: [src/lib/db/chat/types.ts:759](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#759)
 
 Maximum number of tool execution rounds before forcing the model to respond with text.
 After this many rounds, `toolChoice` is set to `"none"` on the next continuation,
@@ -262,7 +262,7 @@ so the model produces a text answer using whatever tool results it has gathered.
 
 > `optional` **memoryContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:621](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#621)
+Defined in: [src/lib/db/chat/types.ts:646](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#646)
 
 Additional context from memory/RAG system to include in the request.
 Typically contains retrieved relevant information from past conversations.
@@ -342,7 +342,7 @@ If not specified, uses the default model configured on the server.
 
 > `optional` **onData**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:615](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#615)
+Defined in: [src/lib/db/chat/types.ts:640](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#640)
 
 Per-request callback invoked with each streamed response chunk.
 Overrides the hook-level `onData` callback for this request only.
@@ -387,7 +387,7 @@ Use this to update UI as the response streams in.
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:757](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#757)
+Defined in: [src/lib/db/chat/types.ts:782](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#782)
 
 Per-request callback for thinking/reasoning chunks.
 Called with delta chunks as the model "thinks" through a problem.
@@ -432,7 +432,7 @@ Use this to display thinking progress in the UI.
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:760](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#760)
+Defined in: [src/lib/db/chat/types.ts:785](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#785)
 
 Parent message ID for branching (edit/regenerate). Sets on the user message.
 
@@ -446,7 +446,7 @@ Parent message ID for branching (edit/regenerate). Sets on the user message.
 
 > `optional` **piiRedaction**: `boolean` | `PiiRedactor`
 
-Defined in: [src/react/useChatStorage.ts:913](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#913)
+Defined in: [src/react/useChatStorage.ts:914](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#914)
 
 Per-request override for PII redaction. When set, takes precedence over the
 hook-level `piiRedaction` for this call only — e.g. pass `false` to disable
@@ -464,7 +464,7 @@ the conversation-shared redactor, matching the hook-level behavior.
 
 > `optional` **reasoning**: [`LlmapiResponseReasoning`](../../../client/Internal/type-aliases/LlmapiResponseReasoning.md)
 
-Defined in: [src/lib/db/chat/types.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#740)
+Defined in: [src/lib/db/chat/types.ts:765](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#765)
 
 Reasoning configuration for o-series and other reasoning models.
 Controls reasoning effort level and whether to include reasoning summary.
@@ -479,7 +479,7 @@ Controls reasoning effort level and whether to include reasoning summary.
 
 > `optional` **searchContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:627](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#627)
+Defined in: [src/lib/db/chat/types.ts:652](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#652)
 
 Additional context from search results to include in the request.
 Typically contains relevant information from web or document searches.
@@ -494,7 +494,7 @@ Typically contains relevant information from web or document searches.
 
 > `optional` **serverTools**: [`ServerToolsFilter`](../type-aliases/ServerToolsFilter.md)
 
-Defined in: [src/lib/db/chat/types.ts:702](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#702)
+Defined in: [src/lib/db/chat/types.ts:727](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#727)
 
 Server-side tools to include from /api/v1/tools.
 
@@ -571,7 +571,7 @@ const { data } = await sendMessage({
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:640](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#640)
+Defined in: [src/lib/db/chat/types.ts:665](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#665)
 
 Search sources to attach to the stored message for citation/reference.
 Note: Sources are also automatically extracted from tool\_call\_events in the response.
@@ -579,6 +579,40 @@ Note: Sources are also automatically extracted from tool\_call\_events in the re
 **Inherited from**
 
 `BaseSendMessageWithStorageArgs.sources`
+
+***
+
+### storedUserContent?
+
+> `optional` **storedUserContent**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:633](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#633)
+
+Override the text content persisted for the user message, instead of
+extracting it from the last user turn of `messages`.
+
+The wire payload (`messages`) and the stored/displayed/embedded user
+message are normally the same text — the last user turn's joined text is
+both sent and persisted. When the caller injects per-request context into
+that turn for the model (e.g. recalled memory or a precise timestamp), the
+wire needs the context but storage must NOT: otherwise the injected labels
+are persisted, shown in the user's bubble, and re-fed as history every turn.
+
+Set this to the user's actual text so the wire keeps the injected context
+while the persisted user content reflects only what the user typed. This
+drives everything derived from the stored user text: the DB row, the chat
+bubble, the stored message embedding, AND the embedding reused for
+server/client tool selection (so tool filtering keys off the typed text,
+not the injected context). Files are still taken from `files` (or
+extracted) independently of this override.
+
+Pass `undefined` to fall back to extracting the last user turn's text (the
+prior behavior); an empty string is a real override that persists empty
+user content (matching a textless turn), NOT a request to fall back.
+
+**Inherited from**
+
+`BaseSendMessageWithStorageArgs.storedUserContent`
 
 ***
 
@@ -690,7 +724,7 @@ included — it is additive. Total input ≈ overhead + threshold + current mess
 
 > `optional` **temperature**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:667](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#667)
+Defined in: [src/lib/db/chat/types.ts:692](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#692)
 
 Controls randomness in the response (0.0 to 2.0).
 Lower values make output more deterministic, higher values more creative.
@@ -705,7 +739,7 @@ Lower values make output more deterministic, higher values more creative.
 
 > `optional` **thinking**: [`LlmapiThinkingOptions`](../../../client/Internal/type-aliases/LlmapiThinkingOptions.md)
 
-Defined in: [src/lib/db/chat/types.ts:747](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#747)
+Defined in: [src/lib/db/chat/types.ts:772](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#772)
 
 Extended thinking configuration for Anthropic models (Claude).
 Enables the model to think through complex problems step by step
@@ -721,7 +755,7 @@ before generating the final response.
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/types.ts:650](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#650)
+Defined in: [src/lib/db/chat/types.ts:675](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#675)
 
 Activity phases for tracking the request lifecycle in the UI.
 Each phase represents a step like "Searching", "Thinking", "Generating".
@@ -740,7 +774,7 @@ use `getThoughtProcess` callback instead, which captures phases AFTER streaming 
 
 > `optional` **toolChoice**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:726](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#726)
+Defined in: [src/lib/db/chat/types.ts:751](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#751)
 
 Controls which tool the model should use:
 

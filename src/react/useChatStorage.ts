@@ -44,6 +44,7 @@ import {
   makeSyntheticStoredMessage,
   Message,
   type MessageChunk,
+  resolveStoredUserContent,
   type SearchSource,
   type ServerToolsFilterFn,
   type StorageOperationsContext,
@@ -2444,6 +2445,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
+        storedUserContent,
         onData: perRequestOnData,
         headers,
         memoryContext,
@@ -2523,7 +2525,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let skipStorageEmbeddingsFailed = false;
         if (needsEmbeddings && getToken) {
           const extracted = extractUserMessageFromMessages(messages);
-          const messageContent = extracted?.content || "";
+          // Mirror the normal path so tool selection keys off the same text
+          // regardless of skipStorage — otherwise injected wire context
+          // (memory/precise time) would steer tool choice on the incognito path
+          // but not the persisted path.
+          const messageContent = resolveStoredUserContent(
+            storedUserContent,
+            extracted?.content ?? ""
+          );
           if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
             const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
             try {
@@ -2611,7 +2620,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (onToolSelection) {
           try {
             onToolSelection({
-              prompt: extractUserMessageFromMessages(messages)?.content || "",
+              prompt: resolveStoredUserContent(
+                storedUserContent,
+                extractUserMessageFromMessages(messages)?.content ?? ""
+              ),
               clientToolNames: (filteredClientTools ?? []).map(getToolName).filter(Boolean),
               serverToolNames: filteredServerTools.map((t) => t.name),
             });
@@ -2676,7 +2688,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content; // Original content for DB storage
+      // Persist the caller-supplied user text when provided, so injected
+      // per-request context (memory, precise time) reaches the wire via
+      // `messages` but never lands in the DB row / bubble / embedding. Falls
+      // back to the extracted last-user text. See `storedUserContent` docs.
+      const contentForStorage = resolveStoredUserContent(storedUserContent, extracted.content);
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 
