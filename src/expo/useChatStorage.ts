@@ -1325,9 +1325,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             });
 
             if (isServerToolsFunction) {
-              // Function-based filtering: generate embedding and call the function
+              // Function-based filtering: generate embedding and call the function.
+              // Mirror the normal path's `storedUserContent ?? extracted.content`
+              // so tool selection keys off the same text regardless of skipStorage.
               const extracted = extractUserMessageFromMessages(messages);
-              const messageContent = extracted?.content || "";
+              const messageContent = storedUserContent ?? extracted?.content ?? "";
 
               if (messageContent.length >= minContentLength) {
                 const embedding = await generateEmbedding(messageContent, {
