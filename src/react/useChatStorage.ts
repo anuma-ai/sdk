@@ -2444,6 +2444,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
+        storedUserContent,
         onData: perRequestOnData,
         headers,
         memoryContext,
@@ -2676,7 +2677,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content; // Original content for DB storage
+      // Persist the caller-supplied user text when provided, so injected
+      // per-request context (memory, precise time) reaches the wire via
+      // `messages` but never lands in the DB row / bubble / embedding. Falls
+      // back to the extracted last-user text. See `storedUserContent` docs.
+      const contentForStorage = storedUserContent ?? extracted.content;
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 

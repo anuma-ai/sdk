@@ -608,6 +608,25 @@ export interface BaseSendMessageWithStorageArgs {
   files?: FileMetadata[];
 
   /**
+   * Override the text content persisted for the user message, instead of
+   * extracting it from the last user turn of `messages`.
+   *
+   * The wire payload (`messages`) and the stored/displayed/embedded user
+   * message are normally the same text — the last user turn's joined text is
+   * both sent and persisted. When the caller injects per-request context into
+   * that turn for the model (e.g. recalled memory or a precise timestamp), the
+   * wire needs the context but storage must NOT: otherwise the injected labels
+   * are persisted, shown in the user's bubble, and re-fed as history every turn.
+   *
+   * Set this to the user's actual text so the wire keeps the injected context
+   * while the DB row, the chat bubble, and the message embedding all reflect
+   * only what the user typed. When omitted, falls back to extracting the last
+   * user turn's text (the prior behavior). Files are still taken from `files`
+   * (or extracted) independently of this override.
+   */
+  storedUserContent?: string;
+
+  /**
    * Per-request callback invoked with each streamed response chunk.
    * Overrides the hook-level `onData` callback for this request only.
    * Use this to update UI as the response streams in.
