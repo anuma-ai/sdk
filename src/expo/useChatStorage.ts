@@ -44,6 +44,7 @@ import {
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
+  resolveStoredUserContent,
   type SearchSource,
   type StorageOperationsContext,
   type StoredConversation,
@@ -1326,10 +1327,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
             if (isServerToolsFunction) {
               // Function-based filtering: generate embedding and call the function.
-              // Mirror the normal path's `storedUserContent ?? extracted.content`
-              // so tool selection keys off the same text regardless of skipStorage.
+              // Mirror the normal path so tool selection keys off the same text
+              // regardless of skipStorage.
               const extracted = extractUserMessageFromMessages(messages);
-              const messageContent = storedUserContent ?? extracted?.content ?? "";
+              const messageContent = resolveStoredUserContent(
+                storedUserContent,
+                extracted?.content ?? ""
+              );
 
               if (messageContent.length >= minContentLength) {
                 const embedding = await generateEmbedding(messageContent, {
@@ -1416,7 +1420,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // per-request context (memory, precise time) reaches the wire via
       // `messages` but never lands in the DB row / bubble / embedding. Falls
       // back to the extracted last-user text. See `storedUserContent` docs.
-      const contentForStorage = storedUserContent ?? extracted.content;
+      const contentForStorage = resolveStoredUserContent(storedUserContent, extracted.content);
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 

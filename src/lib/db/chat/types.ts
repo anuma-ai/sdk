@@ -906,6 +906,28 @@ interface ExtractedUserMessage {
 }
 
 /**
+ * Resolve the user text to persist/embed for a send.
+ *
+ * Single source of truth for the `storedUserContent` override contract: when a
+ * caller passes `storedUserContent`, that text is used for the DB row, the
+ * stored embedding, and the tool-selection embedding — so injected wire context
+ * (e.g. recalled memory, a precise timestamp) stays out of storage/history while
+ * remaining in the wire `messages`. When `storedUserContent` is `undefined`, we
+ * fall back to the extracted last-user text (prior behavior). An empty string is
+ * a real override (persists empty content), NOT a fallback request — hence `??`,
+ * not `||`.
+ *
+ * @param storedUserContent - Caller override, or undefined to fall back
+ * @param extractedContent - The last-user text extracted from `messages`
+ */
+export function resolveStoredUserContent(
+  storedUserContent: string | undefined,
+  extractedContent: string
+): string {
+  return storedUserContent ?? extractedContent;
+}
+
+/**
  * Extracts the text content and files from the last user message in a messages array.
  * Used for storing the user's message when `content` is not provided.
  *
