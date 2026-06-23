@@ -450,6 +450,41 @@ describe("resumeStream", () => {
     expect(JSON.stringify(result.data)).toContain("kept alive");
   });
 
+  it("keep-alive activity during a long content-silent gap does NOT trip the watchdog", async () => {
+    vi.useFakeTimers();
+    // The server heart-beats through a reasoning silence LONGER than idleTimeoutMs:
+    // no data frames arrive, but keep-alive comment bytes land every 300ms and the
+    // transport surfaces them as onActivity. The watchdog must re-arm on that
+    // liveness signal so a healthy-but-slow stream is not truncated — only a truly
+    // dead (byte-silent) connection should time out (covered by the test above).
+    const transport: StreamingTransport = (options) => ({
+      stream: (async function* () {
+        yield { type: "response.created", response: { id: "r", model: "m" } };
+        // 1500ms of DATA silence > the 1000ms timeout, kept alive by 300ms pings.
+        for (let elapsed = 0; elapsed < 1500; elapsed += 300) {
+          await new Promise((r) => setTimeout(r, 300));
+          options.onActivity?.();
+        }
+        yield { type: "response.output_text.delta", delta: { OfString: "survived the gap" } };
+        yield { type: "response.completed", response: { usage: {} } };
+      })(),
+    });
+
+    const promise = resumeStream({
+      handle,
+      token: "tok",
+      transport,
+      idleTimeoutMs: 1000,
+      smoothing: false,
+    });
+    await vi.advanceTimersByTimeAsync(1600);
+    const result = await promise;
+
+    expect(result.interrupted).toBe(false);
+    expect(result.error).toBeNull();
+    expect(JSON.stringify(result.data)).toContain("survived the gap");
+  });
+
   it("returns a transient result (interrupted: false, statusCode) on a 401 with the handle intact", async () => {
     const transport: StreamingTransport = (options) => {
       options.onSseError?.(new Error("SSE failed: 401 Unauthorized"));
