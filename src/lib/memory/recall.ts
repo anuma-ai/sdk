@@ -197,7 +197,6 @@ export async function recall(
             ? r.message.conversationId !== options.excludeConversationId
             : true
         ),
-        (r) => r.message.uniqueId,
         (r) => r.chunkText.trim()
       )
     );
