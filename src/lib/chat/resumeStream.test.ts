@@ -452,23 +452,23 @@ describe("resumeStream", () => {
 
   it("keep-alive activity during a long content-silent gap does NOT trip the watchdog", async () => {
     vi.useFakeTimers();
-    // The server heart-beats through a reasoning silence LONGER than idleTimeoutMs:
-    // no data frames arrive, but keep-alive comment bytes land every 300ms and the
-    // transport surfaces them as onActivity. The watchdog must re-arm on that
-    // liveness signal so a healthy-but-slow stream is not truncated — only a truly
-    // dead (byte-silent) connection should time out (covered by the test above).
-    const transport: StreamingTransport = (options) => ({
-      stream: (async function* () {
-        yield { type: "response.created", response: { id: "r", model: "m" } };
-        // 1500ms of DATA silence > the 1000ms timeout, kept alive by 300ms pings.
-        for (let elapsed = 0; elapsed < 1500; elapsed += 300) {
-          await new Promise((r) => setTimeout(r, 300));
-          options.onActivity?.();
-        }
-        yield { type: "response.output_text.delta", delta: { OfString: "survived the gap" } };
-        yield { type: "response.completed", response: { usage: {} } };
-      })(),
-    });
+    // Model the real transport: onActivity fires from a keep-alive pump running in
+    // PARALLEL to the generator (like xhr.onprogress), independent of the yield
+    // schedule — so it re-arms the watchdog WHILE the for-await loop is blocked
+    // waiting for the next data chunk. The generator stays data-silent for 1500ms
+    // (> the 1000ms timeout); the 300ms pump keeps it alive on liveness, not data.
+    const transport: StreamingTransport = (options) => {
+      const pump = setInterval(() => options.onActivity?.(), 300);
+      return {
+        stream: (async function* () {
+          yield { type: "response.created", response: { id: "r", model: "m" } };
+          await new Promise((r) => setTimeout(r, 1500)); // DATA silence > timeout
+          clearInterval(pump);
+          yield { type: "response.output_text.delta", delta: { OfString: "survived the gap" } };
+          yield { type: "response.completed", response: { usage: {} } };
+        })(),
+      };
+    };
 
     const promise = resumeStream({
       handle,
@@ -483,6 +483,46 @@ describe("resumeStream", () => {
     expect(result.interrupted).toBe(false);
     expect(result.error).toBeNull();
     expect(JSON.stringify(result.data)).toContain("survived the gap");
+  });
+
+  it("a keep-alive landing after the stream ends does not re-arm the watchdog (settled guard, no leak)", async () => {
+    vi.useFakeTimers();
+    // The safety-critical path: a trailing keep-alive byte (xhr.onprogress firing
+    // one last time as the socket drains) must NOT re-arm the watchdog after the
+    // resume has already settled — otherwise a stray 1000ms timer leaks and could
+    // fire idleController.abort() on a finished stream. The test captures the
+    // transport's onActivity so it can be driven from OUTSIDE the generator, after
+    // the promise resolves.
+    let fireKeepAlive: () => void = () => {};
+    const transport: StreamingTransport = (options) => {
+      fireKeepAlive = () => options.onActivity?.();
+      return {
+        stream: (async function* () {
+          yield { type: "response.created", response: { id: "r", model: "m" } };
+          yield { type: "response.output_text.delta", delta: { OfString: "done" } };
+          yield { type: "response.completed", response: { usage: {} } };
+        })(),
+      };
+    };
+
+    const result = await resumeStream({
+      handle,
+      token: "tok",
+      transport,
+      idleTimeoutMs: 1000,
+      smoothing: false,
+    });
+    expect(result.interrupted).toBe(false);
+
+    // The resume has settled (cleanup ran). No watchdog timer should be pending.
+    expect(vi.getTimerCount()).toBe(0);
+    // Late keep-alives arrive — the settled guard must keep armWatchdog a no-op.
+    fireKeepAlive();
+    fireKeepAlive();
+    expect(vi.getTimerCount()).toBe(0); // no leaked timer armed
+    // Advancing past the timeout window changes nothing — nothing is armed.
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(result.error).toBeNull();
   });
 
   it("returns a transient result (interrupted: false, statusCode) on a 401 with the handle intact", async () => {
