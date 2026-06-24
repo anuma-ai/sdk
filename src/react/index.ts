@@ -105,8 +105,10 @@ export {
   decryptData,
   decryptDataBatch,
   decryptDataBytes,
+  decryptDataBytesFromBytes,
   decryptDataWithKey,
   encryptData,
+  encryptDataBytes,
   // Batch operations for performance (single key lookup)
   encryptDataBatch,
   encryptDataWithKey,
