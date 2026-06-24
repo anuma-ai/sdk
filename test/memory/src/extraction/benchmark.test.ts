@@ -37,6 +37,7 @@ const { values: args } = parseArgs({
     "match-threshold": { type: "string" },
     model: { type: "string" },
     concurrency: { type: "string" },
+    repeat: { type: "string" },
   },
 });
 
@@ -56,6 +57,12 @@ function numArg(
 
 const MATCH_THRESHOLD = numArg(args["match-threshold"], 0.62, parseFloat, 0);
 const CONCURRENCY = numArg(args.concurrency, 4, (s) => parseInt(s, 10));
+// Extraction is non-deterministic (the model isn't pinned to temperature 0),
+// and the negative corpus is small, so a single run's clean-rate can swing on
+// one flipped case. `--repeat N` runs the suite N times and reports the spread
+// (mean / min / max) so a reported delta can be told apart from run-to-run
+// noise. Defaults to 1 (the cheap single run).
+const REPEAT = numArg(args.repeat, 1, (s) => parseInt(s, 10));
 
 const API_KEY = process.env.PORTAL_API_KEY;
 const BASE_URL = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
@@ -176,10 +183,29 @@ function pct(n: number, d: number): string {
   return d > 0 ? `${((100 * n) / d).toFixed(1)}%` : "—";
 }
 
-async function main(): Promise<void> {
-  console.error(
-    `Extracting facts for ${EXTRACTION_CASES.length} cases (model: ${args.model ?? "default gpt-oss-120b"})...`
-  );
+interface RunSummary {
+  results: CaseResult[];
+  overall: {
+    recall: number;
+    precision: number;
+    avgCandidatesPerCase: number;
+    negativeJunkCandidates: number;
+    negativeCleanRate: number;
+    forbiddenHits: number;
+    totalCandidates: number;
+  };
+  byCategory: {
+    category: ExtractionCategory;
+    cases: number;
+    recall: number | null;
+    precision: number | null;
+    candidates: number;
+  }[];
+  negativesCount: number;
+  cleanNegatives: number;
+}
+
+async function runOnce(): Promise<RunSummary> {
   const results = await mapLimit(EXTRACTION_CASES, CONCURRENCY, scoreCase);
 
   const withExpected = results.filter((r) => r.expectedCount > 0);
@@ -225,6 +251,18 @@ async function main(): Promise<void> {
     };
   });
 
+  return {
+    results,
+    overall,
+    byCategory,
+    negativesCount: negatives.length,
+    cleanNegatives,
+  };
+}
+
+/** Detailed single-run report (category table + headline metrics + verbose). */
+function printRun(run: RunSummary): void {
+  const { overall, byCategory, negativesCount, cleanNegatives } = run;
   if (args.json) {
     console.log(JSON.stringify({ matchThreshold: MATCH_THRESHOLD, overall, byCategory }, null, 2));
   } else {
@@ -244,16 +282,18 @@ async function main(): Promise<void> {
     console.log(`  Precision (extracted are real) ${pct(overall.precision, 1)}`);
     console.log(
       `  Negative clean rate            ${pct(overall.negativeCleanRate, 1)} ` +
-        `(${cleanNegatives}/${negatives.length} negatives produced 0 facts)`
+        `(${cleanNegatives}/${negativesCount} negatives produced 0 facts)`
     );
-    console.log(`  Junk on negatives              ${negativeCandidates} candidates`);
-    console.log(`  Forbidden-fact hits            ${forbiddenHits} (matched a known junk pattern)`);
+    console.log(`  Junk on negatives              ${overall.negativeJunkCandidates} candidates`);
+    console.log(
+      `  Forbidden-fact hits            ${overall.forbiddenHits} (matched a known junk pattern)`
+    );
     console.log(`  Avg candidates/case            ${overall.avgCandidatesPerCase.toFixed(2)}`);
   }
 
   if (args.verbose) {
     console.error("\n── Per-case detail ──");
-    for (const r of results) {
+    for (const r of run.results) {
       const flag = r.expectedCount === 0 && r.candidates.length > 0 ? " ⚠ JUNK" : "";
       console.error(`\n[${r.category}] ${r.id}${flag}`);
       for (const e of r.expectedDetail) {
@@ -268,6 +308,43 @@ async function main(): Promise<void> {
       }
     }
   }
+}
+
+/** Variance band across N runs — answers "is this delta real or noise?". */
+function printVariance(runs: RunSummary[]): void {
+  const band = (label: string, sel: (r: RunSummary) => number, rate = true): void => {
+    const xs = runs.map(sel);
+    const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+    const min = Math.min(...xs);
+    const max = Math.max(...xs);
+    const fmt = (v: number) => (rate ? pct(v, 1) : v.toFixed(1));
+    console.log(
+      `  ${label.padEnd(30)} mean ${fmt(mean)}  [min ${fmt(min)}, max ${fmt(max)}, spread ${fmt(max - min)}]`
+    );
+  };
+  console.log(`\n  VARIANCE over ${runs.length} runs`);
+  console.log("  ──────────────────────────────────────────────────────────────");
+  band("Recall", (r) => r.overall.recall);
+  band("Precision", (r) => r.overall.precision);
+  band("Negative clean rate", (r) => r.overall.negativeCleanRate);
+  band("Forbidden-fact hits", (r) => r.overall.forbiddenHits, false);
+}
+
+async function main(): Promise<void> {
+  console.error(
+    `Extracting facts for ${EXTRACTION_CASES.length} cases ` +
+      `(model: ${args.model ?? "default gpt-oss-120b"}${REPEAT > 1 ? `, ${REPEAT} runs` : ""})...`
+  );
+  const runs: RunSummary[] = [];
+  for (let i = 0; i < REPEAT; i++) {
+    if (REPEAT > 1) console.error(`  run ${i + 1}/${REPEAT}...`);
+    runs.push(await runOnce());
+  }
+
+  // Report the first run in full (category table + verbose); the headline
+  // numbers across all runs go in the variance band below.
+  printRun(runs[0]);
+  if (REPEAT > 1) printVariance(runs);
 }
 
 main().catch((err) => {
