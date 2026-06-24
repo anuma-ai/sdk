@@ -40,8 +40,22 @@ const { values: args } = parseArgs({
   },
 });
 
-const MATCH_THRESHOLD = args["match-threshold"] ? parseFloat(args["match-threshold"]) : 0.62;
-const CONCURRENCY = args.concurrency ? Math.max(1, parseInt(args.concurrency, 10)) : 4;
+// Parse a numeric CLI arg, falling back when it's absent or non-numeric — a
+// bad --concurrency would otherwise yield NaN, mapLimit would spawn zero
+// workers, and the run would silently aggregate over undefined results.
+function numArg(
+  raw: string | undefined,
+  fallback: number,
+  parse: (s: string) => number = parseFloat,
+  min = 1
+): number {
+  if (raw === undefined) return fallback;
+  const n = parse(raw);
+  return Number.isFinite(n) && n >= min ? n : fallback;
+}
+
+const MATCH_THRESHOLD = numArg(args["match-threshold"], 0.62, parseFloat, 0);
+const CONCURRENCY = numArg(args.concurrency, 4, (s) => parseInt(s, 10));
 
 const API_KEY = process.env.PORTAL_API_KEY;
 const BASE_URL = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
@@ -146,7 +160,12 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     expectedCount: c.expected.length,
     candidates: candTexts,
     matchedExpected: expectedDetail.filter((e) => e.matched).length,
-    goodCandidates: candidateDetail.filter((e) => e.matched).length,
+    // A candidate counts toward precision only if it matched a gold fact AND
+    // isn't flagged forbidden. On update cases a junk extraction (old job /
+    // location) can sit above threshold for both the gold and the forbidden
+    // template; without the `!forbidden` guard it would inflate precision even
+    // as it increments forbiddenHits.
+    goodCandidates: candidateDetail.filter((e) => e.matched && !e.forbidden).length,
     expectedDetail,
     candidateDetail,
     forbiddenHits: candidateDetail.filter((e) => e.forbidden).length,
