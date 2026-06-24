@@ -91,11 +91,20 @@ interface CaseResult {
   forbiddenHits: number;
 }
 
+// Production keeps only candidates at/above this confidence (DEFAULT_MIN_
+// CONFIDENCE in autoExtract.ts, applied inside extractAndRetain). extractFacts
+// itself does NOT apply it, so the eval must — otherwise precision/recall/clean
+// rate are scored over candidates that would never be saved, and the prompt's
+// own ">= 0.7" instruction goes unmeasured. Mirror the constant here (this is a
+// test harness; not worth widening the package's public surface to import it).
+const PROD_MIN_CONFIDENCE = 0.7;
+
 async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
-  const candidates = await extractFacts(
+  const rawCandidates = await extractFacts(
     c.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })),
     { apiKey: API_KEY, baseUrl: BASE_URL, ...(args.model && { model: args.model }) }
   );
+  const candidates = rawCandidates.filter((c2) => c2.confidence >= PROD_MIN_CONFIDENCE);
   const candTexts = candidates.map((c2) => c2.content);
   const forbidden = c.forbidden ?? [];
 
@@ -121,11 +130,13 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
       content,
       matched,
       best,
-      // A forbidden hit only counts as junk when the candidate ISN'T also a
-      // legitimate gold match — gold and forbidden often share a template
-      // ("lives in SF" vs "lives in Portland"), so a correct extraction sits
-      // above the threshold for both. Require it to match forbidden AND miss gold.
-      forbidden: forbiddenBest >= MATCH_THRESHOLD && !matched,
+      // A forbidden hit counts as junk when the candidate is closer to a
+      // forbidden fact than to any gold fact. Gold and forbidden often share a
+      // template ("lives in SF" vs "lives in Portland") so both clear the
+      // threshold; the discriminator is which it's NEARER. Using `!matched`
+      // instead would let a junk "Portland" candidate that merely grazes the
+      // "SF" template escape counting.
+      forbidden: forbiddenBest >= MATCH_THRESHOLD && forbiddenBest > best,
     };
   });
 
