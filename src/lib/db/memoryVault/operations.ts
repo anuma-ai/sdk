@@ -306,6 +306,60 @@ export async function getVaultMemoryOp(
   }
 }
 
+/**
+ * Map a raw `memory_vault` row (snake_case `_raw` from `unsafeFetchRaw`) to the Stored shape
+ * WITHOUT instantiating a WatermelonDB Model — mirrors {@link vaultMemoryToStoredRaw} but reads
+ * raw columns. Used by the bulk read ops so a whole-vault load doesn't pin a Model per row in
+ * the never-evicted RecordCache (web Pile-2 tab-memory; mobile SQLite is paged so it's harmless
+ * there). Return shape is identical, so callers are unaffected.
+ */
+function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMemory {
+  let sourceChunkIds: string[] | null = null;
+  const rawChunks = raw.source_chunk_ids;
+  if (typeof rawChunks === "string" && rawChunks) {
+    try {
+      const parsed = JSON.parse(rawChunks) as unknown;
+      if (Array.isArray(parsed)) {
+        sourceChunkIds = parsed.filter((s): s is string => typeof s === "string");
+      }
+    } catch {
+      sourceChunkIds = null;
+    }
+  }
+  return {
+    uniqueId: raw.id as string,
+    content: (raw.content as string) ?? "",
+    scope: raw.scope as string,
+    folderId: (raw.folder_id as string | null) ?? null,
+    userId: (raw.user_id as string | null) ?? null,
+    embedding: (raw.embedding as string | null) ?? null,
+    sourceChunkIds,
+    proofCount: (raw.proof_count as number | null) ?? null,
+    source: (raw.source as string | null) ?? null,
+    eventTimeStart: (raw.event_time_start as number | null) ?? null,
+    eventTimeEnd: (raw.event_time_end as number | null) ?? null,
+    eventTimeKind: (raw.event_time_kind as string | null) ?? null,
+    createdAt: new Date(raw.created_at as number),
+    updatedAt: new Date(raw.updated_at as number),
+    // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
+    isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
+  };
+}
+
+/** Raw-row variant of {@link vaultMemoryToStored}: map then decrypt, no Model built. */
+async function vaultMemoryRawToStored(
+  raw: Record<string, unknown>,
+  walletAddress?: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<StoredVaultMemory> {
+  const stored = vaultMemoryRawToStoredRaw(raw);
+  if (walletAddress) {
+    return decryptVaultMemoryFields(stored, walletAddress, signMessage, embeddedWalletSigner);
+  }
+  return stored;
+}
+
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
   options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
@@ -319,9 +373,13 @@ export async function getAllVaultMemoriesOp(
       ? [Q.take(options.limit)]
       : []),
   ];
-  const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
-  return mapInBatches(results, (record) =>
-    vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  // unsafeFetchRaw (NOT fetch): a whole-vault load must not build a Model per row into the
+  // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy/take); raws decrypted directly.
+  const results = (await ctx.vaultMemoryCollection
+    .query(...conditions)
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return mapInBatches(results, (raw) =>
+    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
   );
 }
 
@@ -329,12 +387,13 @@ export async function getAllVaultMemoryContentsOp(
   ctx: VaultMemoryOperationsContext,
   options?: { since?: Date }
 ): Promise<string[]> {
-  const results = await ctx.vaultMemoryCollection
+  // unsafeFetchRaw (NOT fetch): bulk content scan must not pin a Model per row (web Pile-2).
+  const results = (await ctx.vaultMemoryCollection
     .query(...baseVaultConditions(ctx, options))
-    .fetch();
-  return mapInBatches(results, async (record) => {
-    const stored = await vaultMemoryToStored(
-      record,
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return mapInBatches(results, async (raw) => {
+    const stored = await vaultMemoryRawToStored(
+      raw,
       ctx.walletAddress,
       ctx.signMessage,
       ctx.embeddedWalletSigner
