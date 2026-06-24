@@ -160,8 +160,9 @@ async function getXMyPosts(
   if (typeof userData === "string") return userData;
   const userId = userData.id;
 
-  // Guard against NaN from non-numeric model input before clamping.
-  const rawMax = args.maxResults;
+  // Coerce a numeric string (e.g. the model emits "50") to a number, then guard
+  // against NaN from non-numeric input before clamping.
+  const rawMax = typeof args.maxResults === "string" ? Number(args.maxResults) : args.maxResults;
   const safeMax = typeof rawMax === "number" && Number.isFinite(rawMax) ? rawMax : 10;
   const maxResults = Math.min(100, Math.max(5, safeMax));
 

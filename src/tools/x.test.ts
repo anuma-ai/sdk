@@ -181,6 +181,27 @@ describe("createXTools", () => {
     expect(callProxy.mock.calls[1][1]?.max_results).toBe(10);
   });
 
+  test('x_get_my_posts honors a numeric string maxResults like "50"', async () => {
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ data: { id: "10", name: "Test", username: "test" } }))
+      .mockResolvedValueOnce(proxyResult({ data: [] }));
+    const tools = createXTools(callProxy);
+    // The model may emit maxResults as a numeric string.
+    await runExecutor(tools.x_get_my_posts, { maxResults: "50" as unknown as number });
+    expect(callProxy.mock.calls[1][1]?.max_results).toBe(50);
+  });
+
+  test("x_get_my_posts falls back to default 10 when maxResults is a non-numeric string", async () => {
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ data: { id: "11", name: "Test", username: "test" } }))
+      .mockResolvedValueOnce(proxyResult({ data: [] }));
+    const tools = createXTools(callProxy);
+    await runExecutor(tools.x_get_my_posts, { maxResults: "abc" as unknown as number });
+    expect(callProxy.mock.calls[1][1]?.max_results).toBe(10);
+  });
+
   test("x_get_my_posts returns connector error when /2/users/me reports 401", async () => {
     const callProxy = vi.fn<XProxyCaller>().mockResolvedValueOnce(proxyResult(null, 401));
     const tools = createXTools(callProxy);
