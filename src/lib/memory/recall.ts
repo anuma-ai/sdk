@@ -65,14 +65,20 @@ function flagsForBudget(budget: Budget): BudgetFlags {
  * path lets it contribute from multiple ranks, inflating its own RRF score.
  * Dedupe on both id and content at the source so every downstream path sees
  * each fact once.
+ *
+ * Empty-string keys never match and are never recorded, so a blank key — e.g.
+ * a row whose content failed to decrypt and resolved to "" — can't collapse
+ * two otherwise-distinct items into one (silent recall data loss).
  */
 function dedupeBy<T>(items: T[], ...keys: Array<(item: T) => string>): T[] {
   const seen = keys.map(() => new Set<string>());
   const out: T[] = [];
   for (const item of items) {
     const itemKeys = keys.map((key) => key(item));
-    if (itemKeys.some((k, i) => seen[i].has(k))) continue;
-    itemKeys.forEach((k, i) => seen[i].add(k));
+    if (itemKeys.some((k, i) => k !== "" && seen[i].has(k))) continue;
+    itemKeys.forEach((k, i) => {
+      if (k !== "") seen[i].add(k);
+    });
     out.push(item);
   }
   return out;

@@ -524,18 +524,38 @@ describe("recall — dedupe", () => {
     expect(result.candidateCount).toBe(2);
   });
 
-  it("dedupes chunk results by both id and content", async () => {
-    const c1 = makeChunk("c1", "conv1", 0.9);
+  it("dedupes chunks by text, keeping distinct passages from the same message", async () => {
+    // Chunk identity is the passage text, not the message id: a long message
+    // legitimately splits into several distinct chunks, and those must all
+    // survive. Identical text is collapsed regardless of message.
+    const passageA = "the first passage from message m1";
+    const passageB = "a different passage from the same message m1";
     vi.mocked(searchChunksOp).mockResolvedValue([
-      c1,
-      makeChunk("c1", "conv1", 0.9), // same id repeated across lanes
-      { ...makeChunk("c2", "conv2", 0.8), chunkText: c1.chunkText }, // new id, same text
+      { ...makeChunk("m1", "conv1", 0.9), chunkText: passageA },
+      { ...makeChunk("m1", "conv1", 0.9), chunkText: passageA }, // identical text → dropped
+      { ...makeChunk("m1", "conv1", 0.85), chunkText: passageB }, // same msg, new text → kept
     ]);
 
     const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["chunk"] });
 
-    expect(result.memories.map((m) => m.id)).toEqual(["c1"]);
-    expect(result.candidateCount).toBe(1);
+    expect(result.memories.map((m) => m.content)).toEqual([passageA, passageB]);
+    expect(result.candidateCount).toBe(2);
+  });
+
+  it("does not merge distinct facts that both have blank content", async () => {
+    // Two distinct rows that resolve to empty content (e.g. decrypt failure)
+    // must not collapse on the empty content key — that would be silent loss.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("blank-a", "", "private"),
+      makeMemory("blank-b", "", "private"),
+      makeMemory("m1", M1),
+    ]);
+
+    const result = await recall(QUERY, makeCtx(), { minScore: 0 });
+
+    const ids = result.memories.map((m) => m.id);
+    expect(ids).toContain("blank-a");
+    expect(ids).toContain("blank-b");
   });
 
   it("dedupes per-lane before fusion, so candidateCount counts unique records", async () => {
