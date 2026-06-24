@@ -1,0 +1,695 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import {
+  PiiRedactor,
+  createStreamingDeAnonymizer,
+  isPiiRedactor,
+  resolvePiiRedactor,
+} from "./redactor";
+import type { LlmapiMessage } from "../../client";
+
+describe("PiiRedactor", () => {
+  let redactor: PiiRedactor;
+
+  beforeEach(() => {
+    redactor = new PiiRedactor();
+  });
+
+  describe("redactText", () => {
+    describe("emails", () => {
+      it("redacts a single email", () => {
+        const result = redactor.redactText("Contact me at john@example.com please");
+        expect(result.text).toBe("Contact me at [EMAIL_1] please");
+        expect(result.matches).toHaveLength(1);
+        expect(result.matches[0]).toEqual({
+          category: "EMAIL",
+          original: "john@example.com",
+          placeholder: "[EMAIL_1]",
+        });
+      });
+
+      it("redacts multiple emails with distinct placeholders", () => {
+        const result = redactor.redactText("Email john@example.com or jane@corp.io");
+        expect(result.text).toBe("Email [EMAIL_1] or [EMAIL_2]");
+        expect(result.matches).toHaveLength(2);
+      });
+
+      it("reuses placeholder for the same email", () => {
+        const result = redactor.redactText("john@example.com and john@example.com again");
+        expect(result.text).toBe("[EMAIL_1] and [EMAIL_1] again");
+        // Both matches reference the same placeholder
+        expect(result.matches).toHaveLength(2);
+        expect(result.matches[0].placeholder).toBe("[EMAIL_1]");
+        expect(result.matches[1].placeholder).toBe("[EMAIL_1]");
+      });
+
+      it("does not backtrack quadratically on adversarial no-@ input (ReDoS guard)", () => {
+        // "a.a.a…" with no "@" forced O(n²) backtracking before the
+        // quantifiers were bounded. This must complete near-instantly.
+        const input = "a.".repeat(50_000);
+        const start = performance.now();
+        const result = redactor.redactText(input);
+        const elapsed = performance.now() - start;
+        expect(result.matches.filter((m) => m.category === "EMAIL")).toHaveLength(0);
+        expect(elapsed).toBeLessThan(500);
+      });
+    });
+
+    describe("phone numbers", () => {
+      it("redacts US phone with dashes", () => {
+        const result = redactor.redactText("Call me at 555-123-4567");
+        expect(result.text).toBe("Call me at [PHONE_1]");
+      });
+
+      it("redacts US phone with parentheses", () => {
+        const result = redactor.redactText("Call (555) 123-4567");
+        expect(result.text).toBe("Call [PHONE_1]");
+      });
+
+      it("redacts US phone with +1 country code", () => {
+        const result = redactor.redactText("My number is +1 555-123-4567");
+        expect(result.text).toBe("My number is [PHONE_1]");
+      });
+
+      it("redacts E.164 numbers", () => {
+        const result = redactor.redactText("Reach me at +14155552671 anytime");
+        expect(result.text).toBe("Reach me at [PHONE_1] anytime");
+      });
+
+      it("does not match short digit sequences", () => {
+        const result = redactor.redactText("I have 42 items and 100 pages");
+        expect(result.matches.filter((m) => m.category === "PHONE")).toHaveLength(0);
+      });
+    });
+
+    describe("dashless SSN", () => {
+      it("redacts a 9-digit SSN when an SSN cue is present", () => {
+        const r1 = redactor.redactText("My SSN is 123456789");
+        const r2 = redactor.redactText("social security number 123 45 6789");
+        expect(r1.text).toBe("My SSN is [SSN_1]");
+        expect(r2.matches.filter((m) => m.category === "SSN")).toHaveLength(1);
+      });
+
+      it("does not redact a bare 9-digit run without an SSN cue", () => {
+        const result = redactor.redactText("Order reference 123456789 shipped");
+        expect(result.matches.filter((m) => m.category === "SSN")).toHaveLength(0);
+      });
+    });
+
+    describe("IPv6 addresses", () => {
+      it("redacts a full IPv6 address", () => {
+        const result = redactor.redactText("Host 2001:0db8:85a3:0000:0000:8a2e:0370:7334 up");
+        expect(result.text).toBe("Host [IP_ADDRESS_1] up");
+      });
+
+      it("redacts a compressed IPv6 address", () => {
+        const result = redactor.redactText("Bound to fe80::1ff:fe23:4567:890a now");
+        expect(result.matches.filter((m) => m.category === "IP_ADDRESS")).toHaveLength(1);
+      });
+
+      it("does not match a clock time", () => {
+        const result = redactor.redactText("The meeting is at 12:34:56 today");
+        expect(result.matches.filter((m) => m.category === "IP_ADDRESS")).toHaveLength(0);
+      });
+    });
+
+    describe("SSNs", () => {
+      it("redacts a valid SSN", () => {
+        const result = redactor.redactText("My SSN is 123-45-6789");
+        expect(result.text).toBe("My SSN is [SSN_1]");
+      });
+
+      it("rejects invalid area number 000", () => {
+        const result = redactor.redactText("Number 000-12-3456");
+        expect(result.matches.filter((m) => m.category === "SSN")).toHaveLength(0);
+      });
+
+      it("rejects invalid area number 666", () => {
+        const result = redactor.redactText("Number 666-12-3456");
+        expect(result.matches.filter((m) => m.category === "SSN")).toHaveLength(0);
+      });
+    });
+
+    describe("credit cards", () => {
+      it("redacts a Visa number", () => {
+        const result = redactor.redactText("Card: 4532015112830366");
+        expect(result.text).toContain("[CREDIT_CARD_1]");
+        expect(result.matches[0].category).toBe("CREDIT_CARD");
+      });
+
+      it("redacts a card with spaces", () => {
+        const result = redactor.redactText("Card: 4532 0151 1283 0366");
+        expect(result.text).toContain("[CREDIT_CARD_1]");
+      });
+
+      it("rejects numbers that fail Luhn check", () => {
+        const result = redactor.redactText("Number: 1234567890123456");
+        expect(result.matches.filter((m) => m.category === "CREDIT_CARD")).toHaveLength(0);
+      });
+    });
+
+    describe("IP addresses", () => {
+      it("redacts a valid IP", () => {
+        const result = redactor.redactText("Server at 192.168.1.100");
+        expect(result.text).toBe("Server at [IP_ADDRESS_1]");
+      });
+
+      it("ignores localhost", () => {
+        const result = redactor.redactText("Running on 127.0.0.1");
+        expect(result.matches.filter((m) => m.category === "IP_ADDRESS")).toHaveLength(0);
+      });
+    });
+
+    describe("API keys", () => {
+      it("redacts sk_ prefixed keys", () => {
+        const result = redactor.redactText("Key: sk_test_FAKE0000000000000000000");
+        expect(result.text).toContain("[API_KEY_1]");
+      });
+
+      it("redacts bearer tokens", () => {
+        const result = redactor.redactText("Authorization: bearer_abc123def456ghi789jkl012");
+        expect(result.text).toContain("[API_KEY_1]");
+      });
+
+      it("does not redact long lowercase prose identifiers", () => {
+        const inputs = [
+          "accessibility_is_important_for_everyone",
+          "access-control-list-management-feature",
+          "secret_handshake_between_old_friends",
+          "api_documentation_reference_guide",
+        ];
+        for (const input of inputs) {
+          const result = redactor.redactText(input);
+          expect(result.matches.filter((m) => m.category === "API_KEY")).toHaveLength(0);
+        }
+      });
+    });
+
+    describe("US addresses", () => {
+      it("redacts a street address", () => {
+        const result = redactor.redactText("I live at 123 Main Street");
+        expect(result.text).toBe("I live at [US_ADDRESS_1]");
+      });
+
+      it("redacts with abbreviated suffix", () => {
+        const result = redactor.redactText("Office at 456 Oak Ave");
+        expect(result.text).toBe("Office at [US_ADDRESS_1]");
+      });
+
+      it("does not match lowercase or all-caps non-addresses", () => {
+        const r1 = redactor.redactText("the 123 main street market");
+        const r2 = redactor.redactText("at 100 MAIN STREET downtown");
+        expect(r1.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+        expect(r2.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      });
+
+      it("does not match ordinary prose ending in a street word", () => {
+        const r1 = redactor.redactText("It is 3 blocks down the road from here");
+        const r2 = redactor.redactText("Only 5 minutes to drive there");
+        expect(r1.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+        expect(r2.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      });
+
+      it("does not span across newlines", () => {
+        const result = redactor.redactText("123\nMain Street");
+        expect(result.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      });
+    });
+
+    describe("dates of birth", () => {
+      it("redacts MM/DD/YYYY format", () => {
+        const result = redactor.redactText("DOB: 03/15/1990");
+        expect(result.text).toBe("DOB: [DATE_OF_BIRTH_1]");
+      });
+
+      it("redacts MM-DD-YYYY format", () => {
+        const result = redactor.redactText("Born on 12-25-1985");
+        expect(result.text).toBe("Born on [DATE_OF_BIRTH_1]");
+      });
+
+      it("does not redact ordinary calendar dates without a DOB cue", () => {
+        const r1 = redactor.redactText("Let's meet on 12/25/2024");
+        const r2 = redactor.redactText("Invoice dated 06/15/2026");
+        expect(r1.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+        expect(r2.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+      });
+
+      it("rejects impossible calendar dates even with a DOB cue", () => {
+        const result = redactor.redactText("DOB: 02/31/2020");
+        expect(result.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+      });
+    });
+
+    describe("multiple categories", () => {
+      it("redacts mixed PII in one string", () => {
+        const result = redactor.redactText(
+          "Contact john@example.com at 555-123-4567, SSN 123-45-6789"
+        );
+        expect(result.text).toContain("[EMAIL_1]");
+        expect(result.text).toContain("[PHONE_1]");
+        expect(result.text).toContain("[SSN_1]");
+        expect(result.matches).toHaveLength(3);
+      });
+    });
+
+    describe("no PII", () => {
+      it("returns unchanged text when no PII found", () => {
+        const input = "What is the weather like today?";
+        const result = redactor.redactText(input);
+        expect(result.text).toBe(input);
+        expect(result.matches).toHaveLength(0);
+      });
+    });
+  });
+
+  describe("redactMessages", () => {
+    it("redacts user messages", () => {
+      const messages: LlmapiMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "My email is test@example.com" }],
+        },
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("My email is [EMAIL_1]");
+      expect(result.matches).toHaveLength(1);
+    });
+
+    it("redacts system messages", () => {
+      const messages: LlmapiMessage[] = [
+        {
+          role: "system",
+          content: [{ type: "text", text: "User's email is admin@corp.com" }],
+        },
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("User's email is [EMAIL_1]");
+    });
+
+    it("redacts assistant messages (persisted history carries original values)", () => {
+      const messages: LlmapiMessage[] = [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "Send to user@test.com" }],
+        },
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("Send to [EMAIL_1]");
+      expect(result.matches).toHaveLength(1);
+    });
+
+    it("redacts tool-result messages (external systems can return PII)", () => {
+      const messages: LlmapiMessage[] = [
+        {
+          role: "tool",
+          content: [{ type: "text", text: "Lookup returned admin@corp.com" }],
+          tool_call_id: "call_1",
+        } as LlmapiMessage,
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("Lookup returned [EMAIL_1]");
+      expect(result.matches).toHaveLength(1);
+    });
+
+    it("leaves model-emitted placeholders inert", () => {
+      redactor.redactText("user@test.com");
+      const messages: LlmapiMessage[] = [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "I'll email [EMAIL_1]" }],
+        },
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("I'll email [EMAIL_1]");
+    });
+
+    it("does not mutate original messages", () => {
+      const original = "My email is test@example.com";
+      const messages: LlmapiMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: original }],
+        },
+      ];
+      redactor.redactMessages(messages);
+      expect(messages[0].content![0].text).toBe(original);
+    });
+
+    it("preserves non-text content parts", () => {
+      const messages: LlmapiMessage[] = [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "See test@example.com" },
+            { type: "image_url", image_url: { url: "https://example.com/img.png" } },
+          ],
+        },
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("See [EMAIL_1]");
+      expect(result.messages[0].content![1]).toEqual({
+        type: "image_url",
+        image_url: { url: "https://example.com/img.png" },
+      });
+    });
+
+    it("warns once when a message contains non-text content", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const messages: LlmapiMessage[] = [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "See test@example.com" },
+            { type: "image_url", image_url: { url: "https://example.com/img.png" } },
+          ],
+        },
+      ];
+      redactor.redactMessages(messages);
+      redactor.redactMessages(messages);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain("non-text content");
+      warn.mockRestore();
+    });
+
+    it("handles messages with no content", () => {
+      const messages: LlmapiMessage[] = [{ role: "user" }];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages).toHaveLength(1);
+      expect(result.matches).toHaveLength(0);
+    });
+  });
+
+  describe("deAnonymize", () => {
+    it("restores redacted email", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.deAnonymize("I'll email [EMAIL_1]")).toBe("I'll email john@example.com");
+    });
+
+    it("restores multiple categories", () => {
+      redactor.redactText("john@example.com and 555-123-4567");
+      const restored = redactor.deAnonymize("Contact [EMAIL_1] at [PHONE_1]");
+      expect(restored).toContain("john@example.com");
+      expect(restored).toContain("555-123-4567");
+    });
+
+    it("restores multiple occurrences of the same placeholder", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.deAnonymize("[EMAIL_1] and [EMAIL_1]")).toBe(
+        "john@example.com and john@example.com"
+      );
+    });
+
+    it("returns text unchanged if no placeholders", () => {
+      expect(redactor.deAnonymize("No placeholders here")).toBe("No placeholders here");
+    });
+  });
+
+  describe("restoreForStorage (storage paths)", () => {
+    it("chat-display deAnonymize stays exact — a bracket-dropped echo is NOT substituted", () => {
+      redactor.redactText("john@example.com");
+      // deAnonymize (no opts) must not rewrite a bare token a model may have
+      // written as genuine content; only restoreForStorage is tolerant.
+      expect(redactor.deAnonymize("Your email is EMAIL_1")).toBe("Your email is EMAIL_1");
+    });
+
+    it("restores a bracket-dropped echo of an assigned placeholder", () => {
+      redactor.redactText("john@example.com");
+      const r = redactor.restoreForStorage("Your email is EMAIL_1");
+      expect(r.text).toBe("Your email is john@example.com");
+      expect(r.unresolved).toBe(false);
+    });
+
+    it("restores the bracketed form too", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.restoreForStorage("Your email is [EMAIL_1]").text).toBe(
+        "Your email is john@example.com"
+      );
+    });
+
+    it("restores a CASE-VARIANT echo (email_1 / Email_1)", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.restoreForStorage("email is email_1").text).toBe("email is john@example.com");
+      expect(redactor.restoreForStorage("email is Email_1").text).toBe("email is john@example.com");
+    });
+
+    it("does not let a bare EMAIL_1 eat the prefix of EMAIL_11", () => {
+      for (let i = 1; i <= 11; i++) redactor.redactText(`user${i}@example.com`);
+      expect(redactor.restoreForStorage("a EMAIL_1 b EMAIL_11 c").text).toBe(
+        "a user1@example.com b user11@example.com c"
+      );
+    });
+
+    it("flags a never-assigned token (bracketed, bare, or re-cased) as unresolved", () => {
+      redactor.redactText("john@example.com"); // only [EMAIL_1] minted
+      expect(redactor.restoreForStorage("User's SSN is [SSN_1]").unresolved).toBe(true);
+      expect(redactor.restoreForStorage("User's SSN is SSN_1").unresolved).toBe(true);
+      expect(redactor.restoreForStorage("User's ssn is ssn_1").unresolved).toBe(true);
+    });
+
+    it("does not flag ordinary prose as unresolved", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.restoreForStorage("send email 1 of 3 to the list").unresolved).toBe(false);
+      // STEP is not a redactor category — never a placeholder.
+      expect(redactor.restoreForStorage("follow STEP_1 then STEP_2").unresolved).toBe(false);
+    });
+
+    it("does NOT false-flag a restored value that itself contains a category-shaped substring", () => {
+      // Regression: an email whose local part is "ssn_1" restores correctly and
+      // must NOT be flagged unresolved (a re-scan of the output would trip on the
+      // "ssn_1" substring and silently drop a good fact).
+      redactor.redactText("My email is ssn_1@example.com"); // mints [EMAIL_1]="ssn_1@example.com"
+      const r = redactor.restoreForStorage("User's email is [EMAIL_1]");
+      expect(r.text).toBe("User's email is ssn_1@example.com");
+      expect(r.unresolved).toBe(false);
+    });
+
+    it("does not re-scan a restored value containing a sibling placeholder body", () => {
+      // [TOKEN_1]'s value literally contains "EMAIL_1"; a two-pass design would
+      // splice EMAIL_1's value into it. A single pass over the source restores
+      // TOKEN_1 verbatim.
+      const r = new PiiRedactor({
+        patterns: [
+          { category: "EMAIL", regex: /alice@corp\.com/g },
+          { category: "TOKEN", regex: /sk-[A-Za-z0-9_-]+/g },
+        ],
+      });
+      r.redactText("alice@corp.com"); // [EMAIL_1]
+      const minted = r.redactText("sk-zzzz-EMAIL_1-tail"); // [TOKEN_1]
+      expect(minted.matches[0].original).toBe("sk-zzzz-EMAIL_1-tail");
+      const out = r.restoreForStorage("key [TOKEN_1]");
+      expect(out.text).toBe("key sk-zzzz-EMAIL_1-tail");
+      expect(out.unresolved).toBe(false);
+    });
+
+    it("resolves the correct value when two categories collide on upper-cased body", () => {
+      // Built-in EMAIL plus a custom category "email" mint distinct placeholders
+      // [EMAIL_1] and [email_1]; an exact-case echo must resolve to its OWN value,
+      // never the other's.
+      const r = new PiiRedactor({
+        extraPatterns: [{ category: "email", regex: /ATTACKER-DOMAIN/g }],
+      });
+      r.redactText("real-user@corp.com"); // [EMAIL_1]
+      r.redactText("ATTACKER-DOMAIN"); // [email_1]
+      expect(r.restoreForStorage("contact [EMAIL_1]").text).toBe("contact real-user@corp.com");
+      expect(r.restoreForStorage("see [email_1]").text).toBe("see ATTACKER-DOMAIN");
+    });
+  });
+
+  describe("maskText", () => {
+    it("masks PII with unnumbered, stateless tokens", () => {
+      const result = redactor.maskText("Email john@example.com or jane@corp.io, SSN 123-45-6789");
+      expect(result).toBe("Email [EMAIL] or [EMAIL], SSN [SSN]");
+    });
+
+    it("does not mutate redactor state", () => {
+      redactor.maskText("john@example.com");
+      expect(redactor.size).toBe(0);
+      expect(redactor.getMappings().size).toBe(0);
+    });
+
+    it("is deterministic — identical input masks identically every time", () => {
+      const a = redactor.maskText("Contact bob@acme.com and bob@acme.com");
+      const b = new PiiRedactor().maskText("Contact bob@acme.com and bob@acme.com");
+      expect(a).toBe("Contact [EMAIL] and [EMAIL]");
+      expect(a).toBe(b);
+    });
+
+    it("leaves non-PII text untouched", () => {
+      expect(redactor.maskText("what is my email")).toBe("what is my email");
+    });
+  });
+
+  describe("edge cases", () => {
+    it("handles empty input", () => {
+      const result = redactor.redactText("");
+      expect(result.text).toBe("");
+      expect(result.matches).toHaveLength(0);
+    });
+
+    it("is idempotent — re-redacting redacted text changes nothing", () => {
+      const once = redactor.redactText("Email john@example.com and call 555-123-4567");
+      const twice = redactor.redactText(once.text);
+      expect(twice.text).toBe(once.text);
+      expect(twice.matches).toHaveLength(0);
+    });
+
+    it("redacts across multiple lines", () => {
+      const result = redactor.redactText("Email: a@b.com\nPhone: 555-123-4567");
+      expect(result.text).toBe("Email: [EMAIL_1]\nPhone: [PHONE_1]");
+    });
+
+    it("does not collide double-digit placeholder indices on de-anonymize", () => {
+      // Create 11 distinct emails so we get [EMAIL_1] .. [EMAIL_11].
+      for (let i = 1; i <= 11; i++) redactor.redactText(`user${i}@example.com`);
+      const mappings = redactor.getMappings();
+      expect(mappings.get("[EMAIL_10]")).toBe("user10@example.com");
+      expect(mappings.get("[EMAIL_11]")).toBe("user11@example.com");
+      // [EMAIL_1] must not eat the prefix of [EMAIL_11].
+      const restored = redactor.deAnonymize("a [EMAIL_1] b [EMAIL_11] c");
+      expect(restored).toBe("a user1@example.com b user11@example.com c");
+    });
+
+    it("deAnonymize on a fresh redactor returns text unchanged", () => {
+      expect(redactor.deAnonymize("[EMAIL_1] unknown")).toBe("[EMAIL_1] unknown");
+    });
+  });
+
+  describe("resolvePiiRedactor", () => {
+    it("creates a fresh redactor for true", () => {
+      expect(resolvePiiRedactor(true)).toBeInstanceOf(PiiRedactor);
+    });
+
+    it("returns undefined for false / undefined", () => {
+      expect(resolvePiiRedactor(false)).toBeUndefined();
+      expect(resolvePiiRedactor(undefined)).toBeUndefined();
+    });
+
+    it("accepts a real PiiRedactor instance", () => {
+      const r = new PiiRedactor();
+      expect(resolvePiiRedactor(r)).toBe(r);
+    });
+
+    it("accepts a duck-typed redactor from a duplicate class copy", () => {
+      // Simulates an instance whose prototype chain differs (dual ESM/CJS).
+      const lookalike = {
+        redactMessages: () => ({ messages: [], matches: [] }),
+        deAnonymize: (t: string) => t,
+      };
+      expect(isPiiRedactor(lookalike)).toBe(true);
+      expect(resolvePiiRedactor(lookalike as unknown as PiiRedactor)).toBe(lookalike);
+    });
+  });
+
+  describe("createStreamingDeAnonymizer", () => {
+    it("restores a placeholder split across single-character chunks", () => {
+      redactor.redactText("john@example.com");
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      // Simulate the smoother emitting one character at a time.
+      for (const ch of "Email [EMAIL_1] now") stream.push(ch);
+      stream.flush();
+      expect(out).toBe("Email john@example.com now");
+    });
+
+    it("restores placeholders split at arbitrary chunk boundaries", () => {
+      redactor.redactText("john@example.com and 555-123-4567");
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      // Boundaries deliberately fall inside the placeholders.
+      for (const chunk of ["Contact [EMA", "IL_1] or call [PHO", "NE_1] today"]) {
+        stream.push(chunk);
+      }
+      stream.flush();
+      expect(out).toBe("Contact john@example.com or call 555-123-4567 today");
+    });
+
+    it("flushes a trailing incomplete fragment as-is", () => {
+      redactor.redactText("john@example.com");
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      stream.push("ends with a bracket [");
+      stream.flush();
+      expect(out).toBe("ends with a bracket [");
+    });
+
+    it("does not hold back ordinary bracketed prose indefinitely", () => {
+      let out = "";
+      const stream = createStreamingDeAnonymizer(redactor, (c) => (out += c));
+      stream.push("array[i] = value[j]");
+      stream.flush();
+      expect(out).toBe("array[i] = value[j]");
+    });
+  });
+
+  describe("cross-turn consistency", () => {
+    it("maintains placeholder identity across multiple redactText calls", () => {
+      const r1 = redactor.redactText("Email john@example.com");
+      const r2 = redactor.redactText("Also email john@example.com again");
+      expect(r1.text).toBe("Email [EMAIL_1]");
+      expect(r2.text).toBe("Also email [EMAIL_1] again");
+    });
+
+    it("increments counters for new values", () => {
+      redactor.redactText("Email john@example.com");
+      const r2 = redactor.redactText("Also jane@other.com");
+      expect(r2.text).toBe("Also [EMAIL_2]");
+    });
+  });
+
+  describe("getMappings", () => {
+    it("returns current mappings", () => {
+      redactor.redactText("john@example.com and 555-123-4567");
+      const mappings = redactor.getMappings();
+      expect(mappings.get("[EMAIL_1]")).toBe("john@example.com");
+      expect(mappings.get("[PHONE_1]")).toBe("555-123-4567");
+    });
+
+    it("returns a snapshot copy, not the live internal map", () => {
+      redactor.redactText("john@example.com");
+      const snapshot = redactor.getMappings();
+      expect(snapshot.size).toBe(1);
+      // A later redaction must not retroactively grow the earlier snapshot.
+      redactor.redactText("jane@other.com");
+      expect(snapshot.size).toBe(1);
+      expect(redactor.getMappings().size).toBe(2);
+    });
+  });
+
+  describe("configuration", () => {
+    it("disables excluded categories", () => {
+      const r = new PiiRedactor({ excludeCategories: ["US_ADDRESS", "DATE_OF_BIRTH"] });
+      const result = r.redactText("Born on 12-25-1985 at 123 Main Street, email a@b.com");
+      expect(result.matches.filter((m) => m.category === "US_ADDRESS")).toHaveLength(0);
+      expect(result.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+      // Other categories still detected.
+      expect(result.matches.filter((m) => m.category === "EMAIL")).toHaveLength(1);
+    });
+
+    it("supports extra custom patterns with custom categories", () => {
+      const r = new PiiRedactor({
+        extraPatterns: [{ category: "EMPLOYEE_ID", regex: /\bEMP-\d{6}\b/g }],
+      });
+      const result = r.redactText("Ref EMP-123456 and a@b.com");
+      expect(result.text).toContain("[EMPLOYEE_ID_1]");
+      expect(result.text).toContain("[EMAIL_1]");
+    });
+
+    it("replaces the entire pattern set when patterns is provided", () => {
+      const r = new PiiRedactor({ patterns: [{ category: "EMAIL", regex: /\bx@y\.z\b/g }] });
+      const result = r.redactText("a@b.com but x@y.z");
+      // Default email pattern is gone; only the custom one applies.
+      expect(result.text).toBe("a@b.com but [EMAIL_1]");
+    });
+  });
+
+  describe("clear", () => {
+    it("resets all state", () => {
+      redactor.redactText("john@example.com");
+      expect(redactor.size).toBe(1);
+      redactor.clear();
+      expect(redactor.size).toBe(0);
+      // After clear, same email gets [EMAIL_1] again
+      const result = redactor.redactText("john@example.com");
+      expect(result.text).toBe("[EMAIL_1]");
+    });
+  });
+});

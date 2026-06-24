@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsSearchResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8253)
+Defined in: [src/client/types.gen.ts:8328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8328)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8253](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSearchResponse`](HandlersSearchResponse.md)
 
-Defined in: [src/client/types.gen.ts:8257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8257)
+Defined in: [src/client/types.gen.ts:8332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8332)
 
 OK

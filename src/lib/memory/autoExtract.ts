@@ -15,6 +15,7 @@
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
+import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -128,6 +129,21 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
+  /**
+   * When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
+   * conversation transcript is replaced with tagged placeholders before the
+   * extraction call, and the returned facts + entities are de-anonymized so the
+   * vault keeps the real values while raw PII never reaches the extraction
+   * model (and, via `extractAndRetain`, the consolidation model). Pass `true`
+   * for a fresh per-call redactor, or a shared {@link PiiRedactor} to keep
+   * placeholder numbering consistent with other calls.
+   *
+   * NOTE: this does NOT cover the embeddings provider. Facts are stored and
+   * embedded with their real values, so to keep PII out of embedding requests
+   * set `RetainContext.embeddingOptions.maskInput` (e.g. `redactor.maskText`)
+   * as well — the two are independent switches.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 }
 
 /**
@@ -153,7 +169,16 @@ export async function extractFacts(
 ): Promise<ExtractedCandidate[]> {
   if (messages.length === 0) return [];
 
-  const transcript = messages.map((m) => `[${m.id}] ${m.role}: ${m.content}`).join("\n");
+  // PII redaction: scrub the transcript before it reaches the extraction model,
+  // then de-anonymize the returned facts so the vault keeps real values. Only
+  // the message *content* is redacted — the `[id]` provenance markers stay
+  // intact so `sourceMessageIds` still validates against the original ids.
+  const redactor = resolvePiiRedactor(options.piiRedaction);
+  const transcript = messages
+    .map(
+      (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
+    )
+    .join("\n");
   let parsed: unknown = null;
   for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
     parsed = await callPortalJsonCompletion({
@@ -172,7 +197,36 @@ export async function extractFacts(
   }
   if (parsed === null) return [];
 
-  return validateCandidates(parsed, new Set(messages.map((m) => m.id)));
+  const candidates = validateCandidates(parsed, new Set(messages.map((m) => m.id)));
+  if (!redactor) return candidates;
+  // Restore real values in the extracted facts (content + entities) — the LLM
+  // saw placeholders, so its output references them. Then guard the output:
+  // - strip any entity that is still a placeholder the model hallucinated
+  //   (no mapping existed, so deAnonymize left it literal);
+  // - drop the whole fact when its content still carries a residual placeholder
+  //   (an unreliable fact built on an unresolved value), or when restoring real
+  //   values pushed it past MAX_CONTENT_LENGTH (validateCandidates capped the
+  //   shorter placeholder form). Both keep opaque tokens / over-cap text out of
+  //   the vault.
+  return candidates
+    .map((c) => {
+      const content = redactor.restoreForStorage(c.content);
+      return {
+        candidate: {
+          ...c,
+          content: content.text,
+          entities: c.entities
+            .map((e) => redactor.restoreForStorage(e))
+            .filter((e) => !e.unresolved)
+            .map((e) => e.text),
+        },
+        // Drop the whole fact when its content still carries an unresolved
+        // (hallucinated / mangled-beyond-recognition) placeholder.
+        unresolved: content.unresolved,
+      };
+    })
+    .filter((c) => c.candidate.content.length <= MAX_CONTENT_LENGTH && !c.unresolved)
+    .map((c) => c.candidate);
 }
 
 /**
@@ -222,6 +276,20 @@ export async function extractAndRetain(
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
+  // Consolidation reasons over the same chat-derived facts as extraction and
+  // hits an LLM, so it must redact too — otherwise enabling `extract.piiRedaction`
+  // alone would still leak the (de-anonymized) facts to the consolidator. Inherit
+  // the extraction setting unless the caller set one explicitly on consolidateOptions.
+  const resolvedConsolidatePii =
+    options.consolidateOptions?.piiRedaction ?? options.extract.piiRedaction;
+  const consolidateOptions: RetainOptions["consolidateOptions"] =
+    options.consolidateOptions !== undefined
+      ? {
+          ...options.consolidateOptions,
+          ...(resolvedConsolidatePii !== undefined && { piiRedaction: resolvedConsolidatePii }),
+        }
+      : undefined;
+
   const candidates = await extractFacts(messages, options.extract);
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
@@ -238,9 +306,7 @@ export async function extractAndRetain(
         sourceChunkIds: candidate.sourceMessageIds,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
-        ...(options.consolidateOptions !== undefined && {
-          consolidateOptions: options.consolidateOptions,
-        }),
+        ...(consolidateOptions !== undefined && { consolidateOptions }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
       });
       succeededCandidates.push(candidate);

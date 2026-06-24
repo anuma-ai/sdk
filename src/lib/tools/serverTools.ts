@@ -7,6 +7,7 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
+import { DOCUMENT_BUILDER_PROMPT } from "../../tools/document/documentBuilderPrompt";
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
@@ -529,6 +530,10 @@ function clientToolToResponsesFormat(
     ...(toolConfig.executorTimeout !== undefined && {
       executorTimeout: toolConfig.executorTimeout,
     }),
+    ...(toolConfig.dependsOn !== undefined && { dependsOn: toolConfig.dependsOn }),
+    ...(toolConfig.deAnonymizeArgs !== undefined && {
+      deAnonymizeArgs: toolConfig.deAnonymizeArgs,
+    }),
   };
 }
 
@@ -572,6 +577,10 @@ function clientToolToCompletionsFormat(
     }),
     ...(toolConfig.executorTimeout !== undefined && {
       executorTimeout: toolConfig.executorTimeout,
+    }),
+    ...(toolConfig.dependsOn !== undefined && { dependsOn: toolConfig.dependsOn }),
+    ...(toolConfig.deAnonymizeArgs !== undefined && {
+      deAnonymizeArgs: toolConfig.deAnonymizeArgs,
     }),
   };
 }
@@ -920,6 +929,23 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchorMinSimilarity: 0.53,
   },
   {
+    name: "documents",
+    // Conditional rider (no-ops unless the user actually asks for a document),
+    // attached so the Document Builder guidance rides in with the document
+    // tools via the same semantic selection that includes them.
+    systemPrompt: DOCUMENT_BUILDER_PROMPT,
+    members: ["create_document", "read_document", "patch_document"],
+    // Entry-point tools anchor; read_document rides in via set expansion.
+    anchors: ["create_document", "patch_document"],
+    // 0.53: match the client-tool floor. "draft me a contract", "write a cover
+    // letter", "make a memo" should pull the set in. Like app-gen's create_file,
+    // document intent ("write me X") overlaps generic chitchat in this band, so
+    // the same two safety nets apply: DOCUMENT_BUILDER_PROMPT is conditional and
+    // the MIN_CONTENT_LENGTH_FOR_TOOLS gate drops bare greetings before
+    // embeddings run. Tune empirically against the tool-selection parity suite.
+    anchorMinSimilarity: 0.53,
+  },
+  {
     name: "github",
     members: ["github_get_authenticated_user", "github_api"],
     anchors: ["github_api"],
@@ -961,6 +987,12 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     name: "notion",
     members: ["notion-search", "notion-fetch", "notion-create-pages", "notion-update-page"],
     anchors: ["notion-search", "notion-create-pages"],
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "x",
+    members: ["x_get_me", "x_get_my_posts"],
+    anchors: ["x_get_me", "x_get_my_posts"],
     anchorMinSimilarity: 0.53,
   },
 ];

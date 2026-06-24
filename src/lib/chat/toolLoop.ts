@@ -8,6 +8,12 @@ import type {
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
 import { generateEmbedding } from "../memoryEngine/embeddings";
+import {
+  createStreamingDeAnonymizer,
+  type PiiMatch,
+  type PiiRedactor,
+  resolvePiiRedactor,
+} from "../pii/redactor";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -547,6 +553,31 @@ export type RunToolLoopOptions = {
    */
   maxConnectorCalls?: number;
   /**
+   * Best-effort, client-side PII obfuscation — NOT a compliance guarantee.
+   * When enabled, the text of outbound messages (all roles, plus tool results
+   * on continuation rounds and any injected pre-processor context) is scanned
+   * for personally identifiable information and matches are replaced with
+   * tagged placeholders before the request leaves the device. Both the
+   * streamed and final response are de-anonymized, so the user sees original
+   * values.
+   *
+   * Detection is regex-based, so it can miss or over-match: it does NOT detect
+   * names, and it does NOT scan non-text content (images, file uploads,
+   * attachments) or model-generated tool-call arguments. Pass `true` for
+   * default detection or a `PiiRedactor` instance to share placeholder state
+   * across calls in the same conversation (recommended). Categories can be
+   * tuned via `new PiiRedactor({ excludeCategories, extraPatterns })`.
+   */
+  piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called with the PII matches found each time outbound messages are redacted
+   * (initial request, injected pre-processor context, and tool-result
+   * continuation rounds). Useful for surfacing "redacted N emails, 1 SSN" to
+   * the user for consent. Only fired when `piiRedaction` is active and at least
+   * one match was found. Errors thrown by the callback are swallowed.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
+  /**
    * Lifecycle hooks for observability (telemetry, tracing, UI surfaces).
    * All hooks are optional. Errors thrown by a hook are swallowed so a
    * buggy observer can't crash the loop. Hooks are awaited synchronously
@@ -620,6 +651,15 @@ export type StreamingTransportOptions = {
   onSseError?: (error: unknown) => void;
   /** Fires once per request when response headers arrive with X-Inference-ID (2xx only). */
   onStreamMeta?: (meta: { inferenceId: string }) => void;
+  /**
+   * Fires whenever bytes arrive on the wire — data frames AND the keep-alive
+   * comment lines (`: ...`) the SSE parser otherwise discards. A pure liveness
+   * signal: a consumer running an idle watchdog uses it to tell a slow-but-alive
+   * stream (the server still heart-beating through a long reasoning silence)
+   * apart from a dead connection (no bytes at all). Not every transport emits it
+   * — the xhr transport does; treat its absence as "no extra liveness info".
+   */
+  onActivity?: () => void;
 };
 
 /** Result returned by a streaming transport function. */
@@ -813,6 +853,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     preProcessors,
     maxConnectorCalls = 2,
     hooks: hooksOption,
+    piiRedaction,
+    onPiiRedacted,
   } = options;
   // Accept a single listener or an array — array form is composed into a
   // single dispatcher so the rest of the loop can stay shape-agnostic.
@@ -925,6 +967,31 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: "Request aborted" };
   }
 
+  // PII redaction: resolve the redactor instance and transform messages.
+  // resolvePiiRedactor uses a structural check (not instanceof) so a redactor
+  // from a duplicate class copy still works, and warns instead of silently
+  // disabling redaction for an unexpected value. This runs BEFORE the
+  // pre-processor/embedding stage below so raw PII is never sent to the
+  // embeddings endpoint (the embedding is computed from redacted text).
+  const redactor = resolvePiiRedactor(piiRedaction);
+
+  // Redact a batch of messages and surface the matches to onPiiRedacted.
+  // No-op (returns the input) when redaction is disabled.
+  const redactBatch = (msgs: LlmapiMessage[]): LlmapiMessage[] => {
+    if (!redactor) return msgs;
+    const { messages: redacted, matches } = redactor.redactMessages(msgs);
+    if (matches.length > 0 && onPiiRedacted) {
+      try {
+        onPiiRedacted(matches);
+      } catch {
+        /* observer error, swallow — same philosophy as the other hooks */
+      }
+    }
+    return redacted;
+  };
+
+  messages = redactBatch(messages);
+
   // Run pre-processors if any are provided. Each receives the shared
   // embedding and may return messages to enrich the conversation.
   if (preProcessors?.length) {
@@ -948,7 +1015,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         );
         const extra = results.flatMap((r) => (Array.isArray(r) ? r : []));
         if (extra.length > 0) {
-          messages = [...messages, ...extra];
+          // Injected context (memory/search/file) can also contain PII — redact
+          // it with the same redactor so placeholder numbering stays consistent.
+          messages = [...messages, ...redactBatch(extra)];
         }
       }
     } catch (err) {
@@ -956,6 +1025,38 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       console.warn("[runToolLoop] pre-processor stage failed:", err);
     }
   }
+
+  // De-anonymize placeholders in the streamed content/thinking before they
+  // reach the user. A stateful streaming de-anonymizer is required because the
+  // smoother emits a few characters at a time, so a placeholder ([EMAIL_1])
+  // is routinely split across emitted chunks; a per-chunk replace would never
+  // match it. Created once per run; flushed after each round's smoother drains.
+  const contentDeAnon = redactor && onData ? createStreamingDeAnonymizer(redactor, onData) : null;
+  const thinkingDeAnon =
+    redactor && onThinking ? createStreamingDeAnonymizer(redactor, onThinking) : null;
+  const emitData = contentDeAnon ? contentDeAnon.push : onData;
+  const emitThinking = thinkingDeAnon ? thinkingDeAnon.push : onThinking;
+  const flushDeAnon = (): void => {
+    contentDeAnon?.flush();
+    thinkingDeAnon?.flush();
+  };
+
+  // Final-output de-anonymization. The returned response, `onFinish`, and the
+  // `finalContent` reported to hooks must show the user real values — but the
+  // accumulator keeps placeholders because continuation rounds re-send them to
+  // the model. So de-anonymize a shallow clone rather than mutating the
+  // accumulator (which would leak real PII into the next round's prompt).
+  type Accumulator = ReturnType<typeof createStreamAccumulator>;
+  const buildResponseFinal = (acc: Accumulator): ApiResponse =>
+    redactor
+      ? strategy.buildFinalResponse({
+          ...acc,
+          content: redactor.deAnonymize(acc.content),
+          thinking: redactor.deAnonymize(acc.thinking),
+        })
+      : strategy.buildFinalResponse(acc);
+  const finalContentText = (acc: Accumulator): string =>
+    redactor ? redactor.deAnonymize(acc.content) : acc.content;
 
   try {
     let sseError: Error | null = null;
@@ -1061,10 +1162,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       smoothers: StreamSmoother[]
     ): Promise<RunToolLoopResult> => {
       for (const smoother of smoothers) smoother.flush();
+      flushDeAnon();
       await fireAfterModelCall(buildModelCallEndPayload(acc, { error: "detached" }));
       await fireRunError({ error: "Request detached", stage: "model" });
       return {
-        data: strategy.buildFinalResponse(acc),
+        data: buildResponseFinal(acc),
         error: "Request detached",
         detached: true,
         resume: makeResumeHandle(),
@@ -1127,10 +1229,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       accumulator = createStreamAccumulator(model || undefined);
       contentSmoother = new StreamSmoother((text) => {
-        if (onData) onData(text);
+        if (emitData) emitData(text);
       }, smoothing);
       thinkingSmoother = new StreamSmoother((text) => {
-        if (onThinking) onThinking(text);
+        if (emitThinking) emitThinking(text);
       }, smoothing);
 
       let chunksEmittedDownstream = false;
@@ -1151,7 +1253,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             await fireAfterModelCall(buildModelCallEndPayload(accumulator, { error: "aborted" }));
             await fireRunError({ error: "Request aborted", stage: "model" });
             return {
-              data: strategy.buildFinalResponse(accumulator),
+              data: buildResponseFinal(accumulator),
               error: "Request aborted",
               toolsChecksum: accumulator.toolsChecksum,
             };
@@ -1210,7 +1312,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
           await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
           return {
-            data: strategy.buildFinalResponse(accumulator),
+            data: buildResponseFinal(accumulator),
             error: "Request aborted",
             toolsChecksum: accumulator.toolsChecksum,
           };
@@ -1251,9 +1353,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     } else {
       await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
     }
+    // Emit any placeholder fragment held back across the smoother's final slice.
+    flushDeAnon();
     await fireAfterModelCall(buildModelCallEndPayload(accumulator));
 
-    const response = strategy.buildFinalResponse(accumulator);
+    const response = buildResponseFinal(accumulator);
 
     // ── Multi-turn tool calling loop ──
     const executorMap = createToolExecutorMap(tools);
@@ -1443,8 +1547,18 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 error: `No executor found for tool: ${toolCall.name}`,
               };
             }
+            // Opt-in: restore original PII values in this tool's arguments
+            // before it runs, using runToolLoop's own redactor (which holds
+            // this turn's [EMAIL_1]->real mapping from the request redaction).
+            // Used by on-device tools like memory_vault_save so they persist the
+            // real value instead of a placeholder; connectors don't opt in, so
+            // their args stay redacted.
+            const toolCallForExec =
+              redactor && executorConfig.deAnonymizeArgs && toolCall.arguments
+                ? { ...toolCall, arguments: redactor.deAnonymize(toolCall.arguments) }
+                : toolCall;
             const { result, error, errorType } = await executeToolCall(
-              toolCall,
+              toolCallForExec,
               executorConfig.executor,
               executorConfig.executorTimeout
             );
@@ -1594,6 +1708,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // slide's full JSX, or plan_deck's recipe), and paced-draining them at the
       // smoother's char rate would block the loop for tens of seconds per round.
       thinkingSmoother.flush();
+      thinkingDeAnon?.flush();
 
       // Accumulate this round's successful results for the main return path.
       // Multi-round flows (e.g. plan_deck + add_slide × N) need every round's
@@ -1617,10 +1732,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       // If ALL tools have skipContinuation, return early
       if (continueResults.length === 0) {
-        const skipResponse = strategy.buildFinalResponse(currentAccumulator);
+        const skipResponse = buildResponseFinal(currentAccumulator);
         if (onFinish) onFinish(skipResponse);
         await fireRunEnd({
-          finalContent: currentAccumulator.content,
+          finalContent: finalContentText(currentAccumulator),
           totalSteps: stepIndex + 1,
         });
         return {
@@ -1660,8 +1775,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         } as LlmapiMessage);
       }
 
-      // Continue the conversation with tool results
-      currentMessages = [...currentMessages, ...toolResultMessages];
+      // Continue the conversation with tool results. Redact the freshly
+      // appended messages: tool results can contain PII fetched from external
+      // systems, which would otherwise reach the provider in clear text. The
+      // assistant message already holds model-emitted placeholders, which are
+      // inert under redaction.
+      currentMessages = [...currentMessages, ...redactBatch(toolResultMessages)];
 
       const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
       // "required" exists to guarantee the FIRST round picks a tool (e.g.
@@ -1728,7 +1847,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           );
           await fireRunError({ error: "Request aborted", stage: "model" });
           return {
-            data: strategy.buildFinalResponse(currentAccumulator),
+            data: buildResponseFinal(currentAccumulator),
             error: "Request aborted",
             toolsChecksum: currentAccumulator.toolsChecksum,
           };
@@ -1768,10 +1887,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
         currentAccumulator = createStreamAccumulator(model || undefined);
         contContentSmoother = new StreamSmoother((text) => {
-          if (onData) onData(text);
+          if (emitData) emitData(text);
         }, smoothing);
         contThinkingSmoother = new StreamSmoother((text) => {
-          if (onThinking) onThinking(text);
+          if (emitThinking) emitThinking(text);
         }, smoothing);
 
         let chunksEmittedDownstream = false;
@@ -1795,7 +1914,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               );
               await fireRunError({ error: "Request aborted", stage: "model" });
               return {
-                data: strategy.buildFinalResponse(currentAccumulator),
+                data: buildResponseFinal(currentAccumulator),
                 error: "Request aborted",
                 toolsChecksum: currentAccumulator.toolsChecksum,
               };
@@ -1855,7 +1974,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             const abortErr = streamErr instanceof Error ? streamErr : new Error("Request aborted");
             await fireRunError({ error: "Request aborted", stage: "model", errorObject: abortErr });
             return {
-              data: strategy.buildFinalResponse(currentAccumulator),
+              data: buildResponseFinal(currentAccumulator),
               error: "Request aborted",
               toolsChecksum: currentAccumulator.toolsChecksum,
             };
@@ -1894,6 +2013,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       } else {
         await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
       }
+      // Emit any placeholder fragment held back across the smoother's final slice.
+      flushDeAnon();
       await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator));
     }
 
@@ -1901,16 +2022,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (connectorLimitHit) {
       const tip =
         "\n\n> **Tip:** Switch to a **Thinking model** for more detailed results with connectors like Notion, Google Calendar, and Drive.\n";
-      if (onData) onData(tip);
+      if (emitData) emitData(tip);
+      flushDeAnon();
       currentAccumulator.content += tip;
     }
 
     // Build final response from the last accumulator
     if (toolIteration > 0) {
-      const finalResponse = strategy.buildFinalResponse(currentAccumulator);
+      const finalResponse = buildResponseFinal(currentAccumulator);
       if (onFinish) onFinish(finalResponse);
       await fireRunEnd({
-        finalContent: currentAccumulator.content,
+        finalContent: finalContentText(currentAccumulator),
         totalSteps: stepIndex + 1,
       });
       return {
@@ -1923,7 +2045,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
     if (onFinish) onFinish(response);
     await fireRunEnd({
-      finalContent: accumulator.content,
+      finalContent: finalContentText(accumulator),
       totalSteps: stepIndex + 1,
     });
     return {

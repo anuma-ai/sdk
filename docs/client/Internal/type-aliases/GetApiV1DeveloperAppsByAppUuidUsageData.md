@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperAppsByAppUuidUsageData** = `object`
 
-Defined in: [src/client/types.gen.ts:7374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7374)
+Defined in: [src/client/types.gen.ts:7449](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7449)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7374](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:7375](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7375)
+Defined in: [src/client/types.gen.ts:7450](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7450)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:7375](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7376)
+Defined in: [src/client/types.gen.ts:7451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7451)
 
 **app\_uuid**
 
@@ -32,7 +32,7 @@ App UUID
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:7382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7382)
+Defined in: [src/client/types.gen.ts:7457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7457)
 
 **end\_time?**
 
@@ -58,4 +58,4 @@ Start time (RFC3339). Defaults to 30 days ago.
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/usage"`
 
-Defined in: [src/client/types.gen.ts:7396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7396)
+Defined in: [src/client/types.gen.ts:7471](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7471)

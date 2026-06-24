@@ -26,6 +26,7 @@ import {
 } from "../lib/chat/useChat";
 import { xhrTransport } from "../lib/chat/xhrTransport";
 import { getLogger } from "../lib/logger";
+import { PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**
@@ -227,6 +228,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "auto",
     smoothing,
     preProcessors,
+    piiRedaction,
+    onPiiRedacted,
     resumable = false,
     onCancelResult,
     onStreamMeta: onStreamMetaConsumer,
@@ -269,6 +272,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     },
     [getToken, baseUrl, onCancelResult]
   );
+
+  // When piiRedaction is `true`, upgrade it to a single redactor instance kept
+  // for the lifetime of this hook so placeholder state is shared across turns.
+  const piiRedactorRef = useRef<PiiRedactor | null>(null);
+  if (piiRedaction === true && !piiRedactorRef.current) {
+    piiRedactorRef.current = new PiiRedactor();
+  }
+  const resolvedPiiRedaction = piiRedaction === true ? piiRedactorRef.current! : piiRedaction;
 
   const stop = useCallback(() => {
     // A stop on a resumable stream that already has an inference id must also
@@ -411,6 +422,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      piiRedaction: requestPiiRedaction,
       headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
@@ -552,6 +564,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
+          piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
+          onPiiRedacted,
         });
 
         // On a detach, runToolLoop returns the authoritative resume handle
@@ -599,6 +613,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       defaultApiType,
       smoothing,
       preProcessors,
+      resolvedPiiRedaction,
+      onPiiRedacted,
       resumable,
       onStreamMetaConsumer,
     ]

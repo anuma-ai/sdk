@@ -13,6 +13,7 @@ import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
+import type { PiiRedactor } from "../pii/redactor.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import type { RecencyOptions } from "./recency.js";
 
@@ -218,6 +219,12 @@ export interface RetainOptions {
      * wire this to logging/metrics so the fallback rate is observable.
      */
     onFallback?: (reason: ConsolidationFallbackReason) => void;
+    /**
+     * When set, the new fact and existing candidates are PII-redacted before
+     * the consolidation model sees them and the result is de-anonymized before
+     * persistence. Auto-extraction inherits this from its `extract` options.
+     */
+    piiRedaction?: boolean | PiiRedactor;
   };
   /** Cosine similarity floor for the consolidator candidate set. Default: 0.65. */
   consolidateThreshold?: number;

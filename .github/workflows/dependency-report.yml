@@ -45,6 +45,7 @@ jobs:
 
           MERMAID=$(pnpm depcruise src \
             --config .dependency-cruiser.cjs \
+            --exclude "(\.test\.|\.spec\.|^src/client/)" \
             --output-type mermaid \
             --reaches "$REACHES" 2>/dev/null || true)
 

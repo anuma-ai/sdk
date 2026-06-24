@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminOauthClientsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4987)
+Defined in: [src/client/types.gen.ts:5058](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5058)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4987](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersListOAuthClientsResponse`](HandlersListOAuthClientsResponse.md)
 
-Defined in: [src/client/types.gen.ts:4991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4991)
+Defined in: [src/client/types.gen.ts:5062](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5062)
 
 OK

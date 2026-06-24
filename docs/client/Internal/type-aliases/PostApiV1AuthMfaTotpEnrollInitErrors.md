@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaTotpEnrollInitErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6064](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6064)
+Defined in: [src/client/types.gen.ts:6135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6135)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6064](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6068](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6068)
+Defined in: [src/client/types.gen.ts:6139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6139)
 
 Unauthorized

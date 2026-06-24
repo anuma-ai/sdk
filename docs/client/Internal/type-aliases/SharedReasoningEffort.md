@@ -2,7 +2,7 @@
 
 > **SharedReasoningEffort** = `string`
 
-Defined in: [src/client/types.gen.ts:4003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4003)
+Defined in: [src/client/types.gen.ts:4074](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4074)
 
 **o-series models only**
 

@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminSeedAppsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5441](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5441)
+Defined in: [src/client/types.gen.ts:5512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5512)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5441](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSeedAppsResponse`](HandlersSeedAppsResponse.md)
 
-Defined in: [src/client/types.gen.ts:5445](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5445)
+Defined in: [src/client/types.gen.ts:5516](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5516)
 
 OK

@@ -68,6 +68,7 @@ a single integration. Key capabilities include:
 - Streaming chat completions with tool calling and auto-execution
 - Extended thinking and reasoning support
 - Long-term memory with semantic search and encrypted storage
+- Best-effort client-side PII redaction (see [PII_REDACTION.md](PII_REDACTION.md))
 - Voice recording and transcription via Whisper
 - PDF and image text extraction (OCR)
 - Phone call integration

@@ -2,7 +2,7 @@
 
 > **LlmapiResponseOutputContent** = `object`
 
-Defined in: [src/client/types.gen.ts:741](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#741)
+Defined in: [src/client/types.gen.ts:765](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#765)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:741](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#745)
+Defined in: [src/client/types.gen.ts:769](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#769)
 
 Text is the text content
 
@@ -20,6 +20,6 @@ Text is the text content
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:749](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#749)
+Defined in: [src/client/types.gen.ts:773](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#773)
 
 Type is the content type (e.g., "output\_text")

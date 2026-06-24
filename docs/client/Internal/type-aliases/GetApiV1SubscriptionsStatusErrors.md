@@ -2,7 +2,7 @@
 
 > **GetApiV1SubscriptionsStatusErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:8651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8651)
+Defined in: [src/client/types.gen.ts:8726](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8726)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8651](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8655](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8655)
+Defined in: [src/client/types.gen.ts:8730](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8730)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8659](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8659)
+Defined in: [src/client/types.gen.ts:8734](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8734)
 
 Internal Server Error

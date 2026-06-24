@@ -20,6 +20,7 @@ import {
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
@@ -434,6 +435,23 @@ export interface BaseUseChatStorageOptions {
    * a custom one matching `PromptPreProcessor`.
    */
   preProcessors?: PromptPreProcessor[];
+  /**
+   * Enable best-effort, client-side PII obfuscation (NOT a compliance
+   * guarantee). Outbound message text is scanned for personally identifiable
+   * information and replaced with tagged placeholders before reaching the LLM
+   * provider; responses are de-anonymized automatically. Embedding inputs and
+   * the summarization prompt are redacted too. Regex-based detection does not
+   * cover names, non-text content, or tool-call arguments.
+   *
+   * - `true`: one redactor is shared per conversation
+   * - `PiiRedactor` instance: bring your own (tune via constructor options)
+   */
+  piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called with the PII matches found whenever outbound messages are redacted.
+   * Only fired when `piiRedaction` is active and at least one match was found.
+   */
+  onPiiRedacted?: (matches: PiiMatch[]) => void;
 }
 
 /**
@@ -588,6 +606,31 @@ export interface BaseSendMessageWithStorageArgs {
    * File metadata is stored with the message (URLs are stripped if they're data URIs).
    */
   files?: FileMetadata[];
+
+  /**
+   * Override the text content persisted for the user message, instead of
+   * extracting it from the last user turn of `messages`.
+   *
+   * The wire payload (`messages`) and the stored/displayed/embedded user
+   * message are normally the same text — the last user turn's joined text is
+   * both sent and persisted. When the caller injects per-request context into
+   * that turn for the model (e.g. recalled memory or a precise timestamp), the
+   * wire needs the context but storage must NOT: otherwise the injected labels
+   * are persisted, shown in the user's bubble, and re-fed as history every turn.
+   *
+   * Set this to the user's actual text so the wire keeps the injected context
+   * while the persisted user content reflects only what the user typed. This
+   * drives everything derived from the stored user text: the DB row, the chat
+   * bubble, the stored message embedding, AND the embedding reused for
+   * server/client tool selection (so tool filtering keys off the typed text,
+   * not the injected context). Files are still taken from `files` (or
+   * extracted) independently of this override.
+   *
+   * Pass `undefined` to fall back to extracting the last user turn's text (the
+   * prior behavior); an empty string is a real override that persists empty
+   * user content (matching a textless turn), NOT a request to fall back.
+   */
+  storedUserContent?: string;
 
   /**
    * Per-request callback invoked with each streamed response chunk.
@@ -860,6 +903,28 @@ interface ExtractedUserMessage {
   content: string;
   /** File metadata extracted from image_url parts */
   files?: FileMetadata[];
+}
+
+/**
+ * Resolve the user text to persist/embed for a send.
+ *
+ * Single source of truth for the `storedUserContent` override contract: when a
+ * caller passes `storedUserContent`, that text is used for the DB row, the
+ * stored embedding, and the tool-selection embedding — so injected wire context
+ * (e.g. recalled memory, a precise timestamp) stays out of storage/history while
+ * remaining in the wire `messages`. When `storedUserContent` is `undefined`, we
+ * fall back to the extracted last-user text (prior behavior). An empty string is
+ * a real override (persists empty content), NOT a fallback request — hence `??`,
+ * not `||`.
+ *
+ * @param storedUserContent - Caller override, or undefined to fall back
+ * @param extractedContent - The last-user text extracted from `messages`
+ */
+export function resolveStoredUserContent(
+  storedUserContent: string | undefined,
+  extractedContent: string
+): string {
+  return storedUserContent ?? extractedContent;
 }
 
 /**

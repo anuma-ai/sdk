@@ -2,7 +2,7 @@
 
 > **LlmapiModelsListResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#606)
+Defined in: [src/client/types.gen.ts:630](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#630)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:606](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **data**: [`LlmapiModel`](LlmapiModel.md)\[]
 
-Defined in: [src/client/types.gen.ts:610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#610)
+Defined in: [src/client/types.gen.ts:634](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#634)
 
 Data contains the list of available models
 
@@ -20,7 +20,7 @@ Data contains the list of available models
 
 > `optional` **extra\_fields**: [`LlmapiModelsListExtraFields`](LlmapiModelsListExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:611](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#611)
+Defined in: [src/client/types.gen.ts:635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#635)
 
 ***
 
@@ -28,6 +28,6 @@ Defined in: [src/client/types.gen.ts:611](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **next\_page\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:615](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#615)
+Defined in: [src/client/types.gen.ts:639](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#639)
 
 NextPageToken is the token to retrieve the next page of results (omitted if no more pages)

@@ -11,6 +11,7 @@
 | [ConfigCompactLists](Internal/type-aliases/ConfigCompactLists.md) | - |
 | [ConfigCuratedModel](Internal/type-aliases/ConfigCuratedModel.md) | - |
 | [ConfigCuratedModelsResponse](Internal/type-aliases/ConfigCuratedModelsResponse.md) | - |
+| [ConfigSmartGroup](Internal/type-aliases/ConfigSmartGroup.md) | - |
 | [DeleteApiV1AccountData](Internal/type-aliases/DeleteApiV1AccountData.md) | - |
 | [DeleteApiV1AccountError](Internal/type-aliases/DeleteApiV1AccountError.md) | - |
 | [DeleteApiV1AccountErrors](Internal/type-aliases/DeleteApiV1AccountErrors.md) | - |
@@ -290,6 +291,9 @@
 | [GetApiV1UsageByModalityErrors](Internal/type-aliases/GetApiV1UsageByModalityErrors.md) | - |
 | [GetApiV1UsageByModalityResponse](Internal/type-aliases/GetApiV1UsageByModalityResponse.md) | - |
 | [GetApiV1UsageByModalityResponses](Internal/type-aliases/GetApiV1UsageByModalityResponses.md) | - |
+| [GetApiV1UsageInferenceWeeklyData](Internal/type-aliases/GetApiV1UsageInferenceWeeklyData.md) | - |
+| [GetApiV1UsageInferenceWeeklyResponse](Internal/type-aliases/GetApiV1UsageInferenceWeeklyResponse.md) | - |
+| [GetApiV1UsageInferenceWeeklyResponses](Internal/type-aliases/GetApiV1UsageInferenceWeeklyResponses.md) | - |
 | [GetApiV1UsageModelsData](Internal/type-aliases/GetApiV1UsageModelsData.md) | - |
 | [GetApiV1UsageModelsError](Internal/type-aliases/GetApiV1UsageModelsError.md) | - |
 | [GetApiV1UsageModelsErrors](Internal/type-aliases/GetApiV1UsageModelsErrors.md) | - |
@@ -320,6 +324,12 @@
 | [GetApiV1WalletsBindingErrors](Internal/type-aliases/GetApiV1WalletsBindingErrors.md) | - |
 | [GetApiV1WalletsBindingResponse](Internal/type-aliases/GetApiV1WalletsBindingResponse.md) | - |
 | [GetApiV1WalletsBindingResponses](Internal/type-aliases/GetApiV1WalletsBindingResponses.md) | - |
+| [GetApiV1ZetaCreditRateData](Internal/type-aliases/GetApiV1ZetaCreditRateData.md) | - |
+| [GetApiV1ZetaCreditRateResponse](Internal/type-aliases/GetApiV1ZetaCreditRateResponse.md) | - |
+| [GetApiV1ZetaCreditRateResponses](Internal/type-aliases/GetApiV1ZetaCreditRateResponses.md) | - |
+| [GetApiV1ZetaMarketData](Internal/type-aliases/GetApiV1ZetaMarketData.md) | - |
+| [GetApiV1ZetaMarketResponse](Internal/type-aliases/GetApiV1ZetaMarketResponse.md) | - |
+| [GetApiV1ZetaMarketResponses](Internal/type-aliases/GetApiV1ZetaMarketResponses.md) | - |
 | [GetConnectorsByProviderCallbackData](Internal/type-aliases/GetConnectorsByProviderCallbackData.md) | - |
 | [GetConnectorsByProviderCallbackError](Internal/type-aliases/GetConnectorsByProviderCallbackError.md) | - |
 | [GetConnectorsByProviderCallbackErrors](Internal/type-aliases/GetConnectorsByProviderCallbackErrors.md) | - |
@@ -397,6 +407,7 @@
 | [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
 | [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
 | [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
+| [HandlersCreditRateResponse](Internal/type-aliases/HandlersCreditRateResponse.md) | - |
 | [HandlersCryptoPricesResponse](Internal/type-aliases/HandlersCryptoPricesResponse.md) | - |
 | [HandlersCustomerPortalResponse](Internal/type-aliases/HandlersCustomerPortalResponse.md) | - |
 | [HandlersDeleteUserResponse](Internal/type-aliases/HandlersDeleteUserResponse.md) | - |
@@ -418,6 +429,7 @@
 | [HandlersGuestChatResponse](Internal/type-aliases/HandlersGuestChatResponse.md) | - |
 | [HandlersGuestLimitResponse](Internal/type-aliases/HandlersGuestLimitResponse.md) | - |
 | [HandlersHealthResponse](Internal/type-aliases/HandlersHealthResponse.md) | - |
+| [HandlersInferenceWeeklyResponse](Internal/type-aliases/HandlersInferenceWeeklyResponse.md) | - |
 | [HandlersListApiKeysResponse](Internal/type-aliases/HandlersListApiKeysResponse.md) | - |
 | [HandlersListAppsResponse](Internal/type-aliases/HandlersListAppsResponse.md) | - |
 | [HandlersListConsentsResponse](Internal/type-aliases/HandlersListConsentsResponse.md) | - |
@@ -520,9 +532,11 @@
 | [HandlersVerifyRequest](Internal/type-aliases/HandlersVerifyRequest.md) | - |
 | [HandlersWalletDetails](Internal/type-aliases/HandlersWalletDetails.md) | Wallet account details |
 | [HandlersWeatherResponse](Internal/type-aliases/HandlersWeatherResponse.md) | - |
+| [HandlersWeeklyInferenceItem](Internal/type-aliases/HandlersWeeklyInferenceItem.md) | - |
 | [HandlersWipePrivyDevUsersRequest](Internal/type-aliases/HandlersWipePrivyDevUsersRequest.md) | - |
 | [HandlersWipePrivyDevUsersResponse](Internal/type-aliases/HandlersWipePrivyDevUsersResponse.md) | - |
 | [HandlersWipePrivyDevUsersUserResult](Internal/type-aliases/HandlersWipePrivyDevUsersUserResult.md) | - |
+| [HandlersZetaMarketResponse](Internal/type-aliases/HandlersZetaMarketResponse.md) | - |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
 | [LlmapiChatCompletionRequest](Internal/type-aliases/LlmapiChatCompletionRequest.md) | - |
 | [LlmapiChatCompletionResponse](Internal/type-aliases/LlmapiChatCompletionResponse.md) | Override the generated `LlmapiChatCompletionResponse` so legacy top-level fields (`tools_checksum`, `tool_call_events`, `inference_id`, ...) and cost-on-usage (`usage.cost_micro_usd`, `usage.credits_used`) remain readable by SDK consumers that haven't migrated to the new `portal` envelope. |
@@ -1082,12 +1096,15 @@
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
 | [getApiV1UsageByModality](Internal/functions/getApiV1UsageByModality.md) | Get usage by modality |
+| [getApiV1UsageInferenceWeekly](Internal/functions/getApiV1UsageInferenceWeekly.md) | Weekly inference volume |
 | [getApiV1UsageModels](Internal/functions/getApiV1UsageModels.md) | Get usage by model |
 | [getApiV1UserAgentConsents](Internal/functions/getApiV1UserAgentConsents.md) | List active per-platform agent consents |
 | [getApiV1UserAgentGrants](Internal/functions/getApiV1UserAgentGrants.md) | Lookup active agent grant (service key) |
 | [getApiV1UserApiKeys](Internal/functions/getApiV1UserApiKeys.md) | List user API keys |
 | [getApiV1UserOauthGrants](Internal/functions/getApiV1UserOauthGrants.md) | List user OAuth grants |
 | [getApiV1WalletsBinding](Internal/functions/getApiV1WalletsBinding.md) | List bound wallets |
+| [getApiV1ZetaCreditRate](Internal/functions/getApiV1ZetaCreditRate.md) | Stake-to-earn credit rate |
+| [getApiV1ZetaMarket](Internal/functions/getApiV1ZetaMarket.md) | ZETA market stats |
 | [getConnectorsByProviderCallback](Internal/functions/getConnectorsByProviderCallback.md) | Upstream OAuth callback |
 | [getConnectorsByProviderConnect](Internal/functions/getConnectorsByProviderConnect.md) | Begin upstream OAuth connect flow |
 | [getHealth](Internal/functions/getHealth.md) | Health check |

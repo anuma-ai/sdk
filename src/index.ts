@@ -284,6 +284,9 @@ export type {
   GetApiV1ToolsErrors,
   GetApiV1ToolsResponse,
   GetApiV1ToolsResponses,
+  GetApiV1UsageInferenceWeeklyData,
+  GetApiV1UsageInferenceWeeklyResponse,
+  GetApiV1UsageInferenceWeeklyResponses,
   GetApiV1UsageModelsData,
   GetApiV1UsageModelsError,
   GetApiV1UsageModelsErrors,
@@ -299,6 +302,12 @@ export type {
   GetApiV1WalletsBindingErrors,
   GetApiV1WalletsBindingResponse,
   GetApiV1WalletsBindingResponses,
+  GetApiV1ZetaCreditRateData,
+  GetApiV1ZetaCreditRateResponse,
+  GetApiV1ZetaCreditRateResponses,
+  GetApiV1ZetaMarketData,
+  GetApiV1ZetaMarketResponse,
+  GetApiV1ZetaMarketResponses,
   GetHealthData,
   GetHealthError,
   GetHealthErrors,
@@ -336,6 +345,7 @@ export type {
   HandlersCreditBalanceResponse,
   HandlersCreditPack,
   HandlersCreditPacksResponse,
+  HandlersCreditRateResponse,
   HandlersCustomerPortalResponse,
   HandlersDeveloperApiKeyRequest,
   HandlersDeveloperApiKeyResponse,
@@ -348,6 +358,7 @@ export type {
   HandlersGeneratedApiKey,
   HandlersGetToolsResponse,
   HandlersHealthResponse,
+  HandlersInferenceWeeklyResponse,
   HandlersListApiKeysResponse,
   HandlersListAppsResponse,
   HandlersListDeveloperApiKeysResponse,
@@ -409,6 +420,8 @@ export type {
   HandlersUserLookupTextReg,
   HandlersUserUsageResponse,
   HandlersWalletDetails,
+  HandlersWeeklyInferenceItem,
+  HandlersZetaMarketResponse,
   LlmapiChatCompletionExtraFields,
   LlmapiChatCompletionRequest,
   LlmapiChatCompletionResponse,
@@ -693,9 +706,12 @@ export {
   getApiV1SubscriptionsPlans,
   getApiV1SubscriptionsStatus,
   getApiV1Tools,
+  getApiV1UsageInferenceWeekly,
   getApiV1UsageModels,
   getApiV1UserApiKeys,
   getApiV1WalletsBinding,
+  getApiV1ZetaCreditRate,
+  getApiV1ZetaMarket,
   getHealth,
   patchApiV1DeveloperAppsByAppUuid,
   patchApiV1DeveloperAppsByAppUuidUsersByAddress,
@@ -834,6 +850,26 @@ export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./lib/memory
 // until a conversation is actually rendered.
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
+
+// PII redaction — best-effort, client-side obfuscation of personally
+// identifiable information before prompts leave the device. Regex-based, so it
+// is NOT a compliance guarantee: it does not detect names and does not scan
+// non-text content (images/files) or tool-call arguments. See `piiRedaction`.
+export type {
+  MessageRedactionResult,
+  PiiCategory,
+  PiiMatch,
+  PiiPattern,
+  PiiRedactorOptions,
+  RedactionResult,
+} from "./lib/pii";
+export {
+  createStreamingDeAnonymizer,
+  isPiiRedactor,
+  PII_PATTERNS,
+  PiiRedactor,
+  resolvePiiRedactor,
+} from "./lib/pii";
 
 // Response field read-helpers for the chat-completions / responses APIs. After the
 // OpenAI-compliant migration, portal-specific fields (cost/credits, tool-call events, image

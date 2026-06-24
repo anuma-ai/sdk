@@ -2,4 +2,4 @@
 
 > **PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpError** = [`PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors`](PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors.md)\[keyof [`PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors`](PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7688](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7688)
+Defined in: [src/client/types.gen.ts:7763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7763)

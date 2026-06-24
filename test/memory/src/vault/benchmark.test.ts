@@ -26,6 +26,9 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
 import {
@@ -37,7 +40,14 @@ import {
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import type { DecomposedQuery } from "../../../../src/lib/memoryVault/decomposeQuery.js";
 import { preloadReranker } from "../../../../src/lib/memory/reranker.js";
-import { precisionAtK, recallAtK, reciprocalRank, ndcgAtK } from "../metrics.js";
+import {
+  precisionAtK,
+  recallAtK,
+  reciprocalRank,
+  ndcgAtK,
+  bootstrapMeanCI,
+  pairedBootstrapDelta,
+} from "../metrics.js";
 import {
   VAULT_MEMORIES,
   BENCHMARK_QUERIES,
@@ -62,6 +72,8 @@ const { values: args } = parseArgs({
     max: { type: "string", short: "m" },
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
+    compare: { type: "string" },
+    "refresh-embeddings": { type: "boolean", default: false },
     ranker: { type: "string", default: "cosine" },
     "recency-alpha": { type: "string" },
     rerank: { type: "boolean", default: false },
@@ -247,6 +259,71 @@ function mean(values: number[]): number {
 
 function formatPct(value: number, width: number): string {
   return (value * 100).toFixed(1).padStart(width) + "%";
+}
+
+// ---------------------------------------------------------------------------
+// Frozen embedding cache
+//
+// The benchmark re-embeds the corpus + queries on every run, and the embedding
+// service is not byte-deterministic — the same `cosine` config drifts ~2pp
+// recall run-to-run. That noise swamps the small deltas between rankers, so a
+// cross-run A/B (run cosine, run fused, diff) conflates the ranker change with
+// embedding jitter. This cache pins vectors by text: once populated, every
+// config scores against identical embeddings, so differences are purely the
+// ranker. It's a local, regenerable fixture (gitignored, ~MBs); `model` is
+// stored so a model change auto-invalidates, and `--refresh-embeddings` forces
+// a rebuild.
+// ---------------------------------------------------------------------------
+// Resolve relative to THIS module, not process.cwd(). A cwd-relative path only
+// works when the benchmark is launched from the repo root; from anywhere else
+// the read fails, the catch swallows ENOENT, and the run silently re-embeds
+// with fresh (non-deterministic) vectors — defeating the whole "frozen
+// embeddings" A/B guarantee. The cache sits next to this file.
+const EMBEDDING_CACHE_PATH = join(dirname(fileURLToPath(import.meta.url)), "embeddings-cache.json");
+
+async function loadEmbeddingCache(model: string, refresh: boolean): Promise<Map<string, number[]>> {
+  if (refresh) return new Map();
+  try {
+    const raw = JSON.parse(await readFile(EMBEDDING_CACHE_PATH, "utf-8"));
+    if (raw.model !== model) {
+      console.error(
+        `  Embedding cache model changed (${raw.model} → ${model}); rebuilding from scratch.`
+      );
+      return new Map();
+    }
+    return new Map(Object.entries(raw.vectors as Record<string, number[]>));
+  } catch (err) {
+    // A missing cache on first run is expected; anything else (corrupt JSON,
+    // permissions) must be visible, not silently treated as an empty cache.
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error(`  Embedding cache unreadable (${(err as Error).message}); rebuilding.`);
+    }
+    return new Map();
+  }
+}
+
+async function saveEmbeddingCache(cache: Map<string, number[]>, model: string): Promise<void> {
+  await writeFile(
+    EMBEDDING_CACHE_PATH,
+    JSON.stringify({ model, count: cache.size, vectors: Object.fromEntries(cache) })
+  );
+}
+
+/**
+ * Embed `texts`, reusing cached vectors and only calling the API for misses.
+ * Returns vectors aligned to `texts` and whether the cache gained entries.
+ */
+async function embedWithCache(
+  texts: string[],
+  options: EmbeddingOptions,
+  cache: Map<string, number[]>
+): Promise<{ vectors: number[][]; misses: number }> {
+  const missing = [...new Set(texts.filter((t) => !cache.has(t)))];
+  if (missing.length > 0) {
+    const fresh = await generateEmbeddings(missing, options);
+    missing.forEach((t, i) => cache.set(t, fresh[i]));
+  }
+  return { vectors: texts.map((t) => cache.get(t)!), misses: missing.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -449,10 +526,17 @@ async function main() {
     queries = queries.slice(0, maxCount);
   }
 
+  // Resolve to the same model generateEmbeddings actually calls, so the cache
+  // auto-invalidates if DEFAULT_API_EMBEDDING_MODEL changes (keying on a literal
+  // "default" would silently reuse stale vectors after a model bump).
+  const cacheModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
+  const embeddingCache = await loadEmbeddingCache(cacheModel, !!args["refresh-embeddings"]);
+
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
-  const memoryEmbeddings = await generateEmbeddings(
+  const { vectors: memoryEmbeddings, misses: memMisses } = await embedWithCache(
     VAULT_MEMORIES.map((m) => m.content),
-    embeddingOptions
+    embeddingOptions,
+    embeddingCache
   );
   const embeddingMap = new Map<string, number[]>();
   for (let i = 0; i < VAULT_MEMORIES.length; i++) {
@@ -498,10 +582,24 @@ async function main() {
       subQueriesSeen.size > 0 ? ` + ${subQueriesSeen.size} sub-queries` : ""
     }...`
   );
-  const allEmbeddings = await generateEmbeddings(allQueryTexts, embeddingOptions);
+  const { vectors: allEmbeddings, misses: qMisses } = await embedWithCache(
+    allQueryTexts,
+    embeddingOptions,
+    embeddingCache
+  );
   const queryEmbeddingMap = new Map<string, number[]>();
   for (let i = 0; i < allQueryTexts.length; i++) {
     queryEmbeddingMap.set(allQueryTexts[i], allEmbeddings[i]);
+  }
+
+  // Persist any newly-embedded texts so subsequent config runs reuse identical
+  // vectors. A run with 0 misses is fully deterministic (frozen embeddings).
+  const totalMisses = memMisses + qMisses;
+  if (totalMisses > 0) {
+    await saveEmbeddingCache(embeddingCache, cacheModel);
+    console.log(`Embedding cache: ${totalMisses} new, ${embeddingCache.size} total (saved).`);
+  } else {
+    console.log(`Embedding cache: 0 misses — frozen vectors (deterministic run).`);
   }
 
   console.log(`Running ${queries.length} queries...\n`);
@@ -623,6 +721,89 @@ async function main() {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   // ---------------------------------------------------------------------------
+  // Significance (bootstrap CIs + optional paired comparison)
+  //
+  // Printed to stderr so it never pollutes --json stdout. A single run's mean
+  // is one draw from a noisy ~100-query sample; the CI shows how far it could
+  // wobble, and --compare runs a paired bootstrap against a prior run's
+  // per-query results to say whether a delta is real or noise.
+  // ---------------------------------------------------------------------------
+  const perQueryRecall = results.map((r) => r.recall);
+  const perQueryNdcg = results.map((r) => r.ndcg);
+  const recallCI = bootstrapMeanCI(perQueryRecall);
+  const ndcgCI = bootstrapMeanCI(perQueryNdcg);
+  const fmtCI = (c: { mean: number; lo: number; hi: number }) =>
+    `${(c.mean * 100).toFixed(1)}% [95% CI ${(c.lo * 100).toFixed(1)}–${(c.hi * 100).toFixed(1)}]`;
+  console.error(`\n  Significance (n=${results.length}, 95% bootstrap CI):`);
+  console.error(`    recall@k  ${fmtCI(recallCI)}`);
+  console.error(`    ndcg      ${fmtCI(ndcgCI)}`);
+
+  if (args.compare) {
+    try {
+      const cmpRaw = await readFile(args.compare, "utf-8");
+      const cmp = JSON.parse(cmpRaw);
+      const cmpRows: Array<{ query: string; recall: number; ndcg: number }> =
+        cmp.perQuery ?? cmp.details ?? [];
+      if (cmpRows.length === 0) {
+        console.error(
+          `\n  --compare: "${args.compare}" has no per-query data ` +
+            `(re-run the baseline with --json --output <file>). Skipping paired test.`
+        );
+      } else {
+        // Pair by query text — the stable per-query key across runs.
+        const cmpByQuery = new Map(cmpRows.map((r) => [r.query, r]));
+        const curRecall: number[] = [];
+        const baseRecall: number[] = [];
+        const curNdcg: number[] = [];
+        const baseNdcg: number[] = [];
+        let malformed = 0;
+        const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+        for (const r of results) {
+          const b = cmpByQuery.get(r.query.query);
+          if (!b) continue;
+          // A partial prior row (missing/non-numeric recall or ndcg) would push
+          // undefined → pairedBootstrapDelta computes `x - undefined = NaN`, the
+          // sort scrambles, and the verdict is silent garbage. Skip and report.
+          if (!finite(b.recall) || !finite(b.ndcg)) {
+            malformed++;
+            continue;
+          }
+          curRecall.push(r.recall);
+          baseRecall.push(b.recall);
+          curNdcg.push(r.ndcg);
+          baseNdcg.push(b.ndcg);
+        }
+        if (malformed > 0) {
+          console.error(
+            `\n  --compare: skipped ${malformed} prior row(s) with missing/non-numeric recall or ndcg.`
+          );
+        }
+        if (curRecall.length === 0) {
+          console.error(
+            `\n  --compare: no query text overlaps with "${args.compare}" ` +
+              `(${cmpRows.length} prior rows, ${results.length} current) — skipping paired test. ` +
+              `Both runs must cover the same query set.`
+          );
+        } else {
+          const dRecall = pairedBootstrapDelta(curRecall, baseRecall);
+          const dNdcg = pairedBootstrapDelta(curNdcg, baseNdcg);
+          const verdict = (d: { mean: number; lo: number; hi: number; significant: boolean }) =>
+            `${d.mean >= 0 ? "+" : ""}${(d.mean * 100).toFixed(2)}pp ` +
+            `[95% CI ${(d.lo * 100).toFixed(2)}, ${(d.hi * 100).toFixed(2)}] ` +
+            `${d.significant ? "SIGNIFICANT" : "not significant (within noise)"}`;
+          console.error(
+            `\n  Paired comparison vs ${args.compare} (${curRecall.length} shared queries):`
+          );
+          console.error(`    Δ recall@k  ${verdict(dRecall)}`);
+          console.error(`    Δ ndcg      ${verdict(dNdcg)}`);
+        }
+      }
+    } catch (err) {
+      console.error(`\n  --compare failed to load "${args.compare}": ${err}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Baseline comparison
   // ---------------------------------------------------------------------------
 
@@ -665,6 +846,16 @@ async function main() {
 
     const output = {
       ...buildBaselinePayload(overall, byCategory, elapsed),
+      // Compact per-query rows so this file can be a --compare target for a
+      // paired bootstrap against a later run (keyed by query text). Only in the
+      // ephemeral --json stdout (and any user-chosen --output); the committed
+      // baseline (--save-baseline) omits these, so tracked files stay small.
+      perQuery: results.map((r) => ({
+        query: r.query.query,
+        recall: r.recall,
+        ndcg: r.ndcg,
+        reciprocalRank: r.reciprocalRank,
+      })),
       ...(args.verbose && {
         details: results.map((r) => ({
           query: r.query.query,

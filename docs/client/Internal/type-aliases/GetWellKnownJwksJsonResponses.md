@@ -2,7 +2,7 @@
 
 > **GetWellKnownJwksJsonResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4058](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4058)
+Defined in: [src/client/types.gen.ts:4129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4129)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4058](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`AuthJwks`](AuthJwks.md)
 
-Defined in: [src/client/types.gen.ts:4062](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4062)
+Defined in: [src/client/types.gen.ts:4133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4133)
 
 OK

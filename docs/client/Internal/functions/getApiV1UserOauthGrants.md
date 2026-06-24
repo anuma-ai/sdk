@@ -2,7 +2,7 @@
 
 > **getApiV1UserOauthGrants**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UserOauthGrantsData`](../type-aliases/GetApiV1UserOauthGrantsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1UserOauthGrantsResponses`](../type-aliases/GetApiV1UserOauthGrantsResponses.md), [`GetApiV1UserOauthGrantsErrors`](../type-aliases/GetApiV1UserOauthGrantsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1721](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1721)
+Defined in: [src/client/sdk.gen.ts:1731](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1731)
 
 List user OAuth grants
 

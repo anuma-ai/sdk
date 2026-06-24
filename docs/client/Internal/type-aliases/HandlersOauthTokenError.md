@@ -2,7 +2,7 @@
 
 > **HandlersOauthTokenError** = `object`
 
-Defined in: [src/client/types.gen.ts:2997](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2997)
+Defined in: [src/client/types.gen.ts:3059](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3059)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2997](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **error**: `string`
 
-Defined in: [src/client/types.gen.ts:2998](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2998)
+Defined in: [src/client/types.gen.ts:3060](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3060)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2998](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **error\_description**: `string`
 
-Defined in: [src/client/types.gen.ts:2999](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2999)
+Defined in: [src/client/types.gen.ts:3061](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3061)

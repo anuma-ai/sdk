@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsUpgradeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8712](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8712)
+Defined in: [src/client/types.gen.ts:8787](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8787)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8712](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersUpgradeSubscriptionResponse`](HandlersUpgradeSubscriptionResponse.md)
 
-Defined in: [src/client/types.gen.ts:8716](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8716)
+Defined in: [src/client/types.gen.ts:8791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8791)
 
 OK
