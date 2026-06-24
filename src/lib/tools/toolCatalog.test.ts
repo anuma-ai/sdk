@@ -5,11 +5,12 @@ import { createGmailTools } from "../../tools/gmail.js";
 import { createChatTools as createCalendarTools } from "../../tools/googleCalendar.js";
 import { createDriveTools } from "../../tools/googleDrive.js";
 import { createNotionTools } from "../../tools/notion.js";
+import { createXTools } from "../../tools/x.js";
 import type { ToolConfig } from "../chat/useChat/types.js";
 import { BUILT_IN_TOOL_SETS } from "./serverTools.js";
 import { buildConnectorGuidance, buildDeniedToolsRider, TOOL_CATALOG } from "./toolCatalog.js";
 
-const CONNECTOR_SET_NAMES = ["gmail", "google-calendar", "google-drive", "notion", "github"];
+const CONNECTOR_SET_NAMES = ["gmail", "google-calendar", "google-drive", "notion", "github", "x"];
 
 /**
  * Every tool name a connector factory actually exposes. Built by instantiating
@@ -27,6 +28,8 @@ function realConnectorToolNames(): Set<string> {
   for (const tool of createDriveTools(getToken, request)) names.add(tool.function.name);
   for (const tool of createNotionTools(getToken, request)) names.add(tool.function.name);
   for (const tool of createGitHubTools(getToken, request)) names.add(tool.function.name);
+  for (const tool of Object.values(createXTools(async () => null)))
+    names.add((tool as { function: { name: string } }).function.name);
   return names;
 }
 
@@ -112,7 +115,7 @@ function names(tools: ToolConfig[]): string[] {
   return tools.map((t) => (t as { function: { name: string } }).function.name);
 }
 
-const ALL_PROVIDERS = ["gmail", "gcalendar", "gdrive", "notion", "github"];
+const ALL_PROVIDERS = ["gmail", "gcalendar", "gdrive", "notion", "github", "x"];
 
 describe("buildConnectorGuidance", () => {
   test("removes denied tools from the returned set", () => {
@@ -140,7 +143,7 @@ describe("buildConnectorGuidance", () => {
       connectedProviders: ["gmail"],
       deniedToolNames: [],
     });
-    expect(rider).toContain("Not connected: Calendar, Drive, GitHub, Notion.");
+    expect(rider).toContain("Not connected: Calendar, Drive, GitHub, Notion, X.");
     expect(rider).toContain("connect them in Connected Apps");
   });
 
@@ -179,7 +182,7 @@ describe("buildConnectorGuidance", () => {
     // Every catalog provider is unconnected, so state 3 is actionable; the
     // general line is suppressed because there's no connected app to disown.
     expect(rider).toBe(
-      "Not connected: Calendar, Drive, GitHub, Gmail, Notion. If the user asks to use them, tell them to connect them in Connected Apps."
+      "Not connected: Calendar, Drive, GitHub, Gmail, Notion, X. If the user asks to use them, tell them to connect them in Connected Apps."
     );
   });
 
