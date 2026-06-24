@@ -26,6 +26,8 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
@@ -272,7 +274,12 @@ function formatPct(value: number, width: number): string {
 // stored so a model change auto-invalidates, and `--refresh-embeddings` forces
 // a rebuild.
 // ---------------------------------------------------------------------------
-const EMBEDDING_CACHE_PATH = "test/memory/src/vault/embeddings-cache.json";
+// Resolve relative to THIS module, not process.cwd(). A cwd-relative path only
+// works when the benchmark is launched from the repo root; from anywhere else
+// the read fails, the catch swallows ENOENT, and the run silently re-embeds
+// with fresh (non-deterministic) vectors — defeating the whole "frozen
+// embeddings" A/B guarantee. The cache sits next to this file.
+const EMBEDDING_CACHE_PATH = join(dirname(fileURLToPath(import.meta.url)), "embeddings-cache.json");
 
 async function loadEmbeddingCache(model: string, refresh: boolean): Promise<Map<string, number[]>> {
   if (refresh) return new Map();
@@ -285,7 +292,12 @@ async function loadEmbeddingCache(model: string, refresh: boolean): Promise<Map<
       return new Map();
     }
     return new Map(Object.entries(raw.vectors as Record<string, number[]>));
-  } catch {
+  } catch (err) {
+    // A missing cache on first run is expected; anything else (corrupt JSON,
+    // permissions) must be visible, not silently treated as an empty cache.
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error(`  Embedding cache unreadable (${(err as Error).message}); rebuilding.`);
+    }
     return new Map();
   }
 }
@@ -744,13 +756,27 @@ async function main() {
         const baseRecall: number[] = [];
         const curNdcg: number[] = [];
         const baseNdcg: number[] = [];
+        let malformed = 0;
+        const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
         for (const r of results) {
           const b = cmpByQuery.get(r.query.query);
           if (!b) continue;
+          // A partial prior row (missing/non-numeric recall or ndcg) would push
+          // undefined → pairedBootstrapDelta computes `x - undefined = NaN`, the
+          // sort scrambles, and the verdict is silent garbage. Skip and report.
+          if (!finite(b.recall) || !finite(b.ndcg)) {
+            malformed++;
+            continue;
+          }
           curRecall.push(r.recall);
           baseRecall.push(b.recall);
           curNdcg.push(r.ndcg);
           baseNdcg.push(b.ndcg);
+        }
+        if (malformed > 0) {
+          console.error(
+            `\n  --compare: skipped ${malformed} prior row(s) with missing/non-numeric recall or ndcg.`
+          );
         }
         if (curRecall.length === 0) {
           console.error(

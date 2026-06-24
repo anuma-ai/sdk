@@ -165,7 +165,11 @@ export function aggregateRetrievalMetrics(
 // difficulty and is far more sensitive than comparing two independent CIs.
 //
 // Reproducible by default: a seeded PRNG (mulberry32) makes the CI bounds
-// deterministic across runs, so a baseline comparison is stable.
+// deterministic across runs, so a baseline comparison is stable. Note both
+// helpers default to the same seed, so the recall and ndcg CIs computed in one
+// run share an RNG sequence — their bounds are correlated through the resample
+// indices, not independent draws. That's fine for reproducibility; pass
+// distinct seeds if you ever need statistically independent CIs.
 // ---------------------------------------------------------------------------
 
 function mulberry32(seed: number): () => number {
@@ -205,11 +209,11 @@ export function bootstrapMeanCI(values: number[], opts: BootstrapOptions = {}): 
     means.push(sum / n);
   }
   means.sort((x, y) => x - y);
-  return {
-    mean: mean(values),
-    lo: means[Math.floor((alpha / 2) * iterations)],
-    hi: means[Math.min(iterations - 1, Math.floor((1 - alpha / 2) * iterations))],
-  };
+  // Percentile indices, clamped at BOTH ends. The index can sit one bin off the
+  // exact percentile (~0.05pp at iterations=2000) — negligible for an eval CI.
+  const loIdx = Math.max(0, Math.floor((alpha / 2) * iterations));
+  const hiIdx = Math.min(iterations - 1, Math.floor((1 - alpha / 2) * iterations));
+  return { mean: mean(values), lo: means[loIdx], hi: means[hiIdx] };
 }
 
 export interface PairedDelta extends ConfidenceInterval {
