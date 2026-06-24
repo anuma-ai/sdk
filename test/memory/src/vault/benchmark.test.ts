@@ -26,11 +26,9 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
-import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
+import { embedWithCache, loadEmbeddingCache, saveEmbeddingCache } from "./embeddingCache.js";
 import {
   rankVaultMemories,
   rankFusedVaultMemories,
@@ -261,70 +259,10 @@ function formatPct(value: number, width: number): string {
   return (value * 100).toFixed(1).padStart(width) + "%";
 }
 
-// ---------------------------------------------------------------------------
-// Frozen embedding cache
-//
-// The benchmark re-embeds the corpus + queries on every run, and the embedding
-// service is not byte-deterministic — the same `cosine` config drifts ~2pp
-// recall run-to-run. That noise swamps the small deltas between rankers, so a
-// cross-run A/B (run cosine, run fused, diff) conflates the ranker change with
-// embedding jitter. This cache pins vectors by text: once populated, every
-// config scores against identical embeddings, so differences are purely the
-// ranker. It's a local, regenerable fixture (gitignored, ~MBs); `model` is
-// stored so a model change auto-invalidates, and `--refresh-embeddings` forces
-// a rebuild.
-// ---------------------------------------------------------------------------
-// Resolve relative to THIS module, not process.cwd(). A cwd-relative path only
-// works when the benchmark is launched from the repo root; from anywhere else
-// the read fails, the catch swallows ENOENT, and the run silently re-embeds
-// with fresh (non-deterministic) vectors — defeating the whole "frozen
-// embeddings" A/B guarantee. The cache sits next to this file.
-const EMBEDDING_CACHE_PATH = join(dirname(fileURLToPath(import.meta.url)), "embeddings-cache.json");
-
-async function loadEmbeddingCache(model: string, refresh: boolean): Promise<Map<string, number[]>> {
-  if (refresh) return new Map();
-  try {
-    const raw = JSON.parse(await readFile(EMBEDDING_CACHE_PATH, "utf-8"));
-    if (raw.model !== model) {
-      console.error(
-        `  Embedding cache model changed (${raw.model} → ${model}); rebuilding from scratch.`
-      );
-      return new Map();
-    }
-    return new Map(Object.entries(raw.vectors as Record<string, number[]>));
-  } catch (err) {
-    // A missing cache on first run is expected; anything else (corrupt JSON,
-    // permissions) must be visible, not silently treated as an empty cache.
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error(`  Embedding cache unreadable (${(err as Error).message}); rebuilding.`);
-    }
-    return new Map();
-  }
-}
-
-async function saveEmbeddingCache(cache: Map<string, number[]>, model: string): Promise<void> {
-  await writeFile(
-    EMBEDDING_CACHE_PATH,
-    JSON.stringify({ model, count: cache.size, vectors: Object.fromEntries(cache) })
-  );
-}
-
-/**
- * Embed `texts`, reusing cached vectors and only calling the API for misses.
- * Returns vectors aligned to `texts` and whether the cache gained entries.
- */
-async function embedWithCache(
-  texts: string[],
-  options: EmbeddingOptions,
-  cache: Map<string, number[]>
-): Promise<{ vectors: number[][]; misses: number }> {
-  const missing = [...new Set(texts.filter((t) => !cache.has(t)))];
-  if (missing.length > 0) {
-    const fresh = await generateEmbeddings(missing, options);
-    missing.forEach((t, i) => cache.set(t, fresh[i]));
-  }
-  return { vectors: texts.map((t) => cache.get(t)!), misses: missing.length };
-}
+// Frozen embedding cache: pins query + memory vectors by text so an A/B ranker
+// comparison scores against identical embeddings instead of run-to-run jitter.
+// Extracted to ./embeddingCache.ts so its load/save/invalidation is unit-tested;
+// see loadEmbeddingCache / saveEmbeddingCache / embedWithCache there.
 
 // ---------------------------------------------------------------------------
 // Metric helpers (ranking violation is benchmark-specific, not in metrics.ts)
