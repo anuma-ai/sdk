@@ -151,3 +151,107 @@ export function aggregateRetrievalMetrics(
     belowThresholdCount,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Bootstrap significance
+//
+// A single benchmark run over N queries gives one mean per metric, with no
+// sense of how much that mean would wobble on a different sample of queries.
+// On a ~100-query corpus a "+2pp recall" delta is easily noise. These helpers
+// quantify that: a percentile bootstrap CI for a single run, and a *paired*
+// bootstrap (resampling the same query indices for both configs) for whether
+// one config genuinely beats another. Paired is the right test because the two
+// configs are scored on the identical query set — pairing cancels per-query
+// difficulty and is far more sensitive than comparing two independent CIs.
+//
+// Reproducible by default: a seeded PRNG (mulberry32) makes the CI bounds
+// deterministic across runs, so a baseline comparison is stable. Note both
+// helpers default to the same seed, so the recall and ndcg CIs computed in one
+// run share an RNG sequence — their bounds are correlated through the resample
+// indices, not independent draws. That's fine for reproducibility; pass
+// distinct seeds if you ever need statistically independent CIs.
+// ---------------------------------------------------------------------------
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export interface ConfidenceInterval {
+  mean: number;
+  lo: number;
+  hi: number;
+}
+
+export interface BootstrapOptions {
+  iterations?: number;
+  /** Two-sided alpha; 0.05 → 95% CI. */
+  alpha?: number;
+  seed?: number;
+}
+
+/** Percentile bootstrap CI for the mean of a per-query metric sample. */
+export function bootstrapMeanCI(values: number[], opts: BootstrapOptions = {}): ConfidenceInterval {
+  const { iterations = 2000, alpha = 0.05, seed = 12345 } = opts;
+  const n = values.length;
+  if (n === 0) return { mean: 0, lo: 0, hi: 0 };
+  const rng = mulberry32(seed);
+  const means: number[] = [];
+  for (let b = 0; b < iterations; b++) {
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += values[(rng() * n) | 0];
+    means.push(sum / n);
+  }
+  means.sort((x, y) => x - y);
+  // Percentile indices, clamped at BOTH ends. The index can sit one bin off the
+  // exact percentile (~0.05pp at iterations=2000) — negligible for an eval CI.
+  const loIdx = Math.max(0, Math.floor((alpha / 2) * iterations));
+  const hiIdx = Math.min(iterations - 1, Math.floor((1 - alpha / 2) * iterations));
+  return { mean: mean(values), lo: means[loIdx], hi: means[hiIdx] };
+}
+
+export interface PairedDelta extends ConfidenceInterval {
+  /** True when the CI of the per-query difference excludes 0. */
+  significant: boolean;
+}
+
+/**
+ * Paired bootstrap on per-query differences `a[i] - b[i]` (a = candidate,
+ * b = baseline). `significant` is true when the 95% CI of the mean difference
+ * excludes 0 — i.e. the candidate's win/loss is unlikely to be sampling noise.
+ */
+export function pairedBootstrapDelta(
+  a: number[],
+  b: number[],
+  opts: BootstrapOptions = {}
+): PairedDelta {
+  const { iterations = 2000, alpha = 0.05, seed = 12345 } = opts;
+  // Paired test requires 1:1 correspondence; mismatched lengths are a caller
+  // bug (e.g. unaligned query sets). Fail loud rather than silently truncate
+  // to the shorter array, which would bias the delta and fabricate a verdict.
+  if (a.length !== b.length) {
+    throw new Error(
+      `pairedBootstrapDelta requires equal-length arrays (got ${a.length} and ${b.length})`
+    );
+  }
+  const n = a.length;
+  if (n === 0) return { mean: 0, lo: 0, hi: 0, significant: false };
+  const diffs = Array.from({ length: n }, (_, i) => a[i] - b[i]);
+  const rng = mulberry32(seed);
+  const resampled: number[] = [];
+  for (let r = 0; r < iterations; r++) {
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += diffs[(rng() * n) | 0];
+    resampled.push(sum / n);
+  }
+  resampled.sort((x, y) => x - y);
+  const lo = resampled[Math.floor((alpha / 2) * iterations)];
+  const hi = resampled[Math.min(iterations - 1, Math.floor((1 - alpha / 2) * iterations))];
+  return { mean: mean(diffs), lo, hi, significant: lo > 0 || hi < 0 };
+}
