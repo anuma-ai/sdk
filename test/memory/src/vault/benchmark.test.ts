@@ -847,7 +847,9 @@ async function main() {
     const output = {
       ...buildBaselinePayload(overall, byCategory, elapsed),
       // Compact per-query rows so this file can be a --compare target for a
-      // paired bootstrap against a later run (keyed by query text).
+      // paired bootstrap against a later run (keyed by query text). Only in the
+      // ephemeral --json stdout (and any user-chosen --output); the committed
+      // baseline (--save-baseline) omits these, so tracked files stay small.
       perQuery: results.map((r) => ({
         query: r.query.query,
         recall: r.recall,
