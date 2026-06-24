@@ -584,6 +584,28 @@ describe("recall — dedupe", () => {
     expect(contents).toContain(M2);
     expect(contents).toContain(c1.chunkText);
   });
+
+  it("keeps distinct same-message passages through the fused path", async () => {
+    // Fused path (types: fact + chunk) must key chunks passage-uniquely, not by
+    // message id — otherwise a long message that splits into passages A and B
+    // collapses to one and candidateCount undercounts (the single-lane test
+    // doesn't touch this path).
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1fact", M1)]);
+    const passageA = "passage A from message msg-1";
+    const passageB = "passage B from message msg-1";
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      { ...makeChunk("msg-1", "conv1", 0.9), chunkText: passageA },
+      { ...makeChunk("msg-1", "conv1", 0.85), chunkText: passageB }, // same msg, different text
+    ]);
+
+    const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["fact", "chunk"] });
+
+    const contents = result.memories.map((m) => m.content);
+    expect(contents).toContain(passageA);
+    expect(contents).toContain(passageB);
+    // 1 fact + 2 distinct passages; fusion must not collapse the passages.
+    expect(result.candidateCount).toBe(3);
+  });
 });
 
 describe("createRecallTool executor", () => {

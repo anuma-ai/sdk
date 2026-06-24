@@ -226,8 +226,15 @@ export async function recall(
     };
   }
 
+  // Fusion key must be PASSAGE-unique, not message-unique: one message can
+  // split into several distinct chunks, and keying by message id alone makes
+  // their ranking entries collide and the byId map overwrite all but the last
+  // — silently dropping legitimate hits and undercounting candidateCount. Key
+  // by message id + text so passages from one message stay separate through
+  // fusion. (chunkResults is already content-deduped, so this is 1:1.)
+  const chunkKey = (r: ChunkSearchResult) => `chunk:${r.message.uniqueId}:${r.chunkText.trim()}`;
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
-  const chunkRanking = chunkResults.map((r) => `chunk:${r.message.uniqueId}`);
+  const chunkRanking = chunkResults.map(chunkKey);
   const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
 
   const byId = new Map<string, RankedMemory>();
@@ -240,10 +247,11 @@ export async function recall(
   }
   for (const r of chunkResults) {
     const m = toChunkMemory(r);
-    m.score = fused.get(`chunk:${r.message.uniqueId}`) ?? 0;
+    const key = chunkKey(r);
+    m.score = fused.get(key) ?? 0;
     if (!m.scoreBreakdown) m.scoreBreakdown = {};
     m.scoreBreakdown.fused = r.similarity;
-    byId.set(`chunk:${r.message.uniqueId}`, m);
+    byId.set(key, m);
   }
 
   const memories = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, limit);
