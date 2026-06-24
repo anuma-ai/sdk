@@ -63,8 +63,8 @@ A "durable fact" is something the user shared about themselves that should still
 - "Working on a Rust side project"
 - "Prefers async communication over meetings"
 - "Has a golden retriever named Biscuit"
-- "Switched from coffee to matcha in September 2025"
-- "Lives in San Francisco, moved from Portland in November 2025"
+- "Prefers matcha over coffee"
+- "Lives in San Francisco (since November 2025)"
 
 NOT durable — do NOT extract:
 - Search queries or questions ("what time does the gym open?")
@@ -73,6 +73,7 @@ NOT durable — do NOT extract:
 - Things the user is asking the assistant to do ("draft an email")
 - Facts that are about the assistant or the world, not about the user
 - Information already framed as past-tense gossip about other people
+- Vague or non-committal intentions ("I should work out more at some point", "I really need to read more", "maybe I'll learn guitar"). Only extract a plan when it's concrete and committed ("signed up for the Chicago marathon in October").
 
 For each durable fact, output:
 - content: a short, self-contained statement, third-person, present-tense ("Lives in San Francisco" not "I live in San Francisco")
@@ -87,7 +88,7 @@ For each durable fact, output:
     - null   for facts with no temporal anchor ("favorite color is blue", "speaks Spanish")
   Always use absolute YYYY-MM-DD; never write "yesterday" / "last week" / "next month".
 
-If a fact UPDATES a prior state ("I moved to SF in November"), still emit it - the resolver decides what to do.
+When the user describes a CHANGE, extract only the NEW current state — not the prior state they're replacing. "I left Google, I'm at Riverbend now" → emit "Works at Riverbend" only, NOT "Previously worked at Google". "Moved from Portland to SF" → emit "Lives in San Francisco" only. The resolver supersedes the old memory; don't re-record it as a standalone fact.
 
 If no durable facts were shared, return {"candidates": []}. Empty results are fine - most turns won't have any.
 
