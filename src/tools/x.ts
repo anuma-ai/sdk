@@ -1,19 +1,21 @@
 /**
  * X (Twitter) tool factory for the chat system.
  *
- * Mirrors the shape of {@link "./gmail".createGmailTools}: the caller supplies
- * a token getter and the factory returns a record of `ToolConfig` entries the
- * chat loop can run. The token getter is expected to be one returned by
- * `createConnectorTokenGetter`, but any `() => Promise<string | null>`
- * compatible function works.
+ * Unlike the other connector tools, the X tools never call api.x.com directly:
+ * api.x.com returns no CORS headers, so a browser can't fetch it. Instead the
+ * caller supplies an {@link XProxyCaller} that POSTs to the portal's
+ * `POST {portalBaseUrl}/api/v1/connectors/x/proxy` endpoint (authed with the
+ * user's Privy bearer, NOT an X token). The portal mints the X token
+ * server-side and returns the upstream status + JSON verbatim. The SDK stays
+ * transport-agnostic: it builds the same upstream paths + query objects it
+ * always has and hands them to the injected caller.
  *
  * Tool catalogue (matches portal scope `connector:x:*`):
  * - `x_get_me`       -- fetch the authenticated user's profile
  * - `x_get_my_posts` -- fetch the authenticated user's recent posts
  *
- * Error contract: when the upstream X API signals an auth failure (401, 403)
- * or the token getter returns null, the tool returns the canonical
- * `__anuma_connector_error_v1` JSON shape produced by
+ * Error contract: when the proxy reports an auth failure (401, 403) the tool
+ * returns the canonical `__anuma_connector_error_v1` JSON shape produced by
  * `buildConnectorErrorResult`. Tool executors never throw on these paths.
  */
 
@@ -21,10 +23,17 @@ import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 
 const X_PROVIDER = "x";
-const X_BASE_URL = "https://api.x.com/2";
-const FETCH_TIMEOUT_MS = 30_000;
 
-export type XTokenGetter = () => Promise<string | null>;
+/**
+ * Calls the portal X proxy with an upstream X API path and optional query, and
+ * resolves to the upstream status + parsed JSON. Consumers wire this to
+ * `POST {portalBaseUrl}/api/v1/connectors/x/proxy` with the user's Privy bearer
+ * and a JSON body `{ path, query }`; the portal mints the X token server-side.
+ */
+export type XProxyCaller = (
+  path: string,
+  query?: Record<string, string | number>
+) => Promise<{ status: number; json: unknown }>;
 
 export interface XGetMeArgs {
   includePublicMetrics?: boolean;
@@ -55,24 +64,6 @@ interface XTweetsResponse {
 }
 
 /**
- * Bare `fetch` would hang the agent loop indefinitely if X goes
- * unresponsive -- abort at 30s, mirroring the Gmail tool pattern.
- */
-async function xFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function xTimeoutError(operation: string): string {
-  return `Error: X API request timed out after ${FETCH_TIMEOUT_MS / 1000}s while trying to ${operation}.`;
-}
-
-/**
  * Convert an upstream X HTTP status to a connector error string when
  * appropriate, otherwise return null so the caller can surface the raw error.
  */
@@ -86,40 +77,28 @@ function maybeConnectorError(status: number): string | null {
 /**
  * Resolve the authenticated user's id (and optionally full profile) from
  * /users/me. Returns the parsed data on success, or an error string on any
- * failure path (timeout, auth error, non-ok status, missing data).
+ * failure path (auth error, non-ok status, missing data).
  */
 type XUserData = NonNullable<XUserResponse["data"]>;
 
 async function resolveMyUserId(
-  accessToken: string,
-  signal?: AbortSignal,
+  callProxy: XProxyCaller,
   extraFields?: string[]
 ): Promise<XUserData | string> {
-  const params = new URLSearchParams();
+  const query: Record<string, string | number> = {};
   if (extraFields && extraFields.length > 0) {
-    params.set("user.fields", extraFields.join(","));
+    query["user.fields"] = extraFields.join(",");
   }
-  const qs = params.toString();
-  const url = qs ? `${X_BASE_URL}/users/me?${qs}` : `${X_BASE_URL}/users/me`;
-  let response: Response;
-  try {
-    response = await xFetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal,
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      return xTimeoutError("get profile");
-    }
-    throw err;
-  }
-  if (!response.ok) {
-    const connectorError = maybeConnectorError(response.status);
+  const { status, json } = await callProxy(
+    "/2/users/me",
+    Object.keys(query).length > 0 ? query : undefined
+  );
+  if (status < 200 || status >= 300) {
+    const connectorError = maybeConnectorError(status);
     if (connectorError) return connectorError;
-    const body = await response.text();
-    return `Error: Failed to fetch X profile (${response.status}): ${body}`;
+    return `Error: Failed to fetch X profile (${status}): ${JSON.stringify(json)}`;
   }
-  const data = (await response.json()) as XUserResponse;
+  const data = json as XUserResponse;
   if (!data.data) {
     return `Error: X API returned no user data`;
   }
@@ -127,7 +106,7 @@ async function resolveMyUserId(
 }
 
 async function getXMe(
-  accessToken: string,
+  callProxy: XProxyCaller,
   args: XGetMeArgs
 ): Promise<
   | {
@@ -147,7 +126,7 @@ async function getXMe(
   const extraFields = ["description"];
   if (args.includePublicMetrics !== false) extraFields.push("public_metrics");
 
-  const userData = await resolveMyUserId(accessToken, undefined, extraFields);
+  const userData = await resolveMyUserId(callProxy, extraFields);
   if (typeof userData === "string") return userData;
 
   const result: {
@@ -173,11 +152,11 @@ async function getXMe(
 }
 
 async function getXMyPosts(
-  accessToken: string,
+  callProxy: XProxyCaller,
   args: XGetMyPostsArgs
 ): Promise<{ id: string; text: string }[] | string> {
   // Resolve the authenticated user's id.
-  const userData = await resolveMyUserId(accessToken);
+  const userData = await resolveMyUserId(callProxy);
   if (typeof userData === "string") return userData;
   const userId = userData.id;
 
@@ -186,33 +165,22 @@ async function getXMyPosts(
   const safeMax = typeof rawMax === "number" && Number.isFinite(rawMax) ? rawMax : 10;
   const maxResults = Math.min(100, Math.max(5, safeMax));
 
-  const tweetsParams = new URLSearchParams({ max_results: String(maxResults) });
-  let tweetsResponse: Response;
-  try {
-    tweetsResponse = await xFetch(
-      `${X_BASE_URL}/users/${encodeURIComponent(userId)}/tweets?${tweetsParams.toString()}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      return xTimeoutError("fetch posts");
-    }
-    throw err;
-  }
-  if (!tweetsResponse.ok) {
-    const connectorError = maybeConnectorError(tweetsResponse.status);
+  const { status, json } = await callProxy(`/2/users/${userId}/tweets`, {
+    max_results: maxResults,
+  });
+  if (status < 200 || status >= 300) {
+    const connectorError = maybeConnectorError(status);
     if (connectorError) return connectorError;
-    const body = await tweetsResponse.text();
-    return `Error: Failed to fetch X posts (${tweetsResponse.status}): ${body}`;
+    return `Error: Failed to fetch X posts (${status}): ${JSON.stringify(json)}`;
   }
-  const tweetsData = (await tweetsResponse.json()) as XTweetsResponse;
+  const tweetsData = json as XTweetsResponse;
   if (!tweetsData.data || tweetsData.data.length === 0) {
     return [];
   }
   return tweetsData.data.map((t) => ({ id: t.id, text: t.text }));
 }
 
-function createXGetMeTool(getToken: XTokenGetter): ToolConfig {
+function createXGetMeTool(callProxy: XProxyCaller): ToolConfig {
   return {
     type: "function",
     function: {
@@ -231,17 +199,15 @@ function createXGetMeTool(getToken: XTokenGetter): ToolConfig {
       },
     },
     executor: async (args: Record<string, unknown>) => {
-      const token = await getToken();
-      if (!token) return buildConnectorErrorResult("connector_not_connected", X_PROVIDER);
       const typed: XGetMeArgs = {
         includePublicMetrics: args.includePublicMetrics as boolean | undefined,
       };
-      return getXMe(token, typed);
+      return getXMe(callProxy, typed);
     },
   };
 }
 
-function createXGetMyPostsTool(getToken: XTokenGetter): ToolConfig {
+function createXGetMyPostsTool(callProxy: XProxyCaller): ToolConfig {
   return {
     type: "function",
     function: {
@@ -261,27 +227,27 @@ function createXGetMyPostsTool(getToken: XTokenGetter): ToolConfig {
       },
     },
     executor: async (args: Record<string, unknown>) => {
-      const token = await getToken();
-      if (!token) return buildConnectorErrorResult("connector_not_connected", X_PROVIDER);
       const typed: XGetMyPostsArgs = {
         maxResults: args.maxResults as number | undefined,
       };
-      return getXMyPosts(token, typed);
+      return getXMyPosts(callProxy, typed);
     },
   };
 }
 
 /**
- * Build the X tool set wired to the supplied token getter.
+ * Build the X tool set wired to the supplied proxy caller.
  *
  * The returned record keys (`x_get_me`, `x_get_my_posts`) match the underlying
  * tool names so callers can forward a subset by destructuring.
  *
- * @param getToken Async getter -- typically `createConnectorTokenGetter(portal, "x")`.
+ * @param callProxy POSTs an upstream X path + query through the portal X proxy
+ *   (`/api/v1/connectors/x/proxy`) and resolves to `{ status, json }`. The X
+ *   token never reaches the browser -- the portal mints it server-side.
  */
-export function createXTools(getToken: XTokenGetter): Record<string, ToolConfig> {
+export function createXTools(callProxy: XProxyCaller): Record<string, ToolConfig> {
   return {
-    x_get_me: createXGetMeTool(getToken),
-    x_get_my_posts: createXGetMyPostsTool(getToken),
+    x_get_me: createXGetMeTool(callProxy),
+    x_get_my_posts: createXGetMyPostsTool(callProxy),
   };
 }

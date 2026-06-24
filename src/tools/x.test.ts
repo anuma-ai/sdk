@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
-import { createXTools } from "./x.js";
+import { createXTools, type XProxyCaller } from "./x.js";
 
 type ToolResult = unknown;
 
@@ -12,38 +12,18 @@ async function runExecutor(
   return tool.executor(args);
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-function textResponse(text: string, status: number): Response {
-  return new Response(text, { status });
+function proxyResult(json: unknown, status = 200): { status: number; json: unknown } {
+  return { status, json };
 }
 
 describe("createXTools", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-  let originalFetch: typeof globalThis.fetch;
-
-  beforeEach(() => {
-    originalFetch = globalThis.fetch;
-    fetchMock = vi.fn();
-    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  test("x_get_me returns profile on success", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        data: { id: "1", name: "Test User", username: "test" },
-      })
-    );
-    const tools = createXTools(async () => "good-token");
+  test("x_get_me hits the proxy at /2/users/me and returns profile", async () => {
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(
+        proxyResult({ data: { id: "1", name: "Test User", username: "test" } })
+      );
+    const tools = createXTools(callProxy);
     const result = (await runExecutor(tools.x_get_me, {})) as {
       id: string;
       name: string;
@@ -52,15 +32,14 @@ describe("createXTools", () => {
     expect(result.id).toBe("1");
     expect(result.name).toBe("Test User");
     expect(result.username).toBe("test");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/2/users/me");
-    expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer good-token");
+    expect(callProxy).toHaveBeenCalledTimes(1);
+    const [path] = callProxy.mock.calls[0];
+    expect(path).toBe("/2/users/me");
   });
 
   test("x_get_me requests public_metrics field when includePublicMetrics is true", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
+    const callProxy = vi.fn<XProxyCaller>().mockResolvedValueOnce(
+      proxyResult({
         data: {
           id: "1",
           name: "Test User",
@@ -69,27 +48,30 @@ describe("createXTools", () => {
         },
       })
     );
-    const tools = createXTools(async () => "good-token");
+    const tools = createXTools(callProxy);
     const result = (await runExecutor(tools.x_get_me, { includePublicMetrics: true })) as {
       public_metrics?: { followers_count: number };
     };
     expect(result.public_metrics?.followers_count).toBe(100);
-    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("public_metrics");
+    const [, query] = callProxy.mock.calls[0];
+    expect(query?.["user.fields"]).toBe("description,public_metrics");
   });
 
   test("x_get_me does not request public_metrics when includePublicMetrics is false", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ data: { id: "1", name: "Test User", username: "test" } })
-    );
-    const tools = createXTools(async () => "good-token");
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(
+        proxyResult({ data: { id: "1", name: "Test User", username: "test" } })
+      );
+    const tools = createXTools(callProxy);
     await runExecutor(tools.x_get_me, { includePublicMetrics: false });
-    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).not.toContain("public_metrics");
+    const [, query] = callProxy.mock.calls[0];
+    expect(query?.["user.fields"]).toBe("description");
   });
 
-  test("returns canonical connector error when token is null", async () => {
-    const tools = createXTools(async () => null);
+  test("returns connector error when proxy reports 401", async () => {
+    const callProxy = vi.fn<XProxyCaller>().mockResolvedValueOnce(proxyResult(null, 401));
+    const tools = createXTools(callProxy);
     const raw = (await runExecutor(tools.x_get_me, {})) as string;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     expect(parsed).toEqual({
@@ -97,12 +79,11 @@ describe("createXTools", () => {
       code: "connector_not_connected",
       provider: "x",
     });
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("returns connector error when X API responds 401", async () => {
-    fetchMock.mockResolvedValueOnce(textResponse("unauthorized", 401));
-    const tools = createXTools(async () => "stale-token");
+  test("returns connector error when proxy reports 403", async () => {
+    const callProxy = vi.fn<XProxyCaller>().mockResolvedValueOnce(proxyResult(null, 403));
+    const tools = createXTools(callProxy);
     const raw = (await runExecutor(tools.x_get_me, {})) as string;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     expect(parsed.__anuma_connector_error_v1).toBe(true);
@@ -110,18 +91,11 @@ describe("createXTools", () => {
     expect(parsed.provider).toBe("x");
   });
 
-  test("returns connector error when X API responds 403", async () => {
-    fetchMock.mockResolvedValueOnce(textResponse("forbidden", 403));
-    const tools = createXTools(async () => "stale-token");
-    const raw = (await runExecutor(tools.x_get_me, {})) as string;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    expect(parsed.__anuma_connector_error_v1).toBe(true);
-    expect(parsed.code).toBe("connector_not_connected");
-  });
-
   test("returns generic failure string on non-auth 5xx from x_get_me", async () => {
-    fetchMock.mockResolvedValueOnce(textResponse("Internal Server Error", 500));
-    const tools = createXTools(async () => "good-token");
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ error: "Internal Server Error" }, 500));
+    const tools = createXTools(callProxy);
     const result = (await runExecutor(tools.x_get_me, {})) as string;
     expect(typeof result).toBe("string");
     expect(result).toContain("500");
@@ -136,34 +110,21 @@ describe("createXTools", () => {
     expect(parsed?.__anuma_connector_error_v1).toBeUndefined();
   });
 
-  test("returns timeout error string when x_get_me fetch is aborted", async () => {
-    fetchMock.mockImplementationOnce(
-      () =>
-        new Promise((_, reject) => {
-          const err = new DOMException("The operation was aborted", "AbortError");
-          setTimeout(() => reject(err), 10);
+  test("x_get_my_posts resolves user via /2/users/me then fetches tweets", async () => {
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(
+        proxyResult({ data: { id: "42", name: "Test User", username: "test" } })
+      )
+      .mockResolvedValueOnce(
+        proxyResult({
+          data: [
+            { id: "t1", text: "Hello world" },
+            { id: "t2", text: "Second post" },
+          ],
         })
-    );
-    const tools = createXTools(async () => "good-token");
-    const result = (await runExecutor(tools.x_get_me, {})) as string;
-    expect(result).toContain("timed out");
-  });
-
-  test("x_get_my_posts returns tweets on success", async () => {
-    // First fetch: users/me to resolve user id.
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ data: { id: "42", name: "Test User", username: "test" } })
-    );
-    // Second fetch: tweets for user id 42.
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        data: [
-          { id: "t1", text: "Hello world" },
-          { id: "t2", text: "Second post" },
-        ],
-      })
-    );
-    const tools = createXTools(async () => "good-token");
+      );
+    const tools = createXTools(callProxy);
     const result = (await runExecutor(tools.x_get_my_posts, { maxResults: 10 })) as {
       id: string;
       text: string;
@@ -172,81 +133,68 @@ describe("createXTools", () => {
       { id: "t1", text: "Hello world" },
       { id: "t2", text: "Second post" },
     ]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [tweetsUrl] = fetchMock.mock.calls[1] as [string, RequestInit];
-    expect(tweetsUrl).toContain("/users/42/tweets");
+    expect(callProxy).toHaveBeenCalledTimes(2);
+    expect(callProxy.mock.calls[0][0]).toBe("/2/users/me");
+    const [postsPath, postsQuery] = callProxy.mock.calls[1];
+    expect(postsPath).toBe("/2/users/42/tweets");
+    expect(postsQuery?.max_results).toBe(10);
   });
 
   test("x_get_my_posts returns empty array when data is empty", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ data: { id: "5", name: "Test", username: "test" } })
-    );
-    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [] }));
-    const tools = createXTools(async () => "good-token");
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ data: { id: "5", name: "Test", username: "test" } }))
+      .mockResolvedValueOnce(proxyResult({ data: [] }));
+    const tools = createXTools(callProxy);
     const result = await runExecutor(tools.x_get_my_posts, {});
     expect(result).toEqual([]);
   });
 
   test("x_get_my_posts clamps max_results above 100 to 100", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ data: { id: "7", name: "Test", username: "test" } })
-    );
-    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [] }));
-    const tools = createXTools(async () => "good-token");
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ data: { id: "7", name: "Test", username: "test" } }))
+      .mockResolvedValueOnce(proxyResult({ data: [] }));
+    const tools = createXTools(callProxy);
     await runExecutor(tools.x_get_my_posts, { maxResults: 200 });
-    const [tweetsUrl] = fetchMock.mock.calls[1] as [string, RequestInit];
-    expect(tweetsUrl).toContain("max_results=100");
+    expect(callProxy.mock.calls[1][1]?.max_results).toBe(100);
   });
 
   test("x_get_my_posts clamps max_results below 5 to 5", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ data: { id: "8", name: "Test", username: "test" } })
-    );
-    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [] }));
-    const tools = createXTools(async () => "good-token");
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ data: { id: "8", name: "Test", username: "test" } }))
+      .mockResolvedValueOnce(proxyResult({ data: [] }));
+    const tools = createXTools(callProxy);
     await runExecutor(tools.x_get_my_posts, { maxResults: 1 });
-    const [tweetsUrl] = fetchMock.mock.calls[1] as [string, RequestInit];
-    expect(tweetsUrl).toContain("max_results=5");
+    expect(callProxy.mock.calls[1][1]?.max_results).toBe(5);
   });
 
   test("x_get_my_posts falls back to default 10 when maxResults is NaN", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ data: { id: "9", name: "Test", username: "test" } })
-    );
-    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [] }));
-    const tools = createXTools(async () => "good-token");
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ data: { id: "9", name: "Test", username: "test" } }))
+      .mockResolvedValueOnce(proxyResult({ data: [] }));
+    const tools = createXTools(callProxy);
     // Simulate model emitting a non-numeric value.
     await runExecutor(tools.x_get_my_posts, { maxResults: NaN });
-    const [tweetsUrl] = fetchMock.mock.calls[1] as [string, RequestInit];
-    expect(tweetsUrl).toContain("max_results=10");
-    expect(tweetsUrl).not.toContain("NaN");
+    expect(callProxy.mock.calls[1][1]?.max_results).toBe(10);
   });
 
-  test("x_get_my_posts returns resolve error when /users/me fails", async () => {
-    fetchMock.mockResolvedValueOnce(textResponse("unauthorized", 401));
-    const tools = createXTools(async () => "stale-token");
+  test("x_get_my_posts returns connector error when /2/users/me reports 401", async () => {
+    const callProxy = vi.fn<XProxyCaller>().mockResolvedValueOnce(proxyResult(null, 401));
+    const tools = createXTools(callProxy);
     const raw = (await runExecutor(tools.x_get_my_posts, {})) as string;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     expect(parsed.__anuma_connector_error_v1).toBe(true);
     expect(parsed.code).toBe("connector_not_connected");
   });
 
-  test("x_get_my_posts returns timeout error when fetch is aborted", async () => {
-    fetchMock.mockImplementationOnce(
-      () =>
-        new Promise((_, reject) => {
-          const err = new DOMException("The operation was aborted", "AbortError");
-          setTimeout(() => reject(err), 10);
-        })
-    );
-    const tools = createXTools(async () => "good-token");
-    const result = (await runExecutor(tools.x_get_my_posts, {})) as string;
-    expect(result).toContain("timed out");
-  });
-
   test("x_get_my_posts returns generic failure string on non-auth 5xx", async () => {
-    fetchMock.mockResolvedValueOnce(textResponse("Internal Server Error", 500));
-    const tools = createXTools(async () => "good-token");
+    const callProxy = vi
+      .fn<XProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ error: "Internal Server Error" }, 500));
+    const tools = createXTools(callProxy);
     const result = (await runExecutor(tools.x_get_my_posts, {})) as string;
     expect(typeof result).toBe("string");
     expect(result).toContain("500");

@@ -160,7 +160,7 @@ export type {
 export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
 
 // X (Twitter) exports
-export type { XGetMeArgs, XGetMyPostsArgs, XTokenGetter } from "./x";
+export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";
 export { createXTools } from "./x";
 
 // Connector vault primitives
