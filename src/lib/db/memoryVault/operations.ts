@@ -329,7 +329,8 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
   return {
     uniqueId: raw.id as string,
     content: (raw.content as string) ?? "",
-    scope: raw.scope as string,
+    // @text coerces NULL→"" on the Model path; unsafeFetchRaw returns the raw NULL, so guard.
+    scope: (raw.scope as string) ?? "",
     folderId: (raw.folder_id as string | null) ?? null,
     userId: (raw.user_id as string | null) ?? null,
     embedding: (raw.embedding as string | null) ?? null,
@@ -375,9 +376,10 @@ export async function getAllVaultMemoriesOp(
   ];
   // unsafeFetchRaw (NOT fetch): a whole-vault load must not build a Model per row into the
   // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy/take); raws decrypted directly.
-  const results = (await ctx.vaultMemoryCollection
-    .query(...conditions)
-    .unsafeFetchRaw()) as Record<string, unknown>[];
+  const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
   return mapInBatches(results, (raw) =>
     vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
   );
