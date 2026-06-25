@@ -18,6 +18,35 @@ function defaultBaseUrl(): string {
 }
 
 /**
+ * Providers whose models accept an OpenAI-style `response_format` field.
+ *
+ * Support is model-specific, not universal. gpt-oss-120b (Cerebras) rejects
+ * the whole request with a 400 if `response_format` is present; OpenAI,
+ * ling-2.6-flash (inclusionai), and deepseek-v4 all accept it (verified
+ * 2026-06). An UNKNOWN provider defaults to OMITTING it, so a newly-added
+ * model degrades to a bare prompt-instructed request (which still works via a
+ * strict-JSON system prompt + the tolerant `extractJsonCandidate` parser)
+ * rather than hard-failing on a 400. Anthropic ignores the flag entirely (it
+ * uses the assistant-prefill path), so it is intentionally excluded here.
+ */
+const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
+
+/**
+ * Whether `model` accepts an OpenAI-style `response_format` request field
+ * (both `json_object` and `json_schema` variants). Use this to gate the flag
+ * on any direct portal `/chat/completions` call so models that 400 on it
+ * (e.g. Cerebras gpt-oss) or silently ignore it (Anthropic) never receive it.
+ *
+ * Match on path SEGMENTS, not a raw substring: model ids are `provider/model`
+ * (or proxied `openrouter/openai/model`), so splitting on `/` matches `openai`
+ * in both `openai/x` and `openrouter/openai/x` without a coincidental id like
+ * `someprovider-openai/x` wrongly qualifying.
+ */
+export function supportsResponseFormat(model: string): boolean {
+  return model.split("/").some((seg) => RESPONSE_FORMAT_OK.has(seg));
+}
+
+/**
  * Auth for portal LLM calls (extraction, consolidation, decomposition,
  * reflection). Mirrors `memoryEngine`'s `EmbeddingOptions` dual-auth:
  *
@@ -119,22 +148,10 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   ];
   if (prefill) messages.push({ role: "assistant", content: prefill });
 
-  // `response_format: json_object` support is model-specific, not universal.
-  // gpt-oss-120b (Cerebras) rejects the whole request with a 400 if it's
-  // present; OpenAI, ling-2.6-flash, and deepseek-v4 all accept it (verified
-  // 2026-06). Send it only to models whose provider is confirmed to accept it;
-  // an UNKNOWN provider defaults to OMITTING it, so a newly-added model
-  // degrades to a bare prompt-instructed request (which still works via the
-  // strict-JSON system prompt + the tolerant `extractJsonCandidate` parser
-  // below) rather than hard-failing on a 400. Anthropic ignores the flag and
-  // uses the prefill path above.
-  //
-  // Match on path SEGMENTS, not a raw substring: model ids are
-  // `provider/model` (or proxied `openrouter/openai/model`), so splitting on
-  // `/` matches `openai` in both `openai/x` and `openrouter/openai/x` without
-  // a coincidental id like `someprovider-openai/x` wrongly qualifying.
-  const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
-  const supportsJsonObjectFormat = req.model.split("/").some((seg) => RESPONSE_FORMAT_OK.has(seg));
+  // `response_format` support is model-specific, not universal — see
+  // {@link supportsResponseFormat}. Anthropic ignores the flag and uses the
+  // prefill path above.
+  const supportsJsonObjectFormat = supportsResponseFormat(req.model);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -219,7 +236,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
  *   3. Fall back to the trimmed original so JSON.parse surfaces a real
  *      error rather than us silently returning {}.
  */
-function extractJsonCandidate(raw: string): string {
+export function extractJsonCandidate(raw: string): string {
   const trimmed = raw.trim();
   const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const body = fence ? fence[1].trim() : trimmed;

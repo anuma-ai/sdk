@@ -179,6 +179,100 @@ describe("reflect", () => {
     expect(result.structuredOutput).toEqual({ name: "Peter" });
   });
 
+  const oneMemory = () =>
+    mockRecall.mockResolvedValueOnce({
+      memories: [
+        {
+          id: "m1",
+          kind: "fact",
+          content: "Fact.",
+          score: 0.9,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+    });
+
+  const sentBody = (fetchFn: typeof fetch) => {
+    const call = (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    return JSON.parse((call[1] as { body: string }).body) as Record<string, unknown>;
+  };
+
+  it("does NOT send response_format on the default (Anthropic) model and adds a JSON instruction", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse(JSON.stringify({ name: "Peter" })));
+    const schema = { type: "object", properties: { name: { type: "string" } } };
+    const result = await reflect("q", ctx, { apiKey: "k", fetchFn, responseSchema: schema });
+
+    const body = sentBody(fetchFn);
+    expect(body.model).toBe("anthropic/claude-sonnet-4-6");
+    expect(body.response_format).toBeUndefined();
+    const system = (body.messages as Array<{ role: string; content: string }>)[0];
+    expect(system.role).toBe("system");
+    expect(system.content).toContain("JSON Schema");
+    // The prompt-fallback path still yields parsed structured output.
+    expect(result.structuredOutput).toEqual({ name: "Peter" });
+  });
+
+  it("sends response_format json_schema for an OpenAI model", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse(JSON.stringify({ ok: true })));
+    const schema = { type: "object" };
+    await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      llmModel: "openai/gpt-4o",
+      responseSchema: schema,
+    });
+
+    const body = sentBody(fetchFn);
+    expect(body.response_format).toEqual({
+      type: "json_schema",
+      json_schema: { name: "reflect_output", schema },
+    });
+    // No JSON-instruction appended when the flag is honored natively.
+    const system = (body.messages as Array<{ role: string; content: string }>)[0];
+    expect(system.content).not.toContain("JSON Schema");
+  });
+
+  it("parses prose/fence-wrapped JSON from the prompt-fallback path", async () => {
+    oneMemory();
+    const wrapped = 'Here is the answer:\n```json\n{"name":"Peter"}\n```';
+    const fetchFn = mockFetch(completionResponse(wrapped));
+    const result = await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      responseSchema: { type: "object" },
+    });
+    expect(result.structuredOutput).toEqual({ name: "Peter" });
+  });
+
+  it("forwards `now` and ranking knobs to recall()", async () => {
+    mockRecall.mockResolvedValueOnce({
+      memories: [],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 0,
+    });
+    const fetchFn = vi.fn() as unknown as typeof fetch;
+    await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      now: 1_600_000_000_000,
+      recencyAlpha: 2,
+      rrfK: 42,
+      mmr: true,
+    });
+    expect(mockRecall).toHaveBeenCalledWith(
+      "q",
+      ctx,
+      expect.objectContaining({ now: 1_600_000_000_000, recencyAlpha: 2, rrfK: 42, mmr: true })
+    );
+  });
+
   it("leaves structuredOutput undefined when JSON is malformed even with schema", async () => {
     mockRecall.mockResolvedValueOnce({
       memories: [

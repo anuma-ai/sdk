@@ -20,7 +20,12 @@
 
 import { BASE_URL } from "../../clientConfig.js";
 import { getLogger } from "../logger.js";
-import { type PortalLlmAuth, resolvePortalAuthHeaders } from "./portalLlm.js";
+import {
+  extractJsonCandidate,
+  type PortalLlmAuth,
+  resolvePortalAuthHeaders,
+  supportsResponseFormat,
+} from "./portalLlm.js";
 import { recall } from "./recall.js";
 import type { RecallContext, RecallOptions } from "./types.js";
 
@@ -95,19 +100,12 @@ export async function reflect(
   };
   if (trimmed.length === 0) return empty;
 
-  // Stage 1: retrieve.
-  const recalled = await recall(trimmed, ctx, {
-    types: options.types,
-    limit: options.limit,
-    budget: options.budget,
-    minScore: options.minScore,
-    scopes: options.scopes,
-    folderId: options.folderId,
-    conversationId: options.conversationId,
-    excludeConversationId: options.excludeConversationId,
-    includeChunks: options.includeChunks,
-    decomposeOptions: options.decomposeOptions,
-  });
+  // Stage 1: retrieve. `ReflectOptions extends RecallOptions`, so forward the
+  // whole options object — recall ignores the reflect-only fields (llmModel,
+  // maxTokens, …). Forwarding the full set (rather than cherry-picking) avoids
+  // silently dropping `now` and the ranking knobs (recencyAlpha, rrfK, mmr, …),
+  // which back-dated eval harnesses and ablation sweeps rely on.
+  const recalled = await recall(trimmed, ctx, options);
 
   const memoryIds = recalled.memories.map((m) => m.id);
   const baseResult: ReflectResult = {
@@ -127,11 +125,25 @@ export async function reflect(
     .map((m, i) => `[${i + 1}] (id: ${m.id}, kind: ${m.kind})\n${m.content}`)
     .join("\n\n");
 
-  const systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-  const userMessage = `Question:\n${trimmed}\n\nMemories (use only these as evidence):\n${evidence}`;
-
   const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
   const model = options.llmModel ?? DEFAULT_MODEL;
+
+  // `response_format: json_schema` is only honored by some providers; the
+  // default model is Anthropic, which ignores it. Gate the field the same way
+  // the rest of the memory pipeline gates `response_format` (see
+  // `supportsResponseFormat`). When a schema is requested but the model can't
+  // take the flag, fall back to a strict-JSON system-prompt instruction so the
+  // model still tries to emit parseable JSON instead of prose.
+  const wantsStructured = !!options.responseSchema;
+  const sendResponseFormat = wantsStructured && supportsResponseFormat(model);
+  const basePrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+  const systemPrompt =
+    wantsStructured && !sendResponseFormat
+      ? `${basePrompt}\n\nRespond with ONLY a single JSON object conforming to this JSON Schema, with no prose, comments, or code fences:\n${JSON.stringify(
+          options.responseSchema
+        )}`
+      : basePrompt;
+  const userMessage = `Question:\n${trimmed}\n\nMemories (use only these as evidence):\n${evidence}`;
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const fetchImpl = options.fetchFn ?? fetch;
 
@@ -162,7 +174,7 @@ export async function reflect(
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
-        ...(options.responseSchema && {
+        ...(sendResponseFormat && {
           response_format: {
             type: "json_schema",
             json_schema: { name: "reflect_output", schema: options.responseSchema },
@@ -227,10 +239,18 @@ function parseAnswer(body: unknown, base: ReflectResult, parseSchema: boolean): 
 
   let structuredOutput: unknown;
   if (parseSchema && text) {
+    // Models that took `response_format` return clean JSON; models that fell
+    // back to the prompt instruction (Anthropic et al.) may wrap it in prose
+    // or a ```json fence — extract the JSON candidate before parsing, same as
+    // the rest of the pipeline.
     try {
-      structuredOutput = JSON.parse(text);
-    } catch {
-      // schema requested but model didn't return valid JSON — leave undefined
+      structuredOutput = JSON.parse(extractJsonCandidate(text));
+    } catch (err) {
+      // Schema requested but model didn't return valid JSON — leave undefined,
+      // but surface it: a silent `undefined` is otherwise undiagnosable.
+      getLogger().warn("[memory/reflect] structured output was not valid JSON", {
+        err: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
