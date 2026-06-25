@@ -1,6 +1,6 @@
 # ReflectOptions
 
-Defined in: [src/lib/memory/reflect.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#49)
+Defined in: [src/lib/memory/reflect.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#54)
 
 Options for [reflect](../functions/reflect.md). Auth for the answer LLM is the dual pattern
 inherited from [PortalLlmAuth](PortalLlmAuth.md) — one of `apiKey` / `getToken` is
@@ -16,7 +16,7 @@ required at runtime; `apiKey` wins when both are set.
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#34)
+Defined in: [src/lib/memory/portalLlm.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#63)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#57)
+Defined in: [src/lib/memory/reflect.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#62)
 
 Endpoint for the answer LLM.
 
@@ -137,7 +137,7 @@ Exclude one conversation from chunk search. Chunk-only.
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/reflect.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#59)
+Defined in: [src/lib/memory/reflect.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#64)
 
 Override fetch (for tests).
 
@@ -255,7 +255,7 @@ Vault folder filter. Vault-only.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#36)
+Defined in: [src/lib/memory/portalLlm.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#65)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
@@ -301,7 +301,7 @@ Max items returned. Default: 8.
 
 > `optional` **llmModel**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#51)
+Defined in: [src/lib/memory/reflect.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#56)
 
 Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
@@ -311,7 +311,7 @@ Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
 > `optional` **maxTokens**: `number`
 
-Defined in: [src/lib/memory/reflect.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#53)
+Defined in: [src/lib/memory/reflect.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#58)
 
 Cap response length. Default: 4096.
 
@@ -427,7 +427,7 @@ Number of candidates fed to the cross-encoder rerank stage. Default: 30.
 
 > `optional` **responseSchema**: `Record`<`string`, `unknown`>
 
-Defined in: [src/lib/memory/reflect.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#61)
+Defined in: [src/lib/memory/reflect.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#66)
 
 Optional JSON Schema to coerce structured outputs.
 
@@ -493,7 +493,7 @@ Hard cap on the supersession candidate window. Default: 50.
 
 > `optional` **systemPrompt**: `string`
 
-Defined in: [src/lib/memory/reflect.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#55)
+Defined in: [src/lib/memory/reflect.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#60)
 
 Override the grounding system prompt.
 
