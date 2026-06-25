@@ -104,4 +104,26 @@ describe("applyMMR", () => {
     const clusters = new Set(ids.map((id) => id[1]));
     expect(clusters.size).toBe(3);
   });
+
+  it("clamps a NaN lambda to 0.5 instead of silently returning input order", () => {
+    // 'high' has the top relevance but is NOT first in the array. Round 0 is
+    // pure relevance, so a working lambda picks 'high' first. An unguarded NaN
+    // lambda makes every `mmrScore > bestScore` false → it would pick index 0
+    // ('low'). Asserting 'high' first proves the clamp took effect.
+    const items = [
+      { id: "low", score: 0.1, embedding: emb({ 0: 1 }) },
+      { id: "high", score: 0.9, embedding: emb({ 1: 1 }) },
+    ];
+    const result = applyMMR(items, 2, NaN);
+    expect(result.map((r) => r.id)).toEqual(["high", "low"]);
+  });
+
+  it("clamps lambda > 1 to pure relevance ordering", () => {
+    const items = [
+      { id: "low", score: 0.1, embedding: emb({ 0: 1 }) },
+      { id: "high", score: 0.9, embedding: emb({ 1: 1 }) },
+    ];
+    const result = applyMMR(items, 2, 5);
+    expect(result[0].id).toBe("high");
+  });
 });

@@ -80,4 +80,21 @@ describe("rrfFuse", () => {
     expect(fused.get("a")).toBeCloseTo(1 / 61);
     expect(fused.get("b")).toBeCloseTo(1 / 62);
   });
+
+  it("falls back to default k for a negative k (no Infinity poisoning)", () => {
+    const fused = rrfFuse([["a", "b"]], -1);
+    expect(fused.get("a")).toBeCloseTo(1 / 61); // default k=60, not 1/(−1+0+1)=Infinity
+    expect(Number.isFinite(fused.get("a")!)).toBe(true);
+  });
+
+  it("falls back to default k for a non-finite k (NaN)", () => {
+    const fused = rrfFuse([["a"]], NaN);
+    expect(fused.get("a")).toBeCloseTo(1 / 61);
+  });
+
+  it("counts a repeated id within one ranking only once (at its best rank)", () => {
+    const fused = rrfFuse([["a", "a", "b"]], 60);
+    expect(fused.get("a")).toBeCloseTo(1 / 61); // not 1/61 + 1/62
+    expect(fused.get("b")).toBeCloseTo(1 / 63); // positional rank preserved
+  });
 });

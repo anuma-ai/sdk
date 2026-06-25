@@ -34,10 +34,20 @@ export function recencyMultiplier(
   updatedAt: Date | null | undefined,
   opts: RecencyOptions = {}
 ): number {
-  if (!updatedAt) return opts.noDateMultiplier ?? DEFAULT_NO_DATE_MULTIPLIER;
+  const noDate = opts.noDateMultiplier ?? DEFAULT_NO_DATE_MULTIPLIER;
+  if (!updatedAt) return noDate;
+
+  // An Invalid Date (NaN getTime) would propagate NaN through the whole
+  // formula (`Math.max(floor, NaN) === NaN`) and poison the fused score for
+  // that memory. Treat a malformed timestamp the same as a missing one —
+  // unknown freshness, neutral multiplier — rather than emitting NaN.
+  const updatedMs = updatedAt.getTime();
+  if (!Number.isFinite(updatedMs)) return noDate;
 
   const now = opts.now ?? new Date();
-  const ageDays = Math.max(0, (now.getTime() - updatedAt.getTime()) / DAY_MS);
+  const nowMs = now.getTime();
+  if (!Number.isFinite(nowMs)) return noDate;
+  const ageDays = Math.max(0, (nowMs - updatedMs) / DAY_MS);
 
   const perYearDecay = opts.perYearDecay ?? DEFAULT_PER_YEAR_DECAY;
   const floor = opts.floor ?? DEFAULT_FLOOR;
