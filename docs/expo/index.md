@@ -148,6 +148,30 @@ Re-exports [chatStorageSchema](../react/Internal/variables/chatStorageSchema.md)
 
 ***
 
+### chunkAndEmbedAllMessages
+
+Re-exports [chunkAndEmbedAllMessages](../react/Internal/functions/chunkAndEmbedAllMessages.md)
+
+***
+
+### chunkAndEmbedMessage
+
+Re-exports [chunkAndEmbedMessage](../react/Internal/functions/chunkAndEmbedMessage.md)
+
+***
+
+### ChunkingOptions
+
+Re-exports [ChunkingOptions](../react/Internal/interfaces/ChunkingOptions.md)
+
+***
+
+### chunkText
+
+Re-exports [chunkText](../react/Internal/functions/chunkText.md)
+
+***
+
 ### clearAllEncryptionKeys
 
 Re-exports [clearAllEncryptionKeys](../react/Internal/functions/clearAllEncryptionKeys.md)
@@ -175,6 +199,12 @@ Re-exports [clearLazyTitleCache](../react/Internal/functions/clearLazyTitleCache
 ### clearServerToolsCache
 
 Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsCache.md)
+
+***
+
+### consoleLogger
+
+Re-exports [consoleLogger](../react/Internal/variables/consoleLogger.md)
 
 ***
 
@@ -214,6 +244,12 @@ Re-exports [createMemoryEngineTool](../react/Internal/functions/createMemoryEngi
 
 ***
 
+### createMemoryVaultSearchTool
+
+Re-exports [createMemoryVaultSearchTool](../react/Internal/functions/createMemoryVaultSearchTool.md)
+
+***
+
 ### createMemoryVaultTool
 
 Re-exports [createMemoryVaultTool](../react/Internal/functions/createMemoryVaultTool.md)
@@ -229,6 +265,12 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 ### createRecallTool
 
 Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
+
+***
+
+### createVaultEmbeddingCache
+
+Re-exports [createVaultEmbeddingCache](../react/Internal/functions/createVaultEmbeddingCache.md)
 
 ***
 
@@ -292,6 +334,30 @@ Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_
 
 ***
 
+### DEFAULT\_CHUNK\_OVERLAP
+
+Re-exports [DEFAULT\_CHUNK\_OVERLAP](../react/Internal/variables/DEFAULT_CHUNK_OVERLAP.md)
+
+***
+
+### DEFAULT\_CHUNK\_SIZE
+
+Re-exports [DEFAULT\_CHUNK\_SIZE](../react/Internal/variables/DEFAULT_CHUNK_SIZE.md)
+
+***
+
+### DEFAULT\_MIN\_CHUNK\_SIZE
+
+Re-exports [DEFAULT\_MIN\_CHUNK\_SIZE](../react/Internal/variables/DEFAULT_MIN_CHUNK_SIZE.md)
+
+***
+
+### DEFAULT\_VAULT\_CACHE\_SIZE
+
+Re-exports [DEFAULT\_VAULT\_CACHE\_SIZE](../react/Internal/variables/DEFAULT_VAULT_CACHE_SIZE.md)
+
+***
+
 ### deleteAllVaultMemoriesForUserOp
 
 Re-exports [deleteAllVaultMemoriesForUserOp](../react/Internal/functions/deleteAllVaultMemoriesForUserOp.md)
@@ -313,6 +379,12 @@ Re-exports [deleteVaultMemoryOp](../react/Internal/functions/deleteVaultMemoryOp
 ### dequantizeEmbedding
 
 Re-exports [dequantizeEmbedding](../react/Internal/functions/dequantizeEmbedding.md)
+
+***
+
+### eagerEmbedContent
+
+Re-exports [eagerEmbedContent](../react/Internal/functions/eagerEmbedContent.md)
 
 ***
 
@@ -436,6 +508,12 @@ Re-exports [getConversationsLazyOp](../react/Internal/functions/getConversations
 
 ***
 
+### getLogger
+
+Re-exports [getLogger](../react/Internal/functions/getLogger.md)
+
+***
+
 ### getServerTools
 
 Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
@@ -478,6 +556,24 @@ Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConve
 
 ***
 
+### Logger
+
+Re-exports [Logger](../react/Internal/interfaces/Logger.md)
+
+***
+
+### LoggerProvider
+
+Re-exports [LoggerProvider](../react/Internal/functions/LoggerProvider.md)
+
+***
+
+### LoggerProviderProps
+
+Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProps.md)
+
+***
+
 ### MemoryEngineEmbeddingOptions
 
 Re-exports [MemoryEngineEmbeddingOptions](../react/Internal/interfaces/MemoryEngineEmbeddingOptions.md)
@@ -508,6 +604,12 @@ Re-exports [MemoryKind](../react/Internal/type-aliases/MemoryKind.md)
 
 ***
 
+### MemoryVaultSearchOptions
+
+Re-exports [MemoryVaultSearchOptions](../react/Internal/interfaces/MemoryVaultSearchOptions.md)
+
+***
+
 ### MemoryVaultToolOptions
 
 Re-exports [MemoryVaultToolOptions](../react/Internal/interfaces/MemoryVaultToolOptions.md)
@@ -517,6 +619,12 @@ Re-exports [MemoryVaultToolOptions](../react/Internal/interfaces/MemoryVaultTool
 ### moveMemoriesToFolderOp
 
 Re-exports [moveMemoriesToFolderOp](../react/Internal/functions/moveMemoriesToFolderOp.md)
+
+***
+
+### noopLogger
+
+Re-exports [noopLogger](../react/Internal/variables/noopLogger.md)
 
 ***
 
@@ -535,6 +643,12 @@ Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
 ### PortalLlmAuth
 
 Re-exports [PortalLlmAuth](../react/Internal/interfaces/PortalLlmAuth.md)
+
+***
+
+### preEmbedVaultMemories
+
+Re-exports [preEmbedVaultMemories](../react/Internal/functions/preEmbedVaultMemories.md)
 
 ***
 
@@ -742,6 +856,12 @@ Re-exports [SearchSource](../react/Internal/interfaces/SearchSource.md)
 
 ***
 
+### searchVaultMemories
+
+Re-exports [searchVaultMemories](../react/Internal/functions/searchVaultMemories.md)
+
+***
+
 ### ServerToolsOptions
 
 Re-exports [ServerToolsOptions](../react/Internal/interfaces/ServerToolsOptions.md)
@@ -751,6 +871,18 @@ Re-exports [ServerToolsOptions](../react/Internal/interfaces/ServerToolsOptions.
 ### ServerToolsResponse
 
 Re-exports [ServerToolsResponse](../react/Internal/type-aliases/ServerToolsResponse.md)
+
+***
+
+### setLogger
+
+Re-exports [setLogger](../react/Internal/functions/setLogger.md)
+
+***
+
+### shouldChunkMessage
+
+Re-exports [shouldChunkMessage](../react/Internal/functions/shouldChunkMessage.md)
 
 ***
 
@@ -844,6 +976,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 
 ***
 
+### TextChunk
+
+Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
+
+***
+
 ### TurnCompleteEvent
 
 Re-exports [TurnCompleteEvent](../react/Internal/interfaces/TurnCompleteEvent.md)
@@ -928,6 +1066,12 @@ Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)
 
 ***
 
+### VaultEmbeddingCache
+
+Re-exports [VaultEmbeddingCache](../react/Internal/type-aliases/VaultEmbeddingCache.md)
+
+***
+
 ### VaultFolderOperationsContext
 
 Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFolderOperationsContext.md)
@@ -943,6 +1087,12 @@ Re-exports [VaultMemoryOperationsContext](../react/Internal/interfaces/VaultMemo
 ### VaultSaveOperation
 
 Re-exports [VaultSaveOperation](../react/Internal/interfaces/VaultSaveOperation.md)
+
+***
+
+### VaultSearchResult
+
+Re-exports [VaultSearchResult](../react/Internal/interfaces/VaultSearchResult.md)
 
 ***
 
