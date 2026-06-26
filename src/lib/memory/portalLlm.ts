@@ -53,37 +53,60 @@ interface PortalLlmRequest extends PortalLlmAuth {
   /** Optional extra fields merged into the request body (e.g. `max_tokens`). */
   extra?: Record<string, unknown>;
   /**
-   * Max attempts on a TRANSIENT failure (network/timeout, 408/409/425/429,
-   * any 5xx, a 400 — see note below, an empty completion, or a completion with
-   * no parseable JSON). Default 3. Set to 1 to disable retries on a latency-
-   * sensitive path that already has a cheap fallback (e.g. query decompose).
+   * Max attempts on a TRANSIENT failure (network/timeout, 408/409/425/429, any
+   * 5xx, an empty completion, or a completion with no parseable JSON). Default
+   * 3. Set to 1 to disable retries on a latency-sensitive path that already has
+   * a cheap fallback (e.g. query decompose).
    *
-   * Terminal failures (401/403/404, missing/failed auth) never retry.
-   *
-   * 400 is treated as transient on purpose: these memory calls build the
-   * request body themselves and it succeeds the vast majority of the time, so
-   * an occasional 400 from the provider (e.g. Cerebras gpt-oss under load) is a
-   * hiccup, not a malformed request.
+   * Terminal failures (4xx other than the codes above — notably 400/401/403/
+   * 404 — and missing/failed auth) never retry: a 400 is a bad request that
+   * won't succeed on a retry, just burning latency and (if metered) credits.
    */
   maxAttempts?: number;
   /**
+   * Absolute wall-clock budget (ms) across ALL attempts incl. backoff. When
+   * set, the loop stops before an attempt that would exceed it, so worst-case
+   * latency is bounded rather than `maxAttempts × timeoutMs`. Use it on a
+   * guarded path (e.g. auto-extract behind an in-flight-turn guard) so a stuck
+   * call can't hold the turn open ~3× the per-attempt timeout.
+   */
+  totalTimeoutMs?: number;
+  /**
    * Backoff before the next attempt, in ms, given the just-failed 1-based
    * attempt index. Defaults to exponential (250·2^(n-1), capped at 2s) plus
-   * jitter. Tests pass `() => 0` to retry without real delay.
+   * jitter. A server `Retry-After` on a 429 takes precedence (max of the two).
+   * Tests pass `() => 0` to retry without real delay.
    */
   backoffMs?: (attempt: number) => number;
 }
 
-/** Outcome of a single attempt — distinguishes retryable from terminal. */
+/**
+ * Outcome of a single attempt — distinguishes retryable from terminal.
+ * `retryAfterMs` carries a server-provided `Retry-After` (429) so the wrapper
+ * can honor it instead of the fixed backoff.
+ */
 type AttemptOutcome =
   | { kind: "ok"; value: unknown }
-  | { kind: "retryable"; reason: string }
+  | { kind: "retryable"; reason: string; retryAfterMs?: number }
   | { kind: "terminal"; reason: string };
 
-const RETRYABLE_HTTP = new Set([400, 408, 409, 425, 429]);
+// Transient 4xx only. 400 is deliberately EXCLUDED — it's a bad request that
+// won't succeed on retry. (gpt-oss's response_format 400 is already prevented
+// by the omission gate below, so it never reaches the retry path.)
+const RETRYABLE_HTTP = new Set([408, 409, 425, 429]);
 
 function isRetryableStatus(status: number): boolean {
   return status >= 500 || RETRYABLE_HTTP.has(status);
+}
+
+/** Parse a `Retry-After` header (delta-seconds or HTTP-date) to ms, or null. */
+function parseRetryAfterMs(header: string | null): number | null {
+  if (!header) return null;
+  const secs = Number(header);
+  if (Number.isFinite(secs)) return Math.max(0, secs * 1000);
+  const dateMs = Date.parse(header);
+  if (Number.isFinite(dateMs)) return Math.max(0, dateMs - Date.now());
+  return null;
 }
 
 function defaultBackoffMs(attempt: number): number {
@@ -141,6 +164,9 @@ export async function resolvePortalAuthHeaders(
 export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<unknown> {
   const log = getLogger();
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
+  const startedAt = Date.now();
+  const overBudget = () =>
+    req.totalTimeoutMs !== undefined && Date.now() - startedAt >= req.totalTimeoutMs;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const outcome = await attemptPortalJson(req);
@@ -150,13 +176,26 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       return null;
     }
     // Retryable. Log with attempt context; back off before the next try.
-    if (attempt < maxAttempts) {
-      log.warn(`[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, retrying`);
-      const delay = (req.backoffMs ?? defaultBackoffMs)(attempt);
-      if (delay > 0) await sleep(delay);
-    } else {
+    if (attempt >= maxAttempts) {
       log.warn(`[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, giving up`);
+      break;
     }
+    // Honor a server Retry-After (429) over the fixed backoff when it's larger.
+    const backoff = (req.backoffMs ?? defaultBackoffMs)(attempt);
+    const delay = Math.max(backoff, outcome.retryAfterMs ?? 0);
+    // Stop if the next attempt (or even the wait before it) would blow the
+    // absolute budget — keeps worst-case latency bounded on guarded paths.
+    if (
+      overBudget() ||
+      (req.totalTimeoutMs !== undefined && Date.now() - startedAt + delay >= req.totalTimeoutMs)
+    ) {
+      log.warn(
+        `[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, over time budget, giving up`
+      );
+      break;
+    }
+    log.warn(`[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, retrying`);
+    if (delay > 0) await sleep(delay);
   }
   return null;
 }
@@ -241,9 +280,11 @@ async function attemptPortalJson(req: PortalLlmRequest): Promise<AttemptOutcome>
   if (!response.ok) {
     clearTimeout(timer);
     const reason = `portal returned ${response.status}`;
-    return isRetryableStatus(response.status)
-      ? { kind: "retryable", reason }
-      : { kind: "terminal", reason };
+    if (!isRetryableStatus(response.status)) return { kind: "terminal", reason };
+    const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+    return retryAfterMs !== null
+      ? { kind: "retryable", reason, retryAfterMs }
+      : { kind: "retryable", reason };
   }
 
   let body: unknown;

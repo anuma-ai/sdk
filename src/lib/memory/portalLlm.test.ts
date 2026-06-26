@@ -263,14 +263,51 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it("retries a 400 (treated as a transient provider hiccup), then succeeds", async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValueOnce(new Response("bad request", { status: 400 }))
-      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+  it("does NOT retry a 400 (a bad request won't succeed on retry)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("bad request", { status: 400 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
-    expect(result).toEqual({ ok: true });
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a 429 and honors a Retry-After header over the fixed backoff", async () => {
+    const delays: number[] = [];
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      fn: () => void,
+      ms?: number
+    ) => {
+      delays.push(ms ?? 0);
+      fn(); // fire immediately so the test doesn't actually wait
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout);
+    try {
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response("rate limited", { status: 429, headers: { "retry-after": "2" } })
+        )
+        .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+      // backoffMs returns 10ms; Retry-After is 2s → the 2s wins.
+      const result = await callPortalJsonCompletion({ ...baseArgs, backoffMs: () => 10, fetchFn });
+      expect(result).toEqual({ ok: true });
+      expect(delays).toContain(2000);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it("stops retrying once the absolute totalTimeoutMs budget is spent", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
+    // totalTimeoutMs: 0 → the budget is already spent after the first failure,
+    // so it gives up without a second attempt even though maxAttempts is 3.
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      maxAttempts: 3,
+      totalTimeoutMs: 0,
+      fetchFn,
+    });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it("retries a thrown network error, then succeeds", async () => {
