@@ -2,7 +2,7 @@
 
 > **expandToolSetsAdditive**(`matchedNames`: `Set`<`string`>, `availableNames`: `Set`<`string`>, `scores`: `Map`<`string`, `number`>, `toolSets`: [`ToolSet`](../interfaces/ToolSet.md)\[], `activeSetNames?`: `ReadonlySet`<`string`>): `Set`<`string`>
 
-Defined in: [src/lib/tools/serverTools.ts:1148](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1148)
+Defined in: [src/lib/tools/serverTools.ts:1154](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1154)
 
 Additively expand tool sets: when any anchor of a set scores at or above
 its `anchorMinSimilarity`, all set members are added to the result.

@@ -243,7 +243,9 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
     description: `d ${name}`,
     parameters: { type: "object", properties: {} },
   });
-  it("keeps the prepended tool-search tool even when serverTools is empty (Medium fix)", () => {
+  it("empty catalog + defer on → NO tool_search (nothing to load), client tools only", () => {
+    // An empty server catalog (e.g. the skip-storage/completions path that never fetched it) must not
+    // emit a tool-search tool — there are no deferred tools for it to load.
     const clientTool = {
       type: "function",
       function: { name: "display_chart", parameters: {} },
@@ -252,9 +254,10 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
       enabled: true,
       hotToolNames: [],
     }) as Array<Record<string, unknown>>;
-    expect(merged[0].type).toBe("tool_search_tool_regex_20251119"); // search tool survives
     const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
-    expect(names).toContain("display_chart"); // client tool still merged
+    expect(names).not.toContain("tool_search"); // no useless search tool
+    expect(merged.every((t) => t.type !== "tool_search_tool_regex_20251119")).toBe(true);
+    expect(names).toEqual(["display_chart"]); // client tools only
   });
   it("OFF + empty serverTools + client tools → only client tools (unchanged)", () => {
     const clientTool = {

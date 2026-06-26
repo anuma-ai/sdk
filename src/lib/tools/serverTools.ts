@@ -628,6 +628,12 @@ function formatServerToolsWithDefer(
   config: DeferLoadingConfig,
   apiType: "responses" | "completions"
 ): Array<Record<string, unknown>> {
+  // No catalog → no deferred tools to load → no reason to prepend tool_search. Returning [] here also
+  // means an empty server catalog (e.g. the skip-storage / completions path that never fetched it) sends
+  // no useless search tool — it falls through to client-tools-only in mergeTools.
+  if (serverTools.length === 0) {
+    return [];
+  }
   const fmt = apiType === "completions" ? toCompletionsFormat : toResponsesFormat;
   const hotSet = new Set(config.hotToolNames);
   const hot = config.hotToolNames
