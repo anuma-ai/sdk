@@ -1826,18 +1826,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Also surface citations that arrived via tool_call_events (e.g.
       // AnumaSearchMCP search results). Models that return sources as tool
       // output rather than inline content would otherwise show no citation
-      // pills on mobile — parity with the react send path (#629). MCP image
-      // URLs are handled separately as files, so exclude them here.
-      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents).filter(
-        (source) => !source.url?.includes(MCP_R2_DOMAIN)
-      );
+      // pills on mobile — parity with the react send path (#629).
+      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents);
       const seenSourceUrls = new Set(
         combinedSources.map((s) => s.url).filter((url): url is string => !!url)
       );
+      // MCP image/file R2 URLs are persisted separately as media and must never
+      // be stored as citation sources — drop them whether they arrived inline
+      // (assistant content / passed-in sources) or via tool_call_events. The
+      // react path likewise never persists R2 URLs as sources.
       const allSources = [
         ...combinedSources,
         ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
-      ];
+      ].filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
 
       // Resolve image model: prefer the caller's selection, then the portal's
       // resolved `image_model` on the response, then MCP tool-event scraping.
