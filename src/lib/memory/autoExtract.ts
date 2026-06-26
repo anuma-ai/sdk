@@ -140,6 +140,12 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * helper's 60s. Combine with {@link maxAttempts} to cap the total time budget. */
   timeoutMs?: number;
   /**
+   * Absolute wall-clock budget (ms) across ALL extraction attempts incl. backoff.
+   * When set, the loop stops before an attempt that would exceed it, so worst-case
+   * latency is bounded rather than `maxAttempts × timeoutMs`.
+   */
+  totalTimeoutMs?: number;
+  /**
    * Override the retry backoff (ms) for a given 1-based attempt index. The
    * extraction call retries transient failures internally (default exponential
    * backoff); pass `() => 0` to retry without delay (useful for tests).
@@ -203,6 +209,7 @@ export async function extractFacts(
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
     ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
     ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
+    ...(options.totalTimeoutMs !== undefined && { totalTimeoutMs: options.totalTimeoutMs }),
     ...(options.backoffMs && { backoffMs: options.backoffMs }),
   });
   // A successful "no facts" response parses to {candidates: []} (non-null),

@@ -169,7 +169,23 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
     req.totalTimeoutMs !== undefined && Date.now() - startedAt >= req.totalTimeoutMs;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const outcome = await attemptPortalJson(req);
+    // Stop if already over budget before starting a retry (allow first attempt)
+    if (attempt > 1 && overBudget()) {
+      log.warn(`[${req.tag}] over time budget before attempt ${attempt}, giving up`);
+      break;
+    }
+    // Cap this attempt's timeout to the remaining budget
+    const attemptReq =
+      req.totalTimeoutMs !== undefined
+        ? {
+            ...req,
+            timeoutMs: Math.min(
+              req.timeoutMs ?? 60_000,
+              req.totalTimeoutMs - (Date.now() - startedAt)
+            ),
+          }
+        : req;
+    const outcome = await attemptPortalJson(attemptReq);
     if (outcome.kind === "ok") return outcome.value;
     if (outcome.kind === "terminal") {
       log.warn(`[${req.tag}] ${outcome.reason}`);
@@ -217,7 +233,7 @@ async function attemptPortalJson(req: PortalLlmRequest): Promise<AttemptOutcome>
   const timeoutMs = req.timeoutMs ?? 60_000;
 
   const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
-  if (authHeaders === null) return { kind: "terminal", reason: "auth unavailable (no token)" };
+  if (authHeaders === null) return { kind: "retryable", reason: "auth unavailable (no token)" };
 
   // Anthropic models ignore OpenAI-style response_format and frequently
   // respond conversationally to bare user queries. The canonical fix is
