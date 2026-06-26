@@ -54,6 +54,37 @@ function flagsForBudget(budget: Budget): BudgetFlags {
 }
 
 /**
+ * Keep the first occurrence, preserving order, dropping any item that repeats
+ * a value under ANY of the supplied key functions. Recall results can repeat a
+ * memory two ways: the same record surfaced from more than one internal lane
+ * (cosine, BM25, entity, temporal) repeats an *id*, and separate vault rows
+ * the extraction/consolidation pipeline saved for the same fact repeat the
+ * *content* under different ids. Left unchecked a single fact occupies several
+ * result slots — the single-lane path returns it N times (the reported bug:
+ * the "drew on your memory" pill showing five identical rows) and the fused
+ * path lets it contribute from multiple ranks, inflating its own RRF score.
+ * Dedupe on both id and content at the source so every downstream path sees
+ * each fact once.
+ *
+ * Empty-string keys never match and are never recorded, so a blank key — e.g.
+ * a row whose content failed to decrypt and resolved to "" — can't collapse
+ * two otherwise-distinct items into one (silent recall data loss).
+ */
+function dedupeBy<T>(items: T[], ...keys: Array<(item: T) => string>): T[] {
+  const seen = keys.map(() => new Set<string>());
+  const out: T[] = [];
+  for (const item of items) {
+    const itemKeys = keys.map((key) => key(item));
+    if (itemKeys.some((k, i) => k !== "" && seen[i].has(k))) continue;
+    itemKeys.forEach((k, i) => {
+      if (k !== "") seen[i].add(k);
+    });
+    out.push(item);
+  }
+  return out;
+}
+
+/**
  * Single entry point for memory retrieval across facts (vault) and chunks
  * (engine). Returns a unified, ranked list.
  */
@@ -148,7 +179,13 @@ export async function recall(
         ...(temporalRanking.length > 0 && { temporalRanking }),
       }
     );
-    factResults.push(...results);
+    factResults.push(
+      ...dedupeBy(
+        results,
+        (r) => r.uniqueId,
+        (r) => r.content.trim()
+      )
+    );
     vaultSize = size;
   }
 
@@ -160,10 +197,13 @@ export async function recall(
       ...(options.conversationId && { conversationId: options.conversationId }),
     });
     chunkResults.push(
-      ...results.filter((r) =>
-        options.excludeConversationId
-          ? r.message.conversationId !== options.excludeConversationId
-          : true
+      ...dedupeBy(
+        results.filter((r) =>
+          options.excludeConversationId
+            ? r.message.conversationId !== options.excludeConversationId
+            : true
+        ),
+        (r) => r.chunkText.trim()
       )
     );
   }
@@ -186,8 +226,15 @@ export async function recall(
     };
   }
 
+  // Fusion key must be PASSAGE-unique, not message-unique: one message can
+  // split into several distinct chunks, and keying by message id alone makes
+  // their ranking entries collide and the byId map overwrite all but the last
+  // — silently dropping legitimate hits and undercounting candidateCount. Key
+  // by message id + text so passages from one message stay separate through
+  // fusion. (chunkResults is already content-deduped, so this is 1:1.)
+  const chunkKey = (r: ChunkSearchResult) => `chunk:${r.message.uniqueId}:${r.chunkText.trim()}`;
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
-  const chunkRanking = chunkResults.map((r) => `chunk:${r.message.uniqueId}`);
+  const chunkRanking = chunkResults.map(chunkKey);
   const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
 
   const byId = new Map<string, RankedMemory>();
@@ -200,10 +247,11 @@ export async function recall(
   }
   for (const r of chunkResults) {
     const m = toChunkMemory(r);
-    m.score = fused.get(`chunk:${r.message.uniqueId}`) ?? 0;
+    const key = chunkKey(r);
+    m.score = fused.get(key) ?? 0;
     if (!m.scoreBreakdown) m.scoreBreakdown = {};
     m.scoreBreakdown.fused = r.similarity;
-    byId.set(`chunk:${r.message.uniqueId}`, m);
+    byId.set(key, m);
   }
 
   const memories = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, limit);
