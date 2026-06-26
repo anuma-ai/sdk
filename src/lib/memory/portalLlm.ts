@@ -52,6 +52,47 @@ interface PortalLlmRequest extends PortalLlmAuth {
   fetchFn?: typeof fetch;
   /** Optional extra fields merged into the request body (e.g. `max_tokens`). */
   extra?: Record<string, unknown>;
+  /**
+   * Max attempts on a TRANSIENT failure (network/timeout, 408/409/425/429,
+   * any 5xx, a 400 — see note below, an empty completion, or a completion with
+   * no parseable JSON). Default 3. Set to 1 to disable retries on a latency-
+   * sensitive path that already has a cheap fallback (e.g. query decompose).
+   *
+   * Terminal failures (401/403/404, missing/failed auth) never retry.
+   *
+   * 400 is treated as transient on purpose: these memory calls build the
+   * request body themselves and it succeeds the vast majority of the time, so
+   * an occasional 400 from the provider (e.g. Cerebras gpt-oss under load) is a
+   * hiccup, not a malformed request.
+   */
+  maxAttempts?: number;
+  /**
+   * Backoff before the next attempt, in ms, given the just-failed 1-based
+   * attempt index. Defaults to exponential (250·2^(n-1), capped at 2s) plus
+   * jitter. Tests pass `() => 0` to retry without real delay.
+   */
+  backoffMs?: (attempt: number) => number;
+}
+
+/** Outcome of a single attempt — distinguishes retryable from terminal. */
+type AttemptOutcome =
+  | { kind: "ok"; value: unknown }
+  | { kind: "retryable"; reason: string }
+  | { kind: "terminal"; reason: string };
+
+const RETRYABLE_HTTP = new Set([400, 408, 409, 425, 429]);
+
+function isRetryableStatus(status: number): boolean {
+  return status >= 500 || RETRYABLE_HTTP.has(status);
+}
+
+function defaultBackoffMs(attempt: number): number {
+  const base = Math.min(2000, 250 * 2 ** (attempt - 1));
+  return base + Math.floor(Math.random() * 100);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -99,12 +140,43 @@ export async function resolvePortalAuthHeaders(
  */
 export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<unknown> {
   const log = getLogger();
+  const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
+
+  // Auth resolves ONCE — it doesn't change between attempts, and a missing or
+  // failed token is terminal (retrying would just hammer the token service).
+  const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
+  if (authHeaders === null) return null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const outcome = await attemptPortalJson(req, authHeaders);
+    if (outcome.kind === "ok") return outcome.value;
+    if (outcome.kind === "terminal") {
+      log.warn(`[${req.tag}] ${outcome.reason}`);
+      return null;
+    }
+    // Retryable. Log with attempt context; back off before the next try.
+    if (attempt < maxAttempts) {
+      log.warn(`[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, retrying`);
+      const delay = (req.backoffMs ?? defaultBackoffMs)(attempt);
+      if (delay > 0) await sleep(delay);
+    } else {
+      log.warn(`[${req.tag}] ${outcome.reason} — attempt ${attempt}/${maxAttempts}, giving up`);
+    }
+  }
+  return null;
+}
+
+/**
+ * One request attempt. Returns a classified outcome so the caller can decide
+ * whether to retry. Never throws — failures map to `retryable`/`terminal`.
+ */
+async function attemptPortalJson(
+  req: PortalLlmRequest,
+  authHeaders: Record<string, string>
+): Promise<AttemptOutcome> {
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
   const timeoutMs = req.timeoutMs ?? 60_000;
-
-  const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
-  if (authHeaders === null) return null;
 
   // Anthropic models ignore OpenAI-style response_format and frequently
   // respond conversationally to bare user queries. The canonical fix is
@@ -160,14 +232,16 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
     });
   } catch (err) {
     clearTimeout(timer);
-    log.warn(`[${req.tag}] fetch failed`, err);
-    return null;
+    // Network error or timeout abort — transient by nature.
+    return { kind: "retryable", reason: `fetch failed: ${(err as Error).message}` };
   }
 
   if (!response.ok) {
     clearTimeout(timer);
-    log.warn(`[${req.tag}] portal returned`, response.status);
-    return null;
+    const reason = `portal returned ${response.status}`;
+    return isRetryableStatus(response.status)
+      ? { kind: "retryable", reason }
+      : { kind: "terminal", reason };
   }
 
   let body: unknown;
@@ -175,15 +249,14 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
     body = await response.json();
   } catch (err) {
     clearTimeout(timer);
-    log.warn(`[${req.tag}] response body parse failed`, err);
-    return null;
+    return { kind: "retryable", reason: `response body parse failed: ${(err as Error).message}` };
   }
   clearTimeout(timer);
 
   const rawContent = extractCompletionContent(body);
   if (!rawContent) {
-    log.warn(`[${req.tag}] portal response had no completion content`);
-    return null;
+    // Empty completion — reasoning-class models do this intermittently.
+    return { kind: "retryable", reason: "portal response had no completion content" };
   }
 
   // Anthropic prefill (`{`) isn't echoed in the response — the model
@@ -203,10 +276,15 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   // shouldn't blow the whole extraction/decompose/consolidate step.
   const candidate = extractJsonCandidate(content);
   try {
-    return JSON.parse(candidate);
+    return { kind: "ok", value: JSON.parse(candidate) };
   } catch (err) {
-    log.warn(`[${req.tag}] completion was not valid JSON`, err);
-    return null;
+    // The model returned prose with no parseable JSON (e.g. echoed the
+    // instruction, or asked a clarifying question) — retry; it's usually a
+    // one-off of the model's nondeterminism.
+    return {
+      kind: "retryable",
+      reason: `completion was not valid JSON: ${(err as Error).message}`,
+    };
   }
 }
 

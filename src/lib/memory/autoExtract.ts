@@ -130,6 +130,12 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
   /**
+   * Override the retry backoff (ms) for a given 1-based attempt index. The
+   * extraction call retries transient failures internally (default exponential
+   * backoff); pass `() => 0` to retry without delay (useful for tests).
+   */
+  backoffMs?: (attempt: number) => number;
+  /**
    * When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
    * conversation transcript is replaced with tagged placeholders before the
    * extraction call, and the returned facts + entities are de-anonymized so the
@@ -154,15 +160,12 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
  *
  * A null from `callPortalJsonCompletion` means a *failure* (empty completion,
  * malformed JSON, network/HTTP error) — distinct from a successful
- * `{candidates: []}`, which parses to a non-null object. Unlike consolidation
- * (which degrades to a create), a failed extraction silently drops the whole
- * turn's memories, so we retry once before giving up. Reasoning-class models
- * like gpt-oss can occasionally return empty content; measured 0/20 on this
- * extraction prompt, but the failure mode is silent data loss, so the cheap
- * retry is worth it.
+ * `{candidates: []}`, which parses to a non-null object. A failed extraction
+ * silently drops the whole turn's memories, so transient failures matter:
+ * `callPortalJsonCompletion` retries them internally with backoff (default 3
+ * attempts), so a one-off empty/malformed completion from a reasoning-class
+ * model doesn't lose the turn. Only an exhausted-retry null reaches here.
  */
-const EXTRACT_MAX_ATTEMPTS = 2;
-
 export async function extractFacts(
   messages: AutoExtractMessage[],
   options: ExtractFactsOptions
@@ -179,22 +182,19 @@ export async function extractFacts(
       (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
     )
     .join("\n");
-  let parsed: unknown = null;
-  for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
-    parsed = await callPortalJsonCompletion({
-      ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
-      ...(options.getToken !== undefined && { getToken: options.getToken }),
-      ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
-      model: options.model ?? DEFAULT_MODEL,
-      systemPrompt: SYSTEM_PROMPT,
-      userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
-      tag: "memory/extract",
-      ...(options.fetchFn && { fetchFn: options.fetchFn }),
-    });
-    // A successful "no facts" response parses to {candidates: []} (non-null),
-    // so a null strictly signals a retryable failure, never a legit empty.
-    if (parsed !== null) break;
-  }
+  const parsed = await callPortalJsonCompletion({
+    ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+    ...(options.getToken !== undefined && { getToken: options.getToken }),
+    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+    model: options.model ?? DEFAULT_MODEL,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
+    tag: "memory/extract",
+    ...(options.fetchFn && { fetchFn: options.fetchFn }),
+    ...(options.backoffMs && { backoffMs: options.backoffMs }),
+  });
+  // A successful "no facts" response parses to {candidates: []} (non-null),
+  // so a null strictly signals failure after retries, never a legit empty.
   if (parsed === null) return [];
 
   const candidates = validateCandidates(parsed, new Set(messages.map((m) => m.id)));

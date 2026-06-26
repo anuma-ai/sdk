@@ -131,11 +131,13 @@ describe("extractFacts", () => {
 
   it("returns [] on network error (doesn't throw)", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("ECONNRESET")) as unknown as typeof fetch;
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    // backoffMs: () => 0 — retries (now owned by callPortalJsonCompletion) run
+    // without real delay.
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
     expect(result).toEqual([]);
   });
 
-  it("retries once on a failed/empty completion, then succeeds", async () => {
+  it("retries a transient empty completion, then succeeds", async () => {
     // First call: empty completion content (null) → retry. Second: real facts.
     const candidates = {
       candidates: [
@@ -157,7 +159,7 @@ describe("extractFacts", () => {
         ok: true,
         json: async () => ({ choices: [{ message: { content: JSON.stringify(candidates) } }] }),
       }) as unknown as typeof fetch;
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
     expect(fetchFn).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("Lives in Portland");
@@ -166,15 +168,16 @@ describe("extractFacts", () => {
   it("does not retry a successful empty result ({candidates: []})", async () => {
     // A legit "no durable facts" is non-null and must not trigger a retry.
     const fetchFn = mockFetch(JSON.stringify({ candidates: [] }));
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
     expect(fetchFn).toHaveBeenCalledTimes(1);
     expect(result).toEqual([]);
   });
 
-  it("gives up after the retry when both attempts fail", async () => {
+  it("gives up after exhausting retries when all attempts fail", async () => {
+    // Retry is owned by callPortalJsonCompletion (default 3 attempts).
     const fetchFn = mockFetch("not-valid-json");
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
     expect(result).toEqual([]);
   });
 

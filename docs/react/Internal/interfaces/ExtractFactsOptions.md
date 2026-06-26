@@ -26,6 +26,47 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 ***
 
+### backoffMs()?
+
+> `optional` **backoffMs**: (`attempt`: `number`) => `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#137)
+
+Override the retry backoff (ms) for a given 1-based attempt index. The
+extraction call retries transient failures internally (default exponential
+backoff); pass `() => 0` to retry without delay (useful for tests).
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`attempt`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`number`
+
+***
+
 ### baseUrl?
 
 > `optional` **baseUrl**: `string`
@@ -168,7 +209,7 @@ Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/
 
 > `optional` **piiRedaction**: `boolean` | `PiiRedactor`
 
-Defined in: [src/lib/memory/autoExtract.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#146)
+Defined in: [src/lib/memory/autoExtract.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#152)
 
 When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
 conversation transcript is replaced with tagged placeholders before the

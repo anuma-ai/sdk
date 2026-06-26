@@ -73,7 +73,8 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
   it("returns null and warns when the response is pure prose with no JSON", async () => {
     const content = "Do you want me to summarize the conversation first?";
     const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
-    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    // maxAttempts: 1 — this is a parsing test, not a retry test.
+    const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 1, fetchFn });
     expect(result).toBeNull();
   });
 
@@ -218,5 +219,101 @@ describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
       "Either apiKey or getToken must be provided"
     );
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("callPortalJsonCompletion — retry on transient failure", () => {
+  // backoffMs: () => 0 so retries don't introduce real delay in tests.
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "openai/gpt-5-mini",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+    backoffMs: () => 0,
+  } as const;
+
+  it("retries an empty completion, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("")) // no completion content
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a no-JSON prose completion, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("Now output the JSON.")) // the real-world failure
+      .mockResolvedValueOnce(mockResponse('{"candidates":[]}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ candidates: [] });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a 500, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("upstream error", { status: 500 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a 400 (treated as a transient provider hiccup), then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("bad request", { status: 400 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a thrown network error, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("does NOT retry a terminal 401 and returns null after one call", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry a terminal 404", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("not found", { status: 404 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up after maxAttempts and returns null", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 3, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("maxAttempts: 1 disables retries (single fetch on a transient failure)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 500 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 1, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("defaults to 3 attempts when maxAttempts is unset", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse("no json here"));
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 });
