@@ -134,6 +134,17 @@ function shiftByUnit(base: number, n: number, unit: string): number {
   return addMonths(base, n);
 }
 
+/** Validate a numeric-offset window before returning it. A huge offset
+ * (e.g. "in 999999999 days") overflows the JS Date range, so
+ * `new Date(...).getTime()` yields NaN; returning that window makes the
+ * temporal lane silently score every memory 0. Treat a non-finite window as
+ * "no resolvable temporal phrase" (null) — the other lanes still carry the
+ * query — rather than poisoning the lane. */
+function finiteWindow(start: number, end: number, matchedPhrase: string): TemporalWindow | null {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return { start, end, matchedPhrase };
+}
+
 /** End-of-window for a numeric-offset phrase. Days → next-day midnight;
  * weeks → +7 days from the start; months → +1 calendar month (matches the
  * 31-day "last month" / "next month" branches and avoids the off-by-end-of-
@@ -166,6 +177,11 @@ export function parseQueryTimeWindow(
   now: number = Date.now()
 ): TemporalWindow | null {
   if (!query) return null;
+  // A non-finite `now` (bad override / NaN clock) would build NaN bounds in
+  // EVERY branch below (today / this week / month / day-of-week / absolute),
+  // not just the numeric-offset ones, and a NaN window makes the temporal lane
+  // silently score every memory 0. Disable the lane cleanly at the choke point.
+  if (!Number.isFinite(now)) return null;
   const q = query.toLowerCase();
 
   // ── 1. Relative day ─────────────────────────────────────────────────
@@ -214,14 +230,14 @@ export function parseQueryTimeWindow(
     const n = parseInt(futureMatch[1] ?? futureMatch[3], 10);
     const unit = futureMatch[2] ?? futureMatch[4];
     const start = shiftByUnit(startOfDay(now), n, unit);
-    return { start, end: endOfOffsetWindow(start, unit), matchedPhrase: futureMatch[0] };
+    return finiteWindow(start, endOfOffsetWindow(start, unit), futureMatch[0]);
   }
   const agoMatch = PAST_OFFSET_RE.exec(q);
   if (agoMatch) {
     const n = parseInt(agoMatch[1], 10);
     const unit = agoMatch[2];
     const start = shiftByUnit(startOfDay(now), -n, unit);
-    return { start, end: endOfOffsetWindow(start, unit), matchedPhrase: agoMatch[0] };
+    return finiteWindow(start, endOfOffsetWindow(start, unit), agoMatch[0]);
   }
 
   // ── 5. Day-of-week with optional "next" / "last" ────────────────────
