@@ -421,9 +421,14 @@ export async function embedAllMessages(
  * Chunk and embed a single message, storing chunk embeddings in the database.
  * For messages shorter than chunkSize, falls back to whole-message embedding.
  *
+ * Requires embedding auth: `options` must carry `apiKey` or `getToken` (see
+ * {@link EmbeddingOptions}). `EmbeddingOptions` keeps both optional for the
+ * dual-auth pattern, so this is enforced at runtime — with neither, the
+ * embedding call rejects with `"Either apiKey or getToken must be provided"`.
+ *
  * @param ctx - Storage operations context
  * @param messageId - Unique ID of the message to chunk and embed
- * @param options - Embedding and chunking options
+ * @param options - Embedding and chunking options (auth required — see above)
  * @returns The updated message, or null if message not found
  */
 export async function chunkAndEmbedMessage(
@@ -480,11 +485,22 @@ export async function chunkAndEmbedMessage(
 }
 
 /**
- * Chunk and embed all messages without embeddings/chunks in the database.
- * Uses chunking for long messages, whole-message embedding for short ones.
+ * Chunk and embed messages that don't yet have embeddings/chunks in the
+ * database. Uses chunking for long messages, whole-message embedding for short
+ * ones.
+ *
+ * Upgrade note: by default this SKIPS messages that already have a whole-message
+ * vector. An app migrating from whole-message embeddings to chunk-based search
+ * must pass `filter.rechunkExisting: true` to (re)chunk those existing messages
+ * — otherwise they get no chunk rows and chunk search stays incomplete for the
+ * back-catalog.
+ *
+ * Requires embedding auth (`apiKey` or `getToken` in `options`; see
+ * {@link EmbeddingOptions}) — rejects with `"Either apiKey or getToken must be
+ * provided"` if neither is set.
  *
  * @param ctx - Storage operations context
- * @param options - Embedding and chunking options
+ * @param options - Embedding and chunking options (auth required — see above)
  * @param filter - Optional filter for which messages to embed
  * @returns Number of messages embedded
  */
