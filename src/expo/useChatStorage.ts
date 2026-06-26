@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import type { LlmapiMessage } from "../client";
+import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import type { StreamResumeHandle } from "../lib/chat/resumeStream";
 import { StreamExpiredError } from "../lib/chat/resumeStream";
+import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -1821,6 +1823,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
       );
 
+      // Also surface citations that arrived via tool_call_events (e.g.
+      // AnumaSearchMCP search results). Models that return sources as tool
+      // output rather than inline content would otherwise show no citation
+      // pills on mobile — parity with the react send path (#629). MCP image
+      // URLs are handled separately as files, so exclude them here.
+      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents).filter(
+        (source) => !source.url?.includes(MCP_R2_DOMAIN)
+      );
+      const seenSourceUrls = new Set(
+        combinedSources.map((s) => s.url).filter((url): url is string => !!url)
+      );
+      const allSources = [
+        ...combinedSources,
+        ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
+      ];
+
       // Resolve image model: prefer the caller's selection, then the portal's
       // resolved `image_model` on the response, then MCP tool-event scraping.
       const resolvedImageModel =
@@ -1837,7 +1855,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel: resolvedImageModel,
         usage: convertUsageToStored(responseData),
         responseDuration,
-        sources: combinedSources,
+        sources: allSources,
         thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         thinking: thinkingContent,
         // Note: when queued (encryption key not ready), storedUserMessage.uniqueId is a
