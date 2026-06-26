@@ -26,6 +26,47 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 ***
 
+### backoffMs()?
+
+> `optional` **backoffMs**: (`attempt`: `number`) => `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#153)
+
+Override the retry backoff (ms) for a given 1-based attempt index. The
+extraction call retries transient failures internally (default exponential
+backoff); pass `() => 0` to retry without delay (useful for tests).
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`attempt`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`number`
+
+***
+
 ### baseUrl?
 
 > `optional` **baseUrl**: `string`
@@ -156,6 +197,19 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 ***
 
+### maxAttempts?
+
+> `optional` **maxAttempts**: `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#138)
+
+Max attempts for the extraction call on a transient failure (default 3).
+Lower it to bound how long extraction can hold a turn open — e.g. a worker
+that runs extraction behind an in-flight-turn guard can pass `2` to keep
+repeated failures from delaying later turns.
+
+***
+
 ### model?
 
 > `optional` **model**: `string`
@@ -168,7 +222,7 @@ Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/
 
 > `optional` **piiRedaction**: `boolean` | `PiiRedactor`
 
-Defined in: [src/lib/memory/autoExtract.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#146)
+Defined in: [src/lib/memory/autoExtract.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#168)
 
 When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
 conversation transcript is replaced with tagged placeholders before the
@@ -182,3 +236,26 @@ NOTE: this does NOT cover the embeddings provider. Facts are stored and
 embedded with their real values, so to keep PII out of embedding requests
 set `RetainContext.embeddingOptions.maskInput` (e.g. `redactor.maskText`)
 as well — the two are independent switches.
+
+***
+
+### timeoutMs?
+
+> `optional` **timeoutMs**: `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#141)
+
+Per-attempt timeout (ms) for the extraction call. Defaults to the portal
+helper's 60s. Combine with [maxAttempts](#maxattempts) to cap the total time budget.
+
+***
+
+### totalTimeoutMs?
+
+> `optional` **totalTimeoutMs**: `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#147)
+
+Absolute wall-clock budget (ms) across ALL extraction attempts incl. backoff.
+When set, the loop stops before an attempt that would exceed it, so worst-case
+latency is bounded rather than `maxAttempts × timeoutMs`.

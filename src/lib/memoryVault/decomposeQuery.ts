@@ -115,6 +115,9 @@ export async function decomposeQuery(
       // Decompose runs on the recall hot path — tighter than the
       // portalLlm default (consolidate/extract can wait longer).
       timeoutMs: 20_000,
+      // No internal retry: a failure degrades to the safe `{specific,[query]}`
+      // fallback below, so retrying would only add latency on the hot path.
+      maxAttempts: 1,
       tag: "memory/decompose",
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
     });
