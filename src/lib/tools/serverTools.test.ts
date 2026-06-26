@@ -236,3 +236,47 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
     expect(a).toBe(b); // input order must not matter
   });
 });
+
+describe("mergeTools — defer-loading edge: empty server catalog + client tools", () => {
+  const st = (name: string): import("./serverTools").ServerTool => ({
+    name,
+    description: `d ${name}`,
+    parameters: { type: "object", properties: {} },
+  });
+  it("keeps the prepended tool-search tool even when serverTools is empty (Medium fix)", () => {
+    const clientTool = {
+      type: "function",
+      function: { name: "display_chart", parameters: {} },
+    } as never;
+    const merged = mergeTools([], [clientTool], "completions", {
+      enabled: true,
+      hotToolNames: [],
+    }) as Array<Record<string, unknown>>;
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119"); // search tool survives
+    const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
+    expect(names).toContain("display_chart"); // client tool still merged
+  });
+  it("OFF + empty serverTools + client tools → only client tools (unchanged)", () => {
+    const clientTool = {
+      type: "function",
+      function: { name: "display_chart", parameters: {} },
+    } as never;
+    const merged = mergeTools([], [clientTool], "completions") as Array<Record<string, unknown>>;
+    expect(merged).toHaveLength(1);
+    expect((merged[0].function as { name: string }).name).toBe("display_chart");
+  });
+  it("ON: non-empty catalog + client tools → [search, ...server, ...client] (no drop)", () => {
+    const clientTool = {
+      type: "function",
+      function: { name: "display_chart", parameters: {} },
+    } as never;
+    const merged = mergeTools([st("AnumaJinaMCP-read_url")], [clientTool], "completions", {
+      enabled: true,
+      hotToolNames: ["AnumaJinaMCP-read_url"],
+    }) as Array<Record<string, unknown>>;
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
+    expect(names).toContain("AnumaJinaMCP-read_url");
+    expect(names).toContain("display_chart");
+  });
+});

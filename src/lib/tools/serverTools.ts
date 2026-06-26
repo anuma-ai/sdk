@@ -666,7 +666,10 @@ export function mergeTools(
       ? clientTools.map(clientToolToResponsesFormat)
       : clientTools.map(clientToolToCompletionsFormat);
 
-  if (serverTools.length === 0) {
+  // Guard on the FORMATTED array, not the raw serverTools: in defer mode formatServerToolsWithDefer
+  // prepends the tool-search tool, so formattedServerTools is non-empty even when serverTools is empty
+  // — returning only client tools here would drop that search tool.
+  if (formattedServerTools.length === 0) {
     return formattedClientTools;
   }
 
