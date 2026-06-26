@@ -620,8 +620,9 @@ export const INFERENCE_ID_HEADER = "X-Inference-ID";
  * (Datadog `conversation_id`) and the `requests.conversation_id` DB column share one source.
  * Sent on the main tool-loop send whenever a `conversationId` is in scope; the body
  * `conversation_id` field (set by the request strategies) remains as a fallback.
+ * Module-local — used only here; not exported (no external importer).
  */
-export const CONVERSATION_ID_HEADER = "X-Conversation-ID";
+const CONVERSATION_ID_HEADER = "X-Conversation-ID";
 
 /**
  * Everything resumeStream() needs to replay a detached stream.
