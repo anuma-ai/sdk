@@ -127,11 +127,24 @@ export interface AutoExtractor {
 
 const DEFAULT_WINDOW_SIZE = 6;
 
+// Absolute budget for one turn's extraction LLM call across all retries. The
+// worker serializes extraction behind an in-flight guard (a turn that arrives
+// while extraction is running is skipped), so a stuck call delays the NEXT
+// turn's extraction. Without a budget the call could run maxAttempts ×
+// per-attempt timeout (~180s); 60s caps that ~3× while still allowing a few
+// fast gpt-oss retries. Callers can override via `extract.totalTimeoutMs`.
+const DEFAULT_EXTRACT_TOTAL_TIMEOUT_MS = 60_000;
+
 /**
  * Create a per-session auto-extractor. See module docstring for usage.
  */
 export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoExtractor {
   const windowSize = options.windowSize ?? DEFAULT_WINDOW_SIZE;
+  // Bound the guarded extraction path by default (see constant above).
+  const extract: ExtractFactsOptions = {
+    ...options.extract,
+    totalTimeoutMs: options.extract.totalTimeoutMs ?? DEFAULT_EXTRACT_TOTAL_TIMEOUT_MS,
+  };
   let inflight = 0;
   let disposed = false;
 
@@ -196,7 +209,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           window,
           options.retainCtx,
           {
-            extract: options.extract,
+            extract,
             ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
             ...(options.entityCtx !== undefined && { entityCtx: options.entityCtx }),
             ...(options.scope !== undefined && { scope: options.scope }),

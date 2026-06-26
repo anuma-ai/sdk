@@ -169,6 +169,12 @@ export async function consolidateMemory(
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
       tag: "memory/consolidate",
+      // No retry: consolidation runs once per candidate during retain, and a
+      // failure already degrades to create (the documented fallback). A spurious
+      // create from a transient blip is low-cost — same-content rows collapse at
+      // read time (recall dedup) and self-heal via proof_count on re-observation
+      // — so retrying here would just multiply retain latency per candidate.
+      maxAttempts: 1,
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
     });
   } catch (err) {
