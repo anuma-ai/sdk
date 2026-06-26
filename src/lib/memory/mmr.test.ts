@@ -126,4 +126,23 @@ describe("applyMMR", () => {
     const result = applyMMR(items, 2, 5);
     expect(result[0].id).toBe("high");
   });
+
+  it("clamps lambda < 0 to 0 (max diversity), still returning all items", () => {
+    const items = [
+      { id: "a", score: 0.9, embedding: emb({ 0: 1 }) },
+      { id: "b", score: 0.5, embedding: emb({ 1: 1 }) },
+    ];
+    const result = applyMMR(items, 2, -1);
+    expect(result.map((r) => r.id).sort()).toEqual(["a", "b"]);
+  });
+
+  it("does not silently drop a candidate whose score is NaN", () => {
+    const items = [
+      { id: "good", score: 0.5, embedding: emb({ 0: 1 }) },
+      { id: "nan", score: NaN, embedding: emb({ 1: 1 }) },
+    ];
+    const result = applyMMR(items, 2, 0.5);
+    // Both selected — the NaN-scored candidate is coerced to 0, not dropped.
+    expect(result.map((r) => r.id).sort()).toEqual(["good", "nan"]);
+  });
 });

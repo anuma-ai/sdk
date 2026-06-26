@@ -70,7 +70,13 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
       // First pick has nothing to fold against yet — apply a 0 penalty so
       // the round-0 selection is pure relevance.
       const maxSim = selected.length === 0 ? 0 : maxSimVs[i];
-      const mmrScore = lambdaSafe * cand.score - (1 - lambdaSafe) * maxSim;
+      // Coerce a non-finite relevance score to 0. `cand.score` comes from the
+      // fused RRF map or the CE reranker; a NaN there makes `mmrScore` NaN, and
+      // since `NaN > bestScore` is always false the candidate is silently never
+      // selected — the exact "silently dropped" failure the lambda clamp above
+      // guards against, just on the term that actually carries the NaN.
+      const score = Number.isFinite(cand.score) ? cand.score : 0;
+      const mmrScore = lambdaSafe * score - (1 - lambdaSafe) * maxSim;
       if (mmrScore > bestScore) {
         bestScore = mmrScore;
         bestIdx = i;

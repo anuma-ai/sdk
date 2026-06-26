@@ -177,6 +177,11 @@ export function parseQueryTimeWindow(
   now: number = Date.now()
 ): TemporalWindow | null {
   if (!query) return null;
+  // A non-finite `now` (bad override / NaN clock) would build NaN bounds in
+  // EVERY branch below (today / this week / month / day-of-week / absolute),
+  // not just the numeric-offset ones, and a NaN window makes the temporal lane
+  // silently score every memory 0. Disable the lane cleanly at the choke point.
+  if (!Number.isFinite(now)) return null;
   const q = query.toLowerCase();
 
   // ── 1. Relative day ─────────────────────────────────────────────────

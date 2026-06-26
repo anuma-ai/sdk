@@ -38,4 +38,14 @@ describe("parseQueryTimeWindow", () => {
   it("returns null for an absurdly long digit run (parseInt → Infinity)", () => {
     expect(parseQueryTimeWindow(`in ${"9".repeat(400)} weeks`, NOW)).toBeNull();
   });
+
+  it("returns null for a non-finite `now` on EVERY branch (not just offsets)", () => {
+    // A NaN clock would otherwise build NaN bounds in the relative-day / week /
+    // month / day-of-week / absolute-date branches too.
+    expect(parseQueryTimeWindow("today", NaN)).toBeNull();
+    expect(parseQueryTimeWindow("this week", NaN)).toBeNull();
+    expect(parseQueryTimeWindow("last month", NaN)).toBeNull();
+    expect(parseQueryTimeWindow("next monday", NaN)).toBeNull();
+    expect(parseQueryTimeWindow("2026-05-23", NaN)).toBeNull();
+  });
 });
