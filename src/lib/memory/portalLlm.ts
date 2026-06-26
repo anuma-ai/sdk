@@ -32,18 +32,39 @@ function defaultBaseUrl(): string {
 const RESPONSE_FORMAT_OK = new Set(["openai", "inclusionai", "deepseek"]);
 
 /**
- * Whether `model` accepts an OpenAI-style `response_format` request field
- * (both `json_object` and `json_schema` variants). Use this to gate the flag
- * on any direct portal `/chat/completions` call so models that 400 on it
- * (e.g. Cerebras gpt-oss) or silently ignore it (Anthropic) never receive it.
+ * Providers whose models accept `response_format: { type: "json_schema" }`.
+ *
+ * This is a STRICT SUBSET of {@link RESPONSE_FORMAT_OK}: json_schema (OpenAI
+ * "structured outputs") is far less widely supported than json_object. Several
+ * models that accept json_object reject json_schema with a 400 (e.g. older
+ * OpenAI models, and providers that only implement the simpler json_object
+ * mode). Keep this conservatively OpenAI-only; widen only when a provider is
+ * verified to honor the json_schema variant.
+ */
+const RESPONSE_SCHEMA_OK = new Set(["openai"]);
+
+/**
+ * Whether `model` accepts an OpenAI-style `response_format` request field. Use
+ * this to gate the flag on any direct portal `/chat/completions` call so models
+ * that 400 on it (e.g. Cerebras gpt-oss) or silently ignore it (Anthropic)
+ * never receive it.
+ *
+ * `variant` distinguishes the two shapes — `"json_object"` (the default,
+ * broadly supported) vs `"json_schema"` (OpenAI structured outputs, a strict
+ * subset). A model that takes json_object but not json_schema must NOT be sent
+ * the latter, or it 400s; pass the variant the caller actually intends to send.
  *
  * Match on path SEGMENTS, not a raw substring: model ids are `provider/model`
  * (or proxied `openrouter/openai/model`), so splitting on `/` matches `openai`
  * in both `openai/x` and `openrouter/openai/x` without a coincidental id like
  * `someprovider-openai/x` wrongly qualifying.
  */
-export function supportsResponseFormat(model: string): boolean {
-  return model.split("/").some((seg) => RESPONSE_FORMAT_OK.has(seg));
+export function supportsResponseFormat(
+  model: string,
+  variant: "json_object" | "json_schema" = "json_object"
+): boolean {
+  const allow = variant === "json_schema" ? RESPONSE_SCHEMA_OK : RESPONSE_FORMAT_OK;
+  return model.split("/").some((seg) => allow.has(seg));
 }
 
 /**

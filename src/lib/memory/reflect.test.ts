@@ -238,6 +238,37 @@ describe("reflect", () => {
     expect(system.content).not.toContain("JSON Schema");
   });
 
+  it("does NOT send response_format to a json_object-only model (deepseek) and falls back to the prompt", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse(JSON.stringify({ ok: true })));
+    await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      llmModel: "deepseek/deepseek-v4", // accepts json_object but NOT json_schema
+      responseSchema: { type: "object" },
+    });
+
+    const body = sentBody(fetchFn);
+    expect(body.response_format).toBeUndefined();
+    const system = (body.messages as Array<{ role: string; content: string }>)[0];
+    expect(system.content).toContain("JSON Schema");
+  });
+
+  it("does NOT forward reflect's maxTokens into recall()'s budget slot", async () => {
+    mockRecall.mockResolvedValueOnce({
+      memories: [],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 0,
+    });
+    const fetchFn = vi.fn() as unknown as typeof fetch;
+    await reflect("q", ctx, { apiKey: "k", fetchFn, maxTokens: 512, limit: 5 });
+
+    const recallOpts = mockRecall.mock.lastCall![2] as Record<string, unknown>;
+    expect("maxTokens" in recallOpts).toBe(false);
+    expect(recallOpts.limit).toBe(5); // other RecallOptions still forwarded
+  });
+
   it("parses prose/fence-wrapped JSON from the prompt-fallback path", async () => {
     oneMemory();
     const wrapped = 'Here is the answer:\n```json\n{"name":"Peter"}\n```';

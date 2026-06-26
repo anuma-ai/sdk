@@ -101,11 +101,18 @@ export async function reflect(
   if (trimmed.length === 0) return empty;
 
   // Stage 1: retrieve. `ReflectOptions extends RecallOptions`, so forward the
-  // whole options object — recall ignores the reflect-only fields (llmModel,
-  // maxTokens, …). Forwarding the full set (rather than cherry-picking) avoids
+  // options object — recall ignores the other reflect-only fields (llmModel,
+  // systemPrompt, …). Forwarding the set (rather than cherry-picking) avoids
   // silently dropping `now` and the ranking knobs (recencyAlpha, rrfK, mmr, …),
   // which back-dated eval harnesses and ablation sweeps rely on.
-  const recalled = await recall(trimmed, ctx, options);
+  //
+  // EXCEPT `maxTokens`: it collides by name but not by meaning — on
+  // `ReflectOptions` it caps the answer LLM (`max_tokens`), while on
+  // `RecallOptions` it is a recall result-set token budget (reserved for W1).
+  // Forwarding it would wire an LLM response cap into recall's budget slot, so
+  // strip it here and let the LLM-side read `options.maxTokens` below.
+  const { maxTokens: _llmMaxTokens, ...recallOptions } = options;
+  const recalled = await recall(trimmed, ctx, recallOptions);
 
   const memoryIds = recalled.memories.map((m) => m.id);
   const baseResult: ReflectResult = {
@@ -135,7 +142,11 @@ export async function reflect(
   // take the flag, fall back to a strict-JSON system-prompt instruction so the
   // model still tries to emit parseable JSON instead of prose.
   const wantsStructured = !!options.responseSchema;
-  const sendResponseFormat = wantsStructured && supportsResponseFormat(model);
+  // reflect sends the `json_schema` variant specifically — gate on that subset
+  // (OpenAI structured outputs), not the broader json_object allowlist, so a
+  // model that takes json_object but not json_schema falls back to the
+  // prompt-instruction path instead of 400-ing.
+  const sendResponseFormat = wantsStructured && supportsResponseFormat(model, "json_schema");
   const basePrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   const systemPrompt =
     wantsStructured && !sendResponseFormat

@@ -16,7 +16,7 @@ required at runtime; `apiKey` wins when both are set.
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#63)
+Defined in: [src/lib/memory/portalLlm.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#84)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -255,7 +255,7 @@ Vault folder filter. Vault-only.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#65)
+Defined in: [src/lib/memory/portalLlm.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#86)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
