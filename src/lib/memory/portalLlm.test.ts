@@ -320,11 +320,34 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it("does NOT retry a terminal 401 and returns null after one call", async () => {
+  it("does NOT retry a 401 on the apiKey path (static key — genuine auth failure)", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("unauthorized", { status: 401 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(result).toBeNull();
     expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a 401 on the getToken path with a refreshed token, then succeeds", async () => {
+    // A 401 may just be an expired token — the next attempt re-resolves
+    // getToken and sends a fresh one.
+    const getToken = vi.fn().mockResolvedValueOnce("expired").mockResolvedValueOnce("fresh");
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({
+      model: "openai/gpt-5-mini",
+      systemPrompt: "s",
+      userMessage: "u",
+      tag: "test",
+      getToken,
+      fetchFn,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({ ok: true });
+    expect(getToken).toHaveBeenCalledTimes(2);
+    const secondHeaders = fetchFn.mock.calls[1][1].headers as Record<string, string>;
+    expect(secondHeaders.Authorization).toBe("Bearer fresh");
   });
 
   it("does NOT retry unavailable auth — it's terminal, not a transient failure", async () => {

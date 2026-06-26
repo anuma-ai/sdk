@@ -302,6 +302,16 @@ async function attemptPortalJson(req: PortalLlmRequest): Promise<AttemptOutcome>
   if (!response.ok) {
     clearTimeout(timer);
     const reason = `portal returned ${response.status}`;
+    // A 401 on the TOKEN path may just be an expired token: retry so the next
+    // attempt re-resolves getToken and sends a fresh one. With a static apiKey
+    // (which can't expire) a 401 is a genuine auth failure and stays terminal.
+    // Auth precedence is apiKey-then-getToken, so "token path" = no apiKey.
+    if (response.status === 401) {
+      const tokenAuth = !req.apiKey && !!req.getToken;
+      return tokenAuth
+        ? { kind: "retryable", reason: `${reason} (token may be expired; refreshing)` }
+        : { kind: "terminal", reason };
+    }
     if (!isRetryableStatus(response.status)) return { kind: "terminal", reason };
     const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
     return retryAfterMs !== null
