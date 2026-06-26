@@ -2569,7 +2569,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               getToken,
             });
 
-            if (isServerToolsFunction) {
+            if (serverToolsConfig?.deferLoading?.enabled) {
+              // Defer-loading: emit the FULL catalog every turn. The whole point is a byte-stable
+              // `tools` prefix, so we must NOT semantically filter to a per-prompt subset here —
+              // mergeTools orders + flags it and prepends tool-search, which loads the deferred tools
+              // on demand. Bypasses the serverToolsFilter result (incl. the short-prompt empty case).
+              filteredServerTools = allServerTools;
+            } else if (isServerToolsFunction) {
               if (skipStorageEmbeddings) {
                 const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
@@ -3047,7 +3053,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             getToken,
           });
 
-          if (isServerToolsFunction) {
+          if (serverToolsConfig?.deferLoading?.enabled) {
+            // Defer-loading: emit the FULL catalog every turn (byte-stable prefix). Do NOT semantically
+            // filter — mergeTools orders + flags it and prepends tool-search to load deferred tools on
+            // demand. Bypasses the serverToolsFilter result (incl. the short-prompt empty case).
+            filteredServerTools = allServerTools;
+          } else if (isServerToolsFunction) {
             // Call the filter function with embeddings and all tools
             if (userMessageEmbeddings) {
               const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
