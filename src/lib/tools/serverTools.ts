@@ -656,9 +656,12 @@ export function mergeTools(
   apiType: "responses" | "completions" = "responses",
   deferConfig?: DeferLoadingConfig
 ): Array<Record<string, unknown>> {
-  // Format server tools based on API type. When defer-loading is enabled, emit the full catalog in
-  // defer shape (ordered + flagged + search tool); otherwise today's behavior, unchanged.
-  const formattedServerTools = deferConfig?.enabled
+  // Defer-loading is RESPONSES-ONLY. On the completions path the flat Anthropic tool-search entry is
+  // rewritten into a normal `function` tool by toolsToApiFormat (its special type dropped), and ai-portal
+  // can't carry the type on chat/completions either — so defer can't work end-to-end there. On completions
+  // (the responses circuit-breaker fallback) we use today's normal formatting; defer applies on responses.
+  const useDefer = deferConfig?.enabled === true && apiType === "responses";
+  const formattedServerTools = useDefer
     ? formatServerToolsWithDefer(serverTools, deferConfig, apiType)
     : apiType === "completions"
       ? serverTools.map(toCompletionsFormat)

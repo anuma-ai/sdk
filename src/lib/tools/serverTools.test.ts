@@ -181,33 +181,39 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
     }
   });
 
-  it("ON emits [search] -> [hot in order] -> [deferred name-sorted] with full defs", () => {
-    const merged = mergeTools(catalog, undefined, "completions", {
+  it("ON (responses) emits [search] -> [hot in order] -> [deferred name-sorted] with full defs", () => {
+    const merged = mergeTools(catalog, undefined, "responses", {
       enabled: true,
       hotToolNames: hot,
     }) as Array<Record<string, unknown>>;
-    // Order
+    // Order (responses = flat name at top level)
     expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
     expect(merged[0].name).toBe("tool_search");
-    const fnName = (t: Record<string, unknown>) => (t.function as { name: string }).name;
-    expect(fnName(merged[1])).toBe("AnumaJinaMCP-search_web");
-    expect(fnName(merged[2])).toBe("AnumaSearchMCP-anuma_text_search");
-    expect(fnName(merged[3])).toBe("AnumaJinaMCP-read_url");
+    expect(merged[1].name).toBe("AnumaJinaMCP-search_web");
+    expect(merged[2].name).toBe("AnumaSearchMCP-anuma_text_search");
+    expect(merged[3].name).toBe("AnumaJinaMCP-read_url");
     // Deferred = the two non-hot tools, name-sorted: AnumaImageMCP-edit_cloud_image < ZetaMCP-z_tool
-    expect(fnName(merged[4])).toBe("AnumaImageMCP-edit_cloud_image");
-    expect(fnName(merged[5])).toBe("ZetaMCP-z_tool");
+    expect(merged[4].name).toBe("AnumaImageMCP-edit_cloud_image");
+    expect(merged[5].name).toBe("ZetaMCP-z_tool");
     // defer flags: search + hot non-deferred; deferred flagged
     expect(merged.slice(0, 4).every((t) => t.defer_loading === undefined)).toBe(true);
     expect(merged[4].defer_loading).toBe(true);
     expect(merged[5].defer_loading).toBe(true);
     // Deferred keep FULL definitions (not name-only)
-    expect((merged[4].function as { description: string; parameters: unknown }).description).toBe(
-      "desc AnumaImageMCP-edit_cloud_image"
-    );
-    expect((merged[4].function as { parameters: unknown }).parameters).toEqual({
-      type: "object",
-      properties: {},
-    });
+    expect(merged[4].description).toBe("desc AnumaImageMCP-edit_cloud_image");
+    expect(merged[4].parameters).toEqual({ type: "object", properties: {} });
+  });
+
+  it("ON + completions → defer DISABLED (responses-only): no tool_search, normal completions format", () => {
+    const merged = mergeTools(catalog, undefined, "completions", {
+      enabled: true,
+      hotToolNames: hot,
+    }) as Array<Record<string, unknown>>;
+    // No tool-search tool (completions toolsToApiFormat would mangle its type; ai-portal can't carry it).
+    expect(merged.every((t) => t.type !== "tool_search_tool_regex_20251119")).toBe(true);
+    expect(merged.every((t) => t.defer_loading === undefined)).toBe(true);
+    // Same as today's non-defer completions formatting (function-wrapped, catalog order, no extra tools).
+    expect(merged).toEqual(mergeTools(catalog, undefined, "completions"));
   });
 
   it("ON responses format: flat defs + defer_loading on deferred", () => {
@@ -250,7 +256,7 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
       type: "function",
       function: { name: "display_chart", parameters: {} },
     } as never;
-    const merged = mergeTools([], [clientTool], "completions", {
+    const merged = mergeTools([], [clientTool], "responses", {
       enabled: true,
       hotToolNames: [],
     }) as Array<Record<string, unknown>>;
@@ -273,7 +279,7 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
       type: "function",
       function: { name: "display_chart", parameters: {} },
     } as never;
-    const merged = mergeTools([st("AnumaJinaMCP-read_url")], [clientTool], "completions", {
+    const merged = mergeTools([st("AnumaJinaMCP-read_url")], [clientTool], "responses", {
       enabled: true,
       hotToolNames: ["AnumaJinaMCP-read_url"],
     }) as Array<Record<string, unknown>>;
@@ -291,7 +297,7 @@ describe("mergeTools — defer-loading: duplicate hot names", () => {
     parameters: { type: "object", properties: {} },
   });
   it("emits each hot tool once even if hotToolNames repeats it", () => {
-    const merged = mergeTools([st("AnumaJinaMCP-read_url")], undefined, "completions", {
+    const merged = mergeTools([st("AnumaJinaMCP-read_url")], undefined, "responses", {
       enabled: true,
       hotToolNames: ["AnumaJinaMCP-read_url", "AnumaJinaMCP-read_url"], // duplicated
     }) as Array<Record<string, unknown>>;
