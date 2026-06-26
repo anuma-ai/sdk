@@ -29,6 +29,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
 import { embedWithCache, loadEmbeddingCache, saveEmbeddingCache } from "./embeddingCache.js";
+import { pairForComparison } from "./comparison.js";
 import {
   rankVaultMemories,
   rankFusedVaultMemories,
@@ -682,59 +683,38 @@ async function main() {
       const cmp = JSON.parse(cmpRaw);
       const cmpRows: Array<{ query: string; recall: number; ndcg: number }> =
         cmp.perQuery ?? cmp.details ?? [];
-      if (cmpRows.length === 0) {
+      const comparison = pairForComparison(
+        results.map((r) => ({ query: r.query.query, recall: r.recall, ndcg: r.ndcg })),
+        cmpRows
+      );
+      if (comparison.status === "no-prior-data") {
         console.error(
           `\n  --compare: "${args.compare}" has no per-query data ` +
             `(re-run the baseline with --json --output <file>). Skipping paired test.`
         );
+      } else if (comparison.status === "no-overlap") {
+        console.error(
+          `\n  --compare: no query text overlaps with "${args.compare}" ` +
+            `(${comparison.priorCount} prior rows, ${comparison.currentCount} current) — ` +
+            `skipping paired test. Both runs must cover the same query set.`
+        );
       } else {
-        // Pair by query text — the stable per-query key across runs.
-        const cmpByQuery = new Map(cmpRows.map((r) => [r.query, r]));
-        const curRecall: number[] = [];
-        const baseRecall: number[] = [];
-        const curNdcg: number[] = [];
-        const baseNdcg: number[] = [];
-        let malformed = 0;
-        const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-        for (const r of results) {
-          const b = cmpByQuery.get(r.query.query);
-          if (!b) continue;
-          // A partial prior row (missing/non-numeric recall or ndcg) would push
-          // undefined → pairedBootstrapDelta computes `x - undefined = NaN`, the
-          // sort scrambles, and the verdict is silent garbage. Skip and report.
-          if (!finite(b.recall) || !finite(b.ndcg)) {
-            malformed++;
-            continue;
-          }
-          curRecall.push(r.recall);
-          baseRecall.push(b.recall);
-          curNdcg.push(r.ndcg);
-          baseNdcg.push(b.ndcg);
-        }
-        if (malformed > 0) {
+        if (comparison.malformed > 0) {
           console.error(
-            `\n  --compare: skipped ${malformed} prior row(s) with missing/non-numeric recall or ndcg.`
+            `\n  --compare: skipped ${comparison.malformed} prior row(s) with missing/non-numeric recall or ndcg.`
           );
         }
-        if (curRecall.length === 0) {
-          console.error(
-            `\n  --compare: no query text overlaps with "${args.compare}" ` +
-              `(${cmpRows.length} prior rows, ${results.length} current) — skipping paired test. ` +
-              `Both runs must cover the same query set.`
-          );
-        } else {
-          const dRecall = pairedBootstrapDelta(curRecall, baseRecall);
-          const dNdcg = pairedBootstrapDelta(curNdcg, baseNdcg);
-          const verdict = (d: { mean: number; lo: number; hi: number; significant: boolean }) =>
-            `${d.mean >= 0 ? "+" : ""}${(d.mean * 100).toFixed(2)}pp ` +
-            `[95% CI ${(d.lo * 100).toFixed(2)}, ${(d.hi * 100).toFixed(2)}] ` +
-            `${d.significant ? "SIGNIFICANT" : "not significant (within noise)"}`;
-          console.error(
-            `\n  Paired comparison vs ${args.compare} (${curRecall.length} shared queries):`
-          );
-          console.error(`    Δ recall@k  ${verdict(dRecall)}`);
-          console.error(`    Δ ndcg      ${verdict(dNdcg)}`);
-        }
+        const dRecall = pairedBootstrapDelta(comparison.curRecall, comparison.baseRecall);
+        const dNdcg = pairedBootstrapDelta(comparison.curNdcg, comparison.baseNdcg);
+        const verdict = (d: { mean: number; lo: number; hi: number; significant: boolean }) =>
+          `${d.mean >= 0 ? "+" : ""}${(d.mean * 100).toFixed(2)}pp ` +
+          `[95% CI ${(d.lo * 100).toFixed(2)}, ${(d.hi * 100).toFixed(2)}] ` +
+          `${d.significant ? "SIGNIFICANT" : "not significant (within noise)"}`;
+        console.error(
+          `\n  Paired comparison vs ${args.compare} (${comparison.curRecall.length} shared queries):`
+        );
+        console.error(`    Δ recall@k  ${verdict(dRecall)}`);
+        console.error(`    Δ ndcg      ${verdict(dNdcg)}`);
       }
     } catch (err) {
       console.error(`\n  --compare failed to load "${args.compare}": ${err}`);

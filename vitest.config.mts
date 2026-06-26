@@ -16,6 +16,8 @@ export default defineConfig({
       // Frozen-embedding cache glue (load/save/invalidation) — embeddings are
       // mocked, so no PORTAL_API_KEY needed; runs in the fast unit suite.
       "test/memory/src/vault/embeddingCache.test.ts",
+      // --compare pairing core (the skip branches) — pure, no PORTAL_API_KEY.
+      "test/memory/src/vault/comparison.test.ts",
     ],
     // Browser tests need Playwright's Chromium binary and ~3-5s per case.
     // Skipped by default so `vitest run` stays fast; run via
