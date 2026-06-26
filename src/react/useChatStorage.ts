@@ -140,6 +140,7 @@ import {
   BUILT_IN_TOOL_SETS,
   CLIENT_TOOLS_MIN_SIMILARITY,
   CLIENT_TOOLS_RELEVANCE_RATIO,
+  type DeferLoadingConfig,
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
@@ -414,7 +415,7 @@ export async function previewToolSelection(options: {
   prompt: string;
   clientTools?: LlmapiChatCompletionTool[];
   serverToolsFilter?: string[] | ServerToolsFilterFn;
-  serverToolsConfig?: { cacheExpirationMs?: number };
+  serverToolsConfig?: { cacheExpirationMs?: number; deferLoading?: DeferLoadingConfig };
   /** Bearer-token auth (browser sessions). Provide this or `apiKey`. */
   getToken?: () => Promise<string | null>;
   /** X-API-Key auth (server-side / test harnesses). Provide this or `getToken`. */
@@ -540,7 +541,10 @@ export async function previewToolSelection(options: {
         getToken,
         apiKey,
       });
-      if (typeof serverToolsFilter === "function") {
+      if (serverToolsConfig?.deferLoading?.enabled) {
+        // Defer-loading: the real responses send emits the full catalog, so the preview must too.
+        serverToolNames = allServerTools.map((t) => t.name);
+      } else if (typeof serverToolsFilter === "function") {
         serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
       } else {
         const allow = new Set(serverToolsFilter);
@@ -2569,7 +2573,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               getToken,
             });
 
-            if (isServerToolsFunction) {
+            if (serverToolsConfig?.deferLoading?.enabled) {
+              // Defer-loading: emit the FULL catalog every turn. The whole point is a byte-stable
+              // `tools` prefix, so we must NOT semantically filter to a per-prompt subset here —
+              // mergeTools orders + flags it and prepends tool-search, which loads the deferred tools
+              // on demand. Bypasses the serverToolsFilter result (incl. the short-prompt empty case).
+              filteredServerTools = allServerTools;
+            } else if (isServerToolsFunction) {
               if (skipStorageEmbeddings) {
                 const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
@@ -2614,7 +2624,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           filteredServerTools.length > 0 ||
           (filteredClientTools && filteredClientTools.length > 0)
         ) {
-          mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+          mergedTools = mergeTools(
+            filteredServerTools,
+            filteredClientTools,
+            effectiveApiType,
+            serverToolsConfig?.deferLoading
+          );
         }
 
         if (onToolSelection) {
@@ -3042,7 +3057,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             getToken,
           });
 
-          if (isServerToolsFunction) {
+          if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
+            // Defer-loading (RESPONSES-ONLY): emit the FULL catalog every turn (byte-stable prefix). Do
+            // NOT semantically filter — mergeTools orders + flags it and prepends tool-search to load
+            // deferred tools on demand. On completions (the responses-breaker fallback) defer can't work
+            // (toolsToApiFormat mangles the flat tool-search type), so fall through to today's filtering.
+            filteredServerTools = allServerTools;
+          } else if (isServerToolsFunction) {
             // Call the filter function with embeddings and all tools
             if (userMessageEmbeddings) {
               const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
@@ -3136,7 +3157,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         filteredServerTools.length > 0 ||
         (filteredClientTools && filteredClientTools.length > 0)
       ) {
-        mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+        mergedTools = mergeTools(
+          filteredServerTools,
+          filteredClientTools,
+          effectiveApiType,
+          serverToolsConfig?.deferLoading
+        );
       }
 
       if (onToolSelection) {

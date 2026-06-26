@@ -2,7 +2,7 @@
 
 > **previewToolSelection**(`options`: `object`): `Promise`<{ `clientToolNames`: `string`\[]; `serverToolNames`: `string`\[]; }>
 
-Defined in: [src/react/useChatStorage.ts:413](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#413)
+Defined in: [src/react/useChatStorage.ts:414](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#414)
 
 Preview which tools `useChatStorage` will include for a given prompt,
 without making the actual chat request.
@@ -217,7 +217,7 @@ Bearer-token auth (browser sessions). Provide this or `apiKey`.
 </td>
 <td>
 
-{ `cacheExpirationMs?`: `number`; }
+{ `cacheExpirationMs?`: `number`; `deferLoading?`: `DeferLoadingConfig`; }
 
 </td>
 <td>
@@ -235,6 +235,23 @@ Bearer-token auth (browser sessions). Provide this or `apiKey`.
 <td>
 
 `number`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.serverToolsConfig.deferLoading?`
+
+</td>
+<td>
+
+`DeferLoadingConfig`
 
 </td>
 <td>
