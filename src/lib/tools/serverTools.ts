@@ -1062,6 +1062,20 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["x_get_me", "x_get_my_posts"],
     anchorMinSimilarity: 0.53,
   },
+  {
+    name: "slack",
+    members: [
+      "slack_get_me",
+      "slack_list_channels",
+      "slack_search_messages",
+      "slack_list_users",
+      "slack_get_channel_history",
+    ],
+    // search is the primary entry point; list_channels also anchors so "what
+    // channels am I in" reaches the set without going through search.
+    anchors: ["slack_search_messages", "slack_list_channels"],
+    anchorMinSimilarity: 0.53,
+  },
 ];
 
 /**

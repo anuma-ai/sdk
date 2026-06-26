@@ -163,6 +163,16 @@ export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
 export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";
 export { createXTools } from "./x";
 
+// Slack exports
+export type {
+  SlackGetChannelHistoryArgs,
+  SlackListChannelsArgs,
+  SlackListUsersArgs,
+  SlackProxyCaller,
+  SlackSearchMessagesArgs,
+} from "./slack";
+export { createSlackTools } from "./slack";
+
 // Connector vault primitives
 export type {
   ConnectorErrorCode,
