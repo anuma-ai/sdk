@@ -1532,6 +1532,12 @@ export interface SelectServerToolsForPromptOptions {
   embeddingModel?: string;
   /** Cache expiration in ms for the server-tools catalog fetch. */
   cacheExpirationMs?: number;
+  /**
+   * Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
+   * static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
+   * for mergeTools + tool-search. Omit/disabled → today's filtered selection.
+   */
+  deferLoading?: DeferLoadingConfig;
 }
 
 /**
@@ -1563,8 +1569,15 @@ export interface SelectServerToolsForPromptOptions {
 export async function selectServerToolsForPrompt(
   options: SelectServerToolsForPromptOptions
 ): Promise<ServerTool[]> {
-  const { prompt, serverToolsFilter, getToken, baseUrl, embeddingModel, cacheExpirationMs } =
-    options;
+  const {
+    prompt,
+    serverToolsFilter,
+    getToken,
+    baseUrl,
+    embeddingModel,
+    cacheExpirationMs,
+    deferLoading,
+  } = options;
 
   if (serverToolsFilter === undefined) return [];
   if (Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0) return [];
@@ -1576,6 +1589,10 @@ export async function selectServerToolsForPrompt(
     return [];
   }
   if (allServerTools.length === 0) return [];
+
+  // Defer-loading: mirror useChatStorage's responses send path — emit the FULL catalog (no semantic/
+  // static filtering), since mergeTools orders + flags it and tool-search loads the rest on demand.
+  if (deferLoading?.enabled) return allServerTools;
 
   if (typeof serverToolsFilter === "function") {
     // Mirror useChatStorage's short-prompt gate: below

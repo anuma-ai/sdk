@@ -141,6 +141,7 @@ import {
   CLIENT_TOOLS_MIN_SIMILARITY,
   CLIENT_TOOLS_RELEVANCE_RATIO,
   expandToolSetsAdditive,
+  type DeferLoadingConfig,
   filterServerTools,
   findMatchingTools,
   getServerTools,
@@ -414,7 +415,7 @@ export async function previewToolSelection(options: {
   prompt: string;
   clientTools?: LlmapiChatCompletionTool[];
   serverToolsFilter?: string[] | ServerToolsFilterFn;
-  serverToolsConfig?: { cacheExpirationMs?: number };
+  serverToolsConfig?: { cacheExpirationMs?: number; deferLoading?: DeferLoadingConfig };
   /** Bearer-token auth (browser sessions). Provide this or `apiKey`. */
   getToken?: () => Promise<string | null>;
   /** X-API-Key auth (server-side / test harnesses). Provide this or `getToken`. */
@@ -540,7 +541,10 @@ export async function previewToolSelection(options: {
         getToken,
         apiKey,
       });
-      if (typeof serverToolsFilter === "function") {
+      if (serverToolsConfig?.deferLoading?.enabled) {
+        // Defer-loading: the real responses send emits the full catalog, so the preview must too.
+        serverToolNames = allServerTools.map((t) => t.name);
+      } else if (typeof serverToolsFilter === "function") {
         serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
       } else {
         const allow = new Set(serverToolsFilter);

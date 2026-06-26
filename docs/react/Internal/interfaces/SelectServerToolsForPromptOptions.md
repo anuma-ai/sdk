@@ -26,6 +26,18 @@ Cache expiration in ms for the server-tools catalog fetch.
 
 ***
 
+### deferLoading?
+
+> `optional` **deferLoading**: `DeferLoadingConfig`
+
+Defined in: [src/lib/tools/serverTools.ts:1540](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1540)
+
+Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
+static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
+for mergeTools + tool-search. Omit/disabled → today's filtered selection.
+
+***
+
 ### embeddingModel?
 
 > `optional` **embeddingModel**: `string`
