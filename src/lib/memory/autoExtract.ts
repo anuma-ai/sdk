@@ -130,6 +130,16 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
   /**
+   * Max attempts for the extraction call on a transient failure (default 3).
+   * Lower it to bound how long extraction can hold a turn open — e.g. a worker
+   * that runs extraction behind an in-flight-turn guard can pass `2` to keep
+   * repeated failures from delaying later turns.
+   */
+  maxAttempts?: number;
+  /** Per-attempt timeout (ms) for the extraction call. Defaults to the portal
+   * helper's 60s. Combine with {@link maxAttempts} to cap the total time budget. */
+  timeoutMs?: number;
+  /**
    * Override the retry backoff (ms) for a given 1-based attempt index. The
    * extraction call retries transient failures internally (default exponential
    * backoff); pass `() => 0` to retry without delay (useful for tests).
@@ -191,6 +201,8 @@ export async function extractFacts(
     userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
     tag: "memory/extract",
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
+    ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
+    ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
     ...(options.backoffMs && { backoffMs: options.backoffMs }),
   });
   // A successful "no facts" response parses to {candidates: []} (non-null),

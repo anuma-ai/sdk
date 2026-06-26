@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#137)
+Defined in: [src/lib/memory/autoExtract.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#147)
 
 Override the retry backoff (ms) for a given 1-based attempt index. The
 extraction call retries transient failures internally (default exponential
@@ -197,6 +197,19 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 ***
 
+### maxAttempts?
+
+> `optional` **maxAttempts**: `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#138)
+
+Max attempts for the extraction call on a transient failure (default 3).
+Lower it to bound how long extraction can hold a turn open — e.g. a worker
+that runs extraction behind an in-flight-turn guard can pass `2` to keep
+repeated failures from delaying later turns.
+
+***
+
 ### model?
 
 > `optional` **model**: `string`
@@ -209,7 +222,7 @@ Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/
 
 > `optional` **piiRedaction**: `boolean` | `PiiRedactor`
 
-Defined in: [src/lib/memory/autoExtract.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#152)
+Defined in: [src/lib/memory/autoExtract.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#162)
 
 When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
 conversation transcript is replaced with tagged placeholders before the
@@ -223,3 +236,14 @@ NOTE: this does NOT cover the embeddings provider. Facts are stored and
 embedded with their real values, so to keep PII out of embedding requests
 set `RetainContext.embeddingOptions.maskInput` (e.g. `redactor.maskText`)
 as well — the two are independent switches.
+
+***
+
+### timeoutMs?
+
+> `optional` **timeoutMs**: `number`
+
+Defined in: [src/lib/memory/autoExtract.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#141)
+
+Per-attempt timeout (ms) for the extraction call. Defaults to the portal
+helper's 60s. Combine with [maxAttempts](#maxattempts) to cap the total time budget.

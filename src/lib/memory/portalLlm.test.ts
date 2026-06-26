@@ -316,4 +316,37 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     await callPortalJsonCompletion({ ...baseArgs, fetchFn });
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
+
+  it("retries when the completion parses to literal null, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("null")) // valid JSON, but null is the failure sentinel
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-resolves auth each attempt — a retry uses a fresh token", async () => {
+    const getToken = vi.fn().mockResolvedValueOnce("tok-1").mockResolvedValueOnce("tok-2");
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("upstream error", { status: 500 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({
+      model: "openai/gpt-5-mini",
+      systemPrompt: "s",
+      userMessage: "u",
+      tag: "test",
+      getToken,
+      fetchFn,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({ ok: true });
+    // Token fetched per attempt (not reused from before the backoff), so the
+    // second request carries the fresh token rather than a possibly-expired one.
+    expect(getToken).toHaveBeenCalledTimes(2);
+    const secondHeaders = fetchFn.mock.calls[1][1].headers as Record<string, string>;
+    expect(secondHeaders.Authorization).toBe("Bearer tok-2");
+  });
 });

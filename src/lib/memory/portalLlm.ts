@@ -142,13 +142,8 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
   const log = getLogger();
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
 
-  // Auth resolves ONCE — it doesn't change between attempts, and a missing or
-  // failed token is terminal (retrying would just hammer the token service).
-  const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
-  if (authHeaders === null) return null;
-
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const outcome = await attemptPortalJson(req, authHeaders);
+    const outcome = await attemptPortalJson(req);
     if (outcome.kind === "ok") return outcome.value;
     if (outcome.kind === "terminal") {
       log.warn(`[${req.tag}] ${outcome.reason}`);
@@ -168,15 +163,22 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
 
 /**
  * One request attempt. Returns a classified outcome so the caller can decide
- * whether to retry. Never throws — failures map to `retryable`/`terminal`.
+ * whether to retry. Operational failures map to `retryable`/`terminal`; only a
+ * missing-credentials wiring error throws (by contract — see
+ * {@link resolvePortalAuthHeaders}).
+ *
+ * Auth is resolved PER ATTEMPT, not once up front: a short-lived `getToken`
+ * can expire across retries + backoff, so each attempt fetches a fresh token.
+ * A token that's unavailable (fetch failed / returned null) is terminal — we
+ * don't retry the token service in a tight loop.
  */
-async function attemptPortalJson(
-  req: PortalLlmRequest,
-  authHeaders: Record<string, string>
-): Promise<AttemptOutcome> {
+async function attemptPortalJson(req: PortalLlmRequest): Promise<AttemptOutcome> {
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
   const timeoutMs = req.timeoutMs ?? 60_000;
+
+  const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
+  if (authHeaders === null) return { kind: "terminal", reason: "auth unavailable (no token)" };
 
   // Anthropic models ignore OpenAI-style response_format and frequently
   // respond conversationally to bare user queries. The canonical fix is
@@ -275,8 +277,9 @@ async function attemptPortalJson(
   // intent is clear from the structure, and a one-off prose preamble
   // shouldn't blow the whole extraction/decompose/consolidate step.
   const candidate = extractJsonCandidate(content);
+  let value: unknown;
   try {
-    return { kind: "ok", value: JSON.parse(candidate) };
+    value = JSON.parse(candidate);
   } catch (err) {
     // The model returned prose with no parseable JSON (e.g. echoed the
     // instruction, or asked a clarifying question) — retry; it's usually a
@@ -286,6 +289,13 @@ async function attemptPortalJson(
       reason: `completion was not valid JSON: ${(err as Error).message}`,
     };
   }
+  // A literal `null` body is never a valid memory response, and callers use
+  // `null` as their failure sentinel — treat it as a transient miss to retry,
+  // not a successful empty (otherwise callers short-circuit without retrying).
+  if (value === null) {
+    return { kind: "retryable", reason: "completion parsed to null" };
+  }
+  return { kind: "ok", value };
 }
 
 /**

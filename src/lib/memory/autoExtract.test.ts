@@ -181,6 +181,20 @@ describe("extractFacts", () => {
     expect(result).toEqual([]);
   });
 
+  it("respects a caller-supplied maxAttempts bound", async () => {
+    // A worker behind an in-flight-turn guard can cap retries so repeated
+    // failures don't hold the turn open.
+    const fetchFn = mockFetch("not-valid-json");
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn,
+      maxAttempts: 2,
+      backoffMs: () => 0,
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(result).toEqual([]);
+  });
+
   it("falls back to type=other for unknown types", async () => {
     const candidates = {
       candidates: [
