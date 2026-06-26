@@ -2,7 +2,7 @@
 
 > **StreamResumeHandle** = `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:622](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#622)
+Defined in: [src/lib/chat/toolLoop.ts:631](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#631)
 
 Everything resumeStream() needs to replay a detached stream.
 
@@ -12,7 +12,7 @@ Everything resumeStream() needs to replay a detached stream.
 
 > **apiType**: `Exclude`<`ApiType`, `"auto"`>
 
-Defined in: [src/lib/chat/toolLoop.ts:625](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#625)
+Defined in: [src/lib/chat/toolLoop.ts:634](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#634)
 
 The RESOLVED api type (never "auto") — resolveApiType() already ran inside runToolLoop.
 
@@ -22,7 +22,7 @@ The RESOLVED api type (never "auto") — resolveApiType() already ran inside run
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:627](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#627)
+Defined in: [src/lib/chat/toolLoop.ts:636](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#636)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/lib/chat/toolLoop.ts:627](https://github.com/anuma-ai/sdk/blob/
 
 > **inferenceId**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:623](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#623)
+Defined in: [src/lib/chat/toolLoop.ts:632](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#632)
 
 ***
 
@@ -38,4 +38,4 @@ Defined in: [src/lib/chat/toolLoop.ts:623](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#626)
+Defined in: [src/lib/chat/toolLoop.ts:635](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#635)
