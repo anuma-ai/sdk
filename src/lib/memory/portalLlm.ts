@@ -174,14 +174,16 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
       log.warn(`[${req.tag}] over time budget before attempt ${attempt}, giving up`);
       break;
     }
-    // Cap this attempt's timeout to the remaining budget
+    // Cap this attempt's timeout to the remaining budget (floored at 1ms so a
+    // nearly-spent budget can't pass a negative/zero timeout that aborts before
+    // the request is even sent).
     const attemptReq =
       req.totalTimeoutMs !== undefined
         ? {
             ...req,
-            timeoutMs: Math.min(
-              req.timeoutMs ?? 60_000,
-              req.totalTimeoutMs - (Date.now() - startedAt)
+            timeoutMs: Math.max(
+              1,
+              Math.min(req.timeoutMs ?? 60_000, req.totalTimeoutMs - (Date.now() - startedAt))
             ),
           }
         : req;
@@ -233,7 +235,11 @@ async function attemptPortalJson(req: PortalLlmRequest): Promise<AttemptOutcome>
   const timeoutMs = req.timeoutMs ?? 60_000;
 
   const authHeaders = await resolvePortalAuthHeaders(req, req.tag);
-  if (authHeaders === null) return { kind: "retryable", reason: "auth unavailable (no token)" };
+  // Missing/failed auth is TERMINAL, not retryable: a missing token or a token
+  // service that rejects us won't be fixed by hammering it 3× in a tight loop,
+  // and it matches the documented contract. (Token EXPIRY across retries is a
+  // separate concern, already handled by resolving auth per attempt.)
+  if (authHeaders === null) return { kind: "terminal", reason: "auth unavailable (no token)" };
 
   // Anthropic models ignore OpenAI-style response_format and frequently
   // respond conversationally to bare user queries. The canonical fix is

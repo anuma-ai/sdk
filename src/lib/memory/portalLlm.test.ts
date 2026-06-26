@@ -327,6 +327,25 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
+  it("does NOT retry unavailable auth — it's terminal, not a transient failure", async () => {
+    // Locks the contract: a missing/failed token must not be hammered 3×.
+    const getToken = vi.fn().mockResolvedValue(null);
+    const fetchFn = vi.fn();
+    const result = await callPortalJsonCompletion({
+      model: "openai/gpt-5-mini",
+      systemPrompt: "s",
+      userMessage: "u",
+      tag: "test",
+      getToken,
+      fetchFn,
+      maxAttempts: 3,
+      backoffMs: () => 0,
+    });
+    expect(result).toBeNull();
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it("does NOT retry a terminal 404", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("not found", { status: 404 }));
     const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
