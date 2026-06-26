@@ -19,6 +19,7 @@ export {
   DEFAULT_EXCLUDED_SERVER_TOOLS,
   DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
   defaultServerToolsFilter,
+  type DeferLoadingConfig,
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
@@ -42,6 +43,7 @@ export {
   // Types
   type ServerToolsResponse,
   shouldRefreshTools,
+  TOOL_SEARCH_TOOL_TYPE,
   type ToolMatchOptions,
   type ToolMatchResult,
   type ToolSet,

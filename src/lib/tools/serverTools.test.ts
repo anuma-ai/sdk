@@ -149,3 +149,90 @@ describe("connector tool sets (#587)", () => {
     expect(activatedToolSetNames(new Map([["gmail_search_messages", 0.52]]))).toEqual(new Set());
   });
 });
+
+describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
+  const st = (name: string): import("./serverTools").ServerTool => ({
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {} },
+  });
+  // Catalog in arbitrary input order to prove ordering is imposed by the helper, not the input.
+  const catalog = [
+    st("ZetaMCP-z_tool"),
+    st("AnumaJinaMCP-read_url"),
+    st("AnumaJinaMCP-search_web"),
+    st("AnumaSearchMCP-anuma_text_search"),
+    st("AnumaImageMCP-edit_cloud_image"),
+  ];
+  const hot = [
+    "AnumaJinaMCP-search_web",
+    "AnumaSearchMCP-anuma_text_search",
+    "AnumaJinaMCP-read_url",
+  ];
+
+  it("OFF (absent/false) is byte-identical to today", () => {
+    for (const apiType of ["responses", "completions"] as const) {
+      const today = JSON.stringify(mergeTools(catalog, undefined, apiType));
+      expect(
+        JSON.stringify(
+          mergeTools(catalog, undefined, apiType, { enabled: false, hotToolNames: hot })
+        )
+      ).toBe(today);
+    }
+  });
+
+  it("ON emits [search] -> [hot in order] -> [deferred name-sorted] with full defs", () => {
+    const merged = mergeTools(catalog, undefined, "completions", {
+      enabled: true,
+      hotToolNames: hot,
+    }) as Array<Record<string, unknown>>;
+    // Order
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    expect(merged[0].name).toBe("tool_search");
+    const fnName = (t: Record<string, unknown>) => (t.function as { name: string }).name;
+    expect(fnName(merged[1])).toBe("AnumaJinaMCP-search_web");
+    expect(fnName(merged[2])).toBe("AnumaSearchMCP-anuma_text_search");
+    expect(fnName(merged[3])).toBe("AnumaJinaMCP-read_url");
+    // Deferred = the two non-hot tools, name-sorted: AnumaImageMCP-edit_cloud_image < ZetaMCP-z_tool
+    expect(fnName(merged[4])).toBe("AnumaImageMCP-edit_cloud_image");
+    expect(fnName(merged[5])).toBe("ZetaMCP-z_tool");
+    // defer flags: search + hot non-deferred; deferred flagged
+    expect(merged.slice(0, 4).every((t) => t.defer_loading === undefined)).toBe(true);
+    expect(merged[4].defer_loading).toBe(true);
+    expect(merged[5].defer_loading).toBe(true);
+    // Deferred keep FULL definitions (not name-only)
+    expect((merged[4].function as { description: string; parameters: unknown }).description).toBe(
+      "desc AnumaImageMCP-edit_cloud_image"
+    );
+    expect((merged[4].function as { parameters: unknown }).parameters).toEqual({
+      type: "object",
+      properties: {},
+    });
+  });
+
+  it("ON responses format: flat defs + defer_loading on deferred", () => {
+    const merged = mergeTools(catalog, undefined, "responses", {
+      enabled: true,
+      hotToolNames: hot,
+    }) as Array<Record<string, unknown>>;
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    expect(merged[1].name).toBe("AnumaJinaMCP-search_web");
+    expect(merged[1].defer_loading).toBeUndefined();
+    expect(merged[4].name).toBe("AnumaImageMCP-edit_cloud_image");
+    expect(merged[4].defer_loading).toBe(true);
+    expect(merged[4].parameters).toEqual({ type: "object", properties: {} });
+  });
+
+  it("ON is byte-stable across calls (same catalog -> same bytes)", () => {
+    const a = JSON.stringify(
+      mergeTools(catalog, undefined, "responses", { enabled: true, hotToolNames: hot })
+    );
+    const b = JSON.stringify(
+      mergeTools([...catalog].reverse(), undefined, "responses", {
+        enabled: true,
+        hotToolNames: hot,
+      })
+    );
+    expect(a).toBe(b); // input order must not matter
+  });
+});

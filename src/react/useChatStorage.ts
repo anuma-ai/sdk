@@ -2614,7 +2614,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           filteredServerTools.length > 0 ||
           (filteredClientTools && filteredClientTools.length > 0)
         ) {
-          mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+          mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType, serverToolsConfig?.deferLoading);
         }
 
         if (onToolSelection) {
@@ -3136,7 +3136,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         filteredServerTools.length > 0 ||
         (filteredClientTools && filteredClientTools.length > 0)
       ) {
-        mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+        mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType, serverToolsConfig?.deferLoading);
       }
 
       if (onToolSelection) {

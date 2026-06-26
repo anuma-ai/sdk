@@ -592,14 +592,67 @@ function clientToolToCompletionsFormat(
  * @param clientTools - Client tools with optional executors
  * @param apiType - API type to format tools for
  */
+/** Anthropic tool-search tool type (regex variant). Non-deferred; leads the tools array when
+ * defer-loading is enabled. ai-portal forwards it verbatim (#1284) and Anthropic uses it to load
+ * deferred tool definitions on demand. */
+export const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
+
+/**
+ * Opt-in defer-loading config for {@link mergeTools}. OFF by default — when absent or `enabled:false`,
+ * tools are emitted exactly as today (no ordering change, no defer flags, no search tool). When ON, the
+ * server tools are emitted as the full catalog in a deterministic, byte-stable order every turn:
+ * `[tool-search] → [hot, in hotToolNames order] → [deferred, name-sorted]`, with `defer_loading:true` on
+ * every tool that is neither hot nor the search tool. Deferred tools keep their FULL definition (so
+ * Anthropic's matcher can index them); they are not reduced to names. This stabilizes the leading `tools`
+ * prefix so Anthropic prompt caching can hit across turns.
+ */
+export interface DeferLoadingConfig {
+  enabled: boolean;
+  /** Server-tool names to keep non-deferred (besides the tool-search tool), in priority order. */
+  hotToolNames: readonly string[];
+}
+
+// Deterministic, locale-independent name order (codepoint) so the deferred block is byte-identical
+// across turns regardless of the runtime's locale.
+function byNameAscending(a: ServerTool, b: ServerTool): number {
+  if (a.name < b.name) return -1;
+  if (a.name > b.name) return 1;
+  return 0;
+}
+
+// formatServerToolsWithDefer emits the full server catalog in defer-loading shape:
+// [tool-search (non-deferred)] → [hot (non-deferred, config order)] → [deferred (name-sorted, full defs
+// + defer_loading:true)].
+function formatServerToolsWithDefer(
+  serverTools: ServerTool[],
+  config: DeferLoadingConfig,
+  apiType: "responses" | "completions"
+): Array<Record<string, unknown>> {
+  const fmt = apiType === "completions" ? toCompletionsFormat : toResponsesFormat;
+  const hotSet = new Set(config.hotToolNames);
+  const hot = config.hotToolNames
+    .map((name) => serverTools.find((t) => t.name === name))
+    .filter((t): t is ServerTool => t !== undefined);
+  const deferred = serverTools.filter((t) => !hotSet.has(t.name)).sort(byNameAscending);
+  const searchTool: Record<string, unknown> = { type: TOOL_SEARCH_TOOL_TYPE, name: "tool_search" };
+  return [
+    searchTool,
+    ...hot.map((t) => fmt(t) as Record<string, unknown>),
+    ...deferred.map((t) => ({ ...(fmt(t) as Record<string, unknown>), defer_loading: true })),
+  ];
+}
+
 export function mergeTools(
   serverTools: ServerTool[],
   clientTools: Array<LlmapiChatCompletionTool | ToolConfig> | undefined,
-  apiType: "responses" | "completions" = "responses"
+  apiType: "responses" | "completions" = "responses",
+  deferConfig?: DeferLoadingConfig
 ): Array<Record<string, unknown>> {
-  // Format server tools based on API type
-  const formattedServerTools =
-    apiType === "completions"
+  // Format server tools based on API type. When defer-loading is enabled, emit the full catalog in
+  // defer shape (ordered + flagged + search tool); otherwise today's behavior, unchanged.
+  const formattedServerTools = deferConfig?.enabled
+    ? formatServerToolsWithDefer(serverTools, deferConfig, apiType)
+    : apiType === "completions"
       ? serverTools.map(toCompletionsFormat)
       : serverTools.map(toResponsesFormat);
 
