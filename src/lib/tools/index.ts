@@ -43,7 +43,6 @@ export {
   // Types
   type ServerToolsResponse,
   shouldRefreshTools,
-  TOOL_SEARCH_TOOL_TYPE,
   type ToolMatchOptions,
   type ToolMatchResult,
   type ToolSet,

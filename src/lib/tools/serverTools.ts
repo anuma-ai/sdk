@@ -594,8 +594,8 @@ function clientToolToCompletionsFormat(
  */
 /** Anthropic tool-search tool type (regex variant). Non-deferred; leads the tools array when
  * defer-loading is enabled. ai-portal forwards it verbatim (#1284) and Anthropic uses it to load
- * deferred tool definitions on demand. */
-export const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
+ * deferred tool definitions on demand. Internal — not exported (no external consumer). */
+const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
 
 /**
  * Opt-in defer-loading config for {@link mergeTools}. OFF by default — when absent or `enabled:false`,

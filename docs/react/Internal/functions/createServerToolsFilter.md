@@ -2,7 +2,7 @@
 
 > **createServerToolsFilter**(`options`: [`CreateServerToolsFilterOptions`](../interfaces/CreateServerToolsFilterOptions.md)): (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]) => `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1231](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1231)
+Defined in: [src/lib/tools/serverTools.ts:1284](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1284)
 
 Build a server-tools filter function for use with `useChatStorage`'s
 `serverTools` option. Composes `findMatchingTools`, `expandToolSetsAdditive`,
