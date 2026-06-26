@@ -27,9 +27,10 @@ export const DEFAULT_EMBEDDING_CACHE_PATH = join(
 
 /**
  * Load the frozen vectors for `model`. Returns an empty Map (rebuild from
- * scratch) when `refresh` is set, the cache is missing, or the stored model
- * differs. A non-ENOENT read error (corrupt JSON, permissions) is surfaced
- * rather than silently swallowed.
+ * scratch) when `refresh` is set, the cache is missing, the stored model
+ * differs, or the file is unreadable / corrupt — in the last case the error is
+ * logged (not thrown), so the caller always gets a Map and re-embeds from
+ * scratch rather than crashing the run.
  *
  * `path` is injectable for tests; defaults to {@link DEFAULT_EMBEDDING_CACHE_PATH}.
  */
@@ -49,8 +50,9 @@ export async function loadEmbeddingCache(
     }
     return new Map(Object.entries(raw.vectors as Record<string, number[]>));
   } catch (err) {
-    // A missing cache on first run is expected; anything else (corrupt JSON,
-    // permissions) must be visible, not silently treated as an empty cache.
+    // A missing cache on first run is expected and silent; anything else
+    // (corrupt JSON, permissions) is logged so it's visible, then we still fall
+    // back to an empty Map (rebuild) rather than throwing and failing the run.
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
       console.error(`  Embedding cache unreadable (${(err as Error).message}); rebuilding.`);
     }
