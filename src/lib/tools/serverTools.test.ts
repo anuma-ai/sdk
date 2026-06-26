@@ -283,3 +283,20 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
     expect(names).toContain("display_chart");
   });
 });
+
+describe("mergeTools — defer-loading: duplicate hot names", () => {
+  const st = (name: string): import("./serverTools").ServerTool => ({
+    name,
+    description: `d ${name}`,
+    parameters: { type: "object", properties: {} },
+  });
+  it("emits each hot tool once even if hotToolNames repeats it", () => {
+    const merged = mergeTools([st("AnumaJinaMCP-read_url")], undefined, "completions", {
+      enabled: true,
+      hotToolNames: ["AnumaJinaMCP-read_url", "AnumaJinaMCP-read_url"], // duplicated
+    }) as Array<Record<string, unknown>>;
+    const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
+    expect(names.filter((n) => n === "AnumaJinaMCP-read_url")).toHaveLength(1); // once, not twice
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+  });
+});

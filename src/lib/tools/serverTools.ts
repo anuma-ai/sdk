@@ -636,7 +636,9 @@ function formatServerToolsWithDefer(
   }
   const fmt = apiType === "completions" ? toCompletionsFormat : toResponsesFormat;
   const hotSet = new Set(config.hotToolNames);
-  const hot = config.hotToolNames
+  // Dedup hotToolNames (a Set preserves insertion order) so a repeated name can't emit the same tool
+  // definition twice — duplicate tool names break some providers and the byte-stable prefix.
+  const hot = [...hotSet]
     .map((name) => serverTools.find((t) => t.name === name))
     .filter((t): t is ServerTool => t !== undefined);
   const deferred = serverTools.filter((t) => !hotSet.has(t.name)).sort(byNameAscending);
