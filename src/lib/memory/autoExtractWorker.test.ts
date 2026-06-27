@@ -170,19 +170,35 @@ describe("createAutoExtractor", () => {
     expect(ids).toEqual(["m2", "m3", "m4", "m5", "m6", "m7"]);
   });
 
-  it("caps the widened window at maxWindowSize", async () => {
+  it("caps the widened window at maxWindowSize, oldest-first (rest re-covered next turn)", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({ ...baseOptions, windowSize: 1, maxWindowSize: 3 });
     extractor.processTurn(mk(1), "c1"); // watermark → m0
     await flush();
-    extractor.processTurn(mk(10), "c1"); // 9 new messages, capped to last 3
+    // Burst to 10 messages while capped at 3: take the OLDEST 3 so the watermark
+    // advances to m2 and m3..m9 stay after it for the next turn (no skip).
+    extractor.processTurn(mk(10), "c1");
     await flush();
-    const ids = vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id);
-    expect(ids).toEqual(["m7", "m8", "m9"]);
+    expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual([
+      "m0",
+      "m1",
+      "m2",
+    ]);
+
+    // Next turn drains the next oldest chunk (watermark m2 → start at m1 w/ overlap).
+    extractor.processTurn(mk(10), "c1");
+    await flush();
+    expect(vi.mocked(extractAndRetain).mock.calls[2][0].map((m) => m.id)).toEqual([
+      "m1",
+      "m2",
+      "m3",
+    ]);
   });
 
   it("does NOT advance the watermark when extraction throws (re-covers next turn)", async () => {
-    vi.mocked(extractAndRetain).mockRejectedValueOnce(new Error("boom")).mockResolvedValue(EMPTY_RESULT);
+    vi.mocked(extractAndRetain)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor({ ...baseOptions, onError: vi.fn() });
 
     extractor.processTurn(messages, "c1"); // throws → watermark NOT advanced

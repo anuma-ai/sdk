@@ -262,10 +262,15 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     const start = Math.max(0, idx + 1 - CONTEXT_OVERLAP);
     let window = messages.slice(start);
     if (window.length > maxWindowSize) {
+      // Keep the OLDEST maxWindowSize, not the newest: the watermark advances to
+      // this window's last message on success, so anything past it stays after
+      // the watermark and is examined on the next turn. Truncating to the newest
+      // instead would jump the watermark forward and permanently skip the
+      // dropped (older) messages. This drains an extreme backlog oldest-first.
       getLogger().warn(
-        `[memory/extract] ${window.length} un-extracted messages exceed maxWindowSize ${maxWindowSize}; truncating to most recent — oldest un-extracted messages this turn will not be examined`
+        `[memory/extract] ${window.length} un-extracted messages exceed maxWindowSize ${maxWindowSize}; examining the oldest ${maxWindowSize} this turn, the rest on subsequent turns`
       );
-      window = window.slice(-maxWindowSize);
+      window = window.slice(0, maxWindowSize);
     }
     return window;
   }
@@ -327,7 +332,11 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       if (state.pending) {
         options.onSkipped?.({ reason: "superseded", conversationId });
       }
-      state.pending = messages;
+      // Snapshot the array: it runs after the current extraction finishes, and
+      // the chat layer may reuse/mutate its history array in the meantime —
+      // a shared reference could make us extract different content than the
+      // turn that was submitted (and advance the watermark to the wrong id).
+      state.pending = messages.slice();
       return true;
     }
     return dispatch(messages, conversationId);
