@@ -1,6 +1,6 @@
 # TurnCompleteEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#45)
+Defined in: [src/lib/memory/autoExtractWorker.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#74)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:45](https://github.com/anuma-ai
 
 > **candidates**: [`ExtractedCandidate`](ExtractedCandidate.md)\[]
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#46)
+Defined in: [src/lib/memory/autoExtractWorker.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#75)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:46](https://github.com/anuma-ai
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#51)
+Defined in: [src/lib/memory/autoExtractWorker.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#80)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:51](https://github.com/anuma-ai
 
 > **durationMs**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#50)
+Defined in: [src/lib/memory/autoExtractWorker.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#79)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:50](https://github.com/anuma-ai
 
 > **failedCount**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#49)
+Defined in: [src/lib/memory/autoExtractWorker.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#78)
 
 Per-candidate retain() failures. `onError` only fires on pipeline throws.
 
@@ -42,4 +42,4 @@ Per-candidate retain() failures. `onError` only fires on pipeline throws.
 
 > **results**: [`RetainResult`](RetainResult.md)\[]
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#47)
+Defined in: [src/lib/memory/autoExtractWorker.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#76)
