@@ -331,12 +331,23 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       const state = stateFor(conversationId);
       if (state.pending) {
         options.onSkipped?.({ reason: "superseded", conversationId });
+        // Union the superseded snapshot with the newer turn (dedup by id,
+        // keeping pending-only messages ahead of the newer array) so a caller
+        // that passes a bounded/sliding window — rather than the full growing
+        // history — doesn't lose messages that were only in the superseded
+        // turn. When the newer array is a superset (the common case: full
+        // conversation history), pending-only is empty and this is just the
+        // newer array. The spread produces a fresh array, so it also serves as
+        // the snapshot below.
+        const newIds = new Set(messages.map((m) => m.id));
+        state.pending = [...state.pending.filter((m) => !newIds.has(m.id)), ...messages];
+      } else {
+        // Snapshot the array: it runs after the current extraction finishes,
+        // and the chat layer may reuse/mutate its history array in the
+        // meantime — a shared reference could make us extract different content
+        // than the turn that was submitted (and advance the watermark wrong).
+        state.pending = messages.slice();
       }
-      // Snapshot the array: it runs after the current extraction finishes, and
-      // the chat layer may reuse/mutate its history array in the meantime —
-      // a shared reference could make us extract different content than the
-      // turn that was submitted (and advance the watermark to the wrong id).
-      state.pending = messages.slice();
       return true;
     }
     return dispatch(messages, conversationId);

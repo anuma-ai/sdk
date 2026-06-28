@@ -124,6 +124,25 @@ describe("createAutoExtractor", () => {
     expect(qIds).toEqual(expect.arrayContaining(["m0", "m1", "m2", "m3"]));
   });
 
+  it("supersession unions a non-superset (sliding-window) turn so nothing is lost", async () => {
+    const finishFirst = blockFirstCall();
+    const extractor = createAutoExtractor({ ...baseOptions });
+    const slice = (ids: string[]): AutoExtractMessage[] =>
+      ids.map((id) => ({ id, role: "user" as const, content: id }));
+
+    extractor.processTurn(mk(2), "inflight"); // holds the worker in-flight
+    extractor.processTurn(slice(["m0", "m1", "m2"]), "q"); // queued
+    // Newer turn is a BOUNDED window that dropped m0,m1 — not a superset.
+    extractor.processTurn(slice(["m2", "m3", "m4"]), "q");
+
+    finishFirst();
+    await flush();
+    // Union keeps the pending-only m0,m1 ahead of the newer window: nothing lost,
+    // order preserved, no duplicate m2.
+    const qIds = vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id);
+    expect(qIds).toEqual(["m0", "m1", "m2", "m3", "m4"]);
+  });
+
   it("queues turns for DIFFERENT conversations without dropping any", async () => {
     const finishFirst = blockFirstCall();
     const onSkipped = vi.fn();
