@@ -32,6 +32,29 @@ describe("createAutoExtractor", () => {
     expect(scheduled).toBe(true);
   });
 
+  it("defaults extract.totalTimeoutMs to bound the guarded path", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [], failedCount: 0 });
+    const extractor = createAutoExtractor(baseOptions);
+    extractor.processTurn(messages, "conv1");
+    await Promise.resolve();
+    await Promise.resolve();
+    const passed = vi.mocked(extractAndRetain).mock.calls[0][2];
+    expect(passed.extract.totalTimeoutMs).toBe(60_000);
+  });
+
+  it("respects a caller-supplied extract.totalTimeoutMs", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({ candidates: [], results: [], failedCount: 0 });
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      extract: { apiKey: "k", totalTimeoutMs: 5_000 },
+    });
+    extractor.processTurn(messages, "conv1");
+    await Promise.resolve();
+    await Promise.resolve();
+    const passed = vi.mocked(extractAndRetain).mock.calls[0][2];
+    expect(passed.extract.totalTimeoutMs).toBe(5_000);
+  });
+
   it("skips empty message array", () => {
     const onSkipped = vi.fn();
     const extractor = createAutoExtractor({ ...baseOptions, onSkipped });

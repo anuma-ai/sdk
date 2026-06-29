@@ -85,10 +85,13 @@ describe("consolidateMemory", () => {
     expect(onFallback).not.toHaveBeenCalled();
   });
 
-  it("falls back on network error", async () => {
+  it("falls back on network error without retrying (single attempt, then degrade)", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
     expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    // maxAttempts: 1 — consolidate degrades to create rather than retrying, so
+    // it must not multiply retain latency by hammering the portal.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it("falls back on non-OK response", async () => {

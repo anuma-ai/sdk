@@ -2,10 +2,15 @@
 
 > **chunkAndEmbedMessage**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `messageId`: `string`, `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:429](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#429)
+Defined in: [src/lib/memoryEngine/embeddings.ts:434](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#434)
 
 Chunk and embed a single message, storing chunk embeddings in the database.
 For messages shorter than chunkSize, falls back to whole-message embedding.
+
+Requires embedding auth: `options` must carry `apiKey` or `getToken` (see
+[EmbeddingOptions](../interfaces/MemoryEngineEmbeddingOptions.md)). `EmbeddingOptions` keeps both optional for the
+dual-auth pattern, so this is enforced at runtime — with neither, the
+embedding call rejects with `"Either apiKey or getToken must be provided"`.
 
 ## Parameters
 
@@ -65,7 +70,7 @@ Unique ID of the message to chunk and embed
 </td>
 <td>
 
-Embedding and chunking options
+Embedding and chunking options (auth required — see above)
 
 </td>
 </tr>
