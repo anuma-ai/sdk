@@ -92,6 +92,10 @@ export { createChartTool } from "./chart";
 export type { DisplayPhoneCallOfferResult } from "./phoneCallOffer";
 export { createPhoneCallOfferTool } from "./phoneCallOffer";
 
+// Connector offer display tool
+export type { DisplayConnectorResult } from "./connectorOffer";
+export { createConnectorOfferTool } from "./connectorOffer";
+
 // Choice interaction tool
 export type { ChoiceOption } from "./choice";
 export { createChoiceTool } from "./choice";
