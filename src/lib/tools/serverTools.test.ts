@@ -188,7 +188,7 @@ describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
     }) as Array<Record<string, unknown>>;
     // Order (responses = flat name at top level)
     expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
-    expect(merged[0].name).toBe("tool_search");
+    expect(merged[0].name).toBe("tool_search_tool_regex");
     expect(merged[1].name).toBe("AnumaJinaMCP-search_web");
     expect(merged[2].name).toBe("AnumaSearchMCP-anuma_text_search");
     expect(merged[3].name).toBe("AnumaJinaMCP-read_url");
@@ -261,7 +261,7 @@ describe("mergeTools — defer-loading edge: empty server catalog + client tools
       hotToolNames: [],
     }) as Array<Record<string, unknown>>;
     const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
-    expect(names).not.toContain("tool_search"); // no useless search tool
+    expect(names).not.toContain("tool_search_tool_regex"); // no useless search tool
     expect(merged.every((t) => t.type !== "tool_search_tool_regex_20251119")).toBe(true);
     expect(names).toEqual(["display_chart"]); // client tools only
   });
