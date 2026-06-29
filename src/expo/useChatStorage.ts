@@ -974,6 +974,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     thoughtProcess?: ActivityPhase[];
     startTime: number;
     partialData: ApiResponse | null;
+    knownToolCallEventIds?: Set<string>;
   } | null>(null);
   // True while a storage resumeStream() is awaiting its terminal. stop() reads
   // this to avoid racing a parallel finalize write against the resume's own
@@ -1651,6 +1652,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           thoughtProcess,
           startTime,
           partialData: detachedResult.data ?? null,
+          knownToolCallEventIds,
         };
         return {
           data: detachedResult.data ?? null,
@@ -1953,6 +1955,34 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     ): Promise<StoredMessage> => {
       const { content, thinking } = extractAssistantText(data);
 
+      // Deduplicate tool_call_events: the backend returns accumulated events
+      // across the entire conversation. Filter to only new events from this turn,
+      // mirroring the live send path, so we don't merge citations from earlier
+      // turns onto the resumed assistant message.
+      let knownIds = ctx.knownToolCallEventIds;
+      if (!knownIds && ctx.convId) {
+        // Cold-launch resume: no stowed context, so fetch stored messages to build the set.
+        knownIds = new Set<string>();
+        try {
+          const storedMessages = await getMessages(ctx.convId);
+          for (const msg of storedMessages) {
+            if (msg.toolCallEvents) {
+              for (const evt of msg.toolCallEvents) {
+                if (evt.id) knownIds.add(evt.id);
+              }
+            }
+          }
+        } catch {
+          // Fetch failed: no deduplication possible, proceed with all events.
+        }
+      }
+      const allToolCallEvents = getToolCallEvents(data);
+      const currentTurnToolCallEvents = knownIds
+        ? allToolCallEvents?.filter(
+            (evt) => evt.id !== undefined && evt.id !== null && !knownIds.has(evt.id)
+          )
+        : allToolCallEvents;
+
       // Merge citations that arrived via tool_call_events into the detach-time
       // sources, mirroring the live send path. R2 image/file URLs are persisted
       // separately as media and must never become citation sources.
@@ -1960,7 +1990,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const seenSourceUrls = new Set(
         baseSources.map((s) => s.url).filter((url): url is string => !!url)
       );
-      const toolEventSources = extractSourcesFromToolCallEvents(getToolCallEvents(data));
+      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents);
       const sources = [
         ...baseSources,
         ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
@@ -1982,7 +2012,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         uniqueId: ctx.assistantUniqueId!,
       });
     },
-    [storageCtx]
+    [storageCtx, getMessages]
   );
 
   /**
