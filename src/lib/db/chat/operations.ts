@@ -573,6 +573,26 @@ export async function createMessageOp(
   ctx: StorageOperationsContext,
   opts: CreateMessageOptions
 ): Promise<StoredMessage> {
+  // Idempotency guard: the consumer pre-allocates `uniqueId` as the record's stable
+  // id (so the persisted message shares the streaming placeholder's React key), and
+  // the offline/retry operation queue can replay this op (or a double-submit can
+  // fire it twice). A second create with an already-used id throws the LokiJS
+  // "Duplicate key for property id: <id>" error, which surfaced ~daily in the chat
+  // path. If the message is already persisted, return it instead of recreating.
+  if (opts.uniqueId) {
+    try {
+      const existing = await ctx.messagesCollection.find(opts.uniqueId);
+      return messageToStored(
+        existing,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+    } catch {
+      // Not found — fall through to create the new message.
+    }
+  }
+
   const existingCount = await getMessageCountOp(ctx, opts.conversationId);
   const messageId = existingCount + 1;
 
