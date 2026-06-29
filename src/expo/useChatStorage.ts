@@ -1930,12 +1930,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Fidelity note (deliberate, out of §3 scope): this persists the raw
    * `extractAssistantText(data).content`. The live send path additionally
    * extracts/strips inline `sources` JSON blocks, strips R2 image markdown/URLs,
-   * and scrapes `image_model` + tool-call events. resumeStream structurally
-   * rejects tool streams, so the tool-event omission is moot; but a plain-text
-   * answer that embeds a sources block or an R2 URL stores it un-normalized on
-   * the resume path. Acceptable for the reconnect surface (the spec never
-   * promises content-normalization parity); tracked as a follow-up, not a §3
-   * contract gap.
+   * and scrapes `image_model`. A plain-text answer that embeds a sources block
+   * or an R2 URL stores it un-normalized on the resume path — acceptable for the
+   * reconnect surface (the spec never promises content-normalization parity);
+   * tracked as a follow-up, not a §3 contract gap.
+   *
+   * Citation sources, however, ARE reconciled here (#639): the buffered stream
+   * the replay rebuilds carries `tool_call_events` (e.g. AnumaSearchMCP results)
+   * in the clean-completion `data`, exactly like the live send path. Tool
+   * *streams* (pending function calls) finalize as `interrupted`, but tool
+   * *call events* — citation metadata — ride a normal text completion, so
+   * persisting only the detach-time `ctx.sources` would drop the pills on a
+   * resumed turn. We merge them the same way the send path does (dedup by URL,
+   * drop MCP R2 image/file URLs).
    */
   const finalizeResumedRow = useCallback(
     async (
@@ -1945,6 +1952,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       responseDuration: number
     ): Promise<StoredMessage> => {
       const { content, thinking } = extractAssistantText(data);
+
+      // Merge citations that arrived via tool_call_events into the detach-time
+      // sources, mirroring the live send path. R2 image/file URLs are persisted
+      // separately as media and must never become citation sources.
+      const baseSources = ctx.sources ?? [];
+      const seenSourceUrls = new Set(
+        baseSources.map((s) => s.url).filter((url): url is string => !!url)
+      );
+      const toolEventSources = extractSourcesFromToolCallEvents(getToolCallEvents(data));
+      const sources = [
+        ...baseSources,
+        ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
+      ].filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
+
       return upsertMessageOp(storageCtx, {
         conversationId: ctx.convId,
         role: "assistant",
@@ -1953,7 +1974,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel: ctx.imageModel || getImageModel(data),
         usage: convertUsageToStored(data),
         responseDuration,
-        sources: ctx.sources,
+        sources,
         thoughtProcess: finalizeThoughtProcess(ctx.thoughtProcess),
         thinking,
         wasStopped,
