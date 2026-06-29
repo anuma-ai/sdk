@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:84](https://github.com/anuma-ai
 
 > `optional` **consolidate**: `object`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#124)
+Defined in: [src/lib/memory/autoExtractWorker.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#133)
 
 Enable the LLM-based consolidation pass (Hindsight facet-dedup) on
 every retain() write. Auth is NOT configured here — the consolidation
@@ -72,7 +72,7 @@ schema-violating response). See
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#111)
+Defined in: [src/lib/memory/autoExtractWorker.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#120)
 
 Entity / memory\_entity write context — when provided, each retained
 candidate's `entities[]` is persisted via `linkMemoryEntitiesOp`,
@@ -93,9 +93,24 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:86](https://github.com/anuma-ai
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#115)
+Defined in: [src/lib/memory/autoExtractWorker.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#124)
 
 Override folderId for all retained facts.
+
+***
+
+### maxTrackedConversations?
+
+> `optional` **maxTrackedConversations**: `number`
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#113)
+
+Cap on the number of conversations whose extraction state (watermark +
+coalescing queue) is held in memory. When exceeded, the oldest entry with
+no queued turn is evicted — its conversation simply re-extracts from a
+trailing window next time (self-healing). The worker is session-scoped, so
+the default is generous; lower it for very long-lived, many-conversation
+sessions in RAM-constrained hosts. Default 200.
 
 ***
 
@@ -127,7 +142,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **onCandidateFailed**: (`event`: `object`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#150)
+Defined in: [src/lib/memory/autoExtractWorker.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#159)
 
 Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
 — couldn't save Lives in Portland") surface the specific fact that
@@ -205,7 +220,7 @@ once per filtered candidate that threw during retain.
 
 > `optional` **onError**: (`error`: `Error`, `conversationId?`: `string`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#143)
+Defined in: [src/lib/memory/autoExtractWorker.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#152)
 
 Diagnostic — fires on unexpected pipeline errors.
 
@@ -256,7 +271,7 @@ Diagnostic — fires on unexpected pipeline errors.
 
 > `optional` **onMemoryExtracted**: (`event`: [`MemoryExtractedEvent`](MemoryExtractedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#137)
+Defined in: [src/lib/memory/autoExtractWorker.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#146)
 
 Per-fact event — fires once per memory written.
 
@@ -295,7 +310,7 @@ Per-fact event — fires once per memory written.
 
 > `optional` **onSkipped**: (`event`: [`TurnSkippedEvent`](TurnSkippedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#141)
+Defined in: [src/lib/memory/autoExtractWorker.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#150)
 
 Diagnostic — fires when a turn is skipped.
 
@@ -334,7 +349,7 @@ Diagnostic — fires when a turn is skipped.
 
 > `optional` **onTurnComplete**: (`event`: [`TurnCompleteEvent`](TurnCompleteEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#139)
+Defined in: [src/lib/memory/autoExtractWorker.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#148)
 
 Per-turn event — fires once after the whole pipeline finishes.
 
@@ -381,7 +396,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:85](https://github.com/anuma-ai
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#113)
+Defined in: [src/lib/memory/autoExtractWorker.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#122)
 
 Override scope for all retained facts.
 

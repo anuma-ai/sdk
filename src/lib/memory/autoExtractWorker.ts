@@ -103,6 +103,15 @@ export interface CreateAutoExtractorOptions {
    */
   maxWindowSize?: number;
   /**
+   * Cap on the number of conversations whose extraction state (watermark +
+   * coalescing queue) is held in memory. When exceeded, the oldest entry with
+   * no queued turn is evicted — its conversation simply re-extracts from a
+   * trailing window next time (self-healing). The worker is session-scoped, so
+   * the default is generous; lower it for very long-lived, many-conversation
+   * sessions in RAM-constrained hosts. Default 200.
+   */
+  maxTrackedConversations?: number;
+  /**
    * Entity / memory_entity write context — when provided, each retained
    * candidate's `entities[]` is persisted via `linkMemoryEntitiesOp`,
    * populating the W5 graph retrieval lane. Without this the lane stays
@@ -192,6 +201,17 @@ const CONTEXT_OVERLAP = 2;
 // override via `extract.totalTimeoutMs`.
 const DEFAULT_EXTRACT_TOTAL_TIMEOUT_MS = 60_000;
 
+// Cap on tracked per-conversation state. The worker is session-scoped (one per
+// chat session, disposed on unmount) so entries are normally bounded by the
+// conversations touched in a session, but a single long-lived session browsing
+// many conversations would otherwise grow the map without bound. When exceeded
+// we evict the oldest entry that has no queued turn (Map preserves insertion
+// order). Dropping a watermark is self-healing — that conversation just
+// re-extracts from a trailing window next time — but a queued pending turn must
+// never be evicted, or we'd silently lose it (the loss this worker exists to
+// prevent).
+const MAX_TRACKED_CONVERSATIONS = 200;
+
 /** Per-conversation extraction state (keyed by conversationId, undefined included). */
 interface ConversationState {
   /**
@@ -215,6 +235,10 @@ interface ConversationState {
 export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoExtractor {
   const windowSize = options.windowSize ?? DEFAULT_WINDOW_SIZE;
   const maxWindowSize = Math.max(options.maxWindowSize ?? DEFAULT_MAX_WINDOW_SIZE, windowSize);
+  const maxTrackedConversations = Math.max(
+    1,
+    options.maxTrackedConversations ?? MAX_TRACKED_CONVERSATIONS
+  );
   // Bound the guarded extraction path by default (see constant above).
   const extract: ExtractFactsOptions = {
     ...options.extract,
@@ -234,10 +258,26 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   const stateFor = (conversationId?: string): ConversationState => {
     let state = conversations.get(conversationId);
     if (!state) {
+      if (conversations.size >= maxTrackedConversations) evictOldestIdle(conversationId);
       state = {};
       conversations.set(conversationId, state);
     }
     return state;
+  };
+
+  /**
+   * Drop the oldest tracked conversation that has no queued turn, to keep the
+   * map bounded. Skips entries with a `pending` turn (evicting one would lose a
+   * queued extraction) and the conversation being inserted. If every entry has
+   * a pending turn (pathological), nothing is evicted and the map grows by one.
+   */
+  const evictOldestIdle = (incoming?: string): void => {
+    for (const [key, st] of conversations) {
+      if (key !== incoming && !st.pending) {
+        conversations.delete(key);
+        return;
+      }
+    }
   };
 
   /**

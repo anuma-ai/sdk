@@ -214,6 +214,43 @@ describe("createAutoExtractor", () => {
     ]);
   });
 
+  it("evicts the oldest idle conversation past maxTrackedConversations; evicted one re-extracts", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const extractor = createAutoExtractor({ ...baseOptions, maxTrackedConversations: 2 });
+
+    extractor.processTurn(messages, "a"); // map {a}
+    await flush();
+    extractor.processTurn(messages, "b"); // map {a, b}
+    await flush();
+    extractor.processTurn(messages, "c"); // inserting "c" evicts oldest idle ("a") → {b, c}
+    await flush();
+
+    // "b" and "c" kept their watermarks → re-firing the same state is a no-op.
+    expect(extractor.processTurn(messages, "c")).toBe(false);
+    expect(extractor.processTurn(messages, "b")).toBe(false);
+    // "a" was evicted → its watermark is gone, so it re-extracts (self-healing)
+    // instead of skipping with no-new-content.
+    expect(extractor.processTurn(messages, "a")).toBe(true);
+    await flush();
+  });
+
+  it("never evicts a conversation with a queued (pending) turn", async () => {
+    const finishFirst = blockFirstCall();
+    const extractor = createAutoExtractor({ ...baseOptions, maxTrackedConversations: 1 });
+
+    // "hold" goes in-flight (never resolves yet); "q" queues behind it.
+    extractor.processTurn(mk(2), "hold");
+    extractor.processTurn(mk(2), "q"); // pending for "q"
+    // A third conversation would breach the cap of 1, but the only evictable
+    // entries have pending turns, so nothing is dropped and "q" still runs.
+    extractor.processTurn(mk(2), "z");
+
+    finishFirst();
+    await flush();
+    // hold + q + z all extracted — the pending "q" was never evicted.
+    expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(3);
+  });
+
   it("does NOT advance the watermark when extraction throws (re-covers next turn)", async () => {
     vi.mocked(extractAndRetain)
       .mockRejectedValueOnce(new Error("boom"))
