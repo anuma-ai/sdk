@@ -1,6 +1,6 @@
 # AutoExtractor
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#115)
+Defined in: [src/lib/memory/autoExtractWorker.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#167)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:115](https://github.com/anuma-a
 
 > **dispose**(): `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#125)
+Defined in: [src/lib/memory/autoExtractWorker.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#183)
 
 Stop accepting new turns. In-flight work continues to completion.
 
@@ -22,7 +22,7 @@ Stop accepting new turns. In-flight work continues to completion.
 
 > **isProcessing**(): `boolean`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#123)
+Defined in: [src/lib/memory/autoExtractWorker.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#181)
 
 True while a turn's extraction is in flight.
 
@@ -36,11 +36,17 @@ True while a turn's extraction is in flight.
 
 > **processTurn**(`messages`: [`AutoExtractMessage`](AutoExtractMessage.md)\[], `conversationId?`: `string`): `boolean`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#121)
+Defined in: [src/lib/memory/autoExtractWorker.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#179)
 
 Kick off extraction for the most recent turn. Returns immediately
-(async, fire-and-forget). The returned promise resolves to true if
-extraction was scheduled, false if skipped (in-flight or no messages).
+(async, fire-and-forget). Returns `true` if extraction was dispatched now
+OR queued to run after the current in-flight call; `false` if nothing will
+happen for this turn (disposed, empty messages, or every message was
+already extracted — see [TurnSkippedEvent](TurnSkippedEvent.md)).
+
+Pass the full recent `messages` array (the worker decides the window from
+its per-conversation watermark); `conversationId` keys that watermark, so
+pass it consistently for the same conversation.
 
 **Parameters**
 
