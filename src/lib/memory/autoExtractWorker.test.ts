@@ -22,7 +22,12 @@ const baseOptions = {
   extract: { apiKey: "k" },
 };
 
-const EMPTY_RESULT = { candidates: [], results: [], failedCount: 0 };
+const EMPTY_RESULT = {
+  candidates: [],
+  results: [],
+  failedCount: 0,
+  outcome: "no-facts" as const,
+};
 
 /** Build n messages with ids m0..m(n-1). Tests assert on `.id`, so role/content are filler. */
 const mk = (n: number): AutoExtractMessage[] =>
@@ -301,6 +306,7 @@ describe("createAutoExtractor", () => {
         { action: "merge", memoryId: "id2", targetId: "id2", proofCount: 3 },
       ],
       failedCount: 0,
+      outcome: "extracted",
     });
     const onMemoryExtracted = vi.fn();
     const onTurnComplete = vi.fn();
@@ -424,5 +430,54 @@ describe("createAutoExtractor", () => {
 
     const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
     expect(callOptions).not.toHaveProperty("consolidateOptions");
+  });
+
+  it("forwards the extractAndRetain outcome on onTurnComplete (H3)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({
+      ...EMPTY_RESULT,
+      outcome: "empty-after-retry",
+    });
+    const onTurnComplete = vi.fn();
+    const extractor = createAutoExtractor({ ...baseOptions, onTurnComplete });
+    extractor.processTurn(messages, "c1");
+    await flush();
+    expect(onTurnComplete.mock.calls[0][0]).toMatchObject({ outcome: "empty-after-retry" });
+  });
+
+  it("auto-wires embeddingOptions.maskInput when piiRedaction is on but maskInput is unset (M2)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      extract: { apiKey: "k", piiRedaction: true },
+    });
+    extractor.processTurn(messages, "c1");
+    await flush();
+    // The retainCtx handed to extractAndRetain now masks embedding input, so raw
+    // PII never reaches the embeddings provider.
+    const passedCtx = vi.mocked(extractAndRetain).mock.calls[0][1];
+    expect(typeof passedCtx.embeddingOptions.maskInput).toBe("function");
+    // Masking actually redacts (PiiRedactor.maskText), e.g. an email.
+    expect(passedCtx.embeddingOptions.maskInput?.("ping me at a@b.com")).not.toContain("a@b.com");
+  });
+
+  it("respects a caller-supplied maskInput and does not auto-wire over it (M2)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const maskInput = (t: string) => `masked:${t}`;
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      retainCtx: { ...baseOptions.retainCtx, embeddingOptions: { apiKey: "k", maskInput } },
+      extract: { apiKey: "k", piiRedaction: true },
+    });
+    extractor.processTurn(messages, "c1");
+    await flush();
+    expect(vi.mocked(extractAndRetain).mock.calls[0][1].embeddingOptions.maskInput).toBe(maskInput);
+  });
+
+  it("leaves embeddingOptions untouched when piiRedaction is off (M2)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const extractor = createAutoExtractor(baseOptions);
+    extractor.processTurn(messages, "c1");
+    await flush();
+    expect(vi.mocked(extractAndRetain).mock.calls[0][1].embeddingOptions.maskInput).toBeUndefined();
   });
 });

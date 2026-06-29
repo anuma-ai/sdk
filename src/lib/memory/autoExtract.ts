@@ -166,6 +166,15 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * as well — the two are independent switches.
    */
   piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called when the extraction LLM returned no usable result after exhausting
+   * its retries (empty/malformed completion, network/HTTP error) — i.e. a
+   * *failure* that drops the turn's facts, as opposed to a legitimate
+   * `{candidates: []}` "nothing durable here". Lets callers distinguish a
+   * silently-degrading extractor from quiet turns (the two are otherwise
+   * indistinguishable). See {@link extractAndRetain}'s `outcome`.
+   */
+  onExhaustedEmpty?: () => void;
 }
 
 /**
@@ -214,9 +223,20 @@ export async function extractFacts(
   });
   // A successful "no facts" response parses to {candidates: []} (non-null),
   // so a null strictly signals failure after retries, never a legit empty.
-  if (parsed === null) return [];
+  if (parsed === null) {
+    options.onExhaustedEmpty?.();
+    return [];
+  }
 
-  const candidates = validateCandidates(parsed, new Set(messages.map((m) => m.id)));
+  // H4: when a candidate's source ids are missing/mangled, fall back to the
+  // last user message in the window rather than dropping the fact (provenance
+  // is secondary to not losing the memory).
+  const fallbackSourceId = [...messages].reverse().find((m) => m.role === "user")?.id;
+  const candidates = validateCandidates(
+    parsed,
+    new Set(messages.map((m) => m.id)),
+    fallbackSourceId
+  );
   if (!redactor) return candidates;
   // Restore real values in the extracted facts (content + entities) — the LLM
   // saw placeholders, so its output references them. Then guard the output:
@@ -249,6 +269,17 @@ export async function extractFacts(
 }
 
 /**
+ * Why a turn's extraction produced (or didn't produce) facts:
+ * - `extracted`         — at least one candidate passed the confidence floor.
+ * - `no-facts`          — the extractor ran fine but found nothing durable.
+ * - `empty-after-retry` — the extractor returned empty/malformed after
+ *                         exhausting retries (a *failure*). Distinguishing this
+ *                         from `no-facts` is what makes a silently-degrading
+ *                         extractor alarmable rather than invisible.
+ */
+export type ExtractOutcome = "extracted" | "no-facts" | "empty-after-retry";
+
+/**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
  * enabled. The resolver path (decide create/merge/update via a second LLM
  * call against the existing vault) is deferred — the auto-merge inside
@@ -256,7 +287,8 @@ export async function extractFacts(
  *
  * Returns the candidates that survived validation along with the retain
  * result for each (which captures whether the fact was created, merged,
- * or skipped).
+ * or skipped), plus an `outcome` summarizing why the turn did/didn't produce
+ * facts (see {@link ExtractOutcome}).
  */
 export async function extractAndRetain(
   messages: AutoExtractMessage[],
@@ -292,6 +324,7 @@ export async function extractAndRetain(
   candidates: ExtractedCandidate[];
   results: RetainResult[];
   failedCount: number;
+  outcome: ExtractOutcome;
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
@@ -309,7 +342,17 @@ export async function extractAndRetain(
         }
       : undefined;
 
-  const candidates = await extractFacts(messages, options.extract);
+  // Detect an exhausted-retry empty result so the caller can tell a degrading
+  // extractor from a genuinely quiet turn. Chain any caller-supplied hook.
+  let exhaustedEmpty = false;
+  const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
+  const candidates = await extractFacts(messages, {
+    ...options.extract,
+    onExhaustedEmpty: () => {
+      exhaustedEmpty = true;
+      callerOnExhaustedEmpty?.();
+    },
+  });
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
@@ -353,14 +396,24 @@ export async function extractAndRetain(
     log.warn(`[memory/extract] ${failedWrites} of ${filtered.length} candidates failed to retain`);
   }
 
-  return { candidates: succeededCandidates, results, failedCount: failedWrites };
+  const outcome: ExtractOutcome = exhaustedEmpty
+    ? "empty-after-retry"
+    : filtered.length > 0
+      ? "extracted"
+      : "no-facts";
+
+  return { candidates: succeededCandidates, results, failedCount: failedWrites, outcome };
 }
 
 // ---------------------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------------------
 
-function validateCandidates(parsed: unknown, validIds: Set<string>): ExtractedCandidate[] {
+function validateCandidates(
+  parsed: unknown,
+  validIds: Set<string>,
+  fallbackSourceId?: string
+): ExtractedCandidate[] {
   if (typeof parsed !== "object" || parsed === null) return [];
   const candidates = (parsed as { candidates?: unknown }).candidates;
   if (!Array.isArray(candidates)) return [];
@@ -382,10 +435,19 @@ function validateCandidates(parsed: unknown, validIds: Set<string>): ExtractedCa
         ? (obj.type as FactType)
         : "other";
 
-    const sourceMessageIds = Array.isArray(obj.sourceMessageIds)
+    const validSourceIds = Array.isArray(obj.sourceMessageIds)
       ? obj.sourceMessageIds.filter((s): s is string => typeof s === "string" && validIds.has(s))
       : [];
-    if (sourceMessageIds.length === 0) continue;
+    // H4: don't drop a fact whose provenance is missing/mangled (the model
+    // attributed it to an id outside the window, or omitted it). Attribute to
+    // the last user message in the window as a best-effort, or leave empty —
+    // keeping the memory matters more than perfect provenance.
+    const sourceMessageIds =
+      validSourceIds.length > 0
+        ? validSourceIds
+        : fallbackSourceId !== undefined
+          ? [fallbackSourceId]
+          : [];
 
     const entities = Array.isArray(obj.entities)
       ? obj.entities.filter((s): s is string => typeof s === "string")

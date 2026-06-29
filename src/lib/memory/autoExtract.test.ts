@@ -69,7 +69,7 @@ describe("extractFacts", () => {
     expect(result[0].entities).toEqual(["Biscuit"]);
   });
 
-  it("filters out candidates with hallucinated source IDs", async () => {
+  it("keeps a candidate with hallucinated source IDs, attributing it to the last user message (H4)", async () => {
     const candidates = {
       candidates: [
         {
@@ -90,8 +90,14 @@ describe("extractFacts", () => {
       apiKey: "k",
       fetchFn: mockFetch(JSON.stringify(candidates)),
     });
-    expect(result).toHaveLength(1);
-    expect(result[0].content).toBe("Real fact");
+    // Both kept — provenance is secondary to not losing the memory. The valid
+    // id is preserved; the unresolvable one falls back to the last user message.
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ content: "Real fact", sourceMessageIds: ["m1"] });
+    expect(result[1]).toMatchObject({
+      content: "Hallucinated provenance",
+      sourceMessageIds: ["m3"],
+    });
   });
 
   it("filters out candidates exceeding the 200-char content cap", async () => {
@@ -213,7 +219,7 @@ describe("extractFacts", () => {
     expect(result[0].type).toBe("other");
   });
 
-  it("requires non-empty sourceMessageIds (skips bare facts)", async () => {
+  it("keeps a bare fact (empty sourceMessageIds), attributing it to the last user message (H4)", async () => {
     const candidates = {
       candidates: [
         { content: "Foo", type: "other", confidence: 0.9, sourceMessageIds: [] },
@@ -224,8 +230,9 @@ describe("extractFacts", () => {
       apiKey: "k",
       fetchFn: mockFetch(JSON.stringify(candidates)),
     });
-    expect(result).toHaveLength(1);
-    expect(result[0].content).toBe("Bar");
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ content: "Foo", sourceMessageIds: ["m3"] });
+    expect(result[1]).toMatchObject({ content: "Bar", sourceMessageIds: ["m1"] });
   });
 
   it("clamps confidence to [0, 1]", async () => {
@@ -284,6 +291,7 @@ describe("extractAndRetain", () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].content).toContain("Biscuit");
     expect(result.results).toHaveLength(1);
+    expect(result.outcome).toBe("extracted");
     expect(vi.mocked(retain)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(retain)).toHaveBeenCalledWith(
       "Has a golden retriever named Biscuit",
@@ -293,6 +301,39 @@ describe("extractAndRetain", () => {
         sourceChunkIds: ["m1"],
       })
     );
+  });
+
+  it("reports outcome 'no-facts' on a legitimate empty extraction (H3)", async () => {
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify({ candidates: [] })) } }
+    );
+    expect(result.outcome).toBe("no-facts");
+    expect(result.candidates).toHaveLength(0);
+    expect(vi.mocked(retain)).not.toHaveBeenCalled();
+  });
+
+  it("reports outcome 'empty-after-retry' when the extractor fails empty (H3)", async () => {
+    // Malformed JSON on every attempt → exhausted-retry null → a *failure*,
+    // distinct from a legit no-facts result.
+    const onExhaustedEmpty = vi.fn();
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch("not-valid-json"),
+          maxAttempts: 1,
+          backoffMs: () => 0,
+          onExhaustedEmpty,
+        },
+      }
+    );
+    expect(result.outcome).toBe("empty-after-retry");
+    expect(onExhaustedEmpty).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(retain)).not.toHaveBeenCalled();
   });
 
   it("survives a per-fact retain failure and continues", async () => {

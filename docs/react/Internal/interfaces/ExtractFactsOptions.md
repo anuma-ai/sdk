@@ -218,6 +218,25 @@ Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/
 
 ***
 
+### onExhaustedEmpty()?
+
+> `optional` **onExhaustedEmpty**: () => `void`
+
+Defined in: [src/lib/memory/autoExtract.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#177)
+
+Called when the extraction LLM returned no usable result after exhausting
+its retries (empty/malformed completion, network/HTTP error) — i.e. a
+*failure* that drops the turn's facts, as opposed to a legitimate
+`{candidates: []}` "nothing durable here". Lets callers distinguish a
+silently-degrading extractor from quiet turns (the two are otherwise
+indistinguishable). See [extractAndRetain](../functions/extractAndRetain.md)'s `outcome`.
+
+**Returns**
+
+`void`
+
+***
+
 ### piiRedaction?
 
 > `optional` **piiRedaction**: `boolean` | `PiiRedactor`

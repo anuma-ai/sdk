@@ -35,11 +35,13 @@
 
 import type { EntityOperationsContext } from "../db/entities/operations.js";
 import { getLogger } from "../logger.js";
+import { resolvePiiRedactor } from "../pii/redactor.js";
 import {
   type AutoExtractMessage,
   extractAndRetain,
   type ExtractedCandidate,
   type ExtractFactsOptions,
+  type ExtractOutcome,
 } from "./autoExtract.js";
 import type { RetainContext } from "./retain.js";
 import type { ConsolidationFallbackReason, RetainOptions, RetainResult } from "./types.js";
@@ -78,6 +80,13 @@ export interface TurnCompleteEvent {
   failedCount: number;
   durationMs: number;
   conversationId?: string;
+  /**
+   * Why the turn did/didn't produce facts. `empty-after-retry` means the
+   * extractor failed (empty/malformed after exhausting retries) — alarm on a
+   * rising rate of it; `no-facts` is a normal quiet turn. The two were
+   * previously indistinguishable (both surfaced as zero candidates).
+   */
+  outcome: ExtractOutcome;
 }
 
 /** @public */
@@ -345,15 +354,24 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   }
 
   // PII redaction protects the extraction + consolidation LLM calls, but facts
-  // are embedded with their real values — that path is masked only when
-  // embeddingOptions.maskInput is set. Warn once if redaction is on but the
-  // embedding masker is missing, so PII isn't silently shipped to the
-  // embeddings provider.
-  if (options.extract.piiRedaction && !options.retainCtx.embeddingOptions.maskInput) {
-    getLogger().warn(
-      "[memory/extract] extract.piiRedaction is enabled but retainCtx.embeddingOptions.maskInput is unset — extracted facts are embedded with their real values. Set maskInput (e.g. redactor.maskText) to keep PII out of embedding requests."
-    );
-  }
+  // are embedded with their REAL values unless embeddingOptions.maskInput is
+  // set — a separate switch. Enabling piiRedaction while leaving maskInput unset
+  // would silently ship raw PII to the embeddings provider, so auto-wire it from
+  // the same redactor (maskText is stateless/unnumbered, ideal for masking). A
+  // caller-supplied maskInput is respected; if piiRedaction is off (or a
+  // malformed value), resolvePiiRedactor returns undefined and we leave the
+  // context untouched.
+  const piiRedactor = resolvePiiRedactor(options.extract.piiRedaction);
+  const retainCtx: RetainContext =
+    piiRedactor && !options.retainCtx.embeddingOptions.maskInput
+      ? {
+          ...options.retainCtx,
+          embeddingOptions: {
+            ...options.retainCtx.embeddingOptions,
+            maskInput: (text) => piiRedactor.maskText(text),
+          },
+        }
+      : options.retainCtx;
 
   function processTurn(messages: AutoExtractMessage[], conversationId?: string): boolean {
     if (disposed) return false;
@@ -406,9 +424,9 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
 
     void (async () => {
       try {
-        const { candidates, results, failedCount } = await extractAndRetain(
+        const { candidates, results, failedCount, outcome } = await extractAndRetain(
           window,
-          options.retainCtx,
+          retainCtx,
           {
             extract,
             ...(options.minConfidence !== undefined && { minConfidence: options.minConfidence }),
@@ -445,6 +463,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           failedCount,
           durationMs: Date.now() - t0,
           conversationId,
+          outcome,
         });
       } catch (err) {
         options.onError?.(err instanceof Error ? err : new Error(String(err)), conversationId);
