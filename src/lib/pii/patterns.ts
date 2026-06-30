@@ -20,6 +20,13 @@ interface PiiPattern {
   regex: RegExp;
   /** Optional post-match validation to reduce false positives. */
   validate?: (match: string) => boolean;
+  /**
+   * If set, a hit is only redacted when this regex matches the text immediately
+   * before it (a ~32-char window). Lets format-ambiguous patterns require a
+   * contextual cue — e.g. only treat a date as a DOB when "born"/"DOB" precedes
+   * it — instead of masking every value that fits the shape.
+   */
+  requireContextBefore?: RegExp;
 }
 
 // Luhn checksum for credit card validation
@@ -108,9 +115,13 @@ export const PII_PATTERNS: PiiPattern[] = [
       /\b\d{1,5}\s+(?:[A-Z][a-z]+\s+){1,3}(?:St(?:reet)?|Ave(?:nue)?|Blvd|Boulevard|Dr(?:ive)?|Ln|Lane|Rd|Road|Ct|Court|Pl(?:ace)?|Way|Cir(?:cle)?|Pkwy|Parkway|Hwy|Highway)\b\.?/gi,
   },
 
-  // Dates of birth — common US date formats
+  // Dates of birth — common US date formats. Only redacted when a birth cue
+  // ("born", "DOB", "date of birth", "birthday") precedes the date, so ordinary
+  // dates ("meet on 06/30/2026") aren't masked and stripped of meaning. A bare
+  // date is format-identical to a DOB, so context is the only safe signal.
   {
     category: "DATE_OF_BIRTH",
     regex: /\b(?:(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2})\b/g,
+    requireContextBefore: /\b(?:born|d\.?o\.?b\.?|date of birth|birth\s?day)\b[^\n]{0,12}$/i,
   },
 ];

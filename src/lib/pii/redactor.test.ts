@@ -141,6 +141,17 @@ describe("PiiRedactor", () => {
         const result = redactor.redactText("Born on 12-25-1985");
         expect(result.text).toBe("Born on [DATE_OF_BIRTH_1]");
       });
+
+      it("redacts when 'birthday' precedes the date", () => {
+        const result = redactor.redactText("my birthday is 07/04/1990");
+        expect(result.text).toBe("my birthday is [DATE_OF_BIRTH_1]");
+      });
+
+      it("does NOT redact a bare date with no birth context", () => {
+        const result = redactor.redactText("Let's meet on 06/30/2026");
+        expect(result.text).toBe("Let's meet on 06/30/2026");
+        expect(result.matches.filter((m) => m.category === "DATE_OF_BIRTH")).toHaveLength(0);
+      });
     });
 
     describe("multiple categories", () => {
