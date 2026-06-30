@@ -10,7 +10,7 @@
  */
 
 import type { LlmapiMessage, LlmapiMessageContentPart } from "../../client";
-import { type PiiCategory, PII_PATTERNS } from "./patterns";
+import { PII_PATTERNS, type PiiCategory } from "./patterns";
 
 export interface PiiMatch {
   category: PiiCategory;
@@ -126,8 +126,8 @@ export class PiiRedactor {
     const allMatches: PiiMatch[] = [];
 
     const redactedMessages = messages.map((msg) => {
-      // Only redact user and system messages — don't touch assistant or tool responses
-      if (msg.role !== "user" && msg.role !== "system") {
+      // Assistant responses stay user-visible; outbound user/system/tool payloads go to the provider.
+      if (msg.role !== "user" && msg.role !== "system" && msg.role !== "tool") {
         return msg;
       }
 

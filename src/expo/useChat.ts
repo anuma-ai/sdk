@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
-import type { PiiMatch } from "../lib/pii/redactor";
 import {
   type ApiType,
   type AutoExecutedToolResult,
@@ -18,6 +17,7 @@ import {
   validateTokenGetter,
 } from "../lib/chat/useChat";
 import { xhrTransport } from "../lib/chat/xhrTransport";
+import type { PiiMatch, PiiRedactor } from "../lib/pii/redactor";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**
@@ -45,6 +45,11 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * @default Uses the hook-level apiType or "auto"
    */
   apiType?: ApiType;
+  /**
+   * Per-request PII redaction override. When set, takes precedence over
+   * the hook-level `piiRedaction` option.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 };
 
 type SendMessageResult =
@@ -179,6 +184,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
       if (abortControllerRef.current) {
@@ -279,7 +285,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCallArgumentsDelta,
           onStepFinish,
           preProcessors,
-          piiRedaction,
+          piiRedaction: requestPiiRedaction ?? piiRedaction,
         });
 
         return result;

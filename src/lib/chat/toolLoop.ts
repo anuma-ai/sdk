@@ -1485,7 +1485,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           })),
       };
 
-      const toolResultMessages: LlmapiMessage[] = [assistantMessage];
+      let toolResultMessages: LlmapiMessage[] = [assistantMessage];
       for (const execResult of continueResults) {
         const resultContent = execResult.error
           ? `Error: ${execResult.error}`
@@ -1496,6 +1496,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           content: [{ type: "text", text: resultContent }],
           tool_call_id: execResult.id,
         } as LlmapiMessage);
+      }
+
+      if (redactor) {
+        const result = redactor.redactMessages(toolResultMessages);
+        toolResultMessages = result.messages;
+        if (result.matches.length > 0) {
+          piiMatches = [...(piiMatches ?? []), ...result.matches];
+        }
       }
 
       // Continue the conversation with tool results

@@ -164,7 +164,7 @@ describe("Chat Encryption Utilities", () => {
       expect(result).toEqual(message);
     });
 
-    it("should encrypt JSON fields (sources, vector)", async () => {
+    it("should encrypt JSON fields (sources, vector, piiMatches)", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
 
       const message = {
@@ -173,6 +173,9 @@ describe("Chat Encryption Utilities", () => {
         content: "response text",
         sources: [{ url: "https://example.com", title: "Example" }],
         vector: [0.1, 0.2, 0.3],
+        piiMatches: [
+          { category: "EMAIL" as const, original: "person@example.com", placeholder: "[EMAIL_1]" },
+        ],
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -183,6 +186,8 @@ describe("Chat Encryption Utilities", () => {
       expect(isEncrypted(encrypted.sources)).toBe(true);
       expect(typeof encrypted.vector).toBe("string");
       expect(isEncrypted(encrypted.vector)).toBe(true);
+      expect(typeof encrypted.piiMatches).toBe("string");
+      expect(isEncrypted(encrypted.piiMatches)).toBe(true);
     });
   });
 
@@ -196,6 +201,9 @@ describe("Chat Encryption Utilities", () => {
         content: "Secret response",
         thinking: "Internal reasoning",
         sources: [{ url: "https://example.com", title: "Test" }],
+        piiMatches: [
+          { category: "EMAIL" as const, original: "person@example.com", placeholder: "[EMAIL_1]" },
+        ],
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -213,6 +221,7 @@ describe("Chat Encryption Utilities", () => {
         updatedAt: new Date(),
         thinking: encrypted.thinking,
         sources: encrypted.sources,
+        piiMatches: encrypted.piiMatches,
       };
 
       const decrypted = await decryptMessageFields(storedMessage, testAddress, mockSignMessage);
@@ -220,6 +229,7 @@ describe("Chat Encryption Utilities", () => {
       expect(decrypted.content).toBe("Secret response");
       expect(decrypted.thinking).toBe("Internal reasoning");
       expect(decrypted.sources).toEqual([{ url: "https://example.com", title: "Test" }]);
+      expect(decrypted.piiMatches).toEqual(original.piiMatches);
     });
 
     it("should handle plaintext messages (backwards compatibility)", async () => {

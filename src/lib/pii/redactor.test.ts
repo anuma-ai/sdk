@@ -200,6 +200,19 @@ describe("PiiRedactor", () => {
       expect(result.messages[0].content![0].text).toBe("User's email is [EMAIL_1]");
     });
 
+    it("redacts tool messages", () => {
+      const messages: LlmapiMessage[] = [
+        {
+          role: "tool",
+          tool_call_id: "call-1",
+          content: [{ type: "text", text: "Lookup result: user@test.com" }],
+        },
+      ];
+      const result = redactor.redactMessages(messages);
+      expect(result.messages[0].content![0].text).toBe("Lookup result: [EMAIL_1]");
+      expect(result.matches).toHaveLength(1);
+    });
+
     it("does not redact assistant messages", () => {
       const messages: LlmapiMessage[] = [
         {

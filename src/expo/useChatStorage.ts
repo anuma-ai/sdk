@@ -75,6 +75,7 @@ import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
 } from "../lib/memoryVault";
+import type { PiiRedactor } from "../lib/pii/redactor";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
@@ -249,6 +250,11 @@ export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
    * @default Uses the hook-level apiType or "responses"
    */
   apiType?: ApiType;
+  /**
+   * Per-request PII redaction override. When set, takes precedence over
+   * the hook-level `piiRedaction` option.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 };
 
 /**
@@ -371,6 +377,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
     preProcessors,
+    piiRedaction: piiRedactionHookLevel,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -683,6 +690,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onError,
     apiType,
     preProcessors,
+    piiRedaction: piiRedactionHookLevel,
   });
 
   /**
@@ -965,6 +973,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel,
         parentMessageId,
         assistantUniqueId,
+        piiRedaction,
       } = args;
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1045,6 +1054,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           imageModel,
           apiType: effectiveApiType,
           conversationId: currentConversationId ?? undefined,
+          piiRedaction: piiRedaction ?? piiRedactionHookLevel,
         });
 
         if (result.error || !result.data) {
@@ -1269,6 +1279,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         thinking,
         imageModel,
         conversationId: convId,
+        piiRedaction: piiRedaction ?? piiRedactionHookLevel,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -1511,6 +1522,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       enableQueue,
       getWalletAddress,
       refreshQueueStatus,
+      piiRedactionHookLevel,
     ]
   );
 

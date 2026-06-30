@@ -22,6 +22,7 @@ export { decryptField, encryptField, isEncrypted };
  * - chunks: MessageChunk[] with embeddings
  * - sources: SearchSource[] (reveals browsing patterns)
  * - thoughtProcess: ActivityPhase[] (may contain memory data)
+ * - piiMatches: redaction metadata with original PII values
  *
  * Non-encrypted fields:
  * - IDs, roles, models, timestamps, flags, token counts, dimensions
@@ -81,6 +82,10 @@ export async function encryptMessageFields(
       ? await encryptJsonField(msg.thoughtProcess, address, signMessage, embeddedWalletSigner, true)
       : undefined;
 
+    const encryptedPiiMatches = msg.piiMatches
+      ? await encryptJsonField(msg.piiMatches, address, signMessage, embeddedWalletSigner, true)
+      : undefined;
+
     return {
       ...message,
       ...(encryptedContent !== undefined && { content: encryptedContent }),
@@ -89,6 +94,7 @@ export async function encryptMessageFields(
       ...(encryptedChunks !== undefined && { chunks: encryptedChunks }),
       ...(encryptedSources !== undefined && { sources: encryptedSources }),
       ...(encryptedThoughtProcess !== undefined && { thoughtProcess: encryptedThoughtProcess }),
+      ...(encryptedPiiMatches !== undefined && { piiMatches: encryptedPiiMatches }),
     };
   } catch (error) {
     getLogger().warn("Failed to encrypt message fields:", error);
@@ -195,6 +201,11 @@ export async function decryptMessageFields(
     address
   );
 
+  const decryptedPiiMatches = await decryptMaybeJsonField<typeof message.piiMatches>(
+    message.piiMatches as typeof message.piiMatches | string | undefined,
+    address
+  );
+
   return {
     ...message,
     content: decryptedContent,
@@ -203,5 +214,6 @@ export async function decryptMessageFields(
     chunks: decryptedChunks,
     sources: decryptedSources,
     thoughtProcess: decryptedThoughtProcess,
+    piiMatches: decryptedPiiMatches,
   };
 }
