@@ -976,10 +976,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   const redactor = resolvePiiRedactor(piiRedaction);
 
   // Redact a batch of messages and surface the matches to onPiiRedacted.
-  // No-op (returns the input) when redaction is disabled.
-  const redactBatch = (msgs: LlmapiMessage[]): LlmapiMessage[] => {
+  // No-op (returns the input) when redaction is disabled. Async because the
+  // redactor may run an on-device NER detector (redactMessagesAsync); with no
+  // detector it resolves synchronously to the same regex result.
+  const redactBatch = async (msgs: LlmapiMessage[]): Promise<LlmapiMessage[]> => {
     if (!redactor) return msgs;
-    const { messages: redacted, matches } = redactor.redactMessages(msgs);
+    const { messages: redacted, matches } = await redactor.redactMessagesAsync(msgs);
     if (matches.length > 0 && onPiiRedacted) {
       try {
         onPiiRedacted(matches);
@@ -990,7 +992,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return redacted;
   };
 
-  messages = redactBatch(messages);
+  messages = await redactBatch(messages);
 
   // Run pre-processors if any are provided. Each receives the shared
   // embedding and may return messages to enrich the conversation.
@@ -1017,7 +1019,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (extra.length > 0) {
           // Injected context (memory/search/file) can also contain PII — redact
           // it with the same redactor so placeholder numbering stays consistent.
-          messages = [...messages, ...redactBatch(extra)];
+          messages = [...messages, ...(await redactBatch(extra))];
         }
       }
     } catch (err) {
@@ -1780,7 +1782,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // systems, which would otherwise reach the provider in clear text. The
       // assistant message already holds model-emitted placeholders, which are
       // inert under redaction.
-      currentMessages = [...currentMessages, ...redactBatch(toolResultMessages)];
+      currentMessages = [...currentMessages, ...(await redactBatch(toolResultMessages))];
 
       const turnBudgetExhausted = maxTurnTokens !== undefined && turnTokensUsed >= maxTurnTokens;
       // "required" exists to guarantee the FIRST round picks a tool (e.g.

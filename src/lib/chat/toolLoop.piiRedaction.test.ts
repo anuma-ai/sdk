@@ -256,4 +256,46 @@ describe("runToolLoop PII redaction", () => {
 
     expect(received).toBe("[EMAIL_1]");
   });
+
+  it("redacts unstructured PII via an injected NER detector and de-anonymizes the reply", async () => {
+    // The model echoes the minted PERSON placeholder, which we restore on the way out.
+    mockCreateSseClient.mockReturnValue({
+      stream: makeStream(["Noted about [PERSON_1]."]),
+    } as never);
+
+    // A fake on-device NER detector: tags "Sarah Chen" as a PERSON. Regex still
+    // handles the email — both flow through redactMessagesAsync.
+    const nerDetector = {
+      async detect(text: string) {
+        const idx = text.indexOf("Sarah Chen");
+        return idx >= 0 ? [{ start: idx, end: idx + "Sarah Chen".length, category: "PERSON" }] : [];
+      },
+    };
+
+    let streamed = "";
+    const result = await runToolLoop({
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hi, I'm Sarah Chen, email bob@acme.com" }],
+        },
+      ],
+      model: "test-model",
+      token: "token",
+      piiRedaction: new PiiRedactor({ nerDetector }),
+      smoothing: { enabled: false },
+      onData: (chunk) => (streamed += chunk),
+    });
+
+    // Outbound request: NER name + regex email both redacted, originals gone.
+    const serialized = JSON.stringify(getRequestMessages(0));
+    expect(serialized).toContain("[PERSON_1]");
+    expect(serialized).toContain("[EMAIL_1]");
+    expect(serialized).not.toContain("Sarah Chen");
+    expect(serialized).not.toContain("bob@acme.com");
+
+    // Response de-anonymized for the user (stream + final).
+    expect(streamed).toBe("Noted about Sarah Chen.");
+    expect(extractAssistantText(result.data!).content).toBe("Noted about Sarah Chen.");
+  });
 });

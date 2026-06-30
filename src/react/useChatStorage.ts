@@ -122,6 +122,7 @@ import {
   type VaultEmbeddingCache,
   type VaultSearchResult,
 } from "../lib/memoryVault";
+import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { preprocessFiles } from "../lib/processors";
 import {
@@ -1197,8 +1198,14 @@ const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
 const conversationRedactors = new Map<string, PiiRedactor>();
 
-function getConversationRedactor(conversationId: string | null): PiiRedactor {
-  const key = conversationId ?? NO_CONVERSATION_KEY;
+function getConversationRedactor(
+  conversationId: string | null,
+  nerDetector?: NerDetector
+): PiiRedactor {
+  // Key on detector presence too, so toggling NER on/off for a conversation
+  // yields a fresh redactor built with (or without) the detector rather than
+  // reusing a stale one. Placeholder numbering restarting on toggle is fine.
+  const key = (conversationId ?? NO_CONVERSATION_KEY) + (nerDetector ? "::ner" : "");
   let redactor = conversationRedactors.get(key);
   if (redactor) {
     // Refresh recency (Map preserves insertion order → re-insert moves to end).
@@ -1206,7 +1213,7 @@ function getConversationRedactor(conversationId: string | null): PiiRedactor {
     conversationRedactors.set(key, redactor);
     return redactor;
   }
-  redactor = new PiiRedactor();
+  redactor = new PiiRedactor({ nerDetector });
   conversationRedactors.set(key, redactor);
   if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
     const oldest = conversationRedactors.keys().next().value;
@@ -1299,6 +1306,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     preProcessors,
     piiRedaction,
     onPiiRedacted,
+    nerDetector,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1310,8 +1318,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // so placeholder mappings are consistent across instances and turns. An
   // explicit instance or `false` is passed through unchanged.
   const resolvedPiiRedaction = useMemo(
-    () => (piiRedaction === true ? getConversationRedactor(currentConversationId) : piiRedaction),
-    [piiRedaction, currentConversationId]
+    () =>
+      piiRedaction === true
+        ? getConversationRedactor(currentConversationId, nerDetector)
+        : piiRedaction,
+    [piiRedaction, currentConversationId, nerDetector]
   );
 
   // Mask PII before text is sent to the embeddings endpoint. Embeddings are a
@@ -2479,7 +2490,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // currentConversationId), which is what fixes turn-1 placeholder orphaning.
       const resolvePiiForCall = (conversationIdForCall: string | null) => {
         const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
-          getConversationRedactor(conversationIdForCall)
+          getConversationRedactor(conversationIdForCall, nerDetector)
         );
         return {
           callRedactor: redactor,
