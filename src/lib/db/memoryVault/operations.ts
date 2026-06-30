@@ -602,7 +602,11 @@ export async function updateVaultMemoryEmbeddingOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
   embedding: string,
-  embeddingModel?: string
+  // Required (not optional) so the tag is always synced to the vector — a
+  // model-less write that left a stale tag would make search re-embed the row
+  // every query. Matches the message-side updateMessageEmbeddingOp; compile
+  // time catches any caller that forgets it.
+  embeddingModel: string
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
@@ -610,12 +614,7 @@ export async function updateVaultMemoryEmbeddingOp(
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("embedding", embedding);
-        // Stamp the model alongside the vector so staleness is detectable.
-        // Undefined model leaves the tag untouched (legacy callers); pass the
-        // model to record which model produced this vector.
-        if (embeddingModel !== undefined) {
-          r._setRaw("embedding_model", embeddingModel);
-        }
+        r._setRaw("embedding_model", embeddingModel);
       });
     });
     return true;

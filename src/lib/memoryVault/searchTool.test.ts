@@ -262,13 +262,13 @@ describe("searchVaultMemories", () => {
       minSimilarity: 0,
     });
 
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
-      mockVaultCtx,
-      "m1",
-      JSON.stringify([0.9, 0.1, 0]),
-      DEFAULT_API_EMBEDDING_MODEL
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "m1",
+        JSON.stringify([0.9, 0.1, 0]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
     );
   });
 
@@ -494,14 +494,13 @@ describe("preEmbedVaultMemories", () => {
     const cache = createVaultEmbeddingCache();
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
-    // Allow fire-and-forget promise to settle
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
-      mockVaultCtx,
-      "m1",
-      JSON.stringify([3, 2, 1]),
-      DEFAULT_API_EMBEDDING_MODEL
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "m1",
+        JSON.stringify([3, 2, 1]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
     );
   });
 
@@ -641,10 +640,8 @@ describe("eagerEmbedContent — failure resilience", () => {
       eagerEmbedContent("cache me anyway", mockEmbeddingOptions, cache, mockVaultCtx, "mem-1")
     ).resolves.toBeUndefined();
 
-    await new Promise((r) => setTimeout(r, 10));
-
     // Cache should be populated despite DB failure
-    expect(cache.get("cache me anyway")).toEqual([1, 2, 3]);
+    await vi.waitFor(() => expect(cache.get("cache me anyway")).toEqual([1, 2, 3]));
   });
 });
 
@@ -666,14 +663,13 @@ describe("eagerEmbedContent", () => {
     const cache = createVaultEmbeddingCache();
     await eagerEmbedContent("persist me", mockEmbeddingOptions, cache, mockVaultCtx, "mem-99");
 
-    // Allow fire-and-forget promise to settle
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
-      mockVaultCtx,
-      "mem-99",
-      JSON.stringify([4, 5, 6]),
-      DEFAULT_API_EMBEDDING_MODEL
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "mem-99",
+        JSON.stringify([4, 5, 6]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
     );
   });
 
@@ -685,6 +681,9 @@ describe("eagerEmbedContent", () => {
     const cache = createVaultEmbeddingCache();
     await eagerEmbedContent("no persist", mockEmbeddingOptions, cache);
 
+    // Negative assertion: a real settle window is needed here, not vi.waitFor
+    // (which would resolve on the first tick and never prove the op stayed
+    // uncalled). Give the fire-and-forget path time to (not) fire.
     await new Promise((r) => setTimeout(r, 10));
 
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).not.toHaveBeenCalled();
@@ -819,12 +818,13 @@ describe("embedding model versioning", () => {
       mockEmbeddingOptions
     );
     // ... and persisted with the current model stamped.
-    await new Promise((r) => setTimeout(r, 10));
-    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
-      mockVaultCtx,
-      "m1",
-      JSON.stringify([1, 0, 0]),
-      DEFAULT_API_EMBEDDING_MODEL
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "m1",
+        JSON.stringify([1, 0, 0]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
     );
   });
 
