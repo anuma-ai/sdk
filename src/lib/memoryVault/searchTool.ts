@@ -1202,6 +1202,26 @@ export async function searchVaultMemoriesWithSize(
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
   }));
 
+  // Dimension guard. Stored vectors carry no embedding-model/version tag, so
+  // if the embedding model (or its dimensionality) changes, every pre-change
+  // vector is a different length than the new query embedding. cosineSimilarity
+  // returns 0 on length mismatch, which silently drops the entire historical
+  // vault from cosine ranking with no error — recall just goes quiet. Detect
+  // it once per search and warn so the failure is debuggable (and points at a
+  // re-embed migration) instead of looking like an empty vault.
+  if (queryEmbedding.length > 0) {
+    const mismatched = embeddedItems.filter(
+      (it) => it.embedding.length > 0 && it.embedding.length !== queryEmbedding.length
+    ).length;
+    if (mismatched > 0) {
+      getLogger().warn(
+        `memoryVault: ${mismatched}/${embeddedItems.length} stored embeddings have a ` +
+          `different dimension than the query (${queryEmbedding.length}) — likely an embedding-model ` +
+          "change; these score 0 on cosine and are effectively unsearchable until re-embedded"
+      );
+    }
+  }
+
   // The rankers below all return bare {uniqueId, content, similarity}
   // — they're pure functions over EmbeddedItem and don't carry the
   // memory's timestamps. Stamp createdAt/updatedAt on the way out so

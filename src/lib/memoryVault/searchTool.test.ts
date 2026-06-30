@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createMemoryVaultSearchTool,
   searchVaultMemories,
@@ -23,6 +23,7 @@ vi.mock("../memoryEngine/embeddings", () => ({
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import { setLogger, noopLogger, type Logger } from "../logger";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 const mockEmbeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
@@ -678,5 +679,47 @@ describe("eagerEmbedContent", () => {
     await new Promise((r) => setTimeout(r, 10));
 
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).not.toHaveBeenCalled();
+  });
+});
+
+describe("embedding dimension-mismatch guard", () => {
+  let warnings: string[];
+  beforeEach(() => {
+    vi.clearAllMocks();
+    warnings = [];
+    const spy: Logger = { ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) };
+    setLogger(spy);
+  });
+  afterEach(() => setLogger(noopLogger));
+
+  it("warns when stored vectors have a different dimension than the query", async () => {
+    // Simulates an embedding-model change: stored vector is 2-dim, query is 3-dim.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "stale dim")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("stale dim", [1, 0]); // wrong dimension
+
+    await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    expect(warnings.some((w) => w.includes("different dimension"))).toBe(true);
+  });
+
+  it("does not warn when dimensions match", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "good dim")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("good dim", [1, 0, 0]);
+
+    await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    expect(warnings.some((w) => w.includes("different dimension"))).toBe(false);
   });
 });
