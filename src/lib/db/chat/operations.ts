@@ -655,12 +655,8 @@ export async function upsertMessageOp(
   ctx: StorageOperationsContext,
   opts: CreateMessageOptions & { uniqueId: string }
 ): Promise<StoredMessage> {
-  let existing: Message | null;
-  try {
-    existing = await ctx.messagesCollection.find(opts.uniqueId);
-  } catch {
-    existing = null;
-  }
+  const results = await ctx.messagesCollection.query(Q.where("id", opts.uniqueId)).fetch();
+  const existing = results.length > 0 ? results[0] : null;
 
   // No row yet — this is the first persist for this id. Delegate to create so
   // the sequential message_id and pre-allocated id logic stay in one place.

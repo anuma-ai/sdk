@@ -2,7 +2,7 @@
 
 > **searchChunksOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:1008](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1008)
+Defined in: [src/lib/db/chat/operations.ts:1004](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1004)
 
 Search through message chunks for fine-grained semantic search.
 Returns the matching chunk text along with the parent message.
