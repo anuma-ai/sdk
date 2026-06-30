@@ -8,6 +8,7 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
 import { getMessagesOp, searchChunksOp } from "../db/chat/operations";
+import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import { generateEmbedding } from "./embeddings";
 import type { EmbeddingOptions, MemoryEngineSearchOptions } from "./types";
 
@@ -163,6 +164,7 @@ export function createMemoryEngineTool(
           limit: fetchLimit,
           minSimilarity: defaultOpts.minSimilarity,
           conversationId: defaultOpts.conversationId,
+          embeddingModel: embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,
         });
 
         // Filter out excluded conversation

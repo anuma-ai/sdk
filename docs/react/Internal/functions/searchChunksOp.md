@@ -2,7 +2,7 @@
 
 > **searchChunksOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:1004](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1004)
+Defined in: [src/lib/db/chat/operations.ts:1005](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1005)
 
 Search through message chunks for fine-grained semantic search.
 Returns the matching chunk text along with the parent message.
@@ -14,6 +14,7 @@ Returns the matching chunk text along with the parent message.
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -28,6 +29,11 @@ Returns the matching chunk text along with the parent message.
 [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -38,6 +44,11 @@ Returns the matching chunk text along with the parent message.
 <td>
 
 `number`\[]
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>
@@ -52,6 +63,11 @@ Returns the matching chunk text along with the parent message.
 `object`
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -62,6 +78,33 @@ Returns the matching chunk text along with the parent message.
 <td>
 
 `string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.embeddingModel?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Current embedding model. When set, messages whose stored
+`embedding_model` is non-null and differs are skipped — their vectors
+live in a different space, so cosine against the current-model query is
+meaningless (and the dim-mismatch path returns 0 silently). Null/absent
+`embedding_model` is grandfathered as current-model-compatible. Skipped
+messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
 
 </td>
 </tr>
@@ -76,6 +119,11 @@ Returns the matching chunk text along with the parent message.
 `number`
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -86,6 +134,11 @@ Returns the matching chunk text along with the parent message.
 <td>
 
 `number`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>

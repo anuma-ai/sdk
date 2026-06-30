@@ -29,6 +29,7 @@ import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { rerankPairs } from "../memory/reranker";
 import { setLogger, noopLogger, type Logger } from "../logger";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 const mockEmbeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
@@ -266,7 +267,8 @@ describe("searchVaultMemories", () => {
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
       mockVaultCtx,
       "m1",
-      JSON.stringify([0.9, 0.1, 0])
+      JSON.stringify([0.9, 0.1, 0]),
+      DEFAULT_API_EMBEDDING_MODEL
     );
   });
 
@@ -498,7 +500,8 @@ describe("preEmbedVaultMemories", () => {
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
       mockVaultCtx,
       "m1",
-      JSON.stringify([3, 2, 1])
+      JSON.stringify([3, 2, 1]),
+      DEFAULT_API_EMBEDDING_MODEL
     );
   });
 
@@ -669,7 +672,8 @@ describe("eagerEmbedContent", () => {
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
       mockVaultCtx,
       "mem-99",
-      JSON.stringify([4, 5, 6])
+      JSON.stringify([4, 5, 6]),
+      DEFAULT_API_EMBEDDING_MODEL
     );
   });
 
@@ -740,7 +744,7 @@ describe("embedding dimension-mismatch guard", () => {
       useFusion: false,
     });
 
-    expect(warnings.some((w) => w.includes("different dimension"))).toBe(true);
+    expect(warnings.some((w) => w.includes("mismatch the query dimension"))).toBe(true);
   });
 
   it("does not warn when dimensions match", async () => {
@@ -755,6 +759,70 @@ describe("embedding dimension-mismatch guard", () => {
       useFusion: false,
     });
 
-    expect(warnings.some((w) => w.includes("different dimension"))).toBe(false);
+    expect(warnings.some((w) => w.includes("mismatch the query dimension"))).toBe(false);
+  });
+});
+
+describe("embedding model versioning", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("uses a grandfathered (null-model) DB embedding without re-embedding", async () => {
+    // Legacy rows have a vector but embedding_model = null. They were embedded
+    // with the current model, so recall must use them as-is — re-embedding the
+    // whole vault on rollout of this change would be a needless cost spike.
+    const mem: StoredVaultMemory = {
+      ...makeMemory("m1", "grandfathered fact"),
+      embedding: JSON.stringify([1, 0, 0]),
+      embeddingModel: null,
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([mem]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]); // query: same dim
+
+    const cache = createVaultEmbeddingCache();
+    const { results } = await searchVaultMemoriesWithSize(
+      "q",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: false }
+    );
+
+    expect(results).toHaveLength(1);
+    // No re-embed: the grandfathered vector was used directly.
+    expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+  });
+
+  it("re-embeds a stale-model DB embedding and persists the current model", async () => {
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+    vi.mocked(updateVaultMemoryEmbeddingOp).mockClear();
+    // Row was embedded by a different model than the current one → stale.
+    const mem: StoredVaultMemory = {
+      ...makeMemory("m1", "stale fact"),
+      embedding: JSON.stringify([0, 1, 0]),
+      embeddingModel: "old/embedding-model-v1",
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([mem]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const cache = createVaultEmbeddingCache();
+    await searchVaultMemoriesWithSize("q", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    // Stale vector was re-embedded (not loaded from DB) ...
+    expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledWith(
+      ["stale fact"],
+      mockEmbeddingOptions
+    );
+    // ... and persisted with the current model stamped.
+    await new Promise((r) => setTimeout(r, 10));
+    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      "m1",
+      JSON.stringify([1, 0, 0]),
+      DEFAULT_API_EMBEDDING_MODEL
+    );
   });
 });
