@@ -336,6 +336,30 @@ describe("extractAndRetain", () => {
     expect(vi.mocked(retain)).not.toHaveBeenCalled();
   });
 
+  it("reports outcome 'dropped-after-redaction' when PII restore drops all facts (H3)", async () => {
+    // Extractor found a fact, but its placeholder was never minted (the message
+    // had unrelated PII) → unresolved → dropped before retain. Must NOT look
+    // like a quiet no-facts turn.
+    const llm = {
+      candidates: [
+        {
+          content: "User SSN is [SSN_9]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["pm1"],
+        },
+      ],
+    };
+    const result = await extractAndRetain(
+      [{ id: "pm1", role: "user", content: "my email is bob@example.com" }],
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(llm)), piiRedaction: true } }
+    );
+    expect(result.outcome).toBe("dropped-after-redaction");
+    expect(result.candidates).toHaveLength(0);
+    expect(vi.mocked(retain)).not.toHaveBeenCalled();
+  });
+
   it("survives a per-fact retain failure and continues", async () => {
     const candidates = {
       candidates: [
@@ -651,6 +675,54 @@ describe("extractFacts — PII redaction", () => {
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
     expect(result[0].entities).toEqual(["jane@example.com"]);
+  });
+
+  it("fires onCandidatesDropped when redaction drops every extracted fact (H3)", async () => {
+    // The extractor found a fact, but its content references a placeholder that
+    // was never minted (model mangled it) → unresolved → dropped before retain.
+    const llm = {
+      candidates: [
+        {
+          content: "User SSN is [SSN_9]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const onCandidatesDropped = vi.fn();
+    const result = await extractFacts(piiMessages, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+      onCandidatesDropped,
+    });
+    expect(result).toHaveLength(0);
+    expect(onCandidatesDropped).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT fire onCandidatesDropped when a fact survives redaction", async () => {
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is [EMAIL_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const onCandidatesDropped = vi.fn();
+    const result = await extractFacts(piiMessages, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+      onCandidatesDropped,
+    });
+    expect(result).toHaveLength(1);
+    expect(onCandidatesDropped).not.toHaveBeenCalled();
   });
 
   it("de-anonymizes a BRACKET-DROPPED echo back to the real value (vault-pollution fix)", async () => {

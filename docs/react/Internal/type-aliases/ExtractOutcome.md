@@ -1,8 +1,8 @@
 # ExtractOutcome
 
-> **ExtractOutcome** = `"extracted"` | `"no-facts"` | `"empty-after-retry"`
+> **ExtractOutcome** = `"extracted"` | `"no-facts"` | `"empty-after-retry"` | `"dropped-after-redaction"`
 
-Defined in: [src/lib/memory/autoExtract.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#286)
+Defined in: [src/lib/memory/autoExtract.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#318)
 
 Outcome of the EXTRACTOR stage for a turn — independent of whether the
 subsequent `retain()` writes landed (that's `failedCount`):
@@ -18,3 +18,8 @@ subsequent `retain()` writes landed (that's `failedCount`):
   exhausting retries (a *failure*). Distinguishing this
   from `no-facts` is what makes a silently-degrading
   extractor alarmable rather than invisible.
+* `dropped-after-redaction` — the extractor found facts but PII
+  de-anonymization dropped every one (mangled
+  placeholders / over-cap after restore), before retain.
+  A degradation `failedCount` can't see; would otherwise
+  look like `no-facts`.

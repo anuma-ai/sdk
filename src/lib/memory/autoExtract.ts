@@ -175,6 +175,16 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * indistinguishable). See {@link extractAndRetain}'s `outcome`.
    */
   onExhaustedEmpty?: () => void;
+  /**
+   * Called when the extractor DID produce candidates but PII de-anonymization
+   * dropped every one of them — the model mangled its placeholders (so they
+   * can't be restored to real values) or restoring the values blew the length
+   * cap. These drops happen before `retain()`, so `failedCount` can't see them,
+   * and the turn would otherwise masquerade as a quiet `no-facts` result. Lets
+   * H3's `outcome` surface `dropped-after-redaction` so a rising PII-drop rate
+   * (i.e. redaction silently eating facts) is alarmable.
+   */
+  onCandidatesDropped?: () => void;
 }
 
 /**
@@ -238,15 +248,32 @@ export async function extractFacts(
     fallbackSourceId
   );
   if (!redactor) return candidates;
-  // Restore real values in the extracted facts (content + entities) — the LLM
-  // saw placeholders, so its output references them. Then guard the output:
-  // - strip any entity that is still a placeholder the model hallucinated
-  //   (no mapping existed, so deAnonymize left it literal);
-  // - drop the whole fact when its content still carries a residual placeholder
-  //   (an unreliable fact built on an unresolved value), or when restoring real
-  //   values pushed it past MAX_CONTENT_LENGTH (validateCandidates capped the
-  //   shorter placeholder form). Both keep opaque tokens / over-cap text out of
-  //   the vault.
+  const restored = restoreCandidates(candidates, redactor);
+  // H3: the extractor found facts but de-anonymization dropped every one
+  // (mangled placeholders / over-cap after restore). That degradation is
+  // invisible to `failedCount` (it happens before retain) and would otherwise
+  // look like a quiet no-facts turn — surface it.
+  if (candidates.length > 0 && restored.length === 0) {
+    options.onCandidatesDropped?.();
+  }
+  return restored;
+}
+
+/**
+ * Restore real PII values in extracted facts (content + entities) — the LLM saw
+ * placeholders, so its output references them. Then guard the output:
+ * - strip any entity that is still a placeholder the model hallucinated
+ *   (no mapping existed, so deAnonymize left it literal);
+ * - drop the whole fact when its content still carries a residual placeholder
+ *   (an unreliable fact built on an unresolved value), or when restoring real
+ *   values pushed it past MAX_CONTENT_LENGTH (validateCandidates capped the
+ *   shorter placeholder form). Both keep opaque tokens / over-cap text out of
+ *   the vault.
+ */
+function restoreCandidates(
+  candidates: ExtractedCandidate[],
+  redactor: PiiRedactor
+): ExtractedCandidate[] {
   return candidates
     .map((c) => {
       const content = redactor.restoreForStorage(c.content);
@@ -282,8 +309,17 @@ export async function extractFacts(
  *                         exhausting retries (a *failure*). Distinguishing this
  *                         from `no-facts` is what makes a silently-degrading
  *                         extractor alarmable rather than invisible.
+ * - `dropped-after-redaction` — the extractor found facts but PII
+ *                         de-anonymization dropped every one (mangled
+ *                         placeholders / over-cap after restore), before retain.
+ *                         A degradation `failedCount` can't see; would otherwise
+ *                         look like `no-facts`.
  */
-export type ExtractOutcome = "extracted" | "no-facts" | "empty-after-retry";
+export type ExtractOutcome =
+  | "extracted"
+  | "no-facts"
+  | "empty-after-retry"
+  | "dropped-after-redaction";
 
 /**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
@@ -348,15 +384,23 @@ export async function extractAndRetain(
         }
       : undefined;
 
-  // Detect an exhausted-retry empty result so the caller can tell a degrading
-  // extractor from a genuinely quiet turn. Chain any caller-supplied hook.
+  // Detect degraded-empty results so the caller can tell a degrading extractor
+  // from a genuinely quiet turn: `exhaustedEmpty` = the LLM call failed after
+  // retries; `droppedAfterRedaction` = facts were found but PII restore dropped
+  // them all. Chain any caller-supplied hooks.
   let exhaustedEmpty = false;
+  let droppedAfterRedaction = false;
   const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
+  const callerOnCandidatesDropped = options.extract.onCandidatesDropped;
   const candidates = await extractFacts(messages, {
     ...options.extract,
     onExhaustedEmpty: () => {
       exhaustedEmpty = true;
       callerOnExhaustedEmpty?.();
+    },
+    onCandidatesDropped: () => {
+      droppedAfterRedaction = true;
+      callerOnCandidatesDropped?.();
     },
   });
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
@@ -406,7 +450,9 @@ export async function extractAndRetain(
     ? "empty-after-retry"
     : filtered.length > 0
       ? "extracted"
-      : "no-facts";
+      : droppedAfterRedaction
+        ? "dropped-after-redaction"
+        : "no-facts";
 
   return { candidates: succeededCandidates, results, failedCount: failedWrites, outcome };
 }

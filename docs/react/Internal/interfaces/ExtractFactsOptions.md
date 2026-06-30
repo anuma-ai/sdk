@@ -218,6 +218,26 @@ Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/
 
 ***
 
+### onCandidatesDropped()?
+
+> `optional` **onCandidatesDropped**: () => `void`
+
+Defined in: [src/lib/memory/autoExtract.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#187)
+
+Called when the extractor DID produce candidates but PII de-anonymization
+dropped every one of them — the model mangled its placeholders (so they
+can't be restored to real values) or restoring the values blew the length
+cap. These drops happen before `retain()`, so `failedCount` can't see them,
+and the turn would otherwise masquerade as a quiet `no-facts` result. Lets
+H3's `outcome` surface `dropped-after-redaction` so a rising PII-drop rate
+(i.e. redaction silently eating facts) is alarmable.
+
+**Returns**
+
+`void`
+
+***
+
 ### onExhaustedEmpty()?
 
 > `optional` **onExhaustedEmpty**: () => `void`
