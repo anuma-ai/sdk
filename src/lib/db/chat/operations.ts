@@ -3,6 +3,7 @@ import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decryptJsonField } from "../encryption-utils";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
@@ -1008,9 +1009,18 @@ export async function searchChunksOp(
     limit?: number;
     minSimilarity?: number;
     conversationId?: string;
+    /**
+     * Current embedding model. When set, messages whose stored
+     * `embedding_model` is non-null and differs are skipped — their vectors
+     * live in a different space, so cosine against the current-model query is
+     * meaningless (and the dim-mismatch path returns 0 silently). Null/absent
+     * `embedding_model` is grandfathered as current-model-compatible. Skipped
+     * messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
+     */
+    embeddingModel?: string;
   }
 ): Promise<ChunkSearchResult[]> {
-  const { limit = 10, minSimilarity = 0.5, conversationId } = options || {};
+  const { limit = 10, minSimilarity = 0.5, conversationId, embeddingModel } = options || {};
 
   const activeConversations = await ctx.conversationsCollection
     .query(Q.where("is_deleted", false))
@@ -1040,11 +1050,23 @@ export async function searchChunksOp(
     chunkTextSource: { kind: "chunk"; text: string } | { kind: "message" };
   };
   const candidates: Candidate[] = [];
+  let staleSkipped = 0;
 
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
     const msgConvId = String(message._getRaw("conversation_id"));
     if (!activeConversationIds.has(msgConvId)) continue;
+
+    // Skip stale-model vectors: a non-null embedding_model that differs from
+    // the current model lives in an incompatible vector space. Null is
+    // grandfathered (legacy rows were embedded with the current model).
+    if (embeddingModel) {
+      const storedModel = message._getRaw("embedding_model") as string | null | undefined;
+      if (storedModel !== null && storedModel !== undefined && storedModel !== embeddingModel) {
+        staleSkipped++;
+        continue;
+      }
+    }
 
     // Use _getRaw to read JSON fields that may be encrypted - the @json decorator fails on encrypted strings
     const chunks = await readJsonField<MessageChunk[]>(message, "chunks", ctx.walletAddress);
@@ -1073,6 +1095,13 @@ export async function searchChunksOp(
         candidates.push({ message, similarity, chunkTextSource: { kind: "message" } });
       }
     }
+  }
+
+  if (staleSkipped > 0) {
+    getLogger().warn(
+      `searchChunksOp: skipped ${staleSkipped} messages whose embedding model differs from ` +
+        `the current model (${embeddingModel}) — re-embed via chunkAndEmbedAllMessages`
+    );
   }
 
   const topK = candidates.sort((a, b) => b.similarity - a.similarity).slice(0, limit);

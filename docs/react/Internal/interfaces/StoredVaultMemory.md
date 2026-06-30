@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#26)
+Defined in: [src/lib/db/memoryVault/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#29)
 
 ***
 
@@ -32,11 +32,22 @@ JSON-stringified embedding vector, null if not yet computed
 
 ***
 
+### embeddingModel
+
+> **embeddingModel**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#16)
+
+Model that produced `embedding`. Null on legacy rows (grandfathered as
+compatible with the current model).
+
+***
+
 ### eventTimeEnd
 
 > **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#23)
+Defined in: [src/lib/db/memoryVault/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#26)
 
 W6 temporal lane — Unix ms when the event ended (range only).
 
@@ -46,7 +57,7 @@ W6 temporal lane — Unix ms when the event ended (range only).
 
 > **eventTimeKind**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#25)
+Defined in: [src/lib/db/memoryVault/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#28)
 
 W6 temporal lane — `point | range | ongoing | null`.
 
@@ -56,7 +67,7 @@ W6 temporal lane — `point | range | ongoing | null`.
 
 > **eventTimeStart**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#21)
+Defined in: [src/lib/db/memoryVault/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#24)
 
 W6 temporal lane — Unix ms when the event occurred (point/start of range).
 
@@ -76,7 +87,7 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#28)
+Defined in: [src/lib/db/memoryVault/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#31)
 
 ***
 
@@ -84,7 +95,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:28](https://github.com/anuma-ai/sdk
 
 > **proofCount**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#17)
+Defined in: [src/lib/db/memoryVault/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#20)
 
 Times this fact has been re-observed (for ranking + UX badges).
 
@@ -104,7 +115,7 @@ Scope for partitioning memories (e.g., "private", "shared")
 
 > **source**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#19)
+Defined in: [src/lib/db/memoryVault/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#22)
 
 How the memory was created: manual | auto-extracted | capsule.
 
@@ -114,7 +125,7 @@ How the memory was created: manual | auto-extracted | capsule.
 
 > **sourceChunkIds**: `string`\[] | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#15)
+Defined in: [src/lib/db/memoryVault/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#18)
 
 JSON-stringified array of source message IDs this fact was extracted from.
 
@@ -134,7 +145,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#27)
+Defined in: [src/lib/db/memoryVault/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#30)
 
 ***
 

@@ -219,8 +219,7 @@ export async function consolidateMemory(
     // optional quality stage — it must never crash the retain it
     // decorates, and the documented contract is fallback-to-create on
     // ANY failure. Degrade and surface via onFallback + logger.
-    getLogger().warn("memory/consolidate: portal call failed, degrading to create", err);
-    return degrade("llm_error", fallback, options);
+    return degrade("llm_error", fallback, options, err);
   }
   if (parsed === null) return degrade("llm_error", fallback, options);
 
@@ -250,8 +249,19 @@ export async function consolidateMemory(
 function degrade(
   reason: ConsolidationFallbackReason,
   fallback: ConsolidationResult,
-  options: ConsolidateOptions
+  options: ConsolidateOptions,
+  detail?: unknown
 ): ConsolidationResult {
+  // Warn by default so a persistently-failing consolidator (which silently
+  // accumulates duplicate memories) is observable without the caller having
+  // wired onFallback. This is the single log point for all degrade paths —
+  // previously only the thrown-error path logged, so parsed===null and
+  // invalid_response fallbacks were invisible.
+  if (detail !== undefined) {
+    getLogger().warn(`memory/consolidate: degraded to create (${reason})`, detail);
+  } else {
+    getLogger().warn(`memory/consolidate: degraded to create (${reason})`);
+  }
   try {
     options.onFallback?.(reason);
   } catch {

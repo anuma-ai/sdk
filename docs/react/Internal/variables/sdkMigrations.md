@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:340](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#340)
+Defined in: [src/lib/db/schema.ts:350](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#350)
 
 Combined migrations for all SDK storage modules.
 
@@ -44,3 +44,5 @@ Migration history:
 * v28 → v29: Added `entity` + `memory_entity` tables for W5 knowledge-graph retrieval lane
 * v29 → v30: Added `event_time_start`, `event_time_end`, `event_time_kind` columns to memory\_vault for W6 temporal retrieval lane
 * v30 → v31: Added `user_id` column to memory\_entity for multi-user scoping of the W5 graph lane (with backfill from memory\_vault.user\_id)
+* v31 → v32: Added `pinned_at` column to conversations for pinning chats
+* v32 → v33: Added `embedding_model` column to memory\_vault (null grandfathered as current-model-compatible)
