@@ -51,6 +51,29 @@ describe("createMessageOp idempotency (duplicate uniqueId)", () => {
     expect(all).toHaveLength(1);
   });
 
+  it("returns the first-persisted row on replay and does NOT refresh diverging content", async () => {
+    const ctx = makeCtx(makeDatabase());
+    const opts: CreateMessageOptions = {
+      conversationId: "conv-1",
+      role: "user",
+      content: "original content",
+      uniqueId: "msg-edit",
+    };
+
+    const first = await createMessageOp(ctx, opts);
+    expect(first.content).toBe("original content");
+
+    // A replay with the SAME uniqueId but edited content must not mutate the
+    // stored row — createMessageOp's idempotency guard returns the first-persisted
+    // version as-is. Callers needing in-place reconciliation use upsertMessageOp.
+    const replay = await createMessageOp(ctx, { ...opts, content: "edited content" });
+    expect(replay.content).toBe("original content");
+    expect(replay.messageId).toBe(first.messageId);
+
+    const all = await ctx.messagesCollection.query().fetch();
+    expect(all).toHaveLength(1);
+  });
+
   it("still creates normally when no uniqueId collision exists", async () => {
     const ctx = makeCtx(makeDatabase());
     const base: CreateMessageOptions = {

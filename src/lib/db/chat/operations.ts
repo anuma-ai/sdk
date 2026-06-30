@@ -579,17 +579,31 @@ export async function createMessageOp(
   // fire it twice). A second create with an already-used id throws the LokiJS
   // "Duplicate key for property id: <id>" error, which surfaced ~daily in the chat
   // path. If the message is already persisted, return it instead of recreating.
+  //
+  // On replay the FIRST-persisted row wins: we return it as-is and do not refresh
+  // its content from `opts`. Callers reusing a `uniqueId` with diverging fields
+  // (e.g. edited-then-resubmitted content) must use `upsertMessageOp` instead,
+  // which reconciles the row in place.
+  //
+  // Only `find()` is guarded — a miss means "not yet persisted", so we fall through
+  // to create. `messageToStored()` runs outside the catch so a genuine failure
+  // (e.g. decryption of an existing row) propagates instead of masquerading as a
+  // miss and falling through to a create() that would re-throw the duplicate-key
+  // error this guard exists to prevent. Mirrors the find pattern in the update ops.
   if (opts.uniqueId) {
+    let existing: Message | null;
     try {
-      const existing = await ctx.messagesCollection.find(opts.uniqueId);
+      existing = await ctx.messagesCollection.find(opts.uniqueId);
+    } catch {
+      existing = null;
+    }
+    if (existing) {
       return messageToStored(
         existing,
         ctx.walletAddress,
         ctx.signMessage,
         ctx.embeddedWalletSigner
       );
-    } catch {
-      // Not found — fall through to create the new message.
     }
   }
 
