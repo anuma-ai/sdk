@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminOauthClientsByClientIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5163)
+Defined in: [src/client/types.gen.ts:5222](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5222)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5163](https://github.com/anuma-ai/sdk/blob/
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5167](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5167)
+Defined in: [src/client/types.gen.ts:5226](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5226)
 
 Not Found

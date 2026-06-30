@@ -2,7 +2,7 @@
 
 > **HandlersMfaSessionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3053)
+Defined in: [src/client/types.gen.ts:3112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3112)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3053](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **expires\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:3054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3054)
+Defined in: [src/client/types.gen.ts:3113](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3113)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3054](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **mfa\_session\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:3055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3055)
+Defined in: [src/client/types.gen.ts:3114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3114)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:3055](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **recovery\_codes**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:3056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3056)
+Defined in: [src/client/types.gen.ts:3115](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3115)

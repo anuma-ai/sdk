@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserOauthGrantsByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9309)
+Defined in: [src/client/types.gen.ts:9518](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9518)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9309](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:9313](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9313)
+Defined in: [src/client/types.gen.ts:9522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9522)
 
 OK
 

@@ -2,7 +2,7 @@
 
 > **getApiV1PhoneCallsByCallId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1PhoneCallsByCallIdData`](../type-aliases/GetApiV1PhoneCallsByCallIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1PhoneCallsByCallIdResponses`](../type-aliases/GetApiV1PhoneCallsByCallIdResponses.md), [`GetApiV1PhoneCallsByCallIdErrors`](../type-aliases/GetApiV1PhoneCallsByCallIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1361](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1361)
+Defined in: [src/client/sdk.gen.ts:1409](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1409)
 
 Get phone call
 

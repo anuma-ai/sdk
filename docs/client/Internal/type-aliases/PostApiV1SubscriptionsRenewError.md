@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsRenewError** = [`PostApiV1SubscriptionsRenewErrors`](PostApiV1SubscriptionsRenewErrors.md)\[keyof [`PostApiV1SubscriptionsRenewErrors`](PostApiV1SubscriptionsRenewErrors.md)]
 
-Defined in: [src/client/types.gen.ts:8668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8668)
+Defined in: [src/client/types.gen.ts:8877](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8877)

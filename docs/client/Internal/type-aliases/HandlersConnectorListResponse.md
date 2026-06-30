@@ -2,7 +2,7 @@
 
 > **HandlersConnectorListResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1556](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1556)
+Defined in: [src/client/types.gen.ts:1575](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1575)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1556](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **connectors**: [`HandlersConnectorListItem`](HandlersConnectorListItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:1557](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1557)
+Defined in: [src/client/types.gen.ts:1576](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1576)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:1557](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **denied\_tools**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1558](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1558)
+Defined in: [src/client/types.gen.ts:1577](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1577)

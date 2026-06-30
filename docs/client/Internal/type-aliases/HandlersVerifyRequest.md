@@ -2,7 +2,7 @@
 
 > **HandlersVerifyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3106)
+Defined in: [src/client/types.gen.ts:3165](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3165)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3106](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **code**: `string`
 
-Defined in: [src/client/types.gen.ts:3107](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3107)
+Defined in: [src/client/types.gen.ts:3166](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3166)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:3107](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **method**: `string`
 
-Defined in: [src/client/types.gen.ts:3108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3108)
+Defined in: [src/client/types.gen.ts:3167](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3167)

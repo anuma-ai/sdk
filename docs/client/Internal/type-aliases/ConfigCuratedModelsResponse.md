@@ -2,7 +2,7 @@
 
 > **ConfigCuratedModelsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#107)
+Defined in: [src/client/types.gen.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#97)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:107](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **compact**: [`ConfigCompactLists`](ConfigCompactLists.md)
 
-Defined in: [src/client/types.gen.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#108)
+Defined in: [src/client/types.gen.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#98)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:108](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **models**: [`ConfigCuratedModel`](ConfigCuratedModel.md)\[]
 
-Defined in: [src/client/types.gen.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#109)
+Defined in: [src/client/types.gen.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#99)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:109](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **smart\_groups**: [`ConfigSmartGroup`](ConfigSmartGroup.md)\[]
 
-Defined in: [src/client/types.gen.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#110)
+Defined in: [src/client/types.gen.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#100)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:110](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **version**: `string`
 
-Defined in: [src/client/types.gen.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#111)
+Defined in: [src/client/types.gen.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#101)

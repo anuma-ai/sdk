@@ -2,7 +2,7 @@
 
 > **HandlersUsagePeriod** = `object`
 
-Defined in: [src/client/types.gen.ts:2780](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2780)
+Defined in: [src/client/types.gen.ts:2836](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2836)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2780](https://github.com/anuma-ai/sdk/blob/
 
 > **end**: `string`
 
-Defined in: [src/client/types.gen.ts:2781](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2781)
+Defined in: [src/client/types.gen.ts:2837](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2837)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2781](https://github.com/anuma-ai/sdk/blob/
 
 > **start**: `string`
 
-Defined in: [src/client/types.gen.ts:2782](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2782)
+Defined in: [src/client/types.gen.ts:2838](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2838)

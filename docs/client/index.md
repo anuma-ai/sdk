@@ -7,11 +7,11 @@
 | [AuthJwk](Internal/type-aliases/AuthJwk.md) | - |
 | [AuthJwks](Internal/type-aliases/AuthJwks.md) | - |
 | [ClientOptions](Internal/type-aliases/ClientOptions.md) | - |
-| [CoingeckoQuote](Internal/type-aliases/CoingeckoQuote.md) | - |
 | [ConfigCompactLists](Internal/type-aliases/ConfigCompactLists.md) | - |
 | [ConfigCuratedModel](Internal/type-aliases/ConfigCuratedModel.md) | - |
 | [ConfigCuratedModelsResponse](Internal/type-aliases/ConfigCuratedModelsResponse.md) | - |
 | [ConfigSmartGroup](Internal/type-aliases/ConfigSmartGroup.md) | - |
+| [CryptocompareQuote](Internal/type-aliases/CryptocompareQuote.md) | - |
 | [DeleteApiV1AccountData](Internal/type-aliases/DeleteApiV1AccountData.md) | - |
 | [DeleteApiV1AccountError](Internal/type-aliases/DeleteApiV1AccountError.md) | - |
 | [DeleteApiV1AccountErrors](Internal/type-aliases/DeleteApiV1AccountErrors.md) | - |
@@ -374,6 +374,7 @@
 | [HandlersBoundWalletResponse](Internal/type-aliases/HandlersBoundWalletResponse.md) | - |
 | [HandlersCancelResponse](Internal/type-aliases/HandlersCancelResponse.md) | - |
 | [HandlersCancelScheduledDowngradeResponse](Internal/type-aliases/HandlersCancelScheduledDowngradeResponse.md) | - |
+| [HandlersCancelSubscriptionRequest](Internal/type-aliases/HandlersCancelSubscriptionRequest.md) | - |
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
@@ -383,6 +384,7 @@
 | [HandlersConnectorListItem](Internal/type-aliases/HandlersConnectorListItem.md) | - |
 | [HandlersConnectorListResponse](Internal/type-aliases/HandlersConnectorListResponse.md) | - |
 | [HandlersConnectorMintErrorResponse](Internal/type-aliases/HandlersConnectorMintErrorResponse.md) | - |
+| [HandlersConnectorProxyRequest](Internal/type-aliases/HandlersConnectorProxyRequest.md) | - |
 | [HandlersConnectorScopesResponse](Internal/type-aliases/HandlersConnectorScopesResponse.md) | - |
 | [HandlersConnectorSettingResponse](Internal/type-aliases/HandlersConnectorSettingResponse.md) | - |
 | [HandlersConnectorTokenRequest](Internal/type-aliases/HandlersConnectorTokenRequest.md) | - |
@@ -495,6 +497,8 @@
 | [HandlersSubscriptionPlan](Internal/type-aliases/HandlersSubscriptionPlan.md) | - |
 | [HandlersSubscriptionPlansResponse](Internal/type-aliases/HandlersSubscriptionPlansResponse.md) | - |
 | [HandlersSubscriptionStatusResponse](Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | - |
+| [HandlersSuspendAccountRequest](Internal/type-aliases/HandlersSuspendAccountRequest.md) | - |
+| [HandlersSuspendAccountResponse](Internal/type-aliases/HandlersSuspendAccountResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
 | [HandlersToolCallDetailItem](Internal/type-aliases/HandlersToolCallDetailItem.md) | - |
@@ -502,6 +506,8 @@
 | [HandlersTotpEnrollInitResponse](Internal/type-aliases/HandlersTotpEnrollInitResponse.md) | - |
 | [HandlersTotpVerifyRequest](Internal/type-aliases/HandlersTotpVerifyRequest.md) | - |
 | [HandlersUnregisterDeviceRequest](Internal/type-aliases/HandlersUnregisterDeviceRequest.md) | - |
+| [HandlersUnsuspendAccountRequest](Internal/type-aliases/HandlersUnsuspendAccountRequest.md) | - |
+| [HandlersUnsuspendAccountResponse](Internal/type-aliases/HandlersUnsuspendAccountResponse.md) | - |
 | [HandlersUpdateAgentRequest](Internal/type-aliases/HandlersUpdateAgentRequest.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
 | [HandlersUpdateAppRequest](Internal/type-aliases/HandlersUpdateAppRequest.md) | - |
@@ -727,6 +733,16 @@
 | [PostApiV1AdminSubscriptionTierErrors](Internal/type-aliases/PostApiV1AdminSubscriptionTierErrors.md) | - |
 | [PostApiV1AdminSubscriptionTierResponse](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponse.md) | - |
 | [PostApiV1AdminSubscriptionTierResponses](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponses.md) | - |
+| [PostApiV1AdminUsersSuspendData](Internal/type-aliases/PostApiV1AdminUsersSuspendData.md) | - |
+| [PostApiV1AdminUsersSuspendError](Internal/type-aliases/PostApiV1AdminUsersSuspendError.md) | - |
+| [PostApiV1AdminUsersSuspendErrors](Internal/type-aliases/PostApiV1AdminUsersSuspendErrors.md) | - |
+| [PostApiV1AdminUsersSuspendResponse](Internal/type-aliases/PostApiV1AdminUsersSuspendResponse.md) | - |
+| [PostApiV1AdminUsersSuspendResponses](Internal/type-aliases/PostApiV1AdminUsersSuspendResponses.md) | - |
+| [PostApiV1AdminUsersUnsuspendData](Internal/type-aliases/PostApiV1AdminUsersUnsuspendData.md) | - |
+| [PostApiV1AdminUsersUnsuspendError](Internal/type-aliases/PostApiV1AdminUsersUnsuspendError.md) | - |
+| [PostApiV1AdminUsersUnsuspendErrors](Internal/type-aliases/PostApiV1AdminUsersUnsuspendErrors.md) | - |
+| [PostApiV1AdminUsersUnsuspendResponse](Internal/type-aliases/PostApiV1AdminUsersUnsuspendResponse.md) | - |
+| [PostApiV1AdminUsersUnsuspendResponses](Internal/type-aliases/PostApiV1AdminUsersUnsuspendResponses.md) | - |
 | [PostApiV1AuthMfaDisableData](Internal/type-aliases/PostApiV1AuthMfaDisableData.md) | - |
 | [PostApiV1AuthMfaDisableError](Internal/type-aliases/PostApiV1AuthMfaDisableError.md) | - |
 | [PostApiV1AuthMfaDisableErrors](Internal/type-aliases/PostApiV1AuthMfaDisableErrors.md) | - |
@@ -787,6 +803,11 @@
 | [PostApiV1ConnectorsByProviderDisconnectErrors](Internal/type-aliases/PostApiV1ConnectorsByProviderDisconnectErrors.md) | - |
 | [PostApiV1ConnectorsByProviderDisconnectResponse](Internal/type-aliases/PostApiV1ConnectorsByProviderDisconnectResponse.md) | - |
 | [PostApiV1ConnectorsByProviderDisconnectResponses](Internal/type-aliases/PostApiV1ConnectorsByProviderDisconnectResponses.md) | - |
+| [PostApiV1ConnectorsByProviderProxyData](Internal/type-aliases/PostApiV1ConnectorsByProviderProxyData.md) | - |
+| [PostApiV1ConnectorsByProviderProxyError](Internal/type-aliases/PostApiV1ConnectorsByProviderProxyError.md) | - |
+| [PostApiV1ConnectorsByProviderProxyErrors](Internal/type-aliases/PostApiV1ConnectorsByProviderProxyErrors.md) | - |
+| [PostApiV1ConnectorsByProviderProxyResponse](Internal/type-aliases/PostApiV1ConnectorsByProviderProxyResponse.md) | - |
+| [PostApiV1ConnectorsByProviderProxyResponses](Internal/type-aliases/PostApiV1ConnectorsByProviderProxyResponses.md) | - |
 | [PostApiV1ConnectorsImportData](Internal/type-aliases/PostApiV1ConnectorsImportData.md) | - |
 | [PostApiV1ConnectorsImportError](Internal/type-aliases/PostApiV1ConnectorsImportError.md) | - |
 | [PostApiV1ConnectorsImportErrors](Internal/type-aliases/PostApiV1ConnectorsImportErrors.md) | - |
@@ -1127,6 +1148,8 @@
 | [postApiV1AdminPrivyIdentifiersMigrate](Internal/functions/postApiV1AdminPrivyIdentifiersMigrate.md) | Migrate Privy wallet identifiers |
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
+| [postApiV1AdminUsersSuspend](Internal/functions/postApiV1AdminUsersSuspend.md) | Suspend a user account |
+| [postApiV1AdminUsersUnsuspend](Internal/functions/postApiV1AdminUsersUnsuspend.md) | Unsuspend a user account |
 | [postApiV1AuthMfaDisable](Internal/functions/postApiV1AuthMfaDisable.md) | Disable MFA |
 | [postApiV1AuthMfaPasskeyEnrollBegin](Internal/functions/postApiV1AuthMfaPasskeyEnrollBegin.md) | Begin passkey enrollment |
 | [postApiV1AuthMfaPasskeyEnrollFinish](Internal/functions/postApiV1AuthMfaPasskeyEnrollFinish.md) | Finish passkey enrollment |
@@ -1139,6 +1162,7 @@
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
 | [postApiV1ChatStreamsByInferenceIdCancel](Internal/functions/postApiV1ChatStreamsByInferenceIdCancel.md) | Cancel a buffered chat stream |
 | [postApiV1ConnectorsByProviderDisconnect](Internal/functions/postApiV1ConnectorsByProviderDisconnect.md) | Disconnect a connector |
+| [postApiV1ConnectorsByProviderProxy](Internal/functions/postApiV1ConnectorsByProviderProxy.md) | Proxy a read-only connector API call |
 | [postApiV1ConnectorsImport](Internal/functions/postApiV1ConnectorsImport.md) | Import a browser-resident refresh token into the vault |
 | [postApiV1ConnectorTokensByProvider](Internal/functions/postApiV1ConnectorTokensByProvider.md) | Mint a short-lived upstream connector access token |
 | [postApiV1ConnectTickets](Internal/functions/postApiV1ConnectTickets.md) | Mint a connect-flow ticket |

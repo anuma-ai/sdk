@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsServiceTier** = `string`
 
-Defined in: [src/client/types.gen.ts:3665](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3665)
+Defined in: [src/client/types.gen.ts:3724](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3724)
 
 Specifies the processing type used for serving the request.
 

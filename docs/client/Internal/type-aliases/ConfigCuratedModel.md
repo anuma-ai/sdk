@@ -2,7 +2,7 @@
 
 > **ConfigCuratedModel** = `object`
 
-Defined in: [src/client/types.gen.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#36)
+Defined in: [src/client/types.gen.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#26)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:36](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#37)
+Defined in: [src/client/types.gen.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#27)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:37](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **best\_for**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#45)
+Defined in: [src/client/types.gen.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#35)
 
 BestFor lists the use cases this model is well-suited to, e.g.
 "coding", "writing", "reasoning", "vision", "creative". Drives the
@@ -32,7 +32,7 @@ a task group. Free-form strings; the client matches case-insensitively.
 
 > `optional` **category**: `string`
 
-Defined in: [src/client/types.gen.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#49)
+Defined in: [src/client/types.gen.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#39)
 
 "text" | "image" | "vision"
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:49](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#50)
+Defined in: [src/client/types.gen.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#40)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:50](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **featured**: `boolean`
 
-Defined in: [src/client/types.gen.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#51)
+Defined in: [src/client/types.gen.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#41)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/client/types.gen.ts:51](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **group\_display\_name**: `string`
 
-Defined in: [src/client/types.gen.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#52)
+Defined in: [src/client/types.gen.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#42)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [src/client/types.gen.ts:52](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#53)
+Defined in: [src/client/types.gen.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#43)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [src/client/types.gen.ts:53](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **is\_new**: `boolean`
 
-Defined in: [src/client/types.gen.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#60)
+Defined in: [src/client/types.gen.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#50)
 
 IsNew flags a recently-shipped model so clients can render a
 "New" badge in the picker. Set true on freshly-launched additions;
@@ -87,7 +87,7 @@ or two so the badge stays meaningful.
 
 > `optional` **is\_private**: `boolean`
 
-Defined in: [src/client/types.gen.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#61)
+Defined in: [src/client/types.gen.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#51)
 
 ***
 
@@ -95,7 +95,7 @@ Defined in: [src/client/types.gen.ts:61](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **max\_input\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#73)
+Defined in: [src/client/types.gen.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#63)
 
 MaxInputTokens is the authoritative input-context window for this model,
 in tokens, sourced from the provider's docs / model card. REQUIRED for
@@ -113,7 +113,7 @@ number.
 
 > `optional` **modalities**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#74)
+Defined in: [src/client/types.gen.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#64)
 
 ***
 
@@ -121,7 +121,7 @@ Defined in: [src/client/types.gen.ts:74](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#75)
+Defined in: [src/client/types.gen.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#65)
 
 ***
 
@@ -129,7 +129,7 @@ Defined in: [src/client/types.gen.ts:75](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **price\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#79)
+Defined in: [src/client/types.gen.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#69)
 
 "$" | "$$" | "$$$"
 
@@ -139,7 +139,7 @@ Defined in: [src/client/types.gen.ts:79](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#80)
+Defined in: [src/client/types.gen.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#70)
 
 ***
 
@@ -147,7 +147,7 @@ Defined in: [src/client/types.gen.ts:80](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **quality**: `string`
 
-Defined in: [src/client/types.gen.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#84)
+Defined in: [src/client/types.gen.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#74)
 
 "high" | "medium" | "low"
 
@@ -157,7 +157,7 @@ Defined in: [src/client/types.gen.ts:84](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **required\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#88)
+Defined in: [src/client/types.gen.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#78)
 
 "" | "Starter" | "Pro"
 
@@ -167,7 +167,7 @@ Defined in: [src/client/types.gen.ts:88](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **retired**: `boolean`
 
-Defined in: [src/client/types.gen.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#97)
+Defined in: [src/client/types.gen.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#87)
 
 Retired marks a model whose upstream route is dead (the provider dropped
 the slug) — distinct from Active:false, which only hides a model from the
@@ -182,7 +182,7 @@ be Active:false yet still serve fine for users who explicitly picked it
 
 > `optional` **speed\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#104)
+Defined in: [src/client/types.gen.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#94)
 
 SpeedTier is a coarse latency class — "fast" | "balanced" | "slow" —
 independent of Quality (a high-quality model can still be fast). Lets the
