@@ -1196,27 +1196,34 @@ export async function searchVaultMemoriesWithSize(
   const uncachedIndices: number[] = [];
   let staleReembedCount = 0;
   for (let i = 0; i < memories.length; i++) {
-    if (!cache.has(memories[i].content)) {
-      // Check for a usable persisted embedding in DB first
-      const storedModel = memories[i].embeddingModel;
-      const modelCompatible = storedModel == null || storedModel === currentModel;
-      if (memories[i].embedding && modelCompatible) {
-        try {
-          const parsed = JSON.parse(memories[i].embedding!) as number[];
-          if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
-            cache.set(memories[i].content, parsed);
-            continue;
-          }
-          // Dimension mismatch — model changed dims (even a grandfathered
-          // null row). Fall through to re-embed.
-        } catch {
-          // Invalid JSON, re-embed
+    const content = memories[i].content;
+    // A cache hit is usable only if its dimension matches the query. The cache
+    // is keyed by content (not model) and can be seeded by preEmbedVaultMemories
+    // — which has no query vector to dim-check against — so a grandfathered
+    // wrong-dim vector could otherwise live in the cache and evade re-embed.
+    const cached = cache.get(content);
+    if (cached && cached.length === queryEmbedding.length) continue;
+    if (cached) cache.delete(content); // wrong-dim cache entry — drop and re-resolve
+
+    // Check for a usable persisted embedding in DB first
+    const storedModel = memories[i].embeddingModel;
+    const modelCompatible = storedModel == null || storedModel === currentModel;
+    if (memories[i].embedding && modelCompatible) {
+      try {
+        const parsed = JSON.parse(memories[i].embedding!) as number[];
+        if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
+          cache.set(content, parsed);
+          continue;
         }
+        // Dimension mismatch — model changed dims (even a grandfathered
+        // null row). Fall through to re-embed.
+      } catch {
+        // Invalid JSON, re-embed
       }
-      if (memories[i].embedding && !modelCompatible) staleReembedCount++;
-      uncachedTexts.push(memories[i].content);
-      uncachedIndices.push(i);
     }
+    if (memories[i].embedding && !modelCompatible) staleReembedCount++;
+    uncachedTexts.push(content);
+    uncachedIndices.push(i);
   }
   if (staleReembedCount > 0) {
     getLogger().warn(

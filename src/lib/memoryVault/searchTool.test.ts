@@ -731,14 +731,16 @@ describe("embedding dimension-mismatch guard", () => {
   });
   afterEach(() => setLogger(noopLogger));
 
-  it("warns when stored vectors have a different dimension than the query", async () => {
-    // Simulates an embedding-model change: stored vector is 2-dim, query is 3-dim.
-    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "stale dim")]);
+  it("warns when a re-embed returns an inconsistent dimension (post-re-embed drift)", async () => {
+    // The net's remaining role: stale/wrong-dim vectors are re-embedded first,
+    // so the only way an item still mismatches is a re-embed that itself
+    // returns the wrong dim (model/API drift). Query is 3-dim; the re-embed
+    // returns a 2-dim vector.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "drifted")]);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0]]); // wrong dim from re-embed
 
     const cache = createVaultEmbeddingCache();
-    cache.set("stale dim", [1, 0]); // wrong dimension
-
     await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
       useFusion: false,
@@ -824,5 +826,34 @@ describe("embedding model versioning", () => {
       JSON.stringify([1, 0, 0]),
       DEFAULT_API_EMBEDDING_MODEL
     );
+  });
+
+  it("re-embeds a wrong-dimension cache hit instead of ranking with it", async () => {
+    // The content-keyed cache can be seeded (e.g. by preEmbedVaultMemories,
+    // which has no query vector to dim-check) with a grandfathered wrong-dim
+    // vector. Search must validate the cached vector's dimension, not trust the
+    // cache hit blindly, or a model dim change would rank at cosine 0 forever.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "seeded wrong dim")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]); // query is 3-dim
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("seeded wrong dim", [1, 0]); // 2-dim — stale from an old model
+
+    const { results } = await searchVaultMemoriesWithSize(
+      "q",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: false }
+    );
+
+    // The wrong-dim cache entry was dropped and re-embedded, then ranked.
+    expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledWith(
+      ["seeded wrong dim"],
+      mockEmbeddingOptions
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].similarity).toBeCloseTo(1);
   });
 });

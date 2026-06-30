@@ -452,13 +452,11 @@ export async function updateVaultMemoryOp(
         }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
-          // Keep the model tag in sync with the vector. When embedding is
-          // cleared (null), clear the tag too so a re-embed re-stamps it.
-          if (opts.embeddingModel !== undefined) {
-            r._setRaw("embedding_model", opts.embeddingModel);
-          } else if (opts.embedding === null) {
-            r._setRaw("embedding_model", null);
-          }
+          // Keep the model tag in sync with the vector. An explicit model wins;
+          // otherwise reset to null (grandfathered / current-compatible). Never
+          // leave the prior tag on a new vector — a stale tag would make search
+          // treat the row as stale every query and re-embed it in a loop.
+          r._setRaw("embedding_model", opts.embeddingModel ?? null);
         }
         if (opts.sourceChunkIds !== undefined) {
           r._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));

@@ -137,6 +137,12 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * against its own training-cutoff guess and emits wrong `eventTime` dates.
    * Defaults to `Date.now()`. Override for back-dated eval corpora and
    * deterministic tests (mirrors {@link RecallOptions.now}).
+   *
+   * Server-side timezone note: the ms value is formatted to a calendar date in
+   * the process's local timezone (same basis as `parseLocalCalendarDay`). On a
+   * UTC server, a user near midnight in a non-UTC offset can get the wrong
+   * calendar day. Pass the user's local-midnight timestamp as `now` when the
+   * process timezone doesn't match the user's.
    */
   now?: number;
   /**
