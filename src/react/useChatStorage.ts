@@ -1201,27 +1201,28 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  */
 const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
-const conversationRedactors = new Map<string, PiiRedactor>();
+// Cached redactor + the detector it was built with, so a change in detector
+// (enabled→disabled, or one instance swapped for another) rebuilds rather than
+// silently reusing a redactor wired to the old detector.
+const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 
 function getConversationRedactor(
   conversationId: string | null,
   nerDetector?: NerDetector
 ): PiiRedactor {
-  // Key on detector presence too, so toggling NER on/off for a conversation
-  // yields a fresh redactor built with (or without) the detector rather than
-  // reusing a stale one. Placeholder numbering restarting on toggle is fine.
-  // The flag is a PREFIX (not a suffix) so it can't collide with a conversation
-  // id that happens to end in the marker.
-  const key = (nerDetector ? "ner:" : "noner:") + (conversationId ?? NO_CONVERSATION_KEY);
-  let redactor = conversationRedactors.get(key);
-  if (redactor) {
-    // Refresh recency (Map preserves insertion order → re-insert moves to end).
+  const key = conversationId ?? NO_CONVERSATION_KEY;
+  const cached = conversationRedactors.get(key);
+  if (cached && cached.detector === nerDetector) {
+    // Same detector identity → reuse (and refresh recency: Map preserves
+    // insertion order, so re-inserting moves it to the end).
     conversationRedactors.delete(key);
-    conversationRedactors.set(key, redactor);
-    return redactor;
+    conversationRedactors.set(key, cached);
+    return cached.redactor;
   }
-  redactor = new PiiRedactor({ nerDetector });
-  conversationRedactors.set(key, redactor);
+  // No entry, or the detector changed → fresh redactor. Placeholder numbering
+  // restarting on a detector change is fine.
+  const redactor = new PiiRedactor({ nerDetector });
+  conversationRedactors.set(key, { redactor, detector: nerDetector });
   if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
     const oldest = conversationRedactors.keys().next().value;
     if (oldest !== undefined) conversationRedactors.delete(oldest);
