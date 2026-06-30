@@ -1,6 +1,6 @@
 # SelectServerToolsForPromptOptions
 
-Defined in: [src/lib/tools/serverTools.ts:1450](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1450)
+Defined in: [src/lib/tools/serverTools.ts:1539](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1539)
 
 Options for `selectServerToolsForPrompt`.
 
@@ -10,7 +10,7 @@ Options for `selectServerToolsForPrompt`.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1463](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1463)
+Defined in: [src/lib/tools/serverTools.ts:1552](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1552)
 
 Base URL for the API.
 
@@ -20,9 +20,21 @@ Base URL for the API.
 
 > `optional` **cacheExpirationMs**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:1467](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1467)
+Defined in: [src/lib/tools/serverTools.ts:1556](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1556)
 
 Cache expiration in ms for the server-tools catalog fetch.
+
+***
+
+### deferLoading?
+
+> `optional` **deferLoading**: `DeferLoadingConfig`
+
+Defined in: [src/lib/tools/serverTools.ts:1562](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1562)
+
+Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
+static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
+for mergeTools + tool-search. Omit/disabled → today's filtered selection.
 
 ***
 
@@ -30,7 +42,7 @@ Cache expiration in ms for the server-tools catalog fetch.
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1465](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1465)
+Defined in: [src/lib/tools/serverTools.ts:1554](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1554)
 
 Embedding model override. Falls back to the SDK default.
 
@@ -40,7 +52,7 @@ Embedding model override. Falls back to the SDK default.
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/tools/serverTools.ts:1461](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1461)
+Defined in: [src/lib/tools/serverTools.ts:1550](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1550)
 
 Function that resolves an auth token (Bearer).
 
@@ -54,7 +66,7 @@ Function that resolves an auth token (Bearer).
 
 > **prompt**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:1452](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1452)
+Defined in: [src/lib/tools/serverTools.ts:1541](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1541)
 
 User prompt to match tools against.
 
@@ -64,7 +76,7 @@ User prompt to match tools against.
 
 > `optional` **serverToolsFilter**: `string`\[] | [`ServerToolsFilterFunction`](../type-aliases/ServerToolsFilterFunction.md)
 
-Defined in: [src/lib/tools/serverTools.ts:1459](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1459)
+Defined in: [src/lib/tools/serverTools.ts:1548](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1548)
 
 Filter to apply: either a function (called with the prompt embedding +
 full catalog) or a static list of tool names. Same shape `useChatStorage`

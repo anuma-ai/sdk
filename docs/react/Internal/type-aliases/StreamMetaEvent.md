@@ -2,7 +2,7 @@
 
 > **StreamMetaEvent** = `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:634](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#634)
+Defined in: [src/lib/chat/toolLoop.ts:643](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#643)
 
 Payload for RunToolLoopOptions.onStreamMeta.
 
@@ -12,7 +12,7 @@ Payload for RunToolLoopOptions.onStreamMeta.
 
 > **inferenceId**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:635](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#635)
+Defined in: [src/lib/chat/toolLoop.ts:644](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#644)
 
 ***
 
@@ -20,6 +20,6 @@ Defined in: [src/lib/chat/toolLoop.ts:635](https://github.com/anuma-ai/sdk/blob/
 
 > **round**: `number`
 
-Defined in: [src/lib/chat/toolLoop.ts:637](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#637)
+Defined in: [src/lib/chat/toolLoop.ts:646](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#646)
 
 0 = initial request, 1+ = continuation round (same numbering as RequestEvent.round).

@@ -25,6 +25,10 @@ import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/se
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.85;
+/** Scope an unset `options.scope` resolves to — matches the DB write default
+ * (`createVaultMemoryOp`). Used for BOTH the dedup search and the write so they
+ * stay symmetric (see retain()). */
+const DEFAULT_SCOPE = "private";
 /** Looser threshold for the consolidator candidate set — paraphrased dupes
  * cluster around 0.7–0.8, which the strict 0.85 cosine merge misses. */
 const DEFAULT_CONSOLIDATE_THRESHOLD = 0.65;
@@ -61,6 +65,14 @@ export async function retain(
   const enableAutoMerge = options.enableAutoMerge ?? true;
   const threshold = options.autoMergeThreshold ?? DEFAULT_AUTO_MERGE_THRESHOLD;
 
+  // Resolve the scope ONCE and use it for both the dedup search and the write.
+  // Leaving the search unscoped (its old behavior) made read and write
+  // asymmetric: an unscoped search could match — and merge into — a memory in a
+  // different scope, or, when a caller passed a scope, miss a dupe sitting in
+  // the default scope and create a duplicate. Searching the exact scope we'll
+  // write to keeps dedup correct.
+  const resolvedScope = options.scope ?? DEFAULT_SCOPE;
+
   if (enableAutoMerge) {
     // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
     // Pulls top-K memories above the looser consolidation floor (default
@@ -83,7 +95,7 @@ export async function retain(
         limit: 1,
         minSimilarity: threshold,
         useFusion: false,
-        ...(options.scope !== undefined && { scopes: [options.scope] }),
+        scopes: [resolvedScope],
         ...(options.folderId !== undefined && { folderId: options.folderId }),
       }
     );
@@ -122,7 +134,7 @@ export async function retain(
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, {
     content: trimmed,
-    ...(options.scope !== undefined && { scope: options.scope }),
+    scope: resolvedScope,
     ...(options.folderId !== undefined && { folderId: options.folderId }),
     embedding: JSON.stringify(embedding),
     ...(options.sourceChunkIds &&
@@ -194,6 +206,8 @@ async function tryConsolidate(
 
   const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
   const topK = options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K;
+  // Same scope resolution as retain() — search the scope we'll write to.
+  const resolvedScope = options.scope ?? DEFAULT_SCOPE;
 
   const matches = await searchVaultMemories(
     trimmed,
@@ -204,7 +218,7 @@ async function tryConsolidate(
       limit: topK,
       minSimilarity: consolidateThreshold,
       useFusion: false,
-      ...(options.scope !== undefined && { scopes: [options.scope] }),
+      scopes: [resolvedScope],
       ...(options.folderId !== undefined && { folderId: options.folderId }),
     }
   );

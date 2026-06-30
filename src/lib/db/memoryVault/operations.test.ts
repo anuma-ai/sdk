@@ -37,6 +37,9 @@ function mockRecord(overrides: Record<string, any> = {}) {
   };
   return {
     id: overrides.id ?? "mem_1",
+    // Snake_case raw row, as WatermelonDB's `unsafeFetchRaw` returns (incl. `id`). The bulk
+    // read ops now use unsafeFetchRaw, so the query mocks below serve `r._raw`.
+    _raw: { id: overrides.id ?? "mem_1", ...raw },
     get content() {
       return raw.content;
     },
@@ -96,6 +99,9 @@ function makeCtx(
       find: vi.fn(async (id: string) => mockRecord({ id })),
       query: vi.fn((..._conditions: any[]) => ({
         fetch: vi.fn(async () => [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })]),
+        unsafeFetchRaw: vi.fn(async () =>
+          [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })].map((r) => r._raw)
+        ),
       })),
     } as any,
     ...overrides,
@@ -231,7 +237,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("passes scope filter when options.scopes is provided", async () => {
     const fetchFn = vi.fn(async () => [mockRecord({ id: "mem_pub" })]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -247,7 +256,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("does NOT add scope condition when scopes is empty array", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -261,7 +273,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("does NOT add scope condition when options is undefined", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -274,7 +289,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("adds since condition when options.since is provided", async () => {
     const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -288,7 +306,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("adds limit condition when options.limit is provided", async () => {
     const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -302,7 +323,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("adds both since and limit conditions together", async () => {
     const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -316,7 +340,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("combines since with scopes and userId", async () => {
     const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       userId: "user_123",
       vaultMemoryCollection: { query: queryFn } as any,
@@ -331,7 +358,10 @@ describe("getAllVaultMemoriesOp", () => {
 
   it("returns empty array when since is in the future", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -359,7 +389,10 @@ describe("getAllVaultMemoryContentsOp", () => {
 
   it("adds since condition when options.since is provided", async () => {
     const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -373,7 +406,10 @@ describe("getAllVaultMemoryContentsOp", () => {
 
   it("adds both userId and since conditions together", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       userId: "user_123",
       vaultMemoryCollection: { query: queryFn } as any,
@@ -561,7 +597,10 @@ describe("userId scoping", () => {
 
   it("filters by user_id in getAllVaultMemoriesOp when ctx.userId is set", async () => {
     const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       userId: "user_123",
       vaultMemoryCollection: { query: queryFn } as any,
@@ -576,7 +615,10 @@ describe("userId scoping", () => {
 
   it("does NOT filter by user_id in getAllVaultMemoriesOp when ctx.userId is undefined", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -739,6 +781,8 @@ describe("deleteAllVaultMemoriesForUserOp", () => {
   it("soft-deletes all non-deleted memories for a given userId", async () => {
     const records = [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })];
     const fetchFn = vi.fn(async () => records);
+    // deleteAllVaultMemoriesForUserOp uses .fetch() (needs Models for prepareUpdate), NOT
+    // unsafeFetchRaw — so no unsafeFetchRaw mock here.
     const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
     const batchFn = vi.fn(async () => {});
     const ctx = makeCtx({
@@ -756,6 +800,7 @@ describe("deleteAllVaultMemoriesForUserOp", () => {
 
   it("returns 0 when no memories exist for the user", async () => {
     const fetchFn = vi.fn(async () => []);
+    // deleteAllVaultMemoriesForUserOp uses .fetch(), not unsafeFetchRaw — no mock needed.
     const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
@@ -828,7 +873,10 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
   it("adds folderId WHERE clause when folderId is a string", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -842,7 +890,10 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
   it("adds folderId WHERE clause when folderId is null (unfiled)", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });
@@ -856,7 +907,10 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
   it("does NOT add folderId clause when folderId is undefined", async () => {
     const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
     });

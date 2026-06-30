@@ -73,7 +73,8 @@ describe("callPortalJsonCompletion — prose-tolerant JSON extraction", () => {
   it("returns null and warns when the response is pure prose with no JSON", async () => {
     const content = "Do you want me to summarize the conversation first?";
     const fetchFn = vi.fn().mockResolvedValue(mockResponse(content));
-    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    // maxAttempts: 1 — this is a parsing test, not a retry test.
+    const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 1, fetchFn });
     expect(result).toBeNull();
   });
 
@@ -218,5 +219,213 @@ describe("callPortalJsonCompletion — dual auth (apiKey / getToken)", () => {
       "Either apiKey or getToken must be provided"
     );
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("callPortalJsonCompletion — retry on transient failure", () => {
+  // backoffMs: () => 0 so retries don't introduce real delay in tests.
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "openai/gpt-5-mini",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+    backoffMs: () => 0,
+  } as const;
+
+  it("retries an empty completion, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("")) // no completion content
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a no-JSON prose completion, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("Now output the JSON.")) // the real-world failure
+      .mockResolvedValueOnce(mockResponse('{"candidates":[]}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ candidates: [] });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a 500, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("upstream error", { status: 500 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("does NOT retry a 400 (a bad request won't succeed on retry)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("bad request", { status: 400 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a 429 and honors a Retry-After header over the fixed backoff", async () => {
+    const delays: number[] = [];
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      fn: () => void,
+      ms?: number
+    ) => {
+      delays.push(ms ?? 0);
+      fn(); // fire immediately so the test doesn't actually wait
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout);
+    try {
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response("rate limited", { status: 429, headers: { "retry-after": "2" } })
+        )
+        .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+      // backoffMs returns 10ms; Retry-After is 2s → the 2s wins.
+      const result = await callPortalJsonCompletion({ ...baseArgs, backoffMs: () => 10, fetchFn });
+      expect(result).toEqual({ ok: true });
+      expect(delays).toContain(2000);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it("stops retrying once the absolute totalTimeoutMs budget is spent", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
+    // totalTimeoutMs: 0 → the budget is already spent after the first failure,
+    // so it gives up without a second attempt even though maxAttempts is 3.
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      maxAttempts: 3,
+      totalTimeoutMs: 0,
+      fetchFn,
+    });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a thrown network error, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("does NOT retry a 401 on the apiKey path (static key — genuine auth failure)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a 401 on the getToken path with a refreshed token, then succeeds", async () => {
+    // A 401 may just be an expired token — the next attempt re-resolves
+    // getToken and sends a fresh one.
+    const getToken = vi.fn().mockResolvedValueOnce("expired").mockResolvedValueOnce("fresh");
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({
+      model: "openai/gpt-5-mini",
+      systemPrompt: "s",
+      userMessage: "u",
+      tag: "test",
+      getToken,
+      fetchFn,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({ ok: true });
+    expect(getToken).toHaveBeenCalledTimes(2);
+    const secondHeaders = fetchFn.mock.calls[1][1].headers as Record<string, string>;
+    expect(secondHeaders.Authorization).toBe("Bearer fresh");
+  });
+
+  it("does NOT retry unavailable auth — it's terminal, not a transient failure", async () => {
+    // Locks the contract: a missing/failed token must not be hammered 3×.
+    const getToken = vi.fn().mockResolvedValue(null);
+    const fetchFn = vi.fn();
+    const result = await callPortalJsonCompletion({
+      model: "openai/gpt-5-mini",
+      systemPrompt: "s",
+      userMessage: "u",
+      tag: "test",
+      getToken,
+      fetchFn,
+      maxAttempts: 3,
+      backoffMs: () => 0,
+    });
+    expect(result).toBeNull();
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("does NOT retry a terminal 404", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("not found", { status: 404 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up after maxAttempts and returns null", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 503 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 3, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("maxAttempts: 1 disables retries (single fetch on a transient failure)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("upstream error", { status: 500 }));
+    const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 1, fetchFn });
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("defaults to 3 attempts when maxAttempts is unset", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse("no json here"));
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries when the completion parses to literal null, then succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse("null")) // valid JSON, but null is the failure sentinel
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ ok: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-resolves auth each attempt — a retry uses a fresh token", async () => {
+    const getToken = vi.fn().mockResolvedValueOnce("tok-1").mockResolvedValueOnce("tok-2");
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("upstream error", { status: 500 }))
+      .mockResolvedValueOnce(mockResponse('{"ok":true}'));
+    const result = await callPortalJsonCompletion({
+      model: "openai/gpt-5-mini",
+      systemPrompt: "s",
+      userMessage: "u",
+      tag: "test",
+      getToken,
+      fetchFn,
+      backoffMs: () => 0,
+    });
+    expect(result).toEqual({ ok: true });
+    // Token fetched per attempt (not reused from before the backoff), so the
+    // second request carries the fresh token rather than a possibly-expired one.
+    expect(getToken).toHaveBeenCalledTimes(2);
+    const secondHeaders = fetchFn.mock.calls[1][1].headers as Record<string, string>;
+    expect(secondHeaders.Authorization).toBe("Bearer tok-2");
   });
 });

@@ -1,6 +1,6 @@
 # TurnSkippedEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#39)
+Defined in: [src/lib/memory/autoExtractWorker.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#57)
 
 ## Properties
 
@@ -8,12 +8,25 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:39](https://github.com/anuma-ai
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#41)
+Defined in: [src/lib/memory/autoExtractWorker.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#72)
 
 ***
 
 ### reason
 
-> **reason**: `"in-flight"` | `"no-messages"`
+> **reason**: `"no-messages"` | `"no-new-content"` | `"superseded"` | `"in-flight"`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#40)
+Defined in: [src/lib/memory/autoExtractWorker.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#71)
+
+Why the turn produced no extraction call:
+
+* `no-messages`     — the turn carried an empty message array.
+* `no-new-content`  — every message was already extracted (watermark is at
+  the last message); the natural double-fire / re-mount
+  dedup, not a loss.
+* `superseded`      — a queued (pending) turn was replaced by a newer one
+  before it ran. Lossless: the newer turn's window
+  re-covers it.
+* `in-flight`       — retained for back-compat; no longer emitted. The
+  worker now coalesces in-flight arrivals into the
+  pending queue instead of dropping them.

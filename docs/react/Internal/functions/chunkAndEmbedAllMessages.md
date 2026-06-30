@@ -2,10 +2,21 @@
 
 > **chunkAndEmbedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:491](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#491)
+Defined in: [src/lib/memoryEngine/embeddings.ts:507](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#507)
 
-Chunk and embed all messages without embeddings/chunks in the database.
-Uses chunking for long messages, whole-message embedding for short ones.
+Chunk and embed messages that don't yet have embeddings/chunks in the
+database. Uses chunking for long messages, whole-message embedding for short
+ones.
+
+Upgrade note: by default this SKIPS messages that already have a whole-message
+vector. An app migrating from whole-message embeddings to chunk-based search
+must pass `filter.rechunkExisting: true` to (re)chunk those existing messages
+— otherwise they get no chunk rows and chunk search stays incomplete for the
+back-catalog.
+
+Requires embedding auth (`apiKey` or `getToken` in `options`; see
+[EmbeddingOptions](../interfaces/MemoryEngineEmbeddingOptions.md)) — rejects with `"Either apiKey or getToken must be
+provided"` if neither is set.
 
 ## Parameters
 
@@ -48,7 +59,7 @@ Storage operations context
 </td>
 <td>
 
-Embedding and chunking options
+Embedding and chunking options (auth required — see above)
 
 </td>
 </tr>

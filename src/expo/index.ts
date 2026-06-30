@@ -201,9 +201,18 @@ export {
   type VaultFolderOperationsContext,
 } from "../lib/db/vaultFolders";
 export {
+  createMemoryVaultSearchTool,
   createMemoryVaultTool,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
+  eagerEmbedContent,
+  type MemoryVaultSearchOptions,
   type MemoryVaultToolOptions,
+  preEmbedVaultMemories,
+  searchVaultMemories,
+  type VaultEmbeddingCache,
   type VaultSaveOperation,
+  type VaultSearchResult,
 } from "../lib/memoryVault";
 
 // Server-side tools caching utilities
@@ -217,22 +226,40 @@ export {
 
 // Memory engine (semantic search over past messages)
 export type {
+  ChunkingOptions,
   EmbeddingOptions as MemoryEngineEmbeddingOptions,
   MemoryEngineResult,
   MemoryEngineSearchOptions,
   QuantizedEmbedding,
+  TextChunk,
 } from "../lib/memoryEngine";
 export {
+  chunkAndEmbedAllMessages,
+  // Chunking functions for sub-message semantic search
+  chunkAndEmbedMessage,
+  chunkText,
   // Int8 embedding quantization helpers (RAM reduction for client caches)
   cosineInt8,
   createMemoryEngineTool,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_MIN_CHUNK_SIZE,
   dequantizeEmbedding,
   embedAllMessages,
   embedMessage,
   generateEmbedding,
   generateEmbeddings,
   quantizeEmbedding,
+  shouldChunkMessage,
 } from "../lib/memoryEngine";
+
+// Structured logger — set a custom sink via setLogger (mobile must import
+// from this entrypoint or "@anuma/sdk/react", NOT the bare barrel, which
+// pulls server code and crashes under Hermes). Mirrors the react barrel.
+export type { Logger } from "../lib/logger";
+export { consoleLogger, getLogger, noopLogger, setLogger } from "../lib/logger";
+export type { LoggerProviderProps } from "../react/LoggerProvider";
+export { LoggerProvider } from "../react/LoggerProvider";
 
 // Unified memory API surface — recall + retain + reflect + auto-extraction.
 // Mirrors the react and server barrels so Expo consumers can call the
@@ -246,6 +273,7 @@ export type {
   CreateAutoExtractorOptions,
   ExtractedCandidate,
   ExtractFactsOptions,
+  ExtractOutcome,
   FactType,
   MemoryExtractedEvent,
   MemoryKind,

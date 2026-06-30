@@ -353,6 +353,60 @@ describe("runToolLoop detach + resumable streaming", () => {
     }
   });
 
+  it("sends X-Conversation-ID on the initial and continuation dispatch when conversationId is set", async () => {
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeStreamWithToolCall("echo", "call_1", '{"text":"hi"}'),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("done") } as never);
+
+    const promise = runToolLoop({
+      messages: userMessages,
+      model: "test-model",
+      token: "token",
+      tools: makeEchoTool(),
+      conversationId: "conv-abc",
+    });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result.error).toBeNull();
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+    for (const [args] of mockCreateSseClient.mock.calls) {
+      expect((args as { headers: Record<string, string> }).headers).toMatchObject({
+        "X-Conversation-ID": "conv-abc",
+      });
+    }
+  });
+
+  it("sends no X-Conversation-ID when conversationId is absent or blank", async () => {
+    mockCreateSseClient
+      .mockReturnValueOnce({
+        stream: makeStreamWithToolCall("echo", "call_1", '{"text":"hi"}'),
+      } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("done") } as never);
+
+    const promise = runToolLoop({
+      messages: userMessages,
+      model: "test-model",
+      token: "token",
+      tools: makeEchoTool(),
+      conversationId: "   ",
+    });
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result.error).toBeNull();
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+    for (const [args] of mockCreateSseClient.mock.calls) {
+      expect((args as { headers: Record<string, string> }).headers).not.toHaveProperty(
+        "X-Conversation-ID"
+      );
+    }
+  });
+
   it("passes the original signal through by identity when no detachSignal is given", async () => {
     const user = new AbortController();
     let receivedSignal: AbortSignal | undefined;

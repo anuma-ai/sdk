@@ -74,6 +74,30 @@ describe("retain", () => {
     expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
+  it("scopes the dedup search to the same scope it writes (H2)", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
+
+    // Scope unset → both search and write resolve to the DB default "private",
+    // so dedup can't miss a private dupe or match across scopes.
+    await retain("a fact", ctx);
+    expect(vi.mocked(searchVaultMemories).mock.calls[0][4]).toMatchObject({
+      scopes: ["private"],
+    });
+    expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({ scope: "private" });
+
+    vi.clearAllMocks();
+    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
+
+    // Caller scope → used for both.
+    await retain("a fact", ctx, { scope: "shared" });
+    expect(vi.mocked(searchVaultMemories).mock.calls[0][4]).toMatchObject({ scopes: ["shared"] });
+    expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({ scope: "shared" });
+  });
+
   it("merges into the nearest match when cosine ≥ threshold", async () => {
     vi.mocked(searchVaultMemories).mockResolvedValue([
       { uniqueId: "existing-id", content: "Allergic to shellfish", similarity: 0.92 },

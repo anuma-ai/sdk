@@ -23,7 +23,7 @@ import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../cha
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
-import type { ServerTool } from "../../tools";
+import type { DeferLoadingConfig, ServerTool } from "../../tools";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -402,6 +402,14 @@ export interface BaseUseChatStorageOptions {
   serverTools?: {
     /** Cache expiration time in milliseconds (default: 86400000 = 1 day) */
     cacheExpirationMs?: number;
+    /**
+     * Opt-in defer-loading (Phase 3). OFF by default → tools are sent exactly as today. When
+     * `enabled`, the full server catalog is emitted every turn in a deterministic, byte-stable order
+     * (`[tool-search] → [hot] → [deferred, name-sorted]`) with `defer_loading:true` on non-hot tools and
+     * an Anthropic tool-search tool prepended, so the leading `tools` prefix stays cacheable. See
+     * {@link DeferLoadingConfig}.
+     */
+    deferLoading?: DeferLoadingConfig;
   };
   /**
    * Automatically generate embeddings for messages after saving.

@@ -19,6 +19,7 @@ export {
   DEFAULT_EXCLUDED_SERVER_TOOLS,
   DEFAULT_SERVER_TOOLS_MATCH_OPTIONS,
   defaultServerToolsFilter,
+  type DeferLoadingConfig,
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,

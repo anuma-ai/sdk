@@ -1,8 +1,8 @@
 # extractAndRetain
 
-> **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
+> **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
 
-Defined in: [src/lib/memory/autoExtract.ts:241](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#241)
+Defined in: [src/lib/memory/autoExtract.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#335)
 
 Stage 2 — for each extracted candidate, call retain() with auto-merge
 enabled. The resolver path (decide create/merge/update via a second LLM
@@ -11,7 +11,8 @@ retain() handles dedup at the cosine-similarity level for hackathon.
 
 Returns the candidates that survived validation along with the retain
 result for each (which captures whether the fact was created, merged,
-or skipped).
+or skipped), plus an `outcome` summarizing why the turn did/didn't produce
+facts (see [ExtractOutcome](../type-aliases/ExtractOutcome.md)).
 
 ## Parameters
 
@@ -207,4 +208,4 @@ Override scope/folder for all retained facts.
 
 ## Returns
 
-`Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
+`Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
