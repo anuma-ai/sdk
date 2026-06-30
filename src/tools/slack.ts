@@ -22,6 +22,8 @@
  * - `slack_search_messages`     -- search messages (THE primary tool)
  * - `slack_list_users`          -- workspace members
  * - `slack_get_channel_history` -- recent messages in a channel (rate-limited)
+ * - `slack_get_thread_replies`  -- replies in a thread (rate-limited)
+ * - `slack_post_message`        -- post a message (WRITE)
  *
  * Error contract: on an auth failure the tool returns the canonical
  * `__anuma_connector_error_v1` JSON shape from `buildConnectorErrorResult`.
@@ -34,15 +36,18 @@ import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 const SLACK_PROVIDER = "slack";
 
 /**
- * Calls the portal Slack proxy with an upstream Slack Web API method path and
- * optional query, and resolves to the upstream status + parsed JSON. Consumers
- * wire this to the portal's Slack proxy with the user's Privy bearer; the portal
- * mints the Slack token server-side. Paths are method names (e.g.
- * `/conversations.list`); params go in `query`.
+ * Calls the portal Slack proxy with an upstream Slack Web API method path,
+ * optional query, and optional body, and resolves to the upstream status +
+ * parsed JSON. Consumers wire this to the portal's Slack proxy with the user's
+ * Privy bearer; the portal mints the Slack token server-side. Paths are method
+ * names (e.g. `/conversations.list`); read params go in `query`. Write methods
+ * (e.g. `/chat.postMessage`) pass a `body` — the portal classifies the path as a
+ * write and POSTs the body upstream.
  */
 export type SlackProxyCaller = (
   path: string,
-  query?: Record<string, string | number>
+  query?: Record<string, string | number>,
+  body?: unknown
 ) => Promise<{ status: number; json: unknown }>;
 
 export interface SlackListChannelsArgs {
@@ -61,6 +66,18 @@ export interface SlackListUsersArgs {
 export interface SlackGetChannelHistoryArgs {
   channel: string;
   limit?: number;
+}
+
+export interface SlackGetThreadRepliesArgs {
+  channel: string;
+  ts: string;
+  limit?: number;
+}
+
+export interface SlackPostMessageArgs {
+  channel: string;
+  text: string;
+  thread_ts?: string;
 }
 
 /** Every Slack Web API response carries `ok`; failures add an `error` code. */
@@ -133,6 +150,11 @@ interface SlackConversationsHistoryResponse extends SlackBaseResponse {
   messages?: SlackMessage[];
 }
 
+interface SlackPostMessageResponse extends SlackBaseResponse {
+  ts?: string;
+  channel?: string;
+}
+
 /** Slack `error` codes that mean the connection is broken / not authorized. */
 const AUTH_ERROR_CODES = new Set([
   "not_authed",
@@ -178,9 +200,10 @@ function maybeConnectorError(status: number, body: SlackBaseResponse | null): st
 async function callSlack<T extends SlackBaseResponse>(
   callProxy: SlackProxyCaller,
   path: string,
-  query?: Record<string, string | number>
+  query?: Record<string, string | number>,
+  requestBody?: unknown
 ): Promise<T | string> {
-  const { status, json } = await callProxy(path, query);
+  const { status, json } = await callProxy(path, query, requestBody);
   const body = (json ?? null) as (T & SlackBaseResponse) | null;
   if (status < 200 || status >= 300) {
     const connectorError = maybeConnectorError(status, body);
@@ -307,6 +330,37 @@ async function getSlackChannelHistory(
   }));
 }
 
+async function getSlackThreadReplies(
+  callProxy: SlackProxyCaller,
+  args: SlackGetThreadRepliesArgs
+): Promise<Array<Record<string, unknown>> | string> {
+  const limit = clampLimit(args.limit, 20, 1, 100);
+  const res = await callSlack<SlackConversationsHistoryResponse>(
+    callProxy,
+    "/conversations.replies",
+    { channel: args.channel, ts: args.ts, limit }
+  );
+  if (typeof res === "string") return res;
+  return (res.messages ?? []).map((m) => ({
+    text: m.text,
+    user: m.username ?? m.user,
+    ts: m.ts,
+  }));
+}
+
+async function postSlackMessage(
+  callProxy: SlackProxyCaller,
+  args: SlackPostMessageArgs
+): Promise<Record<string, unknown> | string> {
+  const res = await callSlack<SlackPostMessageResponse>(callProxy, "/chat.postMessage", undefined, {
+    channel: args.channel,
+    text: args.text,
+    ...(args.thread_ts ? { thread_ts: args.thread_ts } : {}),
+  });
+  if (typeof res === "string") return res;
+  return { ok: res.ok, ts: res.ts, channel: res.channel };
+}
+
 function createSlackGetMeTool(callProxy: SlackProxyCaller): ToolConfig {
   return {
     type: "function",
@@ -427,6 +481,80 @@ function createSlackGetChannelHistoryTool(callProxy: SlackProxyCaller): ToolConf
   };
 }
 
+function createSlackGetThreadRepliesTool(callProxy: SlackProxyCaller): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "slack_get_thread_replies",
+      description:
+        "Fetch the replies in a single Slack thread, given the channel id and the thread's root message timestamp (ts). Best-effort and rate-limited like channel history, so use it for a specific thread rather than general lookups.",
+      parameters: {
+        type: "object",
+        properties: {
+          channel: {
+            type: "string",
+            description: "The channel id (e.g. 'C0123456789') the thread is in.",
+          },
+          ts: {
+            type: "string",
+            description:
+              "The timestamp (ts) of the thread's root message, as returned by other Slack tools.",
+          },
+          limit: {
+            type: "number",
+            description:
+              "Max messages to return (including the root message, which is always first). Between 1 and 100 (clamped). Defaults to 20.",
+          },
+        },
+        required: ["channel", "ts"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) =>
+      getSlackThreadReplies(callProxy, {
+        channel: readString(args.channel),
+        ts: readString(args.ts),
+        limit: args.limit as number | undefined,
+      }),
+  };
+}
+
+function createSlackPostMessageTool(callProxy: SlackProxyCaller): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "slack_post_message",
+      description:
+        "Post a message as the user to a Slack channel or DM. Pass the channel id and the message text; optionally pass thread_ts to reply within an existing thread instead of posting a new top-level message.",
+      parameters: {
+        type: "object",
+        properties: {
+          channel: {
+            type: "string",
+            description:
+              "The channel or DM id (e.g. 'C0123456789'), as returned by slack_list_channels.",
+          },
+          text: {
+            type: "string",
+            description: "The message text to post.",
+          },
+          thread_ts: {
+            type: "string",
+            description:
+              "Optional. The ts of a thread's root message to reply in that thread instead of posting a new message.",
+          },
+        },
+        required: ["channel", "text"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) =>
+      postSlackMessage(callProxy, {
+        channel: readString(args.channel),
+        text: readString(args.text),
+        thread_ts: typeof args.thread_ts === "string" ? args.thread_ts : undefined,
+      }),
+  };
+}
+
 /**
  * Build the Slack tool set wired to the supplied proxy caller.
  *
@@ -444,5 +572,7 @@ export function createSlackTools(callProxy: SlackProxyCaller): Record<string, To
     slack_search_messages: createSlackSearchMessagesTool(callProxy),
     slack_list_users: createSlackListUsersTool(callProxy),
     slack_get_channel_history: createSlackGetChannelHistoryTool(callProxy),
+    slack_get_thread_replies: createSlackGetThreadRepliesTool(callProxy),
+    slack_post_message: createSlackPostMessageTool(callProxy),
   };
 }

@@ -110,6 +110,12 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
     provider: "slack",
     connector: "Slack",
   },
+  slack_get_thread_replies: {
+    label: "Read thread replies",
+    provider: "slack",
+    connector: "Slack",
+  },
+  slack_post_message: { label: "Post a message", provider: "slack", connector: "Slack" },
 };
 
 /**
