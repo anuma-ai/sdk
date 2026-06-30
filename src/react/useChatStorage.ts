@@ -1864,7 +1864,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * identity resident in memory — and would serve stale vectors to the next
    * identity. Mirrors lazyDecrypt's title-cache clear on the same signal.
    */
-  useEffect(() => onClearAllEncryptionState(() => vaultEmbeddingCacheRef.current.clear()), []);
+  useEffect(() => {
+    return onClearAllEncryptionState(() => vaultEmbeddingCacheRef.current.clear());
+  }, []);
 
   /**
    * Create a vault search tool pre-configured with hook's context, auth, and cache
