@@ -544,7 +544,10 @@ export async function chunkAndEmbedAllMessages(
       // stale — its vectors live in an incompatible space (and searchChunksOp
       // now skips them), so re-embed it even if it already has chunks/vector.
       // Null embeddingModel is grandfathered as current-model-compatible.
-      const isStale = message.embeddingModel != null && message.embeddingModel !== embeddingModel;
+      const isStale =
+        message.embeddingModel !== undefined &&
+        message.embeddingModel !== null &&
+        message.embeddingModel !== embeddingModel;
       if (message.chunks && message.chunks.length > 0 && !isStale) continue;
       const hasVector = message.vector && message.vector.length > 0;
       if (hasVector && !filter?.rechunkExisting && !isStale) continue;
