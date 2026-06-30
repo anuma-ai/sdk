@@ -1196,7 +1196,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  */
 const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
-const conversationRedactors = new Map<string, PiiRedactor>();
+const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 
 function getConversationRedactor(
   conversationId: string | null,
@@ -1208,15 +1208,15 @@ function getConversationRedactor(
   // The flag is a PREFIX (not a suffix) so it can't collide with a conversation
   // id that happens to end in the marker.
   const key = (nerDetector ? "ner:" : "noner:") + (conversationId ?? NO_CONVERSATION_KEY);
-  let redactor = conversationRedactors.get(key);
-  if (redactor) {
+  const entry = conversationRedactors.get(key);
+  if (entry && entry.detector === nerDetector) {
     // Refresh recency (Map preserves insertion order → re-insert moves to end).
     conversationRedactors.delete(key);
-    conversationRedactors.set(key, redactor);
-    return redactor;
+    conversationRedactors.set(key, entry);
+    return entry.redactor;
   }
-  redactor = new PiiRedactor({ nerDetector });
-  conversationRedactors.set(key, redactor);
+  const redactor = new PiiRedactor({ nerDetector });
+  conversationRedactors.set(key, { redactor, detector: nerDetector });
   if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
     const oldest = conversationRedactors.keys().next().value;
     if (oldest !== undefined) conversationRedactors.delete(oldest);
