@@ -99,6 +99,17 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   // X / Twitter (src/tools/x.ts)
   x_get_me: { label: "Get my X profile", provider: "x", connector: "X" },
   x_get_my_posts: { label: "Read my recent posts", provider: "x", connector: "X" },
+
+  // Slack (src/tools/slack.ts)
+  slack_get_me: { label: "Get my Slack profile", provider: "slack", connector: "Slack" },
+  slack_list_channels: { label: "List channels", provider: "slack", connector: "Slack" },
+  slack_search_messages: { label: "Search messages", provider: "slack", connector: "Slack" },
+  slack_list_users: { label: "List members", provider: "slack", connector: "Slack" },
+  slack_get_channel_history: {
+    label: "Read channel history",
+    provider: "slack",
+    connector: "Slack",
+  },
 };
 
 /**
