@@ -436,6 +436,12 @@ Re-exports [ExtractFactsOptions](../react/Internal/interfaces/ExtractFactsOption
 
 ***
 
+### ExtractOutcome
+
+Re-exports [ExtractOutcome](../react/Internal/type-aliases/ExtractOutcome.md)
+
+***
+
 ### FactType
 
 Re-exports [FactType](../react/Internal/type-aliases/FactType.md)

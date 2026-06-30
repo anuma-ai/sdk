@@ -2,7 +2,7 @@
 
 > **extractFacts**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `options`: [`ExtractFactsOptions`](../interfaces/ExtractFactsOptions.md)): `Promise`<[`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]>
 
-Defined in: [src/lib/memory/autoExtract.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#185)
+Defined in: [src/lib/memory/autoExtract.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#204)
 
 Stage 1 — call the LLM to extract candidate facts from the recent
 conversation. Returns post-validated candidates only (confidence

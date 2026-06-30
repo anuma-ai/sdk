@@ -218,6 +218,45 @@ Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/
 
 ***
 
+### onCandidatesDropped()?
+
+> `optional` **onCandidatesDropped**: () => `void`
+
+Defined in: [src/lib/memory/autoExtract.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#187)
+
+Called when the extractor DID produce candidates but PII de-anonymization
+dropped every one of them — the model mangled its placeholders (so they
+can't be restored to real values) or restoring the values blew the length
+cap. These drops happen before `retain()`, so `failedCount` can't see them,
+and the turn would otherwise masquerade as a quiet `no-facts` result. Lets
+H3's `outcome` surface `dropped-after-redaction` so a rising PII-drop rate
+(i.e. redaction silently eating facts) is alarmable.
+
+**Returns**
+
+`void`
+
+***
+
+### onExhaustedEmpty()?
+
+> `optional` **onExhaustedEmpty**: () => `void`
+
+Defined in: [src/lib/memory/autoExtract.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#177)
+
+Called when the extraction LLM returned no usable result after exhausting
+its retries (empty/malformed completion, network/HTTP error) — i.e. a
+*failure* that drops the turn's facts, as opposed to a legitimate
+`{candidates: []}` "nothing durable here". Lets callers distinguish a
+silently-degrading extractor from quiet turns (the two are otherwise
+indistinguishable). See [extractAndRetain](../functions/extractAndRetain.md)'s `outcome`.
+
+**Returns**
+
+`void`
+
+***
+
 ### piiRedaction?
 
 > `optional` **piiRedaction**: `boolean` | `PiiRedactor`
