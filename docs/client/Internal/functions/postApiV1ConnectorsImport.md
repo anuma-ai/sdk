@@ -2,7 +2,7 @@
 
 > **postApiV1ConnectorsImport**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ConnectorsImportData`](../type-aliases/PostApiV1ConnectorsImportData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ConnectorsImportResponses`](../type-aliases/PostApiV1ConnectorsImportResponses.md), [`PostApiV1ConnectorsImportErrors`](../type-aliases/PostApiV1ConnectorsImportErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:812](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#812)
+Defined in: [src/client/sdk.gen.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#844)
 
 Import a browser-resident refresh token into the vault
 

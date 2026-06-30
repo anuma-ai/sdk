@@ -2,7 +2,7 @@
 
 > **DeleteApiV1DeveloperAppsByAppUuidData** = `object`
 
-Defined in: [src/client/types.gen.ts:7022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7022)
+Defined in: [src/client/types.gen.ts:7228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7228)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7022](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:7023](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7023)
+Defined in: [src/client/types.gen.ts:7229](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7229)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:7023](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7024](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7024)
+Defined in: [src/client/types.gen.ts:7230](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7230)
 
 **app\_uuid**
 
@@ -32,7 +32,7 @@ App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7030](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7030)
+Defined in: [src/client/types.gen.ts:7236](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7236)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:7030](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}"`
 
-Defined in: [src/client/types.gen.ts:7031](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7031)
+Defined in: [src/client/types.gen.ts:7237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7237)

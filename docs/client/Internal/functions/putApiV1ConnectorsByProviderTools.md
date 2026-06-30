@@ -2,7 +2,7 @@
 
 > **putApiV1ConnectorsByProviderTools**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1ConnectorsByProviderToolsData`](../type-aliases/PutApiV1ConnectorsByProviderToolsData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1ConnectorsByProviderToolsResponses`](../type-aliases/PutApiV1ConnectorsByProviderToolsResponses.md), [`PutApiV1ConnectorsByProviderToolsErrors`](../type-aliases/PutApiV1ConnectorsByProviderToolsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:880](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#880)
+Defined in: [src/client/sdk.gen.ts:928](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#928)
 
 Batch ALLOW/DENY connector tools
 

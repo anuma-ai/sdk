@@ -2,7 +2,7 @@
 
 > **getConnectorsByProviderCallback**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetConnectorsByProviderCallbackData`](../type-aliases/GetConnectorsByProviderCallbackData.md), `ThrowOnError`>): `RequestResult`<`unknown`, [`GetConnectorsByProviderCallbackErrors`](../type-aliases/GetConnectorsByProviderCallbackErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1899](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1899)
+Defined in: [src/client/sdk.gen.ts:1951](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1951)
 
 Upstream OAuth callback
 

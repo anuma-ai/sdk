@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCustomerPortalData** = `object`
 
-Defined in: [src/client/types.gen.ts:8577](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8577)
+Defined in: [src/client/types.gen.ts:8786](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8786)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8577](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersCreateCustomerPortalRequest`](HandlersCreateCustomerPortalRequest.md)
 
-Defined in: [src/client/types.gen.ts:8581](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8581)
+Defined in: [src/client/types.gen.ts:8790](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8790)
 
 Customer portal request with return URL
 
@@ -20,7 +20,7 @@ Customer portal request with return URL
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8582)
+Defined in: [src/client/types.gen.ts:8791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8791)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8582](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8583](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8583)
+Defined in: [src/client/types.gen.ts:8792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8792)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8583](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/subscriptions/customer-portal"`
 
-Defined in: [src/client/types.gen.ts:8584](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8584)
+Defined in: [src/client/types.gen.ts:8793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8793)

@@ -2,7 +2,7 @@
 
 > **deleteApiV1AuthMfaPasskeyCredentialsByCredentialId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData`](../type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses`](../type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses.md), [`DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors`](../type-aliases/DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:584](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#584)
+Defined in: [src/client/sdk.gen.ts:616](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#616)
 
 Delete a passkey
 

@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyVerifyBeginData** = `object`
 
-Defined in: [src/client/types.gen.ts:6009](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6009)
+Defined in: [src/client/types.gen.ts:6160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6160)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6009](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6010](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6010)
+Defined in: [src/client/types.gen.ts:6161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6161)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6010](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6011](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6011)
+Defined in: [src/client/types.gen.ts:6162](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6162)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:6011](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6012](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6012)
+Defined in: [src/client/types.gen.ts:6163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6163)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:6012](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/passkey/verify/begin"`
 
-Defined in: [src/client/types.gen.ts:6013](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6013)
+Defined in: [src/client/types.gen.ts:6164](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6164)

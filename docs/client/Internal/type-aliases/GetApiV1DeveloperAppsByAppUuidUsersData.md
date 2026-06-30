@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperAppsByAppUuidUsersData** = `object`
 
-Defined in: [src/client/types.gen.ts:7571](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7571)
+Defined in: [src/client/types.gen.ts:7777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7777)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7571](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:7572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7572)
+Defined in: [src/client/types.gen.ts:7778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7778)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:7572](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7573)
+Defined in: [src/client/types.gen.ts:7779](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7779)
 
 **app\_uuid**
 
@@ -32,7 +32,7 @@ App UUID
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:7579](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7579)
+Defined in: [src/client/types.gen.ts:7785](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7785)
 
 **limit?**
 
@@ -52,4 +52,4 @@ Number of users to skip (default 0)
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/users"`
 
-Defined in: [src/client/types.gen.ts:7589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7589)
+Defined in: [src/client/types.gen.ts:7795](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7795)

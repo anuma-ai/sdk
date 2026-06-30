@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperAppsByAppUuidUsersByAddressData** = `object`
 
-Defined in: [src/client/types.gen.ts:7622](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7622)
+Defined in: [src/client/types.gen.ts:7828](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7828)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7622](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:7623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7623)
+Defined in: [src/client/types.gen.ts:7829](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7829)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:7623](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7624)
+Defined in: [src/client/types.gen.ts:7830](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7830)
 
 **address**
 
@@ -38,7 +38,7 @@ App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7634](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7634)
+Defined in: [src/client/types.gen.ts:7840](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7840)
 
 ***
 
@@ -46,4 +46,4 @@ Defined in: [src/client/types.gen.ts:7634](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/users/{address}"`
 
-Defined in: [src/client/types.gen.ts:7635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7635)
+Defined in: [src/client/types.gen.ts:7841](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7841)

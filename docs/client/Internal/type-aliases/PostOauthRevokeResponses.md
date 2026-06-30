@@ -2,7 +2,7 @@
 
 > **PostOauthRevokeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9920)
+Defined in: [src/client/types.gen.ts:10129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10129)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9920](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:9924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9924)
+Defined in: [src/client/types.gen.ts:10133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10133)
 
 OK
 
