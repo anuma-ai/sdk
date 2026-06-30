@@ -1321,6 +1321,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     initialConversationId || null
   );
 
+  // Stabilize nerDetector reference to prevent unnecessary redactor recreation.
+  // nerDetector is kept in a ref so that an unstable reference (e.g., inline
+  // `createTransformersNerDetector()` on each render) doesn't trigger redactor
+  // replacement and lose placeholder mappings. The ref is updated on each render
+  // to allow intentional detector changes, but the useMemo below only depends on
+  // piiRedaction and currentConversationId, so a new detector instance with the
+  // same configuration won't trigger a fresh PiiRedactor.
+  const nerDetectorRef = useRef(nerDetector);
+  nerDetectorRef.current = nerDetector;
+
   // When piiRedaction is `true`, resolve it to the redactor SHARED by all
   // useChatStorage instances for this conversation (see getConversationRedactor)
   // so placeholder mappings are consistent across instances and turns. An
@@ -1328,9 +1338,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const resolvedPiiRedaction = useMemo(
     () =>
       piiRedaction === true
-        ? getConversationRedactor(currentConversationId, nerDetector)
+        ? getConversationRedactor(currentConversationId, nerDetectorRef.current)
         : piiRedaction,
-    [piiRedaction, currentConversationId, nerDetector]
+    [piiRedaction, currentConversationId]
   );
 
   // Mask PII before text is sent to the embeddings endpoint. Embeddings are a
@@ -2292,7 +2302,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // currentConversationId), which is what fixes turn-1 placeholder orphaning.
       const resolvePiiForCall = (conversationIdForCall: string | null) => {
         const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
-          getConversationRedactor(conversationIdForCall, nerDetector)
+          getConversationRedactor(conversationIdForCall, nerDetectorRef.current)
         );
         return {
           callRedactor: redactor,
