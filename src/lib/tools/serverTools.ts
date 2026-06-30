@@ -1078,6 +1078,8 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
       "slack_search_messages",
       "slack_list_users",
       "slack_get_channel_history",
+      "slack_get_thread_replies",
+      "slack_post_message",
     ],
     // search is the primary entry point; list_channels also anchors so "what
     // channels am I in" reaches the set without going through search.

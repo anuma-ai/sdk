@@ -148,6 +148,64 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[0][1]?.limit).toBe(5);
   });
 
+  test("slack_get_thread_replies fetches conversations.replies for a thread", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockResolvedValueOnce(
+      proxyResult({
+        ok: true,
+        messages: [
+          { text: "root", user: "U1", ts: "1.0" },
+          { text: "reply", username: "bob", ts: "2.0" },
+        ],
+      })
+    );
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_thread_replies, {
+      channel: "C1",
+      ts: "1.0",
+      limit: 5,
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([
+      { text: "root", user: "U1", ts: "1.0" },
+      { text: "reply", user: "bob", ts: "2.0" },
+    ]);
+    expect(callProxy.mock.calls[0][0]).toBe("/conversations.replies");
+    expect(callProxy.mock.calls[0][1]?.channel).toBe("C1");
+    expect(callProxy.mock.calls[0][1]?.ts).toBe("1.0");
+    expect(callProxy.mock.calls[0][1]?.limit).toBe(5);
+  });
+
+  test("slack_post_message posts the body to chat.postMessage and returns a compact result", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: true, ts: "9.9", channel: "C1" }));
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_post_message, {
+      channel: "C1",
+      text: "hello",
+    })) as Record<string, unknown>;
+    expect(result).toEqual({ ok: true, ts: "9.9", channel: "C1" });
+    expect(callProxy.mock.calls[0][0]).toBe("/chat.postMessage");
+    expect(callProxy.mock.calls[0][1]).toBeUndefined();
+    expect(callProxy.mock.calls[0][2]).toEqual({ channel: "C1", text: "hello" });
+  });
+
+  test("slack_post_message forwards thread_ts when replying in a thread", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: true, ts: "9.9", channel: "C1" }));
+    const tools = createSlackTools(callProxy);
+    await runExecutor(tools.slack_post_message, {
+      channel: "C1",
+      text: "in thread",
+      thread_ts: "1.0",
+    });
+    expect(callProxy.mock.calls[0][2]).toEqual({
+      channel: "C1",
+      text: "in thread",
+      thread_ts: "1.0",
+    });
+  });
+
   test("returns connector error when the proxy reports 401", async () => {
     const callProxy = vi.fn<SlackProxyCaller>().mockResolvedValueOnce(proxyResult(null, 401));
     const tools = createSlackTools(callProxy);
