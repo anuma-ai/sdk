@@ -206,6 +206,27 @@ describe("createSlackTools", () => {
     });
   });
 
+  test("slack_post_message to a channel the user isn't in returns a generic failure string", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: false, error: "not_in_channel" }, 200));
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_post_message, {
+      channel: "C1",
+      text: "hello",
+    })) as string;
+    expect(typeof result).toBe("string");
+    expect(result).toContain("not_in_channel");
+    const parsed = (() => {
+      try {
+        return JSON.parse(result) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })();
+    expect(parsed?.__anuma_connector_error_v1).toBeUndefined();
+  });
+
   test("returns connector error when the proxy reports 401", async () => {
     const callProxy = vi.fn<SlackProxyCaller>().mockResolvedValueOnce(proxyResult(null, 401));
     const tools = createSlackTools(callProxy);

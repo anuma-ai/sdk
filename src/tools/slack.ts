@@ -358,7 +358,7 @@ async function postSlackMessage(
     ...(args.thread_ts ? { thread_ts: args.thread_ts } : {}),
   });
   if (typeof res === "string") return res;
-  return { ok: true, ts: res.ts, channel: res.channel };
+  return { ok: res.ok, ts: res.ts, channel: res.channel };
 }
 
 function createSlackGetMeTool(callProxy: SlackProxyCaller): ToolConfig {
@@ -502,7 +502,8 @@ function createSlackGetThreadRepliesTool(callProxy: SlackProxyCaller): ToolConfi
           },
           limit: {
             type: "number",
-            description: "Max replies to return. Between 1 and 100 (clamped). Defaults to 20.",
+            description:
+              "Max messages to return (including the root message, which is always first). Between 1 and 100 (clamped). Defaults to 20.",
           },
         },
         required: ["channel", "ts"],

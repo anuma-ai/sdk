@@ -1082,8 +1082,9 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
       "slack_post_message",
     ],
     // search is the primary entry point; list_channels also anchors so "what
-    // channels am I in" reaches the set without going through search.
-    anchors: ["slack_search_messages", "slack_list_channels"],
+    // channels am I in" reaches the set without going through search. post_message
+    // anchors too so post-only prompts surface the write tool past the cutoff.
+    anchors: ["slack_search_messages", "slack_list_channels", "slack_post_message"],
     anchorMinSimilarity: 0.53,
   },
 ];
