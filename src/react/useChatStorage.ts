@@ -1205,7 +1205,9 @@ function getConversationRedactor(
   // Key on detector presence too, so toggling NER on/off for a conversation
   // yields a fresh redactor built with (or without) the detector rather than
   // reusing a stale one. Placeholder numbering restarting on toggle is fine.
-  const key = (conversationId ?? NO_CONVERSATION_KEY) + (nerDetector ? "::ner" : "");
+  // The flag is a PREFIX (not a suffix) so it can't collide with a conversation
+  // id that happens to end in the marker.
+  const key = (nerDetector ? "ner:" : "noner:") + (conversationId ?? NO_CONVERSATION_KEY);
   let redactor = conversationRedactors.get(key);
   if (redactor) {
     // Refresh recency (Map preserves insertion order → re-insert moves to end).

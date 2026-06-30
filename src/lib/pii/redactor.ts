@@ -337,11 +337,13 @@ export class PiiRedactor {
     if (!Array.isArray(raw)) return [];
     const out: DetectedSpan[] = [];
     raw.forEach((s, i) => {
+      // Drop non-finite offsets (NaN/Infinity from a malformed detector) on the
+      // RAW values, before clamping — otherwise `Math.min(Infinity, len)` would
+      // clamp Infinity to a valid index and slip through, and `NaN` survives
+      // `end <= start` (NaN comparisons are always false).
+      if (!Number.isFinite(s.start) || !Number.isFinite(s.end)) return;
       let start = Math.max(0, Math.min(Math.trunc(s.start), text.length));
       let end = Math.max(0, Math.min(Math.trunc(s.end), text.length));
-      // Drop non-finite offsets (NaN/Infinity from a malformed detector): the
-      // `end <= start` guard alone misses NaN, since `NaN <= NaN` is false.
-      if (!Number.isFinite(start) || !Number.isFinite(end)) return;
       if (end <= start) return;
       while (start > 0 && isWordChar(text[start - 1])) start--;
       while (end < text.length && isWordChar(text[end])) end++;
@@ -419,8 +421,12 @@ export class PiiRedactor {
 
   /** Merge regex + NER spans for `text` into a resolved, non-overlapping set. */
   private async detectAllSpans(text: string): Promise<DetectedSpan[]> {
-    const ner = await this.detectNerSpans(text);
-    return this.resolveOverlaps([...this.collectRegexSpans(text), ...ner]);
+    // Kick off NER (async model inference) first, then run the synchronous regex
+    // pass while it's in flight, so the regex work overlaps the inference.
+    const nerPromise = this.detectNerSpans(text);
+    const regexSpans = this.collectRegexSpans(text);
+    const ner = await nerPromise;
+    return this.resolveOverlaps([...regexSpans, ...ner]);
   }
 
   /**
@@ -532,7 +538,8 @@ export class PiiRedactor {
     this.warnedNerFailure = true;
     console.warn(
       "[PiiRedactor] The NER detector threw; falling back to regex-only " +
-        "redaction for this and subsequent calls' unstructured PII.",
+        "redaction for this call's unstructured PII. The detector is still " +
+        "retried on subsequent calls; this warning is emitted only once.",
       err
     );
   }

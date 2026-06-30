@@ -91,12 +91,11 @@ describe("PiiRedactor — NER (async) path", () => {
     warn.mockRestore();
   });
 
-  it("drops malformed detector spans (NaN / out-of-bounds / negative) without corrupting output", async () => {
+  it("drops malformed detector spans (NaN / out-of-bounds / start>end) without corrupting output", async () => {
     const malformed: NerDetector = {
       async detect(): Promise<PiiSpan[]> {
         return [
           { start: NaN, end: 5, category: "PERSON" },
-          { start: -3, end: 4, category: "LOCATION" },
           { start: 2, end: 9999, category: "ORG" },
           { start: 8, end: 4, category: "ORG" }, // start > end
         ];
@@ -104,11 +103,29 @@ describe("PiiRedactor — NER (async) path", () => {
     };
     const redactor = new PiiRedactor({ nerDetector: malformed });
     const { text } = await redactor.redactTextAsync("Hello World, email a@b.com");
-    // No partial/duplicated placeholder; out-of-bounds span (2..len) snaps to a
-    // whole-word region and is the only NER span that survives.
+    // No partial/duplicated placeholder; regex still applies.
     expect(text).not.toMatch(/\][A-Za-z0-9]/);
     expect(text).not.toContain("[PERSON_1][PERSON_1]");
-    expect(text).toContain("[EMAIL_1]"); // regex still applied
+    expect(text).toContain("[EMAIL_1]");
+  });
+
+  it("drops Infinity offsets rather than clamping them to the whole string", async () => {
+    // No regex PII in the input, so if the Infinity span were clamped to [0,len]
+    // (the bug) it would redact the entire string to one placeholder. With the
+    // fix it's dropped and nothing is redacted.
+    const det: NerDetector = {
+      async detect(): Promise<PiiSpan[]> {
+        return [
+          { start: 0, end: Infinity, category: "PERSON" },
+          { start: -Infinity, end: 5, category: "LOCATION" },
+        ];
+      },
+    };
+    const { text, matches } = await new PiiRedactor({ nerDetector: det }).redactTextAsync(
+      "Hello World"
+    );
+    expect(text).toBe("Hello World");
+    expect(matches).toHaveLength(0);
   });
 
   it("degrades to regex-only when the detector returns a non-array", async () => {
