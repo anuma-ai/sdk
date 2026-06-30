@@ -40,7 +40,7 @@ Per-candidate retain() failures. `onError` only fires on pipeline throws.
 
 ### outcome
 
-> **outcome**: `ExtractOutcome`
+> **outcome**: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md)
 
 Defined in: [src/lib/memory/autoExtractWorker.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#89)
 
