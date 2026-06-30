@@ -279,18 +279,16 @@ describe("recall — budget tiers", () => {
     expect(result.reranked).toBe(true);
   });
 
-  it("propagates a reranker failure (no internal downgrade)", async () => {
-    // Pinned actual behavior: rankFusedVaultMemoriesAsync awaits
-    // rerankPairs without a try/catch, so a CE failure rejects the whole
-    // recall() call. NOTE: this contradicts the RecallResult.usedBudget
-    // docstring ("may downgrade if reranker fails") — if a degrade path
-    // is ever added, this test should flip to expecting results with
-    // reranked=false.
+  it("degrades to the V2 ranking when the cross-encoder fails (soft-degrade)", async () => {
+    // A transient CE/portal failure must not error the whole recall — the
+    // search layer catches it and returns the already-computed V2 ordering.
+    // (Threading the downgrade up to RecallResult.reranked is a follow-up;
+    // the warn log is the current observability signal.)
     vi.mocked(rerankPairs).mockRejectedValue(new Error("CE model download failed"));
 
-    await expect(recall(QUERY, makeCtx(), { budget: "mid" })).rejects.toThrow(
-      "CE model download failed"
-    );
+    const result = await recall(QUERY, makeCtx(), { budget: "mid" });
+
+    expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
   });
 });
 
@@ -652,7 +650,9 @@ describe("createRecallTool executor", () => {
   });
 
   it("returns an error string (does not throw) when recall fails downstream", async () => {
-    vi.mocked(rerankPairs).mockRejectedValue(new Error("boom"));
+    // Use the query-embedding call as the failure injection point — it's
+    // unguarded, unlike the cross-encoder rerank which now soft-degrades.
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("boom"));
     const tool = createRecallTool(makeCtx(), { types: ["fact"], budget: "mid" });
 
     const output = await tool.executor!({ query: QUERY });

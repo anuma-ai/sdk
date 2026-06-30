@@ -661,28 +661,39 @@ export async function rankFusedVaultMemoriesAsync(
     const rerankTopN = options.rerankTopN ?? 30;
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = v2Ranked.slice(0, rerankTopN);
-    tailSlice = v2Ranked.slice(rerankTopN);
 
-    const reranked = await rerankPairs(
-      query,
-      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
-    );
+    // The cross-encoder is a network call (portal). A transient rerank failure
+    // degrades to the V2 ordering we already computed rather than erroring the
+    // whole recall — the executor's outer catch would otherwise turn a CE
+    // hiccup into "Error searching vault" and surface zero memories to the
+    // answer model. The downgrade is logged (warn) as the observability signal;
+    // threading it up to RecallResult.reranked is a follow-up.
+    try {
+      const reranked = await rerankPairs(
+        query,
+        headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+      );
+      tailSlice = v2Ranked.slice(rerankTopN);
 
-    const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
-    const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
+      const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
+      const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
 
-    combined = headSlice.map((r) => {
-      const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
-      const ce = ceScoreById.get(r.uniqueId) ?? 0;
-      return {
-        uniqueId: r.uniqueId,
-        content: r.content,
-        similarity: v2 * (1 + ceWeight * ce),
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      };
-    });
-    combined.sort((a, b) => b.similarity - a.similarity);
+      combined = headSlice.map((r) => {
+        const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
+        const ce = ceScoreById.get(r.uniqueId) ?? 0;
+        return {
+          uniqueId: r.uniqueId,
+          content: r.content,
+          similarity: v2 * (1 + ceWeight * ce),
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        };
+      });
+      combined.sort((a, b) => b.similarity - a.similarity);
+    } catch (err) {
+      getLogger().warn("[memory/search] cross-encoder rerank failed; using V2 ranking", err);
+      combined = v2Ranked;
+    }
   } else {
     combined = v2Ranked;
   }
@@ -953,25 +964,34 @@ export async function rankComposite(
     }
   }
 
-  // Stage 3 — optional CE rerank against the *original* query.
+  // Stage 3 — optional CE rerank against the *original* query. On a transient
+  // CE failure, keep the already-computed fused ordering rather than letting
+  // the throw bubble to the executor and zero the recall.
   if (options?.rerank && combined.length > 0) {
     const rerankTopN = options.rerankTopN ?? 30;
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = combined.slice(0, rerankTopN);
     const tailSlice = combined.slice(rerankTopN);
 
-    const reranked = await rerankPairs(
-      originalQuery,
-      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
-    );
-    const ceById = new Map(reranked.map((r) => [r.id, r.score]));
+    try {
+      const reranked = await rerankPairs(
+        originalQuery,
+        headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+      );
+      const ceById = new Map(reranked.map((r) => [r.id, r.score]));
 
-    const head = headSlice.map((r) => ({
-      ...r,
-      similarity: r.similarity * (1 + ceWeight * (ceById.get(r.uniqueId) ?? 0)),
-    }));
-    head.sort((a, b) => b.similarity - a.similarity);
-    combined = [...head, ...tailSlice];
+      const head = headSlice.map((r) => ({
+        ...r,
+        similarity: r.similarity * (1 + ceWeight * (ceById.get(r.uniqueId) ?? 0)),
+      }));
+      head.sort((a, b) => b.similarity - a.similarity);
+      combined = [...head, ...tailSlice];
+    } catch (err) {
+      getLogger().warn(
+        "[memory/search] composite cross-encoder rerank failed; using fused ranking",
+        err
+      );
+    }
   }
 
   // Stage 4 — optional MMR diversity pass, mirroring

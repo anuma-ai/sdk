@@ -21,8 +21,13 @@ vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbeddings: vi.fn(),
 }));
 
+vi.mock("../memory/reranker", () => ({
+  rerankPairs: vi.fn(),
+}));
+
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import { rerankPairs } from "../memory/reranker";
 import { setLogger, noopLogger, type Logger } from "../logger";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
@@ -679,6 +684,36 @@ describe("eagerEmbedContent", () => {
     await new Promise((r) => setTimeout(r, 10));
 
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).not.toHaveBeenCalled();
+  });
+});
+
+describe("rerank graceful degradation", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("falls back to the V2 ranking when the cross-encoder rerank throws", async () => {
+    // A rerank failure is a transient network/portal hiccup; the search must
+    // degrade to the already-computed V2 ordering rather than reject (which
+    // the recall tool would surface as "Error searching memory").
+    vi.mocked(rerankPairs).mockRejectedValue(new Error("portal 503"));
+    const memories = [makeMemory("m1", "cats are great"), makeMemory("m2", "dogs are loyal")];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("cats are great", [1, 0, 0]);
+    cache.set("dogs are loyal", [0, 1, 0]);
+
+    const { results } = await searchVaultMemoriesWithSize(
+      "cats",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: true, rerank: true }
+    );
+
+    // Did not throw; the cosine-aligned candidate still ranks first.
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].uniqueId).toBe("m1");
   });
 });
 

@@ -159,7 +159,7 @@ import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
-import { onKeyAvailable } from "./useEncryption";
+import { onClearAllEncryptionState, onKeyAvailable } from "./useEncryption";
 
 // Selection thresholds live in ../lib/tools/serverTools (single source — the
 // toolSelection e2e suite imports the same values, and serverTools keeps its
@@ -1856,6 +1856,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
     })();
   }, [vaultCtx, getToken, vaultEmbeddingOptions]);
+
+  /**
+   * Drop the vault embedding cache when all encryption state is cleared
+   * (logout / wallet switch). The cache is keyed by *decrypted* memory
+   * content, so leaving it populated would keep plaintext from the previous
+   * identity resident in memory — and would serve stale vectors to the next
+   * identity. Mirrors lazyDecrypt's title-cache clear on the same signal.
+   */
+  useEffect(() => onClearAllEncryptionState(() => vaultEmbeddingCacheRef.current.clear()), []);
 
   /**
    * Create a vault search tool pre-configured with hook's context, auth, and cache
