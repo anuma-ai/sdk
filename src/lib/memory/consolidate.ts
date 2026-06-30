@@ -55,9 +55,10 @@ const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
 // is NOT low-cost: the paraphrased re-extractions consolidation exists to
 // catch sit at cosine ~0.7–0.8, below the 0.85 auto-merge floor, so a spurious
 // create leaves a permanent near-duplicate that does NOT collapse at read time
-// or self-heal via proof_count (different wording → different embedding). One
-// cheap transient-only retry preserves the dedup decision without touching the
-// happy path (1 attempt) or the schema-violation path (terminal, no retry).
+// or self-heal via proof_count (different wording → different embedding). 3
+// attempts = up to two cheap transient-only retries; the happy path still
+// resolves in one attempt and the schema-violation path stays terminal (no
+// retry).
 const DEFAULT_CONSOLIDATE_ATTEMPTS = 3;
 // Bound worst-case retain latency on a hanging portal — consolidation is a
 // background quality stage, so cap it well under the extractor's 60s budget.
@@ -139,6 +140,12 @@ interface ConsolidateOptions extends PortalLlmAuth {
    * Defaults to {@link DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS}.
    */
   totalTimeoutMs?: number;
+  /**
+   * Backoff before each retry, in ms, given the just-failed 1-based attempt.
+   * Defaults to the portal helper's exponential+jitter schedule. Tests pass
+   * `() => 0` for instant retries (same escape hatch portalLlm.ts exposes).
+   */
+  backoffMs?: (attempt: number) => number;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
   /**
@@ -203,6 +210,7 @@ export async function consolidateMemory(
       // retry. A total budget keeps a hanging portal from stalling retain.
       maxAttempts: options.maxAttempts ?? DEFAULT_CONSOLIDATE_ATTEMPTS,
       totalTimeoutMs: options.totalTimeoutMs ?? DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS,
+      ...(options.backoffMs && { backoffMs: options.backoffMs }),
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
     });
   } catch (err) {
