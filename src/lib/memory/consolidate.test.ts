@@ -85,12 +85,33 @@ describe("consolidateMemory", () => {
     expect(onFallback).not.toHaveBeenCalled();
   });
 
-  it("falls back on network error without retrying (single attempt, then degrade)", async () => {
+  it("retries a transient network error to the default cap, then degrades to create", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
     expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
-    // maxAttempts: 1 — consolidate degrades to create rather than retrying, so
-    // it must not multiply retain latency by hammering the portal.
+    // A network error is transient — consolidate now retries (DEFAULT_CONSOLIDATE_ATTEMPTS = 3)
+    // before degrading, so a one-off blip doesn't leave a permanent below-floor paraphrase.
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("honors a maxAttempts: 1 override (no retry, degrade on first failure)", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      maxAttempts: 1,
+    });
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a schema violation (parses fine but invalid → degrades on first attempt)", async () => {
+    // A well-formed-but-wrong-schema response parses fine, so it's NOT a portal
+    // retryable — validate() rejects it post-parse and it degrades immediately,
+    // even though maxAttempts defaults to 3.
+    const fetchFn = mockFetch(choices({ action: "update", targetId: "nope", content: "x" }));
+    const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
+    expect(result.fallbackReason).toBe("invalid_response");
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
