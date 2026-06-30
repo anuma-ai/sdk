@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `32` = `32`
+> `const` **SDK\_SCHEMA\_VERSION**: `33` = `33`
 
-Defined in: [src/lib/db/schema.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#58)
+Defined in: [src/lib/db/schema.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#61)
 
 Current combined schema version for all SDK storage modules.
 
@@ -39,3 +39,6 @@ Version history:
 * v30: Added event\_time\_start, event\_time\_end, event\_time\_kind columns to memory\_vault for the W6 temporal retrieval lane
 * v31: Added user\_id column to memory\_entity for multi-user server-side scoping of the W5 graph retrieval lane
 * v32: Added pinned\_at column to conversations for pinning chats to the top of the list
+* v33: Added embedding\_model column to memory\_vault so stale-model vectors are
+  detectable and re-embeddable after an embedding-model change (null = legacy
+  rows, grandfathered as compatible with the current model)

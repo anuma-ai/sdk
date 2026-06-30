@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#21)
+Defined in: [src/lib/db/memoryVault/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#23)
 
 ***
 
@@ -157,11 +157,21 @@ Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/anuma-ai/sd
 
 ***
 
+### embeddingModel
+
+> **embeddingModel**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#13)
+
+Model that produced `embedding`. Null on legacy rows (grandfathered).
+
+***
+
 ### eventTimeEnd
 
 > **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#18)
+Defined in: [src/lib/db/memoryVault/models.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#20)
 
 W6 temporal lane — Unix ms timestamp of event end (range/ongoing).
 
@@ -171,7 +181,7 @@ W6 temporal lane — Unix ms timestamp of event end (range/ongoing).
 
 > **eventTimeKind**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#20)
+Defined in: [src/lib/db/memoryVault/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#22)
 
 W6 temporal lane — `point | range | ongoing | null`.
 
@@ -181,7 +191,7 @@ W6 temporal lane — `point | range | ongoing | null`.
 
 > **eventTimeStart**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#16)
+Defined in: [src/lib/db/memoryVault/models.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#18)
 
 W6 temporal lane — Unix ms timestamp of when the event occurred.
 
@@ -199,7 +209,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#23)
+Defined in: [src/lib/db/memoryVault/models.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#25)
 
 ***
 
@@ -207,7 +217,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:23](https://github.com/anuma-ai/sd
 
 > **proofCount**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#13)
+Defined in: [src/lib/db/memoryVault/models.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#15)
 
 ***
 
@@ -223,7 +233,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/anuma-ai/sdk
 
 > **source**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#14)
+Defined in: [src/lib/db/memoryVault/models.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#16)
 
 ***
 
@@ -231,7 +241,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sd
 
 > **sourceChunkIds**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#12)
+Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#14)
 
 ***
 
@@ -239,7 +249,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sd
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#22)
+Defined in: [src/lib/db/memoryVault/models.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#24)
 
 ***
 

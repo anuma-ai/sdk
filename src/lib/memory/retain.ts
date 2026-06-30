@@ -20,6 +20,7 @@ import {
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -131,12 +132,14 @@ export async function retain(
   // No merge candidate (or auto-merge disabled): create a new memory.
   const embedding = await generateEmbedding(trimmed, ctx.embeddingOptions);
   ctx.vaultCache.set(trimmed, embedding);
+  const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, {
     content: trimmed,
     scope: resolvedScope,
     ...(options.folderId !== undefined && { folderId: options.folderId }),
     embedding: JSON.stringify(embedding),
+    embeddingModel,
     ...(options.sourceChunkIds &&
       options.sourceChunkIds.length > 0 && {
         sourceChunkIds: options.sourceChunkIds,
@@ -268,12 +271,14 @@ async function tryConsolidate(
     // Re-embed the consolidated content; embeddingOptions includes the cache.
     const newEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
     ctx.vaultCache.set(decision.content, newEmbedding);
+    const consolidatedModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: decision.content,
       proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
       embedding: JSON.stringify(newEmbedding),
+      embeddingModel: consolidatedModel,
       // Even when the LLM rewrites content into a richer paraphrase,
       // this is still a re-observation of an existing fact — not a new
       // one. Preserving updated_at keeps the recency multiplier honest
