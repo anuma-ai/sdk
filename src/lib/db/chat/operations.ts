@@ -3,8 +3,8 @@ import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
-import { cosineSimilarity } from "../../memoryEngine/vector";
 import { getLogger } from "../../logger";
+import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decryptJsonField } from "../encryption-utils";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import { decryptMessageFields, encryptMessageFields, isEncrypted } from "./encryption";
@@ -1062,7 +1062,7 @@ export async function searchChunksOp(
     // grandfathered (legacy rows were embedded with the current model).
     if (embeddingModel) {
       const storedModel = message._getRaw("embedding_model") as string | null | undefined;
-      if (storedModel != null && storedModel !== embeddingModel) {
+      if (storedModel !== null && storedModel !== undefined && storedModel !== embeddingModel) {
         staleSkipped++;
         continue;
       }

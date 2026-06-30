@@ -15,8 +15,8 @@ import type { PortalLlmAuth } from "../memory/portalLlm";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
-import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
+import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
 import { scoreBM25 } from "./bm25";
@@ -1052,9 +1052,10 @@ export async function preEmbedVaultMemories(
     if (isEncrypted(key)) continue;
     if (!cache.has(key)) {
       // Use a persisted embedding only if it was produced by the current
-      // model (null = legacy, grandfathered). Stale-model vectors are
-      // re-embedded so a model change doesn't poison the cache.
-      const modelCompatible = m.embeddingModel == null || m.embeddingModel === currentModel;
+      // model. null/undefined = legacy, grandfathered (coalesces to the
+      // current model). Stale-model vectors are re-embedded so a model change
+      // doesn't poison the cache.
+      const modelCompatible = (m.embeddingModel ?? currentModel) === currentModel;
       if (m.embedding && modelCompatible) {
         try {
           const parsed = JSON.parse(m.embedding) as number[];
@@ -1205,9 +1206,10 @@ export async function searchVaultMemoriesWithSize(
     if (cached && cached.length === queryEmbedding.length) continue;
     if (cached) cache.delete(content); // wrong-dim cache entry — drop and re-resolve
 
-    // Check for a usable persisted embedding in DB first
+    // Check for a usable persisted embedding in DB first. null/undefined model
+    // is grandfathered (coalesces to current); a real different model is stale.
     const storedModel = memories[i].embeddingModel;
-    const modelCompatible = storedModel == null || storedModel === currentModel;
+    const modelCompatible = (storedModel ?? currentModel) === currentModel;
     if (memories[i].embedding && modelCompatible) {
       try {
         const parsed = JSON.parse(memories[i].embedding!) as number[];

@@ -19,8 +19,8 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
-import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
+import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { RetainOptions, RetainResult } from "./types.js";
