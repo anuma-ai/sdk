@@ -2,7 +2,7 @@
 
 > **generateConversationId**(): `string`
 
-Defined in: [src/lib/db/chat/types.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#844)
+Defined in: [src/lib/db/chat/types.ts:854](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#854)
 
 ## Returns
 

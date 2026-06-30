@@ -1,6 +1,6 @@
 # SearchSource
 
-Defined in: [src/lib/db/chat/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#119)
+Defined in: [src/lib/db/chat/types.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#120)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:119](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **date**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#123)
+Defined in: [src/lib/db/chat/types.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#124)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:123](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **snippet**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#122)
+Defined in: [src/lib/db/chat/types.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#123)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:122](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **title**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#120)
+Defined in: [src/lib/db/chat/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#121)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [src/lib/db/chat/types.ts:120](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#121)
+Defined in: [src/lib/db/chat/types.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#122)
