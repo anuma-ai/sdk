@@ -596,6 +596,11 @@ function clientToolToCompletionsFormat(
  * defer-loading is enabled. ai-portal forwards it verbatim (#1284) and Anthropic uses it to load
  * deferred tool definitions on demand. Internal — not exported (no external consumer). */
 const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
+/** The tool-search tool's `name` must match the variant exactly — Anthropic rejects anything else
+ * ("Input should be 'tool_search_tool_regex'", confirmed via docs + a direct Messages API test).
+ * Bound to the regex variant alongside the type above; a future bm25 variant pairs
+ * `tool_search_tool_bm25_*` with name `tool_search_tool_bm25`. (Was "tool_search", which Anthropic 400s.) */
+const TOOL_SEARCH_TOOL_NAME = "tool_search_tool_regex";
 
 /**
  * Opt-in defer-loading config for {@link mergeTools}. OFF by default — when absent or `enabled:false`,
@@ -642,7 +647,10 @@ function formatServerToolsWithDefer(
     .map((name) => serverTools.find((t) => t.name === name))
     .filter((t): t is ServerTool => t !== undefined);
   const deferred = serverTools.filter((t) => !hotSet.has(t.name)).sort(byNameAscending);
-  const searchTool: Record<string, unknown> = { type: TOOL_SEARCH_TOOL_TYPE, name: "tool_search" };
+  const searchTool: Record<string, unknown> = {
+    type: TOOL_SEARCH_TOOL_TYPE,
+    name: TOOL_SEARCH_TOOL_NAME,
+  };
   return [
     searchTool,
     ...hot.map((t) => fmt(t) as Record<string, unknown>),

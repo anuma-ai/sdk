@@ -172,6 +172,32 @@ describe("createSlackTools", () => {
     expect(parsed.provider).toBe("slack");
   });
 
+  test("maps Slack ok:false missing_scope (HTTP 200) to an insufficient_scope error with the required scope", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(
+        proxyResult({ ok: false, error: "missing_scope", needed: "search:read" }, 200)
+      );
+    const tools = createSlackTools(callProxy);
+    const raw = (await runExecutor(tools.slack_search_messages, { query: "x" })) as string;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect(parsed.__anuma_connector_error_v1).toBe(true);
+    expect(parsed.code).toBe("insufficient_scope");
+    expect(parsed.provider).toBe("slack");
+    expect(parsed.required).toBe("search:read");
+  });
+
+  test("maps Slack ok:false token_revoked (HTTP 200) to a connector_not_connected error", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: false, error: "token_revoked" }, 200));
+    const tools = createSlackTools(callProxy);
+    const raw = (await runExecutor(tools.slack_list_users, {})) as string;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect(parsed.code).toBe("connector_not_connected");
+    expect(parsed.provider).toBe("slack");
+  });
+
   test("non-auth Slack error (HTTP 200) returns a generic failure string", async () => {
     const callProxy = vi
       .fn<SlackProxyCaller>()

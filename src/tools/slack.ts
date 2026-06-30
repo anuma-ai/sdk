@@ -67,6 +67,8 @@ export interface SlackGetChannelHistoryArgs {
 interface SlackBaseResponse {
   ok: boolean;
   error?: string;
+  /** On a `missing_scope` error, the scope the called method requires. */
+  needed?: string;
 }
 
 interface SlackAuthTestResponse extends SlackBaseResponse {
@@ -139,7 +141,6 @@ const AUTH_ERROR_CODES = new Set([
   "token_revoked",
   "token_expired",
   "no_permission",
-  "missing_scope",
   "not_allowed_token_type",
 ]);
 
@@ -148,10 +149,19 @@ const AUTH_ERROR_CODES = new Set([
  * failure — either via HTTP status (401/403) or via Slack's `ok:false` +
  * auth-shaped `error` code (the Web API returns 200 even when auth failed).
  * Returns null otherwise so the caller can surface the raw error.
+ *
+ * `missing_scope` is special: the grant is alive but lacks the scope a method
+ * needs, so it maps to `insufficient_scope` (reconnecting wouldn't help —
+ * the user needs the missing scope granted) and forwards the required scope.
  */
 function maybeConnectorError(status: number, body: SlackBaseResponse | null): string | null {
   if (status === 401 || status === 403) {
     return buildConnectorErrorResult("connector_not_connected", SLACK_PROVIDER);
+  }
+  if (body && body.ok === false && body.error === "missing_scope") {
+    return buildConnectorErrorResult("insufficient_scope", SLACK_PROVIDER, undefined, {
+      required: body.needed,
+    });
   }
   if (body && body.ok === false && body.error && AUTH_ERROR_CODES.has(body.error)) {
     return buildConnectorErrorResult("connector_not_connected", SLACK_PROVIDER);
@@ -370,7 +380,7 @@ function createSlackListUsersTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_users",
       description:
-        "List members of the user's Slack workspace. Returns id, username, real name, and title. Deactivated accounts are omitted.",
+        "List members of the user's Slack workspace. Returns id, username, real name, title, and is_bot. Deactivated/deleted accounts are omitted; bot accounts are included (check is_bot to filter them out).",
       parameters: {
         type: "object",
         properties: {
