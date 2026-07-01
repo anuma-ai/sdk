@@ -13,6 +13,9 @@ function makeDocumentTools(overrides?: Overrides) {
     getConversationId: () => "conv-1",
     storage,
     logError: () => undefined,
+    // Tests not exercising rendering still need a renderer: the factory
+    // refuses to create the tools without one (#659).
+    displayDocument: () => undefined,
     ...overrides,
   });
   const find = (name: string): ToolConfig => {
@@ -40,6 +43,38 @@ describe("documentPath", () => {
     // The public helper must not return a traversing path on untrusted input.
     expect(() => documentPath("../../etc/passwd")).toThrow(/Invalid documentId/);
     expect(() => documentPath("../../../foo")).toThrow(/Invalid documentId/);
+  });
+});
+
+describe("createDocumentTools — missing renderer (#659)", () => {
+  // Without a displayDocument renderer nothing a user can see is ever
+  // produced, yet the tools used to persist the source and report
+  // `success: true` — the model claimed a PDF was attached, nothing rendered,
+  // and the turn was still billed. The factory must refuse to create the
+  // tools at all so the model is never offered them.
+  it("returns no tools and logs when displayDocument is absent at runtime", () => {
+    const logged: string[] = [];
+    const tools = createDocumentTools({
+      getConversationId: () => "conv-1",
+      storage: new MapFileStorage(),
+      logError: (msg) => logged.push(msg),
+      // Simulate a plain-JS host that omits the (type-required) renderer.
+      displayDocument: undefined as unknown as CreateDocumentToolsOptions["displayDocument"],
+    });
+
+    expect(tools).toEqual([]);
+    expect(logged.join("\n")).toMatch(/displayDocument/);
+    expect(logged.join("\n")).toMatch(/NOT registered/);
+  });
+
+  it("returns no tools when displayDocument is not a function", () => {
+    const tools = createDocumentTools({
+      getConversationId: () => "conv-1",
+      storage: new MapFileStorage(),
+      logError: () => undefined,
+      displayDocument: "not-a-function" as unknown as CreateDocumentToolsOptions["displayDocument"],
+    });
+    expect(tools).toEqual([]);
   });
 });
 
