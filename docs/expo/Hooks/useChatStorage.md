@@ -633,7 +633,7 @@ cover names, non-text content, or tool-call arguments.
 </td>
 <td>
 
-`PromptPreProcessor`\[]
+[`PromptPreProcessor`](../../react/Internal/type-aliases/PromptPreProcessor.md)\[]
 
 </td>
 <td>

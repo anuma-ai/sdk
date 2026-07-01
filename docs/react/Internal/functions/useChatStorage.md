@@ -664,7 +664,7 @@ cover names, non-text content, or tool-call arguments.
 </td>
 <td>
 
-`PromptPreProcessor`\[]
+[`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)\[]
 
 </td>
 <td>
