@@ -2121,6 +2121,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       refreshQueueStatus,
       resumable,
       maskForEmbedding,
+      // Included so a parent that swaps onPiiRedacted between renders reaches the
+      // summarization PII notification (maybeSummarizeHistory) on the current
+      // instance, matching every other redaction path.
+      onPiiRedacted,
     ]
   );
 
