@@ -342,7 +342,7 @@ Detection is regex-based and does not cover names, non-text content
 </td>
 <td>
 
-`PromptPreProcessor`\[]
+[`PromptPreProcessor`](../../react/Internal/type-aliases/PromptPreProcessor.md)\[]
 
 </td>
 <td>

@@ -300,7 +300,7 @@ Detection is regex-based and does not cover names, non-text content
 </td>
 <td>
 
-`PromptPreProcessor`\[]
+[`PromptPreProcessor`](../Internal/type-aliases/PromptPreProcessor.md)\[]
 
 </td>
 <td>

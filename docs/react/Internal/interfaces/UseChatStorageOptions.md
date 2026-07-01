@@ -848,7 +848,7 @@ cover names, non-text content, or tool-call arguments.
 
 ### preProcessors?
 
-> `optional` **preProcessors**: `PromptPreProcessor`\[]
+> `optional` **preProcessors**: [`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:445](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#445)
 
