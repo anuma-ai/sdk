@@ -179,7 +179,7 @@ Receives raw API response - either Responses API or Completions API format.
 </td>
 <td>
 
-(`matches`: `PiiMatch`\[]) => `void`
+(`matches`: [`PiiMatch`](../Internal/interfaces/PiiMatch.md)\[]) => `void`
 
 </td>
 <td>
@@ -312,7 +312,7 @@ Use for live preview of artifacts (HTML, slides) being generated.
 </td>
 <td>
 
-`boolean` | `PiiRedactor`
+`boolean` | [`PiiRedactor`](../Internal/classes/PiiRedactor.md)
 
 </td>
 <td>

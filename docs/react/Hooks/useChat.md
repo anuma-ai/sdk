@@ -160,7 +160,7 @@ Receives raw API response - either Responses API or Completions API format.
 </td>
 <td>
 
-(`matches`: `PiiMatch`\[]) => `void`
+(`matches`: [`PiiMatch`](../../expo/Internal/interfaces/PiiMatch.md)\[]) => `void`
 
 </td>
 <td>
@@ -270,7 +270,7 @@ Use for live preview of artifacts (HTML, slides) being generated.
 </td>
 <td>
 
-`boolean` | `PiiRedactor`
+`boolean` | [`PiiRedactor`](../../expo/Internal/classes/PiiRedactor.md)
 
 </td>
 <td>

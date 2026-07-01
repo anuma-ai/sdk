@@ -444,7 +444,7 @@ Parent message ID for branching (edit/regenerate). Sets on the user message.
 
 ### piiRedaction?
 
-> `optional` **piiRedaction**: `boolean` | `PiiRedactor`
+> `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
 Defined in: [src/react/useChatStorage.ts:919](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#919)
 
