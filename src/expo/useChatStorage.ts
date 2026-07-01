@@ -658,13 +658,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // are conversation/order-dependent and would break cosine similarity). Only
   // the text sent to the server is masked; locally stored content stays real.
   //
-  // Deliberate divergence from the react entry: embedding masking uses the
-  // HOOK-level redactor, not a per-call one, so a per-request `piiRedaction`
-  // override does NOT reach embedding inputs (the LLM-request + summary paths DO
-  // honor it). Acceptable because maskText is stateless — the only observable
-  // effect is that a per-request `piiRedaction: false` still masks embeddings
-  // (fails safe, never leaks). Thread a per-call masker here if strict parity is
-  // needed.
+  // This is the HOOK-level masker. Send-path embeddings (tool-filter + stored
+  // message) instead use the per-call `maskForCall` from `resolvePiiForCall`, so
+  // a per-request `piiRedaction` override reaches embedding inputs too — parity
+  // with the react entry. `maskForEmbedding` remains the default/fallback for
+  // paths with no per-call context: the async re-embed default, the recall/vault
+  // tools (via `maskEmbeddingInput`), and a resumed row whose detach didn't stow
+  // a per-call masker.
   const maskForEmbedding = useCallback(
     (text: string): string =>
       isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction.maskText(text) : text,
@@ -907,12 +907,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Does not block the main flow or throw errors
    */
   const embedMessageAsync = useCallback(
-    async (message: StoredMessage) => {
+    async (message: StoredMessage, mask: (text: string) => string = maskForEmbedding) => {
       if (!autoEmbedMessages || !getToken) return;
       // Skip short messages that won't provide useful search context
       if (message.content.length < minContentLength) return;
       try {
-        const embedding = await generateEmbedding(maskForEmbedding(message.content), {
+        // `mask` defaults to the hook-level masker but a per-request override can
+        // pass its own (the per-call `maskForCall`) so redaction toggled on/off
+        // for this send reaches the stored-message embedding too.
+        const embedding = await generateEmbedding(mask(message.content), {
           getToken,
           baseUrl,
           model: embeddingModel,
@@ -1124,6 +1127,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     imageModel?: string;
     sources?: SearchSource[];
     thoughtProcess?: ActivityPhase[];
+    // Per-call embedding masker captured at detach so the resumed assistant row
+    // embeds with THIS send's redaction (a per-request override, not just the
+    // hook-level one). Absent on cold-launch resume → embed falls back to the
+    // hook-level masker.
+    embeddingMask?: (text: string) => string;
     startTime: number;
     partialData: ApiResponse | null;
     knownToolCallEventIds?: Set<string>;
@@ -1442,11 +1450,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Resolve PII redaction for THIS call, keyed on the conversation actually
       // used for the send (not the possibly-stale currentConversationId), with a
-      // per-request `piiRedaction` overriding the hook-level option. Mirrors react.
-      const resolvePiiForCall = (conversationIdForCall: string | null): CallPiiResolution =>
-        resolveCallPii(requestPiiRedaction, piiRedaction, () =>
+      // per-request `piiRedaction` overriding the hook-level option. `maskForCall`
+      // is the stateless embedding masker for THIS call's redactor, so tool-filter
+      // and stored-message embeddings honor the per-request override too. Mirrors
+      // react.
+      const resolvePiiForCall = (conversationIdForCall: string | null) => {
+        const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
           getConversationRedactor(conversationIdForCall)
         );
+        return {
+          callRedactor: redactor,
+          callPiiRedaction: forInnerSend,
+          maskForCall: (text: string): string => (redactor ? redactor.maskText(text) : text),
+        };
+      };
 
       // Clear any pending resume FIRST, before any await: a stale handle from a
       // previous detached turn bleeding into this one is the prev+chunk
@@ -1472,6 +1489,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
         const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
+        // No conversation is created on this ephemeral path; key on whatever id is
+        // available. Resolved BEFORE tool-filter embedding so `maskForCall` masks
+        // the embedding input under a per-request override.
+        const { callPiiRedaction, maskForCall } = resolvePiiForCall(currentConversationId);
 
         // Fetch server tools if needed
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -1503,7 +1524,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               );
 
               if (messageContent.length >= minContentLength) {
-                const embedding = await generateEmbedding(maskForEmbedding(messageContent), {
+                const embedding = await generateEmbedding(maskForCall(messageContent), {
                   getToken,
                   baseUrl,
                   model: embeddingModel,
@@ -1527,7 +1548,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           mergedTools = mergeTools(filteredServerTools, clientTools, effectiveApiType);
         }
 
-        const { forInnerSend: callPiiRedaction } = resolvePiiForCall(currentConversationId);
         const result = await baseSendMessage({
           messages,
           model,
@@ -1608,7 +1628,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Resolve the per-call redactor keyed on the conversation actually used
       // (fixes turn-1 placeholder orphaning + honors a per-request override).
-      const { redactor: callRedactor, forInnerSend: callPiiRedaction } = resolvePiiForCall(convId);
+      const { callRedactor, callPiiRedaction, maskForCall } = resolvePiiForCall(convId);
 
       // Build the messages array
       let messagesToSend: LlmapiMessage[];
@@ -1733,7 +1753,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (isServerToolsFunction) {
             // Function-based filtering: generate embedding and call the function
             if (contentForStorage.length >= minContentLength) {
-              userMessageEmbedding = await generateEmbedding(maskForEmbedding(contentForStorage), {
+              userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
                 getToken,
                 baseUrl,
                 model: embeddingModel,
@@ -1774,7 +1794,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-          void embedMessageAsync(storedUserMessage);
+          void embedMessageAsync(storedUserMessage, maskForCall);
         }
       }
 
@@ -1827,6 +1847,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           imageModel,
           sources,
           thoughtProcess,
+          embeddingMask: maskForCall,
           startTime,
           partialData: detachedResult.data ?? null,
           knownToolCallEventIds,
@@ -1880,7 +1901,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               uniqueId: effectiveAssistantUniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
-            void embedMessageAsync(storedAssistantMessage);
+            void embedMessageAsync(storedAssistantMessage, maskForCall);
 
             // Build a valid response for the return (even if original was null).
             // Typed `ApiResponse`: when the strategy was Chat Completions,
@@ -2062,7 +2083,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
-          void embedMessageAsync(storedAssistantMessage);
+          void embedMessageAsync(storedAssistantMessage, maskForCall);
         }
       } catch (err) {
         return {
@@ -2310,7 +2331,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             return { data: result.data, error: written.error, assistantMessage: null };
           }
           pendingResumeRef.current = null;
-          void embedMessageAsync(written.message);
+          // Embed with the per-call masker stowed at detach (undefined on
+          // cold-launch → embedMessageAsync falls back to the hook-level masker),
+          // so a per-request redaction override still masks the resumed embedding.
+          void embedMessageAsync(written.message, rctx.embeddingMask);
           return { data: result.data, error: null, assistantMessage: written.message };
         }
 
