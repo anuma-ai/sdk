@@ -151,6 +151,13 @@ describe("extractMCPImageUrls", () => {
     expect(result[0].mediaType).toBe("image");
   });
 
+  it("ignores a third-party URL that only shallowly contains /api/v1/media/", () => {
+    // The media pattern requires the proxy's <svc>/<token> shape, so an unrelated
+    // link with /api/v1/media/ as a shallow path is not mistaken for an asset.
+    const content = "See https://cdn.third-party.com/api/v1/media/gallery-item for details";
+    expect(extractMCPImageUrls(content, undefined, MCP_DOMAIN)).toEqual([]);
+  });
+
   // --- Video classification ---------------------------------------------------
 
   it("classifies a video tool's output as video (videos[] array shape)", () => {

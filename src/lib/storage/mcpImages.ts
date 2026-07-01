@@ -155,7 +155,10 @@ export function extractMCPImageUrls(
     const escaped = mcpR2Domain.replace(/\./g, "\\.");
     const patterns = [
       new RegExp(`https://${escaped}[^\\s"'<>)\\]]+`, "gi"),
-      new RegExp(`https?://[^\\s"'<>)\\]]+/api/v1/media/[^\\s"'<>)\\]]+`, "gi"),
+      // Require the proxy's <svc>/<token> shape (>=2 path segments after
+      // /api/v1/media/) so a third-party URL that only shallowly contains
+      // /api/v1/media/ isn't returned as a portal media asset.
+      new RegExp(`https?://[^\\s"'<>)\\]]+/api/v1/media/[^/\\s"'<>)\\]]+/[^\\s"'<>)\\]]+`, "gi"),
     ];
     const matches = patterns.flatMap((re) => content.match(re) ?? []);
     if (matches.length > 0) {

@@ -280,9 +280,11 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
       .replace(/!\[[^\]]*\]\(https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^)]+\)/g, "")
       .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
       // The new anuma_create_image tool returns portal media-proxy URLs
-      // (`/api/v1/media/<svc>/<token>/...`) rather than R2 — strip those too.
-      .replace(/!\[[^\]]*\]\(https?:\/\/[^)\s]+\/api\/v1\/media\/[^)]+\)/g, "")
-      .replace(/https?:\/\/[^\s)]+\/api\/v1\/media\/[^\s)]+/g, "")
+      // (`/api/v1/media/<svc>/<token>/...`) rather than R2 — strip those too. The
+      // required <svc>/<token> shape (>=2 path segments) avoids stripping a
+      // third-party URL that only shallowly contains /api/v1/media/.
+      .replace(/!\[[^\]]*\]\(https?:\/\/[^)\s]+\/api\/v1\/media\/[^/)\s]+\/[^)]+\)/g, "")
+      .replace(/https?:\/\/[^\s)]+\/api\/v1\/media\/[^/\s)]+\/[^\s)]+/g, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
     messages.push({
