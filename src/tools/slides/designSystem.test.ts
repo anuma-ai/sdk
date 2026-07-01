@@ -523,11 +523,11 @@ describe("applyAccent", () => {
 
 describe("renderCompositionLayoutRecipe image-note conditionality", () => {
   // The recipe note for image-bearing compositions has historically
-  // advertised AnumaImageMCP-generate_cloud_image unconditionally, even
+  // advertised AnumaMediaMCP-anuma_create_image unconditionally, even
   // when the host hasn't bound that MCP to the loop. The model then
   // hallucinates calls to a tool that doesn't exist. The
   // `hasImageGenerator` flag adapts the recipe text accordingly.
-  it("advertises AnumaImageMCP when hasImageGenerator=true", () => {
+  it("advertises anuma_create_image when hasImageGenerator=true", () => {
     const recipe = renderCompositionLayoutRecipe(
       "cover-split-portrait--editorial-warm",
       { heading: "Playfair Display", body: "Source Sans 3" },
@@ -535,16 +535,16 @@ describe("renderCompositionLayoutRecipe image-note conditionality", () => {
       true
     );
     expect(recipe).toBeTruthy();
-    expect(recipe).toContain("AnumaImageMCP-generate_cloud_image");
+    expect(recipe).toContain("AnumaMediaMCP-anuma_create_image");
   });
 
-  it("omits the AnumaImageMCP reference when hasImageGenerator is false or unset", () => {
+  it("omits the anuma_create_image reference when hasImageGenerator is false or unset", () => {
     const recipe = renderCompositionLayoutRecipe("cover-split-portrait--editorial-warm", {
       heading: "Playfair Display",
       body: "Source Sans 3",
     });
     expect(recipe).toBeTruthy();
-    expect(recipe).not.toContain("AnumaImageMCP");
+    expect(recipe).not.toContain("AnumaMediaMCP-anuma_create_image");
     // Still tells the model how to handle an unfilled image slot.
     expect(recipe).toContain("attached:N");
     expect(recipe).toContain("remove the <Anuma.Image> element");

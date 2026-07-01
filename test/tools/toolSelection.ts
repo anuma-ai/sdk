@@ -574,13 +574,15 @@ const cases: ToolSelectionCase[] = [
   {
     label: "image generation includes image tools",
     prompt: "Generate an image of a sunset over the ocean",
-    serverMustInclude: ["AnumaImageMCP-generate_cloud_image"],
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_image"],
     serverMustExclude: ["AnumaMediaMCP-anuma_create_music", "OpenMeteoMCP-weather_forecast"],
   },
   {
-    label: "image editing includes edit tool",
-    prompt: "Edit this image to remove the background",
-    serverMustInclude: ["AnumaImageMCP-edit_cloud_image"],
+    // Editing collapsed into the single anuma_create_image tool (edit is
+    // signalled by input_images at call time, not a distinct tool name).
+    label: "image editing includes the image tool",
+    prompt: "Edit this photo to look like a watercolor painting",
+    serverMustInclude: ["AnumaMediaMCP-anuma_create_image"],
   },
 
   // ── Server-side: Video generation ────────────────────────────────────
@@ -617,7 +619,7 @@ const cases: ToolSelectionCase[] = [
       "AnumaJinaMCP-parallel_read_url",
       "AnumaJinaMCP-parallel_search_web",
     ],
-    serverMustExclude: ["AnumaImageMCP-generate_cloud_image", "AnumaMediaMCP-anuma_create_music"],
+    serverMustExclude: ["AnumaMediaMCP-anuma_create_image", "AnumaMediaMCP-anuma_create_music"],
   },
   {
     label: "URL reading includes read_url tool",
@@ -630,7 +632,7 @@ const cases: ToolSelectionCase[] = [
     label: "crypto price includes price tool",
     prompt: "What's the current price of Bitcoin?",
     serverMustInclude: ["AnumaTwelveDataMCP-get_price"],
-    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaImageMCP-generate_cloud_image"],
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaMediaMCP-anuma_create_image"],
   },
   {
     label: "market trends includes prediction tools",
@@ -737,7 +739,7 @@ const cases: ToolSelectionCase[] = [
     // NOTE: server tools like anuma_audio_music (0.559) still leak in because
     // server tool descriptions are too broad — they score within 85% of the top
     // match. This is a server-side description quality issue.
-    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaImageMCP-generate_cloud_image"],
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaMediaMCP-anuma_create_image"],
   },
 
   // ── Negative cases ───────────────────────────────────────────────────

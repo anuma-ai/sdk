@@ -249,7 +249,15 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
         if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
           try {
             const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
-            const { imageUrl: _imageUrl, url: _url, ...rest } = parsed;
+            // anuma_create_image returns `output_images: [{url,...}]`; the old
+            // tools returned a single `imageUrl`/`url`. Strip both so the model
+            // can't echo prior images back into the next turn.
+            const {
+              imageUrl: _imageUrl,
+              url: _url,
+              output_images: _outputImages,
+              ...rest
+            } = parsed;
             toolOutput = JSON.stringify(rest);
           } catch {
             // Not JSON — use as-is
@@ -271,6 +279,10 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
     const postToolText = stored.content
       .replace(/!\[[^\]]*\]\(https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^)]+\)/g, "")
       .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
+      // The new anuma_create_image tool returns portal media-proxy URLs
+      // (`/api/v1/media/<svc>/<token>/...`) rather than R2 — strip those too.
+      .replace(/!\[[^\]]*\]\(https?:\/\/[^)\s]+\/api\/v1\/media\/[^)]+\)/g, "")
+      .replace(/https?:\/\/[^\s)]+\/api\/v1\/media\/[^\s)]+/g, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
     messages.push({
