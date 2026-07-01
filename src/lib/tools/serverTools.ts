@@ -258,7 +258,7 @@ function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
  * Get cached tools from localStorage
  */
 export function getCachedServerTools(): CachedServerTools | null {
-  if (typeof window === "undefined") return null;
+  if (typeof localStorage === "undefined") return null;
 
   try {
     const cached = localStorage.getItem(SERVER_TOOLS_CACHE_KEY);
@@ -293,7 +293,7 @@ function isCacheExpired(
  * Store tools in localStorage cache
  */
 function cacheServerTools(tools: ServerTool[], checksum?: string): void {
-  if (typeof window === "undefined") return;
+  if (typeof localStorage === "undefined") return;
 
   const cacheData: CachedServerTools = {
     tools,
@@ -315,7 +315,7 @@ function cacheServerTools(tools: ServerTool[], checksum?: string): void {
  * Clear the server tools cache
  */
 export function clearServerToolsCache(): void {
-  if (typeof window === "undefined") return;
+  if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SERVER_TOOLS_CACHE_KEY);
 }
 
