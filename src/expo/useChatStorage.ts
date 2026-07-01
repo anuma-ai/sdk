@@ -1846,7 +1846,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           model,
           imageModel,
           sources,
-          thoughtProcess,
+          // Snapshot the callback-collected activity phases at detach, mirroring
+          // the completed/aborted/error paths (`getThoughtProcess?.() ||
+          // thoughtProcess`). Stashing only the static `thoughtProcess` arg would
+          // drop phases accumulated through the callback during streaming, since
+          // resumeStream finalizes from `ctx.thoughtProcess`.
+          thoughtProcess: getThoughtProcess?.() || thoughtProcess,
           embeddingMask: maskForCall,
           startTime,
           partialData: detachedResult.data ?? null,
