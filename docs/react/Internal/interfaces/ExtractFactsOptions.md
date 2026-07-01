@@ -281,7 +281,7 @@ indistinguishable). See [extractAndRetain](../functions/extractAndRetain.md)'s `
 
 ### piiRedaction?
 
-> `optional` **piiRedaction**: `boolean` | `PiiRedactor`
+> `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
 Defined in: [src/lib/memory/autoExtract.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#184)
 
@@ -290,7 +290,7 @@ conversation transcript is replaced with tagged placeholders before the
 extraction call, and the returned facts + entities are de-anonymized so the
 vault keeps the real values while raw PII never reaches the extraction
 model (and, via `extractAndRetain`, the consolidation model). Pass `true`
-for a fresh per-call redactor, or a shared PiiRedactor to keep
+for a fresh per-call redactor, or a shared [PiiRedactor](../../../expo/Internal/classes/PiiRedactor.md) to keep
 placeholder numbering consistent with other calls.
 
 NOTE: this does NOT cover the embeddings provider. Facts are stored and

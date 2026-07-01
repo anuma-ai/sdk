@@ -547,7 +547,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-(`matches`: `PiiMatch`\[]) => `void`
+(`matches`: [`PiiMatch`](../../../expo/Internal/interfaces/PiiMatch.md)\[]) => `void`
 
 </td>
 <td>
@@ -639,7 +639,7 @@ Errors thrown by the callback are swallowed.
 </td>
 <td>
 
-`boolean` | `PiiRedactor`
+`boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
 </td>
 <td>

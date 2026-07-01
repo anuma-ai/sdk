@@ -572,7 +572,7 @@ Callback invoked when the response completes successfully
 
 ### onPiiRedacted()?
 
-> `optional` **onPiiRedacted**: (`matches`: `PiiMatch`\[]) => `void`
+> `optional` **onPiiRedacted**: (`matches`: [`PiiMatch`](../../../expo/Internal/interfaces/PiiMatch.md)\[]) => `void`
 
 Defined in: [src/lib/db/chat/types.ts:462](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#462)
 
@@ -597,7 +597,7 @@ Only fired when `piiRedaction` is active and at least one match was found.
 </td>
 <td>
 
-`PiiMatch`\[]
+[`PiiMatch`](../../../expo/Internal/interfaces/PiiMatch.md)\[]
 
 </td>
 </tr>
@@ -826,7 +826,7 @@ Errors thrown by the callback are swallowed.
 
 ### piiRedaction?
 
-> `optional` **piiRedaction**: `boolean` | `PiiRedactor`
+> `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
 Defined in: [src/lib/db/chat/types.ts:457](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#457)
 
