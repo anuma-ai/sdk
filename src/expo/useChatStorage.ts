@@ -670,13 +670,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction.maskText(text) : text,
     [resolvedPiiRedaction]
   );
-  const maskEmbeddingInput = useMemo(
-    () =>
-      isPiiRedactor(resolvedPiiRedaction)
-        ? (text: string) => resolvedPiiRedaction.maskText(text)
-        : undefined,
-    [resolvedPiiRedaction]
-  );
+  // The optional form is the stable callback when redaction is on, else
+  // undefined — no separate memo, so the two can't drift.
+  const maskEmbeddingInput = isPiiRedactor(resolvedPiiRedaction) ? maskForEmbedding : undefined;
 
   // Get collections
   const messagesCollection = useMemo(() => database.get<Message>("history"), [database]);
