@@ -194,7 +194,7 @@ async function listDropboxFolders(
   // Dropbox paginates: when it flags more entries past our limit, tell the LLM
   // so it doesn't present a partial listing as the whole folder.
   if (data.has_more) {
-    return `${JSON.stringify(mapped)}\n\n(Showing the first ${mapped.length} entries; this folder has more. List a narrower path to see the rest.)`;
+    return `${JSON.stringify(mapped)}\n\n(Showing the first ${mapped.length} entries; this folder contains more items that are not shown here.)`;
   }
   return mapped;
 }
