@@ -559,8 +559,12 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    */
   recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
 
-  /** Get all vault memories for context injection. */
-  getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
+  /** Get all vault memories for context injection. Soft-deleted memories are
+   * excluded unless `includeDeleted` is set. */
+  getVaultMemories: (options?: {
+    scopes?: string[];
+    includeDeleted?: boolean;
+  }) => Promise<StoredVaultMemory[]>;
 
   /** Delete a vault memory by its ID (soft delete). */
   deleteVaultMemory: (id: string) => Promise<boolean>;
