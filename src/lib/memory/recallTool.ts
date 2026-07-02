@@ -64,6 +64,14 @@ export interface RecallToolCallbacks {
   onChunksRetrieved?: (conversationIds: string[]) => void;
   /** Called with the fact IDs returned via the fact lane. */
   onFactsRetrieved?: (factIds: string[]) => void;
+  /**
+   * Called with the ranked facts and their relevance scores, in rank
+   * order (highest first). A superset of {@link onFactsRetrieved} that
+   * additionally exposes `RankedMemory.score` — consumers that only need
+   * ids can keep using `onFactsRetrieved`; those that scale UI by
+   * relevance (e.g. the Memory Graph's recall pulses) use this.
+   */
+  onFactsRanked?: (facts: { id: string; score: number }[]) => void;
 }
 
 function formatEventTime(
@@ -219,9 +227,14 @@ export function createRecallTool(
           );
           if (convIds.length > 0) callbacks.onChunksRetrieved(convIds);
         }
-        if (callbacks?.onFactsRetrieved) {
-          const factIds = result.memories.filter((m) => m.kind === "fact").map((m) => m.id);
-          if (factIds.length > 0) callbacks.onFactsRetrieved(factIds);
+        if (callbacks?.onFactsRetrieved || callbacks?.onFactsRanked) {
+          const facts = result.memories
+            .filter((m) => m.kind === "fact")
+            .map((m) => ({ id: m.id, score: m.score }));
+          if (facts.length > 0) {
+            callbacks.onFactsRetrieved?.(facts.map((f) => f.id));
+            callbacks.onFactsRanked?.(facts);
+          }
         }
 
         return formatRecallResult(result.memories);

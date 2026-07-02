@@ -668,4 +668,33 @@ describe("createRecallTool executor", () => {
 
     expect(onFactsRetrieved).toHaveBeenCalledWith(["m1", "m2"]);
   });
+
+  it("reports ranked facts with scores via onFactsRanked, highest first", async () => {
+    const onFactsRanked = vi.fn();
+    const tool = createRecallTool(makeCtx(), { types: ["fact"] }, { onFactsRanked });
+
+    await tool.executor!({ query: QUERY });
+
+    expect(onFactsRanked).toHaveBeenCalledTimes(1);
+    const facts = onFactsRanked.mock.calls[0][0] as { id: string; score: number }[];
+    expect(facts.map((f) => f.id)).toEqual(["m1", "m2"]);
+    for (const f of facts) expect(Number.isFinite(f.score)).toBe(true);
+    // Results are surfaced in rank order (relevance descending).
+    expect(facts[0].score).toBeGreaterThanOrEqual(facts[1].score);
+  });
+
+  it("fires onFactsRetrieved and onFactsRanked with the same ids", async () => {
+    const onFactsRetrieved = vi.fn();
+    const onFactsRanked = vi.fn();
+    const tool = createRecallTool(
+      makeCtx(),
+      { types: ["fact"] },
+      { onFactsRetrieved, onFactsRanked }
+    );
+
+    await tool.executor!({ query: QUERY });
+
+    const rankedIds = (onFactsRanked.mock.calls[0][0] as { id: string }[]).map((f) => f.id);
+    expect(onFactsRetrieved).toHaveBeenCalledWith(rankedIds);
+  });
 });

@@ -254,6 +254,40 @@ describe("getAllVaultMemoriesOp", () => {
     expect(callArgs.length).toBe(3); // is_deleted, scope, sortBy
   });
 
+  it("drops the is_deleted filter and returns deleted rows when includeDeleted is true", async () => {
+    const live = mockRecord({ id: "mem_live" });
+    const gone = mockRecord({ id: "mem_gone" });
+    // unsafeFetchRaw serves _raw, so set the soft-delete flag on the raw row.
+    gone._raw.is_deleted = true;
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: vi.fn(async () => [live, gone]),
+      unsafeFetchRaw: vi.fn(async () => [live._raw, gone._raw]),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const results = await getAllVaultMemoriesOp(ctx, { includeDeleted: true });
+
+    // is_deleted clause omitted → only sortBy remains.
+    expect(queryFn.mock.calls[0].length).toBe(1);
+    expect(results).toHaveLength(2);
+    expect(results.find((m) => m.uniqueId === "mem_gone")?.isDeleted).toBe(true);
+    expect(results.find((m) => m.uniqueId === "mem_live")?.isDeleted).toBe(false);
+  });
+
+  it("keeps the is_deleted filter when includeDeleted is false", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getAllVaultMemoriesOp(ctx, { includeDeleted: false });
+
+    // is_deleted + sortBy — the filter is retained.
+    expect(queryFn.mock.calls[0].length).toBe(2);
+  });
+
   it("does NOT add scope condition when scopes is empty array", async () => {
     const fetchFn = vi.fn(async () => []);
     const queryFn = vi.fn((..._conditions: any[]) => ({

@@ -1,12 +1,14 @@
 # linkMemoryEntitiesOp
 
-> **linkMemoryEntitiesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityNames`: `string`\[]): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
+> **linkMemoryEntitiesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityInputs`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
 
-Defined in: [src/lib/db/entities/operations.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#80)
+Defined in: [src/lib/db/entities/operations.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#123)
 
-Link a memory to one or more entities. Names are normalized; missing
-entities are auto-created. Idempotent — duplicate (memory\_id, entity\_id)
-pairs are skipped.
+Link a memory to one or more entities. Accepts bare names (back-compat)
+or `{ name, kind }` objects. Names are normalized; missing entities are
+auto-created (with their kind), and an existing entity's null kind is
+back-filled — see upsertEntitiesOp. Idempotent — duplicate
+(memory\_id, entity\_id) pairs are skipped.
 
 ## Parameters
 
@@ -45,12 +47,12 @@ pairs are skipped.
 <tr>
 <td>
 
-`entityNames`
+`entityInputs`
 
 </td>
 <td>
 
-`string`\[]
+readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]
 
 </td>
 </tr>

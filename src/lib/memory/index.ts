@@ -2,6 +2,7 @@ export {
   type AutoExtractMessage,
   extractAndRetain,
   type ExtractedCandidate,
+  type ExtractedEntity,
   extractFacts,
   type ExtractFactsOptions,
   type ExtractOutcome,

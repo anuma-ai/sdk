@@ -2,7 +2,15 @@ import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { Entity, MemoryEntity } from "./models";
-import { normalizeEntityName as normalizeName, type StoredEntity } from "./types";
+import { type EntityKind, normalizeEntityName as normalizeName, type StoredEntity } from "./types";
+
+/**
+ * Accepted entity shape for {@link linkMemoryEntitiesOp}. A bare string is
+ * a name with no kind (back-compat with the original signature); the object
+ * form carries an optional classification.
+ * @public
+ */
+export type EntityInput = string | { name: string; kind?: EntityKind | (string & {}) };
 
 export interface EntityOperationsContext {
   database: Database;
@@ -36,17 +44,35 @@ function entityToStored(e: Entity): StoredEntity {
 }
 
 /**
- * Batch resolve-or-create a set of canonical names. Read + create run
- * inside one `database.write()` so concurrent turns can't race a
- * check-then-create on the same brand-new name.
+ * Batch resolve-or-create a set of entities. Read + create run inside one
+ * `database.write()` so concurrent turns can't race a check-then-create on
+ * the same brand-new name.
  *
- * Names are deduplicated and normalized (lower-trim) before lookup.
+ * Names are deduplicated and normalized (lower-trim) before lookup. When an
+ * entity carries a `kind`, it is written on create and back-filled onto an
+ * existing row whose kind is still null — but a non-null kind is never
+ * overwritten (an earlier, likely-more-confident classification wins over a
+ * later one). If the same name appears twice with different kinds in one
+ * batch, the first non-null kind wins.
  */
 async function upsertEntitiesOp(
   ctx: EntityOperationsContext,
-  names: string[]
+  entities: ReadonlyArray<{ name: string; kind?: string }>
 ): Promise<Map<string, StoredEntity>> {
-  const unique = Array.from(new Set(names.map(normalizeName).filter((n) => n.length > 0)));
+  // Normalize + collapse duplicates, tracking the first non-null kind seen
+  // for each name.
+  const kindByName = new Map<string, string | undefined>();
+  for (const e of entities) {
+    const name = normalizeName(e.name);
+    if (name.length === 0) continue;
+    const kind = e.kind && e.kind.length > 0 ? e.kind : undefined;
+    if (!kindByName.has(name)) {
+      kindByName.set(name, kind);
+    } else if (kindByName.get(name) === undefined && kind !== undefined) {
+      kindByName.set(name, kind);
+    }
+  }
+  const unique = Array.from(kindByName.keys());
   const out = new Map<string, StoredEntity>();
   if (unique.length === 0) return out;
 
@@ -54,37 +80,55 @@ async function upsertEntitiesOp(
     const existing = await ctx.entityCollection
       .query(Q.where("canonical_name", Q.oneOf(unique)))
       .fetch();
-    for (const e of existing) out.set(e.canonicalName, entityToStored(e));
+    const existingNames = new Set(existing.map((e) => e.canonicalName));
 
-    const missing = unique.filter((n) => !out.has(n));
-    if (missing.length === 0) return out;
+    // Back-fill kind only where the stored row has none; never clobber a
+    // non-null kind.
+    const updates = existing.filter((e) => {
+      const incoming = kindByName.get(e.canonicalName);
+      return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
+    });
 
-    const prepared = missing.map((name) =>
+    const missing = unique.filter((n) => !existingNames.has(n));
+    const created = missing.map((name) =>
       ctx.entityCollection.prepareCreate((record) => {
         record._setRaw("canonical_name", name);
+        const kind = kindByName.get(name);
+        if (kind !== undefined) record._setRaw("kind", kind);
       })
     );
-    await ctx.database.batch(...prepared);
-    for (const record of prepared) {
-      out.set(record.canonicalName, entityToStored(record));
+    const updated = updates.map((e) =>
+      e.prepareUpdate((record) => {
+        record._setRaw("kind", kindByName.get(e.canonicalName) as string);
+      })
+    );
+    if (created.length > 0 || updated.length > 0) {
+      await ctx.database.batch(...created, ...updated);
     }
+
+    // Reflect the (now-updated) existing rows and the freshly created ones.
+    for (const e of existing) out.set(e.canonicalName, entityToStored(e));
+    for (const record of created) out.set(record.canonicalName, entityToStored(record));
     return out;
   });
 }
 
 /**
- * Link a memory to one or more entities. Names are normalized; missing
- * entities are auto-created. Idempotent — duplicate (memory_id, entity_id)
- * pairs are skipped.
+ * Link a memory to one or more entities. Accepts bare names (back-compat)
+ * or `{ name, kind }` objects. Names are normalized; missing entities are
+ * auto-created (with their kind), and an existing entity's null kind is
+ * back-filled — see {@link upsertEntitiesOp}. Idempotent — duplicate
+ * (memory_id, entity_id) pairs are skipped.
  */
 export async function linkMemoryEntitiesOp(
   ctx: EntityOperationsContext,
   memoryId: string,
-  entityNames: string[]
+  entityInputs: ReadonlyArray<EntityInput>
 ): Promise<StoredEntity[]> {
-  if (entityNames.length === 0) return [];
+  if (entityInputs.length === 0) return [];
 
-  const byName = await upsertEntitiesOp(ctx, entityNames);
+  const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
+  const byName = await upsertEntitiesOp(ctx, normalized);
   const entities = Array.from(byName.values());
   if (entities.length === 0) return [];
 

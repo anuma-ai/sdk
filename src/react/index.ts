@@ -355,6 +355,7 @@ export type {
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   ExtractedCandidate,
+  ExtractedEntity,
   ExtractFactsOptions,
   ExtractOutcome,
   FactType,
@@ -399,11 +400,13 @@ export {
 } from "../lib/db/entities/models";
 export {
   backfillMemoryEntityUserIdsOp,
+  type EntityInput,
   type EntityOperationsContext,
   getMemoriesByEntityNamesOp,
   linkMemoryEntitiesOp,
 } from "../lib/db/entities/operations";
 export type { CreateEntityOptions, EntityKind, StoredEntity } from "../lib/db/entities/types";
+export { ENTITY_KINDS } from "../lib/db/entities/types";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";
 

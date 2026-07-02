@@ -1773,7 +1773,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
-    (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
+    (options?: { scopes?: string[]; includeDeleted?: boolean }): Promise<StoredVaultMemory[]> => {
       return getAllVaultMemoriesOp(vaultCtx, options);
     },
     [vaultCtx]

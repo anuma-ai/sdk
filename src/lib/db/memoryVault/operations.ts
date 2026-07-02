@@ -36,10 +36,16 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
   return ctx.userId === undefined || record.userId === ctx.userId;
 }
 
-/** Builds the base WHERE conditions shared by all vault memory queries. */
-function baseVaultConditions(ctx: VaultMemoryOperationsContext, options?: { since?: Date }) {
+/** Builds the base WHERE conditions shared by all vault memory queries.
+ * `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
+ * opts into it (to surface "forgotten" memories); every other caller omits it
+ * and keeps the default non-deleted-only behavior. */
+function baseVaultConditions(
+  ctx: VaultMemoryOperationsContext,
+  options?: { since?: Date; includeDeleted?: boolean }
+) {
   return [
-    Q.where("is_deleted", false),
+    ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
@@ -367,7 +373,19 @@ async function vaultMemoryRawToStored(
 
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
-  options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
+  options?: {
+    scopes?: string[];
+    since?: Date;
+    limit?: number;
+    folderId?: string | null;
+    /**
+     * Include soft-deleted memories in the result (each carries
+     * `isDeleted: true`). Default `false` — deleted rows are excluded, as
+     * they are from every other read path. Used by the Memory Graph to
+     * render "forgotten" nodes; ordinary consumers should leave this off.
+     */
+    includeDeleted?: boolean;
+  }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
     ...baseVaultConditions(ctx, options),
