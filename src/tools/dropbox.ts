@@ -62,6 +62,24 @@ interface DropboxSearchMatch {
   tag: "file" | "folder";
 }
 
+/**
+ * Partial-listing result. Returned as a structured value (not a
+ * pre-stringified string) so the tool loop serializes it exactly once — a
+ * complete listing returns the bare array, and both must reach the model as
+ * clean JSON rather than a double-escaped blob.
+ */
+interface DropboxPartialFolders {
+  entries: DropboxEntry[];
+  truncated: true;
+  note: string;
+}
+
+interface DropboxPartialMatches {
+  matches: DropboxSearchMatch[];
+  truncated: true;
+  note: string;
+}
+
 interface DropboxRawEntry {
   ".tag"?: string;
   name?: string;
@@ -162,7 +180,7 @@ function toEntry(raw: DropboxRawEntry): DropboxEntry {
 async function listDropboxFolders(
   accessToken: string,
   args: DropboxListFoldersArgs
-): Promise<DropboxEntry[] | string> {
+): Promise<DropboxEntry[] | DropboxPartialFolders | string> {
   let response: Response;
   try {
     response = await dropboxFetch(`${DROPBOX_API_URL}/files/list_folder`, {
@@ -194,7 +212,11 @@ async function listDropboxFolders(
   // Dropbox paginates: when it flags more entries past our limit, tell the LLM
   // so it doesn't present a partial listing as the whole folder.
   if (data.has_more) {
-    return `${JSON.stringify(mapped)}\n\n(Showing the first ${mapped.length} entries; this folder contains more items that are not shown here.)`;
+    return {
+      entries: mapped,
+      truncated: true,
+      note: "This folder contains more items that are not shown here.",
+    };
   }
   return mapped;
 }
@@ -263,7 +285,7 @@ async function getDropboxFileContent(
 async function searchDropbox(
   accessToken: string,
   args: DropboxSearchArgs
-): Promise<DropboxSearchMatch[] | string> {
+): Promise<DropboxSearchMatch[] | DropboxPartialMatches | string> {
   let response: Response;
   try {
     response = await dropboxFetch(`${DROPBOX_API_URL}/files/search_v2`, {
@@ -304,7 +326,11 @@ async function searchDropbox(
   // Same partial-result guard as the folder listing: when search flags more
   // hits past our cap, tell the LLM so it doesn't read a full page as complete.
   if (data.has_more) {
-    return `${JSON.stringify(mapped)}\n\n(Showing the first ${mapped.length} matches; more exist. Refine the query to narrow the results.)`;
+    return {
+      matches: mapped,
+      truncated: true,
+      note: "More matches exist. Refine the query to narrow the results.",
+    };
   }
   return mapped;
 }

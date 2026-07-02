@@ -188,6 +188,52 @@ describe("createDropboxTools", () => {
     expect(result).toBe('No files found matching "nope"');
   });
 
+  test("dropbox_list_folders returns a structured truncation signal when has_more is set", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        entries: [{ ".tag": "file", name: "a.txt", path_display: "/a.txt" }],
+        has_more: true,
+      })
+    );
+    const tools = createDropboxTools(
+      async () => "good-token",
+      async () => null
+    );
+    // Returned as a structured object (not a pre-stringified string) so the
+    // tool loop serializes it exactly once, matching the complete-case array.
+    const result = await runExecutor(tools.dropbox_list_folders, { path: "" });
+    expect(result).toEqual({
+      entries: [{ name: "a.txt", path_display: "/a.txt", tag: "file" }],
+      truncated: true,
+      note: "This folder contains more items that are not shown here.",
+    });
+  });
+
+  test("dropbox_search returns a structured truncation signal when has_more is set", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        matches: [
+          {
+            metadata: {
+              metadata: { ".tag": "file", name: "report.pdf", path_display: "/report.pdf" },
+            },
+          },
+        ],
+        has_more: true,
+      })
+    );
+    const tools = createDropboxTools(
+      async () => "good-token",
+      async () => null
+    );
+    const result = await runExecutor(tools.dropbox_search, { query: "report" });
+    expect(result).toEqual({
+      matches: [{ name: "report.pdf", path_display: "/report.pdf", tag: "file" }],
+      truncated: true,
+      note: "More matches exist. Refine the query to narrow the results.",
+    });
+  });
+
   test("returns canonical connector error when token getter and requestAccess both yield null", async () => {
     const tools = createDropboxTools(
       async () => null,
