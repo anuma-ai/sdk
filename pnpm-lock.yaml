@@ -45,9 +45,6 @@ importers:
       '@babel/types':
         specifier: ^7.29.0
         version: 7.29.0
-      '@huggingface/transformers':
-        specifier: ^3.0.0
-        version: 3.8.1
       ai:
         specifier: 6.0.202
         version: 6.0.202(zod@4.2.1)
@@ -94,6 +91,9 @@ importers:
       '@hey-api/openapi-ts':
         specifier: 0.87.2
         version: 0.87.2(typescript@5.9.3)
+      '@huggingface/transformers':
+        specifier: ^3.0.0
+        version: 3.8.1
       '@microsoft/api-extractor':
         specifier: ^7.57.1
         version: 7.57.1(@types/node@25.0.3)
@@ -11223,7 +11223,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.0.3)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.2(@types/node@25.0.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.2(@types/node@25.9.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/expect@4.1.8':
     dependencies:

@@ -123,6 +123,7 @@ import {
   type VaultEmbeddingCache,
   type VaultSearchResult,
 } from "../lib/memoryVault";
+import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { preprocessFiles } from "../lib/processors";
 import {
@@ -1200,19 +1201,28 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  */
 const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
-const conversationRedactors = new Map<string, PiiRedactor>();
+// Cached redactor + the detector it was built with, so a change in detector
+// (enabled→disabled, or one instance swapped for another) rebuilds rather than
+// silently reusing a redactor wired to the old detector.
+const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 
-function getConversationRedactor(conversationId: string | null): PiiRedactor {
+function getConversationRedactor(
+  conversationId: string | null,
+  nerDetector?: NerDetector
+): PiiRedactor {
   const key = conversationId ?? NO_CONVERSATION_KEY;
-  let redactor = conversationRedactors.get(key);
-  if (redactor) {
-    // Refresh recency (Map preserves insertion order → re-insert moves to end).
+  const cached = conversationRedactors.get(key);
+  if (cached && cached.detector === nerDetector) {
+    // Same detector identity → reuse (and refresh recency: Map preserves
+    // insertion order, so re-inserting moves it to the end).
     conversationRedactors.delete(key);
-    conversationRedactors.set(key, redactor);
-    return redactor;
+    conversationRedactors.set(key, cached);
+    return cached.redactor;
   }
-  redactor = new PiiRedactor();
-  conversationRedactors.set(key, redactor);
+  // No entry, or the detector changed → fresh redactor. Placeholder numbering
+  // restarting on a detector change is fine.
+  const redactor = new PiiRedactor({ nerDetector });
+  conversationRedactors.set(key, { redactor, detector: nerDetector });
   if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
     const oldest = conversationRedactors.keys().next().value;
     if (oldest !== undefined) conversationRedactors.delete(oldest);
@@ -1304,18 +1314,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     preProcessors,
     piiRedaction,
     onPiiRedacted,
+    nerDetector,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
     initialConversationId || null
   );
 
+  // Stabilize nerDetector reference to prevent unnecessary redactor recreation.
+  // nerDetector is kept in a ref so that an unstable reference (e.g., inline
+  // `createTransformersNerDetector()` on each render) doesn't trigger redactor
+  // replacement and lose placeholder mappings. The ref is updated on each render
+  // to allow intentional detector changes, but the useMemo below only depends on
+  // piiRedaction and currentConversationId, so a new detector instance with the
+  // same configuration won't trigger a fresh PiiRedactor.
+  const nerDetectorRef = useRef(nerDetector);
+  nerDetectorRef.current = nerDetector;
+
   // When piiRedaction is `true`, resolve it to the redactor SHARED by all
   // useChatStorage instances for this conversation (see getConversationRedactor)
   // so placeholder mappings are consistent across instances and turns. An
   // explicit instance or `false` is passed through unchanged.
   const resolvedPiiRedaction = useMemo(
-    () => (piiRedaction === true ? getConversationRedactor(currentConversationId) : piiRedaction),
+    () =>
+      piiRedaction === true
+        ? getConversationRedactor(currentConversationId, nerDetectorRef.current)
+        : piiRedaction,
     [piiRedaction, currentConversationId]
   );
 
@@ -2289,7 +2313,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // currentConversationId), which is what fixes turn-1 placeholder orphaning.
       const resolvePiiForCall = (conversationIdForCall: string | null) => {
         const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
-          getConversationRedactor(conversationIdForCall)
+          getConversationRedactor(conversationIdForCall, nerDetectorRef.current)
         );
         return {
           callRedactor: redactor,

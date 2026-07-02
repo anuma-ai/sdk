@@ -852,15 +852,19 @@ export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 
 // PII redaction — best-effort, client-side obfuscation of personally
-// identifiable information before prompts leave the device. Regex-based, so it
-// is NOT a compliance guarantee: it does not detect names and does not scan
-// non-text content (images/files) or tool-call arguments. See `piiRedaction`.
+// identifiable information before prompts leave the device. Regex-based for
+// structured PII; an optional on-device {@link NerDetector} (see
+// `@anuma/sdk/pii/transformers`) adds names/locations/organizations via the
+// async methods. NOT a compliance guarantee, and does not scan non-text content
+// (images/files) or tool-call arguments. See `piiRedaction`.
 export type {
   MessageRedactionResult,
+  NerDetector,
   PiiCategory,
   PiiMatch,
   PiiPattern,
   PiiRedactorOptions,
+  PiiSpan,
   RedactionResult,
 } from "./lib/pii";
 export {

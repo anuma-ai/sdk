@@ -438,6 +438,28 @@ Messages shorter than this are skipped as they provide limited semantic value.
 <tr>
 <td>
 
+`options.nerDetector?`
+
+</td>
+<td>
+
+`NerDetector`
+
+</td>
+<td>
+
+Optional on-device NER detector for *unstructured* PII (names, locations,
+organizations) that regex can't catch. When supplied AND `piiRedaction` is
+active, the conversation redactor merges its spans into the outbound
+message redaction (chat-send path only). Supply e.g.
+`createTransformersNerDetector()` from `@anuma/sdk/pii/transformers` on web.
+Ignored when `piiRedaction` is off. See NerDetector.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onCancelResult?`
 
 </td>

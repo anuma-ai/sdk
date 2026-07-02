@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1273](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1273)
+Defined in: [src/react/useChatStorage.ts:1283](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1283)
 
 ## Parameters
 
@@ -485,6 +485,28 @@ Messages shorter than this are skipped as they provide limited semantic value.
 ```ts
 10
 ```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.nerDetector?`
+
+</td>
+<td>
+
+`NerDetector`
+
+</td>
+<td>
+
+Optional on-device NER detector for *unstructured* PII (names, locations,
+organizations) that regex can't catch. When supplied AND `piiRedaction` is
+active, the conversation redactor merges its spans into the outbound
+message redaction (chat-send path only). Supply e.g.
+`createTransformersNerDetector()` from `@anuma/sdk/pii/transformers` on web.
+Ignored when `piiRedaction` is off. See NerDetector.
 
 </td>
 </tr>

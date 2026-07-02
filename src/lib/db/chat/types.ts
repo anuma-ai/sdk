@@ -20,6 +20,7 @@ import {
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
 import type { DeferLoadingConfig, ServerTool } from "../../tools";
@@ -460,6 +461,15 @@ export interface BaseUseChatStorageOptions {
    * Only fired when `piiRedaction` is active and at least one match was found.
    */
   onPiiRedacted?: (matches: PiiMatch[]) => void;
+  /**
+   * Optional on-device NER detector for *unstructured* PII (names, locations,
+   * organizations) that regex can't catch. When supplied AND `piiRedaction` is
+   * active, the conversation redactor merges its spans into the outbound
+   * message redaction (chat-send path only). Supply e.g.
+   * `createTransformersNerDetector()` from `@anuma/sdk/pii/transformers` on web.
+   * Ignored when `piiRedaction` is off. See {@link NerDetector}.
+   */
+  nerDetector?: NerDetector;
 }
 
 /**
