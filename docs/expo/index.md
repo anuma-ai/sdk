@@ -172,6 +172,54 @@ Re-exports [chunkText](../react/Internal/functions/chunkText.md)
 
 ***
 
+### classifyCryptoPrice
+
+Re-exports [classifyCryptoPrice](../react/Internal/functions/classifyCryptoPrice.md)
+
+***
+
+### classifyCryptoPriceBatch
+
+Re-exports [classifyCryptoPriceBatch](../react/Internal/functions/classifyCryptoPriceBatch.md)
+
+***
+
+### classifyStockPrice
+
+Re-exports [classifyStockPrice](../react/Internal/functions/classifyStockPrice.md)
+
+***
+
+### classifyStockPriceBatch
+
+Re-exports [classifyStockPriceBatch](../react/Internal/functions/classifyStockPriceBatch.md)
+
+***
+
+### classifyWeather
+
+Re-exports [classifyWeather](../react/Internal/functions/classifyWeather.md)
+
+***
+
+### classifyWeatherBatch
+
+Re-exports [classifyWeatherBatch](../react/Internal/functions/classifyWeatherBatch.md)
+
+***
+
+### classifyWebSearch
+
+Re-exports [classifyWebSearch](../react/Internal/functions/classifyWebSearch.md)
+
+***
+
+### classifyWebSearchBatch
+
+Re-exports [classifyWebSearchBatch](../react/Internal/functions/classifyWebSearchBatch.md)
+
+***
+
 ### clearAllEncryptionKeys
 
 Re-exports [clearAllEncryptionKeys](../react/Internal/functions/clearAllEncryptionKeys.md)
@@ -238,6 +286,12 @@ Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConver
 
 ***
 
+### createCryptoPricePreProcessor
+
+Re-exports [createCryptoPricePreProcessor](../react/Internal/functions/createCryptoPricePreProcessor.md)
+
+***
+
 ### createMemoryEngineTool
 
 Re-exports [createMemoryEngineTool](../react/Internal/functions/createMemoryEngineTool.md)
@@ -265,6 +319,12 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 ### createRecallTool
 
 Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
+
+***
+
+### createStockPricePreProcessor
+
+Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
 
 ***
 
@@ -301,6 +361,30 @@ Re-exports [createVaultMemoryOp](../react/Internal/functions/createVaultMemoryOp
 ### CreateVaultMemoryOptions
 
 Re-exports [CreateVaultMemoryOptions](../react/Internal/interfaces/CreateVaultMemoryOptions.md)
+
+***
+
+### createWeatherPreProcessor
+
+Re-exports [createWeatherPreProcessor](../react/Internal/functions/createWeatherPreProcessor.md)
+
+***
+
+### createWebSearchPreProcessor
+
+Re-exports [createWebSearchPreProcessor](../react/Internal/functions/createWebSearchPreProcessor.md)
+
+***
+
+### CryptoPriceClassification
+
+Re-exports [CryptoPriceClassification](../react/Internal/interfaces/CryptoPriceClassification.md)
+
+***
+
+### CryptoPricePreProcessorOptions
+
+Re-exports [CryptoPricePreProcessorOptions](../react/Internal/interfaces/CryptoPricePreProcessorOptions.md)
 
 ***
 
@@ -658,6 +742,18 @@ Re-exports [preEmbedVaultMemories](../react/Internal/functions/preEmbedVaultMemo
 
 ***
 
+### PromptPreProcessor
+
+Re-exports [PromptPreProcessor](../react/Internal/type-aliases/PromptPreProcessor.md)
+
+***
+
+### PromptPreProcessorContext
+
+Re-exports [PromptPreProcessorContext](../react/Internal/type-aliases/PromptPreProcessorContext.md)
+
+***
+
 ### QuantizedEmbedding
 
 Re-exports [QuantizedEmbedding](../react/Internal/interfaces/QuantizedEmbedding.md)
@@ -898,6 +994,18 @@ Re-exports [SignMessageFn](../react/Internal/type-aliases/SignMessageFn.md)
 
 ***
 
+### StockPriceClassification
+
+Re-exports [StockPriceClassification](../react/Internal/interfaces/StockPriceClassification.md)
+
+***
+
+### StockPricePreProcessorOptions
+
+Re-exports [StockPricePreProcessorOptions](../react/Internal/interfaces/StockPricePreProcessorOptions.md)
+
+***
+
 ### StoredChatCompletionUsage
 
 Re-exports [StoredChatCompletionUsage](../react/Internal/interfaces/StoredChatCompletionUsage.md)
@@ -1105,3 +1213,27 @@ Re-exports [VaultSearchResult](../react/Internal/interfaces/VaultSearchResult.md
 ### WalletPoller
 
 Re-exports [WalletPoller](../react/Internal/classes/WalletPoller.md)
+
+***
+
+### WeatherClassification
+
+Re-exports [WeatherClassification](../react/Internal/interfaces/WeatherClassification.md)
+
+***
+
+### WeatherPreProcessorOptions
+
+Re-exports [WeatherPreProcessorOptions](../react/Internal/interfaces/WeatherPreProcessorOptions.md)
+
+***
+
+### WebSearchClassification
+
+Re-exports [WebSearchClassification](../react/Internal/interfaces/WebSearchClassification.md)
+
+***
+
+### WebSearchPreProcessorOptions
+
+Re-exports [WebSearchPreProcessorOptions](../react/Internal/interfaces/WebSearchPreProcessorOptions.md)
