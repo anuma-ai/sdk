@@ -16,7 +16,7 @@ Extends base result with Expo-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/expo/useChatStorage.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#572)
+Defined in: [src/expo/useChatStorage.ts:576](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#576)
 
 Clear all queued operations without writing them.
 
@@ -274,7 +274,7 @@ Defined in: [src/lib/db/chat/types.ts:846](https://github.com/anuma-ai/sdk/blob/
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/expo/useChatStorage.ts:566](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#566)
+Defined in: [src/expo/useChatStorage.ts:570](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#570)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -330,7 +330,7 @@ row's `assistantUniqueId` to complete it via `resumeStream`.
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](../../../react/Internal/interfaces/FlushResult.md)>
 
-Defined in: [src/expo/useChatStorage.ts:569](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#569)
+Defined in: [src/expo/useChatStorage.ts:573](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#573)
 
 Manually flush all queued operations for the current wallet.
 
@@ -442,9 +442,10 @@ Defined in: [src/lib/db/chat/types.ts:847](https://github.com/anuma-ai/sdk/blob/
 
 > **getVaultMemories**: (`options?`: `object`) => `Promise`<[`StoredVaultMemory`](../../../react/Internal/interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/expo/useChatStorage.ts:563](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#563)
+Defined in: [src/expo/useChatStorage.ts:564](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#564)
 
-Get all vault memories for context injection.
+Get all vault memories for context injection. Soft-deleted memories are
+excluded unless `includeDeleted` is set.
 
 **Parameters**
 
@@ -465,6 +466,18 @@ Get all vault memories for context injection.
 <td>
 
 `object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeDeleted?`
+
+</td>
+<td>
+
+`boolean`
 
 </td>
 </tr>
@@ -505,7 +518,7 @@ Defined in: [src/lib/db/chat/types.ts:837](https://github.com/anuma-ai/sdk/blob/
 
 > **queueStatus**: [`QueueStatus`](../../../react/Internal/interfaces/QueueStatus.md)
 
-Defined in: [src/expo/useChatStorage.ts:575](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#575)
+Defined in: [src/expo/useChatStorage.ts:579](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#579)
 
 Current status of the write queue.
 

@@ -508,6 +508,12 @@ Re-exports [ExtractedCandidate](../react/Internal/interfaces/ExtractedCandidate.
 
 ***
 
+### ExtractedEntity
+
+Re-exports [ExtractedEntity](../react/Internal/interfaces/ExtractedEntity.md)
+
+***
+
 ### extractFacts
 
 Re-exports [extractFacts](../react/Internal/functions/extractFacts.md)

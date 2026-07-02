@@ -1,6 +1,6 @@
 # StoredEntity
 
-Defined in: [src/lib/db/entities/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#14)
+Defined in: [src/lib/db/entities/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#22)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/entities/types.ts:14](https://github.com/anuma-ai/sdk/bl
 
 > **canonicalName**: `string`
 
-Defined in: [src/lib/db/entities/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#16)
+Defined in: [src/lib/db/entities/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#24)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/entities/types.ts:16](https://github.com/anuma-ai/sdk/bl
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/entities/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#18)
+Defined in: [src/lib/db/entities/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#26)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/entities/types.ts:18](https://github.com/anuma-ai/sdk/bl
 
 > **kind**: `string` | `null`
 
-Defined in: [src/lib/db/entities/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#17)
+Defined in: [src/lib/db/entities/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#25)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/entities/types.ts:17](https://github.com/anuma-ai/sdk/bl
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/entities/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#15)
+Defined in: [src/lib/db/entities/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#23)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/db/entities/types.ts:15](https://github.com/anuma-ai/sdk/bl
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/entities/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#19)
+Defined in: [src/lib/db/entities/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#27)

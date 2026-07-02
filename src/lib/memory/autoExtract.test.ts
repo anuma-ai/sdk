@@ -48,14 +48,14 @@ describe("extractFacts", () => {
           type: "relationship",
           confidence: 0.95,
           sourceMessageIds: ["m1"],
-          entities: ["Biscuit"],
+          entities: [{ name: "Biscuit", kind: "thing" }],
         },
         {
           content: "Lives in Portland",
           type: "identity",
           confidence: 0.85,
           sourceMessageIds: ["m3"],
-          entities: ["Portland"],
+          entities: [{ name: "Portland", kind: "place" }],
         },
       ],
     };
@@ -66,7 +66,8 @@ describe("extractFacts", () => {
     expect(result).toHaveLength(2);
     expect(result[0].content).toBe("Has a golden retriever named Biscuit");
     expect(result[0].type).toBe("relationship");
-    expect(result[0].entities).toEqual(["Biscuit"]);
+    expect(result[0].entities).toEqual([{ name: "Biscuit", kind: "thing" }]);
+    expect(result[1].entities).toEqual([{ name: "Portland", kind: "place" }]);
   });
 
   it("injects the reference date so relative temporal phrases have an anchor", async () => {
@@ -444,7 +445,7 @@ describe("extractAndRetain", () => {
           type: "relationship",
           confidence: 0.95,
           sourceMessageIds: ["m1"],
-          entities: ["Sara"],
+          entities: [{ name: "Sara", kind: "person" }],
         },
       ],
     };
@@ -468,7 +469,10 @@ describe("extractAndRetain", () => {
       }
     );
 
-    expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledWith(entityCtx, "mem-1", ["Sara"]);
+    // The extracted kind flows through to linkMemoryEntitiesOp.
+    expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledWith(entityCtx, "mem-1", [
+      { name: "Sara", kind: "person" },
+    ]);
   });
 
   it("does not call linkMemoryEntitiesOp when entityCtx is omitted", async () => {
@@ -694,7 +698,7 @@ describe("extractFacts — PII redaction", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
-    expect(result[0].entities).toEqual(["jane@example.com"]);
+    expect(result[0].entities).toEqual([{ name: "jane@example.com" }]);
   });
 
   it("fires onCandidatesDropped when redaction drops every extracted fact (H3)", async () => {
@@ -765,7 +769,7 @@ describe("extractFacts — PII redaction", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
-    expect(result[0].entities).toEqual(["jane@example.com"]);
+    expect(result[0].entities).toEqual([{ name: "jane@example.com" }]);
   });
 
   it("keeps a fact whose restored value contains a category-shaped substring (no false drop)", async () => {
@@ -792,7 +796,7 @@ describe("extractFacts — PII redaction", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is ssn_1@example.com");
-    expect(result[0].entities).toEqual(["ssn_1@example.com"]);
+    expect(result[0].entities).toEqual([{ name: "ssn_1@example.com" }]);
   });
 
   it("leaves the transcript raw when redaction is disabled (default)", async () => {
@@ -891,7 +895,7 @@ describe("extractFacts — PII redaction", () => {
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
     // [EMAIL_1] resolves to the real email; the unresolved [SSN_1] is stripped.
-    expect(result[0].entities).toEqual(["jane@example.com"]);
+    expect(result[0].entities).toEqual([{ name: "jane@example.com" }]);
   });
 
   it("keeps a fact with a non-PII bracketed token (e.g. [STEP_1]) — not a redactor category", async () => {

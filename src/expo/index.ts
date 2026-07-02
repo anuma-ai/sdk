@@ -336,6 +336,7 @@ export type {
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   ExtractedCandidate,
+  ExtractedEntity,
   ExtractFactsOptions,
   ExtractOutcome,
   FactType,

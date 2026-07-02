@@ -16,7 +16,7 @@ Extends base result with React-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/react/useChatStorage.ts:1143](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1143)
+Defined in: [src/react/useChatStorage.ts:1148](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1148)
 
 Clear all queued operations for the current wallet.
 Discards pending operations without writing them.
@@ -293,7 +293,7 @@ separately; the LLM no longer has to route between two surfaces.
 
 > **createVaultMemory**: (`content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)>
 
-Defined in: [src/react/useChatStorage.ts:1113](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1113)
+Defined in: [src/react/useChatStorage.ts:1118](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1118)
 
 Create a new vault memory with the given content.
 
@@ -396,7 +396,7 @@ Defined in: [src/lib/db/chat/types.ts:846](https://github.com/anuma-ai/sdk/blob/
 
 > **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useChatStorage.ts:1130](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1130)
+Defined in: [src/react/useChatStorage.ts:1135](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1135)
 
 Delete a vault memory by its ID (soft delete).
 
@@ -437,7 +437,7 @@ true if the memory was found and deleted
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](FlushResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:1137](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1137)
+Defined in: [src/react/useChatStorage.ts:1142](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1142)
 
 Manually flush all queued operations for the current wallet.
 Operations are encrypted and written to the database.
@@ -615,10 +615,11 @@ Defined in: [src/lib/db/chat/types.ts:847](https://github.com/anuma-ai/sdk/blob/
 
 > **getVaultMemories**: (`options?`: `object`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:1106](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1106)
+Defined in: [src/react/useChatStorage.ts:1108](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1108)
 
 Get all vault memories for context injection.
-Returns non-deleted memories sorted by creation date (newest first).
+Returns memories sorted by creation date (newest first). Soft-deleted
+memories are excluded unless `includeDeleted` is set.
 
 **Parameters**
 
@@ -644,7 +645,25 @@ Returns non-deleted memories sorted by creation date (newest first).
 </td>
 <td>
 
-Optional filtering (scopes to include)
+Optional filtering (scopes to include, whether to
+include soft-deleted memories)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeDeleted?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>
@@ -690,7 +709,7 @@ Defined in: [src/lib/db/chat/types.ts:837](https://github.com/anuma-ai/sdk/blob/
 
 > **queueStatus**: [`QueueStatus`](QueueStatus.md)
 
-Defined in: [src/react/useChatStorage.ts:1148](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1148)
+Defined in: [src/react/useChatStorage.ts:1153](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1153)
 
 Current status of the write queue.
 
@@ -1905,7 +1924,7 @@ Defined in: [src/lib/db/chat/types.ts:844](https://github.com/anuma-ai/sdk/blob/
 
 > **updateVaultMemory**: (`id`: `string`, `content`: `string`, `scope?`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
 
-Defined in: [src/react/useChatStorage.ts:1120](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1120)
+Defined in: [src/react/useChatStorage.ts:1125](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1125)
 
 Update an existing vault memory's content.
 

@@ -14,6 +14,7 @@
  */
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
+import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
@@ -80,7 +81,7 @@ For each durable fact, output:
 - type: one of identity | preference | relationship | plan | ongoing_context | constraint | other
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
-- entities: named entities mentioned (people, places, things). Optional. Skip generic nouns.
+- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "place" | "thing" | "concept" | "other" }. Optional. Skip generic nouns. Pick the best-fitting kind: a company/product/physical object is "thing"; a topic, skill, or idea is "concept"; use "other" only when none fit.
 - eventTime: when the event in this fact occurs/occurred. Resolve relative phrases ("yesterday", "next week") against the current date given in the user message. Output one of:
     - { "kind": "point", "start": "YYYY-MM-DD" }     for a single date ("met Sara on March 14, 2026")
     - { "kind": "range", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }  for a span ("Japan trip May 4–15, 2026")
@@ -101,12 +102,22 @@ export interface AutoExtractMessage {
   content: string;
 }
 
+/**
+ * A named entity extracted from the conversation, with an optional
+ * classification. `kind` is omitted when the model gave no kind or an
+ * unrecognized one — see {@link validateCandidates}.
+ */
+export interface ExtractedEntity {
+  name: string;
+  kind?: EntityKind;
+}
+
 export interface ExtractedCandidate {
   content: string;
   type: FactType;
   confidence: number;
   sourceMessageIds: string[];
-  entities: string[];
+  entities: ExtractedEntity[];
   /** W6 temporal lane — when the event in this fact occurred. Resolved
    *  to absolute timestamps by the LLM; null when the fact has no
    *  temporal anchor. */
@@ -303,9 +314,14 @@ function restoreCandidates(
           ...c,
           content: content.text,
           entities: c.entities
-            .map((e) => redactor.restoreForStorage(e))
-            .filter((e) => !e.unresolved)
-            .map((e) => e.text),
+            .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
+            .filter((e) => !e.restored.unresolved)
+            .map(
+              (e): ExtractedEntity =>
+                e.kind !== undefined
+                  ? { name: e.restored.text, kind: e.kind }
+                  : { name: e.restored.text }
+            ),
         },
         // Drop the whole fact when its content still carries an unresolved
         // (hallucinated / mangled-beyond-recognition) placeholder.
@@ -522,13 +538,39 @@ function validateCandidates(
           ? [fallbackSourceId]
           : [];
 
-    const entities = Array.isArray(obj.entities)
-      ? obj.entities.filter((s): s is string => typeof s === "string")
-      : [];
+    const entities = Array.isArray(obj.entities) ? parseEntities(obj.entities) : [];
 
     const eventTime = parseEventTime(obj.eventTime);
 
     out.push({ content, type, confidence, sourceMessageIds, entities, eventTime });
+  }
+  return out;
+}
+
+/**
+ * Parse the LLM's `entities` array into {@link ExtractedEntity}s. Accepts
+ * either the current `{ name, kind }` object shape or a bare string (models
+ * occasionally revert to the pre-kind format — keep the name rather than
+ * drop the entity). An unrecognized / missing `kind` is dropped so only
+ * valid {@link EntityKind}s reach the store; the name is always kept.
+ */
+function parseEntities(raw: unknown[]): ExtractedEntity[] {
+  const out: ExtractedEntity[] = [];
+  for (const e of raw) {
+    if (typeof e === "string") {
+      const name = e.trim();
+      if (name.length > 0) out.push({ name });
+      continue;
+    }
+    if (typeof e !== "object" || e === null) continue;
+    const obj = e as Record<string, unknown>;
+    const name = typeof obj.name === "string" ? obj.name.trim() : "";
+    if (name.length === 0) continue;
+    const kind =
+      typeof obj.kind === "string" && (ENTITY_KINDS as readonly string[]).includes(obj.kind)
+        ? (obj.kind as EntityKind)
+        : undefined;
+    out.push(kind !== undefined ? { name, kind } : { name });
   }
   return out;
 }
