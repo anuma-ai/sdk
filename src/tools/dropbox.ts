@@ -81,6 +81,7 @@ interface DropboxSearchMatchV2 {
 
 interface DropboxSearchResponse {
   matches?: DropboxSearchMatchV2[];
+  has_more?: boolean;
 }
 
 const DROPBOX_API_URL = "https://api.dropboxapi.com/2";
@@ -292,7 +293,7 @@ async function searchDropbox(
   if (matches.length === 0) {
     return `No files found matching "${args.query}"`;
   }
-  return matches.map((raw) => {
+  const mapped = matches.map((raw) => {
     const match: DropboxSearchMatch = {
       name: raw.name ?? "",
       tag: normalizeTag(raw[".tag"]),
@@ -300,6 +301,12 @@ async function searchDropbox(
     if (raw.path_display !== undefined) match.path_display = raw.path_display;
     return match;
   });
+  // Same partial-result guard as the folder listing: when search flags more
+  // hits past our cap, tell the LLM so it doesn't read a full page as complete.
+  if (data.has_more) {
+    return `${JSON.stringify(mapped)}\n\n(Showing the first ${mapped.length} matches; more exist. Refine the query to narrow the results.)`;
+  }
+  return mapped;
 }
 
 function createDropboxListFoldersTool(
