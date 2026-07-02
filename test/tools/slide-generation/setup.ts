@@ -34,7 +34,7 @@ export type { StepFinishEvent };
 import { config as _config, requirePortalKey } from "../setup.js";
 
 // ---------------------------------------------------------------------------
-// Portal server-tool schemas (e.g. AnumaImageMCP-generate_cloud_image)
+// Portal server-tool schemas (e.g. AnumaMediaMCP-anuma_create_image)
 // ---------------------------------------------------------------------------
 
 export type ServerToolSchema = {

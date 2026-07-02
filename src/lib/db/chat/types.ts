@@ -721,7 +721,7 @@ export interface BaseSendMessageWithStorageArgs {
    *
    * @example
    * // Include only specific server tools
-   * serverTools: ["generate_cloud_image", "perplexity_search"]
+   * serverTools: ["anuma_create_image", "perplexity_search"]
    *
    * // Disable server tools for this request
    * serverTools: []

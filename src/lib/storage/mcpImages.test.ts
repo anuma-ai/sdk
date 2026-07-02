@@ -92,6 +92,72 @@ describe("extractMCPImageUrls", () => {
     expect(result[0].url).toBe(MCP_URL_1);
   });
 
+  // --- New anuma_create_image tool (output_images[] array shape) ---------------
+
+  it("extracts a single image from anuma_create_image output_images[]", () => {
+    const events = [
+      {
+        name: "AnumaMediaMCP-anuma_create_image",
+        output: JSON.stringify({
+          output_images: [{ key: "k1", url: MCP_URL_1, size: 123 }],
+          model: "nano-banana-2",
+        }),
+      },
+    ];
+    const result = extractMCPImageUrls("", events, MCP_DOMAIN);
+    expect(result).toEqual([{ url: MCP_URL_1, model: "nano-banana-2", mediaType: "image" }]);
+  });
+
+  it("extracts multiple images from output_images[] (num_images > 1)", () => {
+    const events = [
+      {
+        name: "anuma_create_image",
+        output: JSON.stringify({
+          output_images: [
+            { key: "k1", url: MCP_URL_1, size: 1 },
+            { key: "k2", url: MCP_URL_2, size: 2 },
+          ],
+          model: "flux-2-pro",
+        }),
+      },
+    ];
+    const result = extractMCPImageUrls("", events, MCP_DOMAIN);
+    expect(result).toEqual([
+      { url: MCP_URL_1, model: "flux-2-pro", mediaType: "image" },
+      { url: MCP_URL_2, model: "flux-2-pro", mediaType: "image" },
+    ]);
+  });
+
+  it("dedupes an image URL repeated across output_images[] and url fields", () => {
+    const events = [
+      {
+        name: "AnumaMediaMCP-anuma_create_image",
+        output: JSON.stringify({
+          output_images: [{ key: "k1", url: MCP_URL_1, size: 1 }],
+          url: MCP_URL_1,
+          model: "nano-banana",
+        }),
+      },
+    ];
+    const result = extractMCPImageUrls("", events, MCP_DOMAIN);
+    expect(result).toEqual([{ url: MCP_URL_1, model: "nano-banana", mediaType: "image" }]);
+  });
+
+  it("extracts a portal media-proxy image URL from content when no tool events", () => {
+    const proxyUrl = "https://portal.example.com/api/v1/media/image/tok3n/x.png";
+    const result = extractMCPImageUrls(`Here: ![cat](${proxyUrl})`, undefined, MCP_DOMAIN);
+    expect(result).toHaveLength(1);
+    expect(result[0].url).toBe(proxyUrl);
+    expect(result[0].mediaType).toBe("image");
+  });
+
+  it("ignores a third-party URL that only shallowly contains /api/v1/media/", () => {
+    // The media pattern requires the proxy's <svc>/<token> shape, so an unrelated
+    // link with /api/v1/media/ as a shallow path is not mistaken for an asset.
+    const content = "See https://cdn.third-party.com/api/v1/media/gallery-item for details";
+    expect(extractMCPImageUrls(content, undefined, MCP_DOMAIN)).toEqual([]);
+  });
+
   // --- Video classification ---------------------------------------------------
 
   it("classifies a video tool's output as video (videos[] array shape)", () => {

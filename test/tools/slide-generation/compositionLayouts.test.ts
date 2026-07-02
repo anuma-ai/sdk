@@ -173,7 +173,7 @@ describe("composition-layouts wire-in", () => {
   });
 
   // Demo run: a richer deck across image-bearing layouts. Portal exposes
-  // AnumaImageMCP-generate_cloud_image server-side based on prompt context,
+  // AnumaMediaMCP-anuma_create_image server-side based on prompt context,
   // so the model can populate image slots with real generated URLs instead
   // of placehold.co rectangles. Bumped maxToolRounds because image MCP
   // calls add round-trips before plan_deck/add_slide.
@@ -181,11 +181,11 @@ describe("composition-layouts wire-in", () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const slideTools = createTestSlideTools(store).map((t) => wrapTool(t, log));
-    // Pull the real AnumaImageMCP tool schema from Portal so the model
+    // Pull the real AnumaMediaMCP tool schema from Portal so the model
     // can generate cloud-hosted images. Portal executes the tool
     // server-side when the model calls it; the schema-only entry on the
     // client side just declares its existence to the LLM.
-    const imageSchemas = await getServerToolSchemas(["AnumaImageMCP-generate_cloud_image"]);
+    const imageSchemas = await getServerToolSchemas(["AnumaMediaMCP-anuma_create_image"]);
     const tools = [...slideTools, ...imageSchemas];
 
     const result = await timedToolLoop({
@@ -193,7 +193,7 @@ describe("composition-layouts wire-in", () => {
         "Build a 7-slide investor pitch deck for a high-end electric vehicle startup called Volta Atelier. " +
           "Cover, brand story, market opportunity with stats, founder quote, product showcase, competitive comparison, and a closing 'why now' moment. " +
           "Use image-rich composition layouts where it fits the slide intent. " +
-          "For every image slot in the chosen layouts, FIRST call AnumaImageMCP-generate_cloud_image to produce a real, on-brand image URL (generate 4-5 max, share between slides), THEN reference those URLs in the slide JSX. " +
+          "For every image slot in the chosen layouts, FIRST call AnumaMediaMCP-anuma_create_image to produce a real, on-brand image URL (generate 4-5 max, share between slides), THEN reference those URLs in the slide JSX. " +
           "Pick whichever design system best matches a premium automotive brand and apply it consistently across all slides.",
         SYSTEM_PROMPT
       ),
@@ -216,7 +216,7 @@ describe("composition-layouts wire-in", () => {
     console.log(`\n  Demo deck: ${slides.length} slides`);
 
     // Surface how many real image URLs (vs placeholders) ended up in the
-    // serialized deck — useful to confirm AnumaImageMCP actually fired.
+    // serialized deck — useful to confirm AnumaMediaMCP actually fired.
     const jsx = store.get("slides.jsx") ?? "";
     const realImages = (jsx.match(/src="https?:\/\/(?!placehold\.co)[^"]+"/g) ?? []).length;
     const placeholderImages = (jsx.match(/src="https?:\/\/placehold\.co\/[^"]+"/g) ?? []).length;
