@@ -69,6 +69,26 @@ describe("extractFacts", () => {
     expect(result[0].entities).toEqual(["Biscuit"]);
   });
 
+  it("injects the reference date so relative temporal phrases have an anchor", async () => {
+    let capturedUserMessage = "";
+    const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      capturedUserMessage = body.messages.find((m) => m.role === "user")?.content ?? "";
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: JSON.stringify({ candidates: [] }) } }],
+        }),
+      };
+    }) as unknown as typeof fetch;
+    // Local noon on 2026-03-14 — assert the local calendar day, tz-independent.
+    const now = new Date(2026, 2, 14, 12, 0, 0).getTime();
+    await extractFacts(messages, { apiKey: "k", fetchFn, now });
+    expect(capturedUserMessage).toContain("Today's date is 2026-03-14");
+  });
+
   it("keeps a candidate with hallucinated source IDs, attributing it to the last user message (H4)", async () => {
     const candidates = {
       candidates: [

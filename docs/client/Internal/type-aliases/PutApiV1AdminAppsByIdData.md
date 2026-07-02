@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminAppsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:4803](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4803)
+Defined in: [src/client/types.gen.ts:4862](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4862)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4803](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUpdateAppRequest`](HandlersUpdateAppRequest.md)
 
-Defined in: [src/client/types.gen.ts:4807](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4807)
+Defined in: [src/client/types.gen.ts:4866](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4866)
 
 Update app request
 
@@ -20,7 +20,7 @@ Update app request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4808](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4808)
+Defined in: [src/client/types.gen.ts:4867](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4867)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4814](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4814)
+Defined in: [src/client/types.gen.ts:4873](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4873)
 
 **id**
 
@@ -48,7 +48,7 @@ App ID (numeric) or App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4820)
+Defined in: [src/client/types.gen.ts:4879](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4879)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/client/types.gen.ts:4820](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{id}"`
 
-Defined in: [src/client/types.gen.ts:4821](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4821)
+Defined in: [src/client/types.gen.ts:4880](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4880)

@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaRecoveryCodesRegenerateData** = `object`
 
-Defined in: [src/client/types.gen.ts:6076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6076)
+Defined in: [src/client/types.gen.ts:6227](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6227)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6076](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6077)
+Defined in: [src/client/types.gen.ts:6228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6228)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6077](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6078)
+Defined in: [src/client/types.gen.ts:6229](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6229)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:6078](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6079](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6079)
+Defined in: [src/client/types.gen.ts:6230](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6230)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:6079](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/recovery-codes/regenerate"`
 
-Defined in: [src/client/types.gen.ts:6080](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6080)
+Defined in: [src/client/types.gen.ts:6231](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6231)

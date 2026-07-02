@@ -9,6 +9,8 @@ export class VaultMemory extends Model {
   @field("folder_id") folderId!: string | null;
   @field("user_id") userId!: string | null;
   @field("embedding") embedding!: string | null;
+  /** Model that produced `embedding`. Null on legacy rows (grandfathered). */
+  @field("embedding_model") embeddingModel!: string | null;
   @field("source_chunk_ids") sourceChunkIds!: string | null;
   @field("proof_count") proofCount!: number | null;
   @field("source") source!: string | null;

@@ -2,7 +2,7 @@
 
 > **getApiV1AuthMfaStatus**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AuthMfaStatusData`](../type-aliases/GetApiV1AuthMfaStatusData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AuthMfaStatusResponses`](../type-aliases/GetApiV1AuthMfaStatusResponses.md), [`GetApiV1AuthMfaStatusErrors`](../type-aliases/GetApiV1AuthMfaStatusErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:654](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#654)
+Defined in: [src/client/sdk.gen.ts:686](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#686)
 
 MFA status
 

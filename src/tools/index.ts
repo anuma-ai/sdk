@@ -174,8 +174,10 @@ export { createDropboxTools } from "./dropbox";
 // Slack exports
 export type {
   SlackGetChannelHistoryArgs,
+  SlackGetThreadRepliesArgs,
   SlackListChannelsArgs,
   SlackListUsersArgs,
+  SlackPostMessageArgs,
   SlackProxyCaller,
   SlackSearchMessagesArgs,
 } from "./slack";

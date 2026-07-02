@@ -1323,7 +1323,7 @@ Parent message ID for branching (edit/regenerate). Sets on the user message.
 </td>
 <td>
 
-`boolean` | `PiiRedactor`
+`boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
 </td>
 <td>

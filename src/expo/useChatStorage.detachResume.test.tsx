@@ -286,6 +286,72 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(assistantRows[0].wasStopped).toBeFalsy();
   });
 
+  it("snapshots getThoughtProcess() at detach so resumed rows keep streamed activity phases", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_thought",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    // Phases collected via the streaming callback (getThoughtProcess), NOT the
+    // static `thoughtProcess` arg. The last is still "active" at detach — the
+    // resumed finalize must mark it completed. Before the fix the detach stash
+    // kept only the (unset) static arg, so these were dropped on resume.
+    const phases = [
+      { id: "p1", label: "Searching", timestamp: 1, status: "completed" as const },
+      { id: "p2", label: "Writing", timestamp: 2, status: "active" as const },
+    ];
+
+    mockRunToolLoop.mockResolvedValueOnce({
+      data: responsesShape("partial answer"),
+      error: "Request detached",
+      detached: true,
+      resume: {
+        inferenceId: "inf-thought",
+        apiType: "responses",
+        model: "test-model",
+        conversationId: "conv_thought",
+      },
+    } as never);
+
+    let detached: Awaited<ReturnType<typeof result.current.sendMessage>>;
+    await act(async () => {
+      detached = await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "question" }] }],
+        model: "test-model",
+        getThoughtProcess: () => phases,
+      });
+    });
+    const rowId = (detached as Extract<typeof detached, { detached: true }>).assistantUniqueId;
+
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape("partial answer, now complete"),
+      error: null,
+      interrupted: false,
+    } as never);
+
+    await act(async () => {
+      await result.current.resumeStream();
+    });
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_thought")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    expect(assistantRows[0].uniqueId).toBe(rowId);
+    // The callback-collected phases survived detach+resume, with the last one
+    // finalized to "completed".
+    expect(assistantRows[0].thoughtProcess?.map((p) => p.label)).toEqual(["Searching", "Writing"]);
+    expect(assistantRows[0].thoughtProcess?.map((p) => p.status)).toEqual([
+      "completed",
+      "completed",
+    ]);
+  });
+
   it("reconciles citation sources from tool_call_events on a resumed completion (#639)", async () => {
     const { result } = renderHook(() =>
       useChatStorage({

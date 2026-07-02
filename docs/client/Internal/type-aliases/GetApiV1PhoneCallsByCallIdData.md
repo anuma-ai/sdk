@@ -2,7 +2,7 @@
 
 > **GetApiV1PhoneCallsByCallIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:8211](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8211)
+Defined in: [src/client/types.gen.ts:8417](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8417)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8211](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:8212](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8212)
+Defined in: [src/client/types.gen.ts:8418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8418)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:8212](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:8213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8213)
+Defined in: [src/client/types.gen.ts:8419](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8419)
 
 **call\_id**
 
@@ -32,7 +32,7 @@ Bland call ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8219](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8219)
+Defined in: [src/client/types.gen.ts:8425](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8425)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:8219](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/phone-calls/{call_id}"`
 
-Defined in: [src/client/types.gen.ts:8220](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8220)
+Defined in: [src/client/types.gen.ts:8426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8426)

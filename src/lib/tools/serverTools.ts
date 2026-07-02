@@ -258,7 +258,7 @@ function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
  * Get cached tools from localStorage
  */
 export function getCachedServerTools(): CachedServerTools | null {
-  if (typeof window === "undefined") return null;
+  if (typeof localStorage === "undefined") return null;
 
   try {
     const cached = localStorage.getItem(SERVER_TOOLS_CACHE_KEY);
@@ -293,7 +293,7 @@ function isCacheExpired(
  * Store tools in localStorage cache
  */
 function cacheServerTools(tools: ServerTool[], checksum?: string): void {
-  if (typeof window === "undefined") return;
+  if (typeof localStorage === "undefined") return;
 
   const cacheData: CachedServerTools = {
     tools,
@@ -315,7 +315,7 @@ function cacheServerTools(tools: ServerTool[], checksum?: string): void {
  * Clear the server tools cache
  */
 export function clearServerToolsCache(): void {
-  if (typeof window === "undefined") return;
+  if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SERVER_TOOLS_CACHE_KEY);
 }
 
@@ -1078,10 +1078,13 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
       "slack_search_messages",
       "slack_list_users",
       "slack_get_channel_history",
+      "slack_get_thread_replies",
+      "slack_post_message",
     ],
     // search is the primary entry point; list_channels also anchors so "what
-    // channels am I in" reaches the set without going through search.
-    anchors: ["slack_search_messages", "slack_list_channels"],
+    // channels am I in" reaches the set without going through search. post_message
+    // anchors too so post-only prompts surface the write tool past the cutoff.
+    anchors: ["slack_search_messages", "slack_list_channels", "slack_post_message"],
     anchorMinSimilarity: 0.53,
   },
   {

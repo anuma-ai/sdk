@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionChoice** = `object`
 
-Defined in: [src/client/types.gen.ts:3239](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3239)
+Defined in: [src/client/types.gen.ts:3298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3298)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3239](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **finish\_reason**: `string`
 
-Defined in: [src/client/types.gen.ts:3250](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3250)
+Defined in: [src/client/types.gen.ts:3309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3309)
 
 The reason the model stopped generating tokens. This will be `stop` if the model
 hit a natural stop point or a provided stop sequence, `length` if the maximum
@@ -27,7 +27,7 @@ Any of "stop", "length", "tool\_calls", "content\_filter", "function\_call".
 
 > `optional` **index**: `number`
 
-Defined in: [src/client/types.gen.ts:3254](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3254)
+Defined in: [src/client/types.gen.ts:3313](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3313)
 
 The index of the choice in the list of choices.
 
@@ -37,7 +37,7 @@ The index of the choice in the list of choices.
 
 > `optional` **logprobs**: [`OpenaiChatCompletionChoiceLogprobs`](OpenaiChatCompletionChoiceLogprobs.md)
 
-Defined in: [src/client/types.gen.ts:3255](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3255)
+Defined in: [src/client/types.gen.ts:3314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3314)
 
 ***
 
@@ -45,4 +45,4 @@ Defined in: [src/client/types.gen.ts:3255](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **message**: [`OpenaiChatCompletionMessage`](OpenaiChatCompletionMessage.md)
 
-Defined in: [src/client/types.gen.ts:3256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3256)
+Defined in: [src/client/types.gen.ts:3315](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3315)

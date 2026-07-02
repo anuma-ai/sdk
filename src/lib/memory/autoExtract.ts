@@ -81,7 +81,7 @@ For each durable fact, output:
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
 - entities: named entities mentioned (people, places, things). Optional. Skip generic nouns.
-- eventTime: when the event in this fact occurs/occurred. Resolve relative phrases against the conversation date you can infer from context. Output one of:
+- eventTime: when the event in this fact occurs/occurred. Resolve relative phrases ("yesterday", "next week") against the current date given in the user message. Output one of:
     - { "kind": "point", "start": "YYYY-MM-DD" }     for a single date ("met Sara on March 14, 2026")
     - { "kind": "range", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }  for a span ("Japan trip May 4–15, 2026")
     - { "kind": "ongoing", "start": "YYYY-MM-DD" }   for a status that started on a date and continues ("works at Linear since January 2024")
@@ -129,6 +129,22 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
+  /**
+   * Reference "now" (Unix ms) for resolving relative temporal phrases in the
+   * transcript ("yesterday", "next week", "in two days") into the absolute
+   * YYYY-MM-DD anchors the W6 temporal lane indexes on. The transcript itself
+   * carries no timestamps, so without an anchor the model resolves relatives
+   * against its own training-cutoff guess and emits wrong `eventTime` dates.
+   * Defaults to `Date.now()`. Override for back-dated eval corpora and
+   * deterministic tests (mirrors {@link RecallOptions.now}).
+   *
+   * Server-side timezone note: the ms value is formatted to a calendar date in
+   * the process's local timezone (same basis as `parseLocalCalendarDay`). On a
+   * UTC server, a user near midnight in a non-UTC offset can get the wrong
+   * calendar day. Pass the user's local-midnight timestamp as `now` when the
+   * process timezone doesn't match the user's.
+   */
+  now?: number;
   /**
    * Max attempts for the extraction call on a transient failure (default 3).
    * Lower it to bound how long extraction can hold a turn open — e.g. a worker
@@ -217,13 +233,18 @@ export async function extractFacts(
       (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
     )
     .join("\n");
+  // Anchor relative temporal phrases. The transcript has no timestamps, so
+  // without this the model dates "yesterday"/"next week" against its own
+  // training-cutoff guess (see ExtractFactsOptions.now). Local-midnight basis
+  // matches parseLocalCalendarDay so round-tripped anchors stay consistent.
+  const today = formatLocalDate(options.now ?? Date.now());
   const parsed = await callPortalJsonCompletion({
     ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
     ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
     model: options.model ?? DEFAULT_MODEL,
     systemPrompt: SYSTEM_PROMPT,
-    userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
+    userMessage: `Today's date is ${today}. Resolve any relative dates ("yesterday", "next week") against it.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,
     tag: "memory/extract",
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
     ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
@@ -561,6 +582,19 @@ function parseEventDate(raw: unknown): number | null {
   }
   const ms = Date.parse(trimmed);
   return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Format a Unix-ms instant as a local YYYY-MM-DD string. Local basis matches
+ * {@link parseLocalCalendarDay} so a date emitted here and parsed back lands on
+ * the same calendar day for the user's timezone.
+ */
+function formatLocalDate(ms: number): string {
+  const d = new Date(ms);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /**

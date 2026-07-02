@@ -69,6 +69,51 @@ export { ProviderStreamError } from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
+// Pre-processor classifier factories. Also exported from `@anuma/sdk/server`;
+// re-exported here so React Native consumers can reach them — the mobile
+// Metro config rewrites `@anuma/sdk/server` → `@anuma/sdk/react` on native to
+// avoid Node-only doc processors on the /server barrel, which meant the four
+// `create*PreProcessor` factories were unreachable from mobile until this
+// re-export landed. Names, types, and semantics match the /server exports
+// exactly.
+export type {
+  CryptoPriceClassification,
+  CryptoPricePreProcessorOptions,
+} from "../lib/chat/cryptoPriceClassifier";
+export {
+  classifyCryptoPrice,
+  classifyCryptoPriceBatch,
+  createCryptoPricePreProcessor,
+} from "../lib/chat/cryptoPriceClassifier";
+export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type {
+  StockPriceClassification,
+  StockPricePreProcessorOptions,
+} from "../lib/chat/stockPriceClassifier";
+export {
+  classifyStockPrice,
+  classifyStockPriceBatch,
+  createStockPricePreProcessor,
+} from "../lib/chat/stockPriceClassifier";
+export type {
+  WeatherClassification,
+  WeatherPreProcessorOptions,
+} from "../lib/chat/weatherClassifier";
+export {
+  classifyWeather,
+  classifyWeatherBatch,
+  createWeatherPreProcessor,
+} from "../lib/chat/weatherClassifier";
+export type {
+  WebSearchClassification,
+  WebSearchPreProcessorOptions,
+} from "../lib/chat/webSearchClassifier";
+export {
+  classifyWebSearch,
+  classifyWebSearchBatch,
+  createWebSearchPreProcessor,
+} from "../lib/chat/webSearchClassifier";
+
 // Pluggable logger
 export type { Logger } from "../lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "../lib/logger";

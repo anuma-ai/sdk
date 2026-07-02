@@ -18,16 +18,6 @@ export type AuthJwks = {
     keys?: Array<AuthJwk>;
 };
 
-export type CoingeckoQuote = {
-    change24h?: number;
-    currency?: string;
-    id?: string;
-    marketCap?: number;
-    name?: string;
-    price?: number;
-    symbol?: string;
-};
-
 export type ConfigCompactLists = {
     private?: Array<string>;
     standard?: Array<string>;
@@ -117,6 +107,16 @@ export type ConfigSmartGroup = {
     id?: string;
     model_ids?: Array<string>;
     name_key?: string;
+};
+
+export type CryptocompareQuote = {
+    change24h?: number;
+    currency?: string;
+    id?: string;
+    marketCap?: number;
+    name?: string;
+    price?: number;
+    symbol?: string;
 };
 
 export type McpToolSchema = {
@@ -1486,6 +1486,25 @@ export type HandlersCancelScheduledDowngradeResponse = {
     message: string;
 };
 
+export type HandlersCancelSubscriptionRequest = {
+    /**
+     * free-text from the survey's "Other" option
+     */
+    comment?: string;
+    /**
+     * Stripe cancellation_details.feedback enum value
+     */
+    reason?: string;
+    /**
+     * granular survey taxonomy (no native Stripe field)
+     */
+    reason_detail?: string;
+    /**
+     * competitor, when the user switched to another AI
+     */
+    switched_to?: string;
+};
+
 export type HandlersCancelSubscriptionResponse = {
     cancel_at?: number;
     current_period_end?: number;
@@ -1565,6 +1584,13 @@ export type HandlersConnectorMintErrorResponse = {
     missing_scopes?: Array<string>;
     provider?: string;
     retry_after_ms?: number;
+};
+
+export type HandlersConnectorProxyRequest = {
+    path?: string;
+    query?: {
+        [key: string]: unknown;
+    };
 };
 
 export type HandlersConnectorScopesResponse = {
@@ -1836,7 +1862,7 @@ export type HandlersCreditRateResponse = {
 };
 
 export type HandlersCryptoPricesResponse = {
-    quotes?: Array<CoingeckoQuote>;
+    quotes?: Array<CryptocompareQuote>;
 };
 
 export type HandlersCustomerPortalResponse = {
@@ -2040,6 +2066,12 @@ export type HandlersHealthResponse = {
 };
 
 export type HandlersInferenceWeeklyResponse = {
+    /**
+     * TotalRequests is the all-time platform-wide inference request count (every row in `requests`),
+     * for the headline. Distinct from summing `weeks`, which covers only the recent window. 0 if the
+     * count couldn't be fetched this request.
+     */
+    total_requests?: number;
     weeks?: Array<HandlersWeeklyInferenceItem>;
 };
 
@@ -2549,6 +2581,20 @@ export type HandlersSubscriptionStatusResponse = {
     status: string;
 };
 
+export type HandlersSuspendAccountRequest = {
+    /**
+     * Optional human-readable note stored on the account.
+     */
+    reason?: string;
+    user_address?: string;
+};
+
+export type HandlersSuspendAccountResponse = {
+    message?: string;
+    success: boolean;
+    user_address: string;
+};
+
 export type HandlersTokenResponse = {
     access_token: string;
     /**
@@ -2591,6 +2637,16 @@ export type HandlersTopUpUserRequest = {
 
 export type HandlersUnregisterDeviceRequest = {
     token?: string;
+};
+
+export type HandlersUnsuspendAccountRequest = {
+    user_address?: string;
+};
+
+export type HandlersUnsuspendAccountResponse = {
+    message?: string;
+    success: boolean;
+    user_address: string;
 };
 
 export type HandlersUpdateApiKeyRequest = {
@@ -3024,11 +3080,14 @@ export type HandlersDisableRequest = {
 };
 
 export type HandlersGrantLookupBody = {
+    active?: boolean;
     agent_id?: string;
     granted_at?: string;
     platform?: string;
+    revoked_at?: string;
     scopes?: Array<string>;
     spending_cap_daily_micro_usd?: number;
+    user_id?: string;
 };
 
 export type HandlersGrantLookupResponse = {
@@ -5738,6 +5797,98 @@ export type GetApiV1AdminUsersLookupResponses = {
 
 export type GetApiV1AdminUsersLookupResponse = GetApiV1AdminUsersLookupResponses[keyof GetApiV1AdminUsersLookupResponses];
 
+export type PostApiV1AdminUsersSuspendData = {
+    /**
+     * Suspend account request
+     */
+    body: HandlersSuspendAccountRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/users/suspend';
+};
+
+export type PostApiV1AdminUsersSuspendErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminUsersSuspendError = PostApiV1AdminUsersSuspendErrors[keyof PostApiV1AdminUsersSuspendErrors];
+
+export type PostApiV1AdminUsersSuspendResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSuspendAccountResponse;
+};
+
+export type PostApiV1AdminUsersSuspendResponse = PostApiV1AdminUsersSuspendResponses[keyof PostApiV1AdminUsersSuspendResponses];
+
+export type PostApiV1AdminUsersUnsuspendData = {
+    /**
+     * Unsuspend account request
+     */
+    body: HandlersUnsuspendAccountRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/users/unsuspend';
+};
+
+export type PostApiV1AdminUsersUnsuspendErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminUsersUnsuspendError = PostApiV1AdminUsersUnsuspendErrors[keyof PostApiV1AdminUsersUnsuspendErrors];
+
+export type PostApiV1AdminUsersUnsuspendResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUnsuspendAccountResponse;
+};
+
+export type PostApiV1AdminUsersUnsuspendResponse = PostApiV1AdminUsersUnsuspendResponses[keyof PostApiV1AdminUsersUnsuspendResponses];
+
 export type GetApiV1AgentPreferencesData = {
     body?: never;
     path?: never;
@@ -6614,6 +6765,61 @@ export type PostApiV1ConnectorsByProviderDisconnectResponses = {
 };
 
 export type PostApiV1ConnectorsByProviderDisconnectResponse = PostApiV1ConnectorsByProviderDisconnectResponses[keyof PostApiV1ConnectorsByProviderDisconnectResponses];
+
+export type PostApiV1ConnectorsByProviderProxyData = {
+    /**
+     * Proxy request
+     */
+    body: HandlersConnectorProxyRequest;
+    path: {
+        /**
+         * Logical connector provider (x, slack)
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/api/v1/connectors/{provider}/proxy';
+};
+
+export type PostApiV1ConnectorsByProviderProxyErrors = {
+    /**
+     * disallowed path / invalid body / provider has no proxy
+     */
+    400: HandlersConnectorMintErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * insufficient_scope / connector_disabled
+     */
+    403: HandlersConnectorMintErrorResponse;
+    /**
+     * connector_not_connected / scope_not_covered / invalid_grant
+     */
+    412: HandlersConnectorMintErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+    /**
+     * upstream_unavailable
+     */
+    503: HandlersConnectorMintErrorResponse;
+};
+
+export type PostApiV1ConnectorsByProviderProxyError = PostApiV1ConnectorsByProviderProxyErrors[keyof PostApiV1ConnectorsByProviderProxyErrors];
+
+export type PostApiV1ConnectorsByProviderProxyResponses = {
+    /**
+     * Upstream API response, verbatim
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostApiV1ConnectorsByProviderProxyResponse = PostApiV1ConnectorsByProviderProxyResponses[keyof PostApiV1ConnectorsByProviderProxyResponses];
 
 export type GetApiV1ConnectorsByProviderScopesData = {
     body?: never;
@@ -8469,7 +8675,10 @@ export type PostApiV1ResponsesResponses = {
 export type PostApiV1ResponsesResponse = PostApiV1ResponsesResponses[keyof PostApiV1ResponsesResponses];
 
 export type PostApiV1SubscriptionsCancelData = {
-    body?: never;
+    /**
+     * Optional cancellation reason survey
+     */
+    body?: HandlersCancelSubscriptionRequest;
     path?: never;
     query?: never;
     url: '/api/v1/subscriptions/cancel';

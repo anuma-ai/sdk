@@ -2,7 +2,7 @@
 
 > **HandlersUpgradeSubscriptionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2745)
+Defined in: [src/client/types.gen.ts:2801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2801)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2745](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **changed**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2755)
+Defined in: [src/client/types.gen.ts:2811](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2811)
 
 Changed is false when the request was an idempotent no-op (the user was
 already on the requested tier+interval) and true when the subscription was
@@ -26,7 +26,7 @@ trust them to self-correct stale local state without a follow-up status fetch.
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:2756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2756)
+Defined in: [src/client/types.gen.ts:2812](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2812)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:2756](https://github.com/anuma-ai/sdk/blob/
 
 > **new\_interval**: `string`
 
-Defined in: [src/client/types.gen.ts:2757](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2757)
+Defined in: [src/client/types.gen.ts:2813](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2813)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:2757](https://github.com/anuma-ai/sdk/blob/
 
 > **new\_plan**: `string`
 
-Defined in: [src/client/types.gen.ts:2758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2758)
+Defined in: [src/client/types.gen.ts:2814](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2814)

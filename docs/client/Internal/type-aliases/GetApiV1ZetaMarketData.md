@@ -2,7 +2,7 @@
 
 > **GetApiV1ZetaMarketData** = `object`
 
-Defined in: [src/client/types.gen.ts:9536](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9536)
+Defined in: [src/client/types.gen.ts:9745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9745)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9536](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9537](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9537)
+Defined in: [src/client/types.gen.ts:9746](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9746)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9537](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:9538](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9538)
+Defined in: [src/client/types.gen.ts:9747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9747)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:9538](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9539](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9539)
+Defined in: [src/client/types.gen.ts:9748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9748)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:9539](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/zeta/market"`
 
-Defined in: [src/client/types.gen.ts:9540](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9540)
+Defined in: [src/client/types.gen.ts:9749](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9749)

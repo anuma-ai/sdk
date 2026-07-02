@@ -2,4 +2,4 @@
 
 > **PostApiV1AuthMfaDisableResponse** = [`PostApiV1AuthMfaDisableResponses`](PostApiV1AuthMfaDisableResponses.md)\[keyof [`PostApiV1AuthMfaDisableResponses`](PostApiV1AuthMfaDisableResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5914](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5914)
+Defined in: [src/client/types.gen.ts:6065](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6065)

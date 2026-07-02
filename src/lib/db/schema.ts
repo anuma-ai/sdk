@@ -54,8 +54,11 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v30: Added event_time_start, event_time_end, event_time_kind columns to memory_vault for the W6 temporal retrieval lane
  * - v31: Added user_id column to memory_entity for multi-user server-side scoping of the W5 graph retrieval lane
  * - v32: Added pinned_at column to conversations for pinning chats to the top of the list
+ * - v33: Added embedding_model column to memory_vault so stale-model vectors are
+ *   detectable and re-embeddable after an embedding-model change (null = legacy
+ *   rows, grandfathered as compatible with the current model)
  */
-export const SDK_SCHEMA_VERSION = 32;
+export const SDK_SCHEMA_VERSION = 33;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -181,6 +184,11 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "user_id", type: "string", isOptional: true, isIndexed: true },
         { name: "embedding", type: "string", isOptional: true },
+        // Model that produced `embedding`. Null on legacy rows (grandfathered as
+        // current-model-compatible). Lets recall detect stale-model vectors and
+        // re-embed them after an embedding-model change instead of silently
+        // ranking them at cosine 0.
+        { name: "embedding_model", type: "string", isOptional: true },
         { name: "source_chunk_ids", type: "string", isOptional: true },
         { name: "proof_count", type: "number", isOptional: true },
         { name: "source", type: "string", isOptional: true },
@@ -336,6 +344,8 @@ export const sdkSchema = appSchema({
  * - v28 → v29: Added `entity` + `memory_entity` tables for W5 knowledge-graph retrieval lane
  * - v29 → v30: Added `event_time_start`, `event_time_end`, `event_time_kind` columns to memory_vault for W6 temporal retrieval lane
  * - v30 → v31: Added `user_id` column to memory_entity for multi-user scoping of the W5 graph lane (with backfill from memory_vault.user_id)
+ * - v31 → v32: Added `pinned_at` column to conversations for pinning chats
+ * - v32 → v33: Added `embedding_model` column to memory_vault (null grandfathered as current-model-compatible)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -768,6 +778,18 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "conversations",
           columns: [{ name: "pinned_at", type: "number", isOptional: true }],
+        }),
+      ],
+    },
+    // v32 -> v33: Added embedding_model to memory_vault. Existing rows keep
+    // embedding_model NULL — they were embedded with the current model, so
+    // recall grandfathers NULL as compatible (no mass re-embed on upgrade).
+    {
+      toVersion: 33,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "embedding_model", type: "string", isOptional: true }],
         }),
       ],
     },

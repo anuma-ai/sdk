@@ -16,6 +16,7 @@ import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
 import { getMemoriesByEventTimeOp } from "../db/memoryVault/operations.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
@@ -194,6 +195,7 @@ export async function recall(
     const results = await searchChunksOp(ctx.storageCtx, queryEmbedding, {
       limit: types.includes("fact") ? Math.max(limit * 2, 16) : limit,
       minSimilarity: chunkMinScore,
+      embeddingModel: ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,
       ...(options.conversationId && { conversationId: options.conversationId }),
     });
     chunkResults.push(

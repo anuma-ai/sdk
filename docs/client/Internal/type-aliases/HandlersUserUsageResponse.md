@@ -2,7 +2,7 @@
 
 > **HandlersUserUsageResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2906](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2906)
+Defined in: [src/client/types.gen.ts:2962](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2962)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2906](https://github.com/anuma-ai/sdk/blob/
 
 > **address**: `string`
 
-Defined in: [src/client/types.gen.ts:2907](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2907)
+Defined in: [src/client/types.gen.ts:2963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2963)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2907](https://github.com/anuma-ai/sdk/blob/
 
 > **cost\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:2908](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2908)
+Defined in: [src/client/types.gen.ts:2964](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2964)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2908](https://github.com/anuma-ai/sdk/blob/
 
 > **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:2912](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2912)
+Defined in: [src/client/types.gen.ts:2968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2968)
 
 available credits (remaining balance)
 
@@ -36,7 +36,7 @@ available credits (remaining balance)
 
 > **request\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:2913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2913)
+Defined in: [src/client/types.gen.ts:2969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2969)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/client/types.gen.ts:2913](https://github.com/anuma-ai/sdk/blob/
 
 > **request\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:2914](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2914)
+Defined in: [src/client/types.gen.ts:2970](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2970)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/client/types.gen.ts:2914](https://github.com/anuma-ai/sdk/blob/
 
 > **response\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:2915](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2915)
+Defined in: [src/client/types.gen.ts:2971](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2971)
 
 ***
 
@@ -60,6 +60,6 @@ Defined in: [src/client/types.gen.ts:2915](https://github.com/anuma-ai/sdk/blob/
 
 > **used\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:2919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2919)
+Defined in: [src/client/types.gen.ts:2975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2975)
 
 consumed from active grants, excludes in-flight holds

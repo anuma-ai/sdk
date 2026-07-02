@@ -2,7 +2,7 @@
 
 > **HandlersRevokeRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2343)
+Defined in: [src/client/types.gen.ts:2375](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2375)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2343](https://github.com/anuma-ai/sdk/blob/
 
 > **token**: `string`
 
-Defined in: [src/client/types.gen.ts:2344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2344)
+Defined in: [src/client/types.gen.ts:2376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2376)

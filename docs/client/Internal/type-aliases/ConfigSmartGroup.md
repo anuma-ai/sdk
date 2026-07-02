@@ -2,7 +2,7 @@
 
 > **ConfigSmartGroup** = `object`
 
-Defined in: [src/client/types.gen.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#114)
+Defined in: [src/client/types.gen.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#104)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:114](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **best\_for**: `string`
 
-Defined in: [src/client/types.gen.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#115)
+Defined in: [src/client/types.gen.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#105)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:115](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **description\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#116)
+Defined in: [src/client/types.gen.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#106)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:116](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#117)
+Defined in: [src/client/types.gen.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#107)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:117](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **model\_ids**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#118)
+Defined in: [src/client/types.gen.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#108)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:118](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **name\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#119)
+Defined in: [src/client/types.gen.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#109)

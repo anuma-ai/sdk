@@ -7,8 +7,11 @@
  * file per conversation in the shared {@link AppFileStorage}; the host's
  * `displayDocument` callback renders it to a vector PDF and attaches it to the
  * assistant message (the web app does this on the main thread — see the web
- * `useDocumentPdfExport`). To revise, the model reads the current source and
- * applies find/replace patches.
+ * `useDocumentPdfExport`). The callback is mandatory: the PDF is the tools'
+ * entire user-visible output, so hosts that cannot render (e.g. React Native,
+ * which has no `@react-pdf/renderer`) get no document tools at all rather
+ * than a tool that silently claims success (#659). To revise, the model reads
+ * the current source and applies find/replace patches.
  *
  * This is a single-file sibling of {@link createAppGenerationTools}: it reuses
  * that module's pure patch engine (`applyPatches`, `snippetForFailedPatch`,
@@ -189,6 +192,14 @@ export interface CreateDocumentToolsOptions {
    * `create_document` / `patch_document` — the model never calls a separate
    * display tool.
    *
+   * REQUIRED: the rendered PDF is the tools' entire deliverable, so a host
+   * that cannot render must not offer them. Without this callback the tools
+   * used to persist the source and report `success: true` anyway — the model
+   * told the user the PDF was attached, nothing rendered, no error surfaced,
+   * and the turn was still billed (#659). If a plain-JS host omits it at
+   * runtime, {@link createDocumentTools} returns no tools (and logs) so the
+   * model honestly reports it cannot produce a PDF instead.
+   *
    * Receives `{ documentId, path, title? }`. Unlike `displayApp`/`displaySlides`,
    * a THROW here is NOT swallowed: a render failure becomes a tool-error result
    * so the model can fix an unrenderable document and retry. Any object it
@@ -197,7 +208,7 @@ export interface CreateDocumentToolsOptions {
    * take precedence and cannot be overwritten by the callback.
    */
 
-  displayDocument?: (
+  displayDocument: (
     args: Record<string, unknown>
   ) => Promise<Record<string, unknown> | void> | Record<string, unknown> | void;
   /** Cap on per-conversation in-memory state (read-tracking, patch tallies). */
@@ -220,6 +231,14 @@ export const DEFAULT_MAX_DOCUMENT_CONVERSATIONS = 1_000;
  * the attached PDF.") after the chip renders. Render/validation failures also
  * feed back as tool errors, so the model can recover.
  *
+ * Returns an EMPTY array (and logs via `logError`) if `displayDocument` is
+ * missing at runtime: with no renderer there is nothing a user can ever see
+ * or download, so offering the tools would only let the model burn a billed
+ * turn on a `create_document` call that reports `success: true` while
+ * producing nothing (#659). With no tools offered, the model tells the user
+ * it cannot produce a PDF on this platform — before any document turn is
+ * billed.
+ *
  * @category Document Tools
  */
 export function createDocumentTools({
@@ -229,6 +248,16 @@ export function createDocumentTools({
   displayDocument,
   maxConversations,
 }: CreateDocumentToolsOptions): ToolConfig[] {
+  if (typeof displayDocument !== "function") {
+    logError(
+      "createDocumentTools: no displayDocument renderer was provided, so the document tools " +
+        "(create_document / read_document / patch_document) are NOT registered. Without a " +
+        "renderer the model would claim to attach a PDF that never renders — and the turn " +
+        "would still be billed. Supply displayDocument (see the web app's useDocumentPdfExport) " +
+        "or do not call createDocumentTools on this platform."
+    );
+    return [];
+  }
   const convCap =
     typeof maxConversations === "number" && maxConversations > 0
       ? maxConversations
@@ -321,7 +350,6 @@ export function createDocumentTools({
     path: string,
     title: string | undefined
   ): Promise<Record<string, unknown>> {
-    if (!displayDocument) return {};
     const reply = await displayDocument({ documentId, path, ...(title ? { title } : {}) });
     if (!reply || typeof reply !== "object") return {};
     // Keep only additive fields — reserved status keys can't be overwritten.
