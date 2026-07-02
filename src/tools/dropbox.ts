@@ -36,19 +36,19 @@ export type DropboxTokenGetter = () => Promise<string | null>;
  */
 export type DropboxRequestAccess = () => Promise<string | null>;
 
-export interface DropboxListFoldersArgs {
+interface DropboxListFoldersArgs {
   path?: string;
 }
 
-export interface DropboxGetFileContentArgs {
+interface DropboxGetFileContentArgs {
   path: string;
 }
 
-export interface DropboxSearchArgs {
+interface DropboxSearchArgs {
   query: string;
 }
 
-export interface DropboxEntry {
+interface DropboxEntry {
   name: string;
   path_display?: string;
   tag: "file" | "folder";
@@ -56,7 +56,7 @@ export interface DropboxEntry {
   server_modified?: string;
 }
 
-export interface DropboxSearchMatch {
+interface DropboxSearchMatch {
   name: string;
   path_display?: string;
   tag: "file" | "folder";
