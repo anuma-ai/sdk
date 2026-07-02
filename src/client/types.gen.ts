@@ -662,6 +662,11 @@ export type LlmapiPortalChatCompletionRequest = {
  */
 export type LlmapiPortalChatCompletionResponse = {
     /**
+     * CachedTokens are the prompt tokens served from the provider's cache (cache-hit reads),
+     * summed across the MCP tool loop. Omitted from the response when zero (no cache hit reported).
+     */
+    cached_tokens?: number;
+    /**
      * ClientInjectedTools are tool names the client provided in the original request.
      */
     client_injected_tools?: Array<string>;
@@ -952,6 +957,11 @@ export type LlmapiResponseToolChoice = {
  * Usage contains token usage information
  */
 export type LlmapiResponseUsage = {
+    /**
+     * CachedTokens is the number of prompt tokens served from the provider's cache
+     * (cache-hit reads), summed across the MCP tool loop. Omitted from the response when zero (no cache hit reported).
+     */
+    cached_tokens?: number;
     /**
      * CompletionTokens is the number of tokens in the completion
      */
@@ -1587,6 +1597,7 @@ export type HandlersConnectorMintErrorResponse = {
 };
 
 export type HandlersConnectorProxyRequest = {
+    body?: Array<number>;
     path?: string;
     query?: {
         [key: string]: unknown;
@@ -2334,8 +2345,9 @@ export type HandlersProInfo = {
      */
     pro_active?: boolean;
     /**
-     * Qualified is whether last-polled stake currently meets the threshold (a "do I clear the bar"
-     * signal that can lag a fresh bind until the first poll).
+     * Qualified is whether the account's current stake meets the threshold (a "do I clear the bar"
+     * signal). Computed from the live per-wallet stake read at request time (cached value only as a
+     * per-wallet fallback), so it reflects a fresh bind/stake immediately.
      */
     qualified?: boolean;
     staked_zeta?: string;
@@ -6783,7 +6795,7 @@ export type PostApiV1ConnectorsByProviderProxyData = {
 
 export type PostApiV1ConnectorsByProviderProxyErrors = {
     /**
-     * disallowed path / invalid body / provider has no proxy
+     * disallowed path / invalid body / missing write body / provider has no proxy
      */
     400: HandlersConnectorMintErrorResponse;
     /**

@@ -2,7 +2,7 @@
 
 > **HandlersUserAgentPreferenceResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2879](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2879)
+Defined in: [src/client/types.gen.ts:2891](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2891)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2879](https://github.com/anuma-ai/sdk/blob/
 
 > **agent\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2883](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2883)
+Defined in: [src/client/types.gen.ts:2895](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2895)
 
 AgentID is the agent this preference applies to.
 
@@ -20,6 +20,6 @@ AgentID is the agent this preference applies to.
 
 > **preferred\_model**: `string`
 
-Defined in: [src/client/types.gen.ts:2887](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2887)
+Defined in: [src/client/types.gen.ts:2899](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2899)
 
 PreferredModel is the model the user chose for this agent.

@@ -2,7 +2,7 @@
 
 > **SharedResponseFormatTextParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4173](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4173)
+Defined in: [src/client/types.gen.ts:4185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4185)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4173](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4174](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4174)
+Defined in: [src/client/types.gen.ts:4186](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4186)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/client/types.gen.ts:4174](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:4178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4178)
+Defined in: [src/client/types.gen.ts:4190](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4190)
 
 The type of response format being defined. Always `text`.

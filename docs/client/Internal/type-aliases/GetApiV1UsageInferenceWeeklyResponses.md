@@ -2,7 +2,7 @@
 
 > **GetApiV1UsageInferenceWeeklyResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9123)
+Defined in: [src/client/types.gen.ts:9135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9135)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9123](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersInferenceWeeklyResponse`](HandlersInferenceWeeklyResponse.md)
 
-Defined in: [src/client/types.gen.ts:9127](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9127)
+Defined in: [src/client/types.gen.ts:9139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9139)
 
 OK

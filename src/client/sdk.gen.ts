@@ -865,9 +865,9 @@ export const postApiV1ConnectorsByProviderDisconnect = <ThrowOnError extends boo
 };
 
 /**
- * Proxy a read-only connector API call
+ * Proxy a connector API call
  *
- * Forwards a GET request to a connector's upstream API server-side, minting the user's connector token internally. Some upstreams (X, Slack) send no CORS headers, so the browser cannot call them directly. The provider comes from the path and must have a proxy policy; the request path is restricted to a strict per-provider allowlist. The upstream status code and JSON body are returned verbatim. Mint failures carry the same structured envelope as the mint endpoint: 412 connector_not_connected/scope_not_covered/invalid_grant include a connect_url.
+ * Forwards a request to a connector's upstream API server-side, minting the user's connector token internally. Some upstreams (X, Slack) send no CORS headers, so the browser cannot call them directly. The provider comes from the path and must have a proxy policy; the request path is restricted to strict per-provider allowlists. A path on the read allowlist is forwarded as a GET (with `query` as the querystring) and minted with "read" access; a path on the provider's separate write allowlist is forwarded as a POST (with `body` as the JSON payload) and minted with "write" access. Most providers (X) are read-only — they list no write paths. The upstream status code and JSON body are returned verbatim. Mint failures carry the same structured envelope as the mint endpoint: 412 connector_not_connected/scope_not_covered/invalid_grant include a connect_url.
  */
 export const postApiV1ConnectorsByProviderProxy = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorsByProviderProxyData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1ConnectorsByProviderProxyResponses, PostApiV1ConnectorsByProviderProxyErrors, ThrowOnError>({

@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminPrivyDevWipeResponse** = [`PostApiV1AdminPrivyDevWipeResponses`](PostApiV1AdminPrivyDevWipeResponses.md)\[keyof [`PostApiV1AdminPrivyDevWipeResponses`](PostApiV1AdminPrivyDevWipeResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5466)
+Defined in: [src/client/types.gen.ts:5478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5478)

@@ -2,4 +2,4 @@
 
 > **GetApiV1ConnectorsByProviderScopesResponse** = [`GetApiV1ConnectorsByProviderScopesResponses`](GetApiV1ConnectorsByProviderScopesResponses.md)\[keyof [`GetApiV1ConnectorsByProviderScopesResponses`](GetApiV1ConnectorsByProviderScopesResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6860](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6860)
+Defined in: [src/client/types.gen.ts:6872](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6872)

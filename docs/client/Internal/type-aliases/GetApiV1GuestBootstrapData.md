@@ -2,7 +2,7 @@
 
 > **GetApiV1GuestBootstrapData** = `object`
 
-Defined in: [src/client/types.gen.ts:8076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8076)
+Defined in: [src/client/types.gen.ts:8088](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8088)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8076](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:8077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8077)
+Defined in: [src/client/types.gen.ts:8089](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8089)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:8077](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:8078](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8078)
+Defined in: [src/client/types.gen.ts:8090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8090)
 
 **X-Guest-ID**
 
@@ -32,7 +32,7 @@ Client-generated UUID v4 identifying the guest session
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8084](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8084)
+Defined in: [src/client/types.gen.ts:8096](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8096)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:8084](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8085)
+Defined in: [src/client/types.gen.ts:8097](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8097)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:8085](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/guest-bootstrap"`
 
-Defined in: [src/client/types.gen.ts:8086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8086)
+Defined in: [src/client/types.gen.ts:8098](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8098)

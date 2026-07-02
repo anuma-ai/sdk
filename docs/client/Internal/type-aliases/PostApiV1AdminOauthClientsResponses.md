@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminOauthClientsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5159](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5159)
+Defined in: [src/client/types.gen.ts:5171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5171)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5159](https://github.com/anuma-ai/sdk/blob/
 
 > **201**: [`HandlersCreateOAuthClientResponse`](HandlersCreateOAuthClientResponse.md)
 
-Defined in: [src/client/types.gen.ts:5163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5163)
+Defined in: [src/client/types.gen.ts:5175](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5175)
 
 Created
