@@ -2,4 +2,4 @@
 
 > **PostApiV1CreditsPurchaseError** = [`PostApiV1CreditsPurchaseErrors`](PostApiV1CreditsPurchaseErrors.md)\[keyof [`PostApiV1CreditsPurchaseErrors`](PostApiV1CreditsPurchaseErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7083](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7083)
+Defined in: [src/client/types.gen.ts:7095](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7095)

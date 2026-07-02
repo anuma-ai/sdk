@@ -2,4 +2,4 @@
 
 > **PostApiV1PhoneCallsResponse** = [`PostApiV1PhoneCallsResponses`](PostApiV1PhoneCallsResponses.md)\[keyof [`PostApiV1PhoneCallsResponses`](PostApiV1PhoneCallsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8415)
+Defined in: [src/client/types.gen.ts:8427](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8427)

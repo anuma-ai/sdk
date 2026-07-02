@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminUsersLookupError** = [`GetApiV1AdminUsersLookupErrors`](GetApiV1AdminUsersLookupErrors.md)\[keyof [`GetApiV1AdminUsersLookupErrors`](GetApiV1AdminUsersLookupErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5789](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5789)
+Defined in: [src/client/types.gen.ts:5801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5801)

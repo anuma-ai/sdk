@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAddCreditsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4269)
+Defined in: [src/client/types.gen.ts:4281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4281)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4269](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersAddCreditsResponse`](HandlersAddCreditsResponse.md)
 
-Defined in: [src/client/types.gen.ts:4273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4273)
+Defined in: [src/client/types.gen.ts:4285](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4285)
 
 OK

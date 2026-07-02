@@ -2,4 +2,4 @@
 
 > **GetConnectorsByProviderConnectError** = [`GetConnectorsByProviderConnectErrors`](GetConnectorsByProviderConnectErrors.md)\[keyof [`GetConnectorsByProviderConnectErrors`](GetConnectorsByProviderConnectErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9944](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9944)
+Defined in: [src/client/types.gen.ts:9956](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9956)
