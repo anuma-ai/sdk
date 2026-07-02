@@ -658,8 +658,12 @@ async function createDriveFile(
   accessToken: string,
   args: CreateFileArgs
 ): Promise<CreatedDriveFile | string> {
-  const mimeType = args.mimeType || "text/plain";
-  const boundary = `anuma-${Date.now()}`;
+  const mimeType = (args.mimeType || "text/plain").replace(/[\r\n]/g, "");
+  const boundary = `anuma-${
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, "")
+      : Math.random().toString(36).slice(2)
+  }`;
   const body =
     `--${boundary}\r\n` +
     "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
@@ -759,11 +763,11 @@ async function updateDriveFile(
   accessToken: string,
   args: UpdateFileArgs
 ): Promise<UpdatedDriveFile | string> {
-  const mimeType = args.mimeType || "text/plain";
+  const mimeType = (args.mimeType || "text/plain").replace(/[\r\n]/g, "");
 
   try {
     const response = await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files/${args.fileId}?uploadType=media&fields=id,name`,
+      `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(args.fileId)}?uploadType=media&fields=id,name`,
       {
         method: "PATCH",
         headers: {
