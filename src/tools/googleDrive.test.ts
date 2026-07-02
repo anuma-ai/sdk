@@ -103,4 +103,30 @@ describe("Google Drive write tools", () => {
     expect(parsed.code).toBe("connector_not_connected");
     expect(parsed.provider).toBe("gdrive");
   });
+
+  test("google_drive_create_file rejects a native Google Docs mimeType without calling fetch", async () => {
+    const result = await toolByName("google_drive_create_file")({
+      name: "notes",
+      content: "hello",
+      mimeType: "application/vnd.google-apps.document",
+    });
+
+    expect(result).toBe(
+      "Error: this tool creates plain files only; native Google Docs/Sheets/Slides aren't supported. Omit mimeType or use a blob type like text/plain."
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("google_drive_update_file rejects a native Google Docs mimeType without calling fetch", async () => {
+    const result = await toolByName("google_drive_update_file")({
+      fileId: "file-1",
+      content: "hello",
+      mimeType: "application/vnd.google-apps.document",
+    });
+
+    expect(result).toBe(
+      "Error: this tool creates plain files only; native Google Docs/Sheets/Slides aren't supported. Omit mimeType or use a blob type like text/plain."
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

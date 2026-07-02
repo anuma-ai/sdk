@@ -638,6 +638,13 @@ function driveWriteError(status: number, body: string): string {
   return `Error: Google Drive request failed (${status}): ${body}`;
 }
 
+/** Native Google Workspace types (Docs/Sheets/Slides) — not supported by these blob-file tools. */
+const NATIVE_GOOGLE_MIME_TYPE = /^application\/vnd\.google-apps\./;
+
+/** Message returned when a caller tries to create/overwrite a native Google Workspace file. */
+const NATIVE_GOOGLE_MIME_ERROR =
+  "Error: this tool creates plain files only; native Google Docs/Sheets/Slides aren't supported. Omit mimeType or use a blob type like text/plain.";
+
 export interface CreateFileArgs {
   name: string;
   content: string;
@@ -659,6 +666,9 @@ async function createDriveFile(
   args: CreateFileArgs
 ): Promise<CreatedDriveFile | string> {
   const mimeType = (args.mimeType || "text/plain").replace(/[\r\n]/g, "");
+  if (NATIVE_GOOGLE_MIME_TYPE.test(mimeType)) {
+    return NATIVE_GOOGLE_MIME_ERROR;
+  }
   const boundary = `anuma-${
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID().replace(/-/g, "")
@@ -709,7 +719,7 @@ export function createGoogleDriveCreateFileTool(
     function: {
       name: "google_drive_create_file",
       description:
-        "Creates a new file in the user's Google Drive with the given text content. Use this to save notes, documents, or generated text to Drive. Set mimeType to 'application/vnd.google-apps.document' to create an editable Google Doc from the text.",
+        "Creates a new plain file in the user's Google Drive with the given text content. Use this to save notes, generated text, or other plain content to Drive. The mimeType is optional and defaults to 'text/plain'.",
       parameters: {
         type: "object",
         properties: {
@@ -724,7 +734,7 @@ export function createGoogleDriveCreateFileTool(
           mimeType: {
             type: "string",
             description:
-              'Optional MIME type. Defaults to "text/plain". Use "application/vnd.google-apps.document" to create a Google Doc from the text body.',
+              'Optional blob MIME type, e.g. "text/plain" (default), "text/markdown", or "application/json".',
           },
         },
         required: ["name", "content"],
@@ -764,6 +774,9 @@ async function updateDriveFile(
   args: UpdateFileArgs
 ): Promise<UpdatedDriveFile | string> {
   const mimeType = (args.mimeType || "text/plain").replace(/[\r\n]/g, "");
+  if (NATIVE_GOOGLE_MIME_TYPE.test(mimeType)) {
+    return NATIVE_GOOGLE_MIME_ERROR;
+  }
 
   try {
     const response = await fetch(
