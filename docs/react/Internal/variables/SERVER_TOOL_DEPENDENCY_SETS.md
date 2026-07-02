@@ -2,7 +2,7 @@
 
 > `const` **SERVER\_TOOL\_DEPENDENCY\_SETS**: [`ToolSet`](../interfaces/ToolSet.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1444](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1444)
+Defined in: [src/lib/tools/serverTools.ts:1450](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1450)
 
 Dependency edges between server tools: when an entry tool (anchor) matches
 a prompt, its continuation tools ride in even though they can never match

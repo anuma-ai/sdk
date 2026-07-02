@@ -2,7 +2,7 @@
 
 > **isCalendarCallback**(`callbackPath`: `string`): `boolean`
 
-Defined in: [src/lib/auth/google-calendar.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#319)
+Defined in: [src/lib/auth/google-calendar.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#293)
 
 Check if current URL is a Calendar OAuth callback
 

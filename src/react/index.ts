@@ -697,14 +697,12 @@ export {
   migrateCalendarToken,
   refreshCalendarToken,
   revokeCalendarToken,
-  startCalendarAuth,
   storeCalendarPendingMessage,
   storeCalendarReturnUrl,
   storeCalendarToken,
 } from "../lib/auth/google-calendar";
 
-// Google Drive Auth (with drive.readonly scope for full read access)
-// Note: This is different from GoogleDriveAuthProvider which uses drive.file scope
+// Google Drive Auth — token-exchange/callback helpers for the legacy OAuth flow.
 export {
   clearDriveToken,
   getAndClearDrivePendingMessage,
@@ -717,7 +715,6 @@ export {
   migrateDriveToken,
   refreshDriveToken,
   revokeDriveToken,
-  startDriveAuth,
   storeDrivePendingMessage,
   storeDriveReturnUrl,
   storeDriveToken,
