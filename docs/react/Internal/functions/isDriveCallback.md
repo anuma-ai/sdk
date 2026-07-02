@@ -2,7 +2,7 @@
 
 > **isDriveCallback**(`callbackPath`: `string`): `boolean`
 
-Defined in: [src/lib/auth/google-drive.ts:322](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#322)
+Defined in: [src/lib/auth/google-drive.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#299)
 
 Check if current URL is a Drive OAuth callback
 

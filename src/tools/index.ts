@@ -110,16 +110,20 @@ export { createWeatherTool } from "./weather";
 
 // Google Drive exports
 export type {
+  CreateFileArgs,
   DriveFile,
   GetFileContentArgs,
   ListRecentFilesArgs,
   SearchFilesArgs,
+  UpdateFileArgs,
 } from "./googleDrive";
 export {
   createDriveTools,
+  createGoogleDriveCreateFileTool,
   createGoogleDriveGetContentTool,
   createGoogleDriveListRecentTool,
   createGoogleDriveSearchTool,
+  createGoogleDriveUpdateFileTool,
 } from "./googleDrive";
 
 // Notion MCP exports

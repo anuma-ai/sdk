@@ -130,7 +130,13 @@ describe("connector tool sets (#587)", () => {
     ],
     [
       "google-drive",
-      ["google_drive_search", "google_drive_list_recent", "google_drive_get_content"],
+      [
+        "google_drive_search",
+        "google_drive_list_recent",
+        "google_drive_get_content",
+        "google_drive_create_file",
+        "google_drive_update_file",
+      ],
     ],
     ["notion", ["notion-search", "notion-fetch", "notion-create-pages", "notion-update-page"]],
   ])("defines %s with the expected members and no systemPrompt", (name, members) => {

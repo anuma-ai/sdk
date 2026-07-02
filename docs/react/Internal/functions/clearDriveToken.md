@@ -2,7 +2,7 @@
 
 > **clearDriveToken**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/google-drive.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#224)
+Defined in: [src/lib/auth/google-drive.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#218)
 
 Clear stored token data
 
