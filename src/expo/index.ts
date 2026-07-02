@@ -87,6 +87,47 @@
  * @module
  */
 
+// ── Prompt pre-processors (classify-then-fetch enrichment) ──
+// Parity with /server and /react — see src/react/index.ts for the rationale
+// (native apps can't load the /server barrel; Metro redirects it to /react).
+export type {
+  CryptoPriceClassification,
+  CryptoPricePreProcessorOptions,
+} from "../lib/chat/cryptoPriceClassifier";
+export {
+  classifyCryptoPrice,
+  classifyCryptoPriceBatch,
+  createCryptoPricePreProcessor,
+} from "../lib/chat/cryptoPriceClassifier";
+export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type {
+  StockPriceClassification,
+  StockPricePreProcessorOptions,
+} from "../lib/chat/stockPriceClassifier";
+export {
+  classifyStockPrice,
+  classifyStockPriceBatch,
+  createStockPricePreProcessor,
+} from "../lib/chat/stockPriceClassifier";
+export type {
+  WeatherClassification,
+  WeatherPreProcessorOptions,
+} from "../lib/chat/weatherClassifier";
+export {
+  classifyWeather,
+  classifyWeatherBatch,
+  createWeatherPreProcessor,
+} from "../lib/chat/weatherClassifier";
+export type {
+  WebSearchClassification,
+  WebSearchPreProcessorOptions,
+} from "../lib/chat/webSearchClassifier";
+export {
+  classifyWebSearch,
+  classifyWebSearchBatch,
+  createWebSearchPreProcessor,
+} from "../lib/chat/webSearchClassifier";
+
 // Resumable streaming primitives (resume handles are persisted by apps, so the
 // types and header constants are part of the public surface here).
 export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
