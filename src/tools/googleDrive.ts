@@ -4,7 +4,11 @@
  */
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import { buildConnectorErrorResult } from "../lib/connectors/errors.js";
 import { getLogger } from "../lib/logger";
+
+/** Logical provider id used in the canonical connector-error contract. */
+const DRIVE_PROVIDER = "gdrive";
 
 export interface SearchFilesArgs {
   query: string;
@@ -601,6 +605,234 @@ export function createGoogleDriveGetContentTool(
 }
 
 /**
+ * Resolves an access token, requesting Drive access if none is cached.
+ * Returns the token, or a connector-error JSON string when access can't be
+ * obtained — mirroring the executor preamble the read tools use.
+ */
+async function resolveWriteToken(
+  getAccessToken: () => string | null,
+  requestDriveAccess: () => Promise<string>
+): Promise<{ token: string } | { error: string }> {
+  let token = getAccessToken();
+  if (!token) {
+    try {
+      token = await requestDriveAccess();
+    } catch {
+      return { error: buildConnectorErrorResult("connector_not_connected", DRIVE_PROVIDER) };
+    }
+  }
+  if (!token) {
+    return { error: buildConnectorErrorResult("connector_not_connected", DRIVE_PROVIDER) };
+  }
+  return { token };
+}
+
+/**
+ * Maps an unauthorized/forbidden Drive response to the canonical connector
+ * error; other failures are returned as a plain string like the read tools.
+ */
+function driveWriteError(status: number, body: string): string {
+  if (status === 401 || status === 403) {
+    return buildConnectorErrorResult("connector_not_connected", DRIVE_PROVIDER);
+  }
+  return `Error: Google Drive request failed (${status}): ${body}`;
+}
+
+export interface CreateFileArgs {
+  name: string;
+  content: string;
+  mimeType?: string;
+}
+
+interface CreatedDriveFile {
+  id: string;
+  name: string;
+  webViewLink?: string;
+}
+
+/**
+ * Creates a new file the app owns via the Drive multipart upload endpoint.
+ * Works under the non-sensitive `drive.file` scope.
+ */
+async function createDriveFile(
+  accessToken: string,
+  args: CreateFileArgs
+): Promise<CreatedDriveFile | string> {
+  const mimeType = args.mimeType || "text/plain";
+  const boundary = `anuma-${Date.now()}`;
+  const body =
+    `--${boundary}\r\n` +
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+    `${JSON.stringify({ name: args.name, mimeType })}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: ${mimeType}\r\n\r\n` +
+    `${args.content}\r\n` +
+    `--${boundary}--`;
+
+  try {
+    const response = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body,
+      }
+    );
+
+    if (!response.ok) {
+      return driveWriteError(response.status, await response.text());
+    }
+
+    const data = (await response.json()) as CreatedDriveFile;
+    return { id: data.id, name: data.name, webViewLink: data.webViewLink };
+  } catch (error) {
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
+  }
+}
+
+/**
+ * Creates the Google Drive create-file tool.
+ */
+export function createGoogleDriveCreateFileTool(
+  getAccessToken: () => string | null,
+  requestDriveAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "google_drive_create_file",
+      description:
+        "Creates a new file in the user's Google Drive with the given text content. Use this to save notes, documents, or generated text to Drive. Set mimeType to 'application/vnd.google-apps.document' to create an editable Google Doc from the text.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: 'The name of the file to create, e.g. "Meeting notes.txt".',
+          },
+          content: {
+            type: "string",
+            description: "The text content to write into the file.",
+          },
+          mimeType: {
+            type: "string",
+            description:
+              'Optional MIME type. Defaults to "text/plain". Use "application/vnd.google-apps.document" to create a Google Doc from the text body.',
+          },
+        },
+        required: ["name", "content"],
+      },
+    },
+    executor: async (args: Record<string, unknown>): Promise<CreatedDriveFile | string> => {
+      const resolved = await resolveWriteToken(getAccessToken, requestDriveAccess);
+      if ("error" in resolved) {
+        return resolved.error;
+      }
+      return createDriveFile(resolved.token, {
+        name: args.name as string,
+        content: args.content as string,
+        mimeType: args.mimeType as string | undefined,
+      });
+    },
+  };
+}
+
+export interface UpdateFileArgs {
+  fileId: string;
+  content: string;
+  mimeType?: string;
+}
+
+interface UpdatedDriveFile {
+  id: string;
+  name: string;
+}
+
+/**
+ * Overwrites the content of a file the app created via the Drive media
+ * upload endpoint. Works under the non-sensitive `drive.file` scope.
+ */
+async function updateDriveFile(
+  accessToken: string,
+  args: UpdateFileArgs
+): Promise<UpdatedDriveFile | string> {
+  const mimeType = args.mimeType || "text/plain";
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${args.fileId}?uploadType=media&fields=id,name`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": mimeType,
+        },
+        body: args.content,
+      }
+    );
+
+    if (!response.ok) {
+      return driveWriteError(response.status, await response.text());
+    }
+
+    const data = (await response.json()) as UpdatedDriveFile;
+    return { id: data.id, name: data.name };
+  } catch (error) {
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
+  }
+}
+
+/**
+ * Creates the Google Drive update-file tool.
+ */
+export function createGoogleDriveUpdateFileTool(
+  getAccessToken: () => string | null,
+  requestDriveAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "google_drive_update_file",
+      description:
+        "Overwrites the content of an existing file in the user's Google Drive that the app created. Provide the fileId (from a create or search result) and the new content.",
+      parameters: {
+        type: "object",
+        properties: {
+          fileId: {
+            type: "string",
+            description:
+              "The ID of the file to overwrite, from a previous create or search result.",
+          },
+          content: {
+            type: "string",
+            description: "The new text content that replaces the file's current content.",
+          },
+          mimeType: {
+            type: "string",
+            description: 'Optional MIME type of the content. Defaults to "text/plain".',
+          },
+        },
+        required: ["fileId", "content"],
+      },
+    },
+    executor: async (args: Record<string, unknown>): Promise<UpdatedDriveFile | string> => {
+      const resolved = await resolveWriteToken(getAccessToken, requestDriveAccess);
+      if ("error" in resolved) {
+        return resolved.error;
+      }
+      return updateDriveFile(resolved.token, {
+        fileId: args.fileId as string,
+        content: args.content as string,
+        mimeType: args.mimeType as string | undefined,
+      });
+    },
+  };
+}
+
+/**
  * Creates all Google Drive tools with the provided token context.
  */
 export function createDriveTools(
@@ -611,5 +843,7 @@ export function createDriveTools(
     createGoogleDriveSearchTool(getAccessToken, requestDriveAccess),
     createGoogleDriveListRecentTool(getAccessToken, requestDriveAccess),
     createGoogleDriveGetContentTool(getAccessToken, requestDriveAccess),
+    createGoogleDriveCreateFileTool(getAccessToken, requestDriveAccess),
+    createGoogleDriveUpdateFileTool(getAccessToken, requestDriveAccess),
   ];
 }

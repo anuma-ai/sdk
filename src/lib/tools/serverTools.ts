@@ -1054,8 +1054,14 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   },
   {
     name: "google-drive",
-    members: ["google_drive_search", "google_drive_list_recent", "google_drive_get_content"],
-    anchors: ["google_drive_search", "google_drive_get_content"],
+    members: [
+      "google_drive_search",
+      "google_drive_list_recent",
+      "google_drive_get_content",
+      "google_drive_create_file",
+      "google_drive_update_file",
+    ],
+    anchors: ["google_drive_search", "google_drive_get_content", "google_drive_create_file"],
     anchorMinSimilarity: 0.53,
   },
   {

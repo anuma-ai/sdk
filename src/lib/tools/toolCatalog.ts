@@ -65,6 +65,16 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   google_drive_search: { label: "Search files", provider: "gdrive", connector: "Drive" },
   google_drive_list_recent: { label: "List recent files", provider: "gdrive", connector: "Drive" },
   google_drive_get_content: { label: "Read file content", provider: "gdrive", connector: "Drive" },
+  google_drive_create_file: {
+    label: "Create a file in Drive",
+    provider: "gdrive",
+    connector: "Drive",
+  },
+  google_drive_update_file: {
+    label: "Update a Drive file",
+    provider: "gdrive",
+    connector: "Drive",
+  },
 
   // Notion (src/tools/notion.ts)
   "notion-search": { label: "Search", provider: "notion", connector: "Notion" },
