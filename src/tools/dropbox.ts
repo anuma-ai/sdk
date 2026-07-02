@@ -72,6 +72,7 @@ interface DropboxRawEntry {
 
 interface DropboxListFolderResponse {
   entries?: DropboxRawEntry[];
+  has_more?: boolean;
 }
 
 interface DropboxSearchMatchV2 {
@@ -80,6 +81,7 @@ interface DropboxSearchMatchV2 {
 
 interface DropboxSearchResponse {
   matches?: DropboxSearchMatchV2[];
+  has_more?: boolean;
 }
 
 const DROPBOX_API_URL = "https://api.dropboxapi.com/2";
@@ -188,7 +190,13 @@ async function listDropboxFolders(
   if (entries.length === 0) {
     return `No entries found at "${args.path ?? "/"}"`;
   }
-  return entries.map(toEntry);
+  const mapped = entries.map(toEntry);
+  // Dropbox paginates: when it flags more entries past our limit, tell the LLM
+  // so it doesn't present a partial listing as the whole folder.
+  if (data.has_more) {
+    return `${JSON.stringify(mapped)}\n\n(Showing the first ${mapped.length} entries; this folder has more. List a narrower path to see the rest.)`;
+  }
+  return mapped;
 }
 
 /**
@@ -285,7 +293,7 @@ async function searchDropbox(
   if (matches.length === 0) {
     return `No files found matching "${args.query}"`;
   }
-  return matches.map((raw) => {
+  const mapped = matches.map((raw) => {
     const match: DropboxSearchMatch = {
       name: raw.name ?? "",
       tag: normalizeTag(raw[".tag"]),
@@ -293,6 +301,12 @@ async function searchDropbox(
     if (raw.path_display !== undefined) match.path_display = raw.path_display;
     return match;
   });
+  // Same partial-result guard as the folder listing: when search flags more
+  // hits past our cap, tell the LLM so it doesn't read a full page as complete.
+  if (data.has_more) {
+    return `${JSON.stringify(mapped)}\n\n(Showing the first ${mapped.length} matches; more exist. Refine the query to narrow the results.)`;
+  }
+  return mapped;
 }
 
 function createDropboxListFoldersTool(
@@ -369,7 +383,7 @@ function createDropboxSearchTool(
     function: {
       name: "dropbox_search",
       description:
-        "Search the user's Dropbox for files and folders by name or content. Returns matching entries with their name, path, and type (file or folder).",
+        "Search the user's Dropbox for files and folders by name or content. Returns up to 20 matching entries with their name, path, and type (file or folder).",
       parameters: {
         type: "object",
         properties: {
