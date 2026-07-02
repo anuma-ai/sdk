@@ -1087,6 +1087,12 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     anchors: ["slack_search_messages", "slack_list_channels", "slack_post_message"],
     anchorMinSimilarity: 0.53,
   },
+  {
+    name: "dropbox",
+    members: ["dropbox_list_folders", "dropbox_get_file_content", "dropbox_search"],
+    anchors: ["dropbox_list_folders", "dropbox_search"],
+    anchorMinSimilarity: 0.53,
+  },
 ];
 
 /**

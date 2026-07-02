@@ -100,6 +100,15 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   x_get_me: { label: "Get my X profile", provider: "x", connector: "X" },
   x_get_my_posts: { label: "Read my recent posts", provider: "x", connector: "X" },
 
+  // Dropbox (src/tools/dropbox.ts)
+  dropbox_list_folders: { label: "List files", provider: "dropbox", connector: "Dropbox" },
+  dropbox_get_file_content: {
+    label: "Read file content",
+    provider: "dropbox",
+    connector: "Dropbox",
+  },
+  dropbox_search: { label: "Search files", provider: "dropbox", connector: "Dropbox" },
+
   // Slack (src/tools/slack.ts)
   slack_get_me: { label: "Get my Slack profile", provider: "slack", connector: "Slack" },
   slack_list_channels: { label: "List channels", provider: "slack", connector: "Slack" },

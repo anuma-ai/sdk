@@ -167,6 +167,10 @@ export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
 export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";
 export { createXTools } from "./x";
 
+// Dropbox exports
+export type { DropboxRequestAccess, DropboxTokenGetter } from "./dropbox";
+export { createDropboxTools } from "./dropbox";
+
 // Slack exports
 export type {
   SlackGetChannelHistoryArgs,
