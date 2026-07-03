@@ -17,9 +17,9 @@ anchor threshold would silently break app-creation flows. Recall over
 precision.
 
 Use this for server-side toolkit suites where the LLM needs the full
-call chain (e.g. fal\_list\_models → fal\_model\_schema → fal\_queue\_submit →
-fal\_queue\_status → fal\_queue\_result). Differs from `applyToolSets`, which
-replaces non-set matches when a set activates.
+call chain (e.g. search\_web → read\_url / parallel\_read\_url, or
+geocoding before the OpenMeteo data tools). Differs from `applyToolSets`,
+which replaces non-set matches when a set activates.
 
 To express "any member triggers the set" (not specific anchors), pass
 `anchors: members` when defining the ToolSet.
