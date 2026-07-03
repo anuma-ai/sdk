@@ -86,13 +86,13 @@ import { createServerToolsFilter } from "@anuma/sdk/tools";
 const serverTools = createServerToolsFilter({
   toolSets: [
     {
-      name: "fal",
-      members: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
-      anchors: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
+      name: "research",
+      members: ["AnumaJinaMCP-search_web", "AnumaJinaMCP-read_url", ...],
+      anchors: ["AnumaJinaMCP-search_web"],
       anchorMinSimilarity: 0.7,
     },
   ],
-  excludeTools: ["AnumaFalMCP-fal_billing"],
+  excludeTools: ["OpenMeteoMCP-weather_forecast"],
   matchOptions: { limit: 5, minSimilarity: 0.5 },
 });
 ```
