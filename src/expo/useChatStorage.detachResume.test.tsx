@@ -500,6 +500,76 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(second!.error).toBe("No resumable stream");
   });
 
+  it("finalizes an events-only stowed partial as stopped on a clean empty replay (citations count as output)", async () => {
+    // A turn detached after its search events arrived but before any message
+    // text: the stowed partial has tool_call_events and no content/thinking.
+    // That is real output the user saw — an empty replay must finalize it,
+    // not skip the fallback and drop the citations.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_empty_events_partial",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    const eventsOnlyPartial = {
+      ...responsesShape(""),
+      tool_call_events: [
+        {
+          id: "evt-p1",
+          name: "AnumaSearchMCP_text_search",
+          status: "completed",
+          output: JSON.stringify({ results: [{ url: "https://example.org", title: "Partial" }] }),
+        },
+      ],
+    };
+    mockRunToolLoop.mockResolvedValueOnce({
+      data: eventsOnlyPartial,
+      error: "Request detached",
+      detached: true,
+      resume: {
+        inferenceId: "inf-evp",
+        apiType: "responses",
+        model: "test-model",
+        conversationId: "conv_empty_events_partial",
+      },
+    } as never);
+
+    let detached: Awaited<ReturnType<typeof result.current.sendMessage>>;
+    await act(async () => {
+      detached = await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "question" }] }],
+        model: "test-model",
+      });
+    });
+    const rowId = (detached! as Extract<typeof detached, { detached: true }>).assistantUniqueId;
+
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape(""),
+      error: null,
+      interrupted: false,
+      empty: true,
+    } as never);
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream();
+    });
+
+    expect(resumeResult!.empty).toBe(true);
+    expect(resumeResult!.assistantMessage?.uniqueId).toBe(rowId);
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_empty_events_partial")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    expect(assistantRows[0].wasStopped).toBe(true);
+    expect(assistantRows[0].sources?.map((s) => s.url)).toContain("https://example.org");
+  });
+
   it("persists NO row when a clean resume replays zero content and there is no stowed partial", async () => {
     // Paul's shape: backgrounded before any content streamed, so the stowed
     // partial is empty too. A blank row with wasStopped:false (an assistant

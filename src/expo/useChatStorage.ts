@@ -2390,8 +2390,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // stowed partial (finalized as stopped, mirroring the 410 path); if
           // there is no partial either, persist nothing.
           if (!hasReplayedOutput(result.data)) {
-            const partial = rctx.partialData ? extractAssistantText(rctx.partialData) : null;
-            if (partial && (partial.content || partial.thinking)) {
+            // Same output test for the fallback: a detached partial whose only
+            // output is tool_call_events (citations, no message body yet) is
+            // real content the user saw — finalize it, don't drop it.
+            if (hasReplayedOutput(rctx.partialData)) {
               const written = await safeFinalize(rctx.partialData!, true, responseDuration);
               if ("error" in written) {
                 return { data: rctx.partialData, error: written.error, assistantMessage: null };
