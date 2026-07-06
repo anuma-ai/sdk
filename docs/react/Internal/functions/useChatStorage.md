@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1283](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1283)
+Defined in: [src/react/useChatStorage.ts:1302](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1302)
 
 ## Parameters
 
@@ -569,7 +569,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-(`matches`: `PiiMatch`\[]) => `void`
+(`matches`: [`PiiMatch`](../../../expo/Internal/interfaces/PiiMatch.md)\[]) => `void`
 
 </td>
 <td>
@@ -661,7 +661,7 @@ Errors thrown by the callback are swallowed.
 </td>
 <td>
 
-`boolean` | `PiiRedactor`
+`boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
 </td>
 <td>
@@ -686,7 +686,7 @@ cover names, non-text content, or tool-call arguments.
 </td>
 <td>
 
-`PromptPreProcessor`\[]
+[`PromptPreProcessor`](../type-aliases/PromptPreProcessor.md)\[]
 
 </td>
 <td>

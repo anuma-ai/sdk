@@ -1340,15 +1340,15 @@ describe("buildSlideSystemPrompt IMAGES section conditionality", () => {
   // Mirrors the per-recipe `hasImageGenerator` flag — the static system
   // prompt's IMAGES section adapts to whether the host has bound an
   // image-generation tool. Without this, the prompt would unconditionally
-  // advertise AnumaImageMCP even when the model has no way to call it.
-  it("advertises AnumaImageMCP when hasImageGenerator=true", () => {
+  // advertise anuma_create_image even when the model has no way to call it.
+  it("advertises anuma_create_image when hasImageGenerator=true", () => {
     const prompt = buildSlideSystemPrompt({ hasImageGenerator: true });
-    expect(prompt).toContain("AnumaImageMCP-generate_cloud_image");
+    expect(prompt).toContain("AnumaMediaMCP-anuma_create_image");
   });
 
-  it("omits the AnumaImageMCP reference when hasImageGenerator is false or unset", () => {
+  it("omits the anuma_create_image reference when hasImageGenerator is false or unset", () => {
     const prompt = buildSlideSystemPrompt();
-    expect(prompt).not.toContain("AnumaImageMCP");
+    expect(prompt).not.toContain("AnumaMediaMCP-anuma_create_image");
     expect(prompt).toContain("no image-generation tool bound");
   });
 });

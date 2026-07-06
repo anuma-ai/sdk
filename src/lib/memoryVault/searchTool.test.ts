@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createMemoryVaultSearchTool,
   searchVaultMemories,
@@ -21,8 +21,15 @@ vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbeddings: vi.fn(),
 }));
 
+vi.mock("../memory/reranker", () => ({
+  rerankPairs: vi.fn(),
+}));
+
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import { rerankPairs } from "../memory/reranker";
+import { setLogger, noopLogger, type Logger } from "../logger";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 const mockEmbeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
@@ -255,12 +262,13 @@ describe("searchVaultMemories", () => {
       minSimilarity: 0,
     });
 
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
-      mockVaultCtx,
-      "m1",
-      JSON.stringify([0.9, 0.1, 0])
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "m1",
+        JSON.stringify([0.9, 0.1, 0]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
     );
   });
 
@@ -486,13 +494,13 @@ describe("preEmbedVaultMemories", () => {
     const cache = createVaultEmbeddingCache();
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
-    // Allow fire-and-forget promise to settle
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
-      mockVaultCtx,
-      "m1",
-      JSON.stringify([3, 2, 1])
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "m1",
+        JSON.stringify([3, 2, 1]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
     );
   });
 
@@ -632,10 +640,8 @@ describe("eagerEmbedContent — failure resilience", () => {
       eagerEmbedContent("cache me anyway", mockEmbeddingOptions, cache, mockVaultCtx, "mem-1")
     ).resolves.toBeUndefined();
 
-    await new Promise((r) => setTimeout(r, 10));
-
     // Cache should be populated despite DB failure
-    expect(cache.get("cache me anyway")).toEqual([1, 2, 3]);
+    await vi.waitFor(() => expect(cache.get("cache me anyway")).toEqual([1, 2, 3]));
   });
 });
 
@@ -657,13 +663,13 @@ describe("eagerEmbedContent", () => {
     const cache = createVaultEmbeddingCache();
     await eagerEmbedContent("persist me", mockEmbeddingOptions, cache, mockVaultCtx, "mem-99");
 
-    // Allow fire-and-forget promise to settle
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
-      mockVaultCtx,
-      "mem-99",
-      JSON.stringify([4, 5, 6])
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "mem-99",
+        JSON.stringify([4, 5, 6]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
     );
   });
 
@@ -675,8 +681,179 @@ describe("eagerEmbedContent", () => {
     const cache = createVaultEmbeddingCache();
     await eagerEmbedContent("no persist", mockEmbeddingOptions, cache);
 
+    // Negative assertion: a real settle window is needed here, not vi.waitFor
+    // (which would resolve on the first tick and never prove the op stayed
+    // uncalled). Give the fire-and-forget path time to (not) fire.
     await new Promise((r) => setTimeout(r, 10));
 
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).not.toHaveBeenCalled();
+  });
+});
+
+describe("rerank graceful degradation", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("falls back to the V2 ranking when the cross-encoder rerank throws", async () => {
+    // A rerank failure is a transient network/portal hiccup; the search must
+    // degrade to the already-computed V2 ordering rather than reject (which
+    // the recall tool would surface as "Error searching memory").
+    vi.mocked(rerankPairs).mockRejectedValue(new Error("portal 503"));
+    const memories = [makeMemory("m1", "cats are great"), makeMemory("m2", "dogs are loyal")];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("cats are great", [1, 0, 0]);
+    cache.set("dogs are loyal", [0, 1, 0]);
+
+    const { results } = await searchVaultMemoriesWithSize(
+      "cats",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: true, rerank: true }
+    );
+
+    // Did not throw; the cosine-aligned candidate still ranks first.
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].uniqueId).toBe("m1");
+  });
+});
+
+describe("embedding dimension-mismatch guard", () => {
+  let warnings: string[];
+  beforeEach(() => {
+    vi.clearAllMocks();
+    warnings = [];
+    const spy: Logger = { ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) };
+    setLogger(spy);
+  });
+  afterEach(() => setLogger(noopLogger));
+
+  it("warns when a re-embed returns an inconsistent dimension (post-re-embed drift)", async () => {
+    // The net's remaining role: stale/wrong-dim vectors are re-embedded first,
+    // so the only way an item still mismatches is a re-embed that itself
+    // returns the wrong dim (model/API drift). Query is 3-dim; the re-embed
+    // returns a 2-dim vector.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "drifted")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0]]); // wrong dim from re-embed
+
+    const cache = createVaultEmbeddingCache();
+    await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    expect(warnings.some((w) => w.includes("mismatch the query dimension"))).toBe(true);
+  });
+
+  it("does not warn when dimensions match", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "good dim")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("good dim", [1, 0, 0]);
+
+    await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    expect(warnings.some((w) => w.includes("mismatch the query dimension"))).toBe(false);
+  });
+});
+
+describe("embedding model versioning", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("uses a grandfathered (null-model) DB embedding without re-embedding", async () => {
+    // Legacy rows have a vector but embedding_model = null. They were embedded
+    // with the current model, so recall must use them as-is — re-embedding the
+    // whole vault on rollout of this change would be a needless cost spike.
+    const mem: StoredVaultMemory = {
+      ...makeMemory("m1", "grandfathered fact"),
+      embedding: JSON.stringify([1, 0, 0]),
+      embeddingModel: null,
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([mem]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]); // query: same dim
+
+    const cache = createVaultEmbeddingCache();
+    const { results } = await searchVaultMemoriesWithSize(
+      "q",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: false }
+    );
+
+    expect(results).toHaveLength(1);
+    // No re-embed: the grandfathered vector was used directly.
+    expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+  });
+
+  it("re-embeds a stale-model DB embedding and persists the current model", async () => {
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+    vi.mocked(updateVaultMemoryEmbeddingOp).mockClear();
+    // Row was embedded by a different model than the current one → stale.
+    const mem: StoredVaultMemory = {
+      ...makeMemory("m1", "stale fact"),
+      embedding: JSON.stringify([0, 1, 0]),
+      embeddingModel: "old/embedding-model-v1",
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([mem]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const cache = createVaultEmbeddingCache();
+    await searchVaultMemoriesWithSize("q", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    // Stale vector was re-embedded (not loaded from DB) ...
+    expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledWith(
+      ["stale fact"],
+      mockEmbeddingOptions
+    );
+    // ... and persisted with the current model stamped.
+    await vi.waitFor(() =>
+      expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+        mockVaultCtx,
+        "m1",
+        JSON.stringify([1, 0, 0]),
+        DEFAULT_API_EMBEDDING_MODEL
+      )
+    );
+  });
+
+  it("re-embeds a wrong-dimension cache hit instead of ranking with it", async () => {
+    // The content-keyed cache can be seeded (e.g. by preEmbedVaultMemories,
+    // which has no query vector to dim-check) with a grandfathered wrong-dim
+    // vector. Search must validate the cached vector's dimension, not trust the
+    // cache hit blindly, or a model dim change would rank at cosine 0 forever.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "seeded wrong dim")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]); // query is 3-dim
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("seeded wrong dim", [1, 0]); // 2-dim — stale from an old model
+
+    const { results } = await searchVaultMemoriesWithSize(
+      "q",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { minSimilarity: 0, useFusion: false }
+    );
+
+    // The wrong-dim cache entry was dropped and re-embedded, then ranked.
+    expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledWith(
+      ["seeded wrong dim"],
+      mockEmbeddingOptions
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].similarity).toBeCloseTo(1);
   });
 });

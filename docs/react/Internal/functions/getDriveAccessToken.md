@@ -2,7 +2,7 @@
 
 > **getDriveAccessToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:450](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#450)
+Defined in: [src/lib/auth/google-drive.ts:427](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#427)
 
 Get a valid access token, refreshing if necessary
 

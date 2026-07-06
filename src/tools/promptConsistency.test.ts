@@ -53,10 +53,10 @@ const KNOWN_NON_TOOL_WORDS = new Set<string>([
   // Field name used in tool result JSON for interaction-id chaining.
   // Documented in `patch_slides`'s description as the threading key.
   "replaces_interaction_id",
-  // External MCP tool from a different server (AnumaImageMCP) — the
+  // External MCP tool from a different server (AnumaMediaMCP) — the
   // slide system prompt references it for image generation. Not part
   // of this SDK's tool registry, so it can't be auto-resolved.
-  "generate_cloud_image",
+  "anuma_create_image",
 ]);
 
 /**

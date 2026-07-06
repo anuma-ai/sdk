@@ -24,6 +24,10 @@ interface ExtractedMediaUrl {
 
 /** Image tool names recognized by the MCP image pipeline. */
 export const IMAGE_TOOL_NAMES = new Set([
+  "AnumaMediaMCP-anuma_create_image",
+  "anuma_create_image",
+  // Deprecated anuma-image-mcp tools, retained so images in already-stored
+  // conversations still re-materialize on replay.
   "AnumaImageMCP-generate_cloud_image",
   "AnumaImageMCP-edit_cloud_image",
   "generate_cloud_image",
@@ -91,11 +95,24 @@ export function extractMCPImageUrls(
             model?: string;
             imageUrl?: string;
             url?: string;
+            output_images?: Array<{ url?: string }>;
           };
-          // Tool output uses "imageUrl"; also check "url" for backward compatibility
-          const imageUrl = output.imageUrl || output.url;
-          if (imageUrl) {
-            urls.push({ url: imageUrl, model: output.model || "image", mediaType: "image" });
+          const model = output.model || "image";
+          // The new anuma_create_image tool returns an `output_images: [{key,
+          // url, size}]` array (num_images can be 1-4); the deprecated
+          // anuma-image-mcp tools returned a single `imageUrl`/`url`. Support
+          // both, and dedupe so a repeated URL doesn't create two records.
+          const imageUrls = [
+            ...new Set(
+              [
+                ...(output.output_images?.map((i) => i.url) ?? []),
+                output.imageUrl,
+                output.url,
+              ].filter((u): u is string => Boolean(u))
+            ),
+          ];
+          for (const url of imageUrls) {
+            urls.push({ url, model, mediaType: "image" });
           }
         } catch {
           // Malformed JSON — skip this event
@@ -131,12 +148,20 @@ export function extractMCPImageUrls(
     }
   }
 
-  // Fallback: regex-match MCP R2 URLs in content when tool_call_events yield nothing
+  // Fallback: regex-match media URLs in content when tool_call_events yield nothing.
+  // Covers legacy R2 presigned URLs and the portal media-proxy URLs
+  // (`/api/v1/media/<svc>/<token>/...`) the new anuma_create_image tool returns.
   if (urls.length === 0 && content) {
     const escaped = mcpR2Domain.replace(/\./g, "\\.");
-    const urlPattern = new RegExp(`https://${escaped}[^\\s"'<>)\\]]+`, "gi");
-    const matches = content.match(urlPattern);
-    if (matches) {
+    const patterns = [
+      new RegExp(`https://${escaped}[^\\s"'<>)\\]]+`, "gi"),
+      // Require the proxy's <svc>/<token> shape (>=2 path segments after
+      // /api/v1/media/) so a third-party URL that only shallowly contains
+      // /api/v1/media/ isn't returned as a portal media asset.
+      new RegExp(`https?://[^\\s"'<>)\\]]+/api/v1/media/[^/\\s"'<>)\\]]+/[^\\s"'<>)\\]]+`, "gi"),
+    ];
+    const matches = patterns.flatMap((re) => content.match(re) ?? []);
+    if (matches.length > 0) {
       const seen = new Set<string>();
       for (const url of matches) {
         const normalized = url.replace(/[)"'>\s]+$/, "");

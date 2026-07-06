@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:530](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#530)
+Defined in: [src/expo/useChatStorage.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#626)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -537,7 +537,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-(`matches`: `PiiMatch`\[]) => `void`
+(`matches`: [`PiiMatch`](../Internal/interfaces/PiiMatch.md)\[]) => `void`
 
 </td>
 <td>
@@ -630,7 +630,7 @@ Use for live preview of artifacts (HTML, slides) being generated.
 </td>
 <td>
 
-`boolean` | `PiiRedactor`
+`boolean` | [`PiiRedactor`](../Internal/classes/PiiRedactor.md)
 
 </td>
 <td>
@@ -655,7 +655,7 @@ cover names, non-text content, or tool-call arguments.
 </td>
 <td>
 
-`PromptPreProcessor`\[]
+[`PromptPreProcessor`](../../react/Internal/type-aliases/PromptPreProcessor.md)\[]
 
 </td>
 <td>

@@ -87,6 +87,47 @@
  * @module
  */
 
+// ── Prompt pre-processors (classify-then-fetch enrichment) ──
+// Parity with /server and /react — see src/react/index.ts for the rationale
+// (native apps can't load the /server barrel; Metro redirects it to /react).
+export type {
+  CryptoPriceClassification,
+  CryptoPricePreProcessorOptions,
+} from "../lib/chat/cryptoPriceClassifier";
+export {
+  classifyCryptoPrice,
+  classifyCryptoPriceBatch,
+  createCryptoPricePreProcessor,
+} from "../lib/chat/cryptoPriceClassifier";
+export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type {
+  StockPriceClassification,
+  StockPricePreProcessorOptions,
+} from "../lib/chat/stockPriceClassifier";
+export {
+  classifyStockPrice,
+  classifyStockPriceBatch,
+  createStockPricePreProcessor,
+} from "../lib/chat/stockPriceClassifier";
+export type {
+  WeatherClassification,
+  WeatherPreProcessorOptions,
+} from "../lib/chat/weatherClassifier";
+export {
+  classifyWeather,
+  classifyWeatherBatch,
+  createWeatherPreProcessor,
+} from "../lib/chat/weatherClassifier";
+export type {
+  WebSearchClassification,
+  WebSearchPreProcessorOptions,
+} from "../lib/chat/webSearchClassifier";
+export {
+  classifyWebSearch,
+  classifyWebSearchBatch,
+  createWebSearchPreProcessor,
+} from "../lib/chat/webSearchClassifier";
+
 // Resumable streaming primitives (resume handles are persisted by apps, so the
 // types and header constants are part of the public surface here).
 export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
@@ -114,6 +155,29 @@ export type {
   UseChatStorageResult,
 } from "./useChatStorage";
 export { useChatStorage } from "./useChatStorage";
+
+// PII redaction — mask personally identifiable information before prompts leave
+// the device. Regex-based, so it is NOT a compliance guarantee: it does not
+// detect names and does not scan non-text content (images/files) or tool-call
+// arguments. Exported here (mirrors the root/web entry) so React Native apps
+// can construct a `PiiRedactor` — e.g. to mask embedding inputs in their own
+// auto-extraction wiring — since the root `@anuma/sdk` barrel is not React
+// Native-safe.
+export type {
+  MessageRedactionResult,
+  PiiCategory,
+  PiiMatch,
+  PiiPattern,
+  PiiRedactorOptions,
+  RedactionResult,
+} from "../lib/pii";
+export {
+  createStreamingDeAnonymizer,
+  isPiiRedactor,
+  PII_PATTERNS,
+  PiiRedactor,
+  resolvePiiRedactor,
+} from "../lib/pii";
 
 // Encryption and queue
 export type { FlushResult, QueueStatus } from "../lib/db/queue";
@@ -272,6 +336,7 @@ export type {
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   ExtractedCandidate,
+  ExtractedEntity,
   ExtractFactsOptions,
   ExtractOutcome,
   FactType,

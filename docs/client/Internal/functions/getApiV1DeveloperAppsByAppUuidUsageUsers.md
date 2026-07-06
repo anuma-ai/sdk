@@ -2,7 +2,7 @@
 
 > **getApiV1DeveloperAppsByAppUuidUsageUsers**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsByAppUuidUsageUsersData`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DeveloperAppsByAppUuidUsageUsersResponses`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersResponses.md), [`GetApiV1DeveloperAppsByAppUuidUsageUsersErrors`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1128](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1128)
+Defined in: [src/client/sdk.gen.ts:1176](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1176)
 
 Get app user usage
 

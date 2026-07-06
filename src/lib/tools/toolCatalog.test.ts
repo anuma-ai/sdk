@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { createDropboxTools } from "../../tools/dropbox.js";
 import { createGitHubTools } from "../../tools/github.js";
 import { createGmailTools } from "../../tools/gmail.js";
 import { createChatTools as createCalendarTools } from "../../tools/googleCalendar.js";
@@ -19,6 +20,7 @@ const CONNECTOR_SET_NAMES = [
   "github",
   "x",
   "slack",
+  "dropbox",
 ];
 
 /**
@@ -40,6 +42,8 @@ function realConnectorToolNames(): Set<string> {
   for (const tool of Object.values(createXTools(async () => null)))
     names.add((tool as { function: { name: string } }).function.name);
   for (const tool of Object.values(createSlackTools(async () => ({ status: 200, json: null }))))
+    names.add((tool as { function: { name: string } }).function.name);
+  for (const tool of Object.values(createDropboxTools(request, request)))
     names.add((tool as { function: { name: string } }).function.name);
   return names;
 }
@@ -126,7 +130,7 @@ function names(tools: ToolConfig[]): string[] {
   return tools.map((t) => (t as { function: { name: string } }).function.name);
 }
 
-const ALL_PROVIDERS = ["gmail", "gcalendar", "gdrive", "notion", "github", "x", "slack"];
+const ALL_PROVIDERS = ["gmail", "gcalendar", "gdrive", "notion", "github", "x", "slack", "dropbox"];
 
 describe("buildConnectorGuidance", () => {
   test("removes denied tools from the returned set", () => {
@@ -154,7 +158,7 @@ describe("buildConnectorGuidance", () => {
       connectedProviders: ["gmail"],
       deniedToolNames: [],
     });
-    expect(rider).toContain("Not connected: Calendar, Drive, GitHub, Notion, Slack, X.");
+    expect(rider).toContain("Not connected: Calendar, Drive, Dropbox, GitHub, Notion, Slack, X.");
     expect(rider).toContain("connect them in Connected Apps");
   });
 
@@ -193,7 +197,7 @@ describe("buildConnectorGuidance", () => {
     // Every catalog provider is unconnected, so state 3 is actionable; the
     // general line is suppressed because there's no connected app to disown.
     expect(rider).toBe(
-      "Not connected: Calendar, Drive, GitHub, Gmail, Notion, Slack, X. If the user asks to use them, tell them to connect them in Connected Apps."
+      "Not connected: Calendar, Drive, Dropbox, GitHub, Gmail, Notion, Slack, X. If the user asks to use them, tell them to connect them in Connected Apps."
     );
   });
 

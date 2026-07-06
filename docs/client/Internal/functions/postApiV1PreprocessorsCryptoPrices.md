@@ -2,11 +2,11 @@
 
 > **postApiV1PreprocessorsCryptoPrices**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1PreprocessorsCryptoPricesData`](../type-aliases/PostApiV1PreprocessorsCryptoPricesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1PreprocessorsCryptoPricesResponses`](../type-aliases/PostApiV1PreprocessorsCryptoPricesResponses.md), [`PostApiV1PreprocessorsCryptoPricesErrors`](../type-aliases/PostApiV1PreprocessorsCryptoPricesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1373](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1373)
+Defined in: [src/client/sdk.gen.ts:1421](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1421)
 
 Get crypto prices
 
-Extracts ticker candidates (cashtags, uppercase symbols, lowercase names) from the supplied prompt, resolves them against CoinGecko, and returns USD quotes. Used by SDK pre-processors to enrich prompts with crypto market data.
+Extracts ticker candidates (cashtags, uppercase symbols, lowercase names) from the supplied prompt, resolves them against CryptoCompare, and returns USD quotes. Used by SDK pre-processors to enrich prompts with crypto market data.
 
 ## Type Parameters
 

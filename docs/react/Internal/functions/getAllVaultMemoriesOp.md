@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#364)
+Defined in: [src/lib/db/memoryVault/operations.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#374)
 
 ## Parameters
 
@@ -11,6 +11,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -25,6 +26,11 @@ Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-
 [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -35,6 +41,11 @@ Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-
 <td>
 
 `object`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>
@@ -49,6 +60,31 @@ Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-
 `string` | `null`
 
 </td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeDeleted?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include soft-deleted memories in the result (each carries
+`isDeleted: true`). Default `false` — deleted rows are excluded, as
+they are from every other read path. Used by the Memory Graph to
+render "forgotten" nodes; ordinary consumers should leave this off.
+
+</td>
 </tr>
 <tr>
 <td>
@@ -59,6 +95,11 @@ Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-
 <td>
 
 `number`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>
@@ -73,6 +114,11 @@ Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-
 `string`\[]
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -83,6 +129,11 @@ Defined in: [src/lib/db/memoryVault/operations.ts:364](https://github.com/anuma-
 <td>
 
 `Date`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>

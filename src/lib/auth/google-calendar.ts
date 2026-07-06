@@ -54,15 +54,6 @@ let cachedRefreshToken: string | null = null;
 let cachedScope: string | null = null;
 let cachedWalletAddress: string | null = null;
 
-// Google OAuth endpoints
-const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-
-// Google Calendar API scopes
-const CALENDAR_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.readonly",
-  "https://www.googleapis.com/auth/calendar.events",
-].join(" ");
-
 // Token storage types
 interface StoredTokenData {
   accessToken: string;
@@ -273,23 +264,6 @@ function tokenResponseToStoredData(
 function getRedirectUri(callbackPath: string): string {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}${callbackPath}`;
-}
-
-/**
- * Generate a random state for CSRF protection
- */
-function generateState(): string {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-/**
- * Store OAuth state for validation
- */
-function storeOAuthState(state: string): void {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(CODE_STORAGE_KEY, state);
 }
 
 /**
@@ -512,29 +486,6 @@ export function getAndClearCalendarPendingMessage(): string | null {
   const message = sessionStorage.getItem(PENDING_MESSAGE_KEY);
   sessionStorage.removeItem(PENDING_MESSAGE_KEY);
   return message;
-}
-
-/**
- * Start the OAuth flow - redirects to Google
- */
-export async function startCalendarAuth(clientId: string, callbackPath: string): Promise<never> {
-  const state = generateState();
-  storeOAuthState(state);
-  storeCalendarReturnUrl();
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: getRedirectUri(callbackPath),
-    response_type: "code",
-    scope: CALENDAR_SCOPES,
-    state,
-    access_type: "offline",
-    prompt: "consent",
-  });
-
-  window.location.href = `${GOOGLE_AUTH_URL}?${params.toString()}`;
-
-  return new Promise(() => {});
 }
 
 /**

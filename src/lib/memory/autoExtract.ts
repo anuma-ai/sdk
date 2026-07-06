@@ -14,6 +14,7 @@
  */
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
+import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
@@ -80,8 +81,8 @@ For each durable fact, output:
 - type: one of identity | preference | relationship | plan | ongoing_context | constraint | other
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
-- entities: named entities mentioned (people, places, things). Optional. Skip generic nouns.
-- eventTime: when the event in this fact occurs/occurred. Resolve relative phrases against the conversation date you can infer from context. Output one of:
+- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "place" | "thing" | "concept" | "other" }. Optional. Skip generic nouns. Pick the best-fitting kind: a company/product/physical object is "thing"; a topic, skill, or idea is "concept"; use "other" only when none fit.
+- eventTime: when the event in this fact occurs/occurred. Resolve relative phrases ("yesterday", "next week") against the current date given in the user message. Output one of:
     - { "kind": "point", "start": "YYYY-MM-DD" }     for a single date ("met Sara on March 14, 2026")
     - { "kind": "range", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }  for a span ("Japan trip May 4–15, 2026")
     - { "kind": "ongoing", "start": "YYYY-MM-DD" }   for a status that started on a date and continues ("works at Linear since January 2024")
@@ -101,12 +102,22 @@ export interface AutoExtractMessage {
   content: string;
 }
 
+/**
+ * A named entity extracted from the conversation, with an optional
+ * classification. `kind` is omitted when the model gave no kind or an
+ * unrecognized one — see {@link validateCandidates}.
+ */
+export interface ExtractedEntity {
+  name: string;
+  kind?: EntityKind;
+}
+
 export interface ExtractedCandidate {
   content: string;
   type: FactType;
   confidence: number;
   sourceMessageIds: string[];
-  entities: string[];
+  entities: ExtractedEntity[];
   /** W6 temporal lane — when the event in this fact occurred. Resolved
    *  to absolute timestamps by the LLM; null when the fact has no
    *  temporal anchor. */
@@ -129,6 +140,22 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
+  /**
+   * Reference "now" (Unix ms) for resolving relative temporal phrases in the
+   * transcript ("yesterday", "next week", "in two days") into the absolute
+   * YYYY-MM-DD anchors the W6 temporal lane indexes on. The transcript itself
+   * carries no timestamps, so without an anchor the model resolves relatives
+   * against its own training-cutoff guess and emits wrong `eventTime` dates.
+   * Defaults to `Date.now()`. Override for back-dated eval corpora and
+   * deterministic tests (mirrors {@link RecallOptions.now}).
+   *
+   * Server-side timezone note: the ms value is formatted to a calendar date in
+   * the process's local timezone (same basis as `parseLocalCalendarDay`). On a
+   * UTC server, a user near midnight in a non-UTC offset can get the wrong
+   * calendar day. Pass the user's local-midnight timestamp as `now` when the
+   * process timezone doesn't match the user's.
+   */
+  now?: number;
   /**
    * Max attempts for the extraction call on a transient failure (default 3).
    * Lower it to bound how long extraction can hold a turn open — e.g. a worker
@@ -217,13 +244,18 @@ export async function extractFacts(
       (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
     )
     .join("\n");
+  // Anchor relative temporal phrases. The transcript has no timestamps, so
+  // without this the model dates "yesterday"/"next week" against its own
+  // training-cutoff guess (see ExtractFactsOptions.now). Local-midnight basis
+  // matches parseLocalCalendarDay so round-tripped anchors stay consistent.
+  const today = formatLocalDate(options.now ?? Date.now());
   const parsed = await callPortalJsonCompletion({
     ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
     ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
     model: options.model ?? DEFAULT_MODEL,
     systemPrompt: SYSTEM_PROMPT,
-    userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
+    userMessage: `Today's date is ${today}. Resolve any relative dates ("yesterday", "next week") against it.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,
     tag: "memory/extract",
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
     ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
@@ -282,9 +314,14 @@ function restoreCandidates(
           ...c,
           content: content.text,
           entities: c.entities
-            .map((e) => redactor.restoreForStorage(e))
-            .filter((e) => !e.unresolved)
-            .map((e) => e.text),
+            .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
+            .filter((e) => !e.restored.unresolved)
+            .map(
+              (e): ExtractedEntity =>
+                e.kind !== undefined
+                  ? { name: e.restored.text, kind: e.kind }
+                  : { name: e.restored.text }
+            ),
         },
         // Drop the whole fact when its content still carries an unresolved
         // (hallucinated / mangled-beyond-recognition) placeholder.
@@ -501,13 +538,39 @@ function validateCandidates(
           ? [fallbackSourceId]
           : [];
 
-    const entities = Array.isArray(obj.entities)
-      ? obj.entities.filter((s): s is string => typeof s === "string")
-      : [];
+    const entities = Array.isArray(obj.entities) ? parseEntities(obj.entities) : [];
 
     const eventTime = parseEventTime(obj.eventTime);
 
     out.push({ content, type, confidence, sourceMessageIds, entities, eventTime });
+  }
+  return out;
+}
+
+/**
+ * Parse the LLM's `entities` array into {@link ExtractedEntity}s. Accepts
+ * either the current `{ name, kind }` object shape or a bare string (models
+ * occasionally revert to the pre-kind format — keep the name rather than
+ * drop the entity). An unrecognized / missing `kind` is dropped so only
+ * valid {@link EntityKind}s reach the store; the name is always kept.
+ */
+function parseEntities(raw: unknown[]): ExtractedEntity[] {
+  const out: ExtractedEntity[] = [];
+  for (const e of raw) {
+    if (typeof e === "string") {
+      const name = e.trim();
+      if (name.length > 0) out.push({ name });
+      continue;
+    }
+    if (typeof e !== "object" || e === null) continue;
+    const obj = e as Record<string, unknown>;
+    const name = typeof obj.name === "string" ? obj.name.trim() : "";
+    if (name.length === 0) continue;
+    const kind =
+      typeof obj.kind === "string" && (ENTITY_KINDS as readonly string[]).includes(obj.kind)
+        ? (obj.kind as EntityKind)
+        : undefined;
+    out.push(kind !== undefined ? { name, kind } : { name });
   }
   return out;
 }
@@ -561,6 +624,19 @@ function parseEventDate(raw: unknown): number | null {
   }
   const ms = Date.parse(trimmed);
   return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Format a Unix-ms instant as a local YYYY-MM-DD string. Local basis matches
+ * {@link parseLocalCalendarDay} so a date emitted here and parsed back lands on
+ * the same calendar day for the user's timezone.
+ */
+function formatLocalDate(ms: number): string {
+  const d = new Date(ms);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /**

@@ -36,10 +36,16 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
   return ctx.userId === undefined || record.userId === ctx.userId;
 }
 
-/** Builds the base WHERE conditions shared by all vault memory queries. */
-function baseVaultConditions(ctx: VaultMemoryOperationsContext, options?: { since?: Date }) {
+/** Builds the base WHERE conditions shared by all vault memory queries.
+ * `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
+ * opts into it (to surface "forgotten" memories); every other caller omits it
+ * and keeps the default non-deleted-only behavior. */
+function baseVaultConditions(
+  ctx: VaultMemoryOperationsContext,
+  options?: { since?: Date; includeDeleted?: boolean }
+) {
   return [
-    Q.where("is_deleted", false),
+    ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
@@ -74,6 +80,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     folderId: memory.folderId ?? null,
     userId: memory.userId ?? null,
     embedding: memory.embedding ?? null,
+    embeddingModel: memory.embeddingModel ?? null,
     sourceChunkIds,
     proofCount: memory.proofCount ?? null,
     source: memory.source ?? null,
@@ -123,6 +130,7 @@ export async function createVaultMemoryOp(
       record._setRaw("is_deleted", false);
       if (opts.embedding !== undefined) {
         record._setRaw("embedding", opts.embedding);
+        record._setRaw("embedding_model", opts.embeddingModel ?? null);
       }
       if (opts.sourceChunkIds !== undefined) {
         record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
@@ -264,6 +272,7 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("is_deleted", false);
         if (optionsArray[i].embedding !== undefined) {
           record._setRaw("embedding", optionsArray[i].embedding);
+          record._setRaw("embedding_model", optionsArray[i].embeddingModel ?? null);
         }
         if (opts.sourceChunkIds !== undefined) {
           record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
@@ -334,6 +343,7 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     folderId: (raw.folder_id as string | null) ?? null,
     userId: (raw.user_id as string | null) ?? null,
     embedding: (raw.embedding as string | null) ?? null,
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
     sourceChunkIds,
     proofCount: (raw.proof_count as number | null) ?? null,
     source: (raw.source as string | null) ?? null,
@@ -363,7 +373,19 @@ async function vaultMemoryRawToStored(
 
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
-  options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
+  options?: {
+    scopes?: string[];
+    since?: Date;
+    limit?: number;
+    folderId?: string | null;
+    /**
+     * Include soft-deleted memories in the result (each carries
+     * `isDeleted: true`). Default `false` — deleted rows are excluded, as
+     * they are from every other read path. Used by the Memory Graph to
+     * render "forgotten" nodes; ordinary consumers should leave this off.
+     */
+    includeDeleted?: boolean;
+  }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
     ...baseVaultConditions(ctx, options),
@@ -448,6 +470,11 @@ export async function updateVaultMemoryOp(
         }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
+          // Keep the model tag in sync with the vector. An explicit model wins;
+          // otherwise reset to null (grandfathered / current-compatible). Never
+          // leave the prior tag on a new vector — a stale tag would make search
+          // treat the row as stale every query and re-embed it in a loop.
+          r._setRaw("embedding_model", opts.embeddingModel ?? null);
         }
         if (opts.sourceChunkIds !== undefined) {
           r._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
@@ -592,7 +619,12 @@ export async function deleteAllVaultMemoriesForUserOp(
 export async function updateVaultMemoryEmbeddingOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
-  embedding: string
+  embedding: string,
+  // Required (not optional) so the tag is always synced to the vector — a
+  // model-less write that left a stale tag would make search re-embed the row
+  // every query. Matches the message-side updateMessageEmbeddingOp; compile
+  // time catches any caller that forgets it.
+  embeddingModel: string
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
@@ -600,6 +632,7 @@ export async function updateVaultMemoryEmbeddingOp(
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("embedding", embedding);
+        r._setRaw("embedding_model", embeddingModel);
       });
     });
     return true;

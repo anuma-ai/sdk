@@ -438,11 +438,11 @@ export interface CreateSlideToolsOptions {
   logError?: (message: string, error?: Error) => void;
   /**
    * Set to true when the host has bound an image-generation tool (e.g.
-   * AnumaImageMCP-generate_cloud_image) to the same loop as these slide
+   * AnumaMediaMCP-anuma_create_image) to the same loop as these slide
    * tools. plan_deck's recipe text adapts: when false (the default),
    * the recipe tells the model the only valid path is attached:N or
-   * removing the element; when true, AnumaImageMCP is advertised as an
-   * option. Avoids leaking a tool name the model can't actually call.
+   * removing the element; when true, anuma_create_image is advertised as
+   * an option. Avoids leaking a tool name the model can't actually call.
    */
   hasImageGenerator?: boolean;
   /**
@@ -1957,11 +1957,11 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
 export interface BuildSlideSystemPromptOptions {
   /**
    * Set to true when the host has bound an image-generation tool (e.g.
-   * AnumaImageMCP-generate_cloud_image) to the same loop. The IMAGES
+   * AnumaMediaMCP-anuma_create_image) to the same loop. The IMAGES
    * section adapts: when false (the default) it tells the model the
    * only valid path is attached:N or removing the element; when true,
-   * AnumaImageMCP is advertised as an option. Mirrors the same flag on
-   * `CreateSlideToolsOptions` — host should pass the same value to both.
+   * anuma_create_image is advertised as an option. Mirrors the same flag
+   * on `CreateSlideToolsOptions` — host should pass the same value to both.
    */
   hasImageGenerator?: boolean;
 }
@@ -1972,7 +1972,7 @@ export function buildSlideSystemPrompt(options: BuildSlideSystemPromptOptions = 
     .map(([name, p]) => `  ${name}: heading="${p.heading}", body="${p.body}"`)
     .join("\n");
   const imageSourceClause = hasImageGenerator
-    ? `Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaImageMCP-generate_cloud_image). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`
+    ? `Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaMediaMCP-anuma_create_image). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`
     : `Allowed image sources: "attached:N" strings (user-attached images) only — you have no image-generation tool bound. NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`;
 
   return `You are a presentation design assistant. You produce polished slide decks as React-compatible JSX with positioned <Anuma.*> elements.

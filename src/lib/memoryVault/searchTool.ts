@@ -15,6 +15,7 @@ import type { PortalLlmAuth } from "../memory/portalLlm";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
@@ -661,28 +662,39 @@ export async function rankFusedVaultMemoriesAsync(
     const rerankTopN = options.rerankTopN ?? 30;
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = v2Ranked.slice(0, rerankTopN);
-    tailSlice = v2Ranked.slice(rerankTopN);
 
-    const reranked = await rerankPairs(
-      query,
-      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
-    );
+    // The cross-encoder is a network call (portal). A transient rerank failure
+    // degrades to the V2 ordering we already computed rather than erroring the
+    // whole recall — the executor's outer catch would otherwise turn a CE
+    // hiccup into "Error searching vault" and surface zero memories to the
+    // answer model. The downgrade is logged (warn) as the observability signal;
+    // threading it up to RecallResult.reranked is a follow-up.
+    try {
+      const reranked = await rerankPairs(
+        query,
+        headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+      );
+      tailSlice = v2Ranked.slice(rerankTopN);
 
-    const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
-    const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
+      const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
+      const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
 
-    combined = headSlice.map((r) => {
-      const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
-      const ce = ceScoreById.get(r.uniqueId) ?? 0;
-      return {
-        uniqueId: r.uniqueId,
-        content: r.content,
-        similarity: v2 * (1 + ceWeight * ce),
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      };
-    });
-    combined.sort((a, b) => b.similarity - a.similarity);
+      combined = headSlice.map((r) => {
+        const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
+        const ce = ceScoreById.get(r.uniqueId) ?? 0;
+        return {
+          uniqueId: r.uniqueId,
+          content: r.content,
+          similarity: v2 * (1 + ceWeight * ce),
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        };
+      });
+      combined.sort((a, b) => b.similarity - a.similarity);
+    } catch (err) {
+      getLogger().warn("[memory/search] cross-encoder rerank failed; using V2 ranking", err);
+      combined = v2Ranked;
+    }
   } else {
     combined = v2Ranked;
   }
@@ -953,25 +965,34 @@ export async function rankComposite(
     }
   }
 
-  // Stage 3 — optional CE rerank against the *original* query.
+  // Stage 3 — optional CE rerank against the *original* query. On a transient
+  // CE failure, keep the already-computed fused ordering rather than letting
+  // the throw bubble to the executor and zero the recall.
   if (options?.rerank && combined.length > 0) {
     const rerankTopN = options.rerankTopN ?? 30;
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = combined.slice(0, rerankTopN);
     const tailSlice = combined.slice(rerankTopN);
 
-    const reranked = await rerankPairs(
-      originalQuery,
-      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
-    );
-    const ceById = new Map(reranked.map((r) => [r.id, r.score]));
+    try {
+      const reranked = await rerankPairs(
+        originalQuery,
+        headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+      );
+      const ceById = new Map(reranked.map((r) => [r.id, r.score]));
 
-    const head = headSlice.map((r) => ({
-      ...r,
-      similarity: r.similarity * (1 + ceWeight * (ceById.get(r.uniqueId) ?? 0)),
-    }));
-    head.sort((a, b) => b.similarity - a.similarity);
-    combined = [...head, ...tailSlice];
+      const head = headSlice.map((r) => ({
+        ...r,
+        similarity: r.similarity * (1 + ceWeight * (ceById.get(r.uniqueId) ?? 0)),
+      }));
+      head.sort((a, b) => b.similarity - a.similarity);
+      combined = [...head, ...tailSlice];
+    } catch (err) {
+      getLogger().warn(
+        "[memory/search] composite cross-encoder rerank failed; using fused ranking",
+        err
+      );
+    }
   }
 
   // Stage 4 — optional MMR diversity pass, mirroring
@@ -1020,6 +1041,7 @@ export async function preEmbedVaultMemories(
   options?: { scopes?: string[] }
 ): Promise<void> {
   const memories = await getAllVaultMemoriesOp(vaultCtx, options);
+  const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
   const uncachedIds: string[] = [];
@@ -1029,12 +1051,18 @@ export async function preEmbedVaultMemories(
     // returns the enc:vN: payload when the key is unavailable.
     if (isEncrypted(key)) continue;
     if (!cache.has(key)) {
-      // Check for persisted embedding in DB first
-      if (m.embedding) {
+      // Use a persisted embedding only if it was produced by the current
+      // model. null/undefined = legacy, grandfathered (coalesces to the
+      // current model). Stale-model vectors are re-embedded so a model change
+      // doesn't poison the cache.
+      const modelCompatible = (m.embeddingModel ?? currentModel) === currentModel;
+      if (m.embedding && modelCompatible) {
         try {
           const parsed = JSON.parse(m.embedding) as number[];
-          cache.set(key, parsed);
-          continue;
+          if (Array.isArray(parsed)) {
+            cache.set(key, parsed);
+            continue;
+          }
         } catch {
           // Invalid JSON, re-embed
         }
@@ -1048,10 +1076,13 @@ export async function preEmbedVaultMemories(
     const embeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let i = 0; i < uncachedKeys.length; i++) {
       cache.set(uncachedKeys[i], embeddings[i]);
-      // Persist embedding to DB (fire-and-forget)
-      updateVaultMemoryEmbeddingOp(vaultCtx, uncachedIds[i], JSON.stringify(embeddings[i])).catch(
-        () => {}
-      );
+      // Persist embedding + model to DB (fire-and-forget)
+      updateVaultMemoryEmbeddingOp(
+        vaultCtx,
+        uncachedIds[i],
+        JSON.stringify(embeddings[i]),
+        currentModel
+      ).catch(() => {});
     }
   }
 }
@@ -1075,7 +1106,8 @@ export async function eagerEmbedContent(
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
   if (vaultCtx && memoryId) {
-    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch(
+    const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
+    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding), currentModel).catch(
       // Silently swallow – SDK must not use console.*; embedding will be retried on next search
       () => {}
     );
@@ -1152,35 +1184,65 @@ export async function searchVaultMemoriesWithSize(
 
   // Embed the query
   const queryEmbedding = await generateEmbedding(query, embeddingOptions);
+  const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
-  // Batch-embed any vault entries missing from cache (fallback)
+  // Batch-(re)embed any vault entries that aren't cached with a usable vector.
+  // A persisted DB vector is usable only when it (a) parses, (b) was produced
+  // by the current model — `embedding_model` null is grandfathered as
+  // current-model-compatible (legacy rows), non-null must match — and (c) has
+  // the same dimension as the query embedding. Stale-model or wrong-dim vectors
+  // are re-embedded and re-stamped instead of being loaded; otherwise an
+  // embedding-model change would silently rank the whole vault at cosine 0.
   const uncachedTexts: string[] = [];
   const uncachedIndices: number[] = [];
+  let staleReembedCount = 0;
   for (let i = 0; i < memories.length; i++) {
-    if (!cache.has(memories[i].content)) {
-      // Check for persisted embedding in DB first
-      if (memories[i].embedding) {
-        try {
-          const parsed = JSON.parse(memories[i].embedding!) as number[];
-          cache.set(memories[i].content, parsed);
+    const content = memories[i].content;
+    // A cache hit is usable only if its dimension matches the query. The cache
+    // is keyed by content (not model) and can be seeded by preEmbedVaultMemories
+    // — which has no query vector to dim-check against — so a grandfathered
+    // wrong-dim vector could otherwise live in the cache and evade re-embed.
+    const cached = cache.get(content);
+    if (cached && cached.length === queryEmbedding.length) continue;
+    if (cached) cache.delete(content); // wrong-dim cache entry — drop and re-resolve
+
+    // Check for a usable persisted embedding in DB first. null/undefined model
+    // is grandfathered (coalesces to current); a real different model is stale.
+    const storedModel = memories[i].embeddingModel;
+    const modelCompatible = (storedModel ?? currentModel) === currentModel;
+    if (memories[i].embedding && modelCompatible) {
+      try {
+        const parsed = JSON.parse(memories[i].embedding!) as number[];
+        if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
+          cache.set(content, parsed);
           continue;
-        } catch {
-          // Invalid JSON, re-embed
         }
+        // Dimension mismatch — model changed dims (even a grandfathered
+        // null row). Fall through to re-embed.
+      } catch {
+        // Invalid JSON, re-embed
       }
-      uncachedTexts.push(memories[i].content);
-      uncachedIndices.push(i);
     }
+    if (memories[i].embedding && !modelCompatible) staleReembedCount++;
+    uncachedTexts.push(content);
+    uncachedIndices.push(i);
+  }
+  if (staleReembedCount > 0) {
+    getLogger().warn(
+      `memoryVault: re-embedding ${staleReembedCount} memories whose stored embedding ` +
+        `model differs from the current model (${currentModel}) — embedding-model change detected`
+    );
   }
   if (uncachedTexts.length > 0) {
     const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let j = 0; j < uncachedTexts.length; j++) {
       cache.set(memories[uncachedIndices[j]].content, newEmbeddings[j]);
-      // Persist embedding to DB (fire-and-forget)
+      // Persist embedding + model to DB (fire-and-forget)
       updateVaultMemoryEmbeddingOp(
         vaultCtx,
         memories[uncachedIndices[j]].uniqueId,
-        JSON.stringify(newEmbeddings[j])
+        JSON.stringify(newEmbeddings[j]),
+        currentModel
       ).catch(
         // Silently swallow – SDK must not use console.*; embedding will be retried on next search
         () => {}
@@ -1201,6 +1263,23 @@ export async function searchVaultMemoriesWithSize(
     eventTimeEnd: m.eventTimeEnd,
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
   }));
+
+  // Dimension net. The load loop above re-embeds stale-model and wrong-dim
+  // vectors, so this should normally be empty; it still fires if a re-embed
+  // returned an inconsistent dimension (model/API drift mid-batch). A nonzero
+  // count here means those rows score 0 on cosine — keep the warn so the
+  // condition stays debuggable rather than silently emptying recall.
+  if (queryEmbedding.length > 0) {
+    const mismatched = embeddedItems.filter(
+      (it) => it.embedding.length > 0 && it.embedding.length !== queryEmbedding.length
+    ).length;
+    if (mismatched > 0) {
+      getLogger().warn(
+        `memoryVault: ${mismatched}/${embeddedItems.length} embeddings still mismatch the query ` +
+          `dimension (${queryEmbedding.length}) after re-embed — possible embedding model/API drift`
+      );
+    }
+  }
 
   // The rankers below all return bare {uniqueId, content, similarity}
   // — they're pure functions over EmbeddedItem and don't carry the

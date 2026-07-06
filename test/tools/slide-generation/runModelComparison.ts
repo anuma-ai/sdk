@@ -56,7 +56,7 @@ const DEFAULT_PROMPT = [
   "founder quote, competitive comparison, business model, why-now moment, and a closing ask slide.",
   "Use a mix of composition layouts including ones with image slots; lean on the variable-count",
   "flex regions (agenda / stats / facts / cards) where helpful.",
-  "For images: generate 2-3 real images via AnumaImageMCP-generate_cloud_image and reference them",
+  "For images: generate 2-3 real images via AnumaMediaMCP-anuma_create_image and reference them",
   "in the relevant slide JSX. REMOVE any unused <Anuma.Image> placeholder elements from slides you",
   "don't fill with a real URL — don't ship the sentinel.",
   "Pick whichever design system best matches a premium automotive brand and apply it consistently.",
@@ -104,7 +104,7 @@ async function runOne(model: string): Promise<RunResult> {
     hasImageGenerator: true,
     displaySlides: async () => ({}),
   });
-  const imageSchemas = await getServerToolSchemas(["AnumaImageMCP-generate_cloud_image"]);
+  const imageSchemas = await getServerToolSchemas(["AnumaMediaMCP-anuma_create_image"]);
   const tools = [...slideTools, ...imageSchemas];
 
   let inputTokens = 0;
@@ -217,7 +217,7 @@ function writeIndex(results: RunResult[]): void {
 </head>
 <body>
   <h1>10-slide deck — model comparison</h1>
-  <p class="sub">Same prompt, same tools (slide suite + AnumaImageMCP), one row per model.</p>
+  <p class="sub">Same prompt, same tools (slide suite + AnumaMediaMCP), one row per model.</p>
   <pre class="prompt">${escapeHtml(PROMPT)}</pre>
   <table>
     <thead>

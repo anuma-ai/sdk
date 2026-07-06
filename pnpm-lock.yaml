@@ -37,8 +37,8 @@ importers:
   .:
     dependencies:
       '@anuma/portal':
-        specifier: 1.0.0-next.20260622162256
-        version: 1.0.0-next.20260622162256
+        specifier: 1.0.0-next.20260630010654
+        version: 1.0.0-next.20260630010654
       '@babel/parser':
         specifier: ^7.29.2
         version: 7.29.2
@@ -294,8 +294,8 @@ packages:
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
 
-  '@anuma/portal@1.0.0-next.20260622162256':
-    resolution: {integrity: sha512-9/TFotOxnydx84SZvIbssH2HqwKYVunH3XxhZbE6e8aXeg7DDyKod5G6Ot9gbir+i9qemTduFOEfV9euxpr1gw==}
+  '@anuma/portal@1.0.0-next.20260630010654':
+    resolution: {integrity: sha512-h/paSCWA7XEYtFCmPddV7eeDmr6GmQVjXNBYZpeWmeAC9UDkw1wyo27NRqGiZlAynjMF2/Opnof8AurSvRiE+g==}
 
   '@arethetypeswrong/cli@0.18.2':
     resolution: {integrity: sha512-PcFM20JNlevEDKBg4Re29Rtv2xvjvQZzg7ENnrWFSS0PHgdP2njibVFw+dRUhNkPgNfac9iUqO0ohAXqQL4hbw==}
@@ -1576,7 +1576,7 @@ packages:
 
   '@paulmillr/qr@0.2.1':
     resolution: {integrity: sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ==}
-    deprecated: 'The package is now available as "qr": npm install qr'
+    deprecated: 'Switch to "qr" (new package name) for security updates: npm install qr'
 
   '@phosphor-icons/webcomponents@2.1.5':
     resolution: {integrity: sha512-JcvQkZxvcX2jK+QCclm8+e8HXqtdFW9xV4/kk2aL9Y3dJA2oQVt+pzbv1orkumz3rfx4K9mn9fDoMr1He1yr7Q==}
@@ -7653,7 +7653,7 @@ snapshots:
 
   '@andrewbranch/untar.js@1.0.3': {}
 
-  '@anuma/portal@1.0.0-next.20260622162256': {}
+  '@anuma/portal@1.0.0-next.20260630010654': {}
 
   '@arethetypeswrong/cli@0.18.2':
     dependencies:

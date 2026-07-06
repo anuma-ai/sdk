@@ -110,16 +110,20 @@ export { createWeatherTool } from "./weather";
 
 // Google Drive exports
 export type {
+  CreateFileArgs,
   DriveFile,
   GetFileContentArgs,
   ListRecentFilesArgs,
   SearchFilesArgs,
+  UpdateFileArgs,
 } from "./googleDrive";
 export {
   createDriveTools,
+  createGoogleDriveCreateFileTool,
   createGoogleDriveGetContentTool,
   createGoogleDriveListRecentTool,
   createGoogleDriveSearchTool,
+  createGoogleDriveUpdateFileTool,
 } from "./googleDrive";
 
 // Notion MCP exports
@@ -167,11 +171,17 @@ export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
 export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";
 export { createXTools } from "./x";
 
+// Dropbox exports
+export type { DropboxRequestAccess, DropboxTokenGetter } from "./dropbox";
+export { createDropboxTools } from "./dropbox";
+
 // Slack exports
 export type {
   SlackGetChannelHistoryArgs,
+  SlackGetThreadRepliesArgs,
   SlackListChannelsArgs,
   SlackListUsersArgs,
+  SlackPostMessageArgs,
   SlackProxyCaller,
   SlackSearchMessagesArgs,
 } from "./slack";

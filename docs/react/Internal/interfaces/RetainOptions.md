@@ -78,7 +78,7 @@ wire this to logging/metrics so the fallback rate is observable.
 
 **piiRedaction?**
 
-> `optional` **piiRedaction**: `boolean` | `PiiRedactor`
+> `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
 When set, the new fact and existing candidates are PII-redacted before
 the consolidation model sees them and the result is de-anonymized before

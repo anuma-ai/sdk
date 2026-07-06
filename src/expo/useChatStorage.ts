@@ -100,11 +100,83 @@ import {
   type MemoryVaultToolOptions,
   type VaultEmbeddingCache,
 } from "../lib/memoryVault";
+import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
 import { useChat } from "./useChat";
+
+/**
+ * One PiiRedactor per conversation, shared across every `useChatStorage`
+ * instance for that conversation. On mobile the singleton setup hook AND each
+ * per-conversation stream driver mount their own `useChatStorage` for the same
+ * conversation; without a shared redactor their placeholder mappings would
+ * diverge, so a placeholder minted by one instance couldn't be de-anonymized by
+ * another. Keyed by conversation id; bounded so long sessions don't leak (an
+ * evicted redactor is safely re-derived — stored content is the real value and
+ * re-redacts identically). Mirrors the react entry's redactor cache.
+ */
+const CONVERSATION_REDACTOR_LIMIT = 50;
+const NO_CONVERSATION_KEY = "__no_conversation__";
+const conversationRedactors = new Map<string, PiiRedactor>();
+
+function getConversationRedactor(conversationId: string | null): PiiRedactor {
+  const key = conversationId ?? NO_CONVERSATION_KEY;
+  let redactor = conversationRedactors.get(key);
+  if (redactor) {
+    // Refresh recency (Map preserves insertion order → re-insert moves to end).
+    conversationRedactors.delete(key);
+    conversationRedactors.set(key, redactor);
+    return redactor;
+  }
+  redactor = new PiiRedactor();
+  conversationRedactors.set(key, redactor);
+  if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
+    const oldest = conversationRedactors.keys().next().value;
+    if (oldest !== undefined) conversationRedactors.delete(oldest);
+  }
+  return redactor;
+}
+
+/** Resolved PII redaction for a single `sendMessage` call. */
+interface CallPiiResolution {
+  /** Redactor for this call's summary-prompt redaction. `undefined` = off. */
+  redactor: PiiRedactor | undefined;
+  /**
+   * Value forwarded to the inner `useChat` for the LLM request: the resolved
+   * redactor instance, or `false` to disable. Always forwarded so the LLM call
+   * uses the redactor keyed to THIS call's conversation rather than the inner
+   * hook's own `currentConversationId`-keyed one (null on the first turn of an
+   * auto-created conversation, which would orphan turn-1 placeholder mappings).
+   */
+  forInnerSend: boolean | PiiRedactor;
+}
+
+/**
+ * Resolve the effective redactor for one `sendMessage` call. A per-request
+ * `piiRedaction` overrides the hook-level option: `false` disables redaction for
+ * this call, a `PiiRedactor` instance brings its own, and `true` resolves (like
+ * the hook-level `true`) to the conversation redactor via
+ * `getConversationRedactorFor` — so the caller keys on the conversation ACTUALLY
+ * used for the call, keeping placeholder mappings consistent across turns. `hook`
+ * is the ORIGINAL hook-level option (not the pre-resolved redactor) so a hook
+ * `true` can be re-keyed to this call's conversation. Mirrors the react entry.
+ */
+function resolveCallPii(
+  requestPiiRedaction: boolean | PiiRedactor | undefined,
+  hookPiiRedaction: boolean | PiiRedactor | undefined,
+  getConversationRedactorFor: () => PiiRedactor
+): CallPiiResolution {
+  const effective = requestPiiRedaction === undefined ? hookPiiRedaction : requestPiiRedaction;
+  const redactor: PiiRedactor | undefined =
+    effective === true
+      ? getConversationRedactorFor()
+      : isPiiRedactor(effective)
+        ? effective
+        : undefined;
+  return { redactor, forInnerSend: redactor ?? false };
+}
 
 /**
  * Extract the image generation model name from tool_call_events.
@@ -177,7 +249,15 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
         if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
           try {
             const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
-            const { imageUrl: _imageUrl, url: _url, ...rest } = parsed;
+            // anuma_create_image returns `output_images: [{url,...}]`; the old
+            // tools returned a single `imageUrl`/`url`. Strip both so the model
+            // can't echo prior images back into the next turn.
+            const {
+              imageUrl: _imageUrl,
+              url: _url,
+              output_images: _outputImages,
+              ...rest
+            } = parsed;
             toolOutput = JSON.stringify(rest);
           } catch {
             // Not JSON — use as-is
@@ -199,6 +279,12 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
     const postToolText = stored.content
       .replace(/!\[[^\]]*\]\(https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^)]+\)/g, "")
       .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
+      // The new anuma_create_image tool returns portal media-proxy URLs
+      // (`/api/v1/media/<svc>/<token>/...`) rather than R2 — strip those too. The
+      // required <svc>/<token> shape (>=2 path segments) avoids stripping a
+      // third-party URL that only shallowly contains /api/v1/media/.
+      .replace(/!\[[^\]]*\]\(https?:\/\/[^)\s]+\/api\/v1\/media\/[^/)\s]+\/[^)]+\)/g, "")
+      .replace(/https?:\/\/[^\s)]+\/api\/v1\/media\/[^/\s)]+\/[^\s)]+/g, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
     messages.push({
@@ -316,6 +402,12 @@ export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
    * Custom HTTP headers to include with the API request (e.g. X-Privacy-Mode).
    */
   headers?: Record<string, string>;
+  /**
+   * Per-request PII redaction override. Takes precedence over the hook-level
+   * `piiRedaction` for this call only — e.g. `false` to disable redaction for a
+   * single message, or a `PiiRedactor` instance to use your own.
+   */
+  piiRedaction?: boolean | PiiRedactor;
 };
 
 /**
@@ -467,8 +559,12 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    */
   recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
 
-  /** Get all vault memories for context injection. */
-  getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
+  /** Get all vault memories for context injection. Soft-deleted memories are
+   * excluded unless `includeDeleted` is set. */
+  getVaultMemories: (options?: {
+    scopes?: string[];
+    includeDeleted?: boolean;
+  }) => Promise<StoredVaultMemory[]>;
 
   /** Delete a vault memory by its ID (soft delete). */
   deleteVaultMemory: (id: string) => Promise<boolean>;
@@ -554,11 +650,47 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     resumable = false,
     onCancelResult,
     onStreamMeta,
+    piiRedaction,
+    onPiiRedacted,
+    onServerToolCall,
+    onToolCallArgumentsDelta,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
     initialConversationId || null
   );
+
+  // When piiRedaction is `true`, resolve it to the redactor SHARED by all
+  // useChatStorage instances for this conversation (see getConversationRedactor)
+  // so placeholder mappings stay consistent across instances and turns. An
+  // explicit PiiRedactor instance or `false` is passed through unchanged.
+  const resolvedPiiRedaction = useMemo(
+    () => (piiRedaction === true ? getConversationRedactor(currentConversationId) : piiRedaction),
+    [piiRedaction, currentConversationId]
+  );
+
+  // Mask PII before text is sent to the embeddings endpoint. Embeddings are a
+  // server call, so when redaction is on the input must be masked too. Uses the
+  // STATELESS mask (maskText → unnumbered [EMAIL]) so identical content always
+  // maps to the same token and stays in one vector space (numbered placeholders
+  // are conversation/order-dependent and would break cosine similarity). Only
+  // the text sent to the server is masked; locally stored content stays real.
+  //
+  // This is the HOOK-level masker. Send-path embeddings (tool-filter + stored
+  // message) instead use the per-call `maskForCall` from `resolvePiiForCall`, so
+  // a per-request `piiRedaction` override reaches embedding inputs too — parity
+  // with the react entry. `maskForEmbedding` remains the default/fallback for
+  // paths with no per-call context: the async re-embed default, the recall/vault
+  // tools (via `maskEmbeddingInput`), and a resumed row whose detach didn't stow
+  // a per-call masker.
+  const maskForEmbedding = useCallback(
+    (text: string): string =>
+      isPiiRedactor(resolvedPiiRedaction) ? resolvedPiiRedaction.maskText(text) : text,
+    [resolvedPiiRedaction]
+  );
+  // The optional form is the stable callback when redaction is on, else
+  // undefined — no separate memo, so the two can't drift.
+  const maskEmbeddingInput = isPiiRedactor(resolvedPiiRedaction) ? maskForEmbedding : undefined;
 
   // Get collections
   const messagesCollection = useMemo(() => database.get<Message>("history"), [database]);
@@ -793,12 +925,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Does not block the main flow or throw errors
    */
   const embedMessageAsync = useCallback(
-    async (message: StoredMessage) => {
+    async (message: StoredMessage, mask: (text: string) => string = maskForEmbedding) => {
       if (!autoEmbedMessages || !getToken) return;
       // Skip short messages that won't provide useful search context
       if (message.content.length < minContentLength) return;
       try {
-        const embedding = await generateEmbedding(message.content, {
+        // `mask` defaults to the hook-level masker but a per-request override can
+        // pass its own (the per-call `maskForCall`) so redaction toggled on/off
+        // for this send reaches the stored-message embedding too.
+        const embedding = await generateEmbedding(mask(message.content), {
           getToken,
           baseUrl,
           model: embeddingModel,
@@ -809,7 +944,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         getLogger().warn("[useChatStorage] Failed to embed message:", err);
       }
     },
-    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
+    [
+      autoEmbedMessages,
+      getToken,
+      baseUrl,
+      embeddingModel,
+      storageCtx,
+      minContentLength,
+      maskForEmbedding,
+    ]
   );
 
   /**
@@ -822,11 +965,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return createMemoryEngineToolBase(
         storageCtx,
-        { getToken, baseUrl, model: embeddingModel },
+        { getToken, baseUrl, model: embeddingModel, maskInput: maskEmbeddingInput },
         searchOptions
       );
     },
-    [storageCtx, getToken, baseUrl, embeddingModel]
+    [storageCtx, getToken, baseUrl, embeddingModel, maskEmbeddingInput]
   );
 
   /**
@@ -862,7 +1005,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         {
           vaultCtx,
           storageCtx,
-          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          embeddingOptions: {
+            getToken,
+            baseUrl,
+            model: embeddingModel,
+            maskInput: maskEmbeddingInput,
+          },
           vaultCache: vaultEmbeddingCacheRef.current,
           // entityCtx is intentionally omitted on Expo for now — the
           // W5 graph lane is a no-op without it (recall falls through
@@ -873,7 +1021,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         callbacks
       );
     },
-    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel, currentConversationId]
+    [
+      vaultCtx,
+      storageCtx,
+      getToken,
+      baseUrl,
+      embeddingModel,
+      currentConversationId,
+      maskEmbeddingInput,
+    ]
   );
 
   /**
@@ -906,20 +1062,33 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         {
           vaultCtx,
           storageCtx,
-          embeddingOptions: { getToken, baseUrl, model: embeddingModel },
+          embeddingOptions: {
+            getToken,
+            baseUrl,
+            model: embeddingModel,
+            maskInput: maskEmbeddingInput,
+          },
           vaultCache: vaultEmbeddingCacheRef.current,
         },
         resolvedOptions
       );
     },
-    [vaultCtx, storageCtx, getToken, baseUrl, embeddingModel, currentConversationId]
+    [
+      vaultCtx,
+      storageCtx,
+      getToken,
+      baseUrl,
+      embeddingModel,
+      currentConversationId,
+      maskEmbeddingInput,
+    ]
   );
 
   /**
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
-    (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
+    (options?: { scopes?: string[]; includeDeleted?: boolean }): Promise<StoredVaultMemory[]> => {
       return getAllVaultMemoriesOp(vaultCtx, options);
     },
     [vaultCtx]
@@ -954,6 +1123,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     resumable,
     onCancelResult,
     onStreamMeta,
+    piiRedaction: resolvedPiiRedaction,
+    onPiiRedacted,
+    onServerToolCall,
+    onToolCallArgumentsDelta,
   });
 
   // Pending-resume context: everything needed to FINISH a detached turn after
@@ -972,6 +1145,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     imageModel?: string;
     sources?: SearchSource[];
     thoughtProcess?: ActivityPhase[];
+    // Per-call embedding masker captured at detach so the resumed assistant row
+    // embeds with THIS send's redaction (a per-request override, not just the
+    // hook-level one). Absent on cold-launch resume → embed falls back to the
+    // hook-level masker.
+    embeddingMask?: (text: string) => string;
     startTime: number;
     partialData: ApiResponse | null;
     knownToolCallEventIds?: Set<string>;
@@ -1281,8 +1459,29 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel,
         parentMessageId,
         assistantUniqueId,
+        maxToolRounds,
+        getThoughtProcess,
+        fileContext,
+        piiRedaction: requestPiiRedaction,
         headers,
       } = args;
+
+      // Resolve PII redaction for THIS call, keyed on the conversation actually
+      // used for the send (not the possibly-stale currentConversationId), with a
+      // per-request `piiRedaction` overriding the hook-level option. `maskForCall`
+      // is the stateless embedding masker for THIS call's redactor, so tool-filter
+      // and stored-message embeddings honor the per-request override too. Mirrors
+      // react.
+      const resolvePiiForCall = (conversationIdForCall: string | null) => {
+        const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
+          getConversationRedactor(conversationIdForCall)
+        );
+        return {
+          callRedactor: redactor,
+          callPiiRedaction: forInnerSend,
+          maskForCall: (text: string): string => (redactor ? redactor.maskText(text) : text),
+        };
+      };
 
       // Clear any pending resume FIRST, before any await: a stale handle from a
       // previous detached turn bleeding into this one is the prev+chunk
@@ -1308,6 +1507,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
         const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
+        // No conversation is created on this ephemeral path; key on whatever id is
+        // available. Resolved BEFORE tool-filter embedding so `maskForCall` masks
+        // the embedding input under a per-request override.
+        const { callPiiRedaction, maskForCall } = resolvePiiForCall(currentConversationId);
 
         // Fetch server tools if needed
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -1339,7 +1542,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               );
 
               if (messageContent.length >= minContentLength) {
-                const embedding = await generateEmbedding(messageContent, {
+                const embedding = await generateEmbedding(maskForCall(messageContent), {
                   getToken,
                   baseUrl,
                   model: embeddingModel,
@@ -1370,15 +1573,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           onThinking: perRequestOnThinking,
           memoryContext,
           searchContext,
+          fileContext,
           temperature,
           maxOutputTokens,
           tools: mergedTools,
           toolChoice,
+          maxToolRounds,
           reasoning,
           thinking,
           imageModel,
           apiType: effectiveApiType,
           conversationId: currentConversationId ?? undefined,
+          piiRedaction: callPiiRedaction,
           headers,
         });
 
@@ -1438,6 +1644,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         };
       }
 
+      // Resolve the per-call redactor keyed on the conversation actually used
+      // (fixes turn-1 placeholder orphaning + honors a per-request override).
+      const { callRedactor, callPiiRedaction, maskForCall } = resolvePiiForCall(convId);
+
       // Build the messages array
       let messagesToSend: LlmapiMessage[];
 
@@ -1480,6 +1690,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           summaryModel,
           token: summaryToken ?? "",
           baseUrl,
+          redactor: callRedactor,
+          onPiiRedacted,
         });
 
         messagesToSend = assembleMessagesWithHistory(
@@ -1559,7 +1771,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (isServerToolsFunction) {
             // Function-based filtering: generate embedding and call the function
             if (contentForStorage.length >= minContentLength) {
-              userMessageEmbedding = await generateEmbedding(contentForStorage, {
+              userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
                 getToken,
                 baseUrl,
                 model: embeddingModel,
@@ -1600,7 +1812,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-          void embedMessageAsync(storedUserMessage);
+          void embedMessageAsync(storedUserMessage, maskForCall);
         }
       }
 
@@ -1612,16 +1824,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         onThinking: perRequestOnThinking,
         memoryContext,
         searchContext,
+        fileContext,
         apiType: requestApiType,
         // Responses API options
         temperature,
         maxOutputTokens,
         tools: mergedTools,
         toolChoice,
+        maxToolRounds,
         reasoning,
         thinking,
         imageModel,
         conversationId: convId,
+        piiRedaction: callPiiRedaction,
         headers,
       });
 
@@ -1649,7 +1864,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           model,
           imageModel,
           sources,
-          thoughtProcess,
+          // Snapshot the callback-collected activity phases at detach, mirroring
+          // the completed/aborted/error paths (`getThoughtProcess?.() ||
+          // thoughtProcess`). Stashing only the static `thoughtProcess` arg would
+          // drop phases accumulated through the callback during streaming, since
+          // resumeStream finalizes from `ctx.thoughtProcess`.
+          thoughtProcess: getThoughtProcess?.() || thoughtProcess,
+          embeddingMask: maskForCall,
           startTime,
           partialData: detachedResult.data ?? null,
           knownToolCallEventIds,
@@ -1697,13 +1918,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               responseDuration,
               wasStopped: true,
               sources,
-              thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+              thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
               uniqueId: effectiveAssistantUniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
-            void embedMessageAsync(storedAssistantMessage);
+            void embedMessageAsync(storedAssistantMessage, maskForCall);
 
             // Build a valid response for the return (even if original was null).
             // Typed `ApiResponse`: when the strategy was Chat Completions,
@@ -1754,7 +1975,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             model: model || "",
             responseDuration,
             sources,
-            thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+            thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
             uniqueId: effectiveAssistantUniqueId,
@@ -1859,7 +2080,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         usage: convertUsageToStored(responseData),
         responseDuration,
         sources: allSources,
-        thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+        thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
         thinking: thinkingContent,
         // Note: when queued (encryption key not ready), storedUserMessage.uniqueId is a
         // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
@@ -1885,7 +2106,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
-          void embedMessageAsync(storedAssistantMessage);
+          void embedMessageAsync(storedAssistantMessage, maskForCall);
         }
       } catch (err) {
         return {
@@ -1917,6 +2138,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       getWalletAddress,
       refreshQueueStatus,
       resumable,
+      maskForEmbedding,
+      // Included so a parent that swaps onPiiRedacted between renders reaches the
+      // summarization PII notification (maybeSummarizeHistory) on the current
+      // instance, matching every other redaction path.
+      onPiiRedacted,
     ]
   );
 
@@ -2132,7 +2358,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             return { data: result.data, error: written.error, assistantMessage: null };
           }
           pendingResumeRef.current = null;
-          void embedMessageAsync(written.message);
+          // Embed with the per-call masker stowed at detach (undefined on
+          // cold-launch → embedMessageAsync falls back to the hook-level masker),
+          // so a per-request redaction override still masks the resumed embedding.
+          void embedMessageAsync(written.message, rctx.embeddingMask);
           return { data: result.data, error: null, assistantMessage: written.message };
         }
 

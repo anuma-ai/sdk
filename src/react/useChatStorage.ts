@@ -160,7 +160,7 @@ import { useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
-import { onKeyAvailable } from "./useEncryption";
+import { onClearAllEncryptionState, onKeyAvailable } from "./useEncryption";
 
 // Selection thresholds live in ../lib/tools/serverTools (single source — the
 // toolSelection e2e suite imports the same values, and serverTools keeps its
@@ -734,7 +734,15 @@ async function storedToLlmapiMessage(
         if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
           try {
             const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
-            const { imageUrl: _imageUrl, url: _url, ...rest } = parsed;
+            // anuma_create_image returns `output_images: [{url,...}]`; the old
+            // tools returned a single `imageUrl`/`url`. Strip both so the model
+            // can't echo prior images back into the next turn.
+            const {
+              imageUrl: _imageUrl,
+              url: _url,
+              output_images: _outputImages,
+              ...rest
+            } = parsed;
             toolOutput = JSON.stringify(rest);
           } catch {
             // Not JSON — use as-is
@@ -756,6 +764,12 @@ async function storedToLlmapiMessage(
     const postToolText = textContent
       .replace(/!\[[^\]]*\]\(https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^)]+\)/g, "")
       .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
+      // The new anuma_create_image tool returns portal media-proxy URLs
+      // (`/api/v1/media/<svc>/<token>/...`) rather than R2 — strip those too. The
+      // required <svc>/<token> shape (>=2 path segments) avoids stripping a
+      // third-party URL that only shallowly contains /api/v1/media/.
+      .replace(/!\[[^\]]*\]\(https?:\/\/[^)\s]+\/api\/v1\/media\/[^/)\s]+\/[^)]+\)/g, "")
+      .replace(/https?:\/\/[^\s)]+\/api\/v1\/media\/[^/\s)]+\/[^\s)]+/g, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
     messages.push({
@@ -1087,10 +1101,15 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
 
   /**
    * Get all vault memories for context injection.
-   * Returns non-deleted memories sorted by creation date (newest first).
-   * @param options - Optional filtering (scopes to include)
+   * Returns memories sorted by creation date (newest first). Soft-deleted
+   * memories are excluded unless `includeDeleted` is set.
+   * @param options - Optional filtering (scopes to include, whether to
+   *   include soft-deleted memories)
    */
-  getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
+  getVaultMemories: (options?: {
+    scopes?: string[];
+    includeDeleted?: boolean;
+  }) => Promise<StoredVaultMemory[]>;
 
   /**
    * Create a new vault memory with the given content.
@@ -1783,7 +1802,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
-    (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
+    (options?: { scopes?: string[]; includeDeleted?: boolean }): Promise<StoredVaultMemory[]> => {
       return getAllVaultMemoriesOp(vaultCtx, options);
     },
     [vaultCtx]
@@ -1880,6 +1899,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
     })();
   }, [vaultCtx, getToken, vaultEmbeddingOptions]);
+
+  /**
+   * Drop the vault embedding cache when all encryption state is cleared
+   * (logout / wallet switch). The cache is keyed by *decrypted* memory
+   * content, so leaving it populated would keep plaintext from the previous
+   * identity resident in memory — and would serve stale vectors to the next
+   * identity. Mirrors lazyDecrypt's title-cache clear on the same signal.
+   */
+  useEffect(() => {
+    return onClearAllEncryptionState(() => vaultEmbeddingCacheRef.current.clear());
+  }, []);
 
   /**
    * Create a vault search tool pre-configured with hook's context, auth, and cache

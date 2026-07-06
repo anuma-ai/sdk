@@ -2,7 +2,7 @@
 
 > **handleDriveCallback**(`callbackPath`: `string`, `apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#335)
+Defined in: [src/lib/auth/google-drive.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#312)
 
 Handle the OAuth callback - exchange code for tokens via backend
 

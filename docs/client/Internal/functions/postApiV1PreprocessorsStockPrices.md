@@ -2,7 +2,7 @@
 
 > **postApiV1PreprocessorsStockPrices**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1PreprocessorsStockPricesData`](../type-aliases/PostApiV1PreprocessorsStockPricesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1PreprocessorsStockPricesResponses`](../type-aliases/PostApiV1PreprocessorsStockPricesResponses.md), [`PostApiV1PreprocessorsStockPricesErrors`](../type-aliases/PostApiV1PreprocessorsStockPricesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1405](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1405)
+Defined in: [src/client/sdk.gen.ts:1453](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1453)
 
 Get stock prices
 

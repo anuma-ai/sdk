@@ -258,7 +258,7 @@ function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
  * Get cached tools from localStorage
  */
 export function getCachedServerTools(): CachedServerTools | null {
-  if (typeof window === "undefined") return null;
+  if (typeof localStorage === "undefined") return null;
 
   try {
     const cached = localStorage.getItem(SERVER_TOOLS_CACHE_KEY);
@@ -293,7 +293,7 @@ function isCacheExpired(
  * Store tools in localStorage cache
  */
 function cacheServerTools(tools: ServerTool[], checksum?: string): void {
-  if (typeof window === "undefined") return;
+  if (typeof localStorage === "undefined") return;
 
   const cacheData: CachedServerTools = {
     tools,
@@ -315,7 +315,7 @@ function cacheServerTools(tools: ServerTool[], checksum?: string): void {
  * Clear the server tools cache
  */
 export function clearServerToolsCache(): void {
-  if (typeof window === "undefined") return;
+  if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SERVER_TOOLS_CACHE_KEY);
 }
 
@@ -1054,8 +1054,14 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
   },
   {
     name: "google-drive",
-    members: ["google_drive_search", "google_drive_list_recent", "google_drive_get_content"],
-    anchors: ["google_drive_search", "google_drive_get_content"],
+    members: [
+      "google_drive_search",
+      "google_drive_list_recent",
+      "google_drive_get_content",
+      "google_drive_create_file",
+      "google_drive_update_file",
+    ],
+    anchors: ["google_drive_search", "google_drive_get_content", "google_drive_create_file"],
     anchorMinSimilarity: 0.53,
   },
   {
@@ -1078,10 +1084,19 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
       "slack_search_messages",
       "slack_list_users",
       "slack_get_channel_history",
+      "slack_get_thread_replies",
+      "slack_post_message",
     ],
     // search is the primary entry point; list_channels also anchors so "what
-    // channels am I in" reaches the set without going through search.
-    anchors: ["slack_search_messages", "slack_list_channels"],
+    // channels am I in" reaches the set without going through search. post_message
+    // anchors too so post-only prompts surface the write tool past the cutoff.
+    anchors: ["slack_search_messages", "slack_list_channels", "slack_post_message"],
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "dropbox",
+    members: ["dropbox_list_folders", "dropbox_get_file_content", "dropbox_search"],
+    anchors: ["dropbox_list_folders", "dropbox_search"],
     anchorMinSimilarity: 0.53,
   },
 ];
@@ -1161,9 +1176,9 @@ export function applyToolSets(
  * precision.
  *
  * Use this for server-side toolkit suites where the LLM needs the full
- * call chain (e.g. fal_list_models → fal_model_schema → fal_queue_submit →
- * fal_queue_status → fal_queue_result). Differs from `applyToolSets`, which
- * replaces non-set matches when a set activates.
+ * call chain (e.g. search_web → read_url / parallel_read_url, or
+ * geocoding before the OpenMeteo data tools). Differs from `applyToolSets`,
+ * which replaces non-set matches when a set activates.
  *
  * To express "any member triggers the set" (not specific anchors), pass
  * `anchors: members` when defining the ToolSet.
@@ -1306,13 +1321,13 @@ export interface CreateServerToolsFilterOptions {
  * const serverTools = createServerToolsFilter({
  *   toolSets: [
  *     {
- *       name: "fal",
- *       members: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
- *       anchors: ["AnumaFalMCP-fal_run", "AnumaFalMCP-fal_queue_submit", ...],
+ *       name: "research",
+ *       members: ["AnumaJinaMCP-search_web", "AnumaJinaMCP-read_url", ...],
+ *       anchors: ["AnumaJinaMCP-search_web"],
  *       anchorMinSimilarity: 0.7,
  *     },
  *   ],
- *   excludeTools: ["AnumaFalMCP-fal_billing"],
+ *   excludeTools: ["OpenMeteoMCP-weather_forecast"],
  *   matchOptions: { limit: 5, minSimilarity: 0.5 },
  * });
  * ```
@@ -1335,10 +1350,10 @@ export function createServerToolsFilter(
       // only when it was actually picked by `findMatchingTools` (top-N above
       // the floor). Score-only activation — the rescue `useChatStorage` needs
       // client-side because its 0.9 relevanceRatio can drop anchors — is
-      // wrong here: server anchors like `fal_generate_video` graze the 0.5
-      // floor on completely unrelated prompts, and a score-gated set would
-      // ride along on nearly every request (observed live: the Fal queue
-      // lifecycle attached to news-search and chitchat prompts). Restricting
+      // wrong here: broad-description server anchors graze the 0.5 floor on
+      // completely unrelated prompts, and a score-gated set would ride along
+      // on nearly every request (observed live: an async job-queue lifecycle
+      // attached to news-search and chitchat prompts). Restricting
       // the score map to selected names makes "anchor in the toolset" the
       // activation condition while keeping `anchorMinSimilarity` semantics.
       // Excluded tools also can't ANCHOR a set: an anchor that will be
@@ -1389,15 +1404,6 @@ export const DEFAULT_EXCLUDED_SERVER_TOOLS: readonly string[] = [
   // description also embeds near virtually every prompt — observed live
   // riding into news-search, scheduling, and chitchat requests.
   "AnumaSequentialThinkingMCP-sequentialthinking",
-  // Fal discovery/meta plumbing: generic descriptions that crack the top-5 on
-  // unrelated prompts (observed live on news-search and research requests),
-  // and useless in a chat turn without prior Fal context — listing workflows
-  // or reading platform metadata isn't something a chat user asks for in
-  // words that should beat real tools. Consumers building Fal-centric UIs
-  // can re-enable via createServerToolsFilter's excludeTools option.
-  "AnumaFalMCP-fal_meta",
-  "AnumaFalMCP-fal_list_workflows",
-  "AnumaFalMCP-fal_workflow_run",
 ];
 
 /** Default match options for the server-tools filter (limit 5, minSim 0.5). */
@@ -1415,13 +1421,11 @@ export const DEFAULT_SERVER_TOOLS_MATCH_OPTIONS: ToolMatchOptions = {
  * whose job is step 2 of a call-chain. Measured against the live catalog
  * (June 2026): on "research the latest news on X", `search_web` scores 0.64
  * but `parallel_read_url` scores 0.33 and `parallel_search_web` 0.47 — below
- * the 0.5 floor, unreachable at ANY match limit. Likewise a Fal generation
- * prompt scores `fal_generate_video` 0.85 while the queue lifecycle it
- * depends on scores 0.25–0.41. No threshold or limit tuning fixes this; an
- * explicit edge is the only mechanism that does.
+ * the 0.5 floor, unreachable at ANY match limit. No threshold or limit tuning
+ * fixes this; an explicit edge is the only mechanism that does.
  *
  * Deliberately NOT grouped: same-vendor siblings (`extract_pdf`,
- * `search_images`, weather/finance variants, Fal discovery tools…). Those
+ * `search_images`, weather/finance variants…). Those
  * embed near the prompts that need them and survive plain top-5 selection on
  * their own — vendor-wide expansion just dilutes the toolset. Keep this list
  * to genuine call-chains.
@@ -1449,29 +1453,6 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
     // ride along — "Search the web for recent news…" scores search_web in the
     // 0.5–0.6 band, and shipping search without read would dead-end the model.
     anchorMinSimilarity: 0.5,
-  },
-  {
-    // Fal jobs are async: submit returns a job id the model must poll and
-    // collect. Without status/result the model submits and dead-ends.
-    name: "fal-queue",
-    members: [
-      "AnumaFalMCP-fal_generate_video",
-      "AnumaFalMCP-fal_run",
-      "AnumaFalMCP-fal_queue_submit",
-      "AnumaFalMCP-fal_queue_status",
-      "AnumaFalMCP-fal_queue_result",
-    ],
-    anchors: [
-      "AnumaFalMCP-fal_generate_video",
-      "AnumaFalMCP-fal_run",
-      "AnumaFalMCP-fal_queue_submit",
-    ],
-    // 0.6, NOT the 0.5 selection floor: the Fal anchors score ~0.5x on
-    // generic "build/create" phrasing ("build me a todo app", chitchat about
-    // programming) and were dragging the queue lifecycle into unrelated
-    // requests even selection-gated. Genuine Fal prompts measure ~0.85, so
-    // 0.6 keeps the chain where it belongs.
-    anchorMinSimilarity: 0.6,
   },
   {
     // Every OpenMeteo data tool requires latitude/longitude (verified in the
@@ -1502,7 +1483,7 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
  * `serverTools` option. Semantic matching against the user prompt with the
  * default exclusion list applied, plus call-chain expansion via
  * {@link SERVER_TOOL_DEPENDENCY_SETS} so continuation tools (read-after-search,
- * Fal queue lifecycle) ride in with their entry tool.
+ * geocode-before-weather) ride in with their entry tool.
  *
  * @example
  * ```ts

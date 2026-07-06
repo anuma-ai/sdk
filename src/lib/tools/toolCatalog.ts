@@ -65,6 +65,16 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   google_drive_search: { label: "Search files", provider: "gdrive", connector: "Drive" },
   google_drive_list_recent: { label: "List recent files", provider: "gdrive", connector: "Drive" },
   google_drive_get_content: { label: "Read file content", provider: "gdrive", connector: "Drive" },
+  google_drive_create_file: {
+    label: "Create a file in Drive",
+    provider: "gdrive",
+    connector: "Drive",
+  },
+  google_drive_update_file: {
+    label: "Update a Drive file",
+    provider: "gdrive",
+    connector: "Drive",
+  },
 
   // Notion (src/tools/notion.ts)
   "notion-search": { label: "Search", provider: "notion", connector: "Notion" },
@@ -100,6 +110,15 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   x_get_me: { label: "Get my X profile", provider: "x", connector: "X" },
   x_get_my_posts: { label: "Read my recent posts", provider: "x", connector: "X" },
 
+  // Dropbox (src/tools/dropbox.ts)
+  dropbox_list_folders: { label: "List files", provider: "dropbox", connector: "Dropbox" },
+  dropbox_get_file_content: {
+    label: "Read file content",
+    provider: "dropbox",
+    connector: "Dropbox",
+  },
+  dropbox_search: { label: "Search files", provider: "dropbox", connector: "Dropbox" },
+
   // Slack (src/tools/slack.ts)
   slack_get_me: { label: "Get my Slack profile", provider: "slack", connector: "Slack" },
   slack_list_channels: { label: "List channels", provider: "slack", connector: "Slack" },
@@ -110,6 +129,12 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
     provider: "slack",
     connector: "Slack",
   },
+  slack_get_thread_replies: {
+    label: "Read thread replies",
+    provider: "slack",
+    connector: "Slack",
+  },
+  slack_post_message: { label: "Post a message", provider: "slack", connector: "Slack" },
 };
 
 /**
