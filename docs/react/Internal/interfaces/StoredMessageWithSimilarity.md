@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:241](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#241)
+Defined in: [src/lib/db/chat/types.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#246)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/db/chat/types.ts:241](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **chunks**: [`MessageChunk`](MessageChunk.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#177)
+Defined in: [src/lib/db/chat/types.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#182)
 
 Chunks of this message with individual embeddings for fine-grained search
 
@@ -26,7 +26,7 @@ Chunks of this message with individual embeddings for fine-grained search
 
 > **content**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#164)
+Defined in: [src/lib/db/chat/types.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#169)
 
 **Inherited from**
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/db/chat/types.ts:164](https://github.com/anuma-ai/sdk/blob/
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#162)
+Defined in: [src/lib/db/chat/types.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#167)
 
 **Inherited from**
 
@@ -50,7 +50,7 @@ Defined in: [src/lib/db/chat/types.ts:162](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#172)
+Defined in: [src/lib/db/chat/types.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#177)
 
 **Inherited from**
 
@@ -62,7 +62,7 @@ Defined in: [src/lib/db/chat/types.ts:172](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#175)
+Defined in: [src/lib/db/chat/types.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#180)
 
 **Inherited from**
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/db/chat/types.ts:175](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **error**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#183)
+Defined in: [src/lib/db/chat/types.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#188)
 
 If set, indicates the message failed with this error
 
@@ -88,7 +88,7 @@ If set, indicates the message failed with this error
 
 > `optional` **feedback**: [`MessageFeedback`](../type-aliases/MessageFeedback.md)
 
-Defined in: [src/lib/db/chat/types.ts:190](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#190)
+Defined in: [src/lib/db/chat/types.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#195)
 
 User feedback: 'like', 'dislike', or null for no feedback
 
@@ -102,7 +102,7 @@ User feedback: 'like', 'dislike', or null for no feedback
 
 > `optional` **fileIds**: `string`\[]
 
-Defined in: [src/lib/db/chat/types.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#171)
+Defined in: [src/lib/db/chat/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#176)
 
 Array of media\_id references for direct lookup in media table
 
@@ -116,7 +116,7 @@ Array of media\_id references for direct lookup in media table
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#169)
+Defined in: [src/lib/db/chat/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#174)
 
 **Deprecated**
 
@@ -132,7 +132,7 @@ Use fileIds with media table instead
 
 > `optional` **imageModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#167)
+Defined in: [src/lib/db/chat/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#172)
 
 Image generation model used for this message (e.g., "nano-banana-flash")
 
@@ -146,7 +146,7 @@ Image generation model used for this message (e.g., "nano-banana-flash")
 
 > **messageId**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#161)
+Defined in: [src/lib/db/chat/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#166)
 
 **Inherited from**
 
@@ -158,7 +158,7 @@ Defined in: [src/lib/db/chat/types.ts:161](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#165)
+Defined in: [src/lib/db/chat/types.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#170)
 
 **Inherited from**
 
@@ -170,7 +170,7 @@ Defined in: [src/lib/db/chat/types.ts:165](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#188)
+Defined in: [src/lib/db/chat/types.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#193)
 
 Parent message ID for branching (edit/regenerate). Null for root messages.
 
@@ -184,7 +184,7 @@ Parent message ID for branching (edit/regenerate). Null for root messages.
 
 > `optional` **responseDuration**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#180)
+Defined in: [src/lib/db/chat/types.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#185)
 
 **Inherited from**
 
@@ -196,7 +196,7 @@ Defined in: [src/lib/db/chat/types.ts:180](https://github.com/anuma-ai/sdk/blob/
 
 > **role**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/db/chat/types.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#163)
+Defined in: [src/lib/db/chat/types.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#168)
 
 **Inherited from**
 
@@ -208,7 +208,7 @@ Defined in: [src/lib/db/chat/types.ts:163](https://github.com/anuma-ai/sdk/blob/
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#242)
+Defined in: [src/lib/db/chat/types.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#247)
 
 ***
 
@@ -216,7 +216,7 @@ Defined in: [src/lib/db/chat/types.ts:242](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#179)
+Defined in: [src/lib/db/chat/types.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#184)
 
 **Inherited from**
 
@@ -228,7 +228,7 @@ Defined in: [src/lib/db/chat/types.ts:179](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **thinking**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#186)
+Defined in: [src/lib/db/chat/types.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#191)
 
 Reasoning/thinking content from models that support extended thinking
 
@@ -242,7 +242,7 @@ Reasoning/thinking content from models that support extended thinking
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/types.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#184)
+Defined in: [src/lib/db/chat/types.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#189)
 
 **Inherited from**
 
@@ -254,7 +254,7 @@ Defined in: [src/lib/db/chat/types.ts:184](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **toolCallEvents**: [`LlmapiToolCallEvent`](../../../client/Internal/type-aliases/LlmapiToolCallEvent.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#192)
+Defined in: [src/lib/db/chat/types.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#197)
 
 Tool call events from the backend response (for reconstructing tool call history)
 
@@ -268,7 +268,7 @@ Tool call events from the backend response (for reconstructing tool call history
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#160)
+Defined in: [src/lib/db/chat/types.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#165)
 
 **Inherited from**
 
@@ -280,7 +280,7 @@ Defined in: [src/lib/db/chat/types.ts:160](https://github.com/anuma-ai/sdk/blob/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#173)
+Defined in: [src/lib/db/chat/types.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#178)
 
 **Inherited from**
 
@@ -292,7 +292,7 @@ Defined in: [src/lib/db/chat/types.ts:173](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](StoredChatCompletionUsage.md)
 
-Defined in: [src/lib/db/chat/types.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#178)
+Defined in: [src/lib/db/chat/types.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#183)
 
 **Inherited from**
 
@@ -304,7 +304,7 @@ Defined in: [src/lib/db/chat/types.ts:178](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **vector**: `number`\[]
 
-Defined in: [src/lib/db/chat/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#174)
+Defined in: [src/lib/db/chat/types.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#179)
 
 **Inherited from**
 
@@ -316,7 +316,7 @@ Defined in: [src/lib/db/chat/types.ts:174](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wasStopped**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#181)
+Defined in: [src/lib/db/chat/types.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#186)
 
 **Inherited from**
 

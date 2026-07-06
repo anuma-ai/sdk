@@ -1,6 +1,6 @@
 # MessageSkeleton
 
-Defined in: [src/lib/db/chat/types.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#147)
+Defined in: [src/lib/db/chat/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#152)
 
 Lightweight, mostly-undecrypted projection of a message row. Contains just
 enough for consumers to build the conversation's branch tree (parent/child
@@ -17,7 +17,7 @@ classify by content prefix. All other rows leave `content` undefined.
 
 > `optional` **content**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#156)
+Defined in: [src/lib/db/chat/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#161)
 
 See interface docs — only set for user rows with a user-role parent.
 
@@ -27,7 +27,7 @@ See interface docs — only set for user rows with a user-role parent.
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#150)
+Defined in: [src/lib/db/chat/types.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#155)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [src/lib/db/chat/types.ts:150](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#152)
+Defined in: [src/lib/db/chat/types.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#157)
 
 ***
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:152](https://github.com/anuma-ai/sdk/blob/
 
 > **messageId**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#149)
+Defined in: [src/lib/db/chat/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#154)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [src/lib/db/chat/types.ts:149](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#154)
+Defined in: [src/lib/db/chat/types.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#159)
 
 ***
 
@@ -59,7 +59,7 @@ Defined in: [src/lib/db/chat/types.ts:154](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#153)
+Defined in: [src/lib/db/chat/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#158)
 
 ***
 
@@ -67,7 +67,7 @@ Defined in: [src/lib/db/chat/types.ts:153](https://github.com/anuma-ai/sdk/blob/
 
 > **role**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/db/chat/types.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#151)
+Defined in: [src/lib/db/chat/types.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#156)
 
 ***
 
@@ -75,4 +75,4 @@ Defined in: [src/lib/db/chat/types.ts:151](https://github.com/anuma-ai/sdk/blob/
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#148)
+Defined in: [src/lib/db/chat/types.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#153)

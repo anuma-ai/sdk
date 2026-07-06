@@ -1,6 +1,6 @@
 # ChunkSearchResult
 
-Defined in: [src/lib/db/chat/types.ts:284](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#284)
+Defined in: [src/lib/db/chat/types.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#289)
 
 Search result from chunk-based search
 
@@ -10,7 +10,7 @@ Search result from chunk-based search
 
 > **chunkText**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#286)
+Defined in: [src/lib/db/chat/types.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#291)
 
 The matching chunk text
 
@@ -20,7 +20,7 @@ The matching chunk text
 
 > **message**: [`StoredMessage`](StoredMessage.md)
 
-Defined in: [src/lib/db/chat/types.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#288)
+Defined in: [src/lib/db/chat/types.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#293)
 
 The full message containing this chunk
 
@@ -30,6 +30,6 @@ The full message containing this chunk
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#290)
+Defined in: [src/lib/db/chat/types.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#295)
 
 Similarity score of the chunk

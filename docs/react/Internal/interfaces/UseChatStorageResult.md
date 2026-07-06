@@ -31,7 +31,7 @@ Discards pending operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:872](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#872)
+Defined in: [src/lib/db/chat/types.ts:877](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#877)
 
 **Inherited from**
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:872](https://github.com/anuma-ai/sdk/blob/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:874](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#874)
+Defined in: [src/lib/db/chat/types.ts:879](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#879)
 
 **Parameters**
 
@@ -355,7 +355,7 @@ Optional scope (defaults to "private")
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:879](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#879)
+Defined in: [src/lib/db/chat/types.ts:884](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#884)
 
 **Parameters**
 
@@ -517,7 +517,7 @@ Returns files with conversation context for building file browser UIs.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:875](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#875)
+Defined in: [src/lib/db/chat/types.ts:880](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#880)
 
 **Parameters**
 
@@ -558,7 +558,7 @@ Defined in: [src/lib/db/chat/types.ts:875](https://github.com/anuma-ai/sdk/blob/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:876](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#876)
+Defined in: [src/lib/db/chat/types.ts:881](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#881)
 
 **Returns**
 
@@ -574,7 +574,7 @@ Defined in: [src/lib/db/chat/types.ts:876](https://github.com/anuma-ai/sdk/blob/
 
 > **getMessageCount**: (`conversationId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/types.ts:892](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#892)
+Defined in: [src/lib/db/chat/types.ts:897](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#897)
 
 Total message count for a conversation.
 
@@ -617,7 +617,7 @@ Total message count for a conversation.
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:880](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#880)
+Defined in: [src/lib/db/chat/types.ts:885](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#885)
 
 **Parameters**
 
@@ -658,7 +658,7 @@ Defined in: [src/lib/db/chat/types.ts:880](https://github.com/anuma-ai/sdk/blob/
 
 > **getMessageSkeletons**: (`conversationId`: `string`) => `Promise`<[`MessageSkeleton`](MessageSkeleton.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:890](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#890)
+Defined in: [src/lib/db/chat/types.ts:895](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#895)
 
 Whole-thread branch-tree skeleton — no field decryption.
 
@@ -701,7 +701,7 @@ Whole-thread branch-tree skeleton — no field decryption.
 
 > **getMessagesPage**: (`conversationId`: `string`, `options`: [`GetMessagesPageOptions`](GetMessagesPageOptions.md)) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:885](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#885)
+Defined in: [src/lib/db/chat/types.ts:890](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#890)
 
 Paginated display read: the newest `limit` messages (optionally below
 `beforeMessageId`), ascending, with embedding columns skipped.
@@ -839,7 +839,7 @@ include soft-deleted memories)
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:870](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#870)
+Defined in: [src/lib/db/chat/types.ts:875](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#875)
 
 **Inherited from**
 
@@ -1903,7 +1903,7 @@ if (result.error) {
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:873](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#873)
+Defined in: [src/lib/db/chat/types.ts:878](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#878)
 
 **Parameters**
 
@@ -1944,7 +1944,7 @@ Defined in: [src/lib/db/chat/types.ts:873](https://github.com/anuma-ai/sdk/blob/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:871](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#871)
+Defined in: [src/lib/db/chat/types.ts:876](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#876)
 
 **Returns**
 
@@ -1960,7 +1960,7 @@ Defined in: [src/lib/db/chat/types.ts:871](https://github.com/anuma-ai/sdk/blob/
 
 > **updateConversationPinned**: (`id`: `string`, `pinned`: `boolean`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:878](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#878)
+Defined in: [src/lib/db/chat/types.ts:883](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#883)
 
 **Parameters**
 
@@ -2013,7 +2013,7 @@ Defined in: [src/lib/db/chat/types.ts:878](https://github.com/anuma-ai/sdk/blob/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:877](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#877)
+Defined in: [src/lib/db/chat/types.ts:882](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#882)
 
 **Parameters**
 

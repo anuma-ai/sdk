@@ -485,13 +485,21 @@ export async function getMessagesPageOp(
   convId: string,
   opts: GetMessagesPageOptions
 ): Promise<StoredMessage[]> {
+  // Guard the limit before it reaches Q.take: SQLite treats `LIMIT -1` as
+  // "no limit", so an unvalidated negative (e.g. an off-by-one underflow on
+  // a window-size computation) would silently fetch and decrypt the ENTIRE
+  // conversation while the caller still believes the read was bounded. A
+  // non-positive page is an empty page; fractional limits are floored.
+  const limit = Math.floor(opts.limit);
+  if (!Number.isFinite(limit) || limit < 1) return [];
+
   const clauses = [Q.where("conversation_id", convId)];
   if (opts.beforeMessageId !== undefined) {
     clauses.push(Q.where("message_id", Q.lt(opts.beforeMessageId)));
   }
 
   const results = await ctx.messagesCollection
-    .query(...clauses, Q.sortBy("message_id", Q.desc), Q.take(opts.limit))
+    .query(...clauses, Q.sortBy("message_id", Q.desc), Q.take(limit))
     .fetch();
 
   // Fetched newest-first to take the tail; consumers expect ascending.

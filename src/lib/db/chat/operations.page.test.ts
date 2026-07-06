@@ -33,7 +33,14 @@ function makeCtx(db: Database): StorageOperationsContext {
   };
 }
 
-/** Seed `count` alternating user/assistant messages; returns the ctx. */
+/**
+ * Seed `count` alternating user/assistant messages; returns the ctx.
+ *
+ * The exact-messageId assertions below intentionally pin `createMessageOp`'s
+ * sequencing contract (`messageId = existingCount + 1`, so 1…N in a fresh
+ * database) — pagination cursors (`beforeMessageId`) depend on that ordering,
+ * so a change to id assignment SHOULD fail these tests.
+ */
 async function seedThread(count: number, convId = "conv-1"): Promise<StorageOperationsContext> {
   const ctx = makeCtx(makeDatabase());
   for (let i = 1; i <= count; i++) {
@@ -85,6 +92,25 @@ describe("getMessagesPageOp", () => {
     const page = await getMessagesPageOp(ctx, "conv-empty", { limit: 10 });
 
     expect(page).toEqual([]);
+  });
+
+  it("returns an empty page for non-positive or non-finite limits (never an unbounded read)", async () => {
+    // SQLite treats LIMIT -1 as "no limit" — an unguarded negative limit
+    // would silently fetch and decrypt the whole conversation.
+    const ctx = await seedThread(10);
+
+    expect(await getMessagesPageOp(ctx, "conv-1", { limit: 0 })).toEqual([]);
+    expect(await getMessagesPageOp(ctx, "conv-1", { limit: -1 })).toEqual([]);
+    expect(await getMessagesPageOp(ctx, "conv-1", { limit: Number.NaN })).toEqual([]);
+    expect(await getMessagesPageOp(ctx, "conv-1", { limit: -Infinity })).toEqual([]);
+  });
+
+  it("floors fractional limits", async () => {
+    const ctx = await seedThread(10);
+
+    const page = await getMessagesPageOp(ctx, "conv-1", { limit: 2.9 });
+
+    expect(page.map((m) => m.messageId)).toEqual([9, 10]);
   });
 
   it("does not leak other conversations' messages", async () => {

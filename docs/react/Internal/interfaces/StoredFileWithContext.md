@@ -1,6 +1,6 @@
 # StoredFileWithContext
 
-Defined in: [src/lib/db/chat/types.ts:297](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#297)
+Defined in: [src/lib/db/chat/types.ts:302](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#302)
 
 File metadata with conversation context for file browsing.
 Extends FileMetadata with information about where the file was used.
@@ -15,7 +15,7 @@ Extends FileMetadata with information about where the file was used.
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#299)
+Defined in: [src/lib/db/chat/types.ts:304](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#304)
 
 ID of the conversation where this file was attached
 
@@ -25,7 +25,7 @@ ID of the conversation where this file was attached
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:301](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#301)
+Defined in: [src/lib/db/chat/types.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#306)
 
 Timestamp when the file was stored (from the message)
 
@@ -49,7 +49,7 @@ Unique identifier for the file (used as OPFS key for cached files)
 
 > **messageRole**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/db/chat/types.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#303)
+Defined in: [src/lib/db/chat/types.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#308)
 
 Role of the message that contains this file
 

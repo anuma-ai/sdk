@@ -21,6 +21,9 @@ are returned. Omit to fetch the newest page (the conversation tail).
 
 > **limit**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#134)
+Defined in: [src/lib/db/chat/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#139)
 
 Maximum rows to return — the NEWEST `limit` rows of the matching range.
+Must be a positive integer: non-positive or non-finite values yield an
+EMPTY page (never an unbounded read — SQLite treats `LIMIT -1` as "no
+limit"), and fractional values are floored.
