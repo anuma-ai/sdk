@@ -452,6 +452,9 @@ export type SendMessageWithStorageResult =
  *
  * Mirrors the lib taxonomy onto the storage outcome:
  * - clean completion → `{ error: null, assistantMessage }`
+ * - clean but EMPTY replay → `{ error: null, empty: true, assistantMessage }`
+ *   (zero content replayed — the stowed partial is finalized as `wasStopped`;
+ *   `assistantMessage` is null when there was no partial to fall back to)
  * - 410 expired → `{ error: null, expired: true, assistantMessage }` (the
  *   stowed partial is finalized as `wasStopped`)
  * - in-stream-interrupted → `{ error: <message>, interrupted: true,
@@ -467,6 +470,14 @@ export interface ResumeStreamWithStorageResult {
   expired?: boolean;
   /** True for an in-stream/tool-request terminal: replayed content finalized as stopped. */
   interrupted?: boolean;
+  /**
+   * True for a clean terminal whose replay carried NO content (a [DONE]-only
+   * replay — buffered frames lost server-side). The stowed partial was
+   * finalized as `wasStopped` instead of the blank; nothing was persisted when
+   * there was no partial. Callers should message this as an interruption, not
+   * a successful restore.
+   */
+  empty?: boolean;
   /** HTTP status for a transient failure (e.g. 401) — retryable, handle retained. */
   statusCode?: number;
   /** The single reconciled assistant row, or null when nothing was persisted. */
@@ -2249,11 +2260,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * (or finalized as stopped) in place, never a second bubble.
    *
    * Outcome taxonomy:
-   * - clean completion → upsert with `wasStopped: false`, clear the ref.
+   * - clean completion (with output) → upsert with `wasStopped: false`, clear
+   *   the ref.
+   * - clean but EMPTY replay (no text/thinking/tool events) → finalize the
+   *   stowed partial as `wasStopped: true` (persist nothing when there is no
+   *   partial), clear the ref, return `empty: true`.
    * - 410 `StreamExpiredError` (thrown by the lib) → finalize the stowed
    *   partial as `wasStopped: true`, clear the ref, return `expired: true`.
-   * - interrupted terminal → finalize the REPLAYED content (≥ the partial) as
-   *   `wasStopped: true`, clear the ref.
+   * - interrupted terminal → finalize the replayed content as
+   *   `wasStopped: true` — but only when the replay actually carried output;
+   *   an output-less interrupted replay (frames lost + error event, or aborted
+   *   before the first frame) falls back to the stowed partial, and persists
+   *   nothing when neither has output. Clear the ref.
    * - transient (401/network, `interrupted: false`) → persist nothing, KEEP the
    *   ref so the caller can retry with a force-refreshed token.
    */
@@ -2351,7 +2369,47 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const result = await baseResumeStream(handle, { headless: opts?.headless });
         const responseDuration = (Date.now() - rctx.startTime) / 1000;
 
+        // A replay "carried output" when it has message text, thinking, or
+        // tool-call events (a search/image turn can legitimately complete with
+        // events only — the live send path persists that row too, #639).
+        // Derived from the replayed data rather than the lib's `empty` flag so
+        // the guard holds for any caller-supplied resume primitive.
+        const hasReplayedOutput = (data: ApiResponse | null): boolean => {
+          if (!data) return false;
+          const { content, thinking } = extractAssistantText(data);
+          return !!content || !!thinking || (getToolCallEvents(data)?.length ?? 0) > 0;
+        };
+
         if (result.error === null) {
+          // Empty-replay guard: a clean terminal whose replay carried NO
+          // renderable output is never a real completion (a completed
+          // generation always buffered at least one content frame) — it means
+          // the buffered frames were lost server-side while the terminal
+          // survived. Persisting it would overwrite the turn with a blank row
+          // that claims wasStopped:false ("completed"). Fall back to the
+          // stowed partial (finalized as stopped, mirroring the 410 path); if
+          // there is no partial either, persist nothing.
+          if (!hasReplayedOutput(result.data)) {
+            const partial = rctx.partialData ? extractAssistantText(rctx.partialData) : null;
+            if (partial && (partial.content || partial.thinking)) {
+              const written = await safeFinalize(rctx.partialData!, true, responseDuration);
+              if ("error" in written) {
+                return { data: rctx.partialData, error: written.error, assistantMessage: null };
+              }
+              pendingResumeRef.current = null;
+              return {
+                data: rctx.partialData,
+                error: null,
+                empty: true,
+                assistantMessage: written.message,
+              };
+            }
+            // Nothing replayed and nothing stowed: a blank row would be a lie
+            // — leave the turn rowless and let the caller message the loss.
+            pendingResumeRef.current = null;
+            return { data: result.data, error: null, empty: true, assistantMessage: null };
+          }
+
           // Clean completion.
           const written = await safeFinalize(result.data, false, responseDuration);
           if ("error" in written) {
@@ -2367,8 +2425,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         if (result.interrupted) {
           // In-stream/tool-request terminal: persist the replayed content
-          // (which is ≥ the detached partial) as a stopped message.
-          const data = result.data ?? rctx.partialData;
+          // (which is ≥ the detached partial) as a stopped message. Same
+          // empty-replay guard as the clean branch: the lib's buildInterrupted
+          // ALWAYS returns non-null data — built from an EMPTY accumulator
+          // when the frames were lost (zero frames + one in-stream error
+          // event) or when the replay was aborted/timed out before the first
+          // frame — so `result.data ?? partialData` alone would prefer that
+          // blank over the partial the user already saw. Only trust the
+          // replayed data when it actually carried output; otherwise fall
+          // back to the stowed partial, and persist nothing when neither has
+          // any.
+          const data = hasReplayedOutput(result.data)
+            ? result.data
+            : hasReplayedOutput(rctx.partialData)
+              ? rctx.partialData
+              : null;
           let assistantMessage: StoredMessage | null = null;
           if (data) {
             const written = await safeFinalize(data, true, responseDuration);
