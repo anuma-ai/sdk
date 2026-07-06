@@ -614,6 +614,15 @@ export type RunToolLoopResult =
 export const STREAM_RESUMABLE_HEADER = "X-Stream-Resumable";
 /** Response header carrying the per-request stream id, issued by the portal pre-stream. */
 export const INFERENCE_ID_HEADER = "X-Inference-ID";
+/**
+ * Request header that groups every gateway call of a conversation for observability.
+ * The portal reads it (zeta-chain/ai-portal `trace.go`) into the request context so logs
+ * (Datadog `conversation_id`) and the `requests.conversation_id` DB column share one source.
+ * Sent on the main tool-loop send whenever a `conversationId` is in scope; the body
+ * `conversation_id` field (set by the request strategies) remains as a fallback.
+ * Module-local — used only here; not exported (no external importer).
+ */
+const CONVERSATION_ID_HEADER = "X-Conversation-ID";
 
 /**
  * Everything resumeStream() needs to replay a detached stream.
@@ -651,6 +660,15 @@ export type StreamingTransportOptions = {
   onSseError?: (error: unknown) => void;
   /** Fires once per request when response headers arrive with X-Inference-ID (2xx only). */
   onStreamMeta?: (meta: { inferenceId: string }) => void;
+  /**
+   * Fires whenever bytes arrive on the wire — data frames AND the keep-alive
+   * comment lines (`: ...`) the SSE parser otherwise discards. A pure liveness
+   * signal: a consumer running an idle watchdog uses it to tell a slow-but-alive
+   * stream (the server still heart-beating through a long reasoning silence)
+   * apart from a dead connection (no bytes at all). Not every transport emits it
+   * — the xhr transport does; treat its absence as "no extra liveness info".
+   */
+  onActivity?: () => void;
 };
 
 /** Result returned by a streaming transport function. */
@@ -936,7 +954,19 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   // Capability header: computed once and read at BOTH transport call sites so
   // it rides on the initial round, every continuation round, and every retry
   // attempt. Off by default — no header is sent for existing callers.
-  const effectiveHeaders = resumable ? { ...headers, [STREAM_RESUMABLE_HEADER]: "1" } : headers;
+  //
+  // X-Conversation-ID is folded in here (not at the call sites) for the same
+  // reason: it must ride every round and retry. Sent only when a non-empty
+  // conversationId is in scope, so existing callers without one are unaffected.
+  const conversationHeader =
+    conversationId && conversationId.trim() !== ""
+      ? { [CONVERSATION_ID_HEADER]: conversationId.trim() }
+      : undefined;
+  const effectiveHeaders = {
+    ...headers,
+    ...conversationHeader,
+    ...(resumable ? { [STREAM_RESUMABLE_HEADER]: "1" } : undefined),
+  };
 
   // Latest inference id captured from a 2xx response's X-Inference-ID header.
   // Transport-level retries dispatch a fresh HTTP request with a fresh id and

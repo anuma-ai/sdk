@@ -4,6 +4,7 @@ export {
   type ExtractedCandidate,
   extractFacts,
   type ExtractFactsOptions,
+  type ExtractOutcome,
   type FactType,
 } from "./autoExtract.js";
 export {

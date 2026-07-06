@@ -573,6 +573,40 @@ export async function createMessageOp(
   ctx: StorageOperationsContext,
   opts: CreateMessageOptions
 ): Promise<StoredMessage> {
+  // Idempotency guard: the consumer pre-allocates `uniqueId` as the record's stable
+  // id (so the persisted message shares the streaming placeholder's React key), and
+  // the offline/retry operation queue can replay this op (or a double-submit can
+  // fire it twice). A second create with an already-used id throws the LokiJS
+  // "Duplicate key for property id: <id>" error, which surfaced ~daily in the chat
+  // path. If the message is already persisted, return it instead of recreating.
+  //
+  // On replay the FIRST-persisted row wins: we return it as-is and do not refresh
+  // its content from `opts`. Callers reusing a `uniqueId` with diverging fields
+  // (e.g. edited-then-resubmitted content) must use `upsertMessageOp` instead,
+  // which reconciles the row in place.
+  //
+  // Only `find()` is guarded — a miss means "not yet persisted", so we fall through
+  // to create. `messageToStored()` runs outside the catch so a genuine failure
+  // (e.g. decryption of an existing row) propagates instead of masquerading as a
+  // miss and falling through to a create() that would re-throw the duplicate-key
+  // error this guard exists to prevent. Mirrors the find pattern in the update ops.
+  if (opts.uniqueId) {
+    let existing: Message | null;
+    try {
+      existing = await ctx.messagesCollection.find(opts.uniqueId);
+    } catch {
+      existing = null;
+    }
+    if (existing) {
+      return messageToStored(
+        existing,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+    }
+  }
+
   const existingCount = await getMessageCountOp(ctx, opts.conversationId);
   const messageId = existingCount + 1;
 
@@ -621,12 +655,8 @@ export async function upsertMessageOp(
   ctx: StorageOperationsContext,
   opts: CreateMessageOptions & { uniqueId: string }
 ): Promise<StoredMessage> {
-  let existing: Message | null;
-  try {
-    existing = await ctx.messagesCollection.find(opts.uniqueId);
-  } catch {
-    existing = null;
-  }
+  const results = await ctx.messagesCollection.query(Q.where("id", opts.uniqueId)).fetch();
+  const existing = results.length > 0 ? results[0] : null;
 
   // No row yet — this is the first persist for this id. Delegate to create so
   // the sequential message_id and pre-allocated id logic stay in one place.

@@ -197,10 +197,14 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   // we both disarm the watchdog on caller abort AND track this flag, preferring
   // it over idleFired when building the message. Caller stop is never a timeout.
   let callerAborted = false;
+  // Set once a terminal is reached so a trailing onActivity (a keep-alive byte
+  // landing in the gap between the stream ending and cleanup running) can't
+  // re-arm a watchdog for an already-finished resume and leak a timer.
+  let settled = false;
   const idleEnabled =
     idleTimeoutMs > 0 && idleTimeoutMs !== Infinity && typeof setTimeout === "function";
   const armWatchdog = () => {
-    if (!idleEnabled) return;
+    if (!idleEnabled || settled) return;
     if (watchdog) clearTimeout(watchdog);
     watchdog = setTimeout(() => {
       idleFired = true;
@@ -230,6 +234,7 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   }
   const combinedSignal = idleController.signal;
   const cleanup = () => {
+    settled = true;
     disarmWatchdog();
     if (signal) signal.removeEventListener("abort", onCallerAbort);
   };
@@ -265,6 +270,12 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     onSseError: (error) => {
       sseError = error instanceof Error ? error : new Error(String(error));
     },
+    // Re-arm the idle watchdog on ANY wire activity, not just data chunks. The
+    // server slides its own liveness with a ~30s heartbeat and emits keep-alive
+    // comments through a long (>idleTimeoutMs) reasoning silence; without this a
+    // healthy but content-silent stream would trip the watchdog and truncate. A
+    // truly dead connection sends no bytes at all, so the watchdog still fires.
+    onActivity: armWatchdog,
   });
 
   armWatchdog();

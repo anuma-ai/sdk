@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import type { LlmapiMessage } from "../client";
+import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import type { StreamResumeHandle } from "../lib/chat/resumeStream";
 import { StreamExpiredError } from "../lib/chat/resumeStream";
+import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -44,6 +46,7 @@ import {
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
+  resolveStoredUserContent,
   type SearchSource,
   type StorageOperationsContext,
   type StoredConversation,
@@ -971,6 +974,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     thoughtProcess?: ActivityPhase[];
     startTime: number;
     partialData: ApiResponse | null;
+    knownToolCallEventIds?: Set<string>;
   } | null>(null);
   // True while a storage resumeStream() is awaiting its terminal. stop() reads
   // this to avoid racing a parallel finalize write against the resume's own
@@ -1258,6 +1262,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
+        storedUserContent,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
         memoryContext,
@@ -1324,9 +1329,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             });
 
             if (isServerToolsFunction) {
-              // Function-based filtering: generate embedding and call the function
+              // Function-based filtering: generate embedding and call the function.
+              // Mirror the normal path so tool selection keys off the same text
+              // regardless of skipStorage.
               const extracted = extractUserMessageFromMessages(messages);
-              const messageContent = extracted?.content || "";
+              const messageContent = resolveStoredUserContent(
+                storedUserContent,
+                extracted?.content ?? ""
+              );
 
               if (messageContent.length >= minContentLength) {
                 const embedding = await generateEmbedding(messageContent, {
@@ -1409,7 +1419,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content;
+      // Persist the caller-supplied user text when provided, so injected
+      // per-request context (memory, precise time) reaches the wire via
+      // `messages` but never lands in the DB row / bubble / embedding. Falls
+      // back to the extracted last-user text. See `storedUserContent` docs.
+      const contentForStorage = resolveStoredUserContent(storedUserContent, extracted.content);
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 
@@ -1638,6 +1652,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           thoughtProcess,
           startTime,
           partialData: detachedResult.data ?? null,
+          knownToolCallEventIds,
         };
         return {
           data: detachedResult.data ?? null,
@@ -1810,6 +1825,23 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
       );
 
+      // Also surface citations that arrived via tool_call_events (e.g.
+      // AnumaSearchMCP search results). Models that return sources as tool
+      // output rather than inline content would otherwise show no citation
+      // pills on mobile — parity with the react send path (#629).
+      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents);
+      const seenSourceUrls = new Set(
+        combinedSources.map((s) => s.url).filter((url): url is string => !!url)
+      );
+      // MCP image/file R2 URLs are persisted separately as media and must never
+      // be stored as citation sources — drop them whether they arrived inline
+      // (assistant content / passed-in sources) or via tool_call_events. The
+      // react path likewise never persists R2 URLs as sources.
+      const allSources = [
+        ...combinedSources,
+        ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
+      ].filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
+
       // Resolve image model: prefer the caller's selection, then the portal's
       // resolved `image_model` on the response, then MCP tool-event scraping.
       const resolvedImageModel =
@@ -1826,7 +1858,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel: resolvedImageModel,
         usage: convertUsageToStored(responseData),
         responseDuration,
-        sources: combinedSources,
+        sources: allSources,
         thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         thinking: thinkingContent,
         // Note: when queued (encryption key not ready), storedUserMessage.uniqueId is a
@@ -1900,12 +1932,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * Fidelity note (deliberate, out of §3 scope): this persists the raw
    * `extractAssistantText(data).content`. The live send path additionally
    * extracts/strips inline `sources` JSON blocks, strips R2 image markdown/URLs,
-   * and scrapes `image_model` + tool-call events. resumeStream structurally
-   * rejects tool streams, so the tool-event omission is moot; but a plain-text
-   * answer that embeds a sources block or an R2 URL stores it un-normalized on
-   * the resume path. Acceptable for the reconnect surface (the spec never
-   * promises content-normalization parity); tracked as a follow-up, not a §3
-   * contract gap.
+   * and scrapes `image_model`. A plain-text answer that embeds a sources block
+   * or an R2 URL stores it un-normalized on the resume path — acceptable for the
+   * reconnect surface (the spec never promises content-normalization parity);
+   * tracked as a follow-up, not a §3 contract gap.
+   *
+   * Citation sources, however, ARE reconciled here (#639): the buffered stream
+   * the replay rebuilds carries `tool_call_events` (e.g. AnumaSearchMCP results)
+   * in the clean-completion `data`, exactly like the live send path. Tool
+   * *streams* (pending function calls) finalize as `interrupted`, but tool
+   * *call events* — citation metadata — ride a normal text completion, so
+   * persisting only the detach-time `ctx.sources` would drop the pills on a
+   * resumed turn. We merge them the same way the send path does (dedup by URL,
+   * drop MCP R2 image/file URLs).
    */
   const finalizeResumedRow = useCallback(
     async (
@@ -1915,6 +1954,48 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       responseDuration: number
     ): Promise<StoredMessage> => {
       const { content, thinking } = extractAssistantText(data);
+
+      // Deduplicate tool_call_events: the backend returns accumulated events
+      // across the entire conversation. Filter to only new events from this turn,
+      // mirroring the live send path, so we don't merge citations from earlier
+      // turns onto the resumed assistant message.
+      let knownIds = ctx.knownToolCallEventIds;
+      if (!knownIds && ctx.convId) {
+        // Cold-launch resume: no stowed context, so fetch stored messages to build the set.
+        knownIds = new Set<string>();
+        try {
+          const storedMessages = await getMessages(ctx.convId);
+          for (const msg of storedMessages) {
+            if (msg.toolCallEvents) {
+              for (const evt of msg.toolCallEvents) {
+                if (evt.id) knownIds.add(evt.id);
+              }
+            }
+          }
+        } catch {
+          // Fetch failed: no deduplication possible, proceed with all events.
+        }
+      }
+      const allToolCallEvents = getToolCallEvents(data);
+      const currentTurnToolCallEvents = knownIds
+        ? allToolCallEvents?.filter(
+            (evt) => evt.id !== undefined && evt.id !== null && !knownIds.has(evt.id)
+          )
+        : allToolCallEvents;
+
+      // Merge citations that arrived via tool_call_events into the detach-time
+      // sources, mirroring the live send path. R2 image/file URLs are persisted
+      // separately as media and must never become citation sources.
+      const baseSources = ctx.sources ?? [];
+      const seenSourceUrls = new Set(
+        baseSources.map((s) => s.url).filter((url): url is string => !!url)
+      );
+      const toolEventSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents);
+      const sources = [
+        ...baseSources,
+        ...toolEventSources.filter((s) => !s.url || !seenSourceUrls.has(s.url)),
+      ].filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
+
       return upsertMessageOp(storageCtx, {
         conversationId: ctx.convId,
         role: "assistant",
@@ -1923,7 +2004,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel: ctx.imageModel || getImageModel(data),
         usage: convertUsageToStored(data),
         responseDuration,
-        sources: ctx.sources,
+        sources,
         thoughtProcess: finalizeThoughtProcess(ctx.thoughtProcess),
         thinking,
         wasStopped,
@@ -1931,7 +2012,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         uniqueId: ctx.assistantUniqueId!,
       });
     },
-    [storageCtx]
+    [storageCtx, getMessages]
   );
 
   /**

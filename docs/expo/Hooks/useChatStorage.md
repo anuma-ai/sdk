@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:527](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#527)
+Defined in: [src/expo/useChatStorage.ts:530](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#530)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -682,7 +682,7 @@ false
 </td>
 <td>
 
-{ `cacheExpirationMs?`: `number`; }
+{ `cacheExpirationMs?`: `number`; `deferLoading?`: `DeferLoadingConfig`; }
 
 </td>
 <td>
@@ -706,6 +706,27 @@ Server tools are fetched from /api/v1/tools and cached in localStorage.
 <td>
 
 Cache expiration time in milliseconds (default: 86400000 = 1 day)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.serverTools.deferLoading?`
+
+</td>
+<td>
+
+`DeferLoadingConfig`
+
+</td>
+<td>
+
+Opt-in defer-loading (Phase 3). OFF by default → tools are sent exactly as today. When
+`enabled`, the full server catalog is emitted every turn in a deterministic, byte-stable order
+(`[tool-search] → [hot] → [deferred, name-sorted]`) with `defer_loading:true` on non-hot tools and
+an Anthropic tool-search tool prepended, so the leading `tools` prefix stays cacheable. See
+DeferLoadingConfig.
 
 </td>
 </tr>

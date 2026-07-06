@@ -313,6 +313,7 @@ export type {
   CreateAutoExtractorOptions,
   ExtractedCandidate,
   ExtractFactsOptions,
+  ExtractOutcome,
   FactType,
   MemoryExtractedEvent,
   MemoryKind,

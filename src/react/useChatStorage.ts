@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LlmapiChatCompletionTool, LlmapiMessage, LlmapiToolCallEvent } from "../client";
+import type { LlmapiChatCompletionTool, LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -44,6 +45,7 @@ import {
   makeSyntheticStoredMessage,
   Message,
   type MessageChunk,
+  resolveStoredUserContent,
   type SearchSource,
   type ServerToolsFilterFn,
   type StorageOperationsContext,
@@ -139,6 +141,7 @@ import {
   BUILT_IN_TOOL_SETS,
   CLIENT_TOOLS_MIN_SIMILARITY,
   CLIENT_TOOLS_RELEVANCE_RATIO,
+  type DeferLoadingConfig,
   expandToolSetsAdditive,
   filterServerTools,
   findMatchingTools,
@@ -413,7 +416,7 @@ export async function previewToolSelection(options: {
   prompt: string;
   clientTools?: LlmapiChatCompletionTool[];
   serverToolsFilter?: string[] | ServerToolsFilterFn;
-  serverToolsConfig?: { cacheExpirationMs?: number };
+  serverToolsConfig?: { cacheExpirationMs?: number; deferLoading?: DeferLoadingConfig };
   /** Bearer-token auth (browser sessions). Provide this or `apiKey`. */
   getToken?: () => Promise<string | null>;
   /** X-API-Key auth (server-side / test harnesses). Provide this or `getToken`. */
@@ -539,7 +542,10 @@ export async function previewToolSelection(options: {
         getToken,
         apiKey,
       });
-      if (typeof serverToolsFilter === "function") {
+      if (serverToolsConfig?.deferLoading?.enabled) {
+        // Defer-loading: the real responses send emits the full catalog, so the preview must too.
+        serverToolNames = allServerTools.map((t) => t.name);
+      } else if (typeof serverToolsFilter === "function") {
         serverToolNames = serverToolsFilter(promptEmbedding, allServerTools);
       } else {
         const allow = new Set(serverToolsFilter);
@@ -2214,212 +2220,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     throw new Error("No conversation ID provided and autoCreateConversation is disabled");
   }, [currentConversationId, getConversation, autoCreateConversation, createConversation]);
 
-  /**
-   * Extracts SearchSource objects from tool call events (search results from MCP tools).
-   *
-   * Supported tools:
-   * - AnumaSearchMCP (structured JSON with results array — primary search tool)
-   * - BraveSearchMCP (concatenated JSON objects — legacy, kept for backward compat)
-   * - JinaMCP (search_web — JSON with results array)
-   * - PerplexityMCP (markdown-formatted text)
-   */
-  const extractSourcesFromToolCallEvents = useCallback(
-    (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
-      try {
-        const extractedSources: SearchSource[] = [];
-        const seenUrls = new Set<string>();
-
-        if (toolCallEvents) {
-          for (const toolCallEvent of toolCallEvents) {
-            const outputStr = toolCallEvent.output || "";
-            const toolName = toolCallEvent.name || "";
-
-            // AnumaSearchMCP returns structured JSON:
-            // {"results": [{title, url, snippets: [...]}], "sources": {url: {title, hostname}}, "cost": N}
-            if (toolName.includes("AnumaSearchMCP") && toolName.includes("text_search")) {
-              try {
-                const parsed = JSON.parse(outputStr) as Record<string, unknown>;
-                const results = parsed?.results;
-                if (Array.isArray(results)) {
-                  for (const result of results) {
-                    const r = result as Record<string, unknown>;
-                    const url = typeof r.url === "string" ? r.url : "";
-                    if (url && !seenUrls.has(url)) {
-                      seenUrls.add(url);
-                      const title = typeof r.title === "string" ? r.title : undefined;
-                      const snippets = Array.isArray(r.snippets)
-                        ? (r.snippets as string[]).filter((s) => typeof s === "string")
-                        : [];
-                      let snippet = snippets.join(" ").trim();
-                      if (snippet.length > 250) {
-                        snippet = snippet.slice(0, 250).trim() + "...";
-                      }
-                      extractedSources.push({
-                        title: title || undefined,
-                        url,
-                        snippet: snippet || undefined,
-                      });
-                    }
-                  }
-                }
-              } catch {
-                // Ignore parse errors
-              }
-            }
-
-            // BraveSearchMCP returns concatenated JSON objects (legacy — kept for backward compat)
-            if (toolName.includes("BraveSearchMCP")) {
-              try {
-                // Note: Assumes flat JSON objects from BraveSearch output (no nested braces)
-                const jsonObjectRegex = /\{[^{}]*"url"[^{}]*\}/g;
-                let match: RegExpExecArray | null;
-
-                while ((match = jsonObjectRegex.exec(outputStr)) !== null) {
-                  try {
-                    const result = JSON.parse(match[0]) as Record<string, unknown>;
-                    const resultUrl = typeof result.url === "string" ? result.url : "";
-                    if (resultUrl && !seenUrls.has(resultUrl)) {
-                      seenUrls.add(resultUrl);
-                      // Strip HTML tags and decode entities from description
-                      const rawDescription =
-                        typeof result.description === "string" ? result.description : "";
-                      const cleanDescription = rawDescription
-                        .replace(/<[^>]*>/g, "") // Remove HTML tags
-                        .replace(/&amp;/g, "&")
-                        .replace(/&lt;/g, "<")
-                        .replace(/&gt;/g, ">")
-                        .replace(/&quot;/g, '"')
-                        .replace(/&#x27;/g, "'")
-                        .replace(/&#39;/g, "'")
-                        .replace(/&apos;/g, "'")
-                        .replace(/&nbsp;/g, " ")
-                        .trim();
-                      const resultTitle =
-                        typeof result.title === "string" ? result.title : undefined;
-                      extractedSources.push({
-                        title: resultTitle || undefined,
-                        url: resultUrl,
-                        snippet: cleanDescription || undefined,
-                      });
-                    }
-                  } catch {
-                    // Ignore individual JSON parse errors
-                  }
-                }
-              } catch {
-                // Ignore tool call event parse errors
-              }
-            }
-
-            // JinaMCP search_web/parallel_search_web — try JSON with results array
-            if (toolName.includes("JinaMCP") && toolName.includes("search")) {
-              try {
-                const parsed = JSON.parse(outputStr) as Record<string, unknown>;
-                const results = Array.isArray(parsed)
-                  ? (parsed as Record<string, unknown>[])
-                  : Array.isArray(parsed?.results)
-                    ? (parsed.results as Record<string, unknown>[])
-                    : Array.isArray(parsed?.data)
-                      ? (parsed.data as Record<string, unknown>[])
-                      : [];
-                for (const r of results) {
-                  const url =
-                    (typeof r.url === "string" ? r.url : "") ||
-                    (typeof r.link === "string" ? r.link : "");
-                  if (url && !seenUrls.has(url)) {
-                    seenUrls.add(url);
-                    const title = typeof r.title === "string" ? r.title : undefined;
-                    let snippet =
-                      (typeof r.snippet === "string" ? r.snippet : "") ||
-                      (typeof r.description === "string" ? r.description : "") ||
-                      (typeof r.content === "string" ? r.content : "");
-                    if (snippet.length > 250) {
-                      snippet = snippet.slice(0, 250).trim() + "...";
-                    }
-                    extractedSources.push({
-                      title: title || undefined,
-                      url,
-                      snippet: snippet || undefined,
-                    });
-                  }
-                }
-              } catch {
-                // Ignore JinaMCP parse errors
-              }
-            }
-
-            // PerplexityMCP returns markdown-formatted text:
-            // 1. **Title**
-            //    URL: https://...
-            //    [description]
-            //    Date: YYYY-MM-DD
-            if (toolName.includes("PerplexityMCP")) {
-              try {
-                // Match each numbered result block
-                // Pattern: digit(s). **title**\n   URL: url
-                const resultPattern =
-                  /(\d+)\.\s+\*\*([^*]+)\*\*\s*\n\s*URL:\s*(https?:\/\/[^\s\n]+)/g;
-                let match: RegExpExecArray | null;
-
-                while ((match = resultPattern.exec(outputStr)) !== null) {
-                  const title = match[2]?.trim();
-                  const url = match[3]?.trim();
-
-                  if (url && !seenUrls.has(url)) {
-                    seenUrls.add(url);
-
-                    // Find the snippet - text between URL and next numbered item or Date line
-                    const matchEnd = match.index + match[0].length;
-                    const nextResultMatch = outputStr.slice(matchEnd).match(/\n\d+\.\s+\*\*/);
-                    const dateMatch = outputStr
-                      .slice(matchEnd)
-                      .match(/\n\s*Date:\s*\d{4}-\d{2}-\d{2}/);
-
-                    let snippetEnd = outputStr.length;
-                    if (nextResultMatch?.index !== undefined) {
-                      snippetEnd = Math.min(snippetEnd, matchEnd + nextResultMatch.index);
-                    }
-                    if (dateMatch?.index !== undefined) {
-                      snippetEnd = Math.min(snippetEnd, matchEnd + dateMatch.index);
-                    }
-
-                    let snippet = outputStr
-                      .slice(matchEnd, snippetEnd)
-                      .replace(/\{ts:\d+\}/g, "") // Remove timestamps like {ts:123}
-                      .replace(/^#{1,6}\s*/gm, "") // Remove markdown headers (anchored to line start)
-                      .replace(/\*{1,2}/g, "") // Remove bold/italic markers
-                      .replace(/\|[^|\n]+\|/g, "") // Remove table cells
-                      .replace(/\n{2,}/g, " ") // Collapse multiple newlines
-                      .replace(/\s{2,}/g, " ") // Collapse multiple spaces
-                      .trim();
-
-                    // Limit snippet length and add ellipsis if truncated
-                    if (snippet.length > 250) {
-                      snippet = snippet.slice(0, 250).trim() + "...";
-                    }
-
-                    extractedSources.push({
-                      title: title || undefined,
-                      url,
-                      snippet: snippet || undefined,
-                    });
-                  }
-                }
-              } catch {
-                // Ignore Perplexity parse errors
-              }
-            }
-          }
-        }
-
-        return extractedSources;
-      } catch {
-        return []; // Return empty array if error occurs
-      }
-    },
-    []
-  );
-
   // Media persistence (MCP image ingestion + user file uploads) is factored
   // out into a dedicated hook. Composed here so the public API of
   // useChatStorage is unchanged.
@@ -2444,6 +2244,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
         summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
+        storedUserContent,
         onData: perRequestOnData,
         headers,
         memoryContext,
@@ -2523,7 +2324,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let skipStorageEmbeddingsFailed = false;
         if (needsEmbeddings && getToken) {
           const extracted = extractUserMessageFromMessages(messages);
-          const messageContent = extracted?.content || "";
+          // Mirror the normal path so tool selection keys off the same text
+          // regardless of skipStorage — otherwise injected wire context
+          // (memory/precise time) would steer tool choice on the incognito path
+          // but not the persisted path.
+          const messageContent = resolveStoredUserContent(
+            storedUserContent,
+            extracted?.content ?? ""
+          );
           if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
             const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
             try {
@@ -2560,7 +2368,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               getToken,
             });
 
-            if (isServerToolsFunction) {
+            if (serverToolsConfig?.deferLoading?.enabled) {
+              // Defer-loading: emit the FULL catalog every turn. The whole point is a byte-stable
+              // `tools` prefix, so we must NOT semantically filter to a per-prompt subset here —
+              // mergeTools orders + flags it and prepends tool-search, which loads the deferred tools
+              // on demand. Bypasses the serverToolsFilter result (incl. the short-prompt empty case).
+              filteredServerTools = allServerTools;
+            } else if (isServerToolsFunction) {
               if (skipStorageEmbeddings) {
                 const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
@@ -2605,13 +2419,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           filteredServerTools.length > 0 ||
           (filteredClientTools && filteredClientTools.length > 0)
         ) {
-          mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+          mergedTools = mergeTools(
+            filteredServerTools,
+            filteredClientTools,
+            effectiveApiType,
+            serverToolsConfig?.deferLoading
+          );
         }
 
         if (onToolSelection) {
           try {
             onToolSelection({
-              prompt: extractUserMessageFromMessages(messages)?.content || "",
+              prompt: resolveStoredUserContent(
+                storedUserContent,
+                extractUserMessageFromMessages(messages)?.content ?? ""
+              ),
               clientToolNames: (filteredClientTools ?? []).map(getToolName).filter(Boolean),
               serverToolNames: filteredServerTools.map((t) => t.name),
             });
@@ -2676,7 +2498,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content; // Original content for DB storage
+      // Persist the caller-supplied user text when provided, so injected
+      // per-request context (memory, precise time) reaches the wire via
+      // `messages` but never lands in the DB row / bubble / embedding. Falls
+      // back to the extracted last-user text. See `storedUserContent` docs.
+      const contentForStorage = resolveStoredUserContent(storedUserContent, extracted.content);
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 
@@ -3026,7 +2852,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             getToken,
           });
 
-          if (isServerToolsFunction) {
+          if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
+            // Defer-loading (RESPONSES-ONLY): emit the FULL catalog every turn (byte-stable prefix). Do
+            // NOT semantically filter — mergeTools orders + flags it and prepends tool-search to load
+            // deferred tools on demand. On completions (the responses-breaker fallback) defer can't work
+            // (toolsToApiFormat mangles the flat tool-search type), so fall through to today's filtering.
+            filteredServerTools = allServerTools;
+          } else if (isServerToolsFunction) {
             // Call the filter function with embeddings and all tools
             if (userMessageEmbeddings) {
               const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
@@ -3120,7 +2952,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         filteredServerTools.length > 0 ||
         (filteredClientTools && filteredClientTools.length > 0)
       ) {
-        mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
+        mergedTools = mergeTools(
+          filteredServerTools,
+          filteredClientTools,
+          effectiveApiType,
+          serverToolsConfig?.deferLoading
+        );
       }
 
       if (onToolSelection) {

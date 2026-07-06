@@ -85,10 +85,40 @@ describe("consolidateMemory", () => {
     expect(onFallback).not.toHaveBeenCalled();
   });
 
-  it("falls back on network error", async () => {
+  it("retries a transient network error to the default cap, then degrades to create", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
-    const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
+    // backoffMs: () => 0 — instant retries so the test doesn't wait the real
+    // exponential schedule across the 3-attempt budget.
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      backoffMs: () => 0,
+    });
     expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    // A network error is transient — consolidate now retries (DEFAULT_CONSOLIDATE_ATTEMPTS = 3)
+    // before degrading, so a one-off blip doesn't leave a permanent below-floor paraphrase.
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("honors a maxAttempts: 1 override (no retry, degrade on first failure)", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      maxAttempts: 1,
+    });
+    expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a schema violation (parses fine but invalid → degrades on first attempt)", async () => {
+    // A well-formed-but-wrong-schema response parses fine, so it's NOT a portal
+    // retryable — validate() rejects it post-parse and it degrades immediately,
+    // even though maxAttempts defaults to 3.
+    const fetchFn = mockFetch(choices({ action: "update", targetId: "nope", content: "x" }));
+    const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
+    expect(result.fallbackReason).toBe("invalid_response");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it("falls back on non-OK response", async () => {
@@ -103,7 +133,12 @@ describe("consolidateMemory", () => {
     const fetchFn = mockFetch({
       choices: [{ message: { content: "{not json" } }],
     });
-    const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });
+    // Unparseable JSON is transient → retried; () => 0 keeps the test instant.
+    const result = await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      backoffMs: () => 0,
+    });
     expect(result).toEqual({ action: "create", content: "new fact", fallbackReason: "llm_error" });
   });
 
@@ -139,7 +174,12 @@ describe("consolidateMemory", () => {
   it("notifies onFallback with llm_error on LLM failure", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
     const onFallback = vi.fn();
-    await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn, onFallback });
+    await consolidateMemory("new fact", candidates, {
+      apiKey: "k",
+      fetchFn,
+      onFallback,
+      backoffMs: () => 0,
+    });
     expect(onFallback).toHaveBeenCalledTimes(1);
     expect(onFallback).toHaveBeenCalledWith("llm_error");
   });
@@ -161,6 +201,7 @@ describe("consolidateMemory", () => {
       apiKey: "k",
       fetchFn,
       onFallback,
+      backoffMs: () => 0,
     });
     // The degraded fallback still comes back — the observability hook's
     // failure is swallowed rather than failing the retain write.

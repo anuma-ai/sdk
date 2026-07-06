@@ -22,7 +22,7 @@ import {
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
-import type { ServerTool } from "../../tools";
+import type { DeferLoadingConfig, ServerTool } from "../../tools";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -401,6 +401,14 @@ export interface BaseUseChatStorageOptions {
   serverTools?: {
     /** Cache expiration time in milliseconds (default: 86400000 = 1 day) */
     cacheExpirationMs?: number;
+    /**
+     * Opt-in defer-loading (Phase 3). OFF by default → tools are sent exactly as today. When
+     * `enabled`, the full server catalog is emitted every turn in a deterministic, byte-stable order
+     * (`[tool-search] → [hot] → [deferred, name-sorted]`) with `defer_loading:true` on non-hot tools and
+     * an Anthropic tool-search tool prepended, so the leading `tools` prefix stays cacheable. See
+     * {@link DeferLoadingConfig}.
+     */
+    deferLoading?: DeferLoadingConfig;
   };
   /**
    * Automatically generate embeddings for messages after saving.
@@ -606,6 +614,31 @@ export interface BaseSendMessageWithStorageArgs {
    * File metadata is stored with the message (URLs are stripped if they're data URIs).
    */
   files?: FileMetadata[];
+
+  /**
+   * Override the text content persisted for the user message, instead of
+   * extracting it from the last user turn of `messages`.
+   *
+   * The wire payload (`messages`) and the stored/displayed/embedded user
+   * message are normally the same text — the last user turn's joined text is
+   * both sent and persisted. When the caller injects per-request context into
+   * that turn for the model (e.g. recalled memory or a precise timestamp), the
+   * wire needs the context but storage must NOT: otherwise the injected labels
+   * are persisted, shown in the user's bubble, and re-fed as history every turn.
+   *
+   * Set this to the user's actual text so the wire keeps the injected context
+   * while the persisted user content reflects only what the user typed. This
+   * drives everything derived from the stored user text: the DB row, the chat
+   * bubble, the stored message embedding, AND the embedding reused for
+   * server/client tool selection (so tool filtering keys off the typed text,
+   * not the injected context). Files are still taken from `files` (or
+   * extracted) independently of this override.
+   *
+   * Pass `undefined` to fall back to extracting the last user turn's text (the
+   * prior behavior); an empty string is a real override that persists empty
+   * user content (matching a textless turn), NOT a request to fall back.
+   */
+  storedUserContent?: string;
 
   /**
    * Per-request callback invoked with each streamed response chunk.
@@ -878,6 +911,28 @@ interface ExtractedUserMessage {
   content: string;
   /** File metadata extracted from image_url parts */
   files?: FileMetadata[];
+}
+
+/**
+ * Resolve the user text to persist/embed for a send.
+ *
+ * Single source of truth for the `storedUserContent` override contract: when a
+ * caller passes `storedUserContent`, that text is used for the DB row, the
+ * stored embedding, and the tool-selection embedding — so injected wire context
+ * (e.g. recalled memory, a precise timestamp) stays out of storage/history while
+ * remaining in the wire `messages`. When `storedUserContent` is `undefined`, we
+ * fall back to the extracted last-user text (prior behavior). An empty string is
+ * a real override (persists empty content), NOT a fallback request — hence `??`,
+ * not `||`.
+ *
+ * @param storedUserContent - Caller override, or undefined to fall back
+ * @param extractedContent - The last-user text extracted from `messages`
+ */
+export function resolveStoredUserContent(
+  storedUserContent: string | undefined,
+  extractedContent: string
+): string {
+  return storedUserContent ?? extractedContent;
 }
 
 /**

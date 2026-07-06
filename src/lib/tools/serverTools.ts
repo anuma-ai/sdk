@@ -592,14 +592,86 @@ function clientToolToCompletionsFormat(
  * @param clientTools - Client tools with optional executors
  * @param apiType - API type to format tools for
  */
+/** Anthropic tool-search tool type (regex variant). Non-deferred; leads the tools array when
+ * defer-loading is enabled. ai-portal forwards it verbatim (#1284) and Anthropic uses it to load
+ * deferred tool definitions on demand. Internal — not exported (no external consumer). */
+const TOOL_SEARCH_TOOL_TYPE = "tool_search_tool_regex_20251119";
+/** The tool-search tool's `name` must match the variant exactly — Anthropic rejects anything else
+ * ("Input should be 'tool_search_tool_regex'", confirmed via docs + a direct Messages API test).
+ * Bound to the regex variant alongside the type above; a future bm25 variant pairs
+ * `tool_search_tool_bm25_*` with name `tool_search_tool_bm25`. (Was "tool_search", which Anthropic 400s.) */
+const TOOL_SEARCH_TOOL_NAME = "tool_search_tool_regex";
+
+/**
+ * Opt-in defer-loading config for {@link mergeTools}. OFF by default — when absent or `enabled:false`,
+ * tools are emitted exactly as today (no ordering change, no defer flags, no search tool). When ON, the
+ * server tools are emitted as the full catalog in a deterministic, byte-stable order every turn:
+ * `[tool-search] → [hot, in hotToolNames order] → [deferred, name-sorted]`, with `defer_loading:true` on
+ * every tool that is neither hot nor the search tool. Deferred tools keep their FULL definition (so
+ * Anthropic's matcher can index them); they are not reduced to names. This stabilizes the leading `tools`
+ * prefix so Anthropic prompt caching can hit across turns.
+ */
+export interface DeferLoadingConfig {
+  enabled: boolean;
+  /** Server-tool names to keep non-deferred (besides the tool-search tool), in priority order. */
+  hotToolNames: readonly string[];
+}
+
+// Deterministic, locale-independent name order (codepoint) so the deferred block is byte-identical
+// across turns regardless of the runtime's locale.
+function byNameAscending(a: ServerTool, b: ServerTool): number {
+  if (a.name < b.name) return -1;
+  if (a.name > b.name) return 1;
+  return 0;
+}
+
+// formatServerToolsWithDefer emits the full server catalog in defer-loading shape:
+// [tool-search (non-deferred)] → [hot (non-deferred, config order)] → [deferred (name-sorted, full defs
+// + defer_loading:true)].
+function formatServerToolsWithDefer(
+  serverTools: ServerTool[],
+  config: DeferLoadingConfig,
+  apiType: "responses" | "completions"
+): Array<Record<string, unknown>> {
+  // No catalog → no deferred tools to load → no reason to prepend tool_search. Returning [] here also
+  // means an empty server catalog (e.g. the skip-storage / completions path that never fetched it) sends
+  // no useless search tool — it falls through to client-tools-only in mergeTools.
+  if (serverTools.length === 0) {
+    return [];
+  }
+  const fmt = apiType === "completions" ? toCompletionsFormat : toResponsesFormat;
+  const hotSet = new Set(config.hotToolNames);
+  // Dedup hotToolNames (a Set preserves insertion order) so a repeated name can't emit the same tool
+  // definition twice — duplicate tool names break some providers and the byte-stable prefix.
+  const hot = [...hotSet]
+    .map((name) => serverTools.find((t) => t.name === name))
+    .filter((t): t is ServerTool => t !== undefined);
+  const deferred = serverTools.filter((t) => !hotSet.has(t.name)).sort(byNameAscending);
+  const searchTool: Record<string, unknown> = {
+    type: TOOL_SEARCH_TOOL_TYPE,
+    name: TOOL_SEARCH_TOOL_NAME,
+  };
+  return [
+    searchTool,
+    ...hot.map((t) => fmt(t) as Record<string, unknown>),
+    ...deferred.map((t) => ({ ...(fmt(t) as Record<string, unknown>), defer_loading: true })),
+  ];
+}
+
 export function mergeTools(
   serverTools: ServerTool[],
   clientTools: Array<LlmapiChatCompletionTool | ToolConfig> | undefined,
-  apiType: "responses" | "completions" = "responses"
+  apiType: "responses" | "completions" = "responses",
+  deferConfig?: DeferLoadingConfig
 ): Array<Record<string, unknown>> {
-  // Format server tools based on API type
-  const formattedServerTools =
-    apiType === "completions"
+  // Defer-loading is RESPONSES-ONLY. On the completions path the flat Anthropic tool-search entry is
+  // rewritten into a normal `function` tool by toolsToApiFormat (its special type dropped), and ai-portal
+  // can't carry the type on chat/completions either — so defer can't work end-to-end there. On completions
+  // (the responses circuit-breaker fallback) we use today's normal formatting; defer applies on responses.
+  const useDefer = deferConfig?.enabled === true && apiType === "responses";
+  const formattedServerTools = useDefer
+    ? formatServerToolsWithDefer(serverTools, deferConfig, apiType)
+    : apiType === "completions"
       ? serverTools.map(toCompletionsFormat)
       : serverTools.map(toResponsesFormat);
 
@@ -613,7 +685,10 @@ export function mergeTools(
       ? clientTools.map(clientToolToResponsesFormat)
       : clientTools.map(clientToolToCompletionsFormat);
 
-  if (serverTools.length === 0) {
+  // Guard on the FORMATTED array, not the raw serverTools: in defer mode formatServerToolsWithDefer
+  // prepends the tool-search tool, so formattedServerTools is non-empty even when serverTools is empty
+  // — returning only client tools here would drop that search tool.
+  if (formattedServerTools.length === 0) {
     return formattedClientTools;
   }
 
@@ -987,6 +1062,29 @@ export const BUILT_IN_TOOL_SETS: ToolSet[] = [
     name: "notion",
     members: ["notion-search", "notion-fetch", "notion-create-pages", "notion-update-page"],
     anchors: ["notion-search", "notion-create-pages"],
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "x",
+    members: ["x_get_me", "x_get_my_posts"],
+    anchors: ["x_get_me", "x_get_my_posts"],
+    anchorMinSimilarity: 0.53,
+  },
+  {
+    name: "slack",
+    members: [
+      "slack_get_me",
+      "slack_list_channels",
+      "slack_search_messages",
+      "slack_list_users",
+      "slack_get_channel_history",
+      "slack_get_thread_replies",
+      "slack_post_message",
+    ],
+    // search is the primary entry point; list_channels also anchors so "what
+    // channels am I in" reaches the set without going through search. post_message
+    // anchors too so post-only prompts surface the write tool past the cutoff.
+    anchors: ["slack_search_messages", "slack_list_channels", "slack_post_message"],
     anchorMinSimilarity: 0.53,
   },
 ];
@@ -1459,6 +1557,12 @@ export interface SelectServerToolsForPromptOptions {
   embeddingModel?: string;
   /** Cache expiration in ms for the server-tools catalog fetch. */
   cacheExpirationMs?: number;
+  /**
+   * Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
+   * static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
+   * for mergeTools + tool-search. Omit/disabled → today's filtered selection.
+   */
+  deferLoading?: DeferLoadingConfig;
 }
 
 /**
@@ -1490,8 +1594,15 @@ export interface SelectServerToolsForPromptOptions {
 export async function selectServerToolsForPrompt(
   options: SelectServerToolsForPromptOptions
 ): Promise<ServerTool[]> {
-  const { prompt, serverToolsFilter, getToken, baseUrl, embeddingModel, cacheExpirationMs } =
-    options;
+  const {
+    prompt,
+    serverToolsFilter,
+    getToken,
+    baseUrl,
+    embeddingModel,
+    cacheExpirationMs,
+    deferLoading,
+  } = options;
 
   if (serverToolsFilter === undefined) return [];
   if (Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0) return [];
@@ -1503,6 +1614,10 @@ export async function selectServerToolsForPrompt(
     return [];
   }
   if (allServerTools.length === 0) return [];
+
+  // Defer-loading: mirror useChatStorage's responses send path — emit the FULL catalog (no semantic/
+  // static filtering), since mergeTools orders + flags it and tool-search loads the rest on demand.
+  if (deferLoading?.enabled) return allServerTools;
 
   if (typeof serverToolsFilter === "function") {
     // Mirror useChatStorage's short-prompt gate: below

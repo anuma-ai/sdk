@@ -15,6 +15,7 @@
  * than three near-duplicates of the same theme.
  */
 
+import { getLogger } from "../logger.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
 
 interface MMRItem {
@@ -35,6 +36,16 @@ interface MMRItem {
  */
 export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: number = 0.5): T[] {
   if (candidates.length === 0 || k <= 0) return [];
+
+  // Guard λ to [0, 1]. NaN makes every `mmrScore > bestScore` comparison false
+  // (so the loop silently returns the input order); λ>1 flips the diversity
+  // term negative (rewarding near-duplicates). Clamp + log rather than emit a
+  // silently wrong ranking.
+  let lambdaSafe = lambda;
+  if (!Number.isFinite(lambda) || lambda < 0 || lambda > 1) {
+    getLogger().warn("[memory/mmr] invalid lambda; clamping to [0,1]", { lambda });
+    lambdaSafe = Number.isNaN(lambda) ? 0.5 : Math.min(1, Math.max(0, lambda));
+  }
 
   const remaining = [...candidates];
   const selected: T[] = [];
@@ -59,7 +70,13 @@ export function applyMMR<T extends MMRItem>(candidates: T[], k: number, lambda: 
       // First pick has nothing to fold against yet — apply a 0 penalty so
       // the round-0 selection is pure relevance.
       const maxSim = selected.length === 0 ? 0 : maxSimVs[i];
-      const mmrScore = lambda * cand.score - (1 - lambda) * maxSim;
+      // Coerce a non-finite relevance score to 0. `cand.score` comes from the
+      // fused RRF map or the CE reranker; a NaN there makes `mmrScore` NaN, and
+      // since `NaN > bestScore` is always false the candidate is silently never
+      // selected — the exact "silently dropped" failure the lambda clamp above
+      // guards against, just on the term that actually carries the NaN.
+      const score = Number.isFinite(cand.score) ? cand.score : 0;
+      const mmrScore = lambdaSafe * score - (1 - lambdaSafe) * maxSim;
       if (mmrScore > bestScore) {
         bestScore = mmrScore;
         bestIdx = i;

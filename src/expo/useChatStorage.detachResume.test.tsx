@@ -39,6 +39,7 @@ vi.mock("../lib/chat/resumeStream", async (importOriginal) => {
   return { ...orig, resumeStream: vi.fn() };
 });
 
+import { MCP_R2_DOMAIN } from "../clientConfig";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { resumeStream as libResumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
 import { useChatStorage } from "./useChatStorage";
@@ -283,6 +284,58 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(assistantRows[0].uniqueId).toBe(rowId);
     expect(assistantRows[0].content).toBe("partial answer, now fully complete");
     expect(assistantRows[0].wasStopped).toBeFalsy();
+  });
+
+  it("reconciles citation sources from tool_call_events on a resumed completion (#639)", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_resume_sources",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    await detachSend(result, "conv_resume_sources", "searching…", "inf-sources");
+
+    // Clean resume whose replayed data carries search citations via
+    // tool_call_events — the buffered stream included them, exactly like the
+    // live send path. One result is an MCP R2 image URL that must be dropped
+    // (persisted as media, never a citation source).
+    mockResumeStream.mockResolvedValueOnce({
+      data: {
+        ...responsesShape("here is what I found"),
+        tool_call_events: [
+          {
+            id: "evt_search",
+            name: "AnumaSearchMCP-text_search",
+            output: JSON.stringify({
+              results: [
+                { title: "Anuma Docs", url: "https://docs.anuma.ai/memory" },
+                { title: "Generated image", url: `https://${MCP_R2_DOMAIN}/cat.png` },
+              ],
+            }),
+          },
+        ],
+      },
+      error: null,
+      interrupted: false,
+    } as never);
+
+    await act(async () => {
+      await result.current.resumeStream();
+    });
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_resume_sources")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    const urls = (assistantRows[0].sources ?? []).map((s) => s.url);
+    // Citation from tool_call_events is now persisted (was dropped before #639).
+    expect(urls).toContain("https://docs.anuma.ai/memory");
+    // R2 image URL is filtered out.
+    expect(urls.some((u) => u?.includes(MCP_R2_DOMAIN))).toBe(false);
   });
 
   it("finalizes the stowed partial as stopped on a 410 (StreamExpiredError) and clears the handle", async () => {

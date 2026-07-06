@@ -53,6 +53,7 @@ export {
   type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
+  resolveStoredUserContent,
   type SearchSource,
   type ServerToolsFilter,
   type ServerToolsFilterFn,

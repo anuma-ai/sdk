@@ -69,7 +69,7 @@ describe("extractFacts", () => {
     expect(result[0].entities).toEqual(["Biscuit"]);
   });
 
-  it("filters out candidates with hallucinated source IDs", async () => {
+  it("keeps a candidate with hallucinated source IDs, attributing it to the last user message (H4)", async () => {
     const candidates = {
       candidates: [
         {
@@ -90,8 +90,14 @@ describe("extractFacts", () => {
       apiKey: "k",
       fetchFn: mockFetch(JSON.stringify(candidates)),
     });
-    expect(result).toHaveLength(1);
-    expect(result[0].content).toBe("Real fact");
+    // Both kept — provenance is secondary to not losing the memory. The valid
+    // id is preserved; the unresolvable one falls back to the last user message.
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ content: "Real fact", sourceMessageIds: ["m1"] });
+    expect(result[1]).toMatchObject({
+      content: "Hallucinated provenance",
+      sourceMessageIds: ["m3"],
+    });
   });
 
   it("filters out candidates exceeding the 200-char content cap", async () => {
@@ -131,11 +137,13 @@ describe("extractFacts", () => {
 
   it("returns [] on network error (doesn't throw)", async () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error("ECONNRESET")) as unknown as typeof fetch;
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    // backoffMs: () => 0 — retries (now owned by callPortalJsonCompletion) run
+    // without real delay.
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
     expect(result).toEqual([]);
   });
 
-  it("retries once on a failed/empty completion, then succeeds", async () => {
+  it("retries a transient empty completion, then succeeds", async () => {
     // First call: empty completion content (null) → retry. Second: real facts.
     const candidates = {
       candidates: [
@@ -157,7 +165,7 @@ describe("extractFacts", () => {
         ok: true,
         json: async () => ({ choices: [{ message: { content: JSON.stringify(candidates) } }] }),
       }) as unknown as typeof fetch;
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
     expect(fetchFn).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("Lives in Portland");
@@ -166,14 +174,29 @@ describe("extractFacts", () => {
   it("does not retry a successful empty result ({candidates: []})", async () => {
     // A legit "no durable facts" is non-null and must not trigger a retry.
     const fetchFn = mockFetch(JSON.stringify({ candidates: [] }));
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
     expect(fetchFn).toHaveBeenCalledTimes(1);
     expect(result).toEqual([]);
   });
 
-  it("gives up after the retry when both attempts fail", async () => {
+  it("gives up after exhausting retries when all attempts fail", async () => {
+    // Retry is owned by callPortalJsonCompletion (default 3 attempts).
     const fetchFn = mockFetch("not-valid-json");
-    const result = await extractFacts(messages, { apiKey: "k", fetchFn });
+    const result = await extractFacts(messages, { apiKey: "k", fetchFn, backoffMs: () => 0 });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(result).toEqual([]);
+  });
+
+  it("respects a caller-supplied maxAttempts bound", async () => {
+    // A worker behind an in-flight-turn guard can cap retries so repeated
+    // failures don't hold the turn open.
+    const fetchFn = mockFetch("not-valid-json");
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn,
+      maxAttempts: 2,
+      backoffMs: () => 0,
+    });
     expect(fetchFn).toHaveBeenCalledTimes(2);
     expect(result).toEqual([]);
   });
@@ -196,7 +219,7 @@ describe("extractFacts", () => {
     expect(result[0].type).toBe("other");
   });
 
-  it("requires non-empty sourceMessageIds (skips bare facts)", async () => {
+  it("keeps a bare fact (empty sourceMessageIds), attributing it to the last user message (H4)", async () => {
     const candidates = {
       candidates: [
         { content: "Foo", type: "other", confidence: 0.9, sourceMessageIds: [] },
@@ -207,8 +230,9 @@ describe("extractFacts", () => {
       apiKey: "k",
       fetchFn: mockFetch(JSON.stringify(candidates)),
     });
-    expect(result).toHaveLength(1);
-    expect(result[0].content).toBe("Bar");
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ content: "Foo", sourceMessageIds: ["m3"] });
+    expect(result[1]).toMatchObject({ content: "Bar", sourceMessageIds: ["m1"] });
   });
 
   it("clamps confidence to [0, 1]", async () => {
@@ -267,6 +291,7 @@ describe("extractAndRetain", () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].content).toContain("Biscuit");
     expect(result.results).toHaveLength(1);
+    expect(result.outcome).toBe("extracted");
     expect(vi.mocked(retain)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(retain)).toHaveBeenCalledWith(
       "Has a golden retriever named Biscuit",
@@ -276,6 +301,63 @@ describe("extractAndRetain", () => {
         sourceChunkIds: ["m1"],
       })
     );
+  });
+
+  it("reports outcome 'no-facts' on a legitimate empty extraction (H3)", async () => {
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify({ candidates: [] })) } }
+    );
+    expect(result.outcome).toBe("no-facts");
+    expect(result.candidates).toHaveLength(0);
+    expect(vi.mocked(retain)).not.toHaveBeenCalled();
+  });
+
+  it("reports outcome 'empty-after-retry' when the extractor fails empty (H3)", async () => {
+    // Malformed JSON on every attempt → exhausted-retry null → a *failure*,
+    // distinct from a legit no-facts result.
+    const onExhaustedEmpty = vi.fn();
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      {
+        extract: {
+          apiKey: "k",
+          fetchFn: mockFetch("not-valid-json"),
+          maxAttempts: 1,
+          backoffMs: () => 0,
+          onExhaustedEmpty,
+        },
+      }
+    );
+    expect(result.outcome).toBe("empty-after-retry");
+    expect(onExhaustedEmpty).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(retain)).not.toHaveBeenCalled();
+  });
+
+  it("reports outcome 'dropped-after-redaction' when PII restore drops all facts (H3)", async () => {
+    // Extractor found a fact, but its placeholder was never minted (the message
+    // had unrelated PII) → unresolved → dropped before retain. Must NOT look
+    // like a quiet no-facts turn.
+    const llm = {
+      candidates: [
+        {
+          content: "User SSN is [SSN_9]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["pm1"],
+        },
+      ],
+    };
+    const result = await extractAndRetain(
+      [{ id: "pm1", role: "user", content: "my email is bob@example.com" }],
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(llm)), piiRedaction: true } }
+    );
+    expect(result.outcome).toBe("dropped-after-redaction");
+    expect(result.candidates).toHaveLength(0);
+    expect(vi.mocked(retain)).not.toHaveBeenCalled();
   });
 
   it("survives a per-fact retain failure and continues", async () => {
@@ -593,6 +675,54 @@ describe("extractFacts — PII redaction", () => {
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
     expect(result[0].entities).toEqual(["jane@example.com"]);
+  });
+
+  it("fires onCandidatesDropped when redaction drops every extracted fact (H3)", async () => {
+    // The extractor found a fact, but its content references a placeholder that
+    // was never minted (model mangled it) → unresolved → dropped before retain.
+    const llm = {
+      candidates: [
+        {
+          content: "User SSN is [SSN_9]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const onCandidatesDropped = vi.fn();
+    const result = await extractFacts(piiMessages, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+      onCandidatesDropped,
+    });
+    expect(result).toHaveLength(0);
+    expect(onCandidatesDropped).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT fire onCandidatesDropped when a fact survives redaction", async () => {
+    const llm = {
+      candidates: [
+        {
+          content: "User's email is [EMAIL_1]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const { fetchFn } = capturingFetch(JSON.stringify(llm));
+    const onCandidatesDropped = vi.fn();
+    const result = await extractFacts(piiMessages, {
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: true,
+      onCandidatesDropped,
+    });
+    expect(result).toHaveLength(1);
+    expect(onCandidatesDropped).not.toHaveBeenCalled();
   });
 
   it("de-anonymizes a BRACKET-DROPPED echo back to the real value (vault-pollution fix)", async () => {

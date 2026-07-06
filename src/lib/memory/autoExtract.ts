@@ -63,8 +63,8 @@ A "durable fact" is something the user shared about themselves that should still
 - "Working on a Rust side project"
 - "Prefers async communication over meetings"
 - "Has a golden retriever named Biscuit"
-- "Switched from coffee to matcha in September 2025"
-- "Lives in San Francisco, moved from Portland in November 2025"
+- "Prefers matcha over coffee"
+- "Lives in San Francisco (since November 2025)"
 
 NOT durable — do NOT extract:
 - Search queries or questions ("what time does the gym open?")
@@ -73,6 +73,7 @@ NOT durable — do NOT extract:
 - Things the user is asking the assistant to do ("draft an email")
 - Facts that are about the assistant or the world, not about the user
 - Information already framed as past-tense gossip about other people
+- Vague or non-committal intentions ("I should work out more at some point", "I really need to read more", "maybe I'll learn guitar"). Only extract a plan when it's concrete and committed ("signed up for the Chicago marathon in October").
 
 For each durable fact, output:
 - content: a short, self-contained statement, third-person, present-tense ("Lives in San Francisco" not "I live in San Francisco")
@@ -87,7 +88,7 @@ For each durable fact, output:
     - null   for facts with no temporal anchor ("favorite color is blue", "speaks Spanish")
   Always use absolute YYYY-MM-DD; never write "yesterday" / "last week" / "next month".
 
-If a fact UPDATES a prior state ("I moved to SF in November"), still emit it - the resolver decides what to do.
+When the user describes a CHANGE, extract only the NEW current state — not the prior state they're replacing. "I left Google, I'm at Riverbend now" → emit "Works at Riverbend" only, NOT "Previously worked at Google". "Moved from Portland to SF" → emit "Lives in San Francisco" only. The resolver supersedes the old memory; don't re-record it as a standalone fact.
 
 If no durable facts were shared, return {"candidates": []}. Empty results are fine - most turns won't have any.
 
@@ -129,6 +130,28 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
   /**
+   * Max attempts for the extraction call on a transient failure (default 3).
+   * Lower it to bound how long extraction can hold a turn open — e.g. a worker
+   * that runs extraction behind an in-flight-turn guard can pass `2` to keep
+   * repeated failures from delaying later turns.
+   */
+  maxAttempts?: number;
+  /** Per-attempt timeout (ms) for the extraction call. Defaults to the portal
+   * helper's 60s. Combine with {@link maxAttempts} to cap the total time budget. */
+  timeoutMs?: number;
+  /**
+   * Absolute wall-clock budget (ms) across ALL extraction attempts incl. backoff.
+   * When set, the loop stops before an attempt that would exceed it, so worst-case
+   * latency is bounded rather than `maxAttempts × timeoutMs`.
+   */
+  totalTimeoutMs?: number;
+  /**
+   * Override the retry backoff (ms) for a given 1-based attempt index. The
+   * extraction call retries transient failures internally (default exponential
+   * backoff); pass `() => 0` to retry without delay (useful for tests).
+   */
+  backoffMs?: (attempt: number) => number;
+  /**
    * When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
    * conversation transcript is replaced with tagged placeholders before the
    * extraction call, and the returned facts + entities are de-anonymized so the
@@ -143,6 +166,25 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * as well — the two are independent switches.
    */
   piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Called when the extraction LLM returned no usable result after exhausting
+   * its retries (empty/malformed completion, network/HTTP error) — i.e. a
+   * *failure* that drops the turn's facts, as opposed to a legitimate
+   * `{candidates: []}` "nothing durable here". Lets callers distinguish a
+   * silently-degrading extractor from quiet turns (the two are otherwise
+   * indistinguishable). See {@link extractAndRetain}'s `outcome`.
+   */
+  onExhaustedEmpty?: () => void;
+  /**
+   * Called when the extractor DID produce candidates but PII de-anonymization
+   * dropped every one of them — the model mangled its placeholders (so they
+   * can't be restored to real values) or restoring the values blew the length
+   * cap. These drops happen before `retain()`, so `failedCount` can't see them,
+   * and the turn would otherwise masquerade as a quiet `no-facts` result. Lets
+   * H3's `outcome` surface `dropped-after-redaction` so a rising PII-drop rate
+   * (i.e. redaction silently eating facts) is alarmable.
+   */
+  onCandidatesDropped?: () => void;
 }
 
 /**
@@ -153,15 +195,12 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
  *
  * A null from `callPortalJsonCompletion` means a *failure* (empty completion,
  * malformed JSON, network/HTTP error) — distinct from a successful
- * `{candidates: []}`, which parses to a non-null object. Unlike consolidation
- * (which degrades to a create), a failed extraction silently drops the whole
- * turn's memories, so we retry once before giving up. Reasoning-class models
- * like gpt-oss can occasionally return empty content; measured 0/20 on this
- * extraction prompt, but the failure mode is silent data loss, so the cheap
- * retry is worth it.
+ * `{candidates: []}`, which parses to a non-null object. A failed extraction
+ * silently drops the whole turn's memories, so transient failures matter:
+ * `callPortalJsonCompletion` retries them internally with backoff (default 3
+ * attempts), so a one-off empty/malformed completion from a reasoning-class
+ * model doesn't lose the turn. Only an exhausted-retry null reaches here.
  */
-const EXTRACT_MAX_ATTEMPTS = 2;
-
 export async function extractFacts(
   messages: AutoExtractMessage[],
   options: ExtractFactsOptions
@@ -178,35 +217,63 @@ export async function extractFacts(
       (m) => `[${m.id}] ${m.role}: ${redactor ? redactor.redactText(m.content).text : m.content}`
     )
     .join("\n");
-  let parsed: unknown = null;
-  for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
-    parsed = await callPortalJsonCompletion({
-      ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
-      ...(options.getToken !== undefined && { getToken: options.getToken }),
-      ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
-      model: options.model ?? DEFAULT_MODEL,
-      systemPrompt: SYSTEM_PROMPT,
-      userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
-      tag: "memory/extract",
-      ...(options.fetchFn && { fetchFn: options.fetchFn }),
-    });
-    // A successful "no facts" response parses to {candidates: []} (non-null),
-    // so a null strictly signals a retryable failure, never a legit empty.
-    if (parsed !== null) break;
+  const parsed = await callPortalJsonCompletion({
+    ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+    ...(options.getToken !== undefined && { getToken: options.getToken }),
+    ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+    model: options.model ?? DEFAULT_MODEL,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage: `Recent conversation:\n${transcript}\n\nExtract durable user facts.`,
+    tag: "memory/extract",
+    ...(options.fetchFn && { fetchFn: options.fetchFn }),
+    ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
+    ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
+    ...(options.totalTimeoutMs !== undefined && { totalTimeoutMs: options.totalTimeoutMs }),
+    ...(options.backoffMs && { backoffMs: options.backoffMs }),
+  });
+  // A successful "no facts" response parses to {candidates: []} (non-null),
+  // so a null strictly signals failure after retries, never a legit empty.
+  if (parsed === null) {
+    options.onExhaustedEmpty?.();
+    return [];
   }
-  if (parsed === null) return [];
 
-  const candidates = validateCandidates(parsed, new Set(messages.map((m) => m.id)));
+  // H4: when a candidate's source ids are missing/mangled, fall back to the
+  // last user message in the window rather than dropping the fact (provenance
+  // is secondary to not losing the memory).
+  const fallbackSourceId = [...messages].reverse().find((m) => m.role === "user")?.id;
+  const candidates = validateCandidates(
+    parsed,
+    new Set(messages.map((m) => m.id)),
+    fallbackSourceId
+  );
   if (!redactor) return candidates;
-  // Restore real values in the extracted facts (content + entities) — the LLM
-  // saw placeholders, so its output references them. Then guard the output:
-  // - strip any entity that is still a placeholder the model hallucinated
-  //   (no mapping existed, so deAnonymize left it literal);
-  // - drop the whole fact when its content still carries a residual placeholder
-  //   (an unreliable fact built on an unresolved value), or when restoring real
-  //   values pushed it past MAX_CONTENT_LENGTH (validateCandidates capped the
-  //   shorter placeholder form). Both keep opaque tokens / over-cap text out of
-  //   the vault.
+  const restored = restoreCandidates(candidates, redactor);
+  // H3: the extractor found facts but de-anonymization dropped every one
+  // (mangled placeholders / over-cap after restore). That degradation is
+  // invisible to `failedCount` (it happens before retain) and would otherwise
+  // look like a quiet no-facts turn — surface it.
+  if (candidates.length > 0 && restored.length === 0) {
+    options.onCandidatesDropped?.();
+  }
+  return restored;
+}
+
+/**
+ * Restore real PII values in extracted facts (content + entities) — the LLM saw
+ * placeholders, so its output references them. Then guard the output:
+ * - strip any entity that is still a placeholder the model hallucinated
+ *   (no mapping existed, so deAnonymize left it literal);
+ * - drop the whole fact when its content still carries a residual placeholder
+ *   (an unreliable fact built on an unresolved value), or when restoring real
+ *   values pushed it past MAX_CONTENT_LENGTH (validateCandidates capped the
+ *   shorter placeholder form). Both keep opaque tokens / over-cap text out of
+ *   the vault.
+ */
+function restoreCandidates(
+  candidates: ExtractedCandidate[],
+  redactor: PiiRedactor
+): ExtractedCandidate[] {
   return candidates
     .map((c) => {
       const content = redactor.restoreForStorage(c.content);
@@ -229,6 +296,32 @@ export async function extractFacts(
 }
 
 /**
+ * Outcome of the EXTRACTOR stage for a turn — independent of whether the
+ * subsequent `retain()` writes landed (that's `failedCount`):
+ * - `extracted`         — the extractor produced at least one candidate above
+ *                         the confidence floor. Whether those writes succeeded
+ *                         is reported separately by `failedCount` — so
+ *                         `extracted` + `failedCount > 0` means "found facts but
+ *                         writes are failing", which is more signal than
+ *                         collapsing it into `no-facts` would give.
+ * - `no-facts`          — the extractor ran fine but found nothing durable.
+ * - `empty-after-retry` — the extractor returned empty/malformed after
+ *                         exhausting retries (a *failure*). Distinguishing this
+ *                         from `no-facts` is what makes a silently-degrading
+ *                         extractor alarmable rather than invisible.
+ * - `dropped-after-redaction` — the extractor found facts but PII
+ *                         de-anonymization dropped every one (mangled
+ *                         placeholders / over-cap after restore), before retain.
+ *                         A degradation `failedCount` can't see; would otherwise
+ *                         look like `no-facts`.
+ */
+export type ExtractOutcome =
+  | "extracted"
+  | "no-facts"
+  | "empty-after-retry"
+  | "dropped-after-redaction";
+
+/**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
  * enabled. The resolver path (decide create/merge/update via a second LLM
  * call against the existing vault) is deferred — the auto-merge inside
@@ -236,7 +329,8 @@ export async function extractFacts(
  *
  * Returns the candidates that survived validation along with the retain
  * result for each (which captures whether the fact was created, merged,
- * or skipped).
+ * or skipped), plus an `outcome` summarizing why the turn did/didn't produce
+ * facts (see {@link ExtractOutcome}).
  */
 export async function extractAndRetain(
   messages: AutoExtractMessage[],
@@ -272,6 +366,7 @@ export async function extractAndRetain(
   candidates: ExtractedCandidate[];
   results: RetainResult[];
   failedCount: number;
+  outcome: ExtractOutcome;
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
@@ -289,7 +384,25 @@ export async function extractAndRetain(
         }
       : undefined;
 
-  const candidates = await extractFacts(messages, options.extract);
+  // Detect degraded-empty results so the caller can tell a degrading extractor
+  // from a genuinely quiet turn: `exhaustedEmpty` = the LLM call failed after
+  // retries; `droppedAfterRedaction` = facts were found but PII restore dropped
+  // them all. Chain any caller-supplied hooks.
+  let exhaustedEmpty = false;
+  let droppedAfterRedaction = false;
+  const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
+  const callerOnCandidatesDropped = options.extract.onCandidatesDropped;
+  const candidates = await extractFacts(messages, {
+    ...options.extract,
+    onExhaustedEmpty: () => {
+      exhaustedEmpty = true;
+      callerOnExhaustedEmpty?.();
+    },
+    onCandidatesDropped: () => {
+      droppedAfterRedaction = true;
+      callerOnCandidatesDropped?.();
+    },
+  });
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
@@ -333,14 +446,26 @@ export async function extractAndRetain(
     log.warn(`[memory/extract] ${failedWrites} of ${filtered.length} candidates failed to retain`);
   }
 
-  return { candidates: succeededCandidates, results, failedCount: failedWrites };
+  const outcome: ExtractOutcome = exhaustedEmpty
+    ? "empty-after-retry"
+    : filtered.length > 0
+      ? "extracted"
+      : droppedAfterRedaction
+        ? "dropped-after-redaction"
+        : "no-facts";
+
+  return { candidates: succeededCandidates, results, failedCount: failedWrites, outcome };
 }
 
 // ---------------------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------------------
 
-function validateCandidates(parsed: unknown, validIds: Set<string>): ExtractedCandidate[] {
+function validateCandidates(
+  parsed: unknown,
+  validIds: Set<string>,
+  fallbackSourceId?: string
+): ExtractedCandidate[] {
   if (typeof parsed !== "object" || parsed === null) return [];
   const candidates = (parsed as { candidates?: unknown }).candidates;
   if (!Array.isArray(candidates)) return [];
@@ -362,10 +487,19 @@ function validateCandidates(parsed: unknown, validIds: Set<string>): ExtractedCa
         ? (obj.type as FactType)
         : "other";
 
-    const sourceMessageIds = Array.isArray(obj.sourceMessageIds)
+    const validSourceIds = Array.isArray(obj.sourceMessageIds)
       ? obj.sourceMessageIds.filter((s): s is string => typeof s === "string" && validIds.has(s))
       : [];
-    if (sourceMessageIds.length === 0) continue;
+    // H4: don't drop a fact whose provenance is missing/mangled (the model
+    // attributed it to an id outside the window, or omitted it). Attribute to
+    // the last user message in the window as a best-effort, or leave empty —
+    // keeping the memory matters more than perfect provenance.
+    const sourceMessageIds =
+      validSourceIds.length > 0
+        ? validSourceIds
+        : fallbackSourceId !== undefined
+          ? [fallbackSourceId]
+          : [];
 
     const entities = Array.isArray(obj.entities)
       ? obj.entities.filter((s): s is string => typeof s === "string")

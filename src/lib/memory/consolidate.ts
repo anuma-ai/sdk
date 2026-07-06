@@ -50,6 +50,20 @@ import type { ConsolidationFallbackReason } from "./types.js";
 // above were measured with response_format on, matching production.
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
 
+// Retry budget for TRANSIENT consolidation failures. A transient blip
+// (network/timeout/5xx/429/empty completion) that degrades straight to create
+// is NOT low-cost: the paraphrased re-extractions consolidation exists to
+// catch sit at cosine ~0.7–0.8, below the 0.85 auto-merge floor, so a spurious
+// create leaves a permanent near-duplicate that does NOT collapse at read time
+// or self-heal via proof_count (different wording → different embedding). 3
+// attempts = up to two cheap transient-only retries; the happy path still
+// resolves in one attempt and the schema-violation path stays terminal (no
+// retry).
+const DEFAULT_CONSOLIDATE_ATTEMPTS = 3;
+// Bound worst-case retain latency on a hanging portal — consolidation is a
+// background quality stage, so cap it well under the extractor's 60s budget.
+const DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS = 20_000;
+
 const SYSTEM_PROMPT = `You consolidate a new memory against existing memories from the same user.
 
 A "memory" is a self-contained natural-language fact about the user. Multiple memories about the same EXACT FACET (the same dimension of the same subject) should never coexist — they should be merged into one. Different facets on the same subject (e.g. user's dog's name vs user's dog's age) are SEPARATE memories.
@@ -113,6 +127,25 @@ interface ConsolidateOptions extends PortalLlmAuth {
   model?: string;
   /** Notified on each degraded fallback. See `RetainOptions.consolidateOptions.onFallback`. */
   onFallback?: (reason: ConsolidationFallbackReason) => void;
+  /**
+   * Max portal attempts on TRANSIENT failure (network/timeout/5xx/429/empty
+   * completion). Defaults to {@link DEFAULT_CONSOLIDATE_ATTEMPTS}. Terminal
+   * failures (400/401/403/404, auth, malformed-JSON schema violation) never
+   * retry — they degrade to create immediately regardless of this value.
+   */
+  maxAttempts?: number;
+  /**
+   * Absolute wall-clock budget across all retries, in ms. Keeps a hanging
+   * portal from holding retain open ~maxAttempts× the per-attempt timeout.
+   * Defaults to {@link DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS}.
+   */
+  totalTimeoutMs?: number;
+  /**
+   * Backoff before each retry, in ms, given the just-failed 1-based attempt.
+   * Defaults to the portal helper's exponential+jitter schedule. Tests pass
+   * `() => 0` for instant retries (same escape hatch portalLlm.ts exposes).
+   */
+  backoffMs?: (attempt: number) => number;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
   /**
@@ -169,6 +202,15 @@ export async function consolidateMemory(
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
       tag: "memory/consolidate",
+      // Retry TRANSIENT failures only (network/timeout/5xx/429/empty) before
+      // degrading to create — a transient blip would otherwise leave a
+      // permanent below-floor paraphrase that never self-heals (see
+      // DEFAULT_CONSOLIDATE_ATTEMPTS). The happy path still resolves in one
+      // attempt; terminal failures (400/auth) and schema violations never
+      // retry. A total budget keeps a hanging portal from stalling retain.
+      maxAttempts: options.maxAttempts ?? DEFAULT_CONSOLIDATE_ATTEMPTS,
+      totalTimeoutMs: options.totalTimeoutMs ?? DEFAULT_CONSOLIDATE_TOTAL_TIMEOUT_MS,
+      ...(options.backoffMs && { backoffMs: options.backoffMs }),
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
     });
   } catch (err) {

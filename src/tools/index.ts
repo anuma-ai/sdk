@@ -92,6 +92,10 @@ export { createChartTool } from "./chart";
 export type { DisplayPhoneCallOfferResult } from "./phoneCallOffer";
 export { createPhoneCallOfferTool } from "./phoneCallOffer";
 
+// Connector offer display tool
+export type { DisplayConnectorResult } from "./connectorOffer";
+export { createConnectorOfferTool } from "./connectorOffer";
+
 // Choice interaction tool
 export type { ChoiceOption } from "./choice";
 export { createChoiceTool } from "./choice";
@@ -158,6 +162,22 @@ export type {
   GmailTokenGetter,
 } from "./gmail";
 export { connectorMintErrorToToolResult, createGmailTools } from "./gmail";
+
+// X (Twitter) exports
+export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";
+export { createXTools } from "./x";
+
+// Slack exports
+export type {
+  SlackGetChannelHistoryArgs,
+  SlackGetThreadRepliesArgs,
+  SlackListChannelsArgs,
+  SlackListUsersArgs,
+  SlackPostMessageArgs,
+  SlackProxyCaller,
+  SlackSearchMessagesArgs,
+} from "./slack";
+export { createSlackTools } from "./slack";
 
 // Connector vault primitives
 export type {

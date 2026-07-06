@@ -48,6 +48,17 @@ describe("recencyMultiplier", () => {
     expect(recencyMultiplier(null, { noDateMultiplier: 0.0 })).toBe(0.0);
   });
 
+  it("treats an Invalid Date as missing (neutral, not NaN)", () => {
+    const invalid = new Date("not a date"); // getTime() === NaN
+    const result = recencyMultiplier(invalid, { now: NOW });
+    expect(result).toBe(0.5);
+    expect(Number.isNaN(result)).toBe(false);
+  });
+
+  it("treats an Invalid Date with a custom noDateMultiplier", () => {
+    expect(recencyMultiplier(new Date(NaN), { now: NOW, noDateMultiplier: 0.0 })).toBe(0.0);
+  });
+
   it("captures the Portland-vs-SF temporal margin", () => {
     // From the benchmark dataset: p19 (Portland) is from 2025-06-01,
     // p20 (SF relocation) is from 2025-11-15. Today (NOW) is 2026-05-04.

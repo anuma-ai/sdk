@@ -26,8 +26,10 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { readFile, writeFile } from "node:fs/promises";
-import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
+import { embedWithCache, loadEmbeddingCache, saveEmbeddingCache } from "./embeddingCache.js";
+import { pairForComparison } from "./comparison.js";
 import {
   rankVaultMemories,
   rankFusedVaultMemories,
@@ -37,7 +39,14 @@ import {
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import type { DecomposedQuery } from "../../../../src/lib/memoryVault/decomposeQuery.js";
 import { preloadReranker } from "../../../../src/lib/memory/reranker.js";
-import { precisionAtK, recallAtK, reciprocalRank, ndcgAtK } from "../metrics.js";
+import {
+  precisionAtK,
+  recallAtK,
+  reciprocalRank,
+  ndcgAtK,
+  bootstrapMeanCI,
+  pairedBootstrapDelta,
+} from "../metrics.js";
 import {
   VAULT_MEMORIES,
   BENCHMARK_QUERIES,
@@ -62,6 +71,8 @@ const { values: args } = parseArgs({
     max: { type: "string", short: "m" },
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
+    compare: { type: "string" },
+    "refresh-embeddings": { type: "boolean", default: false },
     ranker: { type: "string", default: "cosine" },
     "recency-alpha": { type: "string" },
     rerank: { type: "boolean", default: false },
@@ -248,6 +259,11 @@ function mean(values: number[]): number {
 function formatPct(value: number, width: number): string {
   return (value * 100).toFixed(1).padStart(width) + "%";
 }
+
+// Frozen embedding cache: pins query + memory vectors by text so an A/B ranker
+// comparison scores against identical embeddings instead of run-to-run jitter.
+// Extracted to ./embeddingCache.ts so its load/save/invalidation is unit-tested;
+// see loadEmbeddingCache / saveEmbeddingCache / embedWithCache there.
 
 // ---------------------------------------------------------------------------
 // Metric helpers (ranking violation is benchmark-specific, not in metrics.ts)
@@ -449,10 +465,17 @@ async function main() {
     queries = queries.slice(0, maxCount);
   }
 
+  // Resolve to the same model generateEmbeddings actually calls, so the cache
+  // auto-invalidates if DEFAULT_API_EMBEDDING_MODEL changes (keying on a literal
+  // "default" would silently reuse stale vectors after a model bump).
+  const cacheModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
+  const embeddingCache = await loadEmbeddingCache(cacheModel, !!args["refresh-embeddings"]);
+
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
-  const memoryEmbeddings = await generateEmbeddings(
+  const { vectors: memoryEmbeddings, misses: memMisses } = await embedWithCache(
     VAULT_MEMORIES.map((m) => m.content),
-    embeddingOptions
+    embeddingOptions,
+    embeddingCache
   );
   const embeddingMap = new Map<string, number[]>();
   for (let i = 0; i < VAULT_MEMORIES.length; i++) {
@@ -498,10 +521,24 @@ async function main() {
       subQueriesSeen.size > 0 ? ` + ${subQueriesSeen.size} sub-queries` : ""
     }...`
   );
-  const allEmbeddings = await generateEmbeddings(allQueryTexts, embeddingOptions);
+  const { vectors: allEmbeddings, misses: qMisses } = await embedWithCache(
+    allQueryTexts,
+    embeddingOptions,
+    embeddingCache
+  );
   const queryEmbeddingMap = new Map<string, number[]>();
   for (let i = 0; i < allQueryTexts.length; i++) {
     queryEmbeddingMap.set(allQueryTexts[i], allEmbeddings[i]);
+  }
+
+  // Persist any newly-embedded texts so subsequent config runs reuse identical
+  // vectors. A run with 0 misses is fully deterministic (frozen embeddings).
+  const totalMisses = memMisses + qMisses;
+  if (totalMisses > 0) {
+    await saveEmbeddingCache(embeddingCache, cacheModel);
+    console.log(`Embedding cache: ${totalMisses} new, ${embeddingCache.size} total (saved).`);
+  } else {
+    console.log(`Embedding cache: 0 misses — frozen vectors (deterministic run).`);
   }
 
   console.log(`Running ${queries.length} queries...\n`);
@@ -623,6 +660,68 @@ async function main() {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   // ---------------------------------------------------------------------------
+  // Significance (bootstrap CIs + optional paired comparison)
+  //
+  // Printed to stderr so it never pollutes --json stdout. A single run's mean
+  // is one draw from a noisy ~100-query sample; the CI shows how far it could
+  // wobble, and --compare runs a paired bootstrap against a prior run's
+  // per-query results to say whether a delta is real or noise.
+  // ---------------------------------------------------------------------------
+  const perQueryRecall = results.map((r) => r.recall);
+  const perQueryNdcg = results.map((r) => r.ndcg);
+  const recallCI = bootstrapMeanCI(perQueryRecall);
+  const ndcgCI = bootstrapMeanCI(perQueryNdcg);
+  const fmtCI = (c: { mean: number; lo: number; hi: number }) =>
+    `${(c.mean * 100).toFixed(1)}% [95% CI ${(c.lo * 100).toFixed(1)}–${(c.hi * 100).toFixed(1)}]`;
+  console.error(`\n  Significance (n=${results.length}, 95% bootstrap CI):`);
+  console.error(`    recall@k  ${fmtCI(recallCI)}`);
+  console.error(`    ndcg      ${fmtCI(ndcgCI)}`);
+
+  if (args.compare) {
+    try {
+      const cmpRaw = await readFile(args.compare, "utf-8");
+      const cmp = JSON.parse(cmpRaw);
+      const cmpRows: Array<{ query: string; recall: number; ndcg: number }> =
+        cmp.perQuery ?? cmp.details ?? [];
+      const comparison = pairForComparison(
+        results.map((r) => ({ query: r.query.query, recall: r.recall, ndcg: r.ndcg })),
+        cmpRows
+      );
+      if (comparison.status === "no-prior-data") {
+        console.error(
+          `\n  --compare: "${args.compare}" has no per-query data ` +
+            `(re-run the baseline with --json --output <file>). Skipping paired test.`
+        );
+      } else if (comparison.status === "no-overlap") {
+        console.error(
+          `\n  --compare: no query text overlaps with "${args.compare}" ` +
+            `(${comparison.priorCount} prior rows, ${comparison.currentCount} current) — ` +
+            `skipping paired test. Both runs must cover the same query set.`
+        );
+      } else {
+        if (comparison.malformed > 0) {
+          console.error(
+            `\n  --compare: skipped ${comparison.malformed} prior row(s) with missing/non-numeric recall or ndcg.`
+          );
+        }
+        const dRecall = pairedBootstrapDelta(comparison.curRecall, comparison.baseRecall);
+        const dNdcg = pairedBootstrapDelta(comparison.curNdcg, comparison.baseNdcg);
+        const verdict = (d: { mean: number; lo: number; hi: number; significant: boolean }) =>
+          `${d.mean >= 0 ? "+" : ""}${(d.mean * 100).toFixed(2)}pp ` +
+          `[95% CI ${(d.lo * 100).toFixed(2)}, ${(d.hi * 100).toFixed(2)}] ` +
+          `${d.significant ? "SIGNIFICANT" : "not significant (within noise)"}`;
+        console.error(
+          `\n  Paired comparison vs ${args.compare} (${comparison.curRecall.length} shared queries):`
+        );
+        console.error(`    Δ recall@k  ${verdict(dRecall)}`);
+        console.error(`    Δ ndcg      ${verdict(dNdcg)}`);
+      }
+    } catch (err) {
+      console.error(`\n  --compare failed to load "${args.compare}": ${err}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Baseline comparison
   // ---------------------------------------------------------------------------
 
@@ -665,6 +764,16 @@ async function main() {
 
     const output = {
       ...buildBaselinePayload(overall, byCategory, elapsed),
+      // Compact per-query rows so this file can be a --compare target for a
+      // paired bootstrap against a later run (keyed by query text). Only in the
+      // ephemeral --json stdout (and any user-chosen --output); the committed
+      // baseline (--save-baseline) omits these, so tracked files stay small.
+      perQuery: results.map((r) => ({
+        query: r.query.query,
+        recall: r.recall,
+        ndcg: r.ndcg,
+        reciprocalRank: r.reciprocalRank,
+      })),
       ...(args.verbose && {
         details: results.map((r) => ({
           query: r.query.query,

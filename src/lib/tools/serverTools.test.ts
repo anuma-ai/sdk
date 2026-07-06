@@ -149,3 +149,160 @@ describe("connector tool sets (#587)", () => {
     expect(activatedToolSetNames(new Map([["gmail_search_messages", 0.52]]))).toEqual(new Set());
   });
 });
+
+describe("mergeTools — defer-loading (Phase 3, opt-in)", () => {
+  const st = (name: string): import("./serverTools").ServerTool => ({
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {} },
+  });
+  // Catalog in arbitrary input order to prove ordering is imposed by the helper, not the input.
+  const catalog = [
+    st("ZetaMCP-z_tool"),
+    st("AnumaJinaMCP-read_url"),
+    st("AnumaJinaMCP-search_web"),
+    st("AnumaSearchMCP-anuma_text_search"),
+    st("AnumaImageMCP-edit_cloud_image"),
+  ];
+  const hot = [
+    "AnumaJinaMCP-search_web",
+    "AnumaSearchMCP-anuma_text_search",
+    "AnumaJinaMCP-read_url",
+  ];
+
+  it("OFF (absent/false) is byte-identical to today", () => {
+    for (const apiType of ["responses", "completions"] as const) {
+      const today = JSON.stringify(mergeTools(catalog, undefined, apiType));
+      expect(
+        JSON.stringify(
+          mergeTools(catalog, undefined, apiType, { enabled: false, hotToolNames: hot })
+        )
+      ).toBe(today);
+    }
+  });
+
+  it("ON (responses) emits [search] -> [hot in order] -> [deferred name-sorted] with full defs", () => {
+    const merged = mergeTools(catalog, undefined, "responses", {
+      enabled: true,
+      hotToolNames: hot,
+    }) as Array<Record<string, unknown>>;
+    // Order (responses = flat name at top level)
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    expect(merged[0].name).toBe("tool_search_tool_regex");
+    expect(merged[1].name).toBe("AnumaJinaMCP-search_web");
+    expect(merged[2].name).toBe("AnumaSearchMCP-anuma_text_search");
+    expect(merged[3].name).toBe("AnumaJinaMCP-read_url");
+    // Deferred = the two non-hot tools, name-sorted: AnumaImageMCP-edit_cloud_image < ZetaMCP-z_tool
+    expect(merged[4].name).toBe("AnumaImageMCP-edit_cloud_image");
+    expect(merged[5].name).toBe("ZetaMCP-z_tool");
+    // defer flags: search + hot non-deferred; deferred flagged
+    expect(merged.slice(0, 4).every((t) => t.defer_loading === undefined)).toBe(true);
+    expect(merged[4].defer_loading).toBe(true);
+    expect(merged[5].defer_loading).toBe(true);
+    // Deferred keep FULL definitions (not name-only)
+    expect(merged[4].description).toBe("desc AnumaImageMCP-edit_cloud_image");
+    expect(merged[4].parameters).toEqual({ type: "object", properties: {} });
+  });
+
+  it("ON + completions → defer DISABLED (responses-only): no tool_search, normal completions format", () => {
+    const merged = mergeTools(catalog, undefined, "completions", {
+      enabled: true,
+      hotToolNames: hot,
+    }) as Array<Record<string, unknown>>;
+    // No tool-search tool (completions toolsToApiFormat would mangle its type; ai-portal can't carry it).
+    expect(merged.every((t) => t.type !== "tool_search_tool_regex_20251119")).toBe(true);
+    expect(merged.every((t) => t.defer_loading === undefined)).toBe(true);
+    // Same as today's non-defer completions formatting (function-wrapped, catalog order, no extra tools).
+    expect(merged).toEqual(mergeTools(catalog, undefined, "completions"));
+  });
+
+  it("ON responses format: flat defs + defer_loading on deferred", () => {
+    const merged = mergeTools(catalog, undefined, "responses", {
+      enabled: true,
+      hotToolNames: hot,
+    }) as Array<Record<string, unknown>>;
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    expect(merged[1].name).toBe("AnumaJinaMCP-search_web");
+    expect(merged[1].defer_loading).toBeUndefined();
+    expect(merged[4].name).toBe("AnumaImageMCP-edit_cloud_image");
+    expect(merged[4].defer_loading).toBe(true);
+    expect(merged[4].parameters).toEqual({ type: "object", properties: {} });
+  });
+
+  it("ON is byte-stable across calls (same catalog -> same bytes)", () => {
+    const a = JSON.stringify(
+      mergeTools(catalog, undefined, "responses", { enabled: true, hotToolNames: hot })
+    );
+    const b = JSON.stringify(
+      mergeTools([...catalog].reverse(), undefined, "responses", {
+        enabled: true,
+        hotToolNames: hot,
+      })
+    );
+    expect(a).toBe(b); // input order must not matter
+  });
+});
+
+describe("mergeTools — defer-loading edge: empty server catalog + client tools", () => {
+  const st = (name: string): import("./serverTools").ServerTool => ({
+    name,
+    description: `d ${name}`,
+    parameters: { type: "object", properties: {} },
+  });
+  it("empty catalog + defer on → NO tool_search (nothing to load), client tools only", () => {
+    // An empty server catalog (e.g. the skip-storage/completions path that never fetched it) must not
+    // emit a tool-search tool — there are no deferred tools for it to load.
+    const clientTool = {
+      type: "function",
+      function: { name: "display_chart", parameters: {} },
+    } as never;
+    const merged = mergeTools([], [clientTool], "responses", {
+      enabled: true,
+      hotToolNames: [],
+    }) as Array<Record<string, unknown>>;
+    const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
+    expect(names).not.toContain("tool_search_tool_regex"); // no useless search tool
+    expect(merged.every((t) => t.type !== "tool_search_tool_regex_20251119")).toBe(true);
+    expect(names).toEqual(["display_chart"]); // client tools only
+  });
+  it("OFF + empty serverTools + client tools → only client tools (unchanged)", () => {
+    const clientTool = {
+      type: "function",
+      function: { name: "display_chart", parameters: {} },
+    } as never;
+    const merged = mergeTools([], [clientTool], "completions") as Array<Record<string, unknown>>;
+    expect(merged).toHaveLength(1);
+    expect((merged[0].function as { name: string }).name).toBe("display_chart");
+  });
+  it("ON: non-empty catalog + client tools → [search, ...server, ...client] (no drop)", () => {
+    const clientTool = {
+      type: "function",
+      function: { name: "display_chart", parameters: {} },
+    } as never;
+    const merged = mergeTools([st("AnumaJinaMCP-read_url")], [clientTool], "responses", {
+      enabled: true,
+      hotToolNames: ["AnumaJinaMCP-read_url"],
+    }) as Array<Record<string, unknown>>;
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+    const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
+    expect(names).toContain("AnumaJinaMCP-read_url");
+    expect(names).toContain("display_chart");
+  });
+});
+
+describe("mergeTools — defer-loading: duplicate hot names", () => {
+  const st = (name: string): import("./serverTools").ServerTool => ({
+    name,
+    description: `d ${name}`,
+    parameters: { type: "object", properties: {} },
+  });
+  it("emits each hot tool once even if hotToolNames repeats it", () => {
+    const merged = mergeTools([st("AnumaJinaMCP-read_url")], undefined, "responses", {
+      enabled: true,
+      hotToolNames: ["AnumaJinaMCP-read_url", "AnumaJinaMCP-read_url"], // duplicated
+    }) as Array<Record<string, unknown>>;
+    const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
+    expect(names.filter((n) => n === "AnumaJinaMCP-read_url")).toHaveLength(1); // once, not twice
+    expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+  });
+});

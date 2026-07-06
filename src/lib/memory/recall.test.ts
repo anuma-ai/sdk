@@ -498,6 +498,116 @@ describe("recall — result shape", () => {
   });
 });
 
+describe("recall — dedupe", () => {
+  it("collapses vault rows with identical content to one result (distinct ids)", async () => {
+    // The extraction/consolidation pipeline can persist the same fact as
+    // several distinct rows. All match the query identically (same vector →
+    // same score), so without content dedupe the caller gets N identical
+    // rows — the reported bug: the "drew on your memory" pill listed the same
+    // memory five times. Keep the first occurrence, drop the rest.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("dup-a", M1),
+      makeMemory("dup-b", M1),
+      makeMemory("dup-c", M1),
+      makeMemory("m2", M2),
+    ]);
+
+    const result = await recall(QUERY, makeCtx());
+
+    expect(result.memories).toHaveLength(2);
+    expect(result.memories.map((m) => m.content)).toEqual([M1, M2]);
+    const ids = result.memories.map((m) => m.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids.filter((id) => id.startsWith("dup-"))).toHaveLength(1);
+    expect(ids).toContain("m2");
+    // candidateCount reflects unique candidates, not raw lane hits.
+    expect(result.candidateCount).toBe(2);
+  });
+
+  it("dedupes chunks by text, keeping distinct passages from the same message", async () => {
+    // Chunk identity is the passage text, not the message id: a long message
+    // legitimately splits into several distinct chunks, and those must all
+    // survive. Identical text is collapsed regardless of message.
+    const passageA = "the first passage from message m1";
+    const passageB = "a different passage from the same message m1";
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      { ...makeChunk("m1", "conv1", 0.9), chunkText: passageA },
+      { ...makeChunk("m1", "conv1", 0.9), chunkText: passageA }, // identical text → dropped
+      { ...makeChunk("m1", "conv1", 0.85), chunkText: passageB }, // same msg, new text → kept
+    ]);
+
+    const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["chunk"] });
+
+    expect(result.memories.map((m) => m.content)).toEqual([passageA, passageB]);
+    expect(result.candidateCount).toBe(2);
+  });
+
+  it("does not merge distinct facts that both have blank content", async () => {
+    // Two distinct rows that resolve to empty content (e.g. decrypt failure)
+    // must not collapse on the empty content key — that would be silent loss.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("blank-a", "", "private"),
+      makeMemory("blank-b", "", "private"),
+      makeMemory("m1", M1),
+    ]);
+
+    const result = await recall(QUERY, makeCtx(), { minScore: 0 });
+
+    const ids = result.memories.map((m) => m.id);
+    expect(ids).toContain("blank-a");
+    expect(ids).toContain("blank-b");
+  });
+
+  it("dedupes per-lane before fusion, so candidateCount counts unique records", async () => {
+    // Both lanes active → the fused (RRF) path. Each lane carries duplicates;
+    // dedupeBy runs per-lane before fusion, so candidateCount (byId.size) must
+    // reflect unique records, not raw lane hits.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("dup-a", M1),
+      makeMemory("dup-b", M1), // same content, distinct id
+      makeMemory("m2", M2),
+    ]);
+    const c1 = makeChunk("c1", "conv1", 0.9);
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      c1,
+      makeChunk("c1", "conv1", 0.9), // repeated id
+      { ...makeChunk("c2", "conv2", 0.8), chunkText: c1.chunkText }, // repeated content
+    ]);
+
+    const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["fact", "chunk"] });
+
+    // 2 unique facts (M1 once, M2) + 1 unique chunk.
+    expect(result.candidateCount).toBe(3);
+    const contents = result.memories.map((m) => m.content);
+    expect(new Set(contents).size).toBe(contents.length); // no duplicate content
+    expect(contents).toContain(M1);
+    expect(contents).toContain(M2);
+    expect(contents).toContain(c1.chunkText);
+  });
+
+  it("keeps distinct same-message passages through the fused path", async () => {
+    // Fused path (types: fact + chunk) must key chunks passage-uniquely, not by
+    // message id — otherwise a long message that splits into passages A and B
+    // collapses to one and candidateCount undercounts (the single-lane test
+    // doesn't touch this path).
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1fact", M1)]);
+    const passageA = "passage A from message msg-1";
+    const passageB = "passage B from message msg-1";
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      { ...makeChunk("msg-1", "conv1", 0.9), chunkText: passageA },
+      { ...makeChunk("msg-1", "conv1", 0.85), chunkText: passageB }, // same msg, different text
+    ]);
+
+    const result = await recall(QUERY, makeCtx({ storageCtx }), { types: ["fact", "chunk"] });
+
+    const contents = result.memories.map((m) => m.content);
+    expect(contents).toContain(passageA);
+    expect(contents).toContain(passageB);
+    // 1 fact + 2 distinct passages; fusion must not collapse the passages.
+    expect(result.candidateCount).toBe(3);
+  });
+});
+
 describe("createRecallTool executor", () => {
   function bulkVault(count: number): StoredVaultMemory[] {
     return Array.from({ length: count }, (_, i) => {
