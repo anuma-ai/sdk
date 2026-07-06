@@ -3,20 +3,28 @@ import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
+import { requestEncryptionKey } from "../../../react/useEncryption";
 import { getLogger } from "../../logger";
 import { cosineSimilarity } from "../../memoryEngine/vector";
 import { decryptJsonField } from "../encryption-utils";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
-import { decryptMessageFields, encryptMessageFields, isEncrypted } from "./encryption";
+import {
+  decryptField,
+  decryptMessageFields,
+  encryptMessageFields,
+  isEncrypted,
+} from "./encryption";
 import { Conversation, Message } from "./models";
 import {
   type ChunkSearchResult,
   type CreateConversationOptions,
   type CreateMessageOptions,
   generateConversationId,
+  type GetMessagesPageOptions,
   type LazyStoredConversation,
   type MessageChunk,
   type MessageFeedback,
+  type MessageSkeleton,
   type StoredConversation,
   type StoredFileWithContext,
   type StoredMessage,
@@ -24,7 +32,19 @@ import {
   type UpdateMessageOptions,
 } from "./types";
 
-function messageToStoredRaw(message: Message): StoredMessage {
+interface MessageProjectionOptions {
+  /**
+   * Skip the `vector`/`chunks` embedding columns entirely (no raw read, no
+   * JSON.parse, no decrypt). Display readers never use them — the embedding
+   * float arrays are the single heaviest per-row cost of a message fetch.
+   */
+  skipEmbeddings?: boolean;
+}
+
+function messageToStoredRaw(
+  message: Message,
+  projection?: MessageProjectionOptions
+): StoredMessage {
   // Use _getRaw for fields that may be encrypted - the @json decorator fails on encrypted strings
   const convId = String(message._getRaw("conversation_id"));
 
@@ -44,9 +64,10 @@ function messageToStoredRaw(message: Message): StoredMessage {
     return rawValue as T;
   };
 
+  const skipEmbeddings = projection?.skipEmbeddings === true;
   const sourcesRaw = message._getRaw("sources");
-  const vectorRaw = message._getRaw("vector");
-  const chunksRaw = message._getRaw("chunks");
+  const vectorRaw = skipEmbeddings ? null : message._getRaw("vector");
+  const chunksRaw = skipEmbeddings ? null : message._getRaw("chunks");
   const thoughtProcessRaw = message._getRaw("thought_process");
   const toolCallEventsRaw = message._getRaw("tool_call_events");
 
@@ -62,9 +83,9 @@ function messageToStoredRaw(message: Message): StoredMessage {
     fileIds: message.fileIds,
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
-    vector: parseJsonField(vectorRaw),
+    vector: skipEmbeddings ? undefined : parseJsonField(vectorRaw),
     embeddingModel: message.embeddingModel,
-    chunks: parseJsonField(chunksRaw),
+    chunks: skipEmbeddings ? undefined : parseJsonField(chunksRaw),
     usage: message.usage,
     sources: parseJsonField(sourcesRaw),
     responseDuration: message.responseDuration,
@@ -85,9 +106,12 @@ async function messageToStored(
   message: Message,
   walletAddress?: string,
   signMessage?: SignMessageFn,
-  embeddedWalletSigner?: EmbeddedWalletSignerFn
+  embeddedWalletSigner?: EmbeddedWalletSignerFn,
+  projection?: MessageProjectionOptions
 ): Promise<StoredMessage> {
-  const baseMessage = messageToStoredRaw(message);
+  // decryptMessageFields short-circuits on undefined vector/chunks, so the
+  // skipEmbeddings projection needs no changes on the decrypt side.
+  const baseMessage = messageToStoredRaw(message, projection);
 
   // Decrypt fields if wallet address provided
   if (walletAddress) {
@@ -441,8 +465,110 @@ export async function getMessagesOp(
   );
 }
 
-async function getMessageCountOp(ctx: StorageOperationsContext, convId: string): Promise<number> {
+export async function getMessageCountOp(
+  ctx: StorageOperationsContext,
+  convId: string
+): Promise<number> {
   return await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetchCount();
+}
+
+/**
+ * Paginated display read: the newest `limit` messages of a conversation (or of
+ * the range below `beforeMessageId`), returned in ASCENDING message_id order.
+ *
+ * Unlike {@link getMessagesOp} this skips the `vector`/`chunks` embedding
+ * columns entirely — display consumers drop them anyway, and parsing +
+ * decrypting embedding arrays is the dominant cost of a full-thread read.
+ */
+export async function getMessagesPageOp(
+  ctx: StorageOperationsContext,
+  convId: string,
+  opts: GetMessagesPageOptions
+): Promise<StoredMessage[]> {
+  const clauses = [Q.where("conversation_id", convId)];
+  if (opts.beforeMessageId !== undefined) {
+    clauses.push(Q.where("message_id", Q.lt(opts.beforeMessageId)));
+  }
+
+  const results = await ctx.messagesCollection
+    .query(...clauses, Q.sortBy("message_id", Q.desc), Q.take(opts.limit))
+    .fetch();
+
+  // Fetched newest-first to take the tail; consumers expect ascending.
+  results.reverse();
+
+  return Promise.all(
+    results.map((msg) =>
+      messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner, {
+        skipEmbeddings: true,
+      })
+    )
+  );
+}
+
+/**
+ * Whole-thread skeleton read for branch-tree construction: every message's
+ * ids/role/parent linkage with NO field decryption — except `content`, which
+ * is decrypted only for user-role rows whose parent is also user-role (the
+ * regeneration artifacts branch logic classifies by content prefix; see
+ * {@link MessageSkeleton}).
+ */
+export async function getMessageSkeletonsOp(
+  ctx: StorageOperationsContext,
+  convId: string
+): Promise<MessageSkeleton[]> {
+  const results = await ctx.messagesCollection
+    .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
+    .fetch();
+
+  const roleById = new Map<string, string>();
+  for (const msg of results) {
+    roleById.set(msg.id, msg.role);
+  }
+
+  const skeletons: MessageSkeleton[] = results.map((msg) => ({
+    uniqueId: msg.id,
+    messageId: msg.messageId,
+    conversationId: String(msg._getRaw("conversation_id")),
+    role: msg.role,
+    createdAt: msg.createdAt,
+    // WatermelonDB surfaces unset text columns as null at runtime — normalize
+    // to undefined so `parentMessageId ?? undefined` keying works everywhere.
+    parentMessageId: msg.parentMessageId ?? undefined,
+    model: msg.model ?? undefined,
+  }));
+
+  // Second pass: decrypt content ONLY for user rows parented by a user row.
+  const artifactIndices: number[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const msg = results[i];
+    if (msg.role !== "user" || !msg.parentMessageId) continue;
+    if (roleById.get(msg.parentMessageId) === "user") {
+      artifactIndices.push(i);
+    }
+  }
+
+  const address = ctx.walletAddress;
+  if (artifactIndices.length > 0 && address) {
+    if (ctx.signMessage) {
+      try {
+        await requestEncryptionKey(address, ctx.signMessage, ctx.embeddedWalletSigner);
+      } catch (error) {
+        getLogger().warn("Failed to request encryption key for skeleton decryption:", error);
+      }
+    }
+    await Promise.all(
+      artifactIndices.map(async (i) => {
+        skeletons[i].content = await decryptField(results[i].content, address);
+      })
+    );
+  } else {
+    for (const i of artifactIndices) {
+      skeletons[i].content = results[i].content;
+    }
+  }
+
+  return skeletons;
 }
 
 /**
