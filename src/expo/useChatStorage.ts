@@ -704,7 +704,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       piiRedaction === true
         ? getConversationRedactor(currentConversationId, nerDetectorRef.current)
         : piiRedaction,
-    [piiRedaction, currentConversationId]
+    [piiRedaction, currentConversationId, nerDetector]
   );
 
   // Mask PII before text is sent to the embeddings endpoint. Embeddings are a
