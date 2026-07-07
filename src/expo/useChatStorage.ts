@@ -42,10 +42,15 @@ import {
   finalizeThoughtProcess,
   getConversationOp,
   getConversationsOp,
+  getMessageCountOp,
+  getMessageSkeletonsOp,
   getMessagesOp,
+  getMessagesPageOp,
+  type GetMessagesPageOptions,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
+  type MessageSkeleton,
   resolveStoredUserContent,
   type SearchSource,
   type StorageOperationsContext,
@@ -1269,6 +1274,36 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
+   * Paginated display read: the newest `limit` messages (optionally below
+   * `beforeMessageId`), ascending, with embedding columns skipped.
+   */
+  const getMessagesPage = useCallback(
+    async (convId: string, options: GetMessagesPageOptions): Promise<StoredMessage[]> => {
+      return getMessagesPageOp(storageCtx, convId, options);
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Whole-thread branch-tree skeleton — ids/roles/parent linkage only, no
+   * field decryption (see `getMessageSkeletonsOp`).
+   */
+  const getMessageSkeletons = useCallback(
+    (convId: string): Promise<MessageSkeleton[]> => {
+      return getMessageSkeletonsOp(storageCtx, convId);
+    },
+    [storageCtx]
+  );
+
+  /** Total message count for a conversation. */
+  const getMessageCount = useCallback(
+    (convId: string): Promise<number> => {
+      return getMessageCountOp(storageCtx, convId);
+    },
+    [storageCtx]
+  );
+
+  /**
    * Extracts sources from assistant message content and returns them as SearchSource objects.
    * First attempts to parse a JSON sources block (```json { "sources": [...] }```),
    * then falls back to parsing markdown links [text](url) and plain URLs.
@@ -2476,6 +2511,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     updateConversationPinned,
     deleteConversation,
     getMessages,
+    getMessagesPage,
+    getMessageSkeletons,
+    getMessageCount,
     createMemoryEngineTool,
     createMemoryVaultTool,
     createRecallTool,
