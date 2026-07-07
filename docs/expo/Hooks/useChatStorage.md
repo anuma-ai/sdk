@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:642](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#642)
+Defined in: [src/expo/useChatStorage.ts:652](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#652)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -432,6 +432,28 @@ Messages shorter than this are skipped as they provide limited semantic value.
 ```ts
 10
 ```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.nerDetector?`
+
+</td>
+<td>
+
+`NerDetector`
+
+</td>
+<td>
+
+Optional on-device NER detector for *unstructured* PII (names, locations,
+organizations) that regex can't catch. When supplied AND `piiRedaction` is
+active, the conversation redactor merges its spans into the outbound
+message redaction (chat-send path only). Supply e.g.
+`createTransformersNerDetector()` from `@anuma/sdk/pii/transformers` on web.
+Ignored when `piiRedaction` is off. See NerDetector.
 
 </td>
 </tr>

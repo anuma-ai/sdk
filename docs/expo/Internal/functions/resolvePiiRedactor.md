@@ -2,7 +2,7 @@
 
 > **resolvePiiRedactor**(`piiRedaction`: `boolean` | [`PiiRedactor`](../classes/PiiRedactor.md) | `undefined`): [`PiiRedactor`](../classes/PiiRedactor.md) | `undefined`
 
-Defined in: [src/lib/pii/redactor.ts:408](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#408)
+Defined in: [src/lib/pii/redactor.ts:677](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#677)
 
 Resolve a `piiRedaction` option (`true` | `false` | `PiiRedactor`) into a
 redactor instance or `undefined`. `true` creates a fresh redactor; a

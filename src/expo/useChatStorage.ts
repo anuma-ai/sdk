@@ -105,6 +105,7 @@ import {
   type MemoryVaultToolOptions,
   type VaultEmbeddingCache,
 } from "../lib/memoryVault";
+import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
@@ -124,19 +125,28 @@ import { useChat } from "./useChat";
  */
 const CONVERSATION_REDACTOR_LIMIT = 50;
 const NO_CONVERSATION_KEY = "__no_conversation__";
-const conversationRedactors = new Map<string, PiiRedactor>();
+// Cached redactor + the detector it was built with, so a change in detector
+// (enabled→disabled, or one instance swapped for another) rebuilds rather than
+// silently reusing a redactor wired to the old detector. Mirrors the react entry.
+const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 
-function getConversationRedactor(conversationId: string | null): PiiRedactor {
+function getConversationRedactor(
+  conversationId: string | null,
+  nerDetector?: NerDetector
+): PiiRedactor {
   const key = conversationId ?? NO_CONVERSATION_KEY;
-  let redactor = conversationRedactors.get(key);
-  if (redactor) {
-    // Refresh recency (Map preserves insertion order → re-insert moves to end).
+  const cached = conversationRedactors.get(key);
+  if (cached && cached.detector === nerDetector) {
+    // Same detector identity → reuse (and refresh recency: Map preserves
+    // insertion order, so re-inserting moves it to the end).
     conversationRedactors.delete(key);
-    conversationRedactors.set(key, redactor);
-    return redactor;
+    conversationRedactors.set(key, cached);
+    return cached.redactor;
   }
-  redactor = new PiiRedactor();
-  conversationRedactors.set(key, redactor);
+  // No entry, or the detector changed → fresh redactor. Placeholder numbering
+  // restarting on a detector change is fine.
+  const redactor = new PiiRedactor({ nerDetector });
+  conversationRedactors.set(key, { redactor, detector: nerDetector });
   if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
     const oldest = conversationRedactors.keys().next().value;
     if (oldest !== undefined) conversationRedactors.delete(oldest);
@@ -668,6 +678,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onStreamMeta,
     piiRedaction,
     onPiiRedacted,
+    nerDetector,
     onServerToolCall,
     onToolCallArgumentsDelta,
   } = options;
@@ -676,12 +687,28 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     initialConversationId || null
   );
 
+  // Stabilize nerDetector reference so an unstable reference (e.g. an inline
+  // `createTransformersNerDetector()` on each render) doesn't trigger redactor
+  // replacement and lose placeholder mappings. Kept in a ref, updated each
+  // render, so an intentional detector change is still honored via the identity
+  // check in getConversationRedactor. Mirrors the react entry.
+  const nerDetectorRef = useRef(nerDetector);
+  nerDetectorRef.current = nerDetector;
+
   // When piiRedaction is `true`, resolve it to the redactor SHARED by all
   // useChatStorage instances for this conversation (see getConversationRedactor)
   // so placeholder mappings stay consistent across instances and turns. An
   // explicit PiiRedactor instance or `false` is passed through unchanged.
   const resolvedPiiRedaction = useMemo(
-    () => (piiRedaction === true ? getConversationRedactor(currentConversationId) : piiRedaction),
+    () =>
+      piiRedaction === true
+        ? getConversationRedactor(currentConversationId, nerDetectorRef.current)
+        : piiRedaction,
+    // Intentionally NOT depending on `nerDetector`: it's read via
+    // `nerDetectorRef.current` so an unstable reference (inline
+    // `createTransformersNerDetector()` each render) doesn't recreate the
+    // redactor and drop placeholder maps. getConversationRedactor's identity
+    // check still honors a genuinely changed detector on the next resolve.
     [piiRedaction, currentConversationId]
   );
 
@@ -1520,7 +1547,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // react.
       const resolvePiiForCall = (conversationIdForCall: string | null) => {
         const { redactor, forInnerSend } = resolveCallPii(requestPiiRedaction, piiRedaction, () =>
-          getConversationRedactor(conversationIdForCall)
+          getConversationRedactor(conversationIdForCall, nerDetectorRef.current)
         );
         return {
           callRedactor: redactor,

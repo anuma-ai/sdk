@@ -1,6 +1,6 @@
 # ResumeStreamWithStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:471](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#471)
+Defined in: [src/expo/useChatStorage.ts:481](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#481)
 
 Result of `resumeStream` on the storage hook.
 
@@ -24,7 +24,7 @@ Mirrors the lib taxonomy onto the storage outcome:
 
 > **assistantMessage**: [`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`
 
-Defined in: [src/expo/useChatStorage.ts:489](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#489)
+Defined in: [src/expo/useChatStorage.ts:499](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#499)
 
 The single reconciled assistant row, or null when nothing was persisted.
 
@@ -34,7 +34,7 @@ The single reconciled assistant row, or null when nothing was persisted.
 
 > **data**: `ApiResponse` | `null`
 
-Defined in: [src/expo/useChatStorage.ts:472](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#472)
+Defined in: [src/expo/useChatStorage.ts:482](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#482)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/expo/useChatStorage.ts:472](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **empty**: `boolean`
 
-Defined in: [src/expo/useChatStorage.ts:485](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#485)
+Defined in: [src/expo/useChatStorage.ts:495](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#495)
 
 True for a clean terminal whose replay carried NO content (a \[DONE]-only
 replay — buffered frames lost server-side). The stowed partial was
@@ -56,7 +56,7 @@ a successful restore.
 
 > **error**: `string` | `null`
 
-Defined in: [src/expo/useChatStorage.ts:473](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#473)
+Defined in: [src/expo/useChatStorage.ts:483](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#483)
 
 ***
 
@@ -64,7 +64,7 @@ Defined in: [src/expo/useChatStorage.ts:473](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **expired**: `boolean`
 
-Defined in: [src/expo/useChatStorage.ts:475](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#475)
+Defined in: [src/expo/useChatStorage.ts:485](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#485)
 
 True only for a 410: the buffer was gone and the stowed partial was finalized.
 
@@ -74,7 +74,7 @@ True only for a 410: the buffer was gone and the stowed partial was finalized.
 
 > `optional` **interrupted**: `boolean`
 
-Defined in: [src/expo/useChatStorage.ts:477](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#477)
+Defined in: [src/expo/useChatStorage.ts:487](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#487)
 
 True for an in-stream/tool-request terminal: replayed content finalized as stopped.
 
@@ -84,6 +84,6 @@ True for an in-stream/tool-request terminal: replayed content finalized as stopp
 
 > `optional` **statusCode**: `number`
 
-Defined in: [src/expo/useChatStorage.ts:487](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#487)
+Defined in: [src/expo/useChatStorage.ts:497](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#497)
 
 HTTP status for a transient failure (e.g. 401) — retryable, handle retained.

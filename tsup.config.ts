@@ -27,6 +27,21 @@ export default defineConfig([
       };
     },
   },
+  // Reference Transformers.js NER detector — opt-in, exposed as
+  // "@anuma/sdk/pii/transformers". `@huggingface/transformers` is an optional
+  // peer dep (auto-externalized; kept explicit) so it never enters the bundle.
+  {
+    entry: ["src/lib/pii/detectors/transformers.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/pii",
+    external: ["@huggingface/transformers"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
   {
     entry: ["src/lib/polyfills/index.ts"],
     format: ["esm", "cjs"],

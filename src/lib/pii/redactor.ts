@@ -10,6 +10,7 @@
  */
 
 import type { LlmapiMessage, LlmapiMessageContentPart } from "../../client";
+import type { NerDetector, PiiSpan } from "./ner";
 import { PII_PATTERNS, type PiiCategory, type PiiPattern } from "./patterns";
 
 export interface PiiMatch {
@@ -39,6 +40,16 @@ export interface PiiRedactorOptions {
    * `["US_ADDRESS", "DATE_OF_BIRTH"]`. Ignored when `patterns` is provided.
    */
   excludeCategories?: (PiiCategory | (string & {}))[];
+  /**
+   * Optional named-entity detector for *unstructured* PII (person names,
+   * locations, organizations) that regex cannot find. When supplied, the
+   * **async** redaction methods (`redactTextAsync` / `maskTextAsync` /
+   * `redactMessagesAsync`) merge its spans with the regex matches; the
+   * synchronous methods ignore it and stay regex-only. The regex layer always
+   * wins on overlap, so structured PII detection stays deterministic. See
+   * {@link NerDetector}.
+   */
+  nerDetector?: NerDetector;
 }
 
 export interface RedactionResult {
@@ -62,6 +73,31 @@ function escapeRegExp(value: string): string {
 }
 
 /**
+ * Whether `ch` is part of a word, for snapping NER spans to word boundaries.
+ * Deliberately engine-agnostic (no `\p{…}` Unicode property escapes, which are
+ * unavailable on older Hermes/Safari): ASCII word chars, plus any non-ASCII
+ * codepoint (treated as a letter — accents, CJK, etc.).
+ */
+function isWordChar(ch: string): boolean {
+  return /[A-Za-z0-9_]/.test(ch) || ch.charCodeAt(0) > 127;
+}
+
+/**
+ * A detected PII region on the ORIGINAL text, before placeholder assignment.
+ * Used by the async (regex + NER) path. `priority` orders overlap resolution
+ * (regex = 0 beats NER = 1); `order` is the tiebreak within a priority (regex:
+ * pattern index, so earlier patterns win — matching the sync scan's sequential
+ * "earlier pattern wins"; NER: detection index).
+ */
+interface DetectedSpan {
+  start: number;
+  end: number;
+  category: PiiCategory | (string & {});
+  priority: number;
+  order: number;
+}
+
+/**
  * Stateful PII redactor that tracks placeholder assignments across multiple
  * calls. Create one per conversation so "[EMAIL_1]" always refers to the
  * same email address throughout the conversation.
@@ -75,15 +111,19 @@ export class PiiRedactor {
   private categoryCounters = new Map<string, number>();
   /** The active detection patterns (defaults, optionally filtered/extended). */
   private readonly patterns: PiiPattern[];
+  /** Distinct categories contributed by {@link patterns} (regex layer). */
+  private readonly patternCategories: string[];
   /**
    * Matches any placeholder-shaped token for this redactor's categories —
    * bracketed `[EMAIL_1]` OR bare `EMAIL_1`, case-insensitive — capturing the
    * body. Drives {@link restoreForStorage}: the extraction / consolidation
    * models echo placeholders mangled (brackets dropped, re-cased), and a single
    * pass with this matcher restores the assigned ones and flags the rest in one
-   * go. Built from the (constant) category set; null only when there are none.
+   * go. Built lazily from the union of pattern categories AND any categories
+   * minted at runtime (e.g. NER `PERSON`/`LOCATION`/`ORG`): `undefined` = stale
+   * (rebuild on next use), `null` = built but there are no categories.
    */
-  private readonly storagePattern: RegExp | null;
+  private storagePattern: RegExp | null | undefined = undefined;
   /**
    * Cached body→value lookups for {@link restoreForStorage}, built lazily from
    * the assigned placeholders and invalidated on each mint. `exact` is keyed by
@@ -97,8 +137,13 @@ export class PiiRedactor {
   } | null = null;
   /** Whether the non-text-content bypass warning has already been emitted. */
   private warnedNonText = false;
+  /** Optional NER detector for unstructured PII (used by the async methods). */
+  private readonly nerDetector?: NerDetector;
+  /** Whether the NER-detector-failure warning has already been emitted. */
+  private warnedNerFailure = false;
 
   constructor(options: PiiRedactorOptions = {}) {
+    this.nerDetector = options.nerDetector;
     if (options.patterns) {
       this.patterns = options.patterns;
     } else {
@@ -109,21 +154,27 @@ export class PiiRedactor {
       }
       this.patterns = options.extraPatterns ? [...base, ...options.extraPatterns] : base;
     }
-    const categories = [...new Set(this.patterns.map((p) => String(p.category)))];
+    this.patternCategories = [...new Set(this.patterns.map((p) => String(p.category)))];
+  }
+
+  /**
+   * Build the {@link storagePattern} from the union of pattern categories and
+   * any categories minted at runtime (NER entities arrive only when redaction
+   * runs, so this can't be fixed at construction). Bracketed `[EMAIL_1]` OR
+   * bare `EMAIL_1`, capturing the body, case-insensitive, global. `\d+` (not a
+   * fixed body) spans any index; `\b` on the bare arm keeps it off prose like
+   * "email 1 of 3".
+   */
+  private buildStoragePattern(): RegExp | null {
+    const categories = [...new Set([...this.patternCategories, ...this.categoryCounters.keys()])];
+    if (categories.length === 0) return null;
     // Longest category first so a category that is a prefix of another can't
     // shadow it in the alternation.
     const categoryAlt = categories
-      .slice()
       .sort((a, b) => b.length - a.length)
       .map(escapeRegExp)
       .join("|");
-    // Storage-path matcher: bracketed `[EMAIL_1]` OR bare `EMAIL_1`, capturing
-    // the body, case-insensitive, global. `\d+` (not a fixed body) so it spans
-    // any index, and `\b` on the bare arm keeps it off prose like "email 1 of 3".
-    this.storagePattern =
-      categories.length > 0
-        ? new RegExp(`\\[((?:${categoryAlt})_\\d+)\\]|\\b((?:${categoryAlt})_\\d+)\\b`, "gi")
-        : null;
+    return new RegExp(`\\[((?:${categoryAlt})_\\d+)\\]|\\b((?:${categoryAlt})_\\d+)\\b`, "gi");
   }
 
   /**
@@ -151,8 +202,12 @@ export class PiiRedactor {
     const existing = this.valueToPlaceholder.get(normalizedValue);
     if (existing) return existing;
 
-    const count = (this.categoryCounters.get(category) ?? 0) + 1;
+    const existingCount = this.categoryCounters.get(category);
+    const count = (existingCount ?? 0) + 1;
     this.categoryCounters.set(category, count);
+    // A brand-new category (e.g. an NER `PERSON`) widens the storage matcher's
+    // alternation, so the cached pattern is stale.
+    if (existingCount === undefined) this.storagePattern = undefined;
 
     const placeholder = `[${category}_${count}]`;
     this.valueToPlaceholder.set(normalizedValue, placeholder);
@@ -163,9 +218,40 @@ export class PiiRedactor {
   }
 
   /**
+   * Find all matches of a single pattern in `text`, applying its `validate` and
+   * `context` guards. Matches are non-overlapping and ascending (the global
+   * regex advances `lastIndex` past each match). Shared by the sync {@link scan}
+   * (sequential, per-pattern) and the async {@link collectRegexSpans} (span)
+   * paths so the detection rules live in exactly one place.
+   */
+  private findMatches(text: string, pattern: PiiPattern): { match: string; index: number }[] {
+    // Clone regex to reset lastIndex
+    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+    const found: { match: string; index: number }[] = [];
+
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(text)) !== null) {
+      const value = m[0];
+      if (pattern.validate && !pattern.validate(value)) continue;
+      if (pattern.context) {
+        // Check a short preceding window for a required cue word. Uses a
+        // window slice (not a lookbehind) for engine portability.
+        const before = text.slice(Math.max(0, m.index - 40), m.index);
+        if (!pattern.context.test(before)) continue;
+      }
+      found.push({ match: value, index: m.index });
+    }
+    return found;
+  }
+
+  /**
    * Scan text for PII and rebuild it, replacing each match with whatever
    * `makeReplacement(category, value)` returns. Shared by `redactText`
    * (numbered, stateful placeholders) and `maskText` (unnumbered, stateless).
+   *
+   * Patterns are applied sequentially: each scans the text already rewritten by
+   * earlier patterns, so an earlier (more specific) pattern claims a region
+   * before a later one can — placeholders are inert and match no pattern.
    */
   private scan(
     text: string,
@@ -175,23 +261,7 @@ export class PiiRedactor {
     let redacted = text;
 
     for (const pattern of this.patterns) {
-      // Clone regex to reset lastIndex
-      const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
-      const found: { match: string; index: number }[] = [];
-
-      let m: RegExpExecArray | null;
-      while ((m = regex.exec(redacted)) !== null) {
-        const value = m[0];
-        if (pattern.validate && !pattern.validate(value)) continue;
-        if (pattern.context) {
-          // Check a short preceding window for a required cue word. Uses a
-          // window slice (not a lookbehind) for engine portability.
-          const before = redacted.slice(Math.max(0, m.index - 40), m.index);
-          if (!pattern.context.test(before)) continue;
-        }
-        found.push({ match: value, index: m.index });
-      }
-
+      const found = this.findMatches(redacted, pattern);
       if (found.length === 0) continue;
 
       // Rebuild the string in a single pass. `found` is non-overlapping and
@@ -229,6 +299,190 @@ export class PiiRedactor {
    */
   maskText(text: string): string {
     return this.scan(text, (category) => `[${category}]`).text;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Async (regex + NER) path. Mirrors the sync API but additionally folds in
+  // an optional {@link NerDetector}'s spans. When no detector is configured,
+  // each async method delegates to its sync counterpart and is byte-for-byte
+  // identical — so it is a safe drop-in.
+  // ───────────────────────────────────────────────────────────────────────
+
+  /** All regex matches as spans on the ORIGINAL text (priority 0). Uses the
+   *  same {@link findMatches} guards as the sync scan. */
+  private collectRegexSpans(text: string): DetectedSpan[] {
+    const spans: DetectedSpan[] = [];
+    this.patterns.forEach((pattern, patternIndex) => {
+      for (const { match, index } of this.findMatches(text, pattern)) {
+        spans.push({
+          start: index,
+          end: index + match.length,
+          category: pattern.category,
+          priority: 0,
+          order: patternIndex,
+        });
+      }
+    });
+    return spans;
+  }
+
+  /**
+   * Normalize raw NER spans: clamp to the text bounds, drop empty/categoryless
+   * spans, and snap each to whole-word boundaries. Snapping prevents a detector
+   * that tagged only part of a word (a common WordPiece artifact — e.g. "Strip"
+   * of "Stripe") from producing a corrupting partial placeholder like
+   * `[ORG_1]e`.
+   */
+  private normalizeNerSpans(text: string, raw: PiiSpan[]): DetectedSpan[] {
+    if (!Array.isArray(raw)) return [];
+    const out: DetectedSpan[] = [];
+    raw.forEach((s, i) => {
+      // Drop non-finite offsets (NaN/Infinity from a malformed detector) on the
+      // RAW values, before clamping — otherwise `Math.min(Infinity, len)` would
+      // clamp Infinity to a valid index and slip through, and `NaN` survives
+      // `end <= start` (NaN comparisons are always false).
+      if (!Number.isFinite(s.start) || !Number.isFinite(s.end)) return;
+      let start = Math.max(0, Math.min(Math.trunc(s.start), text.length));
+      let end = Math.max(0, Math.min(Math.trunc(s.end), text.length));
+      if (end <= start) return;
+      while (start > 0 && isWordChar(text[start - 1])) start--;
+      while (end < text.length && isWordChar(text[end])) end++;
+      const category = String(s.category ?? "").trim();
+      if (!category) return;
+      out.push({ start, end, category, priority: 1, order: i });
+    });
+    return out;
+  }
+
+  /** Run the configured detector defensively: failures degrade to regex-only
+   *  (fail-open on detection, not on protection) with a one-time warning. */
+  private async detectNerSpans(text: string): Promise<DetectedSpan[]> {
+    if (!this.nerDetector) return [];
+    try {
+      return this.normalizeNerSpans(text, await this.nerDetector.detect(text));
+    } catch (err) {
+      this.warnNerFailure(err);
+      return [];
+    }
+  }
+
+  /**
+   * Resolve overlaps by placing higher-priority spans first and dropping any
+   * span that overlaps one already placed. Regex (priority 0) is placed before
+   * NER (priority 1), and within regex by ascending pattern index — so regex
+   * always wins on overlap and the regex-only result reproduces the sync scan's
+   * sequential "earlier pattern wins". O(n²) but n (spans per message) is tiny.
+   *
+   * The returned spans stay in `(priority, order, start)` order — i.e. mint
+   * order — which {@link rebuildSpans} relies on.
+   */
+  private resolveOverlaps(spans: DetectedSpan[]): DetectedSpan[] {
+    const ordered = [...spans].sort(
+      (a, b) => a.priority - b.priority || a.order - b.order || a.start - b.start
+    );
+    const placed: DetectedSpan[] = [];
+    for (const s of ordered) {
+      if (!placed.some((p) => s.start < p.end && p.start < s.end)) placed.push(s);
+    }
+    return placed;
+  }
+
+  /**
+   * Rebuild `text` from resolved (non-overlapping) spans. `spans` must arrive in
+   * mint order — `(priority, order, start)`, as {@link resolveOverlaps} returns —
+   * so placeholders are MINTED by iterating it directly (regex categories first,
+   * in pattern then document order, matching the sync scan's numbering). The
+   * string is then EMITTED in document order.
+   */
+  private rebuildSpans(
+    text: string,
+    spans: DetectedSpan[],
+    makeReplacement: (category: PiiCategory | (string & {}), value: string) => string
+  ): RedactionResult {
+    const placeholderByStart = new Map<number, string>();
+    const matches: PiiMatch[] = [];
+    for (const s of spans) {
+      const value = text.slice(s.start, s.end);
+      const placeholder = makeReplacement(s.category, value);
+      placeholderByStart.set(s.start, placeholder);
+      matches.push({ category: s.category, original: value, placeholder });
+    }
+
+    const emitOrder = [...spans].sort((a, b) => a.start - b.start);
+    let result = "";
+    let cursor = 0;
+    for (const s of emitOrder) {
+      result += text.slice(cursor, s.start) + (placeholderByStart.get(s.start) ?? "");
+      cursor = s.end;
+    }
+    result += text.slice(cursor);
+    return { text: result, matches };
+  }
+
+  /** Merge regex + NER spans for `text` into a resolved, non-overlapping set. */
+  private async detectAllSpans(text: string): Promise<DetectedSpan[]> {
+    // Kick off NER (async model inference) first, then run the synchronous regex
+    // pass while it's in flight, so the regex work overlaps the inference.
+    const nerPromise = this.detectNerSpans(text);
+    const regexSpans = this.collectRegexSpans(text);
+    const ner = await nerPromise;
+    return this.resolveOverlaps([...regexSpans, ...ner]);
+  }
+
+  /**
+   * Async counterpart to {@link redactText}: redacts structured PII (regex) AND
+   * unstructured PII (the configured {@link NerDetector}) with numbered,
+   * reversible placeholders. With no detector, identical to `redactText`.
+   */
+  async redactTextAsync(text: string): Promise<RedactionResult> {
+    if (!this.nerDetector) return this.redactText(text);
+    const spans = await this.detectAllSpans(text);
+    return this.rebuildSpans(text, spans, (category, value) =>
+      this.getPlaceholder(category, value)
+    );
+  }
+
+  /**
+   * Async counterpart to {@link maskText}: stateless `[CATEGORY]` masking over
+   * regex + NER matches. With no detector, identical to `maskText`.
+   */
+  async maskTextAsync(text: string): Promise<string> {
+    if (!this.nerDetector) return this.maskText(text);
+    const spans = await this.detectAllSpans(text);
+    return this.rebuildSpans(text, spans, (category) => `[${category}]`).text;
+  }
+
+  /**
+   * Async counterpart to {@link redactMessages}. Text parts are redacted
+   * sequentially so placeholder numbering stays deterministic across the
+   * conversation. With no detector, identical to `redactMessages`.
+   */
+  async redactMessagesAsync(messages: LlmapiMessage[]): Promise<MessageRedactionResult> {
+    if (!this.nerDetector) return this.redactMessages(messages);
+    const allMatches: PiiMatch[] = [];
+    const redactedMessages: LlmapiMessage[] = [];
+
+    for (const msg of messages) {
+      if (!msg.content) {
+        redactedMessages.push(msg);
+        continue;
+      }
+      const newContent: LlmapiMessageContentPart[] = [];
+      for (const part of msg.content) {
+        if (part.type === "text" && part.text) {
+          const result = await this.redactTextAsync(part.text);
+          allMatches.push(...result.matches);
+          newContent.push(result.matches.length > 0 ? { ...part, text: result.text } : part);
+        } else {
+          // Non-text parts (images, files, attachments) are not scanned.
+          if (part.type !== "text") this.warnNonTextBypass();
+          newContent.push(part);
+        }
+      }
+      redactedMessages.push({ ...msg, content: newContent });
+    }
+
+    return { messages: redactedMessages, matches: allMatches };
   }
 
   /**
@@ -278,6 +532,18 @@ export class PiiRedactor {
     );
   }
 
+  /** Emit the NER-detector-failure warning at most once per redactor instance. */
+  private warnNerFailure(err: unknown): void {
+    if (this.warnedNerFailure) return;
+    this.warnedNerFailure = true;
+    console.warn(
+      "[PiiRedactor] The NER detector threw; falling back to regex-only " +
+        "redaction for this call's unstructured PII. The detector is still " +
+        "retried on subsequent calls; this warning is emitted only once.",
+      err
+    );
+  }
+
   /**
    * Restore original PII values in text that contains placeholders.
    * Used to de-anonymize LLM responses before displaying to the user.
@@ -319,6 +585,7 @@ export class PiiRedactor {
    *   regex re-scan of the output — so it can't trip over a restored value.
    */
   restoreForStorage(text: string): { text: string; unresolved: boolean } {
+    if (this.storagePattern === undefined) this.storagePattern = this.buildStoragePattern();
     if (!this.storagePattern || this.placeholderToValue.size === 0) {
       return { text, unresolved: false };
     }
@@ -380,7 +647,9 @@ export class PiiRedactor {
     this.placeholderToValue.clear();
     this.categoryCounters.clear();
     this.storageLookup = null;
+    this.storagePattern = undefined;
     this.warnedNonText = false;
+    this.warnedNerFailure = false;
   }
 }
 

@@ -1,6 +1,6 @@
 # LazyStoredConversation
 
-Defined in: [src/lib/db/chat/types.ts:248](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#248)
+Defined in: [src/lib/db/chat/types.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#249)
 
 Lazy variant of [StoredConversation](StoredConversation.md).
 
@@ -26,7 +26,7 @@ conversations); `decryptConversationTitle` handles both transparently.
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#221)
+Defined in: [src/lib/db/chat/types.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#222)
 
 **Inherited from**
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/db/chat/types.ts:221](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#225)
+Defined in: [src/lib/db/chat/types.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#226)
 
 **Inherited from**
 
@@ -50,7 +50,7 @@ Defined in: [src/lib/db/chat/types.ts:225](https://github.com/anuma-ai/sdk/blob/
 
 > **encryptedTitle**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#254)
+Defined in: [src/lib/db/chat/types.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#255)
 
 Raw stored title — either ciphertext (`enc:v3:...`) or plaintext for
 legacy rows. Pass to `decryptConversationTitle(encryptedTitle, address)`
@@ -62,7 +62,7 @@ when the row needs to be rendered.
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#227)
+Defined in: [src/lib/db/chat/types.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#228)
 
 **Inherited from**
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/db/chat/types.ts:227](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pinnedAt**: `Date` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#230)
+Defined in: [src/lib/db/chat/types.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#231)
 
 When the conversation was pinned to the top of the list; null/unset = not pinned.
 `null` (not `undefined`) at runtime for unpinned rows — mirrors the model field.
@@ -89,7 +89,7 @@ When the conversation was pinned to the top of the list; null/unset = not pinned
 
 > `optional` **projectId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#224)
+Defined in: [src/lib/db/chat/types.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#225)
 
 Optional project ID this conversation belongs to
 
@@ -103,7 +103,7 @@ Optional project ID this conversation belongs to
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:220](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#220)
+Defined in: [src/lib/db/chat/types.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#221)
 
 **Inherited from**
 
@@ -115,7 +115,7 @@ Defined in: [src/lib/db/chat/types.ts:220](https://github.com/anuma-ai/sdk/blob/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#226)
+Defined in: [src/lib/db/chat/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#227)
 
 **Inherited from**
 

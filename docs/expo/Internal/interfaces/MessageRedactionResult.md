@@ -1,6 +1,6 @@
 # MessageRedactionResult
 
-Defined in: [src/lib/pii/redactor.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#51)
+Defined in: [src/lib/pii/redactor.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#62)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/pii/redactor.ts:51](https://github.com/anuma-ai/sdk/blob/ma
 
 > **matches**: [`PiiMatch`](PiiMatch.md)\[]
 
-Defined in: [src/lib/pii/redactor.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#55)
+Defined in: [src/lib/pii/redactor.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#66)
 
 All matches found across all messages.
 
@@ -18,6 +18,6 @@ All matches found across all messages.
 
 > **messages**: [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 
-Defined in: [src/lib/pii/redactor.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#53)
+Defined in: [src/lib/pii/redactor.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#64)
 
 Redacted messages (new array — originals are not mutated).

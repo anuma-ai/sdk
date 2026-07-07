@@ -2,7 +2,7 @@
 
 > **createStreamingDeAnonymizer**(`redactor`: [`PiiRedactor`](../classes/PiiRedactor.md), `emit`: (`chunk`: `string`) => `void`): `object`
 
-Defined in: [src/lib/pii/redactor.ts:432](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#432)
+Defined in: [src/lib/pii/redactor.ts:701](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#701)
 
 Wraps an output sink so a streamed sequence of chunks is de-anonymized
 correctly even when a placeholder ("\[EMAIL\_1]") is split across chunk
