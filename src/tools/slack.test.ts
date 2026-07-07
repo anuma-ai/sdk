@@ -169,8 +169,8 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[1][1]?.channel).toBe("C9");
   });
 
-  test("slack_search_messages fans out across at most 6 channels", async () => {
-    const channels = Array.from({ length: 10 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
+  test("slack_search_messages fans out across at most MAX_SEARCH_CHANNELS conversations", async () => {
+    const channels = Array.from({ length: 12 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
     const callProxy = vi.fn<SlackProxyCaller>();
     callProxy.mockResolvedValueOnce(proxyResult({ ok: true, channels }));
     callProxy.mockResolvedValue(
@@ -179,8 +179,48 @@ describe("createSlackTools", () => {
     const tools = createSlackTools(callProxy);
     await runExecutor(tools.slack_search_messages, { query: "deploy" });
     const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
-    expect(historyCalls).toHaveLength(6);
-    expect(callProxy).toHaveBeenCalledTimes(7);
+    expect(historyCalls).toHaveLength(8);
+    expect(callProxy).toHaveBeenCalledTimes(9);
+  });
+
+  test("slack_search_messages reaches a DM that sorts after the channel cap", async () => {
+    // conversations.list returns channels first, then the DM — mirroring Slack's
+    // real ordering. With more channels than the cap, a plain slice would never
+    // reach D1; interleaving pulls it into the scanned set.
+    const channels = Array.from({ length: 10 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
+    const dm = { id: "D1", is_im: true, user: "U2" };
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [...channels, dm] });
+      }
+      if (path === "/conversations.history") {
+        return query?.channel === "D1"
+          ? proxyResult({ ok: true, messages: [{ text: "deploy done", user: "U2", ts: "9.1" }] })
+          : proxyResult({ ok: true, messages: [{ text: "nothing here", user: "u", ts: "1" }] });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.info") {
+        return proxyResult({
+          ok: true,
+          user: { id: "U2", real_name: "Bob Example", profile: { display_name: "bob" } },
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
+      Record<string, unknown>
+    >;
+    const historyChannels = callProxy.mock.calls
+      .filter((c) => c[0] === "/conversations.history")
+      .map((c) => c[1]?.channel);
+    expect(historyChannels).toContain("D1");
+    expect(result).toContainEqual({
+      text: "deploy done",
+      user: "U2",
+      ts: "9.1",
+      channel: "DM with bob",
+    });
   });
 
   test("slack_search_messages caps results at count", async () => {

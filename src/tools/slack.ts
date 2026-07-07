@@ -281,10 +281,30 @@ async function listSlackChannels(
   }));
 }
 
-/** Channels scanned in a workspace-wide search when no channel is given. */
-const MAX_SEARCH_CHANNELS = 6;
+/** Conversations scanned in a workspace-wide search when no channel is given. */
+const MAX_SEARCH_CHANNELS = 8;
 /** Recent messages pulled per channel — kept small since history is rate-limited. */
 const SEARCH_HISTORY_LIMIT = 15;
+
+/**
+ * conversations.list returns public/private channels BEFORE DMs, so a naive
+ * `slice(0, cap)` in any workspace with more than `cap` channels never reaches
+ * the trailing `im`/`mpim` entries — DMs would silently drop out of search.
+ * Partition into channels vs DMs and interleave them round-robin (channel, dm,
+ * channel, dm, … then the remainder of whichever list is longer) so both are
+ * represented once the caller slices down to the cap. A conversation with
+ * neither `is_im` nor `is_mpim` is a regular channel.
+ */
+function interleaveChannelsAndDms(conversations: SlackChannel[]): SlackChannel[] {
+  const channels = conversations.filter((c) => !c.is_im && !c.is_mpim);
+  const dms = conversations.filter((c) => c.is_im || c.is_mpim);
+  const interleaved: SlackChannel[] = [];
+  for (let i = 0; i < Math.max(channels.length, dms.length); i++) {
+    if (i < channels.length) interleaved.push(channels[i]);
+    if (i < dms.length) interleaved.push(dms[i]);
+  }
+  return interleaved;
+}
 
 /**
  * Split a query into lowercased terms. A message matches when its text contains
@@ -372,7 +392,7 @@ async function searchSlackMessages(
     const found = allChannels.find((c) => c.id === args.channel || c.name === args.channel);
     targets = [found ?? { id: args.channel, name: args.channel }];
   } else {
-    targets = allChannels.slice(0, MAX_SEARCH_CHANNELS);
+    targets = interleaveChannelsAndDms(allChannels).slice(0, MAX_SEARCH_CHANNELS);
   }
 
   // Lazily resolved once, only if we need to detect a self-DM.
