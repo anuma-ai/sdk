@@ -951,8 +951,12 @@ describe("useChatStorage detach → resume reconciliation", () => {
       (await getMessagesOp(ctx, "conv_cold_retry")).filter((m) => m.role === "assistant")
     ).toHaveLength(0);
 
-    // The documented retry path is a BARE resumeStream() (no override). It must
-    // find the retained synthesized context and complete the SAME row.
+    // A transient terminal on a SYNTHESIZED context clears the shared slot
+    // (retaining it would let the next registry entry's resume adopt this
+    // stream's context — the cross-conversation misfile). The retry is the
+    // same call the cold-launch worker actually makes: resumeStream(override).
+    // Row stability comes from the deterministic msg_resume_<inferenceId> id,
+    // not from the slot.
     mockResumeStream.mockResolvedValueOnce({
       data: responsesShape("cold replay finally complete"),
       error: null,
@@ -961,7 +965,7 @@ describe("useChatStorage detach → resume reconciliation", () => {
 
     let retry: Awaited<ReturnType<typeof result.current.resumeStream>>;
     await act(async () => {
-      retry = await result.current.resumeStream();
+      retry = await result.current.resumeStream(override);
     });
     expect(retry!.error).toBeNull();
 
@@ -971,6 +975,140 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(assistantRows).toHaveLength(1);
     expect(assistantRows[0].uniqueId).toBe(retry!.assistantMessage?.uniqueId);
     expect(assistantRows[0].content).toBe("cold replay finally complete");
+  });
+
+  it("cold-launch recovery into a multi-turn conversation parents the recovered row under the last stored message", async () => {
+    // The synthesized cold ctx has no userMessageUniqueId; persisting the row
+    // parentless makes it a second ROOT SIBLING in any conversation with prior
+    // turns — branch navigation prefers the newest root fork, so the whole
+    // prior thread collapses behind a root branch toggle and the recovery
+    // presents as a wiped conversation. The recovered row must anchor under
+    // the conversation's last stored message (the killed turn's user message,
+    // persisted at send time).
+    const db2ctx = makeCtx(db);
+    await createConversationOp(db2ctx, { conversationId: "conv_multiturn" });
+    await upsertMessageOp(db2ctx, {
+      conversationId: "conv_multiturn",
+      role: "user",
+      content: "first question",
+      uniqueId: "user-t1",
+    });
+    await upsertMessageOp(db2ctx, {
+      conversationId: "conv_multiturn",
+      role: "assistant",
+      content: "first answer",
+      uniqueId: "assistant-t1",
+      parentMessageId: "user-t1",
+    });
+    // The killed turn's user message — persisted at send, stream never finished.
+    await upsertMessageOp(db2ctx, {
+      conversationId: "conv_multiturn",
+      role: "user",
+      content: "second question (app killed mid-answer)",
+      uniqueId: "user-t2",
+      parentMessageId: "assistant-t1",
+    });
+
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_multiturn",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape("the recovered answer"),
+      error: null,
+      interrupted: false,
+    } as never);
+
+    await act(async () => {
+      await result.current.resumeStream({
+        inferenceId: "inf-multiturn",
+        apiType: "responses",
+        model: "test-model",
+        conversationId: "conv_multiturn",
+      });
+    });
+
+    const rows = await getMessagesOp(db2ctx, "conv_multiturn");
+    const recovered = rows.find((m) => m.uniqueId === "msg_resume_inf-multiturn");
+    expect(recovered).toBeTruthy();
+    expect(recovered!.content).toBe("the recovered answer");
+    // Anchored under the killed turn's user message — NOT a root sibling.
+    expect(recovered!.parentMessageId).toBe("user-t2");
+  });
+
+  it("cold-launch resume with a handleOverride never adopts a MISMATCHED stowed pending context", async () => {
+    // The cross-conversation misfile: a pending context for stream A (warm
+    // detach, or a synthesized ctx a transient retained) must not be paired
+    // with stream B's override — B's replay would finalize onto A's row in
+    // A's conversation. B must land in B's conversation on B's own row, and
+    // A's pending must survive untouched for A's own retry.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_stream_a",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    // Stream A: warm detach stows a pending ctx.
+    const detachedA = await detachSend(result, "conv_stream_a", "A's partial", "inf-A");
+    const rowA = detachedA.assistantUniqueId;
+
+    // Stream B: cold-launch override resume for a DIFFERENT stream.
+    const ctxDb = makeCtx(db);
+    await createConversationOp(ctxDb, { conversationId: "conv_stream_b" });
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape("B's full answer"),
+      error: null,
+      interrupted: false,
+    } as never);
+
+    let resB: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resB = await result.current.resumeStream({
+        inferenceId: "inf-B",
+        apiType: "responses",
+        model: "test-model",
+        conversationId: "conv_stream_b",
+      });
+    });
+
+    // B landed in B's conversation on B's deterministic row — not on A's.
+    expect(resB!.error).toBeNull();
+    expect(resB!.assistantMessage?.uniqueId).toBe("msg_resume_inf-B");
+    const bRows = (await getMessagesOp(ctxDb, "conv_stream_b")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(bRows).toHaveLength(1);
+    expect(bRows[0].content).toBe("B's full answer");
+    const aRows = (await getMessagesOp(ctxDb, "conv_stream_a")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(aRows).toHaveLength(0); // A is still detached, nothing misfiled onto it.
+
+    // A's pending survived B's resume: a bare warm resume still completes A.
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape("A's partial, completed"),
+      error: null,
+      interrupted: false,
+    } as never);
+    let resA: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resA = await result.current.resumeStream();
+    });
+    expect(resA!.error).toBeNull();
+    expect(resA!.assistantMessage?.uniqueId).toBe(rowA);
+    const aRowsAfter = (await getMessagesOp(ctxDb, "conv_stream_a")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(aRowsAfter).toHaveLength(1);
+    expect(aRowsAfter[0].content).toBe("A's partial, completed");
   });
 
   it("cold-launch: two clean resumes of the same override yield ONE row, not two", async () => {

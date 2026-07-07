@@ -2227,25 +2227,47 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     ): Promise<StoredMessage> => {
       const { content, thinking } = extractAssistantText(data);
 
-      // Deduplicate tool_call_events: the backend returns accumulated events
-      // across the entire conversation. Filter to only new events from this turn,
-      // mirroring the live send path, so we don't merge citations from earlier
-      // turns onto the resumed assistant message.
+      // Cold-launch contexts synthesize with an EMPTY userMessageUniqueId, and
+      // the storage layer's truthy guard drops a falsy parent — the recovered
+      // row would persist PARENTLESS. In any conversation with prior turns
+      // that makes it a second ROOT SIBLING: branch navigation prefers the
+      // newest fork, so the entire prior thread collapses behind a root
+      // branch toggle (the #3118 failure class) and the recovery presents as
+      // a wiped conversation. The killed turn's user message WAS persisted at
+      // send time, so anchor the recovered row under the conversation's last
+      // stored message (excluding this row itself on a re-finalize). Both
+      // this and the tool-event dedup below need the stored messages — fetch
+      // once.
+      let parentMessageId = ctx.userMessageUniqueId;
       let knownIds = ctx.knownToolCallEventIds;
-      if (!knownIds && ctx.convId) {
-        // Cold-launch resume: no stowed context, so fetch stored messages to build the set.
-        knownIds = new Set<string>();
+      if (ctx.convId && (!knownIds || !parentMessageId)) {
+        let storedMessages: StoredMessage[] | null = null;
         try {
-          const storedMessages = await getMessages(ctx.convId);
-          for (const msg of storedMessages) {
-            if (msg.toolCallEvents) {
-              for (const evt of msg.toolCallEvents) {
-                if (evt.id) knownIds.add(evt.id);
+          storedMessages = await getMessages(ctx.convId);
+        } catch {
+          // Fetch failed: no dedup possible and no parent anchor — proceed
+          // with all events and (only in that failure case) a parentless row.
+        }
+        if (storedMessages) {
+          if (!knownIds) {
+            knownIds = new Set<string>();
+            for (const msg of storedMessages) {
+              if (msg.toolCallEvents) {
+                for (const evt of msg.toolCallEvents) {
+                  if (evt.id) knownIds.add(evt.id);
+                }
               }
             }
           }
-        } catch {
-          // Fetch failed: no deduplication possible, proceed with all events.
+          if (!parentMessageId) {
+            // getMessages returns ordinal-ascending; walk from the newest.
+            for (let i = storedMessages.length - 1; i >= 0; i--) {
+              if (storedMessages[i].uniqueId !== ctx.assistantUniqueId) {
+                parentMessageId = storedMessages[i].uniqueId;
+                break;
+              }
+            }
+          }
         }
       }
       const allToolCallEvents = getToolCallEvents(data);
@@ -2280,7 +2302,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         thoughtProcess: finalizeThoughtProcess(ctx.thoughtProcess),
         thinking,
         wasStopped,
-        parentMessageId: ctx.userMessageUniqueId,
+        parentMessageId,
         uniqueId: ctx.assistantUniqueId!,
       });
     },
@@ -2325,39 +2347,50 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Resolve context: the stowed pending-resume, or synthesize from an
       // override (cold-launch: no in-memory context, so assistantUniqueId is
       // undefined and the row is simply created on finalize).
+      //
+      // The stowed context is adopted ONLY when it belongs to the same stream
+      // as the override. Pairing a mismatched pending ctx (another turn's warm
+      // detach, or a prior registry entry's synthesized cold ctx retained by a
+      // transient terminal) with this handle would replay THIS stream but
+      // finalize it onto the OTHER stream's row in the other conversation — a
+      // silent, permanent cross-conversation misfile. The no-override warm
+      // path is unchanged: it always means "resume the stowed turn".
       const pending = pendingResumeRef.current;
-      const ctx: NonNullable<typeof pendingResumeRef.current> | null = pending
-        ? pending
-        : handleOverride
-          ? {
-              handle: handleOverride,
-              // The handle is authoritative for the resumed turn's thread: it
-              // carries the conversationId the original stream was sent under.
-              // On a relaunch/deep-link the app may already be viewing a
-              // DIFFERENT conversation (currentConversationId), so preferring
-              // current would misfile the reconciled row into the wrong thread
-              // (or "" if neither is set). currentConversationId only backfills
-              // a handle that predates the conversationId field.
-              convId: handleOverride.conversationId ?? currentConversationId ?? "",
-              userMessageUniqueId: "",
-              // Cold-launch (mobile PR5): no in-memory context, so the id must be
-              // STABLE across calls. Derive it deterministically from the
-              // inferenceId — the only anchor available cold — so every resume of
-              // the SAME buffered stream (re-tap, re-render, relaunch, retry after
-              // a transient) reconciles onto the SAME row. A random id per
-              // invocation would mint a second assistant bubble on any re-resume,
-              // breaking the one-row-per-stream invariant. The stowed ctx (below)
-              // keeps it stable within one session; this keeps it stable even
-              // after a clean terminal cleared the ref.
-              assistantUniqueId: `msg_resume_${handleOverride.inferenceId}`,
-              model: handleOverride.model,
-              imageModel: undefined,
-              sources: undefined,
-              thoughtProcess: undefined,
-              startTime: Date.now(),
-              partialData: null,
-            }
-          : null;
+      const pendingMatchesOverride =
+        !handleOverride || pending?.handle?.inferenceId === handleOverride.inferenceId;
+      const ctx: NonNullable<typeof pendingResumeRef.current> | null =
+        pending && pendingMatchesOverride
+          ? pending
+          : handleOverride
+            ? {
+                handle: handleOverride,
+                // The handle is authoritative for the resumed turn's thread: it
+                // carries the conversationId the original stream was sent under.
+                // On a relaunch/deep-link the app may already be viewing a
+                // DIFFERENT conversation (currentConversationId), so preferring
+                // current would misfile the reconciled row into the wrong thread
+                // (or "" if neither is set). currentConversationId only backfills
+                // a handle that predates the conversationId field.
+                convId: handleOverride.conversationId ?? currentConversationId ?? "",
+                userMessageUniqueId: "",
+                // Cold-launch (mobile PR5): no in-memory context, so the id must be
+                // STABLE across calls. Derive it deterministically from the
+                // inferenceId — the only anchor available cold — so every resume of
+                // the SAME buffered stream (re-tap, re-render, relaunch, retry after
+                // a transient) reconciles onto the SAME row. A random id per
+                // invocation would mint a second assistant bubble on any re-resume,
+                // breaking the one-row-per-stream invariant. The stowed ctx (below)
+                // keeps it stable within one session; this keeps it stable even
+                // after a clean terminal cleared the ref.
+                assistantUniqueId: `msg_resume_${handleOverride.inferenceId}`,
+                model: handleOverride.model,
+                imageModel: undefined,
+                sources: undefined,
+                thoughtProcess: undefined,
+                startTime: Date.now(),
+                partialData: null,
+              }
+            : null;
 
       const handle = handleOverride ?? ctx?.handle ?? null;
       if (!ctx || !handle) {
@@ -2370,10 +2403,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // assistant row (breaking the one-row invariant), and a transient (401)
       // terminal leaves nothing to retry ("No resumable stream"). The warm path
       // assigns the same object back (no-op). Terminal branches below clear it
-      // (clean/410/interrupted) or retain it (transient) exactly as before.
-      pendingResumeRef.current = ctx;
+      // (clean/410/interrupted) or retain it (transient).
+      //
+      // EXCEPT when a foreign pending exists (mismatched inferenceId): stowing
+      // would clobber the other stream's warm retry context. The synthesized
+      // ctx doesn't need the slot for stability — assistantUniqueId derives
+      // deterministically from the inferenceId, so every re-resume of this
+      // stream reconciles onto the same row regardless.
+      const adoptedPending = pending !== null && ctx === pending;
+      const foreignPending = pending !== null && !adoptedPending;
+      if (!foreignPending) pendingResumeRef.current = ctx;
       // Stable, non-null context for use after the awaits.
       const rctx = ctx;
+      // Clear the slot only when it still holds OUR context — never wipe a
+      // foreign pending this resume deliberately left untouched, and never
+      // wipe a newer context a later caller stowed while we awaited.
+      const clearOwnCtx = () => {
+        if (pendingResumeRef.current === rctx) pendingResumeRef.current = null;
+      };
 
       // Finalize-write wrapper: a DB failure must surface as the structured
       // result shape, never as a raw throw out of resumeStream. On failure the
@@ -2433,7 +2480,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               if ("error" in written) {
                 return { data: rctx.partialData, error: written.error, assistantMessage: null };
               }
-              pendingResumeRef.current = null;
+              clearOwnCtx();
               return {
                 data: rctx.partialData,
                 error: null,
@@ -2443,7 +2490,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             }
             // Nothing replayed and nothing stowed: a blank row would be a lie
             // — leave the turn rowless and let the caller message the loss.
-            pendingResumeRef.current = null;
+            clearOwnCtx();
             return { data: result.data, error: null, empty: true, assistantMessage: null };
           }
 
@@ -2452,7 +2499,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if ("error" in written) {
             return { data: result.data, error: written.error, assistantMessage: null };
           }
-          pendingResumeRef.current = null;
+          clearOwnCtx();
           // Embed with the per-call masker stowed at detach (undefined on
           // cold-launch → embedMessageAsync falls back to the hook-level masker),
           // so a per-request redaction override still masks the resumed embedding.
@@ -2485,11 +2532,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             }
             assistantMessage = written.message;
           }
-          pendingResumeRef.current = null;
+          clearOwnCtx();
           return { data, error: result.error, interrupted: true, assistantMessage };
         }
 
-        // Transient (401/network): persist nothing, KEEP the handle for retry.
+        // Transient (401/network): persist nothing. A WARM (detach-stowed)
+        // context is retained for the caller's retry — but a SYNTHESIZED
+        // cold-launch context must NOT linger in the shared slot: the
+        // cold-launch worker iterates registry entries sequentially, and a
+        // retained synthesized ctx from entry N would be adopted by entry
+        // N+1's resume, finalizing stream N+1's answer onto stream N's row in
+        // stream N's conversation. Retry stability doesn't need the slot —
+        // the synthesized assistantUniqueId re-derives deterministically from
+        // the inferenceId on the next call.
+        if (!adoptedPending) clearOwnCtx();
         return {
           data: result.data,
           error: result.error,
@@ -2514,7 +2570,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             }
             assistantMessage = written.message;
           }
-          pendingResumeRef.current = null;
+          clearOwnCtx();
           return { data: rctx.partialData, error: null, expired: true, assistantMessage };
         }
         throw err;
