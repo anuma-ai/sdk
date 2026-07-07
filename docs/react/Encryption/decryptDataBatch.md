@@ -2,7 +2,7 @@
 
 > **decryptDataBatch**(`encryptedValues`: `string`\[], `address`: `string`): `Promise`<`string`\[]>
 
-Defined in: [src/react/useEncryption.ts:815](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#815)
+Defined in: [src/react/useEncryption.ts:893](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#893)
 
 Batch decrypt multiple values efficiently with a single key lookup.
 Much faster than calling decryptData for each value individually.

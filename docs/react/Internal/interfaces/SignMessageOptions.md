@@ -1,6 +1,6 @@
 # SignMessageOptions
 
-Defined in: [src/react/useEncryption.ts:829](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#829)
+Defined in: [src/react/useEncryption.ts:907](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#907)
 
 Options for signing messages.
 
@@ -10,6 +10,6 @@ Options for signing messages.
 
 > `optional` **showWalletUIs**: `boolean`
 
-Defined in: [src/react/useEncryption.ts:831](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#831)
+Defined in: [src/react/useEncryption.ts:909](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#909)
 
 Whether to show wallet UI during signing. Default: true

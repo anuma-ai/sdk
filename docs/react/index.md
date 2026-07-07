@@ -59,8 +59,10 @@ function ChatComponent() {
 | ------ | ------ |
 | [decryptData](Encryption/decryptData.md) | Decrypts data using AES-GCM with the stored encryption key. |
 | [decryptDataBatch](Encryption/decryptDataBatch.md) | Batch decrypt multiple values efficiently with a single key lookup. Much faster than calling decryptData for each value individually. |
+| [decryptDataBytesFromBytes](Encryption/decryptDataBytesFromBytes.md) | Like [decryptDataBytes](Internal/functions/decryptDataBytes.md) but takes the raw encrypted bytes (`[IV][ciphertext+tag]`) directly instead of a hex string. Skips the `hexToBytes` conversion — for large binary media the hex string the caller would otherwise build is a ~1.37x copy of the whole payload (a ~1GB string for a 500MB video), plus this avoids a second byte copy. Same key resolution as decryptDataBytes. |
 | [encryptData](Encryption/encryptData.md) | Encrypts data using AES-GCM with the stored encryption key. |
 | [encryptDataBatch](Encryption/encryptDataBatch.md) | Batch encrypt multiple values efficiently with a single key lookup. Much faster than calling encryptData for each value individually. |
+| [encryptDataBytes](Encryption/encryptDataBytes.md) | Like [encryptData](Encryption/encryptData.md) but takes raw bytes and returns the raw encrypted `[IV][ciphertext+tag]` Uint8Array instead of a hex string. Avoids the hex round-trip (`encryptData` returns hex, which callers immediately convert back to bytes) — for large binary media that hex string is a ~1.37x copy of the whole payload. Use for binary uploads (e.g. enc:v3 media frames). |
 
 ## Hooks
 

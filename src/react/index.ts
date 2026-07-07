@@ -150,10 +150,12 @@ export {
   decryptData,
   decryptDataBatch,
   decryptDataBytes,
+  decryptDataBytesFromBytes,
   decryptDataWithKey,
   encryptData,
   // Batch operations for performance (single key lookup)
   encryptDataBatch,
+  encryptDataBytes,
   encryptDataWithKey,
   exportPublicKey,
   getEncryptionKey,
