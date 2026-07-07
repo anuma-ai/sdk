@@ -2,7 +2,7 @@
 
 > **searchMessagesOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`StoredMessageWithSimilarity`](../interfaces/StoredMessageWithSimilarity.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:931](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#931)
+Defined in: [src/lib/db/chat/operations.ts:1089](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1089)
 
 ## Parameters
 

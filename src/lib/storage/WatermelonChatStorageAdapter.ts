@@ -25,7 +25,10 @@ import {
   getConversationOp,
   getConversationsByProjectOp,
   getConversationsOp,
+  getMessageCountOp,
+  getMessageSkeletonsOp,
   getMessagesOp,
+  getMessagesPageOp,
   type StorageOperationsContext,
   updateConversationPinnedOp,
   updateConversationProjectOp,
@@ -39,8 +42,10 @@ import {
 import type {
   CreateConversationOptions,
   CreateMessageOptions,
+  GetMessagesPageOptions,
   MessageChunk,
   MessageFeedback,
+  MessageSkeleton,
   StoredConversation,
   StoredFileWithContext,
   StoredMessage,
@@ -148,6 +153,21 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
 
   getMessages(conversationId: string): Promise<StoredMessage[]> {
     return getMessagesOp(this.ctx, conversationId);
+  }
+
+  getMessagesPage(
+    conversationId: string,
+    options: GetMessagesPageOptions
+  ): Promise<StoredMessage[]> {
+    return getMessagesPageOp(this.ctx, conversationId, options);
+  }
+
+  getMessageSkeletons(conversationId: string): Promise<MessageSkeleton[]> {
+    return getMessageSkeletonsOp(this.ctx, conversationId);
+  }
+
+  getMessageCount(conversationId: string): Promise<number> {
+    return getMessageCountOp(this.ctx, conversationId);
   }
 
   createMessage(options: CreateMessageOptions): Promise<StoredMessage> {

@@ -446,6 +446,302 @@ describe("useChatStorage detach → resume reconciliation", () => {
     expect(second!.error).toBe("No resumable stream");
   });
 
+  it("finalizes the stowed PARTIAL as stopped when a clean resume replays ZERO content (empty-replay guard)", async () => {
+    // Dogfood bug (client v1.2.0): a portal replay whose frames are gone but
+    // whose terminal survived serves a clean 200 with zero content frames. The
+    // clean-completion branch used to persist that blank over the turn
+    // (wasStopped: false), wiping the user's already-streamed partial. It must
+    // instead fall back to the stowed partial — same contract as the 410 and
+    // interrupted terminals.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_empty_replay",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    const detached = await detachSend(result, "conv_empty_replay", "the visible partial", "inf-e1");
+    const rowId = detached.assistantUniqueId;
+
+    // Clean terminal, but the replay carried no content at all.
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape(""),
+      error: null,
+      interrupted: false,
+      empty: true,
+    } as never);
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream();
+    });
+
+    expect(resumeResult!.error).toBeNull();
+    expect(resumeResult!.empty).toBe(true);
+    expect(resumeResult!.assistantMessage?.uniqueId).toBe(rowId);
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_empty_replay")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    expect(assistantRows[0].uniqueId).toBe(rowId);
+    // The stowed partial wins over the blank replay, finalized as stopped.
+    expect(assistantRows[0].content).toBe("the visible partial");
+    expect(assistantRows[0].wasStopped).toBe(true);
+
+    // Terminal outcome: the handle is cleared, not retained.
+    let second: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      second = await result.current.resumeStream();
+    });
+    expect(second!.error).toBe("No resumable stream");
+  });
+
+  it("finalizes an events-only stowed partial as stopped on a clean empty replay (citations count as output)", async () => {
+    // A turn detached after its search events arrived but before any message
+    // text: the stowed partial has tool_call_events and no content/thinking.
+    // That is real output the user saw — an empty replay must finalize it,
+    // not skip the fallback and drop the citations.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_empty_events_partial",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    const eventsOnlyPartial = {
+      ...responsesShape(""),
+      tool_call_events: [
+        {
+          id: "evt-p1",
+          name: "AnumaSearchMCP_text_search",
+          status: "completed",
+          output: JSON.stringify({ results: [{ url: "https://example.org", title: "Partial" }] }),
+        },
+      ],
+    };
+    mockRunToolLoop.mockResolvedValueOnce({
+      data: eventsOnlyPartial,
+      error: "Request detached",
+      detached: true,
+      resume: {
+        inferenceId: "inf-evp",
+        apiType: "responses",
+        model: "test-model",
+        conversationId: "conv_empty_events_partial",
+      },
+    } as never);
+
+    let detached: Awaited<ReturnType<typeof result.current.sendMessage>>;
+    await act(async () => {
+      detached = await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "question" }] }],
+        model: "test-model",
+      });
+    });
+    const rowId = (detached! as Extract<typeof detached, { detached: true }>).assistantUniqueId;
+
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape(""),
+      error: null,
+      interrupted: false,
+      empty: true,
+    } as never);
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream();
+    });
+
+    expect(resumeResult!.empty).toBe(true);
+    expect(resumeResult!.assistantMessage?.uniqueId).toBe(rowId);
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_empty_events_partial")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    expect(assistantRows[0].wasStopped).toBe(true);
+    expect(assistantRows[0].sources?.map((s) => s.url)).toContain("https://example.org");
+  });
+
+  it("persists NO row when a clean resume replays zero content and there is no stowed partial", async () => {
+    // Paul's shape: backgrounded before any content streamed, so the stowed
+    // partial is empty too. A blank row with wasStopped:false (an assistant
+    // bubble that lies "completed") must NOT be manufactured — persist nothing
+    // and surface `empty` so the caller can message the loss honestly.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_empty_nopartial",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    const detached = await detachSend(result, "conv_empty_nopartial", "", "inf-e2");
+    expect(detached.detached).toBe(true);
+
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape(""),
+      error: null,
+      interrupted: false,
+      empty: true,
+    } as never);
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream();
+    });
+
+    expect(resumeResult!.error).toBeNull();
+    expect(resumeResult!.empty).toBe(true);
+    expect(resumeResult!.assistantMessage).toBeNull();
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_empty_nopartial")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(0);
+
+    // Still a terminal outcome: the handle is cleared.
+    let second: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      second = await result.current.resumeStream();
+    });
+    expect(second!.error).toBe("No resumable stream");
+  });
+
+  it("finalizes the stowed PARTIAL as stopped when an INTERRUPTED replay carried no output", async () => {
+    // The interrupted flavor of the empty-replay bug: frames lost server-side
+    // with a NON-completed terminal replays zero frames + one in-stream error
+    // event, and the lib's buildInterrupted returns a non-null response built
+    // from the EMPTY accumulator. The old `result.data ?? partialData` picked
+    // that blank over the partial; the guard must prefer the partial.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_int_empty",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    const detached = await detachSend(result, "conv_int_empty", "the visible partial", "inf-ie1");
+    const rowId = detached.assistantUniqueId;
+
+    // Interrupted terminal whose replayed data is output-less (blank content).
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape(""),
+      error: "[stream_interrupted] stream went silent",
+      interrupted: true,
+    } as never);
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream();
+    });
+
+    expect(resumeResult!.interrupted).toBe(true);
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_int_empty")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    expect(assistantRows[0].uniqueId).toBe(rowId);
+    expect(assistantRows[0].content).toBe("the visible partial");
+    expect(assistantRows[0].wasStopped).toBe(true);
+  });
+
+  it("persists NO row when an interrupted replay carried no output and there is no stowed partial", async () => {
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_int_nopartial",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    await detachSend(result, "conv_int_nopartial", "", "inf-ie2");
+
+    mockResumeStream.mockResolvedValueOnce({
+      data: responsesShape(""),
+      error: "[stream_interrupted] stream went silent",
+      interrupted: true,
+    } as never);
+
+    await act(async () => {
+      await result.current.resumeStream();
+    });
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_int_nopartial")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(0);
+  });
+
+  it("treats a clean completion carrying only tool_call_events as a REAL completion (not empty)", async () => {
+    // #639 contract: citation events ride a normal text completion — a
+    // search/image turn can complete with events and no message text. The
+    // empty-replay guard must not misclassify it and discard the fresh events.
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: db,
+        conversationId: "conv_events_only",
+        getToken: async () => "tok",
+        resumable: true,
+      })
+    );
+
+    const detached = await detachSend(result, "conv_events_only", "stale partial", "inf-ev1");
+    const rowId = detached.assistantUniqueId;
+
+    const eventsOnly = {
+      ...responsesShape(""),
+      tool_call_events: [
+        {
+          id: "evt-1",
+          name: "AnumaSearchMCP_text_search",
+          status: "completed",
+          output: JSON.stringify({ results: [{ url: "https://example.com", title: "Example" }] }),
+        },
+      ],
+    };
+    mockResumeStream.mockResolvedValueOnce({
+      data: eventsOnly,
+      error: null,
+      interrupted: false,
+      empty: false,
+    } as never);
+
+    let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+    await act(async () => {
+      resumeResult = await result.current.resumeStream();
+    });
+
+    // Clean completion path: not flagged empty, row reconciled, and the
+    // events' citations merged into sources (#639) instead of being discarded
+    // by a false empty-classification.
+    expect(resumeResult!.error).toBeNull();
+    expect(resumeResult!.empty).toBeUndefined();
+    expect(resumeResult!.assistantMessage?.uniqueId).toBe(rowId);
+
+    const ctx = makeCtx(db);
+    const assistantRows = (await getMessagesOp(ctx, "conv_events_only")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistantRows).toHaveLength(1);
+    expect(assistantRows[0].wasStopped).toBeFalsy();
+    expect(assistantRows[0].sources?.map((s) => s.url)).toContain("https://example.com");
+  });
+
   it("finalizes the REPLAYED content as stopped on an interrupted terminal", async () => {
     const { result } = renderHook(() =>
       useChatStorage({

@@ -137,6 +137,67 @@ describe("resumeStream", () => {
     expect(JSON.stringify(result.data)).toContain("Hello world");
   });
 
+  it("flags a [DONE]-only replay (zero content frames) as empty, with no onData and no onFinish", async () => {
+    // The prod shape behind the resume-wipes-to-blank dogfood bug: the buffer's
+    // frames key is gone (evicted/trimmed) but the terminal survives, so the
+    // portal serves a clean 200 that carries ONLY the [DONE] marker. The clean
+    // terminal must be distinguishable from a real completion so consumers can
+    // keep their partial instead of committing a blank — and onFinish must NOT
+    // deliver the blank response to callback-keyed consumers.
+    const doneOnly = (async function* () {
+      yield "[DONE]";
+    })();
+    const { transport } = captureTransport(doneOnly);
+    const onData = vi.fn();
+    const onThinking = vi.fn();
+    const onFinish = vi.fn();
+
+    const result = await resumeStream({
+      handle,
+      token: "tok",
+      transport,
+      onData,
+      onThinking,
+      onFinish,
+    });
+
+    expect(result).toMatchObject({ error: null, interrupted: false, empty: true });
+    expect(onData).not.toHaveBeenCalled();
+    expect(onThinking).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+
+  it("does not flag a tool-events-only replay as empty (citation-only completions are real output)", async () => {
+    // A search/image turn can complete with tool_call_events and no message
+    // text. Those frames are real buffered output — the replay must count as a
+    // completion (onFinish fires, empty: false) so the events aren't dropped.
+    const eventsOnly = (async function* () {
+      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield {
+        type: "response.completed",
+        response: {
+          usage: { input_tokens: 1, output_tokens: 1 },
+          tool_call_events: [{ id: "evt-1", name: "AnumaSearchMCP", status: "completed" }],
+        },
+      };
+    })();
+    const { transport } = captureTransport(eventsOnly);
+    const onFinish = vi.fn();
+
+    const result = await resumeStream({ handle, token: "tok", transport, onFinish });
+
+    expect(result).toMatchObject({ error: null, interrupted: false, empty: false });
+    expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not flag a content-bearing replay as empty", async () => {
+    const { transport } = captureTransport(makeTextStream("Hello ", "world"));
+
+    const result = await resumeStream({ handle, token: "tok", transport });
+
+    expect(result).toMatchObject({ error: null, interrupted: false, empty: false });
+  });
+
   it("is replay-equivalent with an uninterrupted runToolLoop over the same fixture", async () => {
     // The live run and the replay drive the SAME fixture chunk sequence; the
     // assembled onFinish responses must deep-equal.
