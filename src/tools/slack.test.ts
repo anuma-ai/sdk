@@ -100,8 +100,56 @@ describe("createSlackTools", () => {
     })) as Array<Record<string, unknown>>;
     expect(result).toEqual([{ text: "deploy done", user: "bob", ts: "1.1", channel: "eng" }]);
     expect(callProxy.mock.calls[0][0]).toBe("/conversations.list");
+    // DMs are pulled into scope, and one page covers >100-channel workspaces.
+    expect(callProxy.mock.calls[0][1]?.types).toBe("public_channel,private_channel,im,mpim");
+    expect(callProxy.mock.calls[0][1]?.limit).toBe(1000);
     expect(callProxy.mock.calls[1][0]).toBe("/conversations.history");
     expect(callProxy.mock.calls[1][1]?.channel).toBe("C9");
+  });
+
+  test("slack_search_messages returns a DM (im) match with a readable label", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      // conversations.list surfaces a 1:1 DM (no name, other party = U2).
+      .mockResolvedValueOnce(
+        proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U2" }] })
+      )
+      .mockResolvedValueOnce(
+        proxyResult({ ok: true, messages: [{ text: "deploy done", user: "U2", ts: "1.1" }] })
+      )
+      // auth.test (self-DM detection) then users.info to name the other party.
+      .mockResolvedValueOnce(proxyResult({ ok: true, user_id: "U1" }))
+      .mockResolvedValueOnce(
+        proxyResult({
+          ok: true,
+          user: { id: "U2", real_name: "Bob Example", profile: { display_name: "bob" } },
+        })
+      );
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
+      Record<string, unknown>
+    >;
+    expect(result).toEqual([
+      { text: "deploy done", user: "U2", ts: "1.1", channel: "DM with bob" },
+    ]);
+  });
+
+  test("slack_search_messages labels a group DM (mpim) match as 'Group DM'", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(
+        proxyResult({ ok: true, channels: [{ id: "G1", is_mpim: true, name: "mpdm-a--b--c-1" }] })
+      )
+      .mockResolvedValueOnce(
+        proxyResult({ ok: true, messages: [{ text: "deploy done", user: "U2", ts: "2.1" }] })
+      );
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
+      Record<string, unknown>
+    >;
+    expect(result).toEqual([{ text: "deploy done", user: "U2", ts: "2.1", channel: "Group DM" }]);
+    // No users.info needed for a group DM — only list + history.
+    expect(callProxy).toHaveBeenCalledTimes(2);
   });
 
   test("slack_search_messages resolves a channel name to its id before reading history", async () => {
