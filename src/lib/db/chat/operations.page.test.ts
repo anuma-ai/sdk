@@ -37,7 +37,7 @@ function makeCtx(db: Database): StorageOperationsContext {
  * Seed `count` alternating user/assistant messages; returns the ctx.
  *
  * The exact-messageId assertions below intentionally pin `createMessageOp`'s
- * sequencing contract (`messageId = existingCount + 1`, so 1…N in a fresh
+ * sequencing contract (`messageId = max(existing) + 1`, so 1…N in a fresh
  * database) — pagination cursors (`beforeMessageId`) depend on that ordering,
  * so a change to id assignment SHOULD fail these tests.
  */
@@ -241,5 +241,76 @@ describe("getMessageCountOp", () => {
     expect(await getMessageCountOp(ctx, "conv-1")).toBe(4);
     expect(await getMessageCountOp(ctx, "conv-2")).toBe(1);
     expect(await getMessageCountOp(ctx, "conv-none")).toBe(0);
+  });
+});
+
+describe("getMessagesPageOp duplicated-boundary handling", () => {
+  it("does not lose a duplicated boundary row when boundaryExcludeUniqueIds is passed", async () => {
+    // Legacy data: two rows sharing message_id 5 (count-based assignment
+    // reused a freed id after a mid-thread delete). An exclusive Q.lt cursor
+    // at boundary 5 would drop BOTH; the inclusive+exclude cursor must
+    // return the twin exactly once.
+    const ctx = await seedThread(10);
+    const twin = await createMessageOp(ctx, {
+      conversationId: "conv-1",
+      role: "assistant",
+      content: "duplicated id twin",
+      uniqueId: "msg-5-twin",
+    });
+    const twinRow = await ctx.messagesCollection.find(twin.uniqueId);
+    await ctx.database.write(async () => {
+      await twinRow.update((msg) => {
+        msg._setRaw("message_id", 5);
+      });
+    });
+
+    // The caller holds rows down to id 5 via "msg-5" and pages for the rest.
+    const page = await getMessagesPageOp(ctx, "conv-1", {
+      beforeMessageId: 5,
+      limit: 10,
+      boundaryExcludeUniqueIds: ["msg-5"],
+    });
+
+    expect(page.map((m) => m.uniqueId)).toEqual(["msg-1", "msg-2", "msg-3", "msg-4", "msg-5-twin"]);
+
+    // Without the exclude list the exclusive cursor keeps its old contract
+    // (and skips the twin — the documented legacy hazard).
+    const exclusive = await getMessagesPageOp(ctx, "conv-1", { beforeMessageId: 5, limit: 10 });
+    expect(exclusive.map((m) => m.uniqueId)).toEqual(["msg-1", "msg-2", "msg-3", "msg-4"]);
+  });
+
+  it("respects limit while excluding boundary rows", async () => {
+    const ctx = await seedThread(10);
+
+    const page = await getMessagesPageOp(ctx, "conv-1", {
+      beforeMessageId: 8,
+      limit: 3,
+      boundaryExcludeUniqueIds: ["msg-8"],
+    });
+
+    // Inclusive fetch of ids ≤ 8 minus the held row, newest 3 of the rest.
+    expect(page.map((m) => m.messageId)).toEqual([5, 6, 7]);
+  });
+});
+
+describe("createMessageOp id assignment under deletions", () => {
+  it("never reuses a freed message_id (max + 1, not count + 1)", async () => {
+    const ctx = await seedThread(3);
+
+    // Delete the middle row — count drops to 2 while max stays 3.
+    const middle = await ctx.messagesCollection.find("msg-2");
+    await ctx.database.write(async () => {
+      await middle.destroyPermanently();
+    });
+
+    const created = await createMessageOp(ctx, {
+      conversationId: "conv-1",
+      role: "user",
+      content: "after delete",
+      uniqueId: "msg-after-delete",
+    });
+
+    // count+1 would have assigned 3 — colliding with the existing "msg-3".
+    expect(created.messageId).toBe(4);
   });
 });

@@ -126,10 +126,21 @@ export interface SearchSource {
 /** Options for paginated message reads ({@link getMessagesPageOp}). */
 export interface GetMessagesPageOptions {
   /**
-   * Exclusive upper bound: only messages with `messageId < beforeMessageId`
-   * are returned. Omit to fetch the newest page (the conversation tail).
+   * Upper-bound cursor. Without `boundaryExcludeUniqueIds` it is EXCLUSIVE:
+   * only messages with `messageId < beforeMessageId` are returned. Omit to
+   * fetch the newest page (the conversation tail).
    */
   beforeMessageId?: number;
+  /**
+   * uniqueIds of the rows the caller already holds AT the `beforeMessageId`
+   * boundary. `message_id` is not guaranteed unique in legacy data (ids were
+   * assigned count-based, so a mid-thread delete let the next create reuse a
+   * freed id) — with an exclusive cursor, an unseen row sharing the boundary
+   * id would be silently skipped by every page. When this is provided, the
+   * boundary id is fetched INCLUSIVELY and these known rows are filtered
+   * out, so a duplicated boundary row is returned exactly once.
+   */
+  boundaryExcludeUniqueIds?: string[];
   /**
    * Maximum rows to return — the NEWEST `limit` rows of the matching range.
    * Must be a positive integer: non-positive or non-finite values yield an

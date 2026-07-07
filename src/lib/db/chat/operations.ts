@@ -493,14 +493,27 @@ export async function getMessagesPageOp(
   const limit = Math.floor(opts.limit);
   if (!Number.isFinite(limit) || limit < 1) return [];
 
+  // legacy data may hold duplicated message_ids (count-based assignment +
+  // deletes) — see GetMessagesPageOptions.boundaryExcludeUniqueIds.
+  const exclude = new Set(opts.boundaryExcludeUniqueIds ?? []);
+
   const clauses = [Q.where("conversation_id", convId)];
   if (opts.beforeMessageId !== undefined) {
-    clauses.push(Q.where("message_id", Q.lt(opts.beforeMessageId)));
+    clauses.push(
+      exclude.size > 0
+        ? Q.where("message_id", Q.lte(opts.beforeMessageId))
+        : Q.where("message_id", Q.lt(opts.beforeMessageId))
+    );
   }
 
-  const results = await ctx.messagesCollection
-    .query(...clauses, Q.sortBy("message_id", Q.desc), Q.take(limit))
+  const fetched = await ctx.messagesCollection
+    .query(...clauses, Q.sortBy("message_id", Q.desc), Q.take(limit + exclude.size))
     .fetch();
+
+  // Drop the caller's already-held boundary rows, keep the newest `limit`.
+  const results = (
+    exclude.size > 0 ? fetched.filter((msg) => !exclude.has(msg.id)) : fetched
+  ).slice(0, limit);
 
   // Fetched newest-first to take the tail; consumers expect ascending.
   results.reverse();
@@ -742,8 +755,19 @@ export async function createMessageOp(
     }
   }
 
-  const existingCount = await getMessageCountOp(ctx, opts.conversationId);
-  const messageId = existingCount + 1;
+  // max(message_id) + 1, NOT count + 1: after a mid-thread delete (or a
+  // create racing a partial backup restore) the row count is lower than the
+  // highest assigned id, so count + 1 would REUSE an existing message_id.
+  // Duplicated ids have no stable ordering and break message_id-cursor
+  // pagination (see getMessagesPageOp's boundaryExcludeUniqueIds).
+  const newest = await ctx.messagesCollection
+    .query(
+      Q.where("conversation_id", opts.conversationId),
+      Q.sortBy("message_id", Q.desc),
+      Q.take(1)
+    )
+    .fetch();
+  const messageId = (newest[0]?.messageId ?? 0) + 1;
 
   // Encrypt message fields if encryption context is available.
   // encryptMessageFields returns Record<string, unknown> with the same keys as opts,
