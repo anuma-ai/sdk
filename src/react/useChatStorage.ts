@@ -1364,7 +1364,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       piiRedaction === true
         ? getConversationRedactor(currentConversationId, nerDetectorRef.current)
         : piiRedaction,
-    [piiRedaction, currentConversationId, nerDetector]
+    // Intentionally NOT depending on `nerDetector`: it's read via
+    // `nerDetectorRef.current` so an unstable reference (inline
+    // `createTransformersNerDetector()` each render) doesn't recreate the
+    // redactor and drop placeholder maps. getConversationRedactor's identity
+    // check still honors a genuinely changed detector on the next resolve.
+    [piiRedaction, currentConversationId]
   );
 
   // Mask PII before text is sent to the embeddings endpoint. Embeddings are a
