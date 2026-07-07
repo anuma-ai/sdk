@@ -80,34 +80,86 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[0][1]?.limit).toBe(1000);
   });
 
-  test("slack_search_messages hits search.messages and flattens matches", async () => {
-    const callProxy = vi.fn<SlackProxyCaller>().mockResolvedValueOnce(
-      proxyResult({
-        ok: true,
-        messages: {
-          matches: [
-            { text: "deploy done", username: "bob", ts: "1.1", channel: { id: "C9", name: "eng" } },
+  test("slack_search_messages (channel-scoped) reads conversations.history and filters by query", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: true, channels: [{ id: "C9", name: "eng" }] }))
+      .mockResolvedValueOnce(
+        proxyResult({
+          ok: true,
+          messages: [
+            { text: "deploy done", user: "bob", ts: "1.1" },
+            { text: "lunch soon?", user: "amy", ts: "1.2" },
           ],
-        },
-      })
+        })
+      );
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      query: "deploy",
+      channel: "C9",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "deploy done", user: "bob", ts: "1.1", channel: "eng" }]);
+    expect(callProxy.mock.calls[0][0]).toBe("/conversations.list");
+    expect(callProxy.mock.calls[1][0]).toBe("/conversations.history");
+    expect(callProxy.mock.calls[1][1]?.channel).toBe("C9");
+  });
+
+  test("slack_search_messages fans out across at most 6 channels", async () => {
+    const channels = Array.from({ length: 10 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
+    const callProxy = vi.fn<SlackProxyCaller>();
+    callProxy.mockResolvedValueOnce(proxyResult({ ok: true, channels }));
+    callProxy.mockResolvedValue(
+      proxyResult({ ok: true, messages: [{ text: "nothing here", user: "u", ts: "1" }] })
     );
+    const tools = createSlackTools(callProxy);
+    await runExecutor(tools.slack_search_messages, { query: "deploy" });
+    const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
+    expect(historyCalls).toHaveLength(6);
+    expect(callProxy).toHaveBeenCalledTimes(7);
+  });
+
+  test("slack_search_messages caps results at count", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: true, channels: [{ id: "C0", name: "a" }] }))
+      .mockResolvedValueOnce(
+        proxyResult({
+          ok: true,
+          messages: [
+            { text: "deploy one", user: "u", ts: "1" },
+            { text: "deploy two", user: "u", ts: "2" },
+          ],
+        })
+      );
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      query: "deploy",
+      count: 1,
+    })) as Array<Record<string, unknown>>;
+    expect(result).toHaveLength(1);
+  });
+
+  test("slack_search_messages stops on a 429 mid-fan-out and returns partial results", async () => {
+    const channels = [
+      { id: "C0", name: "a" },
+      { id: "C1", name: "b" },
+      { id: "C2", name: "c" },
+    ];
+    const callProxy = vi.fn<SlackProxyCaller>();
+    callProxy
+      .mockResolvedValueOnce(proxyResult({ ok: true, channels }))
+      .mockResolvedValueOnce(
+        proxyResult({ ok: true, messages: [{ text: "deploy shipped", user: "u", ts: "1" }] })
+      )
+      .mockResolvedValueOnce(proxyResult({ ok: false, error: "ratelimited" }, 429));
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
       Record<string, unknown>
     >;
-    expect(result).toEqual([{ text: "deploy done", user: "bob", ts: "1.1", channel: "eng" }]);
-    expect(callProxy.mock.calls[0][0]).toBe("/search.messages");
-    expect(callProxy.mock.calls[0][1]?.query).toBe("deploy");
-    expect(callProxy.mock.calls[0][1]?.count).toBe(20);
-  });
-
-  test("slack_search_messages clamps count above 100 to 100", async () => {
-    const callProxy = vi
-      .fn<SlackProxyCaller>()
-      .mockResolvedValueOnce(proxyResult({ ok: true, messages: { matches: [] } }));
-    const tools = createSlackTools(callProxy);
-    await runExecutor(tools.slack_search_messages, { query: "x", count: 500 });
-    expect(callProxy.mock.calls[0][1]?.count).toBe(100);
+    // one real match from C0, then a synthetic note; C2 is never fetched.
+    expect(result[0]).toEqual({ text: "deploy shipped", user: "u", ts: "1", channel: "a" });
+    expect(result[result.length - 1].note).toBeDefined();
+    expect(callProxy).toHaveBeenCalledTimes(3);
   });
 
   test("slack_list_users omits deactivated members", async () => {
@@ -255,15 +307,15 @@ describe("createSlackTools", () => {
     const callProxy = vi
       .fn<SlackProxyCaller>()
       .mockResolvedValueOnce(
-        proxyResult({ ok: false, error: "missing_scope", needed: "search:read" }, 200)
+        proxyResult({ ok: false, error: "missing_scope", needed: "channels:read" }, 200)
       );
     const tools = createSlackTools(callProxy);
-    const raw = (await runExecutor(tools.slack_search_messages, { query: "x" })) as string;
+    const raw = (await runExecutor(tools.slack_list_channels, {})) as string;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     expect(parsed.__anuma_connector_error_v1).toBe(true);
     expect(parsed.code).toBe("insufficient_scope");
     expect(parsed.provider).toBe("slack");
-    expect(parsed.required).toBe("search:read");
+    expect(parsed.required).toBe("channels:read");
   });
 
   test("maps Slack ok:false token_revoked (HTTP 200) to a connector_not_connected error", async () => {
