@@ -63,7 +63,15 @@ function placeTokens(tokens: RawToken[], text: string): PlacedToken[] {
   for (const t of tokens) {
     const surface = t.word.startsWith("##") ? t.word.slice(2) : t.word;
     const start = text.indexOf(surface, cursor);
-    if (start < 0) continue; // normalization mismatch (rare) — skip
+    if (start < 0) {
+      // Couldn't locate this token's surface from the cursor (rare tokenizer
+      // normalization mismatch). Emit an unplaceable marker (start=-1) and leave
+      // the cursor put: aggregateTokens then drops the whole entity this token
+      // belongs to, rather than letting a later token match an EARLIER occurrence
+      // of its surface form and mint a placeholder on unrelated text.
+      placed.push({ ...t, start: -1, end: -1 });
+      continue;
+    }
     const end = start + surface.length;
     placed.push({ ...t, start, end });
     cursor = end;
@@ -85,11 +93,14 @@ export function aggregateTokens(
 ): PiiSpan[] {
   const placed = placeTokens(tokens, text);
   const spans: PiiSpan[] = [];
-  let cur: { base: string; start: number; end: number; scores: number[] } | null = null;
+  let cur: { base: string; start: number; end: number; scores: number[]; valid: boolean } | null =
+    null;
 
   const flush = () => {
     if (!cur) return;
-    const category = tagMap[cur.base];
+    // `valid` is cleared when any token of this entity failed to place — drop the
+    // whole entity rather than emit a mis-anchored span.
+    const category = cur.valid ? tagMap[cur.base] : undefined;
     if (category) {
       const score = cur.scores.reduce((a, b) => a + b, 0) / cur.scores.length;
       if (score >= minScore) spans.push({ start: cur.start, end: cur.end, category, score });
@@ -102,13 +113,28 @@ export function aggregateTokens(
     const prefix = dash >= 0 ? t.entity.slice(0, dash) : t.entity;
     const base = dash >= 0 ? t.entity.slice(dash + 1) : t.entity;
     const isContinuation = t.word.startsWith("##");
-    const sameEntity = cur !== null && base === cur.base && t.start - cur.end <= 1;
-    if ((prefix === "I" || isContinuation) && sameEntity) {
-      cur!.end = t.end;
-      cur!.scores.push(t.score);
+    const unplaceable = t.start < 0;
+    // A continuation extends the current entity; a new tag / `B-` starts one.
+    // An unplaceable token still counts as a continuation of the same base so it
+    // poisons (rather than splits) the entity it belongs to.
+    const continues =
+      cur !== null &&
+      base === cur.base &&
+      (prefix === "I" || isContinuation) &&
+      (unplaceable || t.start - cur.end <= 1);
+    if (continues) {
+      if (unplaceable) cur!.valid = false;
+      else {
+        cur!.end = t.end;
+        cur!.scores.push(t.score);
+      }
     } else {
       flush();
-      cur = { base, start: t.start, end: t.end, scores: [t.score] };
+      // Don't anchor a fresh entity on an unplaceable token — it would land on
+      // the wrong text. Leaving `cur` null drops it.
+      cur = unplaceable
+        ? null
+        : { base, start: t.start, end: t.end, scores: [t.score], valid: true };
     }
   }
   flush();

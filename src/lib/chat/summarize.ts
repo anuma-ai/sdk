@@ -258,13 +258,16 @@ interface SummarizeResult {
  * mirroring runToolLoop's redactBatch so the consent UX sees PII detected on the
  * summarization path too. Returns the prompt unchanged when redaction is off.
  */
-function redactSummaryPrompt(
+async function redactSummaryPrompt(
   prompt: string,
   redactor: PiiRedactor | undefined,
   onPiiRedacted?: (matches: PiiMatch[]) => void
-): string {
+): Promise<string> {
   if (!redactor) return prompt;
-  const { text, matches } = redactor.redactText(prompt);
+  // Async so a configured NER detector folds unstructured PII (names/locations/
+  // orgs) into the summary prompt too — matching the send path (redactMessagesAsync).
+  // With no detector this is byte-for-byte identical to the sync redactText.
+  const { text, matches } = await redactor.redactTextAsync(prompt);
   if (matches.length > 0 && onPiiRedacted) {
     try {
       onPiiRedacted(matches);
@@ -335,7 +338,7 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
     const prompt = buildSummarizationPrompt(cachedSummary?.summary, toSummarize);
     // Redact the prompt before it leaves the device, then restore original
     // values in the returned summary so the stored summary holds real values.
-    const promptForModel = redactSummaryPrompt(prompt, redactor, onPiiRedacted);
+    const promptForModel = await redactSummaryPrompt(prompt, redactor, onPiiRedacted);
     const rawSummary = await callLlm(promptForModel, model);
     const newSummary = redactor ? redactor.deAnonymize(rawSummary) : rawSummary;
     if (!newSummary || newSummary.trim().length === 0) {
@@ -650,7 +653,7 @@ async function doSummarizeHistory(
         // cachedSummary.summary holds real, de-anonymized values (see
         // progressiveSummarize). Redact before it leaves the device, then restore
         // the original values in the compacted summary so it stays usable as cache.
-        const promptForModel = redactSummaryPrompt(compactPrompt, redactor, onPiiRedacted);
+        const promptForModel = await redactSummaryPrompt(compactPrompt, redactor, onPiiRedacted);
         const rawCompacted = await callSummarizationLlm(
           promptForModel,
           summaryModel,

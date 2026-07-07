@@ -275,6 +275,45 @@ describe("progressiveSummarize", () => {
     expect(callLlm.mock.calls[0][0]).not.toContain("bob@acme.com");
   });
 
+  it("redacts unstructured PII from the summary prompt via the NER detector", async () => {
+    // A detector-backed redactor must fold NER spans into the summary prompt too
+    // (async path), not just regex — otherwise names/locations leak to the model.
+    const name = "Zwhqwpk"; // no regex category matches this; only NER catches it
+    const nerDetector = {
+      detect: async (text: string) => {
+        const start = text.indexOf(name);
+        return start < 0
+          ? []
+          : [{ start, end: start + name.length, category: "PERSON", score: 0.99 }];
+      },
+    };
+    const redactor = new PiiRedactor({ nerDetector });
+    const onPiiRedacted = vi.fn();
+    const msgs = [
+      makeMsg("1", "user", `Talk to ${name} soon. ${"context ".repeat(50)}`),
+      makeMsg("2", "assistant", `Sure. ${"reply ".repeat(50)}`),
+      makeMsg("3", "user", `Thanks ${"again ".repeat(50)}`),
+    ];
+    const callLlm = makeCallLlm("The user mentioned [PERSON_1].");
+
+    await progressiveSummarize({
+      cachedSummary: null,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 150,
+      minWindowMessages: 1,
+      callLlm,
+      model: "test",
+      redactor,
+      onPiiRedacted,
+    });
+
+    expect(onPiiRedacted).toHaveBeenCalledTimes(1);
+    const matches = onPiiRedacted.mock.calls[0][0] as { category: string }[];
+    expect(matches.some((m) => m.category === "PERSON")).toBe(true);
+    // The masked prompt — not the raw name — is what reached the model.
+    expect(callLlm.mock.calls[0][0]).not.toContain(name);
+  });
+
   it("does not fire onPiiRedacted when the summarization prompt has no PII", async () => {
     const redactor = new PiiRedactor();
     const onPiiRedacted = vi.fn();

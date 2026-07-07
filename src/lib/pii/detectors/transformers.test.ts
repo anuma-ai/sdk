@@ -49,6 +49,28 @@ describe("aggregateTokens", () => {
     const spans = aggregateTokens([tok("B-PER", "Sarah", 0.3)], "Sarah waved", TAG_MAP, 0.5);
     expect(spans).toEqual([]);
   });
+
+  it("drops the whole entity when one of its tokens can't be located", () => {
+    // The I-PER surface doesn't exist in the text (tokenizer normalization
+    // mismatch). Rather than emit a mis-anchored partial span, the entire PERSON
+    // entity is dropped.
+    const spans = aggregateTokens(
+      [tok("B-PER", "Sarah"), tok("I-PER", "Xyzzy")],
+      "Sarah waved",
+      TAG_MAP,
+      0.5
+    );
+    expect(spans).toEqual([]);
+  });
+
+  it("skips an unplaceable start token without corrupting a later entity", () => {
+    // The first token can't be located; it's dropped and the cursor doesn't
+    // stall onto the following entity, which is still detected at its real offset.
+    const text = "visit Paris";
+    const spans = aggregateTokens([tok("B-PER", "Zzz"), tok("B-LOC", "Paris")], text, TAG_MAP, 0.5);
+    expect(spans).toEqual([{ start: 6, end: 11, category: "LOCATION", score: expect.any(Number) }]);
+    expect(text.slice(6, 11)).toBe("Paris");
+  });
 });
 
 describe("createTransformersNerDetector", () => {

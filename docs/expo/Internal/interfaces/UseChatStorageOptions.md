@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#315)
+Defined in: [src/expo/useChatStorage.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#325)
 
 Options for useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Uses the base options without React-specific features (no local chat, no tools).
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/expo/useChatStorage.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#321)
+Defined in: [src/expo/useChatStorage.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#331)
 
 Which API endpoint to use. Default: "responses"
 
@@ -64,7 +64,7 @@ true
 
 > `optional` **autoFlushOnKeyAvailable**: `boolean`
 
-Defined in: [src/expo/useChatStorage.ts:352](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#352)
+Defined in: [src/expo/useChatStorage.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#362)
 
 Auto-flush queued operations when key becomes available.
 
@@ -136,7 +136,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/expo/useChatStorage.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#337)
+Defined in: [src/expo/useChatStorage.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#347)
 
 Function for silent signing with Privy embedded wallets.
 
@@ -166,7 +166,7 @@ DEFAULT_API_EMBEDDING_MODEL
 
 > `optional` **enableQueue**: `boolean`
 
-Defined in: [src/expo/useChatStorage.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#347)
+Defined in: [src/expo/useChatStorage.ts:357](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#357)
 
 Enable the in-memory write queue.
 
@@ -350,7 +350,7 @@ Function to retrieve the auth token for API requests
 
 > `optional` **getWalletAddress**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/expo/useChatStorage.ts:342](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#342)
+Defined in: [src/expo/useChatStorage.ts:352](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#352)
 
 Async function to poll for wallet address during Privy initialization.
 
@@ -420,7 +420,7 @@ Ignored when `piiRedaction` is off. See NerDetector.
 
 > `optional` **onCancelResult**: (`result`: `object`) => `void`
 
-Defined in: [src/expo/useChatStorage.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#370)
+Defined in: [src/expo/useChatStorage.ts:380](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#380)
 
 Observability for the fire-and-forget cancel POST that `stop()` issues for
 a resumable stream. Forwarded to the underlying `useChat`. The
@@ -728,7 +728,7 @@ Use this to show activity indicators like "Searching..." in the UI.
 
 > `optional` **onStreamMeta**: (`meta`: `object`) => `void`
 
-Defined in: [src/expo/useChatStorage.ts:385](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#385)
+Defined in: [src/expo/useChatStorage.ts:395](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#395)
 
 Observe the stream metadata the portal issues at HEADERS\_RECEIVED, once per
 round. Forwarded to the underlying `useChat`. The enriched payload carries
@@ -949,7 +949,7 @@ a custom one matching `PromptPreProcessor`.
 
 > `optional` **resumable**: `boolean`
 
-Defined in: [src/expo/useChatStorage.ts:361](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#361)
+Defined in: [src/expo/useChatStorage.ts:371](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#371)
 
 Opt into resumable streaming. When `true`, `sendMessage` sends the
 resumable capability header, a stable `assistantUniqueId` is allocated for
@@ -999,7 +999,7 @@ DeferLoadingConfig.
 
 > `optional` **signMessage**: [`SignMessageFn`](../../../react/Internal/type-aliases/SignMessageFn.md)
 
-Defined in: [src/expo/useChatStorage.ts:332](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#332)
+Defined in: [src/expo/useChatStorage.ts:342](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#342)
 
 Function to sign a message for encryption key derivation.
 
@@ -1009,7 +1009,7 @@ Function to sign a message for encryption key derivation.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/expo/useChatStorage.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#327)
+Defined in: [src/expo/useChatStorage.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#337)
 
 Wallet address for field-level encryption.
 When provided with signMessage, all sensitive content is encrypted at rest.
