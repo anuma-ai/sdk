@@ -327,7 +327,7 @@ async function searchSlackMessages(
   let targets: Array<{ id: string; name?: string }>;
   if (args.channel) {
     const found = allChannels.find((c) => c.id === args.channel || c.name === args.channel);
-    targets = [{ id: args.channel, name: found?.name ?? args.channel }];
+    targets = [{ id: found?.id ?? args.channel, name: found?.name ?? args.channel }];
   } else {
     targets = allChannels.slice(0, MAX_SEARCH_CHANNELS).map((c) => ({ id: c.id, name: c.name }));
   }

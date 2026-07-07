@@ -104,6 +104,23 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[1][1]?.channel).toBe("C9");
   });
 
+  test("slack_search_messages resolves a channel name to its id before reading history", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: true, channels: [{ id: "C9", name: "eng" }] }))
+      .mockResolvedValueOnce(
+        proxyResult({ ok: true, messages: [{ text: "deploy done", user: "bob", ts: "1.1" }] })
+      );
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      query: "deploy",
+      channel: "eng",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "deploy done", user: "bob", ts: "1.1", channel: "eng" }]);
+    // history must be hit with the resolved id, not the name Slack would reject.
+    expect(callProxy.mock.calls[1][1]?.channel).toBe("C9");
+  });
+
   test("slack_search_messages fans out across at most 6 channels", async () => {
     const channels = Array.from({ length: 10 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
     const callProxy = vi.fn<SlackProxyCaller>();
