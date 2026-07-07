@@ -40,11 +40,16 @@ import {
   getAllFilesOp,
   getConversationOp,
   getConversationsOp,
+  getMessageCountOp,
+  getMessageSkeletonsOp,
   getMessagesOp,
+  getMessagesPageOp,
+  type GetMessagesPageOptions,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
   type MessageChunk,
+  type MessageSkeleton,
   resolveStoredUserContent,
   type SearchSource,
   type ServerToolsFilterFn,
@@ -2131,12 +2136,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
-   * Get messages for a conversation
+   * Resolve file placeholders in fetched messages to blob URLs (when the
+   * encryption key + OPFS are available). Shared by `getMessages` and
+   * `getMessagesPage` so both read paths return render-ready content.
    */
-  const getMessages = useCallback(
-    async (convId: string): Promise<StoredMessage[]> => {
-      const messages = await getMessagesOp(storageCtx, convId);
-
+  const resolveMessageFiles = useCallback(
+    async (messages: StoredMessage[]): Promise<StoredMessage[]> => {
       // If wallet address is provided, resolve file placeholders to blob URLs
       if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
         try {
@@ -2214,7 +2219,49 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       return messages;
     },
-    [storageCtx, walletAddress]
+    [walletAddress]
+  );
+
+  /**
+   * Get messages for a conversation (full thread, all fields).
+   */
+  const getMessages = useCallback(
+    async (convId: string): Promise<StoredMessage[]> => {
+      const messages = await getMessagesOp(storageCtx, convId);
+      return resolveMessageFiles(messages);
+    },
+    [storageCtx, resolveMessageFiles]
+  );
+
+  /**
+   * Paginated display read: the newest `limit` messages (optionally below
+   * `beforeMessageId`), ascending, with embedding columns skipped.
+   */
+  const getMessagesPage = useCallback(
+    async (convId: string, options: GetMessagesPageOptions): Promise<StoredMessage[]> => {
+      const messages = await getMessagesPageOp(storageCtx, convId, options);
+      return resolveMessageFiles(messages);
+    },
+    [storageCtx, resolveMessageFiles]
+  );
+
+  /**
+   * Whole-thread branch-tree skeleton — ids/roles/parent linkage only, no
+   * field decryption (see `getMessageSkeletonsOp`).
+   */
+  const getMessageSkeletons = useCallback(
+    (convId: string): Promise<MessageSkeleton[]> => {
+      return getMessageSkeletonsOp(storageCtx, convId);
+    },
+    [storageCtx]
+  );
+
+  /** Total message count for a conversation. */
+  const getMessageCount = useCallback(
+    (convId: string): Promise<number> => {
+      return getMessageCountOp(storageCtx, convId);
+    },
+    [storageCtx]
   );
 
   /**
@@ -3401,6 +3448,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     updateConversationPinned,
     deleteConversation,
     getMessages,
+    getMessagesPage,
+    getMessageSkeletons,
+    getMessageCount,
     getAllFiles,
     createMemoryEngineTool,
     createMemoryVaultTool,

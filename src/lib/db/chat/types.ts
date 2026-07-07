@@ -123,6 +123,55 @@ export interface SearchSource {
   date?: string;
 }
 
+/** Options for paginated message reads ({@link getMessagesPageOp}). */
+export interface GetMessagesPageOptions {
+  /**
+   * Upper-bound cursor. Without `boundaryExcludeUniqueIds` it is EXCLUSIVE:
+   * only messages with `messageId < beforeMessageId` are returned. Omit to
+   * fetch the newest page (the conversation tail).
+   */
+  beforeMessageId?: number;
+  /**
+   * uniqueIds of the rows the caller already holds AT the `beforeMessageId`
+   * boundary. `message_id` is not guaranteed unique in legacy data (ids were
+   * assigned count-based, so a mid-thread delete let the next create reuse a
+   * freed id) — with an exclusive cursor, an unseen row sharing the boundary
+   * id would be silently skipped by every page. When this is provided, the
+   * boundary id is fetched INCLUSIVELY and these known rows are filtered
+   * out, so a duplicated boundary row is returned exactly once.
+   */
+  boundaryExcludeUniqueIds?: string[];
+  /**
+   * Maximum rows to return — the NEWEST `limit` rows of the matching range.
+   * Must be a positive integer: non-positive or non-finite values yield an
+   * EMPTY page (never an unbounded read — SQLite treats `LIMIT -1` as "no
+   * limit"), and fractional values are floored.
+   */
+  limit: number;
+}
+
+/**
+ * Lightweight, mostly-undecrypted projection of a message row. Contains just
+ * enough for consumers to build the conversation's branch tree (parent/child
+ * structure) without paying the decrypt + embedding-parse cost of a full
+ * {@link StoredMessage} read.
+ *
+ * `content` is populated (decrypted) ONLY for user-role rows whose parent is
+ * also a user-role row — the regeneration artifacts that branch logic must
+ * classify by content prefix. All other rows leave `content` undefined.
+ */
+export interface MessageSkeleton {
+  uniqueId: string;
+  messageId: number;
+  conversationId: string;
+  role: ChatRole;
+  createdAt: Date;
+  parentMessageId?: string;
+  model?: string;
+  /** See interface docs — only set for user rows with a user-role parent. */
+  content?: string;
+}
+
 export interface StoredMessage {
   uniqueId: string;
   messageId: number;
@@ -845,6 +894,18 @@ export interface BaseUseChatStorageResult {
   updateConversationPinned: (id: string, pinned: boolean) => Promise<boolean>;
   deleteConversation: (id: string) => Promise<boolean>;
   getMessages: (conversationId: string) => Promise<StoredMessage[]>;
+  /**
+   * Paginated display read: the newest `limit` messages (optionally below
+   * `beforeMessageId`), ascending, with embedding columns skipped.
+   */
+  getMessagesPage: (
+    conversationId: string,
+    options: GetMessagesPageOptions
+  ) => Promise<StoredMessage[]>;
+  /** Whole-thread branch-tree skeleton — no field decryption. */
+  getMessageSkeletons: (conversationId: string) => Promise<MessageSkeleton[]>;
+  /** Total message count for a conversation. */
+  getMessageCount: (conversationId: string) => Promise<number>;
 }
 
 // Utility functions

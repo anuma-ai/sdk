@@ -51,8 +51,10 @@
 import type {
   CreateConversationOptions,
   CreateMessageOptions,
+  GetMessagesPageOptions,
   MessageChunk,
   MessageFeedback,
+  MessageSkeleton,
   StoredConversation,
   StoredFileWithContext,
   StoredMessage,
@@ -119,6 +121,29 @@ export interface ChatStorageAdapter {
   // ---------- Messages ----------
 
   getMessages(conversationId: string): Promise<StoredMessage[]>;
+
+  /**
+   * Paginated display read: newest `limit` messages (optionally below
+   * `beforeMessageId`), ascending, with embeddings skipped. See
+   * `getMessagesPageOp`.
+   *
+   * Optional so this is an additive, non-breaking interface change (same
+   * rationale as {@link updateMessageFileIds}). The default
+   * {@link WatermelonChatStorageAdapter} provides it.
+   */
+  getMessagesPage?(
+    conversationId: string,
+    options: GetMessagesPageOptions
+  ): Promise<StoredMessage[]>;
+
+  /**
+   * Whole-thread branch-tree skeleton (no decrypt). See
+   * `getMessageSkeletonsOp`. Optional for the same additive-change rationale.
+   */
+  getMessageSkeletons?(conversationId: string): Promise<MessageSkeleton[]>;
+
+  /** Total message count for a conversation. Optional (additive change). */
+  getMessageCount?(conversationId: string): Promise<number>;
 
   createMessage(options: CreateMessageOptions): Promise<StoredMessage>;
 

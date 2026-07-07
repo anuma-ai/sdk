@@ -14,12 +14,15 @@
  * the auth-shaped `error` codes (and the usual 401/403 statuses) to the
  * canonical connector error, not just the HTTP status.
  *
- * Tool catalogue (search-led; Slack throttles conversations.history/.replies to
- * ~1 req/min for distributed apps, while search.messages is NOT throttled —
- * so search is the primary read path):
+ * Tool catalogue. The Slack Marketplace forbids the message-search scope, so
+ * there's no server-side message-search API to call: `slack_search_messages`
+ * scans recent history via `conversations.history` instead. Slack throttles
+ * conversations.history/.replies to ~1 req/min for distributed apps, so the read
+ * tools stay bounded — search fans out across only a handful of channels and
+ * reads only recent messages.
  * - `slack_get_me`              -- the authenticated user's profile
  * - `slack_list_channels`       -- channels in the workspace
- * - `slack_search_messages`     -- search messages (THE primary tool)
+ * - `slack_search_messages`     -- text-search recent messages across channels
  * - `slack_list_users`          -- workspace members
  * - `slack_get_channel_history` -- recent messages in a channel (rate-limited)
  * - `slack_get_thread_replies`  -- replies in a thread (rate-limited)
@@ -57,6 +60,8 @@ export interface SlackListChannelsArgs {
 export interface SlackSearchMessagesArgs {
   query: string;
   count?: number;
+  /** Restrict the search to a single channel (id or name). Omit to fan out across channels. */
+  channel?: string;
 }
 
 export interface SlackListUsersArgs {
@@ -139,11 +144,6 @@ interface SlackMessage {
   username?: string;
   text?: string;
   ts?: string;
-  channel?: { id?: string; name?: string } | string;
-}
-
-interface SlackSearchMessagesResponse extends SlackBaseResponse {
-  messages?: { matches?: SlackMessage[] };
 }
 
 interface SlackConversationsHistoryResponse extends SlackBaseResponse {
@@ -275,23 +275,97 @@ async function listSlackChannels(
   }));
 }
 
+/** Channels scanned in a workspace-wide search when no channel is given. */
+const MAX_SEARCH_CHANNELS = 6;
+/** Recent messages pulled per channel — kept small since history is rate-limited. */
+const SEARCH_HISTORY_LIMIT = 15;
+
+/**
+ * Split a query into lowercased terms. A message matches when its text contains
+ * every term as a substring (AND semantics), case-insensitive.
+ */
+function messageMatchesQuery(text: string, terms: string[]): boolean {
+  if (terms.length === 0) return false;
+  const haystack = text.toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+}
+
+/**
+ * Text-search recent Slack messages without the (Marketplace-forbidden)
+ * server-side message-search API. Reads recent `conversations.history` — a single channel
+ * when `args.channel` is set, otherwise a bounded fan-out across the user's
+ * channels — and keeps messages whose text contains all query terms.
+ *
+ * conversations.history is throttled to ~1 req/min for distributed apps, so if a
+ * history call comes back rate-limited (HTTP 429 or `ok:false` + `ratelimited`)
+ * we stop scanning and return what we have. Return-shape choice: the contract
+ * stays `{text,user,ts,channel}[]`; on a rate-limit cutoff we append ONE final
+ * synthetic `{ note }` item so the model can relay that results are partial,
+ * rather than switching to an object shape that downstream consumers don't expect.
+ */
 async function searchSlackMessages(
   callProxy: SlackProxyCaller,
   args: SlackSearchMessagesArgs
 ): Promise<Array<Record<string, unknown>> | string> {
   const count = clampLimit(args.count, 20, 1, 100);
-  const res = await callSlack<SlackSearchMessagesResponse>(callProxy, "/search.messages", {
-    query: args.query,
-    count,
-  });
-  if (typeof res === "string") return res;
-  const matches = res.messages?.matches ?? [];
-  return matches.map((m) => ({
-    text: m.text,
-    user: m.username ?? m.user,
-    ts: m.ts,
-    channel: typeof m.channel === "object" ? m.channel?.name : m.channel,
-  }));
+  const terms = args.query.toLowerCase().split(/\s+/).filter(Boolean);
+
+  // conversations.list (not throttled) gives us channel names for the result and
+  // the fan-out set. Auth failures surface as the canonical connector error.
+  const listRes = await callSlack<SlackConversationsListResponse>(
+    callProxy,
+    "/conversations.list",
+    {
+      limit: 100,
+      exclude_archived: "true",
+      types: "public_channel,private_channel",
+    }
+  );
+  if (typeof listRes === "string") return listRes;
+  const allChannels = listRes.channels ?? [];
+
+  let targets: Array<{ id: string; name?: string }>;
+  if (args.channel) {
+    const found = allChannels.find((c) => c.id === args.channel || c.name === args.channel);
+    targets = [{ id: found?.id ?? args.channel, name: found?.name ?? args.channel }];
+  } else {
+    targets = allChannels.slice(0, MAX_SEARCH_CHANNELS).map((c) => ({ id: c.id, name: c.name }));
+  }
+
+  const results: Array<Record<string, unknown>> = [];
+  let rateLimited = false;
+  for (const channel of targets) {
+    if (results.length >= count) break;
+    const { status, json } = await callProxy("/conversations.history", {
+      channel: channel.id,
+      limit: SEARCH_HISTORY_LIMIT,
+    });
+    const body = (json ?? null) as SlackConversationsHistoryResponse | null;
+
+    if (status === 429 || (body?.ok === false && body.error === "ratelimited")) {
+      rateLimited = true;
+      break;
+    }
+    // Auth/scope failures are fatal — surface the canonical connector error.
+    const connectorError = maybeConnectorError(status, body);
+    if (connectorError) return connectorError;
+    // Any other per-channel failure (e.g. not_in_channel) just skips that channel.
+    if (status < 200 || status >= 300 || !body || body.ok === false) continue;
+
+    for (const m of body.messages ?? []) {
+      if (results.length >= count) break;
+      if (messageMatchesQuery(m.text ?? "", terms)) {
+        results.push({ text: m.text, user: m.username ?? m.user, ts: m.ts, channel: channel.name });
+      }
+    }
+  }
+
+  if (rateLimited) {
+    results.push({
+      note: `Slack rate-limited channel history, so this search stopped early — returning ${results.length} match(es) found so far. Try a specific channel or ask again in a minute.`,
+    });
+  }
+  return results;
 }
 
 async function listSlackUsers(
@@ -403,18 +477,23 @@ function createSlackSearchMessagesTool(callProxy: SlackProxyCaller): ToolConfig 
     function: {
       name: "slack_search_messages",
       description:
-        "Search messages across the user's Slack workspace. This is the primary, fastest way to find Slack content -- prefer it over reading channel history. Supports Slack search operators like in:#channel, from:@user, and before:/after: dates.",
+        "Search recent messages for text across the user's Slack channels, or within a single channel when 'channel' is given. Matches messages containing all of the query words. Only recent history is scanned (a bounded set of channels), so this surfaces recent mentions rather than the full archive.",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
             description:
-              "The search query. May include Slack operators, e.g. 'deploy in:#eng from:@alice'.",
+              "Words to look for. A message matches when its text contains all of them (case-insensitive).",
           },
           count: {
             type: "number",
             description: "Max results to return. Between 1 and 100 (clamped). Defaults to 20.",
+          },
+          channel: {
+            type: "string",
+            description:
+              "Optional channel id or name to search within. Omit to search across your channels.",
           },
         },
         required: ["query"],
@@ -424,6 +503,7 @@ function createSlackSearchMessagesTool(callProxy: SlackProxyCaller): ToolConfig 
       searchSlackMessages(callProxy, {
         query: readString(args.query),
         count: args.count as number | undefined,
+        channel: typeof args.channel === "string" ? args.channel : undefined,
       }),
   };
 }
@@ -457,7 +537,7 @@ function createSlackGetChannelHistoryTool(callProxy: SlackProxyCaller): ToolConf
     function: {
       name: "slack_get_channel_history",
       description:
-        "Fetch recent messages from a single Slack channel by id. Best-effort and heavily rate-limited (~1 request per minute for the app), so use it sparingly for a specific channel -- for general lookups use slack_search_messages instead.",
+        "Fetch recent messages from a single Slack channel by id. Best-effort and heavily rate-limited (~1 request per minute for the app), so use it sparingly for a specific channel.",
       parameters: {
         type: "object",
         properties: {
@@ -487,7 +567,7 @@ function createSlackGetThreadRepliesTool(callProxy: SlackProxyCaller): ToolConfi
     function: {
       name: "slack_get_thread_replies",
       description:
-        "Fetch the replies in a single Slack thread, given the channel id and the thread's root message timestamp (ts). Best-effort and rate-limited like channel history, so use it for a specific thread rather than general lookups.",
+        "Fetch the replies in a single Slack thread, given the channel id and the thread's root message timestamp (ts). Best-effort and rate-limited like channel history, so use it for a specific thread.",
       parameters: {
         type: "object",
         properties: {
