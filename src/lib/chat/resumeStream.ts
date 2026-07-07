@@ -105,15 +105,24 @@ export interface ResumeStreamOptions {
  * Result of {@link resumeStream}. A `410 Gone` is the only outcome that throws
  * ({@link StreamExpiredError}); every other terminal is returned.
  *
- * - clean completion → `{ data, error: null, interrupted: false }`
+ * - clean completion → `{ data, error: null, interrupted: false, empty }`
  * - in-stream error / tool-request terminal / idle timeout → `{ data, error,
  *   interrupted: true }` (finalize as a stopped/partial message)
  * - transient transport/HTTP failure (401, 5xx, network) → `{ data, error,
  *   interrupted: false, statusCode? }` (retryable — keep the handle)
+ *
+ * `empty` is true when the clean terminal delivered ZERO content/thinking
+ * deltas — a `[DONE]`-only replay. That is never a real completion (a
+ * completed generation always buffered at least one content frame); it means
+ * the buffered frames were lost server-side (evicted/trimmed) while the
+ * terminal survived. Consumers must NOT persist `data` (an empty response)
+ * over content they already hold — keep the detached partial instead. On the
+ * empty terminal `onFinish` is NOT fired (there is no completion to deliver);
+ * the flag is optional so existing constructors of the clean arm stay valid.
  * @public
  */
 export type ResumeStreamResult =
-  | { data: ApiResponse; error: null; interrupted: false }
+  | { data: ApiResponse; error: null; interrupted: false; empty?: boolean }
   | { data: ApiResponse | null; error: string; interrupted: boolean; statusCode?: number };
 
 /**
@@ -260,6 +269,10 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   }
 
   let sseError: Error | null = null;
+  // True once any content/thinking delta lands. A clean terminal that never
+  // set this is a [DONE]-only replay — flagged `empty` so consumers keep
+  // their partial instead of committing a blank (see ResumeStreamResult).
+  let emittedOutput = false;
   const sseResult = makeStreamingRequest({
     baseUrl,
     endpoint: streamReplayPath(handle.inferenceId),
@@ -311,6 +324,7 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
         const { content, thinking } = strategy.processStreamChunk(chunk, accumulator);
         if (content) contentSmoother.push(content);
         if (thinking) thinkingSmoother.push(thinking);
+        if (content || thinking) emittedOutput = true;
       }
     }
     // A non-OK response can surface via onSseError without the iterator
@@ -365,6 +379,13 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   // Clean end of buffered stream: paced drain (nothing dropped), then onFinish.
   await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
   const response = strategy.buildFinalResponse(accumulator);
-  if (onFinish) onFinish(response);
-  return { data: response, error: null, interrupted: false };
+  // Tool-call events (citation metadata) are real output even when the final
+  // text is empty — a search/image turn can legitimately complete with events
+  // only, and both strategies accumulate them off the replayed chunks.
+  const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
+  // A [DONE]-only replay is not a completion — withhold onFinish so a consumer
+  // keyed on it never receives (and renders/persists) the blank response. The
+  // caller still gets the flagged result to branch on.
+  if (onFinish && deliveredOutput) onFinish(response);
+  return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
 }
