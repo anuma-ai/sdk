@@ -384,15 +384,30 @@ async function listSlackChannels(
   }));
 }
 
+/** Bounds the per-DM conversations.history probes against the ~1/min history throttle. */
+const MAX_DM_PROBES = 30;
+
 /**
- * List the user's direct messages and group DMs. `slack_list_channels` excludes
- * `im`/`mpim`, so without this there's no way to answer "list my DMs" or to get
- * a DM's id to pass to `slack_get_channel_history`. Reuses the paginating
- * `listAllConversations` and the shared `labelForChannel` resolution so each DM
- * gets a human name (the counterparty for a 1:1, the members for a group DM).
- * The users directory is built once up front, so listing N DMs costs a single
- * (paginated) users.list rather than N `users.info` calls. Label resolution is
- * best-effort and never throws — it falls back to the id.
+ * List the user's direct messages and group DMs, ordered like the Slack sidebar:
+ * most-recent conversation first, with conversations that have no messages dropped.
+ * `slack_list_channels` excludes `im`/`mpim`, so without this there's no way to
+ * answer "list my DMs" or to get a DM's id to pass to `slack_get_channel_history`.
+ * Reuses the paginating `listAllConversations` and the shared `labelForChannel`
+ * resolution so each DM gets a human name (the counterparty for a 1:1, the members
+ * for a group DM). The users directory is built once up front, so listing N DMs
+ * costs a single (paginated) users.list rather than N `users.info` calls. Label
+ * resolution is best-effort and never throws — it falls back to the id.
+ *
+ * Recency + emptiness: `conversations.list` carries no last-message timestamp, so
+ * each DM's latest message is read via a `limit: 1` `conversations.history` probe.
+ * That endpoint is throttled (~1/min), so probing is bounded to `MAX_DM_PROBES` and
+ * stops the moment a probe is rate-limited (same 429 / `ratelimited` detection as
+ * `searchSlackMessages`), degrading to a partial order rather than hanging. A probe
+ * that returns zero messages marks the DM empty -> drop it; a non-rate-limit probe
+ * failure (or a DM past the cap) leaves recency unknown -> keep it, but ordered
+ * after the DMs we could place, in original order. When a rate-limit cut ordering
+ * short we append ONE synthetic `{ note }` item after the `limit` slice, mirroring
+ * the search tool, so the model can relay that ordering is partial.
  *
  * `with_user` narrows the list to the DM(s) involving one person — the only way
  * to target a specific person's DM. It resolves the ref (id or name) to a user id
@@ -428,8 +443,43 @@ async function listSlackDms(
     });
   }
 
+  // Probe each DM's latest message to order by recency and drop empty DMs.
+  const withTs: Array<{ conv: SlackChannel; lastTs: number }> = [];
+  const withoutTs: SlackChannel[] = [];
+  let rateLimited = false;
+  let probes = 0;
+  for (const conv of conversations) {
+    if (rateLimited || probes >= MAX_DM_PROBES) {
+      withoutTs.push(conv);
+      continue;
+    }
+    probes++;
+    const { status, json } = await callProxy("/conversations.history", {
+      channel: conv.id,
+      limit: 1,
+    });
+    const body = (json ?? null) as SlackConversationsHistoryResponse | null;
+    if (status === 429 || (body?.ok === false && body.error === "ratelimited")) {
+      rateLimited = true;
+      withoutTs.push(conv);
+      continue;
+    }
+    // A non-rate-limit probe failure leaves recency unknown -- keep the DM but sort
+    // it after the placed ones. Only a confirmed-empty DM is dropped.
+    if (status < 200 || status >= 300 || !body || body.ok === false) {
+      withoutTs.push(conv);
+      continue;
+    }
+    const messages = body.messages ?? [];
+    if (messages.length === 0) continue;
+    withTs.push({ conv, lastTs: Number(messages[0].ts) });
+  }
+
+  withTs.sort((a, b) => b.lastTs - a.lastTs);
+  const ordered = [...withTs.map((x) => x.conv), ...withoutTs];
+
   const dms: Array<Record<string, unknown>> = [];
-  for (const conv of conversations.slice(0, limit)) {
+  for (const conv of ordered.slice(0, limit)) {
     const name = await labelForChannel(
       callProxy,
       conv,
@@ -443,6 +493,12 @@ async function listSlackDms(
       type,
       name,
       ...(type === "im" && conv.user ? { user: conv.user } : {}),
+    });
+  }
+
+  if (rateLimited) {
+    dms.push({
+      note: `Slack rate-limited DM history, so recent-first ordering is partial -- some DMs below may be out of order. Ordering will be complete once the Anuma Slack app is approved by Slack.`,
     });
   }
   return dms;
@@ -961,7 +1017,7 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_dms",
       description:
-        "List the user's Slack direct messages and group DMs, including who each conversation is with. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. Pass a returned id to slack_get_channel_history to read that conversation. To find or read the DM with a specific person, pass with_user -- that's the way to target one person's DM.",
+        "List the user's Slack direct messages and group DMs, ordered most-recent-first (like the Slack sidebar) and excluding conversations with no messages. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. When showing DMs to the user, list them by name only -- the other person for a 1:1, or the member names for a group DM -- and do not display the conversation id. The id is only for passing to slack_get_channel_history to read a conversation. To find or read the DM with a specific person, pass with_user -- that's the way to target one person's DM.",
       parameters: {
         type: "object",
         properties: {
