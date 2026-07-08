@@ -184,23 +184,29 @@ describe("createSlackTools", () => {
   });
 
   test("slack_search_messages returns a DM (im) match with a readable label", async () => {
-    const callProxy = vi
-      .fn<SlackProxyCaller>()
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
       // conversations.list surfaces a 1:1 DM (no name, other party = U2).
-      .mockResolvedValueOnce(
-        proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U2" }] })
-      )
-      .mockResolvedValueOnce(
-        proxyResult({ ok: true, messages: [{ text: "deploy done", user: "U2", ts: "1.1" }] })
-      )
-      // auth.test (self-DM detection) then users.info to name the other party.
-      .mockResolvedValueOnce(proxyResult({ ok: true, user_id: "U1" }))
-      .mockResolvedValueOnce(
-        proxyResult({
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U2" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
           ok: true,
-          user: { id: "U2", real_name: "Bob Example", profile: { display_name: "bob" } },
-        })
-      );
+          messages: [{ text: "deploy done", user: "U2", ts: "1.1" }],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      // The other party is named from the shared users directory (users.list).
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U2", name: "bobby", real_name: "Bob Example", profile: { display_name: "bob" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
       Record<string, unknown>
@@ -208,24 +214,46 @@ describe("createSlackTools", () => {
     expect(result).toEqual([
       { text: "deploy done", user: "U2", ts: "1.1", channel: "DM with bob" },
     ]);
+    // The directory covers the counterparty, so no per-DM users.info is needed.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/users.info")).toBe(false);
   });
 
-  test("slack_search_messages labels a group DM (mpim) match as 'Group DM'", async () => {
-    const callProxy = vi
-      .fn<SlackProxyCaller>()
-      .mockResolvedValueOnce(
-        proxyResult({ ok: true, channels: [{ id: "G1", is_mpim: true, name: "mpdm-a--b--c-1" }] })
-      )
-      .mockResolvedValueOnce(
-        proxyResult({ ok: true, messages: [{ text: "deploy done", user: "U2", ts: "2.1" }] })
-      );
+  test("slack_search_messages names a group DM (mpim) match from the users directory", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [{ id: "G1", is_mpim: true, name: "mpdm-alice--bob--carol-1" }],
+        });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [{ text: "deploy done", user: "U2", ts: "2.1" }],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "UA", name: "alice", profile: { display_name: "Alice" } },
+            { id: "UB", name: "bob", profile: { display_name: "Bob" } },
+            { id: "UC", name: "carol", profile: { display_name: "Carol" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
       Record<string, unknown>
     >;
-    expect(result).toEqual([{ text: "deploy done", user: "U2", ts: "2.1", channel: "Group DM" }]);
-    // No users.info needed for a group DM — only list + history.
-    expect(callProxy).toHaveBeenCalledTimes(2);
+    expect(result).toEqual([
+      { text: "deploy done", user: "U2", ts: "2.1", channel: "Group DM with Alice, Bob, Carol" },
+    ]);
+    // Group-DM members come from the directory (users.list), never users.info.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/users.info")).toBe(false);
   });
 
   test("slack_search_messages resolves a channel name to its id before reading history", async () => {
@@ -540,22 +568,29 @@ describe("createSlackTools", () => {
     expect(result).toContain("500");
   });
 
-  test("slack_list_dms lists ims and group DMs with resolved labels", async () => {
+  test("slack_list_dms names group-DM members and resolves 1:1s from the directory", async () => {
     const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
       if (path === "/conversations.list") {
         return proxyResult({
           ok: true,
           channels: [
             { id: "D1", is_im: true, user: "U2" },
-            { id: "G1", is_mpim: true, name: "mpdm-a--b--c-1" },
+            // self (U1 -> handle "me") is present in the mpdm name and must be dropped.
+            { id: "G1", is_mpim: true, name: "mpdm-alice--bob--carol--me-1" },
           ],
         });
       }
       if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
-      if (path === "/users.info") {
+      if (path === "/users.list") {
         return proxyResult({
           ok: true,
-          user: { id: "U2", real_name: "Bob Example", profile: { display_name: "bob" } },
+          members: [
+            { id: "U1", name: "me", profile: { display_name: "Me" } },
+            { id: "U2", name: "bobby", real_name: "Bob Example", profile: { display_name: "bob" } },
+            { id: "UA", name: "alice", profile: { display_name: "Alice" } },
+            { id: "UB", name: "bob", profile: { display_name: "Bob" } },
+            { id: "UC", name: "carol", profile: { display_name: "Carol" } },
+          ],
         });
       }
       return proxyResult({ ok: false }, 400);
@@ -564,11 +599,85 @@ describe("createSlackTools", () => {
     const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
     expect(result).toEqual([
       { id: "D1", type: "im", name: "DM with bob", user: "U2" },
-      { id: "G1", type: "mpim", name: "Group DM" },
+      { id: "G1", type: "mpim", name: "Group DM with Alice, Bob, Carol" },
     ]);
     // im/mpim are the only conversation types requested.
     expect(callProxy.mock.calls[0][0]).toBe("/conversations.list");
     expect(callProxy.mock.calls[0][1]?.types).toBe("im,mpim");
+    // Listing N DMs costs one users.list, never a per-DM users.info.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/users.info")).toBe(false);
+    expect(callProxy.mock.calls.filter((c) => c[0] === "/users.list")).toHaveLength(1);
+  });
+
+  test("slack_list_dms falls back to the raw handle for an unmapped group-DM member", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [{ id: "G1", is_mpim: true, name: "mpdm-alice--ghost-1" }],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [{ id: "UA", name: "alice", profile: { display_name: "Alice" } }],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
+    // "ghost" isn't in the directory, so its handle is shown verbatim.
+    expect(result).toEqual([{ id: "G1", type: "mpim", name: "Group DM with Alice, ghost" }]);
+  });
+
+  test("slack_list_dms uses a non-mpdm group name verbatim", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [{ id: "G1", is_mpim: true, name: "release-crew" }],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ id: "G1", type: "mpim", name: "release-crew" }]);
+  });
+
+  test("slack_list_dms follows users.list next_cursor so a page-2 member resolves", async () => {
+    const page1 = Array.from({ length: 3 }, (_, i) => ({ id: `U${i}`, name: `u${i}` }));
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U_PAGE2" }] });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") {
+        if (query?.cursor === "PAGE2") {
+          return proxyResult({
+            ok: true,
+            members: [{ id: "U_PAGE2", name: "dana", profile: { display_name: "Dana" } }],
+          });
+        }
+        return proxyResult({
+          ok: true,
+          members: page1,
+          response_metadata: { next_cursor: "PAGE2" },
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
+    // The counterparty only exists on page 2 — pagination must reach it.
+    expect(result).toEqual([{ id: "D1", type: "im", name: "DM with Dana", user: "U_PAGE2" }]);
+    const listCalls = callProxy.mock.calls.filter((c) => c[0] === "/users.list");
+    expect(listCalls).toHaveLength(2);
+    expect(listCalls[1][1]?.cursor).toBe("PAGE2");
   });
 
   test("slack_search_messages from_user resolves a name via users.list and keeps only that author", async () => {

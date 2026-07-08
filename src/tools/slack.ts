@@ -132,6 +132,8 @@ interface SlackUsersInfoResponse extends SlackBaseResponse {
 
 interface SlackUsersListResponse extends SlackBaseResponse {
   members?: SlackUser[];
+  /** Cursor-based paging: the next page's cursor, empty/absent on the last page. */
+  response_metadata?: { next_cursor?: string };
 }
 
 interface SlackChannel {
@@ -265,6 +267,80 @@ function makeGetAuthUserId(callProxy: SlackProxyCaller): () => Promise<string | 
   };
 }
 
+/**
+ * A workspace user directory built from a single `users.list` fetch and shared
+ * across a tool call. `members` is the non-deleted set (for name/handle matching
+ * in {@link resolveSlackUserId}); `byId` and `byHandle` give O(1) lookups for DM
+ * label resolution without a per-DM `users.info` call. `byHandle` is keyed by the
+ * lowercased Slack `name` (the handle Slack encodes into `mpdm-…` group-DM names).
+ */
+interface SlackUsersDirectory {
+  members: SlackUser[];
+  byId: Map<string, SlackUser>;
+  byHandle: Map<string, SlackUser>;
+}
+
+/** The name we show for a member: display name, then real name, then handle, then id. */
+function displayNameForUser(user: SlackUser): string {
+  return user.profile?.display_name || user.real_name || user.name || user.id;
+}
+
+/** Hard ceiling on users.list pages we'll follow — mirrors MAX_CONVERSATIONS_PAGES. */
+const MAX_USERS_PAGES = 10;
+
+/**
+ * Fetch every workspace member by following Slack's cursor pagination, mirroring
+ * {@link listAllConversations}: a first-page failure is fatal (propagate the
+ * error string), a later-page failure stops paging and returns what we gathered.
+ * The portal proxy allowlist covers `users.list` but NOT `conversations.members`,
+ * so this is the only way to name a group DM's members.
+ */
+async function listAllUsers(callProxy: SlackProxyCaller): Promise<SlackUser[] | string> {
+  const all: SlackUser[] = [];
+  let cursor = "";
+  for (let page = 0; page < MAX_USERS_PAGES; page++) {
+    const query: Record<string, string | number> = { limit: 1000 };
+    if (cursor) query.cursor = cursor;
+
+    const res = await callSlack<SlackUsersListResponse>(callProxy, "/users.list", query);
+    if (typeof res === "string") {
+      if (page === 0) return res;
+      break;
+    }
+    all.push(...(res.members ?? []));
+
+    const next = res.response_metadata?.next_cursor;
+    if (!next) break;
+    cursor = next;
+  }
+  return all;
+}
+
+/**
+ * Build a lazy resolver for the workspace user directory. users.list is fetched
+ * (paginated) at most once per call and memoized, so a search that resolves
+ * `from_user`/`mentions` AND labels its matched DMs pays a single users.list.
+ * Never throws — a fetch failure resolves to an empty directory so callers
+ * degrade to their id/handle fallbacks rather than failing the whole tool.
+ */
+function makeGetUsersDirectory(callProxy: SlackProxyCaller): () => Promise<SlackUsersDirectory> {
+  let cached: SlackUsersDirectory | undefined;
+  return async () => {
+    if (cached === undefined) {
+      const res = await listAllUsers(callProxy);
+      const members = (typeof res === "string" ? [] : res).filter((u) => !u.deleted);
+      const byId = new Map<string, SlackUser>();
+      const byHandle = new Map<string, SlackUser>();
+      for (const user of members) {
+        byId.set(user.id, user);
+        if (user.name) byHandle.set(user.name.toLowerCase(), user);
+      }
+      cached = { members, byId, byHandle };
+    }
+    return cached;
+  };
+}
+
 async function getSlackMe(callProxy: SlackProxyCaller): Promise<Record<string, unknown> | string> {
   const auth = await callSlack<SlackAuthTestResponse>(callProxy, "/auth.test");
   if (typeof auth === "string") return auth;
@@ -311,8 +387,10 @@ async function listSlackChannels(
  * `im`/`mpim`, so without this there's no way to answer "list my DMs" or to get
  * a DM's id to pass to `slack_get_channel_history`. Reuses the paginating
  * `listAllConversations` and the shared `labelForChannel` resolution so each DM
- * gets a human name (the counterparty for a 1:1, "Group DM" for an mpim). Label
- * resolution is best-effort and never throws — it falls back to the id.
+ * gets a human name (the counterparty for a 1:1, the members for a group DM).
+ * The users directory is built once up front, so listing N DMs costs a single
+ * (paginated) users.list rather than N `users.info` calls. Label resolution is
+ * best-effort and never throws — it falls back to the id.
  */
 async function listSlackDms(
   callProxy: SlackProxyCaller,
@@ -323,11 +401,18 @@ async function listSlackDms(
   if (typeof res === "string") return res;
 
   const getAuthUserId = makeGetAuthUserId(callProxy);
+  const getUsersDirectory = makeGetUsersDirectory(callProxy);
   const dmNameCache = new Map<string, string>();
 
   const dms: Array<Record<string, unknown>> = [];
   for (const conv of res.slice(0, limit)) {
-    const name = await labelForChannel(callProxy, conv, dmNameCache, getAuthUserId);
+    const name = await labelForChannel(
+      callProxy,
+      conv,
+      dmNameCache,
+      getAuthUserId,
+      getUsersDirectory
+    );
     const type = conv.is_mpim ? "mpim" : "im";
     dms.push({
       id: conv.id,
@@ -424,24 +509,66 @@ function messageMatchesQuery(text: string, terms: string[]): boolean {
   return terms.every((term) => haystack.includes(term));
 }
 
+/** Max member names shown in a group-DM label before the rest collapse to "+N more". */
+const MAX_GROUP_DM_NAMES = 5;
+/** Slack encodes a group DM's member handles into its name: `mpdm-<h1>--<h2>--…-1`. */
+const MPDM_NAME_RE = /^mpdm-(.+)-\d+$/;
+
 /**
- * Best-effort, human-readable label for a matched conversation, used as the
- * `channel` field on results. Regular channels use their name; DMs have no
- * useful name, so:
- *  - `im` (1:1): resolve the other party via users.info → "DM with <name>";
- *    if the other party is the authed user, "Direct message".
- *  - `mpim` (group DM): "Group DM" (the raw `mpdm-…` name isn't user-friendly).
- * Resolution is lazy (only for DMs that produced matches) and cheap: users.info
- * lookups are de-duped via `dmNameCache`. Never throws — any failure falls back
- * to the conversation id, since a correct match matters more than its label.
+ * Turn a group DM's `mpdm-…` name into a readable "Group DM with A, B, C" label
+ * using the users directory. Slack packs the members' handles into the name
+ * (there's no allowlisted `conversations.members` to call), so we split them out,
+ * map each handle → display name (falling back to the raw handle when unmapped),
+ * and drop the authed user's own handle. A non-`mpdm` name (a real group name) is
+ * returned as-is; an absent name yields "Group DM". Never throws.
+ */
+function formatGroupDmLabel(
+  mpimName: string | undefined,
+  directory: SlackUsersDirectory,
+  selfId: string | null
+): string {
+  if (!mpimName) return "Group DM";
+  const match = MPDM_NAME_RE.exec(mpimName);
+  if (!match) return mpimName;
+
+  const selfHandle = selfId ? directory.byId.get(selfId)?.name?.toLowerCase() : undefined;
+  const names: string[] = [];
+  for (const handle of match[1].split("--")) {
+    const key = handle.toLowerCase();
+    if (selfHandle && key === selfHandle) continue;
+    const member = directory.byHandle.get(key);
+    names.push(member ? displayNameForUser(member) : handle);
+  }
+  if (names.length === 0) return "Group DM";
+
+  const shown = names.slice(0, MAX_GROUP_DM_NAMES);
+  const extra = names.length - shown.length;
+  return `Group DM with ${shown.join(", ")}${extra > 0 ? `, +${extra} more` : ""}`;
+}
+
+/**
+ * Best-effort, human-readable label for a conversation, used as the `channel`
+ * field on results and the `name` on listed DMs. Regular channels use their name;
+ * DMs have no useful name, so:
+ *  - `im` (1:1): resolve the other party via the users directory first (→ "DM
+ *    with <name>"), falling back to a `users.info` lookup only when the id isn't
+ *    in the directory; if the other party is the authed user, "Direct message".
+ *  - `mpim` (group DM): {@link formatGroupDmLabel} names the members.
+ * Directory-backed resolution means listing/searching DMs pays one users.list
+ * instead of a `users.info` per DM; `users.info` fallbacks are de-duped via
+ * `dmNameCache`. Never throws — any failure falls back to the conversation id.
  */
 async function labelForChannel(
   callProxy: SlackProxyCaller,
   channel: SlackChannel,
   dmNameCache: Map<string, string>,
-  getAuthUserId: () => Promise<string | null>
+  getAuthUserId: () => Promise<string | null>,
+  getUsersDirectory: () => Promise<SlackUsersDirectory>
 ): Promise<string> {
-  if (channel.is_mpim) return "Group DM";
+  if (channel.is_mpim) {
+    const [directory, selfId] = await Promise.all([getUsersDirectory(), getAuthUserId()]);
+    return formatGroupDmLabel(channel.name, directory, selfId);
+  }
   if (!channel.is_im) return channel.name ?? channel.id;
 
   const otherId = channel.user;
@@ -452,6 +579,14 @@ async function labelForChannel(
 
   const cached = dmNameCache.get(otherId);
   if (cached) return `DM with ${cached}`;
+
+  const directory = await getUsersDirectory();
+  const known = directory.byId.get(otherId);
+  if (known) {
+    const name = displayNameForUser(known);
+    dmNameCache.set(otherId, name);
+    return `DM with ${name}`;
+  }
 
   const info = await callSlack<SlackUsersInfoResponse>(callProxy, "/users.info", { user: otherId });
   if (typeof info === "string" || !info.user) return channel.id;
@@ -468,18 +603,16 @@ const SELF_REFS = new Set(["me", "myself", "self", "i"]);
 /**
  * Resolve a model-supplied person reference to a Slack user id, best-effort.
  * Accepts "me"/"self"/etc. (→ the authed user), a bare id (returned as-is), or a
- * name/handle matched against users.list. users.list is fetched at most once and
- * memoized in `userListCache`, so resolving both `from_user` and `mentions` in
- * one search costs a single lookup. Matching is case-insensitive across
+ * name/handle matched against the shared users directory (a single memoized
+ * users.list, also used for DM labels). Matching is case-insensitive across
  * `name`/`real_name`/`display_name`: an exact match wins; otherwise a unique
  * substring match is used. Returns null when nothing matches or the match is
  * ambiguous. Never throws — a users.list failure resolves to null.
  */
 async function resolveSlackUserId(
-  callProxy: SlackProxyCaller,
   ref: string,
   getAuthUserId: () => Promise<string | null>,
-  userListCache: { members?: SlackUser[] }
+  getUsersDirectory: () => Promise<SlackUsersDirectory>
 ): Promise<string | null> {
   const trimmed = ref.trim();
   if (!trimmed) return null;
@@ -489,11 +622,7 @@ async function resolveSlackUserId(
   const needle = trimmed.replace(/^@/, "").toLowerCase();
   if (!needle) return null;
 
-  if (!userListCache.members) {
-    const res = await callSlack<SlackUsersListResponse>(callProxy, "/users.list", { limit: 1000 });
-    userListCache.members = typeof res === "string" ? [] : (res.members ?? []);
-  }
-  const members = userListCache.members.filter((u) => !u.deleted);
+  const { members } = await getUsersDirectory();
   const fieldsOf = (u: SlackUser): string[] =>
     [u.name, u.real_name, u.profile?.display_name].filter((f): f is string => Boolean(f));
   const matching = (pred: (field: string) => boolean): SlackUser[] =>
@@ -540,23 +669,23 @@ async function searchSlackMessages(
   const count = clampLimit(args.count, 20, 1, 100);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-  // Shared across the two person filters so we resolve auth.test / users.list at
-  // most once each per search.
+  // Shared across the two person filters AND DM label resolution, so auth.test /
+  // users.list are each fetched at most once per search.
   const getAuthUserId = makeGetAuthUserId(callProxy);
-  const userListCache: { members?: SlackUser[] } = {};
+  const getUsersDirectory = makeGetUsersDirectory(callProxy);
 
   // A filter that was asked for but can't be resolved is surfaced (not silently
   // dropped) so the model can relay who it couldn't find rather than returning
   // every message.
   let fromId: string | null = null;
   if (fromUserRef) {
-    fromId = await resolveSlackUserId(callProxy, fromUserRef, getAuthUserId, userListCache);
+    fromId = await resolveSlackUserId(fromUserRef, getAuthUserId, getUsersDirectory);
     if (!fromId)
       return `Error: couldn't find a Slack user matching "${fromUserRef}" for from_user.`;
   }
   let mentionId: string | null = null;
   if (mentionsRef) {
-    mentionId = await resolveSlackUserId(callProxy, mentionsRef, getAuthUserId, userListCache);
+    mentionId = await resolveSlackUserId(mentionsRef, getAuthUserId, getUsersDirectory);
     if (!mentionId) {
       return `Error: couldn't find a Slack user matching "${mentionsRef}" for mentions.`;
     }
@@ -613,7 +742,13 @@ async function searchSlackMessages(
     if (matched.length === 0) continue;
 
     // Resolve the label once per matched channel (lazy for DMs).
-    const label = await labelForChannel(callProxy, channel, dmNameCache, getAuthUserId);
+    const label = await labelForChannel(
+      callProxy,
+      channel,
+      dmNameCache,
+      getAuthUserId,
+      getUsersDirectory
+    );
     for (const m of matched) {
       results.push({ text: m.text, user: m.username ?? m.user, ts: m.ts, channel: label });
     }
@@ -790,7 +925,7 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_dms",
       description:
-        "List the user's Slack direct messages and group DMs, including who each conversation is with. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or 'Group DM'), and the other user's id for a 1:1. Pass a returned id to slack_get_channel_history to read that conversation.",
+        "List the user's Slack direct messages and group DMs, including who each conversation is with. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. Pass a returned id to slack_get_channel_history to read that conversation.",
       parameters: {
         type: "object",
         properties: {
