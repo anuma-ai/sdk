@@ -74,19 +74,29 @@ describe("rankComposite", () => {
     expect(ids).toContain("gem");
   });
 
-  it("appends items absent from any facet's top-N at zero score", async () => {
+  it("appends items absent from any facet's top-N at zero score ONLY with includeUnrankedTail (bench opt-in)", async () => {
     const items = [
       { id: "hit", content: "hit", embedding: emb({ 0: 1 }), updatedAt: NOW },
       { id: "orphan", content: "orphan", embedding: emb({ 7: 1 }), updatedAt: NOW },
     ];
     const subQueries = [{ query: "f1", embedding: emb({ 0: 1 }) }];
-    const result = await rankComposite("original", emb({ 0: 1 }), subQueries, items, {
+
+    // Opt-in (eval harness): the zero-score orphan IS appended.
+    const withTail = await rankComposite("original", emb({ 0: 1 }), subQueries, items, {
+      limit: items.length,
+      perFacetTopN: 1,
+      recency: { now: NOW },
+      includeUnrankedTail: true,
+    });
+    expect(withTail.map((r) => r.uniqueId)).toEqual(expect.arrayContaining(["hit", "orphan"]));
+    expect(withTail.find((r) => r.uniqueId === "orphan")?.similarity).toBe(0);
+
+    // Default (production recall): the zero-score orphan is NOT returned.
+    const withoutTail = await rankComposite("original", emb({ 0: 1 }), subQueries, items, {
       limit: items.length,
       perFacetTopN: 1,
       recency: { now: NOW },
     });
-    expect(result.map((r) => r.uniqueId)).toEqual(expect.arrayContaining(["hit", "orphan"]));
-    const orphan = result.find((r) => r.uniqueId === "orphan");
-    expect(orphan?.similarity).toBe(0);
+    expect(withoutTail.find((r) => r.uniqueId === "orphan")).toBeUndefined();
   });
 });

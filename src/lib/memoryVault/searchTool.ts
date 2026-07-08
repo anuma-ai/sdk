@@ -864,6 +864,15 @@ export async function rankComposite(
      * top-N RRF facet so temporal hits survive composite decomposition.
      */
     temporalRanking?: string[];
+    /**
+     * Bench-only: append every vault item absent from facet fusion to the
+     * result at `similarity: 0`, so eval margin-analysis can locate any id.
+     * Default OFF — production `recall()` must never see this zero-score tail
+     * (it bypasses the caller's `minSimilarity`/`factMinScore` floor and pads
+     * the answer LLM's context with zero-relevance memories). Set it only from
+     * the eval harness.
+     */
+    includeUnrankedTail?: boolean;
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -947,21 +956,25 @@ export async function rankComposite(
   );
   combined.sort((a, b) => b.similarity - a.similarity);
 
-  // Bench parity: append items absent from any facet's top-N so the
-  // returned list covers all items (margin analysis needs any ID locatable).
-  const fusedIds = new Set(combined.map((r) => r.uniqueId));
-  for (const item of items) {
-    if (!fusedIds.has(item.id)) {
-      combined.push({
-        uniqueId: item.id,
-        content: item.content,
-        similarity: 0,
-        createdAt: item.createdAt ?? item.updatedAt,
-        updatedAt: item.updatedAt,
-        eventTimeStart: item.eventTimeStart,
-        eventTimeEnd: item.eventTimeEnd,
-        eventTimeKind: item.eventTimeKind,
-      });
+  // Bench parity (opt-in ONLY): append items absent from any facet's top-N at
+  // similarity 0 so eval margin-analysis can locate any id. Never in
+  // production — this tail bypasses the caller's minSimilarity floor and would
+  // pad recall() (and the answer LLM) with zero-relevance memories.
+  if (options?.includeUnrankedTail) {
+    const fusedIds = new Set(combined.map((r) => r.uniqueId));
+    for (const item of items) {
+      if (!fusedIds.has(item.id)) {
+        combined.push({
+          uniqueId: item.id,
+          content: item.content,
+          similarity: 0,
+          createdAt: item.createdAt ?? item.updatedAt,
+          updatedAt: item.updatedAt,
+          eventTimeStart: item.eventTimeStart,
+          eventTimeEnd: item.eventTimeEnd,
+          eventTimeKind: item.eventTimeKind,
+        });
+      }
     }
   }
 
