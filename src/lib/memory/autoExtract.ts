@@ -77,6 +77,7 @@ NOT durable — do NOT extract:
 - Transient state ("I'm hungry", "running late")
 - Things the user is asking the assistant to do ("draft an email")
 - Facts that are about the assistant or the world, not about the user
+- Facts asserted ONLY by the assistant, including the assistant restating the user's profile, name, or stored memories back to them ("As someone who works in engineering, you..."). Assistant turns are context for interpreting the user's messages — extract a fact only when the USER themselves stated or confirmed it, not because the assistant said it.
 - Information already framed as past-tense gossip about other people
 - Vague or non-committal intentions ("I should work out more at some point", "I really need to read more", "maybe I'll learn guitar"). Only extract a plan when it's concrete and committed ("signed up for the Chicago marathon in October").
 - The user's own name or handle on its own ("Peter Lee") — the system already knows who the user is; a name is not a durable fact about them
