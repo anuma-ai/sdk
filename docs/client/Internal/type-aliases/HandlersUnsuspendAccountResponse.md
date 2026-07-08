@@ -2,7 +2,7 @@
 
 > **HandlersUnsuspendAccountResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2646](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2646)
+Defined in: [src/client/types.gen.ts:2666](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2666)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2646](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:2647](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2647)
+Defined in: [src/client/types.gen.ts:2667](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2667)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2647](https://github.com/anuma-ai/sdk/blob/
 
 > **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2648)
+Defined in: [src/client/types.gen.ts:2668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2668)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2648](https://github.com/anuma-ai/sdk/blob/
 
 > **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2649)
+Defined in: [src/client/types.gen.ts:2669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2669)

@@ -2,7 +2,7 @@
 
 > **HandlersFundDeveloperAppRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1969)
+Defined in: [src/client/types.gen.ts:1988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1988)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1969](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **cancel\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1973)
+Defined in: [src/client/types.gen.ts:1992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1992)
 
 URL to redirect if payment is cancelled
 
@@ -20,7 +20,7 @@ URL to redirect if payment is cancelled
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:1977](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1977)
+Defined in: [src/client/types.gen.ts:1996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1996)
 
 Number of credits to purchase (1 credit = $0.01)
 
@@ -30,7 +30,7 @@ Number of credits to purchase (1 credit = $0.01)
 
 > `optional` **referral**: `string`
 
-Defined in: [src/client/types.gen.ts:1981](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1981)
+Defined in: [src/client/types.gen.ts:2000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2000)
 
 Rewardful referral ID for affiliate tracking
 
@@ -40,6 +40,6 @@ Rewardful referral ID for affiliate tracking
 
 > `optional` **success\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:1985](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1985)
+Defined in: [src/client/types.gen.ts:2004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2004)
 
 URL to redirect after successful payment

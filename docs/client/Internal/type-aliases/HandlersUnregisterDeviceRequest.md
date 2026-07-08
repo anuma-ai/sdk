@@ -2,7 +2,7 @@
 
 > **HandlersUnregisterDeviceRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2638](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2638)
+Defined in: [src/client/types.gen.ts:2658](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2658)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2638](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **token**: `string`
 
-Defined in: [src/client/types.gen.ts:2639](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2639)
+Defined in: [src/client/types.gen.ts:2659](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2659)

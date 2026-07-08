@@ -2,7 +2,7 @@
 
 > **HandlersGuestChatResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2013](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2013)
+Defined in: [src/client/types.gen.ts:2032](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2032)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2013](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **choices**: [`OpenaiChatCompletionChoice`](OpenaiChatCompletionChoice.md)\[]
 
-Defined in: [src/client/types.gen.ts:2018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2018)
+Defined in: [src/client/types.gen.ts:2037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2037)
 
 A list of chat completion choices. Can be more than one if `n` is greater
 than 1.
@@ -21,7 +21,7 @@ than 1.
 
 > `optional` **created**: `number`
 
-Defined in: [src/client/types.gen.ts:2022](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2022)
+Defined in: [src/client/types.gen.ts:2041](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2041)
 
 The Unix timestamp (in seconds) of when the chat completion was created.
 
@@ -31,7 +31,7 @@ The Unix timestamp (in seconds) of when the chat completion was created.
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:2026](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2026)
+Defined in: [src/client/types.gen.ts:2045](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2045)
 
 A unique identifier for the chat completion.
 
@@ -41,7 +41,7 @@ A unique identifier for the chat completion.
 
 > `optional` **messages\_remaining**: `number`
 
-Defined in: [src/client/types.gen.ts:2027](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2027)
+Defined in: [src/client/types.gen.ts:2046](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2046)
 
 ***
 
@@ -49,7 +49,7 @@ Defined in: [src/client/types.gen.ts:2027](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:2031](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2031)
+Defined in: [src/client/types.gen.ts:2050](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2050)
 
 The model used for the chat completion.
 
@@ -59,7 +59,7 @@ The model used for the chat completion.
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:2035](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2035)
+Defined in: [src/client/types.gen.ts:2054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2054)
 
 The object type, which is always `chat.completion`.
 
@@ -69,7 +69,7 @@ The object type, which is always `chat.completion`.
 
 > `optional` **portal**: [`LlmapiPortalChatCompletionResponse`](LlmapiPortalChatCompletionResponse.md)
 
-Defined in: [src/client/types.gen.ts:2036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2036)
+Defined in: [src/client/types.gen.ts:2055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2055)
 
 ***
 
@@ -77,7 +77,7 @@ Defined in: [src/client/types.gen.ts:2036](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **service\_tier**: [`OpenaiChatCompletionServiceTier`](OpenaiChatCompletionServiceTier.md)
 
-Defined in: [src/client/types.gen.ts:2037](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2037)
+Defined in: [src/client/types.gen.ts:2056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2056)
 
 ***
 
@@ -85,7 +85,7 @@ Defined in: [src/client/types.gen.ts:2037](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **system\_fingerprint**: `string`
 
-Defined in: [src/client/types.gen.ts:2044](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2044)
+Defined in: [src/client/types.gen.ts:2063](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2063)
 
 This fingerprint represents the backend configuration that the model runs with.
 
@@ -98,4 +98,4 @@ backend changes have been made that might impact determinism.
 
 > `optional` **usage**: [`OpenaiCompletionUsage`](OpenaiCompletionUsage.md)
 
-Defined in: [src/client/types.gen.ts:2045](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2045)
+Defined in: [src/client/types.gen.ts:2064](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2064)

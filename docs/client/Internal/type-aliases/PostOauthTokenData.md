@@ -2,7 +2,7 @@
 
 > **PostOauthTokenData** = `object`
 
-Defined in: [src/client/types.gen.ts:10140](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10140)
+Defined in: [src/client/types.gen.ts:10164](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10164)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10140](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `string`
 
-Defined in: [src/client/types.gen.ts:10144](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10144)
+Defined in: [src/client/types.gen.ts:10168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10168)
 
 Narrowed scope (refresh\_token grant)
 
@@ -20,7 +20,7 @@ Narrowed scope (refresh\_token grant)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10145](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10145)
+Defined in: [src/client/types.gen.ts:10169](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10169)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:10145](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10146](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10146)
+Defined in: [src/client/types.gen.ts:10170](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10170)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:10146](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/oauth/token"`
 
-Defined in: [src/client/types.gen.ts:10147](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10147)
+Defined in: [src/client/types.gen.ts:10171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10171)

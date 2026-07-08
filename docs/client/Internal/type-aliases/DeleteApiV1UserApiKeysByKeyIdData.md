@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserApiKeysByKeyIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:9420](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9420)
+Defined in: [src/client/types.gen.ts:9444](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9444)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9420](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9421](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9421)
+Defined in: [src/client/types.gen.ts:9445](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9445)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9421](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:9422](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9422)
+Defined in: [src/client/types.gen.ts:9446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9446)
 
 **key\_id**
 
@@ -32,7 +32,7 @@ API Key ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9428](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9428)
+Defined in: [src/client/types.gen.ts:9452](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9452)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:9428](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/user/api-keys/{key_id}"`
 
-Defined in: [src/client/types.gen.ts:9429](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9429)
+Defined in: [src/client/types.gen.ts:9453](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9453)

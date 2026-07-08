@@ -2,7 +2,7 @@
 
 > **HandlersMeResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2141](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2141)
+Defined in: [src/client/types.gen.ts:2160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2160)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2141](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **client\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:2142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2142)
+Defined in: [src/client/types.gen.ts:2161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2161)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2142](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **scopes**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:2143](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2143)
+Defined in: [src/client/types.gen.ts:2162](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2162)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2143](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:2144](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2144)
+Defined in: [src/client/types.gen.ts:2163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2163)

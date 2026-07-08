@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsStockPricesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8574](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8574)
+Defined in: [src/client/types.gen.ts:8598](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8598)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8574](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersStockPricesResponse`](HandlersStockPricesResponse.md)
 
-Defined in: [src/client/types.gen.ts:8578](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8578)
+Defined in: [src/client/types.gen.ts:8602](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8602)
 
 OK

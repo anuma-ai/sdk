@@ -2,7 +2,7 @@
 
 > **HandlersTokenResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2598](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2598)
+Defined in: [src/client/types.gen.ts:2618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2618)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2598](https://github.com/anuma-ai/sdk/blob/
 
 > **access\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:2599](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2599)
+Defined in: [src/client/types.gen.ts:2619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2619)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2599](https://github.com/anuma-ai/sdk/blob/
 
 > **expires\_in**: `number`
 
-Defined in: [src/client/types.gen.ts:2603](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2603)
+Defined in: [src/client/types.gen.ts:2623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2623)
 
 Seconds until expiration
 
@@ -28,7 +28,7 @@ Seconds until expiration
 
 > `optional` **refresh\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:2607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2607)
+Defined in: [src/client/types.gen.ts:2627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2627)
 
 May not be present on refresh
 
@@ -38,7 +38,7 @@ May not be present on refresh
 
 > `optional` **scope**: `string`
 
-Defined in: [src/client/types.gen.ts:2611](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2611)
+Defined in: [src/client/types.gen.ts:2631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2631)
 
 Granted scopes
 
@@ -48,6 +48,6 @@ Granted scopes
 
 > **token\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:2615](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2615)
+Defined in: [src/client/types.gen.ts:2635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2635)
 
 Usually "Bearer"

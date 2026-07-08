@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionDeveloperMessageParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3437](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3437)
+Defined in: [src/client/types.gen.ts:3457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3457)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3437](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3438)
+Defined in: [src/client/types.gen.ts:3458](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3458)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3438](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **content**: [`OpenaiChatCompletionDeveloperMessageParamContentUnion`](OpenaiChatCompletionDeveloperMessageParamContentUnion.md)
 
-Defined in: [src/client/types.gen.ts:3439](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3439)
+Defined in: [src/client/types.gen.ts:3459](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3459)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3439](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3440](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3440)
+Defined in: [src/client/types.gen.ts:3460](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3460)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:3440](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:3446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3446)
+Defined in: [src/client/types.gen.ts:3466](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3466)
 
 The role of the messages author, in this case `developer`.
 

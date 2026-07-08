@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminNotificationsSendError** = [`PostApiV1AdminNotificationsSendErrors`](PostApiV1AdminNotificationsSendErrors.md)\[keyof [`PostApiV1AdminNotificationsSendErrors`](PostApiV1AdminNotificationsSendErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5084](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5084)
+Defined in: [src/client/types.gen.ts:5108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5108)

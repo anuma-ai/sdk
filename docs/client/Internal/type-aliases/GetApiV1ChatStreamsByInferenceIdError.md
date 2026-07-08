@@ -2,4 +2,4 @@
 
 > **GetApiV1ChatStreamsByInferenceIdError** = [`GetApiV1ChatStreamsByInferenceIdErrors`](GetApiV1ChatStreamsByInferenceIdErrors.md)\[keyof [`GetApiV1ChatStreamsByInferenceIdErrors`](GetApiV1ChatStreamsByInferenceIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6495](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6495)
+Defined in: [src/client/types.gen.ts:6519](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6519)

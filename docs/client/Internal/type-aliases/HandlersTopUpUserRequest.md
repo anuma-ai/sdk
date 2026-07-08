@@ -2,7 +2,7 @@
 
 > **HandlersTopUpUserRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2631)
+Defined in: [src/client/types.gen.ts:2651](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2651)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2631](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:2635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2635)
+Defined in: [src/client/types.gen.ts:2655](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2655)
 
 credits to add (1 credit = $0.01)

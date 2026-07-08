@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsBalanceData** = `object`
 
-Defined in: [src/client/types.gen.ts:6982](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6982)
+Defined in: [src/client/types.gen.ts:7006](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7006)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6982](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6983](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6983)
+Defined in: [src/client/types.gen.ts:7007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7007)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6983](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:6984](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6984)
+Defined in: [src/client/types.gen.ts:7008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7008)
 
 **X-Timezone?**
 
@@ -32,7 +32,7 @@ IANA timezone (e.g., America/New\_York)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6990)
+Defined in: [src/client/types.gen.ts:7014](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7014)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:6990](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6991)
+Defined in: [src/client/types.gen.ts:7015](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7015)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:6991](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/credits/balance"`
 
-Defined in: [src/client/types.gen.ts:6992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6992)
+Defined in: [src/client/types.gen.ts:7016](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7016)

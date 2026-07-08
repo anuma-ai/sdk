@@ -2,7 +2,7 @@
 
 > **HandlersPasskeyEnrollFinishRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3135)
+Defined in: [src/client/types.gen.ts:3155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3155)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3135](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credential**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:3136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3136)
+Defined in: [src/client/types.gen.ts:3156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3156)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:3136](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **label**: `string`
 
-Defined in: [src/client/types.gen.ts:3137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3137)
+Defined in: [src/client/types.gen.ts:3157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3157)

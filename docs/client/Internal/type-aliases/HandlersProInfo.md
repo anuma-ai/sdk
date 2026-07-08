@@ -2,7 +2,7 @@
 
 > **HandlersProInfo** = `object`
 
-Defined in: [src/client/types.gen.ts:2330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2330)
+Defined in: [src/client/types.gen.ts:2349](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2349)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2330](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pro\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2335](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2335)
+Defined in: [src/client/types.gen.ts:2354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2354)
 
 ProActive is the authoritative state: whether the account is actually Pro via stake right now,
 derived from the grant row (true while the grant is active, i.e. not revoked).
@@ -21,10 +21,11 @@ derived from the grant row (true while the grant is active, i.e. not revoked).
 
 > `optional` **qualified**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2340](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2340)
+Defined in: [src/client/types.gen.ts:2360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2360)
 
-Qualified is whether last-polled stake currently meets the threshold (a "do I clear the bar"
-signal that can lag a fresh bind until the first poll).
+Qualified is whether the account's current stake meets the threshold (a "do I clear the bar"
+signal). Computed from the live per-wallet stake read at request time (cached value only as a
+per-wallet fallback), so it reflects a fresh bind/stake immediately.
 
 ***
 
@@ -32,7 +33,7 @@ signal that can lag a fresh bind until the first poll).
 
 > `optional` **staked\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2341](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2341)
+Defined in: [src/client/types.gen.ts:2361](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2361)
 
 ***
 
@@ -40,4 +41,4 @@ Defined in: [src/client/types.gen.ts:2341](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **threshold\_zeta**: `string`
 
-Defined in: [src/client/types.gen.ts:2342](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2342)
+Defined in: [src/client/types.gen.ts:2362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2362)

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionMessageToolCallParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3617](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3617)
+Defined in: [src/client/types.gen.ts:3637](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3637)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3617](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3618)
+Defined in: [src/client/types.gen.ts:3638](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3638)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3618](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **function**: [`OpenaiChatCompletionMessageToolCallFunctionParam`](OpenaiChatCompletionMessageToolCallFunctionParam.md)
 
-Defined in: [src/client/types.gen.ts:3619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3619)
+Defined in: [src/client/types.gen.ts:3639](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3639)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3619](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:3623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3623)
+Defined in: [src/client/types.gen.ts:3643](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3643)
 
 The ID of the tool call.
 
@@ -36,7 +36,7 @@ The ID of the tool call.
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:3629](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3629)
+Defined in: [src/client/types.gen.ts:3649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3649)
 
 The type of the tool. Currently, only `function` is supported.
 

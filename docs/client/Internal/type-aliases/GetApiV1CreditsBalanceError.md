@@ -2,4 +2,4 @@
 
 > **GetApiV1CreditsBalanceError** = [`GetApiV1CreditsBalanceErrors`](GetApiV1CreditsBalanceErrors.md)\[keyof [`GetApiV1CreditsBalanceErrors`](GetApiV1CreditsBalanceErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7014](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7014)
+Defined in: [src/client/types.gen.ts:7038](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7038)

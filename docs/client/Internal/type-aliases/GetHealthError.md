@@ -2,4 +2,4 @@
 
 > **GetHealthError** = [`GetHealthErrors`](GetHealthErrors.md)\[keyof [`GetHealthErrors`](GetHealthErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9960](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9960)
+Defined in: [src/client/types.gen.ts:9984](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9984)

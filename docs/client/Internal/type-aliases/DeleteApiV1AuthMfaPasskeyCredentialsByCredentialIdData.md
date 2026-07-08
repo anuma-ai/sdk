@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:6067](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6067)
+Defined in: [src/client/types.gen.ts:6091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6091)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6067](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:6068](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6068)
+Defined in: [src/client/types.gen.ts:6092](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6092)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:6068](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:6069](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6069)
+Defined in: [src/client/types.gen.ts:6093](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6093)
 
 **credential\_id**
 
@@ -32,7 +32,7 @@ base64url-encoded credential id
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6075](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6075)
+Defined in: [src/client/types.gen.ts:6099](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6099)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:6075](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/passkey/credentials/{credential_id}"`
 
-Defined in: [src/client/types.gen.ts:6076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6076)
+Defined in: [src/client/types.gen.ts:6100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6100)
