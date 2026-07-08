@@ -226,7 +226,7 @@ describe("extractFacts", () => {
     const candidates = {
       candidates: [
         {
-          content: "Foo",
+          content: "Enjoys hiking on weekends",
           type: "weird-unknown-type",
           confidence: 0.9,
           sourceMessageIds: ["m1"],
@@ -243,8 +243,8 @@ describe("extractFacts", () => {
   it("keeps a bare fact (empty sourceMessageIds), attributing it to the last user message (H4)", async () => {
     const candidates = {
       candidates: [
-        { content: "Foo", type: "other", confidence: 0.9, sourceMessageIds: [] },
-        { content: "Bar", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] },
+        { content: "Speaks fluent Spanish", type: "other", confidence: 0.9, sourceMessageIds: [] },
+        { content: "Plays the cello", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] },
       ],
     };
     const result = await extractFacts(messages, {
@@ -252,15 +252,25 @@ describe("extractFacts", () => {
       fetchFn: mockFetch(JSON.stringify(candidates)),
     });
     expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ content: "Foo", sourceMessageIds: ["m3"] });
-    expect(result[1]).toMatchObject({ content: "Bar", sourceMessageIds: ["m1"] });
+    expect(result[0]).toMatchObject({ content: "Speaks fluent Spanish", sourceMessageIds: ["m3"] });
+    expect(result[1]).toMatchObject({ content: "Plays the cello", sourceMessageIds: ["m1"] });
   });
 
   it("clamps confidence to [0, 1]", async () => {
     const candidates = {
       candidates: [
-        { content: "x", type: "other", confidence: 1.5, sourceMessageIds: ["m1"] },
-        { content: "y", type: "other", confidence: -0.2, sourceMessageIds: ["m1"] },
+        {
+          content: "Prefers tea over coffee",
+          type: "other",
+          confidence: 1.5,
+          sourceMessageIds: ["m1"],
+        },
+        {
+          content: "Enjoys morning walks",
+          type: "other",
+          confidence: -0.2,
+          sourceMessageIds: ["m1"],
+        },
       ],
     };
     const result = await extractFacts(messages, {
@@ -269,6 +279,45 @@ describe("extractFacts", () => {
     });
     expect(result[0].confidence).toBe(1);
     expect(result[1].confidence).toBe(0);
+  });
+
+  it("drops bare single-token label fragments ('Engineering') but keeps a real statement", async () => {
+    const candidates = {
+      candidates: [
+        { content: "Engineering", type: "identity", confidence: 0.9, sourceMessageIds: ["m1"] },
+        {
+          content: "Works in engineering",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+    });
+    expect(result.map((c) => c.content)).toEqual(["Works in engineering"]);
+  });
+
+  it("drops a candidate that is just the user's own name when userIdentity is supplied", async () => {
+    const candidates = {
+      candidates: [
+        { content: "Peter Lee", type: "identity", confidence: 0.95, sourceMessageIds: ["m1"] },
+        {
+          content: "Lives in Portland",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+      userIdentity: ["Peter Lee"],
+    });
+    expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
   });
 });
 
@@ -414,8 +463,18 @@ describe("extractAndRetain", () => {
   it("respects custom minConfidence", async () => {
     const candidates = {
       candidates: [
-        { content: "high", type: "other", confidence: 0.95, sourceMessageIds: ["m1"] },
-        { content: "mid", type: "other", confidence: 0.85, sourceMessageIds: ["m1"] },
+        {
+          content: "Trains for a marathon",
+          type: "other",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+        {
+          content: "Might switch to decaf",
+          type: "other",
+          confidence: 0.85,
+          sourceMessageIds: ["m1"],
+        },
       ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
@@ -434,7 +493,7 @@ describe("extractAndRetain", () => {
     );
 
     expect(result.candidates).toHaveLength(1);
-    expect(result.candidates[0].content).toBe("high");
+    expect(result.candidates[0].content).toBe("Trains for a marathon");
   });
 
   it("links entities when entityCtx is provided", async () => {
@@ -479,7 +538,7 @@ describe("extractAndRetain", () => {
     const candidates = {
       candidates: [
         {
-          content: "x",
+          content: "Uses the foo library daily",
           type: "other",
           confidence: 0.9,
           sourceMessageIds: ["m1"],
@@ -501,7 +560,13 @@ describe("extractAndRetain", () => {
   it("skips entity linking when candidate has no entities", async () => {
     const candidates = {
       candidates: [
-        { content: "x", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: [] },
+        {
+          content: "Enjoys rock climbing",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
       ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "mem-3", proofCount: 1 });
@@ -560,7 +625,14 @@ describe("extractAndRetain", () => {
 
   it("forwards consolidateOptions to each retain() call", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
     const onFallback = vi.fn();
@@ -576,7 +648,7 @@ describe("extractAndRetain", () => {
     );
 
     expect(vi.mocked(retain)).toHaveBeenCalledWith(
-      "fact",
+      "Likes strong coffee",
       expect.anything(),
       expect.objectContaining({ consolidateOptions })
     );
@@ -584,7 +656,14 @@ describe("extractAndRetain", () => {
 
   it("does not pass consolidateOptions to retain when omitted", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
 
@@ -599,7 +678,14 @@ describe("extractAndRetain", () => {
 
   it("inherits extract.piiRedaction into consolidateOptions for direct callers", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
 
@@ -626,7 +712,14 @@ describe("extractAndRetain", () => {
 
   it("lets an explicit consolidateOptions.piiRedaction win over extract", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
 
