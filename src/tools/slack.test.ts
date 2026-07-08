@@ -539,4 +539,184 @@ describe("createSlackTools", () => {
     expect(typeof result).toBe("string");
     expect(result).toContain("500");
   });
+
+  test("slack_list_dms lists ims and group DMs with resolved labels", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [
+            { id: "D1", is_im: true, user: "U2" },
+            { id: "G1", is_mpim: true, name: "mpdm-a--b--c-1" },
+          ],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.info") {
+        return proxyResult({
+          ok: true,
+          user: { id: "U2", real_name: "Bob Example", profile: { display_name: "bob" } },
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
+    expect(result).toEqual([
+      { id: "D1", type: "im", name: "DM with bob", user: "U2" },
+      { id: "G1", type: "mpim", name: "Group DM" },
+    ]);
+    // im/mpim are the only conversation types requested.
+    expect(callProxy.mock.calls[0][0]).toBe("/conversations.list");
+    expect(callProxy.mock.calls[0][1]?.types).toBe("im,mpim");
+  });
+
+  test("slack_search_messages from_user resolves a name via users.list and keeps only that author", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U2", name: "bob", real_name: "Bob Example" },
+            { id: "U3", name: "amy", real_name: "Amy Example" },
+          ],
+        });
+      }
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C1", name: "eng" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [
+            { text: "deploy done", user: "U2", ts: "2.0" },
+            { text: "lunch?", user: "U3", ts: "1.0" },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      from_user: "bob",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "deploy done", user: "U2", ts: "2.0", channel: "eng" }]);
+  });
+
+  test("slack_search_messages from_user accepts a bare user id without a users.list lookup", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C1", name: "eng" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [
+            { text: "deploy done", user: "U0000002", ts: "2.0" },
+            { text: "hi", user: "U0000003", ts: "1.0" },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      from_user: "U0000002",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "deploy done", user: "U0000002", ts: "2.0", channel: "eng" }]);
+    // A bare id needs no directory lookup.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/users.list")).toBe(false);
+  });
+
+  test("slack_search_messages mentions keeps messages that @-mention the user (both token forms)", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C1", name: "eng" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [
+            { text: "hey <@U0000009> ship it", user: "U2", ts: "3.0" },
+            { text: "cc <@U0000009|dave> please", user: "U3", ts: "2.0" },
+            { text: "no mention here", user: "U4", ts: "1.0" },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      mentions: "U0000009",
+    })) as Array<Record<string, unknown>>;
+    // Both `<@U…>` and `<@U…|handle>` match; the un-mentioned message is dropped.
+    expect(result.map((r) => r.ts)).toEqual(["3.0", "2.0"]);
+  });
+
+  test("slack_search_messages mentions 'me' resolves the authed user via auth.test", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U0000001" });
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C1", name: "eng" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [
+            { text: "ping <@U0000001> look", user: "U2", ts: "2.0" },
+            { text: "unrelated", user: "U3", ts: "1.0" },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, { mentions: "me" })) as Array<
+      Record<string, unknown>
+    >;
+    expect(result).toEqual([
+      { text: "ping <@U0000001> look", user: "U2", ts: "2.0", channel: "eng" },
+    ]);
+    expect(callProxy.mock.calls.some((c) => c[0] === "/auth.test")).toBe(true);
+  });
+
+  test("slack_search_messages with no query/from_user/mentions returns a guidance error", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>();
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {})) as string;
+    expect(typeof result).toBe("string");
+    expect(result).toContain("query");
+    expect(result).toContain("from_user");
+    expect(result).toContain("mentions");
+    expect(callProxy).not.toHaveBeenCalled();
+  });
+
+  test("slack_search_messages sorts matches by recency before truncating (no eviction by scan order)", async () => {
+    // C0 is scanned first but holds the OLDER match; C1 is scanned later with the
+    // NEWER one. With count=1, arrival order would keep C0's stale hit — recency
+    // sorting must surface C1's instead.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [
+            { id: "C0", name: "early" },
+            { id: "C1", name: "late" },
+          ],
+        });
+      }
+      if (path === "/conversations.history") {
+        return query?.channel === "C1"
+          ? proxyResult({ ok: true, messages: [{ text: "deploy newer", user: "u", ts: "5.0" }] })
+          : proxyResult({ ok: true, messages: [{ text: "deploy older", user: "u", ts: "1.0" }] });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      query: "deploy",
+      count: 1,
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "deploy newer", user: "u", ts: "5.0", channel: "late" }]);
+  });
 });

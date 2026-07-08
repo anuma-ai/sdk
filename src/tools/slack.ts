@@ -22,7 +22,8 @@
  * reads only recent messages.
  * - `slack_get_me`              -- the authenticated user's profile
  * - `slack_list_channels`       -- channels in the workspace
- * - `slack_search_messages`     -- text-search recent messages across channels + DMs
+ * - `slack_list_dms`            -- the user's direct messages + group DMs
+ * - `slack_search_messages`     -- search recent messages by text/author/mention
  * - `slack_list_users`          -- workspace members
  * - `slack_get_channel_history` -- recent messages in a channel (rate-limited)
  * - `slack_get_thread_replies`  -- replies in a thread (rate-limited)
@@ -57,11 +58,20 @@ export interface SlackListChannelsArgs {
   limit?: number;
 }
 
+export interface SlackListDmsArgs {
+  limit?: number;
+}
+
 export interface SlackSearchMessagesArgs {
-  query: string;
+  /** Words to match in the message text. Optional if `from_user`/`mentions` is set. */
+  query?: string;
   count?: number;
   /** Restrict the search to a single channel (id or name). Omit to fan out across channels. */
   channel?: string;
+  /** Keep only messages authored by this user (id or name). */
+  from_user?: string;
+  /** Keep only messages that @-mention this user (id, name, or "me"). */
+  mentions?: string;
 }
 
 export interface SlackListUsersArgs {
@@ -238,6 +248,23 @@ function clampLimit(raw: unknown, fallback: number, min: number, max: number): n
   return Math.min(max, Math.max(min, safe));
 }
 
+/**
+ * Build a lazy resolver for the authenticated user's id. auth.test is hit at
+ * most once per call and the result (or null on failure) is memoized, so DM
+ * self-detection and a `mentions: "me"` filter can share a single lookup without
+ * refetching. Never throws — an auth failure resolves to null.
+ */
+function makeGetAuthUserId(callProxy: SlackProxyCaller): () => Promise<string | null> {
+  let cached: string | null | undefined;
+  return async () => {
+    if (cached === undefined) {
+      const auth = await callSlack<SlackAuthTestResponse>(callProxy, "/auth.test");
+      cached = typeof auth === "string" ? null : (auth.user_id ?? null);
+    }
+    return cached;
+  };
+}
+
 async function getSlackMe(callProxy: SlackProxyCaller): Promise<Record<string, unknown> | string> {
   const auth = await callSlack<SlackAuthTestResponse>(callProxy, "/auth.test");
   if (typeof auth === "string") return auth;
@@ -277,6 +304,39 @@ async function listSlackChannels(
     topic: c.topic?.value,
     purpose: c.purpose?.value,
   }));
+}
+
+/**
+ * List the user's direct messages and group DMs. `slack_list_channels` excludes
+ * `im`/`mpim`, so without this there's no way to answer "list my DMs" or to get
+ * a DM's id to pass to `slack_get_channel_history`. Reuses the paginating
+ * `listAllConversations` and the shared `labelForChannel` resolution so each DM
+ * gets a human name (the counterparty for a 1:1, "Group DM" for an mpim). Label
+ * resolution is best-effort and never throws — it falls back to the id.
+ */
+async function listSlackDms(
+  callProxy: SlackProxyCaller,
+  args: SlackListDmsArgs
+): Promise<Array<Record<string, unknown>> | string> {
+  const limit = clampLimit(args.limit, 100, 1, 1000);
+  const res = await listAllConversations(callProxy, "im,mpim");
+  if (typeof res === "string") return res;
+
+  const getAuthUserId = makeGetAuthUserId(callProxy);
+  const dmNameCache = new Map<string, string>();
+
+  const dms: Array<Record<string, unknown>> = [];
+  for (const conv of res.slice(0, limit)) {
+    const name = await labelForChannel(callProxy, conv, dmNameCache, getAuthUserId);
+    const type = conv.is_mpim ? "mpim" : "im";
+    dms.push({
+      id: conv.id,
+      type,
+      name,
+      ...(type === "im" && conv.user ? { user: conv.user } : {}),
+    });
+  }
+  return dms;
 }
 
 /** Conversations scanned in a workspace-wide search when no channel is given. */
@@ -400,25 +460,116 @@ async function labelForChannel(
   return `DM with ${name}`;
 }
 
+/** A Slack user id: `U…` for people, `W…` for Enterprise Grid accounts. */
+const SLACK_USER_ID_RE = /^[UW][A-Z0-9]{6,}$/;
+/** References the model uses for the authenticated user. */
+const SELF_REFS = new Set(["me", "myself", "self", "i"]);
+
+/**
+ * Resolve a model-supplied person reference to a Slack user id, best-effort.
+ * Accepts "me"/"self"/etc. (→ the authed user), a bare id (returned as-is), or a
+ * name/handle matched against users.list. users.list is fetched at most once and
+ * memoized in `userListCache`, so resolving both `from_user` and `mentions` in
+ * one search costs a single lookup. Matching is case-insensitive across
+ * `name`/`real_name`/`display_name`: an exact match wins; otherwise a unique
+ * substring match is used. Returns null when nothing matches or the match is
+ * ambiguous. Never throws — a users.list failure resolves to null.
+ */
+async function resolveSlackUserId(
+  callProxy: SlackProxyCaller,
+  ref: string,
+  getAuthUserId: () => Promise<string | null>,
+  userListCache: { members?: SlackUser[] }
+): Promise<string | null> {
+  const trimmed = ref.trim();
+  if (!trimmed) return null;
+  if (SELF_REFS.has(trimmed.toLowerCase())) return getAuthUserId();
+  if (SLACK_USER_ID_RE.test(trimmed)) return trimmed;
+
+  const needle = trimmed.replace(/^@/, "").toLowerCase();
+  if (!needle) return null;
+
+  if (!userListCache.members) {
+    const res = await callSlack<SlackUsersListResponse>(callProxy, "/users.list", { limit: 1000 });
+    userListCache.members = typeof res === "string" ? [] : (res.members ?? []);
+  }
+  const members = userListCache.members.filter((u) => !u.deleted);
+  const fieldsOf = (u: SlackUser): string[] =>
+    [u.name, u.real_name, u.profile?.display_name].filter((f): f is string => Boolean(f));
+  const matching = (pred: (field: string) => boolean): SlackUser[] =>
+    members.filter((u) => fieldsOf(u).some((f) => pred(f.toLowerCase())));
+
+  const exact = matching((f) => f === needle);
+  if (exact.length === 1) return exact[0].id;
+  if (exact.length > 1) return null;
+
+  const partial = matching((f) => f.includes(needle));
+  return partial.length === 1 ? partial[0].id : null;
+}
+
 /**
  * Text-search recent Slack messages without the (Marketplace-forbidden)
  * server-side message-search API. Reads recent `conversations.history` — a single channel
  * when `args.channel` is set, otherwise a bounded fan-out across the user's
- * channels and direct messages — and keeps messages whose text contains all query terms.
+ * channels and direct messages — and keeps messages that satisfy every supplied
+ * filter: `query` words (all must appear in the text), `from_user` (author), and
+ * `mentions` (an `<@Uid>` token in the text). At least one filter is required.
+ * `from_user`/`mentions` accept an id or a name; `mentions` also accepts "me".
  *
  * conversations.history is throttled to ~1 req/min for distributed apps, so if a
  * history call comes back rate-limited (HTTP 429 or `ok:false` + `ratelimited`)
- * we stop scanning and return what we have. Return-shape choice: the contract
- * stays `{text,user,ts,channel}[]`; on a rate-limit cutoff we append ONE final
- * synthetic `{ note }` item so the model can relay that results are partial,
- * rather than switching to an object shape that downstream consumers don't expect.
+ * we stop scanning and return what we have. Matches from every scanned channel
+ * are collected, then sorted newest-first by `ts` and sliced to `count`, so the
+ * most recent hits survive rather than being evicted by channel scan order.
+ * Return-shape choice: the contract stays `{text,user,ts,channel}[]`; on a
+ * rate-limit cutoff we append ONE final synthetic `{ note }` item AFTER slicing,
+ * so the model can relay that results are partial without switching to an object
+ * shape that downstream consumers don't expect.
  */
 async function searchSlackMessages(
   callProxy: SlackProxyCaller,
   args: SlackSearchMessagesArgs
 ): Promise<Array<Record<string, unknown>> | string> {
+  const query = (args.query ?? "").trim();
+  const fromUserRef = (args.from_user ?? "").trim();
+  const mentionsRef = (args.mentions ?? "").trim();
+  if (!query && !fromUserRef && !mentionsRef) {
+    return "Error: provide a query, from_user, or mentions to search Slack messages.";
+  }
+
   const count = clampLimit(args.count, 20, 1, 100);
-  const terms = args.query.toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+
+  // Shared across the two person filters so we resolve auth.test / users.list at
+  // most once each per search.
+  const getAuthUserId = makeGetAuthUserId(callProxy);
+  const userListCache: { members?: SlackUser[] } = {};
+
+  // A filter that was asked for but can't be resolved is surfaced (not silently
+  // dropped) so the model can relay who it couldn't find rather than returning
+  // every message.
+  let fromId: string | null = null;
+  if (fromUserRef) {
+    fromId = await resolveSlackUserId(callProxy, fromUserRef, getAuthUserId, userListCache);
+    if (!fromId)
+      return `Error: couldn't find a Slack user matching "${fromUserRef}" for from_user.`;
+  }
+  let mentionId: string | null = null;
+  if (mentionsRef) {
+    mentionId = await resolveSlackUserId(callProxy, mentionsRef, getAuthUserId, userListCache);
+    if (!mentionId) {
+      return `Error: couldn't find a Slack user matching "${mentionsRef}" for mentions.`;
+    }
+  }
+
+  const passes = (m: SlackMessage): boolean => {
+    const text = m.text ?? "";
+    if (terms.length > 0 && !messageMatchesQuery(text, terms)) return false;
+    if (fromId && m.user !== fromId) return false;
+    // Prefix match covers both `<@U123>` and `<@U123|handle>`.
+    if (mentionId && !text.includes("<@" + mentionId)) return false;
+    return true;
+  };
 
   // conversations.list (not throttled) gives us the fan-out set and the labels
   // for results. `im`/`mpim` types pull DMs into scope so their content is
@@ -435,21 +586,13 @@ async function searchSlackMessages(
     targets = interleaveChannelsAndDms(allChannels).slice(0, MAX_SEARCH_CHANNELS);
   }
 
-  // Lazily resolved once, only if we need to detect a self-DM.
-  let cachedAuthUserId: string | null | undefined;
-  const getAuthUserId = async (): Promise<string | null> => {
-    if (cachedAuthUserId === undefined) {
-      const auth = await callSlack<SlackAuthTestResponse>(callProxy, "/auth.test");
-      cachedAuthUserId = typeof auth === "string" ? null : (auth.user_id ?? null);
-    }
-    return cachedAuthUserId;
-  };
   const dmNameCache = new Map<string, string>();
 
+  // Collect matches from ALL scanned channels (no per-channel cutoff) so the
+  // recency sort below sees every hit before we truncate to `count`.
   const results: Array<Record<string, unknown>> = [];
   let rateLimited = false;
   for (const channel of targets) {
-    if (results.length >= count) break;
     const { status, json } = await callProxy("/conversations.history", {
       channel: channel.id,
       limit: SEARCH_HISTORY_LIMIT,
@@ -466,23 +609,27 @@ async function searchSlackMessages(
     // Any other per-channel failure (e.g. not_in_channel) just skips that channel.
     if (status < 200 || status >= 300 || !body || body.ok === false) continue;
 
-    const matched = (body.messages ?? []).filter((m) => messageMatchesQuery(m.text ?? "", terms));
+    const matched = (body.messages ?? []).filter(passes);
     if (matched.length === 0) continue;
 
     // Resolve the label once per matched channel (lazy for DMs).
     const label = await labelForChannel(callProxy, channel, dmNameCache, getAuthUserId);
     for (const m of matched) {
-      if (results.length >= count) break;
       results.push({ text: m.text, user: m.username ?? m.user, ts: m.ts, channel: label });
     }
   }
 
+  // Newest first, then truncate — so the most recent match is never evicted by a
+  // channel that happened to be scanned earlier.
+  results.sort((a, b) => Number(b.ts) - Number(a.ts));
+  const sliced = results.slice(0, count);
+
   if (rateLimited) {
-    results.push({
-      note: `Slack rate-limited channel history, so this search stopped early — returning ${results.length} match(es) found so far. Try a specific channel or ask again in a minute.`,
+    sliced.push({
+      note: `Slack rate-limited channel history, so this search stopped early — returning ${sliced.length} match(es) found so far. Try a specific channel or ask again in a minute.`,
     });
   }
-  return results;
+  return sliced;
 }
 
 async function listSlackUsers(
@@ -594,14 +741,14 @@ function createSlackSearchMessagesTool(callProxy: SlackProxyCaller): ToolConfig 
     function: {
       name: "slack_search_messages",
       description:
-        "Search recent messages for text across the user's Slack channels and direct messages, or within a single channel when 'channel' is given. Matches messages containing all of the query words. Only recent history is scanned (a bounded set of conversations), so this surfaces recent mentions rather than the full archive.",
+        "Search recent messages across the user's Slack channels and direct messages, or within a single channel when 'channel' is given. Filter by any combination of 'query' (words the text must contain), 'from_user' (the author), and 'mentions' (who the message @-mentions) -- at least one is required. Only recent history is scanned (a bounded set of conversations), so this surfaces recent messages rather than the full archive.",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
             description:
-              "Words to look for. A message matches when its text contains all of them (case-insensitive).",
+              "Optional. Words to look for; a message matches when its text contains all of them (case-insensitive). Provide this, from_user, or mentions.",
           },
           count: {
             type: "number",
@@ -612,8 +759,18 @@ function createSlackSearchMessagesTool(callProxy: SlackProxyCaller): ToolConfig 
             description:
               "Optional channel id or name to search within. Omit to search across your channels.",
           },
+          from_user: {
+            type: "string",
+            description:
+              "Optional. The message author to filter by, as a Slack user id or a name/handle.",
+          },
+          mentions: {
+            type: "string",
+            description:
+              'Optional. Keep only messages that @-mention this person, as a user id, a name/handle, or "me" for yourself.',
+          },
         },
-        required: ["query"],
+        required: [],
       },
     },
     executor: async (args: Record<string, unknown>) =>
@@ -621,7 +778,32 @@ function createSlackSearchMessagesTool(callProxy: SlackProxyCaller): ToolConfig 
         query: readString(args.query),
         count: args.count as number | undefined,
         channel: typeof args.channel === "string" ? args.channel : undefined,
+        from_user: typeof args.from_user === "string" ? args.from_user : undefined,
+        mentions: typeof args.mentions === "string" ? args.mentions : undefined,
       }),
+  };
+}
+
+function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "slack_list_dms",
+      description:
+        "List the user's Slack direct messages and group DMs, including who each conversation is with. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or 'Group DM'), and the other user's id for a 1:1. Pass a returned id to slack_get_channel_history to read that conversation.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Max DMs to return. Between 1 and 1000 (clamped). Defaults to 100.",
+          },
+        },
+        required: [],
+      },
+    },
+    executor: async (args: Record<string, unknown>) =>
+      listSlackDms(callProxy, { limit: args.limit as number | undefined }),
   };
 }
 
@@ -766,6 +948,7 @@ export function createSlackTools(callProxy: SlackProxyCaller): Record<string, To
   return {
     slack_get_me: createSlackGetMeTool(callProxy),
     slack_list_channels: createSlackListChannelsTool(callProxy),
+    slack_list_dms: createSlackListDmsTool(callProxy),
     slack_search_messages: createSlackSearchMessagesTool(callProxy),
     slack_list_users: createSlackListUsersTool(callProxy),
     slack_get_channel_history: createSlackGetChannelHistoryTool(callProxy),
