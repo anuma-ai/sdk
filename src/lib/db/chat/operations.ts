@@ -16,6 +16,7 @@ import {
 } from "./encryption";
 import { Conversation, Message } from "./models";
 import {
+  type ChatRole,
   type ChunkSearchResult,
   type CreateConversationOptions,
   type CreateMessageOptions,
@@ -527,67 +528,124 @@ export async function getMessagesPageOp(
   );
 }
 
+/** Page size for the chunked skeleton read. Bounds the per-query result set (and peak WASM heap on
+ *  OPFS-SQLite) so a very large thread never materializes as one unbounded `SELECT *`. */
+const SKELETON_PAGE_SIZE = 2000;
+
+/** The narrow raw columns the skeleton needs — deliberately NOT the heavy `vector`/`chunks`. */
+export type SkeletonRaw = {
+  id: string;
+  message_id: number;
+  conversation_id: unknown;
+  role: ChatRole;
+  created_at: number;
+  parent_message_id?: string | null;
+  model?: string | null;
+  content?: string | null;
+};
+
+/**
+ * Read a whole conversation's rows in offset-paginated chunks via `unsafeFetchRaw` (raw objects, no
+ * Model instantiation), ascending. A single unbounded `.query().fetch()` OOMs the OPFS-SQLite adapter
+ * on large threads — `sqlite3_step()` returns `SQLITE_NOMEM` materializing the full result set (rows
+ * carry big embedding columns), which blanks the chat (#4139). Chunking bounds peak to one page and,
+ * via `unsafeFetchRaw`, avoids polluting the RecordCache with a Model per row (also #4142).
+ *
+ * Orders by `(message_id, id)` — a deterministic TOTAL order — so `Q.skip`/`Q.take` offset paging
+ * never skips or duplicates a row across a page boundary even when legacy DUPLICATE `message_id`s
+ * exist (count-based id assignment + deletes — see {@link getMessagesPageOp}). OFFSET only walks the
+ * index for skipped rows; their heavy columns are never materialized.
+ */
+export async function fetchThreadSkeletonRawPaged(
+  collection: Collection<Message>,
+  convId: string,
+  pageSize: number = SKELETON_PAGE_SIZE
+): Promise<SkeletonRaw[]> {
+  const all: SkeletonRaw[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const page = (await collection
+      .query(
+        Q.where("conversation_id", convId),
+        Q.sortBy("message_id", Q.asc),
+        Q.sortBy("id", Q.asc),
+        Q.skip(offset),
+        Q.take(pageSize)
+      )
+      .unsafeFetchRaw()) as SkeletonRaw[];
+    if (page.length === 0) break;
+    all.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return all;
+}
+
+/** Indices of rows that are regeneration artifacts: a user row whose parent is also a user row. */
+function collectArtifactIndices(rows: SkeletonRaw[], roleById: Map<string, ChatRole>): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.role !== "user" || !row.parent_message_id) continue;
+    if (roleById.get(row.parent_message_id) === "user") indices.push(i);
+  }
+  return indices;
+}
+
+/** Decrypt `content` in place for the artifact rows only (the sole field the skeleton decrypts). */
+async function decryptArtifactContent(
+  skeletons: MessageSkeleton[],
+  rows: SkeletonRaw[],
+  artifactIndices: number[],
+  ctx: StorageOperationsContext
+): Promise<void> {
+  const address = ctx.walletAddress;
+  if (artifactIndices.length === 0 || !address) {
+    for (const i of artifactIndices) skeletons[i].content = rows[i].content ?? undefined;
+    return;
+  }
+  if (ctx.signMessage) {
+    try {
+      await requestEncryptionKey(address, ctx.signMessage, ctx.embeddedWalletSigner);
+    } catch (error) {
+      getLogger().warn("Failed to request encryption key for skeleton decryption:", error);
+    }
+  }
+  await Promise.all(
+    artifactIndices.map(async (i) => {
+      skeletons[i].content = await decryptField(rows[i].content ?? "", address);
+    })
+  );
+}
+
 /**
  * Whole-thread skeleton read for branch-tree construction: every message's
  * ids/role/parent linkage with NO field decryption — except `content`, which
  * is decrypted only for user-role rows whose parent is also user-role (the
  * regeneration artifacts branch logic classifies by content prefix; see
- * {@link MessageSkeleton}).
+ * {@link MessageSkeleton}). Read is chunked (see {@link fetchThreadSkeletonRawPaged}) so it stays
+ * bounded on large threads.
  */
 export async function getMessageSkeletonsOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<MessageSkeleton[]> {
-  const results = await ctx.messagesCollection
-    .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
-    .fetch();
+  const rows = await fetchThreadSkeletonRawPaged(ctx.messagesCollection, convId);
 
-  const roleById = new Map<string, string>();
-  for (const msg of results) {
-    roleById.set(msg.id, msg.role);
-  }
+  const roleById = new Map<string, ChatRole>();
+  for (const row of rows) roleById.set(row.id, row.role);
 
-  const skeletons: MessageSkeleton[] = results.map((msg) => ({
-    uniqueId: msg.id,
-    messageId: msg.messageId,
-    conversationId: String(msg._getRaw("conversation_id")),
-    role: msg.role,
-    createdAt: msg.createdAt,
+  const skeletons: MessageSkeleton[] = rows.map((row) => ({
+    uniqueId: row.id,
+    messageId: row.message_id,
+    conversationId: String(row.conversation_id),
+    role: row.role,
+    createdAt: new Date(row.created_at),
     // WatermelonDB surfaces unset text columns as null at runtime — normalize
     // to undefined so `parentMessageId ?? undefined` keying works everywhere.
-    parentMessageId: msg.parentMessageId ?? undefined,
-    model: msg.model ?? undefined,
+    parentMessageId: row.parent_message_id ?? undefined,
+    model: row.model ?? undefined,
   }));
 
-  // Second pass: decrypt content ONLY for user rows parented by a user row.
-  const artifactIndices: number[] = [];
-  for (let i = 0; i < results.length; i++) {
-    const msg = results[i];
-    if (msg.role !== "user" || !msg.parentMessageId) continue;
-    if (roleById.get(msg.parentMessageId) === "user") {
-      artifactIndices.push(i);
-    }
-  }
-
-  const address = ctx.walletAddress;
-  if (artifactIndices.length > 0 && address) {
-    if (ctx.signMessage) {
-      try {
-        await requestEncryptionKey(address, ctx.signMessage, ctx.embeddedWalletSigner);
-      } catch (error) {
-        getLogger().warn("Failed to request encryption key for skeleton decryption:", error);
-      }
-    }
-    await Promise.all(
-      artifactIndices.map(async (i) => {
-        skeletons[i].content = await decryptField(results[i].content, address);
-      })
-    );
-  } else {
-    for (const i of artifactIndices) {
-      skeletons[i].content = results[i].content;
-    }
-  }
+  await decryptArtifactContent(skeletons, rows, collectArtifactIndices(rows, roleById), ctx);
 
   return skeletons;
 }

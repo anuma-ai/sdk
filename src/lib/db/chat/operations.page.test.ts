@@ -7,9 +7,11 @@ import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Conversation } from "./models";
 import {
   createMessageOp,
+  fetchThreadSkeletonRawPaged,
   getMessageCountOp,
   getMessageSkeletonsOp,
   getMessagesPageOp,
+  type SkeletonRaw,
   type StorageOperationsContext,
 } from "./operations";
 import type { ChatRole } from "./types";
@@ -225,6 +227,51 @@ describe("getMessageSkeletonsOp", () => {
     expect(byId.get("msg-artifact")?.content).toBe("[Tool Execution Results] ...");
     expect(byId.get("msg-user")?.content).toBeUndefined();
     expect(byId.get("msg-assistant")?.content).toBeUndefined();
+  });
+
+  it("returns the whole thread across many pages (chunked read, small page size)", async () => {
+    // The read is internally paginated so a huge thread never OOMs SQLite-WASM with one
+    // unbounded SELECT * (#4139). Force multiple page boundaries with a tiny page size and
+    // assert nothing is dropped or duplicated at the seams.
+    const ctx = await seedThread(7);
+
+    const skeletons = await getMessageSkeletonsOp(ctx, "conv-1");
+    expect(skeletons.map((s) => s.messageId)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+
+    // Directly exercise the pager with pageSize=2 (4 page boundaries over 7 rows).
+    const raw: SkeletonRaw[] = await fetchThreadSkeletonRawPaged(
+      ctx.messagesCollection,
+      "conv-1",
+      2
+    );
+    expect(raw.map((r) => r.message_id)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(new Set(raw.map((r) => r.id)).size).toBe(7); // no duplicates at page seams
+  });
+
+  it("does not drop rows sharing a message_id across a page boundary", async () => {
+    // Legacy dup message_id (count-based assignment reused a freed id). The (message_id, id) total
+    // order + offset paging must return both twins exactly once across the page seam.
+    const ctx = await seedThread(4);
+    const twin = await createMessageOp(ctx, {
+      conversationId: "conv-1",
+      role: "assistant",
+      content: "dup id twin",
+      uniqueId: "msg-2-twin",
+    });
+    const twinRow = await ctx.messagesCollection.find(twin.uniqueId);
+    await ctx.database.write(async () => {
+      await twinRow.update((msg) => msg._setRaw("message_id", 2));
+    });
+
+    // pageSize=2 puts the two message_id=2 rows right on a page boundary.
+    const raw: SkeletonRaw[] = await fetchThreadSkeletonRawPaged(
+      ctx.messagesCollection,
+      "conv-1",
+      2
+    );
+    const ids = raw.map((r) => r.id).sort();
+    expect(ids).toEqual(["msg-1", "msg-2", "msg-2-twin", "msg-3", "msg-4"].sort());
+    expect(new Set(ids).size).toBe(5); // each exactly once
   });
 });
 
