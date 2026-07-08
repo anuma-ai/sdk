@@ -80,6 +80,82 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[0][1]?.limit).toBe(1000);
   });
 
+  test("slack_list_channels follows next_cursor so a page-2 channel is returned", async () => {
+    // Page 1 fills more than a single Slack page (100) and hands back a cursor;
+    // the target channel only appears on page 2. Without pagination it's invisible.
+    const page1 = Array.from({ length: 120 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") {
+        if (query?.cursor === "PAGE2") {
+          return proxyResult({ ok: true, channels: [{ id: "C_ANUMA", name: "anuma-all" }] });
+        }
+        return proxyResult({
+          ok: true,
+          channels: page1,
+          response_metadata: { next_cursor: "PAGE2" },
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_channels, {})) as Array<
+      Record<string, unknown>
+    >;
+    expect(result.map((c) => c.name)).toContain("anuma-all");
+    const listCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.list");
+    expect(listCalls).toHaveLength(2);
+    expect(listCalls[1][1]?.cursor).toBe("PAGE2");
+  });
+
+  test("slack_search_messages resolves a page-2 channel name to its id via pagination", async () => {
+    const page1 = Array.from({ length: 120 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") {
+        if (query?.cursor === "PAGE2") {
+          return proxyResult({ ok: true, channels: [{ id: "C_ANUMA", name: "anuma-all" }] });
+        }
+        return proxyResult({
+          ok: true,
+          channels: page1,
+          response_metadata: { next_cursor: "PAGE2" },
+        });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [{ text: "deploy done", user: "bob", ts: "1.1" }],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      query: "deploy",
+      channel: "anuma-all",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "deploy done", user: "bob", ts: "1.1", channel: "anuma-all" }]);
+    // history must be scoped to the id resolved from the page-2 channel, not the raw name.
+    const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
+    expect(historyCalls).toHaveLength(1);
+    expect(historyCalls[0][1]?.channel).toBe("C_ANUMA");
+  });
+
+  test("slack conversations.list pagination is capped at MAX_CONVERSATIONS_PAGES", async () => {
+    // A cursor that never empties would loop forever; the page cap must stop it.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async () =>
+      proxyResult({
+        ok: true,
+        channels: [{ id: "C1", name: "c1" }],
+        response_metadata: { next_cursor: "MORE" },
+      })
+    );
+    const tools = createSlackTools(callProxy);
+    await runExecutor(tools.slack_list_channels, {});
+    const listCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.list");
+    // MAX_CONVERSATIONS_PAGES = 10 (see slack.ts).
+    expect(listCalls).toHaveLength(10);
+  });
+
   test("slack_search_messages (channel-scoped) reads conversations.history and filters by query", async () => {
     const callProxy = vi
       .fn<SlackProxyCaller>()

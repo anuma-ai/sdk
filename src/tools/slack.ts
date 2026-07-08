@@ -142,6 +142,8 @@ interface SlackChannel {
 
 interface SlackConversationsListResponse extends SlackBaseResponse {
   channels?: SlackChannel[];
+  /** Cursor-based paging: the next page's cursor, empty/absent on the last page. */
+  response_metadata?: { next_cursor?: string };
 }
 
 interface SlackMessage {
@@ -264,14 +266,10 @@ async function listSlackChannels(
   callProxy: SlackProxyCaller,
   args: SlackListChannelsArgs
 ): Promise<Array<Record<string, unknown>> | string> {
-  const limit = clampLimit(args.limit, 100, 1, 1000);
-  const res = await callSlack<SlackConversationsListResponse>(callProxy, "/conversations.list", {
-    limit,
-    exclude_archived: "true",
-    types: "public_channel,private_channel",
-  });
+  const limit = clampLimit(args.limit, 1000, 1, 5000);
+  const res = await listAllConversations(callProxy, "public_channel,private_channel");
   if (typeof res === "string") return res;
-  return (res.channels ?? []).map((c) => ({
+  return res.slice(0, limit).map((c) => ({
     id: c.id,
     name: c.name,
     is_private: c.is_private,
@@ -285,6 +283,56 @@ async function listSlackChannels(
 const MAX_SEARCH_CHANNELS = 8;
 /** Recent messages pulled per channel — kept small since history is rate-limited. */
 const SEARCH_HISTORY_LIMIT = 15;
+/**
+ * Hard ceiling on conversations.list pages we'll follow. Bounds a runaway cursor
+ * — 10 pages × 1000 conversations = 10k, well past any real workspace.
+ */
+const MAX_CONVERSATIONS_PAGES = 10;
+
+/**
+ * Fetch every conversation of the given `types` by following Slack's cursor
+ * pagination. conversations.list returns one page (default 100) and hands back a
+ * `next_cursor`; without walking it, workspaces with more than a page of channels
+ * hide the rest — so name resolution ("summarize anuma-all") fails for any
+ * channel past page 1. conversations.list is NOT in the punitive ~1 req/min tier
+ * (only history/replies are), so paging through it in full is safe.
+ *
+ * Error handling mirrors best-effort reads: a failure on the FIRST page is fatal
+ * (it's the auth/connector error — propagate the string). A failure on a LATER
+ * page stops paging and returns whatever we've gathered, so a hiccup deep in a
+ * large workspace degrades to a partial list rather than failing the whole call.
+ */
+async function listAllConversations(
+  callProxy: SlackProxyCaller,
+  types: string
+): Promise<SlackChannel[] | string> {
+  const all: SlackChannel[] = [];
+  let cursor = "";
+  for (let page = 0; page < MAX_CONVERSATIONS_PAGES; page++) {
+    const query: Record<string, string | number> = {
+      limit: 1000,
+      exclude_archived: "true",
+      types,
+    };
+    if (cursor) query.cursor = cursor;
+
+    const res = await callSlack<SlackConversationsListResponse>(
+      callProxy,
+      "/conversations.list",
+      query
+    );
+    if (typeof res === "string") {
+      if (page === 0) return res;
+      break;
+    }
+    all.push(...(res.channels ?? []));
+
+    const next = res.response_metadata?.next_cursor;
+    if (!next) break;
+    cursor = next;
+  }
+  return all;
+}
 
 /**
  * conversations.list returns public/private channels BEFORE DMs, so a naive
@@ -375,17 +423,9 @@ async function searchSlackMessages(
   // conversations.list (not throttled) gives us the fan-out set and the labels
   // for results. `im`/`mpim` types pull DMs into scope so their content is
   // searchable too. Auth failures surface as the canonical connector error.
-  const listRes = await callSlack<SlackConversationsListResponse>(
-    callProxy,
-    "/conversations.list",
-    {
-      limit: 1000,
-      exclude_archived: "true",
-      types: "public_channel,private_channel,im,mpim",
-    }
-  );
+  const listRes = await listAllConversations(callProxy, "public_channel,private_channel,im,mpim");
   if (typeof listRes === "string") return listRes;
-  const allChannels = listRes.channels ?? [];
+  const allChannels = listRes;
 
   let targets: SlackChannel[];
   if (args.channel) {
@@ -537,7 +577,7 @@ function createSlackListChannelsTool(callProxy: SlackProxyCaller): ToolConfig {
         properties: {
           limit: {
             type: "number",
-            description: "Max channels to return. Between 1 and 1000 (clamped). Defaults to 100.",
+            description: "Max channels to return. Between 1 and 5000 (clamped). Defaults to 1000.",
           },
         },
         required: [],
