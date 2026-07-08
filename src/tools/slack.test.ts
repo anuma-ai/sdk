@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { createSlackTools, type SlackProxyCaller } from "./slack.js";
+import { createSlackTools, SLACK_PENDING_APPROVAL_NOTE, type SlackProxyCaller } from "./slack.js";
 
 type ToolResult = unknown;
 
@@ -365,9 +365,9 @@ describe("createSlackTools", () => {
     const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
       Record<string, unknown>
     >;
-    // one real match from C0, then a synthetic note; C2 is never fetched.
+    // one real match from C0, then the pending-approval note; C2 is never fetched.
     expect(result[0]).toEqual({ text: "deploy shipped", user: "u", ts: "1", channel: "a" });
-    expect(result[result.length - 1].note).toBeDefined();
+    expect(result[result.length - 1].note).toBe(SLACK_PENDING_APPROVAL_NOTE);
     expect(callProxy).toHaveBeenCalledTimes(3);
   });
 
@@ -433,6 +433,29 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[0][1]?.channel).toBe("C1");
     expect(callProxy.mock.calls[0][1]?.ts).toBe("1.0");
     expect(callProxy.mock.calls[0][1]?.limit).toBe(5);
+  });
+
+  test("slack_get_channel_history returns the pending-approval note on a 429", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: false, error: "ratelimited" }, 429));
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_channel_history, {
+      channel: "C1",
+    })) as unknown;
+    expect(result).toBe(SLACK_PENDING_APPROVAL_NOTE);
+  });
+
+  test("slack_get_thread_replies returns the pending-approval note on a 429", async () => {
+    const callProxy = vi
+      .fn<SlackProxyCaller>()
+      .mockResolvedValueOnce(proxyResult({ ok: false, error: "ratelimited" }, 429));
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_thread_replies, {
+      channel: "C1",
+      ts: "1.0",
+    })) as unknown;
+    expect(result).toBe(SLACK_PENDING_APPROVAL_NOTE);
   });
 
   test("slack_post_message posts the body to chat.postMessage and returns a compact result", async () => {
@@ -861,7 +884,7 @@ describe("createSlackTools", () => {
     expect(result).toEqual([{ id: "D1", type: "im", name: "DM with Bob", user: "U2x" }]);
   });
 
-  test("slack_list_dms stops probing on a 429 and appends a partial-order note", async () => {
+  test("slack_list_dms returns the pending-approval note when a probe is rate-limited", async () => {
     const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
       if (path === "/conversations.list") {
         return proxyResult({
@@ -890,19 +913,14 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
-    // D1 (probed) sorts ahead of D2 (rate-limited -> unknown recency), then the note.
-    expect(result[0]).toEqual({ id: "D1", type: "im", name: "DM with Bob", user: "U2x" });
-    expect(result[1]).toEqual({ id: "D2", type: "im", name: "DM with Amy", user: "U3x" });
-    expect(result[result.length - 1].note).toBeDefined();
-    // Probing stopped the moment D2 hit the 429.
-    const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
-    expect(historyCalls).toHaveLength(2);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as unknown;
+    // No partial list -- the pending-approval message is returned verbatim.
+    expect(result).toBe(SLACK_PENDING_APPROVAL_NOTE);
   });
 
-  test("slack_list_dms keeps DMs beyond MAX_DM_PROBES instead of dropping them", async () => {
-    // 35 DMs: probing is capped at 30, so the last 5 go unprobed but must still return.
-    const channels = Array.from({ length: 35 }, (_, i) => ({
+  test("slack_list_dms returns the pending-approval note when there are more DMs than MAX_DM_PROBES", async () => {
+    // 51 DMs exceeds MAX_DM_PROBES (50): we can't order that many under the throttle.
+    const channels = Array.from({ length: 51 }, (_, i) => ({
       id: `D${i}`,
       is_im: true,
       user: `U${i}`,
@@ -917,14 +935,11 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
-    // Nothing dropped: all 35 DMs come back.
-    expect(result).toHaveLength(35);
-    // Probing never exceeds the cap.
+    const result = (await runExecutor(tools.slack_list_dms, {})) as unknown;
+    expect(result).toBe(SLACK_PENDING_APPROVAL_NOTE);
+    // We bail before probing rather than partially ordering.
     const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
-    expect(historyCalls.length).toBeLessThanOrEqual(30);
-    // A beyond-cap DM (index >= 30) survives.
-    expect(result.some((d) => d.id === "D34")).toBe(true);
+    expect(historyCalls).toHaveLength(0);
   });
 
   test("slack_search_messages from_user resolves a name via users.list and keeps only that author", async () => {

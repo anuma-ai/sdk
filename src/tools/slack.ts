@@ -40,6 +40,15 @@ import { buildConnectorErrorResult } from "../lib/connectors/index.js";
 const SLACK_PROVIDER = "slack";
 
 /**
+ * Shown to the user (verbatim) when a Slack read is blocked by the pre-Marketplace
+ * rate limit. Slack throttles the distributed app to ~1 req/min until it clears
+ * Marketplace review, so we surface this plain message instead of returning
+ * capped/partial/approximate data that could mislead. Kept em-dash-free on purpose.
+ */
+export const SLACK_PENDING_APPROVAL_NOTE =
+  "This Slack request couldn't be completed because Slack rate-limited the app. The Slack app is still pending Slack Marketplace approval, so these reads aren't available yet. Tell the user this is a temporary limitation until the app is approved; do not attempt a workaround.";
+
+/**
  * Calls the portal Slack proxy with an upstream Slack Web API method path,
  * optional query, and optional body, and resolves to the upstream status +
  * parsed JSON. Consumers wire this to the portal's Slack proxy with the user's
@@ -214,18 +223,26 @@ function maybeConnectorError(status: number, body: SlackBaseResponse | null): st
 }
 
 /**
- * Run a Slack proxy call and return the parsed body on success, or a connector
- * error / generic failure string on any failure path (bad HTTP status, or
- * `ok:false`). Centralizes the auth-vs-generic-error decision so each tool just
- * checks `typeof result === "string"`.
+ * A Slack read hit the ~1/min history/replies throttle -- either an HTTP 429 or a
+ * 200 carrying `ok:false` + `ratelimited`. Callers turn this into the
+ * {@link SLACK_PENDING_APPROVAL_NOTE} rather than surfacing partial/approximate data.
  */
-async function callSlack<T extends SlackBaseResponse>(
-  callProxy: SlackProxyCaller,
+function isRateLimited(status: number, body: SlackBaseResponse | null): boolean {
+  return status === 429 || (body?.ok === false && body.error === "ratelimited");
+}
+
+/**
+ * Interpret an already-fetched Slack proxy result: the parsed body on success, or
+ * a connector error / generic failure string on any failure path (bad HTTP status,
+ * or `ok:false`). Split out from {@link callSlack} so tools that inspect the raw
+ * `{ status, json }` first (e.g. for a rate-limit check) can reuse the exact same
+ * auth-vs-generic-error decision without a second proxy call.
+ */
+function interpretSlackResult<T extends SlackBaseResponse>(
   path: string,
-  query?: Record<string, string | number>,
-  requestBody?: unknown
-): Promise<T | string> {
-  const { status, json } = await callProxy(path, query, requestBody);
+  status: number,
+  json: unknown
+): T | string {
   const body = (json ?? null) as (T & SlackBaseResponse) | null;
   if (status < 200 || status >= 300) {
     const connectorError = maybeConnectorError(status, body);
@@ -238,6 +255,22 @@ async function callSlack<T extends SlackBaseResponse>(
     return `Error: Slack ${path} returned an error: ${body?.error ?? "unknown"}`;
   }
   return body;
+}
+
+/**
+ * Run a Slack proxy call and return the parsed body on success, or a connector
+ * error / generic failure string on any failure path (bad HTTP status, or
+ * `ok:false`). Centralizes the auth-vs-generic-error decision so each tool just
+ * checks `typeof result === "string"`.
+ */
+async function callSlack<T extends SlackBaseResponse>(
+  callProxy: SlackProxyCaller,
+  path: string,
+  query?: Record<string, string | number>,
+  requestBody?: unknown
+): Promise<T | string> {
+  const { status, json } = await callProxy(path, query, requestBody);
+  return interpretSlackResult<T>(path, status, json);
 }
 
 /** Read a model-supplied string arg, returning "" for anything non-string. */
@@ -384,8 +417,13 @@ async function listSlackChannels(
   }));
 }
 
-/** Bounds the per-DM conversations.history probes against the ~1/min history throttle. */
-const MAX_DM_PROBES = 30;
+/**
+ * Correctness bound on how many DMs we'll recency-probe: each costs one
+ * conversations.history call against the ~1/min throttle, so beyond this we can't
+ * order the set within the pre-approval limit and return the pending-approval note
+ * instead of a partial order.
+ */
+const MAX_DM_PROBES = 50;
 
 /**
  * List the user's direct messages and group DMs, ordered like the Slack sidebar:
@@ -400,14 +438,14 @@ const MAX_DM_PROBES = 30;
  *
  * Recency + emptiness: `conversations.list` carries no last-message timestamp, so
  * each DM's latest message is read via a `limit: 1` `conversations.history` probe.
- * That endpoint is throttled (~1/min), so probing is bounded to `MAX_DM_PROBES` and
- * stops the moment a probe is rate-limited (same 429 / `ratelimited` detection as
- * `searchSlackMessages`), degrading to a partial order rather than hanging. A probe
- * that returns zero messages marks the DM empty -> drop it; a non-rate-limit probe
- * failure (or a DM past the cap) leaves recency unknown -> keep it, but ordered
- * after the DMs we could place, in original order. When a rate-limit cut ordering
- * short we append ONE synthetic `{ note }` item after the `limit` slice, mirroring
- * the search tool, so the model can relay that ordering is partial.
+ * That endpoint is throttled (~1/min) while the app awaits Marketplace approval, so
+ * rather than return a partial/approximate order we bail to {@link SLACK_PENDING_APPROVAL_NOTE}
+ * (returned as the string result) in two cases: there are more DMs to probe than
+ * `MAX_DM_PROBES` (can't order that many under the limit), or any probe comes back
+ * rate-limited (429 / `ratelimited`). A probe that returns zero messages marks the
+ * DM empty -> drop it; a non-rate-limit probe failure leaves recency unknown -> keep
+ * it, ordered after the DMs we could place. `with_user` narrows to a small set, so
+ * it normally probes fully and returns the ordered list.
  *
  * `with_user` narrows the list to the DM(s) involving one person — the only way
  * to target a specific person's DM. It resolves the ref (id or name) to a user id
@@ -443,27 +481,22 @@ async function listSlackDms(
     });
   }
 
+  // More DMs than we can probe under the ~1/min throttle -> we can't order them,
+  // so surface the pending-approval message instead of a partial order.
+  if (conversations.length > MAX_DM_PROBES) return SLACK_PENDING_APPROVAL_NOTE;
+
   // Probe each DM's latest message to order by recency and drop empty DMs.
   const withTs: Array<{ conv: SlackChannel; lastTs: number }> = [];
   const withoutTs: SlackChannel[] = [];
-  let rateLimited = false;
-  let probes = 0;
   for (const conv of conversations) {
-    if (rateLimited || probes >= MAX_DM_PROBES) {
-      withoutTs.push(conv);
-      continue;
-    }
-    probes++;
     const { status, json } = await callProxy("/conversations.history", {
       channel: conv.id,
       limit: 1,
     });
     const body = (json ?? null) as SlackConversationsHistoryResponse | null;
-    if (status === 429 || (body?.ok === false && body.error === "ratelimited")) {
-      rateLimited = true;
-      withoutTs.push(conv);
-      continue;
-    }
+    // A rate-limited probe means we can't order reliably -- bail to the pending
+    // message rather than return a partial order.
+    if (isRateLimited(status, body)) return SLACK_PENDING_APPROVAL_NOTE;
     // A non-rate-limit probe failure leaves recency unknown -- keep the DM but sort
     // it after the placed ones. Only a confirmed-empty DM is dropped.
     if (status < 200 || status >= 300 || !body || body.ok === false) {
@@ -496,11 +529,6 @@ async function listSlackDms(
     });
   }
 
-  if (rateLimited) {
-    dms.push({
-      note: `Slack rate-limited DM history, so recent-first ordering is partial -- some DMs below may be out of order. Ordering will be complete once the Anuma Slack app is approved by Slack.`,
-    });
-  }
   return dms;
 }
 
@@ -742,10 +770,11 @@ async function resolveSlackUserId(
  * we stop scanning and return what we have. Matches from every scanned channel
  * are collected, then sorted newest-first by `ts` and sliced to `count`, so the
  * most recent hits survive rather than being evicted by channel scan order.
- * Return-shape choice: the contract stays `{text,user,ts,channel}[]`; on a
- * rate-limit cutoff we append ONE final synthetic `{ note }` item AFTER slicing,
- * so the model can relay that results are partial without switching to an object
- * shape that downstream consumers don't expect.
+ * Return-shape choice: the contract stays `{text,user,ts,channel}[]`; the matches
+ * found so far are real data so we keep them, and on a rate-limit cutoff we append
+ * ONE final synthetic `{ note }` item ({@link SLACK_PENDING_APPROVAL_NOTE}) AFTER
+ * slicing, so the model can relay the pending-approval limitation without switching
+ * to an object shape that downstream consumers don't expect.
  */
 async function searchSlackMessages(
   callProxy: SlackProxyCaller,
@@ -820,7 +849,7 @@ async function searchSlackMessages(
     });
     const body = (json ?? null) as SlackConversationsHistoryResponse | null;
 
-    if (status === 429 || (body?.ok === false && body.error === "ratelimited")) {
+    if (isRateLimited(status, body)) {
       rateLimited = true;
       break;
     }
@@ -852,9 +881,7 @@ async function searchSlackMessages(
   const sliced = results.slice(0, count);
 
   if (rateLimited) {
-    sliced.push({
-      note: `Slack rate-limited channel history, so this search stopped early — returning ${sliced.length} match(es) found so far. Try a specific channel or ask again in a minute.`,
-    });
+    sliced.push({ note: SLACK_PENDING_APPROVAL_NOTE });
   }
   return sliced;
 }
@@ -882,10 +909,18 @@ async function getSlackChannelHistory(
   args: SlackGetChannelHistoryArgs
 ): Promise<Array<Record<string, unknown>> | string> {
   const limit = clampLimit(args.limit, 20, 1, 100);
-  const res = await callSlack<SlackConversationsHistoryResponse>(
-    callProxy,
+  const { status, json } = await callProxy("/conversations.history", {
+    channel: args.channel,
+    limit,
+  });
+  const body = (json ?? null) as SlackConversationsHistoryResponse | null;
+  // conversations.history is throttled to ~1/min pre-approval; tell the user
+  // plainly instead of surfacing the raw `ratelimited` error.
+  if (isRateLimited(status, body)) return SLACK_PENDING_APPROVAL_NOTE;
+  const res = interpretSlackResult<SlackConversationsHistoryResponse>(
     "/conversations.history",
-    { channel: args.channel, limit }
+    status,
+    json
   );
   if (typeof res === "string") return res;
   return (res.messages ?? []).map((m) => ({
@@ -900,10 +935,18 @@ async function getSlackThreadReplies(
   args: SlackGetThreadRepliesArgs
 ): Promise<Array<Record<string, unknown>> | string> {
   const limit = clampLimit(args.limit, 20, 1, 100);
-  const res = await callSlack<SlackConversationsHistoryResponse>(
-    callProxy,
+  const { status, json } = await callProxy("/conversations.replies", {
+    channel: args.channel,
+    ts: args.ts,
+    limit,
+  });
+  const body = (json ?? null) as SlackConversationsHistoryResponse | null;
+  // Same ~1/min throttle as channel history -- surface the pending-approval message.
+  if (isRateLimited(status, body)) return SLACK_PENDING_APPROVAL_NOTE;
+  const res = interpretSlackResult<SlackConversationsHistoryResponse>(
     "/conversations.replies",
-    { channel: args.channel, ts: args.ts, limit }
+    status,
+    json
   );
   if (typeof res === "string") return res;
   return (res.messages ?? []).map((m) => ({
