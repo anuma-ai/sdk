@@ -12,6 +12,8 @@ import { linkMemoryEntitiesOp } from "../db/entities/operations";
 
 import { retain } from "./retain";
 
+import type { PiiRedactor } from "../pii/redactor";
+
 import { extractAndRetain, extractFacts, type AutoExtractMessage } from "./autoExtract";
 
 function mockFetch(content: string, ok = true): typeof fetch {
@@ -226,7 +228,7 @@ describe("extractFacts", () => {
     const candidates = {
       candidates: [
         {
-          content: "Foo",
+          content: "Enjoys hiking on weekends",
           type: "weird-unknown-type",
           confidence: 0.9,
           sourceMessageIds: ["m1"],
@@ -243,8 +245,8 @@ describe("extractFacts", () => {
   it("keeps a bare fact (empty sourceMessageIds), attributing it to the last user message (H4)", async () => {
     const candidates = {
       candidates: [
-        { content: "Foo", type: "other", confidence: 0.9, sourceMessageIds: [] },
-        { content: "Bar", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] },
+        { content: "Speaks fluent Spanish", type: "other", confidence: 0.9, sourceMessageIds: [] },
+        { content: "Plays the cello", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] },
       ],
     };
     const result = await extractFacts(messages, {
@@ -252,15 +254,25 @@ describe("extractFacts", () => {
       fetchFn: mockFetch(JSON.stringify(candidates)),
     });
     expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ content: "Foo", sourceMessageIds: ["m3"] });
-    expect(result[1]).toMatchObject({ content: "Bar", sourceMessageIds: ["m1"] });
+    expect(result[0]).toMatchObject({ content: "Speaks fluent Spanish", sourceMessageIds: ["m3"] });
+    expect(result[1]).toMatchObject({ content: "Plays the cello", sourceMessageIds: ["m1"] });
   });
 
   it("clamps confidence to [0, 1]", async () => {
     const candidates = {
       candidates: [
-        { content: "x", type: "other", confidence: 1.5, sourceMessageIds: ["m1"] },
-        { content: "y", type: "other", confidence: -0.2, sourceMessageIds: ["m1"] },
+        {
+          content: "Prefers tea over coffee",
+          type: "other",
+          confidence: 1.5,
+          sourceMessageIds: ["m1"],
+        },
+        {
+          content: "Enjoys morning walks",
+          type: "other",
+          confidence: -0.2,
+          sourceMessageIds: ["m1"],
+        },
       ],
     };
     const result = await extractFacts(messages, {
@@ -269,6 +281,87 @@ describe("extractFacts", () => {
     });
     expect(result[0].confidence).toBe(1);
     expect(result[1].confidence).toBe(0);
+  });
+
+  it("keeps single-token and CJK facts — no whitespace heuristic (ja/zh must not be dropped)", async () => {
+    // Regression: an English-only "no whitespace = low signal" gate silently
+    // dropped every CJK fact (no inter-word spaces) and legit one-word facts.
+    const candidates = {
+      candidates: [
+        { content: "Vegetarian", type: "constraint", confidence: 0.9, sourceMessageIds: ["m1"] },
+        {
+          content: "東京に住んでいる",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+        { content: "住在旧金山", type: "identity", confidence: 0.9, sourceMessageIds: ["m1"] },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+    });
+    expect(result.map((c) => c.content)).toEqual(["Vegetarian", "東京に住んでいる", "住在旧金山"]);
+  });
+
+  it("drops a candidate that is just the user's own name when userIdentity is supplied", async () => {
+    const candidates = {
+      candidates: [
+        { content: "Peter Lee", type: "identity", confidence: 0.95, sourceMessageIds: ["m1"] },
+        {
+          content: "Lives in Portland",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+      userIdentity: ["Peter Lee"],
+    });
+    expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
+  });
+
+  it("re-applies the own-name gate after PII restore (redacted name placeholder must not leak)", async () => {
+    // validateCandidates only sees the redacted form, so a placeholder-shaped
+    // fact passes the own-name check, then de-anonymizes into the real name.
+    // The post-restore re-gate must still drop it.
+    const fakeRedactor = {
+      // redactMessages + deAnonymize make isPiiRedactor() accept the fake.
+      redactMessages: (m: unknown) => m,
+      deAnonymize: (t: string) => t,
+      redactText: (t: string) => ({ text: t }),
+      restoreForStorage: (t: string) => ({
+        text: t === "[PERSON_1] [PERSON_2]" ? "Peter Lee" : t,
+        unresolved: false,
+      }),
+    } as unknown as PiiRedactor;
+    const candidates = {
+      candidates: [
+        {
+          content: "[PERSON_1] [PERSON_2]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+        {
+          content: "Lives in Portland",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+      userIdentity: ["Peter Lee"],
+      piiRedaction: fakeRedactor,
+    });
+    expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
   });
 });
 
@@ -414,8 +507,18 @@ describe("extractAndRetain", () => {
   it("respects custom minConfidence", async () => {
     const candidates = {
       candidates: [
-        { content: "high", type: "other", confidence: 0.95, sourceMessageIds: ["m1"] },
-        { content: "mid", type: "other", confidence: 0.85, sourceMessageIds: ["m1"] },
+        {
+          content: "Trains for a marathon",
+          type: "other",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+        {
+          content: "Might switch to decaf",
+          type: "other",
+          confidence: 0.85,
+          sourceMessageIds: ["m1"],
+        },
       ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
@@ -434,7 +537,7 @@ describe("extractAndRetain", () => {
     );
 
     expect(result.candidates).toHaveLength(1);
-    expect(result.candidates[0].content).toBe("high");
+    expect(result.candidates[0].content).toBe("Trains for a marathon");
   });
 
   it("links entities when entityCtx is provided", async () => {
@@ -479,7 +582,7 @@ describe("extractAndRetain", () => {
     const candidates = {
       candidates: [
         {
-          content: "x",
+          content: "Uses the foo library daily",
           type: "other",
           confidence: 0.9,
           sourceMessageIds: ["m1"],
@@ -501,7 +604,13 @@ describe("extractAndRetain", () => {
   it("skips entity linking when candidate has no entities", async () => {
     const candidates = {
       candidates: [
-        { content: "x", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: [] },
+        {
+          content: "Enjoys rock climbing",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
       ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "mem-3", proofCount: 1 });
@@ -560,7 +669,14 @@ describe("extractAndRetain", () => {
 
   it("forwards consolidateOptions to each retain() call", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
     const onFallback = vi.fn();
@@ -576,7 +692,7 @@ describe("extractAndRetain", () => {
     );
 
     expect(vi.mocked(retain)).toHaveBeenCalledWith(
-      "fact",
+      "Likes strong coffee",
       expect.anything(),
       expect.objectContaining({ consolidateOptions })
     );
@@ -584,7 +700,14 @@ describe("extractAndRetain", () => {
 
   it("does not pass consolidateOptions to retain when omitted", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
 
@@ -599,7 +722,14 @@ describe("extractAndRetain", () => {
 
   it("inherits extract.piiRedaction into consolidateOptions for direct callers", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
 
@@ -626,7 +756,14 @@ describe("extractAndRetain", () => {
 
   it("lets an explicit consolidateOptions.piiRedaction win over extract", async () => {
     const candidates = {
-      candidates: [{ content: "fact", type: "other", confidence: 0.9, sourceMessageIds: ["m1"] }],
+      candidates: [
+        {
+          content: "Likes strong coffee",
+          type: "other",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
     };
     vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "id", proofCount: 1 });
 

@@ -43,6 +43,10 @@ import type { RetainOptions, RetainResult } from "./types.js";
 const DEFAULT_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
+// Floor to drop empty-ish fragments that survive the non-empty check but carry
+// no real fact (a stray punctuation mark, a single letter). See
+// `isLowSignalContent`.
+const MIN_CONTENT_LENGTH = 3;
 
 const FACT_TYPES = [
   "identity",
@@ -75,9 +79,11 @@ NOT durable — do NOT extract:
 - Facts that are about the assistant or the world, not about the user
 - Information already framed as past-tense gossip about other people
 - Vague or non-committal intentions ("I should work out more at some point", "I really need to read more", "maybe I'll learn guitar"). Only extract a plan when it's concrete and committed ("signed up for the Chicago marathon in October").
+- The user's own name or handle on its own ("Peter Lee") — the system already knows who the user is; a name is not a durable fact about them
+- Bare labels or field values lifted from a profile, form, or tool/connector output ("Engineering", "Member of the Acme Slack workspace"). These are fragments, not statements. Only keep such a fact if the user themselves stated it AND you can phrase it as a complete sentence about them ("Works in engineering", "Uses the Acme Slack workspace with their team")
 
 For each durable fact, output:
-- content: a short, self-contained statement, third-person, present-tense ("Lives in San Francisco" not "I live in San Francisco")
+- content: a short but COMPLETE self-contained statement about the user, third-person, present-tense ("Lives in San Francisco" not "I live in San Francisco", "Works in engineering" not "Engineering"). Never emit a single word or a bare noun phrase.
 - type: one of identity | preference | relationship | plan | ongoing_context | constraint | other
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
@@ -140,6 +146,13 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   model?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
+  /**
+   * The user's own name(s) / handle(s) (e.g. profile nickname, wallet display
+   * name). Candidates whose entire content is just one of these are dropped —
+   * a personal memory system already knows who the user is, so "Peter Lee" is
+   * circular noise. Optional; when omitted only the bare-fragment gate applies.
+   */
+  userIdentity?: string[];
   /**
    * Reference "now" (Unix ms) for resolving relative temporal phrases in the
    * transcript ("yesterday", "next week", "in two days") into the absolute
@@ -277,10 +290,11 @@ export async function extractFacts(
   const candidates = validateCandidates(
     parsed,
     new Set(messages.map((m) => m.id)),
-    fallbackSourceId
+    fallbackSourceId,
+    options.userIdentity ?? []
   );
   if (!redactor) return candidates;
-  const restored = restoreCandidates(candidates, redactor);
+  const restored = restoreCandidates(candidates, redactor, options.userIdentity ?? []);
   // H3: the extractor found facts but de-anonymization dropped every one
   // (mangled placeholders / over-cap after restore). That degradation is
   // invisible to `failedCount` (it happens before retain) and would otherwise
@@ -304,32 +318,44 @@ export async function extractFacts(
  */
 function restoreCandidates(
   candidates: ExtractedCandidate[],
-  redactor: PiiRedactor
+  redactor: PiiRedactor,
+  ownNames: readonly string[]
 ): ExtractedCandidate[] {
-  return candidates
-    .map((c) => {
-      const content = redactor.restoreForStorage(c.content);
-      return {
-        candidate: {
-          ...c,
-          content: content.text,
-          entities: c.entities
-            .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
-            .filter((e) => !e.restored.unresolved)
-            .map(
-              (e): ExtractedEntity =>
-                e.kind !== undefined
-                  ? { name: e.restored.text, kind: e.kind }
-                  : { name: e.restored.text }
-            ),
-        },
-        // Drop the whole fact when its content still carries an unresolved
-        // (hallucinated / mangled-beyond-recognition) placeholder.
-        unresolved: content.unresolved,
-      };
-    })
-    .filter((c) => c.candidate.content.length <= MAX_CONTENT_LENGTH && !c.unresolved)
-    .map((c) => c.candidate);
+  return (
+    candidates
+      .map((c) => {
+        const content = redactor.restoreForStorage(c.content);
+        return {
+          candidate: {
+            ...c,
+            content: content.text,
+            entities: c.entities
+              .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
+              .filter((e) => !e.restored.unresolved)
+              .map(
+                (e): ExtractedEntity =>
+                  e.kind !== undefined
+                    ? { name: e.restored.text, kind: e.kind }
+                    : { name: e.restored.text }
+              ),
+          },
+          // Drop the whole fact when its content still carries an unresolved
+          // (hallucinated / mangled-beyond-recognition) placeholder.
+          unresolved: content.unresolved,
+        };
+      })
+      // Re-run the low-signal gate on the RESTORED text. validateCandidates saw
+      // only the redacted form, so a placeholder-shaped fact ("[PERSON_1]
+      // [PERSON_2]") passed the own-name check, then de-anonymized here into the
+      // user's actual name — re-check so `userIdentity` still blocks it.
+      .filter(
+        (c) =>
+          c.candidate.content.length <= MAX_CONTENT_LENGTH &&
+          !c.unresolved &&
+          !isLowSignalContent(c.candidate.content, ownNames)
+      )
+      .map((c) => c.candidate)
+  );
 }
 
 /**
@@ -498,10 +524,47 @@ export async function extractAndRetain(
 // Internals
 // ---------------------------------------------------------------------------
 
+/**
+ * Reject degenerate candidates that aren't durable facts about the user:
+ * too-short scraps and the user's own name ("Peter Lee"), which come from the
+ * extractor mining a profile field or tool output rather than something the
+ * user said.
+ *
+ * NOTE: deliberately NO "single token / no whitespace" heuristic. It was an
+ * English-only signal that silently dropped every CJK-language fact (Japanese
+ * / Chinese put no spaces between words) — data loss for ja/zh locales — and
+ * also killed legit one-word facts ("Vegetarian", "Left-handed"). Bare labels
+ * like "Engineering" are handled upstream instead: the prompt forbids them,
+ * and their real source (tool/connector rows) is excluded from the extraction
+ * window on the client. This gate stays language-agnostic.
+ */
+function isLowSignalContent(content: string, ownNames: readonly string[]): boolean {
+  const normalized = content
+    .trim()
+    .replace(/[.!?]+$/, "")
+    .toLowerCase();
+  if (normalized.length < MIN_CONTENT_LENGTH) return true;
+  // The user's own name is circular for a personal memory system.
+  if (
+    ownNames.some(
+      (n) =>
+        normalized ===
+        n
+          .trim()
+          .replace(/[.!?]+$/, "")
+          .toLowerCase()
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function validateCandidates(
   parsed: unknown,
   validIds: Set<string>,
-  fallbackSourceId?: string
+  fallbackSourceId?: string,
+  ownNames: readonly string[] = []
 ): ExtractedCandidate[] {
   if (typeof parsed !== "object" || parsed === null) return [];
   const candidates = (parsed as { candidates?: unknown }).candidates;
@@ -515,6 +578,7 @@ function validateCandidates(
     if (typeof obj.content !== "string") continue;
     const content = obj.content.trim();
     if (content.length === 0 || content.length > MAX_CONTENT_LENGTH) continue;
+    if (isLowSignalContent(content, ownNames)) continue;
 
     if (typeof obj.confidence !== "number" || !Number.isFinite(obj.confidence)) continue;
     const confidence = Math.max(0, Math.min(1, obj.confidence));
