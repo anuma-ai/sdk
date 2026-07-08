@@ -436,7 +436,17 @@ const MAX_DM_PROBES = 50;
  * costs a single (paginated) users.list rather than N `users.info` calls. Label
  * resolution is best-effort and never throws — it falls back to the id.
  *
- * Recency + emptiness: `conversations.list` carries no last-message timestamp, so
+ * `with_user` is a targeted lookup, so it takes a different path from listing all
+ * DMs. It resolves the ref (id or name) to a user id via the shared directory, then
+ * keeps a 1:1 whose counterparty is that user and a group DM whose `mpdm-…` members
+ * include that user's handle, and returns those matches directly. It makes NO
+ * `conversations.history` calls — no recency probing, no empty-DM drop, no throttle
+ * path — so a targeted DM is always returned (letting the model then read it),
+ * even one with no messages in the readable window. An unresolvable ref returns an
+ * error naming the person rather than every DM. `limit` applies after.
+ *
+ * Listing all DMs (no `with_user`) instead orders like the Slack sidebar and hides
+ * empty conversations. `conversations.list` carries no last-message timestamp, so
  * each DM's latest message is read via a `limit: 1` `conversations.history` probe.
  * That endpoint is throttled (~1/min) while the app awaits Marketplace approval, so
  * rather than return a partial/approximate order we bail to {@link SLACK_PENDING_APPROVAL_NOTE}
@@ -444,14 +454,7 @@ const MAX_DM_PROBES = 50;
  * `MAX_DM_PROBES` (can't order that many under the limit), or any probe comes back
  * rate-limited (429 / `ratelimited`). A probe that returns zero messages marks the
  * DM empty -> drop it; a non-rate-limit probe failure leaves recency unknown -> keep
- * it, ordered after the DMs we could place. `with_user` narrows to a small set, so
- * it normally probes fully and returns the ordered list.
- *
- * `with_user` narrows the list to the DM(s) involving one person — the only way
- * to target a specific person's DM. It resolves the ref (id or name) to a user id
- * via the shared directory, then keeps a 1:1 whose counterparty is that user and a
- * group DM whose `mpdm-…` members include that user's handle. An unresolvable ref
- * returns an error naming the person rather than every DM. `limit` applies after.
+ * it, ordered after the DMs we could place.
  */
 async function listSlackDms(
   callProxy: SlackProxyCaller,
@@ -465,13 +468,38 @@ async function listSlackDms(
   const getUsersDirectory = makeGetUsersDirectory(callProxy);
   const dmNameCache = new Map<string, string>();
 
-  let conversations = res;
+  // Label each DM sequentially (not in parallel): the first labelForChannel warms
+  // the memoized users directory, so listing N DMs costs one users.list rather than
+  // N racing fetches.
+  const buildDms = async (convs: SlackChannel[]): Promise<Array<Record<string, unknown>>> => {
+    const dms: Array<Record<string, unknown>> = [];
+    for (const conv of convs) {
+      const name = await labelForChannel(
+        callProxy,
+        conv,
+        dmNameCache,
+        getAuthUserId,
+        getUsersDirectory
+      );
+      const type = conv.is_mpim ? "mpim" : "im";
+      dms.push({
+        id: conv.id,
+        type,
+        name,
+        ...(type === "im" && conv.user ? { user: conv.user } : {}),
+      });
+    }
+    return dms;
+  };
+
+  // Targeted lookup: return the person's DM(s) directly, no history probing. A
+  // targeted DM must never be dropped for being empty -- the model can read it.
   const withUserRef = (args.with_user ?? "").trim();
   if (withUserRef) {
     const targetId = await resolveSlackUserId(withUserRef, getAuthUserId, getUsersDirectory);
     if (!targetId) return `Error: couldn't find a Slack user matching "${withUserRef}".`;
     const targetHandle = (await getUsersDirectory()).byId.get(targetId)?.name?.toLowerCase();
-    conversations = res.filter((conv) => {
+    const matches = res.filter((conv) => {
       if (conv.is_mpim) {
         return targetHandle
           ? parseMpdmHandles(conv.name).some((h) => h.toLowerCase() === targetHandle)
@@ -479,16 +507,17 @@ async function listSlackDms(
       }
       return conv.user === targetId;
     });
+    return buildDms(matches.slice(0, limit));
   }
 
   // More DMs than we can probe under the ~1/min throttle -> we can't order them,
   // so surface the pending-approval message instead of a partial order.
-  if (conversations.length > MAX_DM_PROBES) return SLACK_PENDING_APPROVAL_NOTE;
+  if (res.length > MAX_DM_PROBES) return SLACK_PENDING_APPROVAL_NOTE;
 
   // Probe each DM's latest message to order by recency and drop empty DMs.
   const withTs: Array<{ conv: SlackChannel; lastTs: number }> = [];
   const withoutTs: SlackChannel[] = [];
-  for (const conv of conversations) {
+  for (const conv of res) {
     const { status, json } = await callProxy("/conversations.history", {
       channel: conv.id,
       limit: 1,
@@ -511,25 +540,7 @@ async function listSlackDms(
   withTs.sort((a, b) => b.lastTs - a.lastTs);
   const ordered = [...withTs.map((x) => x.conv), ...withoutTs];
 
-  const dms: Array<Record<string, unknown>> = [];
-  for (const conv of ordered.slice(0, limit)) {
-    const name = await labelForChannel(
-      callProxy,
-      conv,
-      dmNameCache,
-      getAuthUserId,
-      getUsersDirectory
-    );
-    const type = conv.is_mpim ? "mpim" : "im";
-    dms.push({
-      id: conv.id,
-      type,
-      name,
-      ...(type === "im" && conv.user ? { user: conv.user } : {}),
-    });
-  }
-
-  return dms;
+  return buildDms(ordered.slice(0, limit));
 }
 
 /** Conversations scanned in a workspace-wide search when no channel is given. */
@@ -1060,7 +1071,7 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_dms",
       description:
-        "List the user's Slack direct messages and group DMs, ordered most-recent-first (like the Slack sidebar) and excluding conversations with no messages. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. When showing DMs to the user, list them by name only -- the other person for a 1:1, or the member names for a group DM -- and do not display the conversation id. The id is only for passing to slack_get_channel_history to read a conversation. To find or read the DM with a specific person, pass with_user -- that's the way to target one person's DM.",
+        "List the user's Slack direct messages and group DMs, or find the DM with a specific person. To show or read the conversation with one person, call this with with_user=<name or id> to get that conversation's id, then call slack_get_channel_history with that id to read the messages. Do NOT use slack_search_messages to find a person's DM conversation -- use with_user here instead. Listing all DMs (no with_user) returns them ordered most-recent-first (like the Slack sidebar) and excludes conversations with no messages. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. When showing DMs to the user, list them by name only -- the other person for a 1:1, or the member names for a group DM -- and do not display the conversation id. The id is only for passing to slack_get_channel_history to read a conversation.",
       parameters: {
         type: "object",
         properties: {

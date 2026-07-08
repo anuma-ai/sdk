@@ -727,9 +727,6 @@ describe("createSlackTools", () => {
         });
       }
       if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
-      if (path === "/conversations.history") {
-        return proxyResult({ ok: true, messages: [{ ts: "100" }] });
-      }
       if (path === "/users.list") {
         return proxyResult({
           ok: true,
@@ -747,6 +744,38 @@ describe("createSlackTools", () => {
     >;
     // Only bob's DM survives; amy's is dropped.
     expect(result).toEqual([{ id: "D1", type: "im", name: "DM with bob", user: "U2" }]);
+    // A targeted lookup makes zero history probes.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
+  });
+
+  test("slack_list_dms with_user returns the 1:1 DM even when it has no messages", async () => {
+    // The bug: an empty targeted DM used to be probed and dropped, so "show my DMs
+    // with Hazim" returned nothing. A targeted lookup must return it regardless.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U2" }] });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      // An empty DM: if this path were still probed, the DM would be dropped.
+      if (path === "/conversations.history") return proxyResult({ ok: true, messages: [] });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U2", name: "hazim", real_name: "Hazim", profile: { display_name: "Hazim" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "hazim" })) as Array<
+      Record<string, unknown>
+    >;
+    // Not dropped: the DM is returned so the model can read it.
+    expect(result).toEqual([{ id: "D1", type: "im", name: "DM with Hazim", user: "U2" }]);
+    // And it never touched conversations.history on the with_user path.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
   });
 
   test("slack_list_dms with_user matches a group DM the person is a member of", async () => {
@@ -761,9 +790,6 @@ describe("createSlackTools", () => {
         });
       }
       if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
-      if (path === "/conversations.history") {
-        return proxyResult({ ok: true, messages: [{ ts: "100" }] });
-      }
       if (path === "/users.list") {
         return proxyResult({
           ok: true,
@@ -783,6 +809,8 @@ describe("createSlackTools", () => {
     >;
     // The 1:1 with bob is dropped; the group DM carol is in survives.
     expect(result).toEqual([{ id: "G1", type: "mpim", name: "Group DM with Alice, Carol" }]);
+    // A targeted lookup makes zero history probes.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
   });
 
   test("slack_list_dms with_user that can't be resolved returns the guidance error", async () => {
