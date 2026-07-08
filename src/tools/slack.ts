@@ -60,6 +60,8 @@ export interface SlackListChannelsArgs {
 
 export interface SlackListDmsArgs {
   limit?: number;
+  /** Return only the DM(s) involving this person (a Slack user id or a name/handle). */
+  with_user?: string;
 }
 
 export interface SlackSearchMessagesArgs {
@@ -391,6 +393,12 @@ async function listSlackChannels(
  * The users directory is built once up front, so listing N DMs costs a single
  * (paginated) users.list rather than N `users.info` calls. Label resolution is
  * best-effort and never throws — it falls back to the id.
+ *
+ * `with_user` narrows the list to the DM(s) involving one person — the only way
+ * to target a specific person's DM. It resolves the ref (id or name) to a user id
+ * via the shared directory, then keeps a 1:1 whose counterparty is that user and a
+ * group DM whose `mpdm-…` members include that user's handle. An unresolvable ref
+ * returns an error naming the person rather than every DM. `limit` applies after.
  */
 async function listSlackDms(
   callProxy: SlackProxyCaller,
@@ -404,8 +412,24 @@ async function listSlackDms(
   const getUsersDirectory = makeGetUsersDirectory(callProxy);
   const dmNameCache = new Map<string, string>();
 
+  let conversations = res;
+  const withUserRef = (args.with_user ?? "").trim();
+  if (withUserRef) {
+    const targetId = await resolveSlackUserId(withUserRef, getAuthUserId, getUsersDirectory);
+    if (!targetId) return `Error: couldn't find a Slack user matching "${withUserRef}".`;
+    const targetHandle = (await getUsersDirectory()).byId.get(targetId)?.name?.toLowerCase();
+    conversations = res.filter((conv) => {
+      if (conv.is_mpim) {
+        return targetHandle
+          ? parseMpdmHandles(conv.name).some((h) => h.toLowerCase() === targetHandle)
+          : false;
+      }
+      return conv.user === targetId;
+    });
+  }
+
   const dms: Array<Record<string, unknown>> = [];
-  for (const conv of res.slice(0, limit)) {
+  for (const conv of conversations.slice(0, limit)) {
     const name = await labelForChannel(
       callProxy,
       conv,
@@ -515,6 +539,18 @@ const MAX_GROUP_DM_NAMES = 5;
 const MPDM_NAME_RE = /^mpdm-(.+)-\d+$/;
 
 /**
+ * Pull the member handles Slack packs into a group DM's `mpdm-<h1>--<h2>--…-1`
+ * name, in order. Returns [] for an absent name or a real (non-`mpdm`) group name.
+ * The single parser shared by {@link formatGroupDmLabel} and the `with_user`
+ * filter, so both read the name the same way.
+ */
+function parseMpdmHandles(mpimName: string | undefined): string[] {
+  if (!mpimName) return [];
+  const match = MPDM_NAME_RE.exec(mpimName);
+  return match ? match[1].split("--") : [];
+}
+
+/**
  * Turn a group DM's `mpdm-…` name into a readable "Group DM with A, B, C" label
  * using the users directory. Slack packs the members' handles into the name
  * (there's no allowlisted `conversations.members` to call), so we split them out,
@@ -528,12 +564,12 @@ function formatGroupDmLabel(
   selfId: string | null
 ): string {
   if (!mpimName) return "Group DM";
-  const match = MPDM_NAME_RE.exec(mpimName);
-  if (!match) return mpimName;
+  const handles = parseMpdmHandles(mpimName);
+  if (handles.length === 0) return mpimName;
 
   const selfHandle = selfId ? directory.byId.get(selfId)?.name?.toLowerCase() : undefined;
   const names: string[] = [];
-  for (const handle of match[1].split("--")) {
+  for (const handle of handles) {
     const key = handle.toLowerCase();
     if (selfHandle && key === selfHandle) continue;
     const member = directory.byHandle.get(key);
@@ -925,7 +961,7 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_dms",
       description:
-        "List the user's Slack direct messages and group DMs, including who each conversation is with. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. Pass a returned id to slack_get_channel_history to read that conversation.",
+        "List the user's Slack direct messages and group DMs, including who each conversation is with. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. Pass a returned id to slack_get_channel_history to read that conversation. To find or read the DM with a specific person, pass with_user -- that's the way to target one person's DM.",
       parameters: {
         type: "object",
         properties: {
@@ -933,12 +969,20 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
             type: "number",
             description: "Max DMs to return. Between 1 and 1000 (clamped). Defaults to 100.",
           },
+          with_user: {
+            type: "string",
+            description:
+              "Optional. Return only the DM(s) with this person, as a Slack user id or a name/handle. Use this to find and read the DM with a specific person.",
+          },
         },
         required: [],
       },
     },
     executor: async (args: Record<string, unknown>) =>
-      listSlackDms(callProxy, { limit: args.limit as number | undefined }),
+      listSlackDms(callProxy, {
+        limit: args.limit as number | undefined,
+        with_user: typeof args.with_user === "string" ? args.with_user : undefined,
+      }),
   };
 }
 

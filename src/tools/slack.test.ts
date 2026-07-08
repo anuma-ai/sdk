@@ -680,6 +680,99 @@ describe("createSlackTools", () => {
     expect(listCalls[1][1]?.cursor).toBe("PAGE2");
   });
 
+  test("slack_list_dms with_user resolves a name and returns only that 1:1 DM", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [
+            { id: "D1", is_im: true, user: "U2" },
+            { id: "D2", is_im: true, user: "U3" },
+          ],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U2", name: "bob", real_name: "Bob Example", profile: { display_name: "bob" } },
+            { id: "U3", name: "amy", real_name: "Amy Example", profile: { display_name: "amy" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "bob" })) as Array<
+      Record<string, unknown>
+    >;
+    // Only bob's DM survives; amy's is dropped.
+    expect(result).toEqual([{ id: "D1", type: "im", name: "DM with bob", user: "U2" }]);
+  });
+
+  test("slack_list_dms with_user matches a group DM the person is a member of", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [
+            { id: "D1", is_im: true, user: "U2" },
+            { id: "G1", is_mpim: true, name: "mpdm-alice--carol--me-1" },
+          ],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U1", name: "me", profile: { display_name: "Me" } },
+            { id: "U2", name: "bob", profile: { display_name: "bob" } },
+            { id: "UA", name: "alice", profile: { display_name: "Alice" } },
+            { id: "UC", name: "carol", profile: { display_name: "Carol" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "carol" })) as Array<
+      Record<string, unknown>
+    >;
+    // The 1:1 with bob is dropped; the group DM carol is in survives.
+    expect(result).toEqual([{ id: "G1", type: "mpim", name: "Group DM with Alice, Carol" }]);
+  });
+
+  test("slack_list_dms with_user that can't be resolved returns the guidance error", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U2" }] });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [{ id: "U2", name: "bob", profile: { display_name: "bob" } }],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "nobody" })) as string;
+    expect(typeof result).toBe("string");
+    expect(result).toContain("nobody");
+    // Not the full DM list, and not a connector-error JSON blob.
+    const parsed = (() => {
+      try {
+        return JSON.parse(result) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })();
+    expect(parsed?.__anuma_connector_error_v1).toBeUndefined();
+  });
+
   test("slack_search_messages from_user resolves a name via users.list and keeps only that author", async () => {
     const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
       if (path === "/users.list") {
