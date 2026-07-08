@@ -236,14 +236,12 @@ describe("recall — budget tiers", () => {
     expect(result.memories[0].id).toBe("m1");
   });
 
-  it("composite path appends zero-score tail items past the minScore floor (bench-parity append)", async () => {
-    // Pinned actual behavior: rankComposite appends every vault item
-    // absent from facet fusion with similarity 0 ("bench parity: margin
-    // analysis needs any ID locatable"), and that tail survives into
-    // recall() results — bypassing factMinScore. NOTE: this leaks
-    // zero-relevance padding into production high-budget composite
-    // results; if a tail filter is ever added, flip this test to assert
-    // m3 is absent.
+  it("composite path does NOT leak zero-score tail items past the minScore floor", async () => {
+    // rankComposite's bench-parity zero-score append is now opt-in
+    // (includeUnrankedTail), and production recall() does not set it — so a
+    // vault item absent from facet fusion (m3, similarity 0, below the 0.1
+    // factMinScore) must NOT appear in results. Prevents zero-relevance
+    // padding from reaching the answer LLM on the high-budget composite path.
     vi.mocked(decomposeQuery).mockResolvedValue({
       mode: "composite",
       subQueries: ["sub one", "sub two"],
@@ -254,9 +252,7 @@ describe("recall — budget tiers", () => {
       decomposeOptions: { apiKey: "llm-key" },
     });
 
-    const m3 = result.memories.find((m) => m.id === "m3");
-    expect(m3).toBeDefined();
-    expect(m3?.score).toBe(0); // below factMinScore (0.1), returned anyway
+    expect(result.memories.find((m) => m.id === "m3")).toBeUndefined();
   });
 
   it("degrades gracefully when decompose falls back to specific (LLM failure contract)", async () => {
