@@ -2,7 +2,7 @@
 
 > **PostApiV1PhoneCallsData** = `object`
 
-Defined in: [src/client/types.gen.ts:8377](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8377)
+Defined in: [src/client/types.gen.ts:8401](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8401)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8377](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersCreatePhoneCallRequest`](HandlersCreatePhoneCallRequest.md)
 
-Defined in: [src/client/types.gen.ts:8381](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8381)
+Defined in: [src/client/types.gen.ts:8405](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8405)
 
 Phone call request
 
@@ -20,7 +20,7 @@ Phone call request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8382)
+Defined in: [src/client/types.gen.ts:8406](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8406)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8382](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8383](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8383)
+Defined in: [src/client/types.gen.ts:8407](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8407)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8383](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/phone-calls"`
 
-Defined in: [src/client/types.gen.ts:8384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8384)
+Defined in: [src/client/types.gen.ts:8408](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8408)

@@ -2,15 +2,23 @@
 
 > **HandlersConnectorProxyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1589)
+Defined in: [src/client/types.gen.ts:1607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1607)
 
 ## Properties
+
+### body?
+
+> `optional` **body**: `number`\[]
+
+Defined in: [src/client/types.gen.ts:1608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1608)
+
+***
 
 ### path?
 
 > `optional` **path**: `string`
 
-Defined in: [src/client/types.gen.ts:1590](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1590)
+Defined in: [src/client/types.gen.ts:1609](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1609)
 
 ***
 
@@ -18,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1590](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:1591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1591)
+Defined in: [src/client/types.gen.ts:1610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1610)
 
 **Index Signature**
 

@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6092](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6092)
+Defined in: [src/client/types.gen.ts:6116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6116)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6092](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersPasskeyDeleteResponse`](HandlersPasskeyDeleteResponse.md)
 
-Defined in: [src/client/types.gen.ts:6096](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6096)
+Defined in: [src/client/types.gen.ts:6120](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6120)
 
 OK

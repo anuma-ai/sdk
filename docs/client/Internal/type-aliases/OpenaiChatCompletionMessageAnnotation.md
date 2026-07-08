@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionMessageAnnotation** = `object`
 
-Defined in: [src/client/types.gen.ts:3510](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3510)
+Defined in: [src/client/types.gen.ts:3530](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3530)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3510](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:3514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3514)
+Defined in: [src/client/types.gen.ts:3534](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3534)
 
 The type of the URL citation. Always `url_citation`.
 
@@ -20,4 +20,4 @@ The type of the URL citation. Always `url_citation`.
 
 > `optional` **url\_citation**: [`OpenaiChatCompletionMessageAnnotationUrlCitation`](OpenaiChatCompletionMessageAnnotationUrlCitation.md)
 
-Defined in: [src/client/types.gen.ts:3515](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3515)
+Defined in: [src/client/types.gen.ts:3535](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3535)

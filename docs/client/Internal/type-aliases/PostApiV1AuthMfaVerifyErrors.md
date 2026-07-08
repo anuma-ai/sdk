@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaVerifyErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6350](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6350)
+Defined in: [src/client/types.gen.ts:6374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6374)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6350](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6354)
+Defined in: [src/client/types.gen.ts:6378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6378)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6358](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6358)
+Defined in: [src/client/types.gen.ts:6382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6382)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **423**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6362)
+Defined in: [src/client/types.gen.ts:6386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6386)
 
 Locked

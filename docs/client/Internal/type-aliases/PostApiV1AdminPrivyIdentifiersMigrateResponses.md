@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPrivyIdentifiersMigrateResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5529)
+Defined in: [src/client/types.gen.ts:5553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5553)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5529](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersPrivyIdentifierMigrateResponse`](HandlersPrivyIdentifierMigrateResponse.md)
 
-Defined in: [src/client/types.gen.ts:5533](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5533)
+Defined in: [src/client/types.gen.ts:5557](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5557)
 
 OK

@@ -2,7 +2,7 @@
 
 > **HandlersPrivyIdentifierAuditResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2260)
+Defined in: [src/client/types.gen.ts:2279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2279)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2260](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **already\_ok**: `number`
 
-Defined in: [src/client/types.gen.ts:2264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2264)
+Defined in: [src/client/types.gen.ts:2283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2283)
 
 current identifier already matches embedded
 
@@ -20,7 +20,7 @@ current identifier already matches embedded
 
 > `optional` **api\_errors**: `number`
 
-Defined in: [src/client/types.gen.ts:2268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2268)
+Defined in: [src/client/types.gen.ts:2287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2287)
 
 transient Privy API failures
 
@@ -30,7 +30,7 @@ transient Privy API failures
 
 > `optional` **entries**: [`HandlersPrivyIdentifierAuditEntry`](HandlersPrivyIdentifierAuditEntry.md)\[]
 
-Defined in: [src/client/types.gen.ts:2272](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2272)
+Defined in: [src/client/types.gen.ts:2291](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2291)
 
 only includes WillChange entries
 
@@ -40,7 +40,7 @@ only includes WillChange entries
 
 > `optional` **limit**: `number`
 
-Defined in: [src/client/types.gen.ts:2276](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2276)
+Defined in: [src/client/types.gen.ts:2295](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2295)
 
 limit applied to this request
 
@@ -50,7 +50,7 @@ limit applied to this request
 
 > `optional` **next\_offset**: `number`
 
-Defined in: [src/client/types.gen.ts:2280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2280)
+Defined in: [src/client/types.gen.ts:2299](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2299)
 
 offset to pass next call; -1 when no more accounts remain
 
@@ -60,7 +60,7 @@ offset to pass next call; -1 when no more accounts remain
 
 > `optional` **no\_embedded**: `number`
 
-Defined in: [src/client/types.gen.ts:2284](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2284)
+Defined in: [src/client/types.gen.ts:2303](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2303)
 
 user exists but has no embedded wallet
 
@@ -70,7 +70,7 @@ user exists but has no embedded wallet
 
 > `optional` **no\_privy\_user**: `number`
 
-Defined in: [src/client/types.gen.ts:2288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2288)
+Defined in: [src/client/types.gen.ts:2307](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2307)
 
 Privy API 404 for this DID
 
@@ -80,7 +80,7 @@ Privy API 404 for this DID
 
 > `optional` **offset**: `number`
 
-Defined in: [src/client/types.gen.ts:2292](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2292)
+Defined in: [src/client/types.gen.ts:2311](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2311)
 
 offset applied to this request
 
@@ -90,7 +90,7 @@ offset applied to this request
 
 > `optional` **total**: `number`
 
-Defined in: [src/client/types.gen.ts:2296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2296)
+Defined in: [src/client/types.gen.ts:2315](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2315)
 
 accounts processed in this batch
 
@@ -100,6 +100,6 @@ accounts processed in this batch
 
 > `optional` **will\_change**: `number`
 
-Defined in: [src/client/types.gen.ts:2300](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2300)
+Defined in: [src/client/types.gen.ts:2319](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2319)
 
 stored identifier differs from embedded (case-insensitive)

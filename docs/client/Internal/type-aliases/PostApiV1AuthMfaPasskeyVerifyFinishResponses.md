@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyVerifyFinishResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6218](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6218)
+Defined in: [src/client/types.gen.ts:6242](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6242)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6218](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersMfaSessionResponse`](HandlersMfaSessionResponse.md)
 
-Defined in: [src/client/types.gen.ts:6222](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6222)
+Defined in: [src/client/types.gen.ts:6246](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6246)
 
 OK

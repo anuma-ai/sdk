@@ -2,7 +2,7 @@
 
 > **HandlersUserLookupResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2942](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2942)
+Defined in: [src/client/types.gen.ts:2962](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2962)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2942](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account**: [`HandlersUserLookupAccount`](HandlersUserLookupAccount.md)
 
-Defined in: [src/client/types.gen.ts:2943](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2943)
+Defined in: [src/client/types.gen.ts:2963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2963)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2943](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enrollments**: [`HandlersUserLookupEnrollment`](HandlersUserLookupEnrollment.md)\[]
 
-Defined in: [src/client/types.gen.ts:2944](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2944)
+Defined in: [src/client/types.gen.ts:2964](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2964)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2944](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **portal\_account\_exists**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2945](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2945)
+Defined in: [src/client/types.gen.ts:2965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2965)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:2945](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy**: [`HandlersUserLookupPrivy`](HandlersUserLookupPrivy.md)
 
-Defined in: [src/client/types.gen.ts:2946](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2946)
+Defined in: [src/client/types.gen.ts:2966](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2966)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:2946](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **text\_registrations**: [`HandlersUserLookupTextReg`](HandlersUserLookupTextReg.md)\[]
 
-Defined in: [src/client/types.gen.ts:2947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2947)
+Defined in: [src/client/types.gen.ts:2967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2967)

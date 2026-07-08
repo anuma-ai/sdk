@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAppsByAppIdApiKeysErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:4589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4589)
+Defined in: [src/client/types.gen.ts:4613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4613)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4589](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4593](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4593)
+Defined in: [src/client/types.gen.ts:4617](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4617)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4597](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4597)
+Defined in: [src/client/types.gen.ts:4621](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4621)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4601](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4601)
+Defined in: [src/client/types.gen.ts:4625](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4625)
 
 Not Found
 
@@ -40,6 +40,6 @@ Not Found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4605](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4605)
+Defined in: [src/client/types.gen.ts:4629](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4629)
 
 Internal Server Error

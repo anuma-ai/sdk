@@ -2,7 +2,7 @@
 
 > **HandlersPersonaListResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2209](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2209)
+Defined in: [src/client/types.gen.ts:2228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2228)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:2209](https://github.com/anuma-ai/sdk/blob/
 
 > **personas**: [`HandlersPersonaResponse`](HandlersPersonaResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:2210](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2210)
+Defined in: [src/client/types.gen.ts:2229](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2229)

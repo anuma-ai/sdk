@@ -2,4 +2,4 @@
 
 > **PostOauthRevokeError** = [`PostOauthRevokeErrors`](PostOauthRevokeErrors.md)\[keyof [`PostOauthRevokeErrors`](PostOauthRevokeErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10127](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10127)
+Defined in: [src/client/types.gen.ts:10151](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10151)

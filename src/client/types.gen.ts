@@ -662,6 +662,11 @@ export type LlmapiPortalChatCompletionRequest = {
  */
 export type LlmapiPortalChatCompletionResponse = {
     /**
+     * CachedTokens are the prompt tokens served from the provider's cache (cache-hit reads),
+     * summed across the MCP tool loop. Omitted from the response when zero (no cache hit reported).
+     */
+    cached_tokens?: number;
+    /**
      * ClientInjectedTools are tool names the client provided in the original request.
      */
     client_injected_tools?: Array<string>;
@@ -953,6 +958,11 @@ export type LlmapiResponseToolChoice = {
  */
 export type LlmapiResponseUsage = {
     /**
+     * CachedTokens is the number of prompt tokens served from the provider's cache
+     * (cache-hit reads), summed across the MCP tool loop. Omitted from the response when zero (no cache hit reported).
+     */
+    cached_tokens?: number;
+    /**
      * CompletionTokens is the number of tokens in the completion
      */
     completion_tokens?: number;
@@ -960,6 +970,14 @@ export type LlmapiResponseUsage = {
      * CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
      */
     cost_micro_usd?: number;
+    /**
+     * CreditsExhausted marks that per-step metering ended this run out of credits
+     * (a mid-loop wrap-up OR a balance-truncated answer). Carried inside `usage` —
+     * the same location the chat-completion carrier and the streaming terminal
+     * usage chunk use — so clients read one signal regardless of channel or
+     * transport. Omitted when false.
+     */
+    credits_exhausted?: boolean;
     /**
      * CreditsUsed is the number of credits consumed by this response
      */
@@ -1587,6 +1605,7 @@ export type HandlersConnectorMintErrorResponse = {
 };
 
 export type HandlersConnectorProxyRequest = {
+    body?: Array<number>;
     path?: string;
     query?: {
         [key: string]: unknown;
@@ -2334,8 +2353,9 @@ export type HandlersProInfo = {
      */
     pro_active?: boolean;
     /**
-     * Qualified is whether last-polled stake currently meets the threshold (a "do I clear the bar"
-     * signal that can lag a fresh bind until the first poll).
+     * Qualified is whether the account's current stake meets the threshold (a "do I clear the bar"
+     * signal). Computed from the live per-wallet stake read at request time (cached value only as a
+     * per-wallet fallback), so it reflects a fresh bind/stake immediately.
      */
     qualified?: boolean;
     staked_zeta?: string;
@@ -4206,6 +4226,10 @@ export type DeleteApiV1AccountErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden — account deletion requires user (JWT) authentication
+     */
+    403: ResponseErrorResponse;
     /**
      * Account not found
      */
@@ -6783,7 +6807,7 @@ export type PostApiV1ConnectorsByProviderProxyData = {
 
 export type PostApiV1ConnectorsByProviderProxyErrors = {
     /**
-     * disallowed path / invalid body / provider has no proxy
+     * disallowed path / invalid body / missing write body / provider has no proxy
      */
     400: HandlersConnectorMintErrorResponse;
     /**

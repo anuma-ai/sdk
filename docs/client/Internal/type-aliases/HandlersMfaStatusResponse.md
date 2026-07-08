@@ -2,7 +2,7 @@
 
 > **HandlersMfaStatusResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2132)
+Defined in: [src/client/types.gen.ts:2151](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2151)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2132](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **challenge\_required**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2133)
+Defined in: [src/client/types.gen.ts:2152](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2152)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2133](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:2134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2134)
+Defined in: [src/client/types.gen.ts:2153](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2153)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2134](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **enrolled\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:2135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2135)
+Defined in: [src/client/types.gen.ts:2154](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2154)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:2135](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **methods**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:2136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2136)
+Defined in: [src/client/types.gen.ts:2155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2155)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:2136](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **passkey\_credentials**: [`HandlersPasskeyCredentialDto`](HandlersPasskeyCredentialDto.md)\[]
 
-Defined in: [src/client/types.gen.ts:2137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2137)
+Defined in: [src/client/types.gen.ts:2156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2156)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:2137](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **recovery\_codes\_remaining**: `number`
 
-Defined in: [src/client/types.gen.ts:2138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2138)
+Defined in: [src/client/types.gen.ts:2157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2157)

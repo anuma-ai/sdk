@@ -1162,7 +1162,7 @@
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
 | [postApiV1ChatStreamsByInferenceIdCancel](Internal/functions/postApiV1ChatStreamsByInferenceIdCancel.md) | Cancel a buffered chat stream |
 | [postApiV1ConnectorsByProviderDisconnect](Internal/functions/postApiV1ConnectorsByProviderDisconnect.md) | Disconnect a connector |
-| [postApiV1ConnectorsByProviderProxy](Internal/functions/postApiV1ConnectorsByProviderProxy.md) | Proxy a read-only connector API call |
+| [postApiV1ConnectorsByProviderProxy](Internal/functions/postApiV1ConnectorsByProviderProxy.md) | Proxy a connector API call |
 | [postApiV1ConnectorsImport](Internal/functions/postApiV1ConnectorsImport.md) | Import a browser-resident refresh token into the vault |
 | [postApiV1ConnectorTokensByProvider](Internal/functions/postApiV1ConnectorTokensByProvider.md) | Mint a short-lived upstream connector access token |
 | [postApiV1ConnectTickets](Internal/functions/postApiV1ConnectTickets.md) | Mint a connect-flow ticket |

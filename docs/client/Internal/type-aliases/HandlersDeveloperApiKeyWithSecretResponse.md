@@ -2,7 +2,7 @@
 
 > **HandlersDeveloperApiKeyWithSecretResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1892](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1892)
+Defined in: [src/client/types.gen.ts:1911](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1911)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1892](https://github.com/anuma-ai/sdk/blob/
 
 > **api\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:1896](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1896)
+Defined in: [src/client/types.gen.ts:1915](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1915)
 
 Full key, only shown once
 
@@ -20,7 +20,7 @@ Full key, only shown once
 
 > **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:1897](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1897)
+Defined in: [src/client/types.gen.ts:1916](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1916)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1897](https://github.com/anuma-ai/sdk/blob/
 
 > **id**: `number`
 
-Defined in: [src/client/types.gen.ts:1898](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1898)
+Defined in: [src/client/types.gen.ts:1917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1917)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/client/types.gen.ts:1898](https://github.com/anuma-ai/sdk/blob/
 
 > **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1899](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1899)
+Defined in: [src/client/types.gen.ts:1918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1918)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [src/client/types.gen.ts:1899](https://github.com/anuma-ai/sdk/blob/
 
 > **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1900](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1900)
+Defined in: [src/client/types.gen.ts:1919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1919)

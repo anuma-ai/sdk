@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaRecoveryCodesRegenerateResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6243)
+Defined in: [src/client/types.gen.ts:6267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6267)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6243](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:6247](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6247)
+Defined in: [src/client/types.gen.ts:6271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6271)
 
 OK
 

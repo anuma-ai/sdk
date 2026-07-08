@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminTextResetResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5665](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5665)
+Defined in: [src/client/types.gen.ts:5689](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5689)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5665](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:5669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5669)
+Defined in: [src/client/types.gen.ts:5693](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5693)
 
 OK
 
