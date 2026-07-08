@@ -43,10 +43,9 @@ import type { RetainOptions, RetainResult } from "./types.js";
 const DEFAULT_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
-// Floor to drop degenerate fragments. The dominant junk mode isn't short
-// length per se but bare labels ("Engineering") and the user's own name
-// ("Peter Lee") — see `isLowSignalContent`. This length floor is a cheap
-// backstop for empty-ish content that slips past those checks.
+// Floor to drop empty-ish fragments that survive the non-empty check but carry
+// no real fact (a stray punctuation mark, a single letter). See
+// `isLowSignalContent`.
 const MIN_CONTENT_LENGTH = 3;
 
 const FACT_TYPES = [
@@ -295,7 +294,7 @@ export async function extractFacts(
     options.userIdentity ?? []
   );
   if (!redactor) return candidates;
-  const restored = restoreCandidates(candidates, redactor);
+  const restored = restoreCandidates(candidates, redactor, options.userIdentity ?? []);
   // H3: the extractor found facts but de-anonymization dropped every one
   // (mangled placeholders / over-cap after restore). That degradation is
   // invisible to `failedCount` (it happens before retain) and would otherwise
@@ -319,32 +318,44 @@ export async function extractFacts(
  */
 function restoreCandidates(
   candidates: ExtractedCandidate[],
-  redactor: PiiRedactor
+  redactor: PiiRedactor,
+  ownNames: readonly string[]
 ): ExtractedCandidate[] {
-  return candidates
-    .map((c) => {
-      const content = redactor.restoreForStorage(c.content);
-      return {
-        candidate: {
-          ...c,
-          content: content.text,
-          entities: c.entities
-            .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
-            .filter((e) => !e.restored.unresolved)
-            .map(
-              (e): ExtractedEntity =>
-                e.kind !== undefined
-                  ? { name: e.restored.text, kind: e.kind }
-                  : { name: e.restored.text }
-            ),
-        },
-        // Drop the whole fact when its content still carries an unresolved
-        // (hallucinated / mangled-beyond-recognition) placeholder.
-        unresolved: content.unresolved,
-      };
-    })
-    .filter((c) => c.candidate.content.length <= MAX_CONTENT_LENGTH && !c.unresolved)
-    .map((c) => c.candidate);
+  return (
+    candidates
+      .map((c) => {
+        const content = redactor.restoreForStorage(c.content);
+        return {
+          candidate: {
+            ...c,
+            content: content.text,
+            entities: c.entities
+              .map((e) => ({ kind: e.kind, restored: redactor.restoreForStorage(e.name) }))
+              .filter((e) => !e.restored.unresolved)
+              .map(
+                (e): ExtractedEntity =>
+                  e.kind !== undefined
+                    ? { name: e.restored.text, kind: e.kind }
+                    : { name: e.restored.text }
+              ),
+          },
+          // Drop the whole fact when its content still carries an unresolved
+          // (hallucinated / mangled-beyond-recognition) placeholder.
+          unresolved: content.unresolved,
+        };
+      })
+      // Re-run the low-signal gate on the RESTORED text. validateCandidates saw
+      // only the redacted form, so a placeholder-shaped fact ("[PERSON_1]
+      // [PERSON_2]") passed the own-name check, then de-anonymized here into the
+      // user's actual name — re-check so `userIdentity` still blocks it.
+      .filter(
+        (c) =>
+          c.candidate.content.length <= MAX_CONTENT_LENGTH &&
+          !c.unresolved &&
+          !isLowSignalContent(c.candidate.content, ownNames)
+      )
+      .map((c) => c.candidate)
+  );
 }
 
 /**
@@ -514,12 +525,18 @@ export async function extractAndRetain(
 // ---------------------------------------------------------------------------
 
 /**
- * Reject degenerate candidates that aren't durable facts about the user: bare
- * single-token labels ("Engineering"), too-short scraps, and the user's own
- * name ("Peter Lee"). These come from the extractor mining profile fields or
- * tool/connector output rather than something the user said, and slip past the
- * length cap because they're short but non-empty. The prompt now discourages
- * them too; this is the deterministic backstop.
+ * Reject degenerate candidates that aren't durable facts about the user:
+ * too-short scraps and the user's own name ("Peter Lee"), which come from the
+ * extractor mining a profile field or tool output rather than something the
+ * user said.
+ *
+ * NOTE: deliberately NO "single token / no whitespace" heuristic. It was an
+ * English-only signal that silently dropped every CJK-language fact (Japanese
+ * / Chinese put no spaces between words) — data loss for ja/zh locales — and
+ * also killed legit one-word facts ("Vegetarian", "Left-handed"). Bare labels
+ * like "Engineering" are handled upstream instead: the prompt forbids them,
+ * and their real source (tool/connector rows) is excluded from the extraction
+ * window on the client. This gate stays language-agnostic.
  */
 function isLowSignalContent(content: string, ownNames: readonly string[]): boolean {
   const normalized = content
@@ -527,9 +544,6 @@ function isLowSignalContent(content: string, ownNames: readonly string[]): boole
     .replace(/[.!?]+$/, "")
     .toLowerCase();
   if (normalized.length < MIN_CONTENT_LENGTH) return true;
-  // A bare label has no internal whitespace. A durable fact is a statement
-  // ("lives in san francisco"), never a single word ("engineering").
-  if (!/\s/.test(normalized)) return true;
   // The user's own name is circular for a personal memory system.
   if (
     ownNames.some(

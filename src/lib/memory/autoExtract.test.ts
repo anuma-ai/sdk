@@ -12,6 +12,8 @@ import { linkMemoryEntitiesOp } from "../db/entities/operations";
 
 import { retain } from "./retain";
 
+import type { PiiRedactor } from "../pii/redactor";
+
 import { extractAndRetain, extractFacts, type AutoExtractMessage } from "./autoExtract";
 
 function mockFetch(content: string, ok = true): typeof fetch {
@@ -281,23 +283,26 @@ describe("extractFacts", () => {
     expect(result[1].confidence).toBe(0);
   });
 
-  it("drops bare single-token label fragments ('Engineering') but keeps a real statement", async () => {
+  it("keeps single-token and CJK facts — no whitespace heuristic (ja/zh must not be dropped)", async () => {
+    // Regression: an English-only "no whitespace = low signal" gate silently
+    // dropped every CJK fact (no inter-word spaces) and legit one-word facts.
     const candidates = {
       candidates: [
-        { content: "Engineering", type: "identity", confidence: 0.9, sourceMessageIds: ["m1"] },
+        { content: "Vegetarian", type: "constraint", confidence: 0.9, sourceMessageIds: ["m1"] },
         {
-          content: "Works in engineering",
+          content: "東京に住んでいる",
           type: "identity",
           confidence: 0.9,
           sourceMessageIds: ["m1"],
         },
+        { content: "住在旧金山", type: "identity", confidence: 0.9, sourceMessageIds: ["m1"] },
       ],
     };
     const result = await extractFacts(messages, {
       apiKey: "k",
       fetchFn: mockFetch(JSON.stringify(candidates)),
     });
-    expect(result.map((c) => c.content)).toEqual(["Works in engineering"]);
+    expect(result.map((c) => c.content)).toEqual(["Vegetarian", "東京に住んでいる", "住在旧金山"]);
   });
 
   it("drops a candidate that is just the user's own name when userIdentity is supplied", async () => {
@@ -316,6 +321,45 @@ describe("extractFacts", () => {
       apiKey: "k",
       fetchFn: mockFetch(JSON.stringify(candidates)),
       userIdentity: ["Peter Lee"],
+    });
+    expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
+  });
+
+  it("re-applies the own-name gate after PII restore (redacted name placeholder must not leak)", async () => {
+    // validateCandidates only sees the redacted form, so a placeholder-shaped
+    // fact passes the own-name check, then de-anonymizes into the real name.
+    // The post-restore re-gate must still drop it.
+    const fakeRedactor = {
+      // redactMessages + deAnonymize make isPiiRedactor() accept the fake.
+      redactMessages: (m: unknown) => m,
+      deAnonymize: (t: string) => t,
+      redactText: (t: string) => ({ text: t }),
+      restoreForStorage: (t: string) => ({
+        text: t === "[PERSON_1] [PERSON_2]" ? "Peter Lee" : t,
+        unresolved: false,
+      }),
+    } as unknown as PiiRedactor;
+    const candidates = {
+      candidates: [
+        {
+          content: "[PERSON_1] [PERSON_2]",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+        },
+        {
+          content: "Lives in Portland",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+        },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+      userIdentity: ["Peter Lee"],
+      piiRedaction: fakeRedactor,
     });
     expect(result.map((c) => c.content)).toEqual(["Lives in Portland"]);
   });
