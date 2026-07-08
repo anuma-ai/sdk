@@ -600,6 +600,11 @@ async function main() {
           limit: embeddedItems.length,
           minSimilarity: 0,
           rerank: RERANK,
+          // Benchmark needs the full list so temporal-margin analysis can
+          // locate any ID (it does `allScored.find(id)?.similarity ?? 0`).
+          // Opt into the zero-score tail that production recall() now gates
+          // out — the sibling fused path above surfaces it via limit.
+          includeUnrankedTail: true,
           ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
           ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
           ...(entityRanking && { entityRanking }),
