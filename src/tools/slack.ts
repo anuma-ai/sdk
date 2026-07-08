@@ -426,24 +426,40 @@ async function listSlackChannels(
 const MAX_DM_PROBES = 50;
 
 /**
- * List the user's direct messages and group DMs, ordered like the Slack sidebar:
- * most-recent conversation first, with conversations that have no messages dropped.
- * `slack_list_channels` excludes `im`/`mpim`, so without this there's no way to
- * answer "list my DMs" or to get a DM's id to pass to `slack_get_channel_history`.
- * Reuses the paginating `listAllConversations` and the shared `labelForChannel`
- * resolution so each DM gets a human name (the counterparty for a 1:1, the members
- * for a group DM). The users directory is built once up front, so listing N DMs
- * costs a single (paginated) users.list rather than N `users.info` calls. Label
- * resolution is best-effort and never throws — it falls back to the id.
+ * The split shape {@link listSlackDms} returns on success: 1:1 DMs and group DMs
+ * as two separate lists (rather than one flat array mixing them), so the model can
+ * present them as two distinct lists by name. Each entry keeps its conversation
+ * `id` for a follow-up `slack_get_channel_history` read, but the id is not meant
+ * to be shown to the user (the tool description says so).
+ */
+interface SlackDmListing {
+  /** 1:1 DMs. `name` is the counterparty label ("DM with <name>", or "Direct message" for a self-DM). */
+  direct_messages: Array<{ id: string; name: string }>;
+  /** Group DMs. `members` is the comma-joined member names (self excluded), no "Group DM with" prefix. */
+  group_dms: Array<{ id: string; members: string }>;
+}
+
+/**
+ * List the user's direct messages and group DMs, split into two lists: `direct_messages`
+ * (1:1s, each with the counterparty name) and `group_dms` (each with its member names),
+ * ordered like the Slack sidebar (most-recent conversation first) with conversations
+ * that have no messages dropped. `slack_list_channels` excludes `im`/`mpim`, so without
+ * this there's no way to answer "list my DMs" or to get a DM's id to pass to
+ * `slack_get_channel_history`. Reuses the paginating `listAllConversations`, the shared
+ * `labelForChannel` resolution for 1:1 names, and {@link groupDmMembers} for group-DM
+ * member names. The users directory is built once up front, so listing N DMs costs a
+ * single (paginated) users.list rather than N `users.info` calls. Name resolution is
+ * best-effort and never throws — it falls back to the id.
  *
  * `with_user` is a targeted lookup, so it takes a different path from listing all
  * DMs. It resolves the ref (id or name) to a user id via the shared directory, then
  * keeps a 1:1 whose counterparty is that user and a group DM whose `mpdm-…` members
- * include that user's handle, and returns those matches directly. It makes NO
- * `conversations.history` calls — no recency probing, no empty-DM drop, no throttle
- * path — so a targeted DM is always returned (letting the model then read it),
- * even one with no messages in the readable window. An unresolvable ref returns an
- * error naming the person rather than every DM. `limit` applies after.
+ * include that user's handle, splits those matches into the two lists, and returns
+ * them directly. It makes NO `conversations.history` calls — no recency probing, no
+ * empty-DM drop, no throttle path — so a targeted DM is always returned (letting the
+ * model then read it), even one with no messages in the readable window (a person who
+ * is only in a group DM yields `direct_messages: []` plus that group). An unresolvable
+ * ref returns an error naming the person rather than every DM. `limit` applies after.
  *
  * Listing all DMs (no `with_user`) instead orders like the Slack sidebar and hides
  * empty conversations. `conversations.list` carries no last-message timestamp, so
@@ -454,12 +470,13 @@ const MAX_DM_PROBES = 50;
  * `MAX_DM_PROBES` (can't order that many under the limit), or any probe comes back
  * rate-limited (429 / `ratelimited`). A probe that returns zero messages marks the
  * DM empty -> drop it; a non-rate-limit probe failure leaves recency unknown -> keep
- * it, ordered after the DMs we could place.
+ * it, ordered after the DMs we could place. `limit` bounds the total DM count and is
+ * applied before the split into the two lists.
  */
 async function listSlackDms(
   callProxy: SlackProxyCaller,
   args: SlackListDmsArgs
-): Promise<Array<Record<string, unknown>> | string> {
+): Promise<SlackDmListing | string> {
   const limit = clampLimit(args.limit, 100, 1, 1000);
   const res = await listAllConversations(callProxy, "im,mpim");
   if (typeof res === "string") return res;
@@ -468,12 +485,23 @@ async function listSlackDms(
   const getUsersDirectory = makeGetUsersDirectory(callProxy);
   const dmNameCache = new Map<string, string>();
 
-  // Label each DM sequentially (not in parallel): the first labelForChannel warms
-  // the memoized users directory, so listing N DMs costs one users.list rather than
-  // N racing fetches.
-  const buildDms = async (convs: SlackChannel[]): Promise<Array<Record<string, unknown>>> => {
-    const dms: Array<Record<string, unknown>> = [];
+  // Split into the two lists, preserving the input (recency) order within each.
+  // Resolve names sequentially (not in parallel): the first lookup warms the
+  // memoized users directory, so listing N DMs costs one users.list rather than N
+  // racing fetches.
+  const buildListing = async (convs: SlackChannel[]): Promise<SlackDmListing> => {
+    const listing: SlackDmListing = { direct_messages: [], group_dms: [] };
     for (const conv of convs) {
+      if (conv.is_mpim) {
+        const [directory, selfId] = await Promise.all([getUsersDirectory(), getAuthUserId()]);
+        // Fall back to the full label ("release-crew" for a real group name,
+        // "Group DM" when only self resolves) when there are no parseable members.
+        const members =
+          groupDmMembers(conv.name, directory, selfId) ??
+          formatGroupDmLabel(conv.name, directory, selfId);
+        listing.group_dms.push({ id: conv.id, members });
+        continue;
+      }
       const name = await labelForChannel(
         callProxy,
         conv,
@@ -481,15 +509,9 @@ async function listSlackDms(
         getAuthUserId,
         getUsersDirectory
       );
-      const type = conv.is_mpim ? "mpim" : "im";
-      dms.push({
-        id: conv.id,
-        type,
-        name,
-        ...(type === "im" && conv.user ? { user: conv.user } : {}),
-      });
+      listing.direct_messages.push({ id: conv.id, name });
     }
-    return dms;
+    return listing;
   };
 
   // Targeted lookup: return the person's DM(s) directly, no history probing. A
@@ -507,7 +529,7 @@ async function listSlackDms(
       }
       return conv.user === targetId;
     });
-    return buildDms(matches.slice(0, limit));
+    return buildListing(matches.slice(0, limit));
   }
 
   // More DMs than we can probe under the ~1/min throttle -> we can't order them,
@@ -540,7 +562,8 @@ async function listSlackDms(
   withTs.sort((a, b) => b.lastTs - a.lastTs);
   const ordered = [...withTs.map((x) => x.conv), ...withoutTs];
 
-  return buildDms(ordered.slice(0, limit));
+  // Apply the limit to the total DM count before splitting into the two lists.
+  return buildListing(ordered.slice(0, limit));
 }
 
 /** Conversations scanned in a workspace-wide search when no channel is given. */
@@ -646,21 +669,23 @@ function parseMpdmHandles(mpimName: string | undefined): string[] {
 }
 
 /**
- * Turn a group DM's `mpdm-…` name into a readable "Group DM with A, B, C" label
- * using the users directory. Slack packs the members' handles into the name
- * (there's no allowlisted `conversations.members` to call), so we split them out,
- * map each handle → display name (falling back to the raw handle when unmapped),
- * and drop the authed user's own handle. A non-`mpdm` name (a real group name) is
- * returned as-is; an absent name yields "Group DM". Never throws.
+ * The comma-joined member display names of a group DM (e.g. "Alice, Bob, Carol",
+ * with the rest collapsed to "+N more"), self excluded. Slack packs the members'
+ * handles into the `mpdm-…` name (there's no allowlisted `conversations.members`
+ * to call), so we split them out, map each handle → display name (falling back to
+ * the raw handle when unmapped), and drop the authed user's own handle. Returns
+ * null when there are no member names to show: an absent name, a real non-`mpdm`
+ * group name, or a membership that resolves to only the authed user. This is the
+ * shared piece behind both {@link formatGroupDmLabel} and the `group_dms` output
+ * of {@link listSlackDms}, so the two read the member set the same way. Never throws.
  */
-function formatGroupDmLabel(
+function groupDmMembers(
   mpimName: string | undefined,
   directory: SlackUsersDirectory,
   selfId: string | null
-): string {
-  if (!mpimName) return "Group DM";
+): string | null {
   const handles = parseMpdmHandles(mpimName);
-  if (handles.length === 0) return mpimName;
+  if (handles.length === 0) return null;
 
   const selfHandle = selfId ? directory.byId.get(selfId)?.name?.toLowerCase() : undefined;
   const names: string[] = [];
@@ -670,11 +695,29 @@ function formatGroupDmLabel(
     const member = directory.byHandle.get(key);
     names.push(member ? displayNameForUser(member) : handle);
   }
-  if (names.length === 0) return "Group DM";
+  if (names.length === 0) return null;
 
   const shown = names.slice(0, MAX_GROUP_DM_NAMES);
   const extra = names.length - shown.length;
-  return `Group DM with ${shown.join(", ")}${extra > 0 ? `, +${extra} more` : ""}`;
+  return `${shown.join(", ")}${extra > 0 ? `, +${extra} more` : ""}`;
+}
+
+/**
+ * Turn a group DM's `mpdm-…` name into a readable "Group DM with A, B, C" label
+ * using the users directory. Delegates the member-name resolution to
+ * {@link groupDmMembers}. A non-`mpdm` name (a real group name) is returned as-is;
+ * an absent name (or one that resolves to only the authed user) yields "Group DM".
+ * Never throws.
+ */
+function formatGroupDmLabel(
+  mpimName: string | undefined,
+  directory: SlackUsersDirectory,
+  selfId: string | null
+): string {
+  if (!mpimName) return "Group DM";
+  if (parseMpdmHandles(mpimName).length === 0) return mpimName;
+  const members = groupDmMembers(mpimName, directory, selfId);
+  return members === null ? "Group DM" : `Group DM with ${members}`;
 }
 
 /**
@@ -1071,7 +1114,7 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_dms",
       description:
-        "List the user's Slack direct messages and group DMs, or find the DM with a specific person. To show or read the conversation with one person, call this with with_user=<name or id> to get that conversation's id, then call slack_get_channel_history with that id to read the messages. Do NOT use slack_search_messages to find a person's DM conversation -- use with_user here instead. Listing all DMs (no with_user) returns them ordered most-recent-first (like the Slack sidebar) and excludes conversations with no messages. Returns id, type ('im' for a 1:1 or 'mpim' for a group DM), name (the other person for a 1:1, or the members for a group DM), and the other user's id for a 1:1. When showing DMs to the user, list them by name only -- the other person for a 1:1, or the member names for a group DM -- and do not display the conversation id. The id is only for passing to slack_get_channel_history to read a conversation.",
+        "List the user's Slack direct messages and group DMs, or find the DM with a specific person. Returns two separate lists: 'direct_messages' (1:1 conversations, each with 'name' = the other person) and 'group_dms' (group conversations, each with 'members' = the member names). When showing these to the user, present them as TWO separate bulleted lists -- a 'Direct messages' list (by the other person's name) and a 'Group DMs' list (by the member names) -- by name only, and never show the conversation ids. To show or read the conversation with one person, call this with with_user=<name or id> to get that conversation's id, then call slack_get_channel_history with that id to read the messages. Do NOT use slack_search_messages to find a person's DM conversation -- use with_user here instead. Listing all DMs (no with_user) returns them most-recent-first (like the Slack sidebar) and excludes conversations with no messages. The conversation id is only for passing to slack_get_channel_history to read a conversation.",
       parameters: {
         type: "object",
         properties: {

@@ -4,6 +4,12 @@ import { createSlackTools, SLACK_PENDING_APPROVAL_NOTE, type SlackProxyCaller } 
 
 type ToolResult = unknown;
 
+/** The split shape slack_list_dms returns on success (mirrors SlackDmListing). */
+type DmListing = {
+  direct_messages: Array<{ id: string; name: string }>;
+  group_dms: Array<{ id: string; members: string }>;
+};
+
 async function runExecutor(
   tool: { executor?: (args: Record<string, unknown>) => Promise<ToolResult> | ToolResult },
   args: Record<string, unknown>
@@ -622,11 +628,11 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
-    expect(result).toEqual([
-      { id: "D1", type: "im", name: "DM with bob", user: "U2" },
-      { id: "G1", type: "mpim", name: "Group DM with Alice, Bob, Carol" },
-    ]);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as DmListing;
+    // 1:1s and group DMs land in separate lists; the group DM's members string
+    // carries no "Group DM with" prefix.
+    expect(result.direct_messages).toEqual([{ id: "D1", name: "DM with bob" }]);
+    expect(result.group_dms).toEqual([{ id: "G1", members: "Alice, Bob, Carol" }]);
     // im/mpim are the only conversation types requested.
     expect(callProxy.mock.calls[0][0]).toBe("/conversations.list");
     expect(callProxy.mock.calls[0][1]?.types).toBe("im,mpim");
@@ -656,9 +662,10 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
+    const result = (await runExecutor(tools.slack_list_dms, {})) as DmListing;
     // "ghost" isn't in the directory, so its handle is shown verbatim.
-    expect(result).toEqual([{ id: "G1", type: "mpim", name: "Group DM with Alice, ghost" }]);
+    expect(result.direct_messages).toEqual([]);
+    expect(result.group_dms).toEqual([{ id: "G1", members: "Alice, ghost" }]);
   });
 
   test("slack_list_dms uses a non-mpdm group name verbatim", async () => {
@@ -677,8 +684,10 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
-    expect(result).toEqual([{ id: "G1", type: "mpim", name: "release-crew" }]);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as DmListing;
+    // A real (non-mpdm) group name has no parseable members, so it's shown verbatim.
+    expect(result.direct_messages).toEqual([]);
+    expect(result.group_dms).toEqual([{ id: "G1", members: "release-crew" }]);
   });
 
   test("slack_list_dms follows users.list next_cursor so a page-2 member resolves", async () => {
@@ -707,9 +716,10 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
+    const result = (await runExecutor(tools.slack_list_dms, {})) as DmListing;
     // The counterparty only exists on page 2 — pagination must reach it.
-    expect(result).toEqual([{ id: "D1", type: "im", name: "DM with Dana", user: "U_PAGE2" }]);
+    expect(result.direct_messages).toEqual([{ id: "D1", name: "DM with Dana" }]);
+    expect(result.group_dms).toEqual([]);
     const listCalls = callProxy.mock.calls.filter((c) => c[0] === "/users.list");
     expect(listCalls).toHaveLength(2);
     expect(listCalls[1][1]?.cursor).toBe("PAGE2");
@@ -739,11 +749,10 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, { with_user: "bob" })) as Array<
-      Record<string, unknown>
-    >;
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "bob" })) as DmListing;
     // Only bob's DM survives; amy's is dropped.
-    expect(result).toEqual([{ id: "D1", type: "im", name: "DM with bob", user: "U2" }]);
+    expect(result.direct_messages).toEqual([{ id: "D1", name: "DM with bob" }]);
+    expect(result.group_dms).toEqual([]);
     // A targeted lookup makes zero history probes.
     expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
   });
@@ -769,11 +778,10 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, { with_user: "hazim" })) as Array<
-      Record<string, unknown>
-    >;
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "hazim" })) as DmListing;
     // Not dropped: the DM is returned so the model can read it.
-    expect(result).toEqual([{ id: "D1", type: "im", name: "DM with Hazim", user: "U2" }]);
+    expect(result.direct_messages).toEqual([{ id: "D1", name: "DM with Hazim" }]);
+    expect(result.group_dms).toEqual([]);
     // And it never touched conversations.history on the with_user path.
     expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
   });
@@ -804,11 +812,51 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, { with_user: "carol" })) as Array<
-      Record<string, unknown>
-    >;
-    // The 1:1 with bob is dropped; the group DM carol is in survives.
-    expect(result).toEqual([{ id: "G1", type: "mpim", name: "Group DM with Alice, Carol" }]);
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "carol" })) as DmListing;
+    // carol has no 1:1 (the bob DM is dropped), so direct_messages is empty and the
+    // group DM she's in lands in group_dms (the Charlie case).
+    expect(result.direct_messages).toEqual([]);
+    expect(result.group_dms).toEqual([{ id: "G1", members: "Alice, Carol" }]);
+    // A targeted lookup makes zero history probes.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
+  });
+
+  test("slack_list_dms with_user for a person only in group DMs returns empty direct_messages", async () => {
+    // The Charlie case: Charlie has no 1:1 with the user, only shared group DMs.
+    // Both group DMs he's in must land in group_dms, with direct_messages empty.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [
+            { id: "D1", is_im: true, user: "U2" },
+            { id: "G1", is_mpim: true, name: "mpdm-charlie--dana--me-1" },
+            { id: "G2", is_mpim: true, name: "mpdm-alice--charlie--me-1" },
+          ],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U1", name: "me", profile: { display_name: "Me" } },
+            { id: "U2", name: "bob", profile: { display_name: "bob" } },
+            { id: "UA", name: "alice", profile: { display_name: "Alice" } },
+            { id: "UCH", name: "charlie", profile: { display_name: "Charlie" } },
+            { id: "UD", name: "dana", profile: { display_name: "Dana" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, { with_user: "charlie" })) as DmListing;
+    expect(result.direct_messages).toEqual([]);
+    expect(result.group_dms).toEqual([
+      { id: "G1", members: "Charlie, Dana" },
+      { id: "G2", members: "Alice, Charlie" },
+    ]);
     // A targeted lookup makes zero history probes.
     expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
   });
@@ -872,9 +920,10 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
-    // ts 300 (D2) > 200 (D3) > 100 (D1).
-    expect(result.map((d) => d.id)).toEqual(["D2", "D3", "D1"]);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as DmListing;
+    // ts 300 (D2) > 200 (D3) > 100 (D1); recency order is preserved within the list.
+    expect(result.direct_messages.map((d) => d.id)).toEqual(["D2", "D3", "D1"]);
+    expect(result.group_dms).toEqual([]);
   });
 
   test("slack_list_dms drops a DM that has no messages", async () => {
@@ -908,8 +957,9 @@ describe("createSlackTools", () => {
       return proxyResult({ ok: false }, 400);
     });
     const tools = createSlackTools(callProxy);
-    const result = (await runExecutor(tools.slack_list_dms, {})) as Array<Record<string, unknown>>;
-    expect(result).toEqual([{ id: "D1", type: "im", name: "DM with Bob", user: "U2x" }]);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as DmListing;
+    expect(result.direct_messages).toEqual([{ id: "D1", name: "DM with Bob" }]);
+    expect(result.group_dms).toEqual([]);
   });
 
   test("slack_list_dms returns the pending-approval note when a probe is rate-limited", async () => {
