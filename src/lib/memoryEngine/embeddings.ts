@@ -115,7 +115,10 @@ export function isFatalEmbeddingError(err: unknown): boolean {
  * Build an EmbeddingHttpError from a failed postApiV1Embeddings response,
  * preserving the server's error message and the HTTP status.
  */
-function embeddingErrorFrom(response: { error?: unknown; response?: Response }): EmbeddingHttpError {
+function embeddingErrorFrom(response: {
+  error?: unknown;
+  response?: Response;
+}): EmbeddingHttpError {
   const message =
     typeof response.error === "object" && response.error && "error" in response.error
       ? (response.error as { error: string }).error

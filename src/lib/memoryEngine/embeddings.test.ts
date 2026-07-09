@@ -173,9 +173,10 @@ describe("generateEmbedding", () => {
 
   it("throws an EmbeddingHttpError carrying the HTTP status on a 402", async () => {
     stubFetchError(402, { error: "insufficient balance" });
-    await expect(
-      generateEmbedding("text", { apiKey: "k", baseUrl: BASE })
-    ).rejects.toMatchObject({ status: 402, message: "insufficient balance" });
+    await expect(generateEmbedding("text", { apiKey: "k", baseUrl: BASE })).rejects.toMatchObject({
+      status: 402,
+      message: "insufficient balance",
+    });
   });
 
   it("does not retry a 402 (non-retryable) — one request, not EMBED_MAX_ATTEMPTS", async () => {
