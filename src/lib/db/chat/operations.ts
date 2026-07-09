@@ -1,5 +1,6 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
+import type { Clause } from "@nozbe/watermelondb/QueryDescription";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
@@ -545,16 +546,19 @@ export type SkeletonRaw = {
 };
 
 /**
- * Read a whole conversation's rows in offset-paginated chunks via `unsafeFetchRaw` (raw objects, no
+ * Read a whole conversation's rows in keyset-paginated chunks via `unsafeFetchRaw` (raw objects, no
  * Model instantiation), ascending. A single unbounded `.query().fetch()` OOMs the OPFS-SQLite adapter
  * on large threads — `sqlite3_step()` returns `SQLITE_NOMEM` materializing the full result set (rows
  * carry big embedding columns), which blanks the chat (#4139). Chunking bounds peak to one page and,
  * via `unsafeFetchRaw`, avoids polluting the RecordCache with a Model per row (also #4142).
  *
- * Orders by `(message_id, id)` — a deterministic TOTAL order — so `Q.skip`/`Q.take` offset paging
- * never skips or duplicates a row across a page boundary even when legacy DUPLICATE `message_id`s
- * exist (count-based id assignment + deletes — see {@link getMessagesPageOp}). OFFSET only walks the
- * index for skipped rows; their heavy columns are never materialized.
+ * Pages by a **keyset** cursor on the composite `(message_id, id)` — a deterministic TOTAL order.
+ * Keyset (not `Q.skip` offset) is required for correctness: this reads the whole thread across
+ * multiple queries, and a concurrent insert/delete (e.g. a streaming reply landing mid-read) would
+ * shift every row after a numeric offset, making offset paging skip or duplicate rows. A forward
+ * keyset cursor is immune — rows before the cursor can't move it — and the composite key also makes
+ * legacy DUPLICATE `message_id`s (count-based assignment + deletes, see {@link getMessagesPageOp})
+ * safe: `id` is the unique tiebreaker, so no row is skipped or returned twice at a page boundary.
  */
 export async function fetchThreadSkeletonRawPaged(
   collection: Collection<Message>,
@@ -562,19 +566,29 @@ export async function fetchThreadSkeletonRawPaged(
   pageSize: number = SKELETON_PAGE_SIZE
 ): Promise<SkeletonRaw[]> {
   const all: SkeletonRaw[] = [];
-  for (let offset = 0; ; offset += pageSize) {
+  let cursor: { messageId: number; id: string } | undefined;
+
+  for (;;) {
+    const clauses: Clause[] = [Q.where("conversation_id", convId)];
+    if (cursor) {
+      // (message_id, id) > (cursor.messageId, cursor.id)
+      clauses.push(
+        Q.or(
+          Q.where("message_id", Q.gt(cursor.messageId)),
+          Q.and(Q.where("message_id", cursor.messageId), Q.where("id", Q.gt(cursor.id)))
+        )
+      );
+    }
     const page = (await collection
-      .query(
-        Q.where("conversation_id", convId),
-        Q.sortBy("message_id", Q.asc),
-        Q.sortBy("id", Q.asc),
-        Q.skip(offset),
-        Q.take(pageSize)
-      )
+      .query(...clauses, Q.sortBy("message_id", Q.asc), Q.sortBy("id", Q.asc), Q.take(pageSize))
       .unsafeFetchRaw()) as SkeletonRaw[];
+
     if (page.length === 0) break;
     all.push(...page);
     if (page.length < pageSize) break;
+
+    const last = page[page.length - 1];
+    cursor = { messageId: last.message_id, id: last.id };
   }
   return all;
 }
