@@ -119,17 +119,24 @@ export async function retain(
           preserveUpdatedAt: true,
           ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
         });
-        return {
-          action: "merge",
-          memoryId: targetId,
-          targetId,
-          proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
-        };
+        // A null result means the write did NOT persist (target deleted/not
+        // owned mid-flight, or a caught write error inside updateVaultMemoryOp).
+        // Don't report a phantom merge with an optimistic +1 — fall through to
+        // create so the fact is still retained rather than silently lost.
+        if (updated) {
+          return {
+            action: "merge",
+            memoryId: targetId,
+            targetId,
+            proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+          };
+        }
       }
     }
   }
 
-  // No merge candidate (or auto-merge disabled): create a new memory.
+  // No merge candidate (or auto-merge disabled, or the merge write didn't
+  // persist): create a new memory.
   const embedding = await generateEmbedding(trimmed, ctx.embeddingOptions);
   ctx.vaultCache.set(trimmed, embedding);
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -253,11 +260,14 @@ async function tryConsolidate(
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
+    // Write didn't persist (race or caught error) — fall through to create
+    // rather than reporting a phantom merge with an optimistic +1.
+    if (!updated) return null;
     return {
       action: "merge",
       memoryId: decision.targetId,
       targetId: decision.targetId,
-      proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
+      proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
     };
   }
 
@@ -286,11 +296,14 @@ async function tryConsolidate(
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
+    // Write didn't persist (race or caught error) — fall through to create
+    // rather than reporting a phantom update with an optimistic +1.
+    if (!updated) return null;
     return {
       action: "update",
       memoryId: decision.targetId,
       targetId: decision.targetId,
-      proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
+      proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
     };
   }
 
