@@ -545,12 +545,34 @@ export type SkeletonRaw = {
   content?: string | null;
 };
 
+/** Project a raw row (`unsafeFetchRaw` returns `SELECT "history".*`, i.e. ALL columns incl the heavy
+ *  `vector`/`chunks`) down to only the narrow skeleton fields, so the accumulated array never retains
+ *  embeddings. Each page's full raw rows are GC'd after this map. */
+function narrowSkeletonRow(raw: Record<string, unknown>): SkeletonRaw {
+  return {
+    id: raw.id as string,
+    message_id: raw.message_id as number,
+    conversation_id: raw.conversation_id,
+    role: raw.role as ChatRole,
+    created_at: raw.created_at as number,
+    parent_message_id: (raw.parent_message_id as string | null) ?? null,
+    model: (raw.model as string | null) ?? null,
+    content: (raw.content as string | null) ?? null,
+  };
+}
+
 /**
  * Read a whole conversation's rows in keyset-paginated chunks via `unsafeFetchRaw` (raw objects, no
  * Model instantiation), ascending. A single unbounded `.query().fetch()` OOMs the OPFS-SQLite adapter
- * on large threads — `sqlite3_step()` returns `SQLITE_NOMEM` materializing the full result set (rows
- * carry big embedding columns), which blanks the chat (#4139). Chunking bounds peak to one page and,
- * via `unsafeFetchRaw`, avoids polluting the RecordCache with a Model per row (also #4142).
+ * on large threads — `sqlite3_step()` returns `SQLITE_NOMEM` materializing the full result set at
+ * once, which blanks the chat (#4139). `Q.take(pageSize)` bounds each SQLite step to one page.
+ *
+ * Memory: `unsafeFetchRaw` compiles to `select "history".*`, so each page's raw rows carry EVERY
+ * column at runtime (incl. the heavy `vector`/`chunks` JSON) — `SkeletonRaw` is only a compile-time
+ * type. We therefore project each row to the narrow skeleton fields via {@link narrowSkeletonRow}
+ * before accumulating, so the returned array holds ~8 small fields per row (not the embeddings) and
+ * each page's full rows are GC'd. The unavoidable transient is one page's worth (`pageSize` rows) of
+ * full columns crossing the worker→main boundary per step; WatermelonDB has no column projection.
  *
  * Pages by a **keyset** cursor on the composite `(message_id, id)` — a deterministic TOTAL order.
  * Keyset (not `Q.skip` offset) is required for correctness: this reads the whole thread across
@@ -559,6 +581,12 @@ export type SkeletonRaw = {
  * keyset cursor is immune — rows before the cursor can't move it — and the composite key also makes
  * legacy DUPLICATE `message_id`s (count-based assignment + deletes, see {@link getMessagesPageOp})
  * safe: `id` is the unique tiebreaker, so no row is skipped or returned twice at a page boundary.
+ *
+ * NOTE (perf, #4139 follow-up): `message_id` is not indexed on `history`, so each page re-scans +
+ * re-sorts the conversation's rows. Acceptable here (runs in the worker, once on open, and the
+ * alternative single `.fetch()` OOMs) — a composite `(conversation_id, message_id)` index would make
+ * each page an index range scan, but WatermelonDB's schema can't declare composite indexes, so that's
+ * a separate schema/raw-index change.
  */
 export async function fetchThreadSkeletonRawPaged(
   collection: Collection<Message>,
@@ -581,13 +609,13 @@ export async function fetchThreadSkeletonRawPaged(
     }
     const page = (await collection
       .query(...clauses, Q.sortBy("message_id", Q.asc), Q.sortBy("id", Q.asc), Q.take(pageSize))
-      .unsafeFetchRaw()) as SkeletonRaw[];
+      .unsafeFetchRaw()) as Array<Record<string, unknown>>;
 
     if (page.length === 0) break;
-    all.push(...page);
+    for (const raw of page) all.push(narrowSkeletonRow(raw)); // drop heavy columns before retaining
     if (page.length < pageSize) break;
 
-    const last = page[page.length - 1];
+    const last = all[all.length - 1];
     cursor = { messageId: last.message_id, id: last.id };
   }
   return all;
