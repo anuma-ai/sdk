@@ -81,6 +81,48 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
   return last as T;
 }
 
+/**
+ * HTTP-level failure from the embeddings endpoint, carrying the status code so
+ * callers can distinguish a permanent client error (401/402/403) from a
+ * transient one. The generated client exposes the status on `response.response`
+ * but the previous bare `Error` discarded it, forcing bulk callers to treat a
+ * standing 402 the same as a one-off 5xx.
+ */
+export class EmbeddingHttpError extends Error {
+  readonly status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "EmbeddingHttpError";
+    this.status = status;
+  }
+}
+
+/**
+ * A non-retryable client error that fails identically for every message in a
+ * bulk pass — auth (401), payment / out-of-credits (402), forbidden (403).
+ * A corpus walk must abort the whole pass on these instead of re-firing one
+ * request per message: a 402 persists nothing, so the walk would otherwise
+ * repeat the full storm every session/import (the prod embeddings-402 flood).
+ */
+export function isFatalEmbeddingError(err: unknown): boolean {
+  return (
+    err instanceof EmbeddingHttpError &&
+    (err.status === 401 || err.status === 402 || err.status === 403)
+  );
+}
+
+/**
+ * Build an EmbeddingHttpError from a failed postApiV1Embeddings response,
+ * preserving the server's error message and the HTTP status.
+ */
+function embeddingErrorFrom(response: { error?: unknown; response?: Response }): EmbeddingHttpError {
+  const message =
+    typeof response.error === "object" && response.error && "error" in response.error
+      ? (response.error as { error: string }).error
+      : "API embedding failed";
+  return new EmbeddingHttpError(message, response.response?.status);
+}
+
 export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
@@ -121,11 +163,7 @@ export async function generateEmbedding(
   );
 
   if (response.error) {
-    throw new Error(
-      typeof response.error === "object" && response.error && "error" in response.error
-        ? (response.error as { error: string }).error
-        : "API embedding failed"
-    );
+    throw embeddingErrorFrom(response);
   }
 
   if (!response.data?.data?.[0]?.embedding) {
@@ -174,11 +212,7 @@ async function generateEmbeddingsBatch(
   );
 
   if (response.error) {
-    throw new Error(
-      typeof response.error === "object" && response.error && "error" in response.error
-        ? (response.error as { error: string }).error
-        : "API embedding failed"
-    );
+    throw embeddingErrorFrom(response);
   }
 
   if (!response.data?.data) {
@@ -409,6 +443,9 @@ export async function embedAllMessages(
         await updateMessageEmbeddingOp(ctx, message.uniqueId, embedding, embeddingModel);
         embeddedCount++;
       } catch (error) {
+        // 401/402/403 recurs for every remaining message and persists nothing —
+        // abort the whole pass rather than re-firing one request per message.
+        if (isFatalEmbeddingError(error)) throw error;
         getLogger().error(`Failed to embed message ${message.uniqueId}:`, error);
       }
     }
@@ -590,6 +627,7 @@ export async function chunkAndEmbedAllMessages(
         }
       }
     } catch (error) {
+      if (isFatalEmbeddingError(error)) throw error;
       getLogger().error("Failed to batch-embed short messages:", error);
     }
   }
@@ -610,6 +648,7 @@ export async function chunkAndEmbedAllMessages(
       await updateMessageChunksOp(ctx, msg.uniqueId, messageChunks, embeddingModel);
       embeddedCount++;
     } catch (error) {
+      if (isFatalEmbeddingError(error)) throw error;
       getLogger().error(`Failed to embed message ${msg.uniqueId}:`, error);
     }
   }

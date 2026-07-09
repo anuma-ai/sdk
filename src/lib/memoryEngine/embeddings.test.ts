@@ -27,7 +27,13 @@ import {
 } from "../db/chat/operations";
 import type { StoredConversation, StoredMessage } from "../db/chat/types";
 
-import { embedAllMessages, generateEmbedding, generateEmbeddings } from "./embeddings";
+import {
+  EmbeddingHttpError,
+  embedAllMessages,
+  generateEmbedding,
+  generateEmbeddings,
+  isFatalEmbeddingError,
+} from "./embeddings";
 import { PiiRedactor } from "../pii/redactor";
 
 /** text → deterministic embedding the fake API returns. */
@@ -163,6 +169,21 @@ describe("generateEmbedding", () => {
     await expect(generateEmbedding("text", { apiKey: "k", baseUrl: BASE })).rejects.toThrow(
       "API embedding failed"
     );
+  });
+
+  it("throws an EmbeddingHttpError carrying the HTTP status on a 402", async () => {
+    stubFetchError(402, { error: "insufficient balance" });
+    await expect(
+      generateEmbedding("text", { apiKey: "k", baseUrl: BASE })
+    ).rejects.toMatchObject({ status: 402, message: "insufficient balance" });
+  });
+
+  it("does not retry a 402 (non-retryable) — one request, not EMBED_MAX_ATTEMPTS", async () => {
+    const fetchMock = stubFetchError(402, { error: "insufficient balance" });
+    await expect(generateEmbedding("text", { apiKey: "k", baseUrl: BASE })).rejects.toBeInstanceOf(
+      EmbeddingHttpError
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("throws when the API returns no embedding payload", async () => {
@@ -395,5 +416,38 @@ describe("embedAllMessages content filtering", () => {
 
     expect(count).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("aborts the whole pass on a 402 instead of re-firing per message (the prod storm)", async () => {
+    const fetchMock = stubFetchError(402, { error: "insufficient balance" });
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "m1", content: "first message plenty long to embed" }),
+      makeMessage({ uniqueId: "m2", content: "second message plenty long to embed" }),
+      makeMessage({ uniqueId: "m3", content: "third message plenty long to embed" }),
+    ]);
+
+    // The pass throws the fatal error rather than swallowing it per-message,
+    // and stops after the FIRST failed request (no walk over the corpus).
+    await expect(embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).rejects.toBeInstanceOf(
+      EmbeddingHttpError
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("isFatalEmbeddingError", () => {
+  it("is true for auth/payment/forbidden EmbeddingHttpErrors (non-retryable, corpus-wide)", () => {
+    for (const status of [401, 402, 403]) {
+      expect(isFatalEmbeddingError(new EmbeddingHttpError("x", status))).toBe(true);
+    }
+  });
+
+  it("is false for transient statuses, unknown status, and non-EmbeddingHttpErrors", () => {
+    expect(isFatalEmbeddingError(new EmbeddingHttpError("x", 429))).toBe(false);
+    expect(isFatalEmbeddingError(new EmbeddingHttpError("x", 500))).toBe(false);
+    expect(isFatalEmbeddingError(new EmbeddingHttpError("x", undefined))).toBe(false);
+    expect(isFatalEmbeddingError(new Error("plain"))).toBe(false);
+    expect(isFatalEmbeddingError(undefined)).toBe(false);
   });
 });
