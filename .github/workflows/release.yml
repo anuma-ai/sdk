@@ -67,13 +67,8 @@ jobs:
         # npm is already complete — recreate the Release by deleting the tag +
         # Release and re-running.
         # Toolchain pinned to exact versions for reproducibility (bump manually).
-        # NOTE: conventional-changelog-conventionalcommits is pinned to 9.x on
-        # purpose. semantic-release@25 ships commit-analyzer@13 /
-        # release-notes-generator@14, which use conventional-changelog-writer@8 +
-        # conventional-commits-parser@6. The preset's 10.x line targets the next
-        # writer/parser generation: with 10.x the version bump still works but the
-        # release-notes writer silently emits an EMPTY changelog (header only, no
-        # Features/Bug Fixes). Keep this at 9.x until the plugins move up a major.
+        # conventionalcommits stays on 9.x: 10.x breaks release notes (empty
+        # changelog) with release-notes-generator@14.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
