@@ -1074,7 +1074,7 @@ function createSlackSearchMessagesTool(callProxy: SlackProxyCaller): ToolConfig 
     function: {
       name: "slack_search_messages",
       description:
-        "Search recent messages across the user's Slack channels and direct messages, or within a single channel when 'channel' is given. Filter by any combination of 'query' (words the text must contain), 'from_user' (the author), and 'mentions' (who the message @-mentions) -- at least one is required. Only recent history is scanned (a bounded set of conversations), so this surfaces recent messages rather than the full archive.",
+        "Search recent messages across the user's Slack channels and direct messages, or within a single channel when 'channel' is given. Filter by any combination of 'query' (words the text must contain), 'from_user' (the author), and 'mentions' (who the message @-mentions) -- at least one is required. Only recent history is scanned (a bounded set of conversations), so this surfaces recent messages rather than the full archive. Use this to find messages by KEYWORD or TOPIC across conversations. Do NOT use it to read the latest/last message from a specific person or channel, or to read a specific conversation you already know: for the last message from a person, call slack_list_dms with with_user to get the DM id then slack_get_channel_history on it; for a channel, call slack_get_channel_history directly. Search fans out across many conversations and is heavily rate-limited, so a single targeted read is faster and more reliable.",
       parameters: {
         type: "object",
         properties: {
@@ -1123,7 +1123,7 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_dms",
       description:
-        "List the user's Slack direct messages and group DMs, or find the DM with a specific person. Returns two separate lists: 'direct_messages' (1:1 conversations, each with 'name' = the other person) and 'group_dms' (group conversations, each with 'members' = the member names). When showing these to the user, present them as TWO separate bulleted lists -- a 'Direct messages' list (by the other person's name) and a 'Group DMs' list (by the member names) -- by name only, and never show the conversation ids. To show or read the conversation with one person, call this with with_user=<name or id> to get that conversation's id, then call slack_get_channel_history with that id to read the messages. Do NOT use slack_search_messages to find a person's DM conversation -- use with_user here instead. Listing all DMs (no with_user) returns the 5 MOST RECENT by default (most recent first, like the Slack sidebar, with empty conversations excluded), split across 'direct_messages' and 'group_dms'; pass a larger 'limit' to get more. The conversation id is only for passing to slack_get_channel_history to read a conversation.",
+        "List the user's Slack direct messages and group DMs, or find the DM with a specific person. Returns two separate lists: 'direct_messages' (1:1 conversations, each with 'name' = the other person) and 'group_dms' (group conversations, each with 'members' = the member names). When showing these to the user, present them as TWO separate bulleted lists -- a 'Direct messages' list (by the other person's name) and a 'Group DMs' list (by the member names) -- by name only, and never show the conversation ids. To show or read the conversation with one person, call this with with_user=<name or id> to get that conversation's id, then call slack_get_channel_history with that id to read the messages. For the latest message or recent messages from a specific person, the flow is: call this with with_user, take the returned id, then call slack_get_channel_history on it (use limit: 1 for just the last message). Do NOT use slack_search_messages to find a person's DM conversation or to read their latest message -- use with_user here instead. Listing all DMs (no with_user) returns the 5 MOST RECENT by default (most recent first, like the Slack sidebar, with empty conversations excluded), split across 'direct_messages' and 'group_dms'; pass a larger 'limit' to get more. The conversation id is only for passing to slack_get_channel_history to read a conversation.",
       parameters: {
         type: "object",
         properties: {
@@ -1177,7 +1177,7 @@ function createSlackGetChannelHistoryTool(callProxy: SlackProxyCaller): ToolConf
     function: {
       name: "slack_get_channel_history",
       description:
-        "Fetch recent messages from a single Slack channel by id. Best-effort and heavily rate-limited (~1 request per minute for the app), so use it sparingly for a specific channel.",
+        "Fetch recent messages from a single Slack channel by id. Best-effort and heavily rate-limited (~1 request per minute for the app), so use it sparingly for a specific channel. This is the right tool to read the most recent messages (including just the latest one with limit: 1) from a known channel or DM id, and should be PREFERRED over slack_search_messages whenever the conversation to read is already known or identified.",
       parameters: {
         type: "object",
         properties: {
