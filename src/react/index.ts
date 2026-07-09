@@ -296,6 +296,7 @@ export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
 export { useProjects } from "./useProjects";
 // Memory vault
 export {
+  clearMemoryTopicsOverrideOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
@@ -305,6 +306,7 @@ export {
   getAllVaultMemoryContentsOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  setMemoryEntitiesOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
   updateVaultMemoryEmbeddingOp,

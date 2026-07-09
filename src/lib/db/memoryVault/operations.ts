@@ -3,7 +3,9 @@ import { Q } from "@nozbe/watermelondb";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils";
 import {
+  type EntityInput,
   type EntityOperationsContext,
+  linkMemoryEntitiesOp,
   unlinkAllMemoryEntitiesForUserOp,
   unlinkMemoryEntitiesOp,
 } from "../entities/operations";
@@ -87,6 +89,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeStart: memory.eventTimeStart ?? null,
     eventTimeEnd: memory.eventTimeEnd ?? null,
     eventTimeKind: memory.eventTimeKind ?? null,
+    topicsUserManaged: memory.topicsUserManaged ?? false,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -350,9 +353,10 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     eventTimeStart: (raw.event_time_start as number | null) ?? null,
     eventTimeEnd: (raw.event_time_end as number | null) ?? null,
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
+    // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
+    topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
-    // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
   };
 }
@@ -498,6 +502,9 @@ export async function updateVaultMemoryOp(
           r._setRaw("event_time_end", opts.eventTime.end ?? null);
           r._setRaw("event_time_kind", opts.eventTime.kind ?? null);
         }
+        if (opts.topicsUserManaged !== undefined) {
+          r._setRaw("topics_user_managed", opts.topicsUserManaged);
+        }
         if (opts.preserveUpdatedAt) {
           // WatermelonDB's record.update() bumps updated_at automatically.
           // Restore the original so re-observation doesn't double-count
@@ -517,6 +524,96 @@ export async function updateVaultMemoryOp(
   } catch {
     return null;
   }
+}
+
+/**
+ * Replace a memory's topic (entity) links with a user-chosen set and mark the
+ * memory `topics_user_managed` so auto-extraction stops touching its links.
+ * Replace semantics: the given `entities` become the memory's complete topic
+ * set (pass `[]` to clear all topics — the memory stays user-managed and
+ * unclustered). Requires `ctx.entityCtx`. Preserves `updated_at` so a topic
+ * edit doesn't inflate the recency multiplier.
+ */
+export async function setMemoryEntitiesOp(
+  ctx: VaultMemoryOperationsContext,
+  memoryId: string,
+  entities: ReadonlyArray<EntityInput>
+): Promise<StoredVaultMemory | null> {
+  const entityCtx = ctx.entityCtx;
+  if (!entityCtx) {
+    throw new Error("setMemoryEntitiesOp requires ctx.entityCtx (entity collections)");
+  }
+  let record: VaultMemory;
+  try {
+    record = await ctx.vaultMemoryCollection.find(memoryId);
+  } catch {
+    return null;
+  }
+  if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
+
+  // 1) Mark user-managed FIRST, re-checking soft-delete inside the writer — a
+  // delete that committed after the probe must win (mirrors updateVaultMemoryOp),
+  // so we never attach links to a deleted memory. Setting the flag before
+  // touching links also means a later link failure still leaves the memory
+  // user-managed rather than silently reclaimable by auto-extraction.
+  let stale = false;
+  const originalUpdatedAt = record.updatedAt.getTime();
+  await ctx.database.write(async () => {
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+      stale = true;
+      return;
+    }
+    await record.update((r) => {
+      r._setRaw("topics_user_managed", true);
+      r._setRaw("updated_at", originalUpdatedAt);
+    });
+  });
+  if (stale) return null;
+
+  // 2) Add the new links first (idempotent), THEN drop only the stale ones.
+  // This ordering means a transient failure can leave at most EXTRA topics
+  // (old ∪ new) — never zero — so a topic edit can't wipe a memory's topics
+  // (the delete-all-then-relink order could, on a mid-op failure).
+  const linked =
+    entities.length > 0 ? await linkMemoryEntitiesOp(entityCtx, memoryId, entities) : [];
+  const keep = new Set(linked.map((e) => e.uniqueId));
+  const existing = await entityCtx.memoryEntityCollection
+    .query(Q.where("memory_id", memoryId))
+    .fetch();
+  const staleLinks = existing.filter((l) => !keep.has(String(l.entityId)));
+  if (staleLinks.length > 0) {
+    await ctx.database.write(async () => {
+      await ctx.database.batch(...staleLinks.map((l) => l.prepareDestroyPermanently()));
+    });
+  }
+
+  return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
+ * auto-extraction resumes owning its links. Existing links are left in place
+ * (the next extraction pass may add to them). Preserves `updated_at`.
+ */
+export async function clearMemoryTopicsOverrideOp(
+  ctx: VaultMemoryOperationsContext,
+  memoryId: string
+): Promise<boolean> {
+  let record: VaultMemory;
+  try {
+    record = await ctx.vaultMemoryCollection.find(memoryId);
+  } catch {
+    return false;
+  }
+  if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+  const originalUpdatedAt = record.updatedAt.getTime();
+  await ctx.database.write(async () => {
+    await record.update((r) => {
+      r._setRaw("topics_user_managed", false);
+      r._setRaw("updated_at", originalUpdatedAt);
+    });
+  });
+  return true;
 }
 
 export async function deleteVaultMemoryOp(

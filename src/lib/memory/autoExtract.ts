@@ -13,13 +13,41 @@
  * Spec: see `tasks/hackathon/auto-extraction-prompt.md`.
  */
 
+import { Q } from "@nozbe/watermelondb";
+
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
+import { VaultMemory } from "../db/memoryVault/models.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
+
+/**
+ * True if the user has taken manual control of this memory's topics, so
+ * auto-extraction must not modify its entity links. Uses a query (not `find`)
+ * to distinguish "row absent" from "read failed": an absent row is a fresh
+ * memory → not user-managed (link proceeds); a genuine read error fails CLOSED
+ * (returns true → skip linking) so a transient adapter/schema fault can never
+ * graft extracted topics onto a memory we couldn't verify.
+ */
+async function isMemoryTopicsUserManaged(
+  ctx: EntityOperationsContext,
+  memoryId: string
+): Promise<boolean> {
+  try {
+    const rows = await ctx.database
+      .get<VaultMemory>(VaultMemory.table)
+      .query(Q.where("id", memoryId))
+      .fetch();
+    // Absent → fresh/unknown memory, safe to auto-link.
+    return rows[0]?.topicsUserManaged === true;
+  } catch {
+    // Read failed → fail closed: treat as user-managed and skip linking.
+    return true;
+  }
+}
 
 // GLOBAL default for ALL background extraction (not gated on privacy mode):
 // every conversation's auto-extract runs on this open-weights model
@@ -492,7 +520,13 @@ export async function extractAndRetain(
       // a failure here doesn't roll back the retain.
       if (options.entityCtx && candidate.entities.length > 0) {
         try {
-          await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities);
+          // Respect user-managed topics: if this candidate auto-merged into an
+          // existing memory whose topics the user has taken manual control of,
+          // don't graft extracted entities onto it. (A freshly created memory
+          // is never user-managed, so this only skips the merge case.)
+          if (!(await isMemoryTopicsUserManaged(options.entityCtx, result.memoryId))) {
+            await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities);
+          }
         } catch (err) {
           // Entity linking is auxiliary — don't kill the rest of the batch.
           log.warn("[memory/extract] linkMemoryEntitiesOp failed", err);

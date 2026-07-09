@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v33**
+Current version: **v34**
 
 ```mermaid
 graph LR
@@ -116,6 +116,7 @@ graph LR
 | `event_time_start` | number | ✓ | ✓ |
 | `event_time_end` | number |  | ✓ |
 | `event_time_kind` | string |  | ✓ |
+| `topics_user_managed` | boolean |  | ✓ |
 
 ## entity
 
@@ -208,6 +209,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v34 | Added `topics_user_managed` to `memory_vault` |
 | v33 | Added `embedding_model` to `memory_vault` |
 | v32 | Added `pinned_at` to `conversations` |
 | v31 | Added `user_id` to `memory_entity`; `UPDATE memory_entity SET user_id = (SELECT user_id FROM memory_vault WHERE memory_vault.id = memory_entity.memory_id) WHERE user_id IS NULL;` |

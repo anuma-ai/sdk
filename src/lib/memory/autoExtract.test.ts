@@ -16,6 +16,17 @@ import type { PiiRedactor } from "../pii/redactor";
 
 import { extractAndRetain, extractFacts, type AutoExtractMessage } from "./autoExtract";
 
+/**
+ * Minimal entityCtx whose vault query returns no rows — the user-managed-topics
+ * guard reads memory_vault to decide whether to skip linking; an empty result
+ * means "fresh/not user-managed", so auto-linking proceeds as normal.
+ */
+function freshEntityCtx() {
+  return {
+    database: { get: () => ({ query: () => ({ fetch: async () => [] }) }) },
+  } as never;
+}
+
 function mockFetch(content: string, ok = true): typeof fetch {
   return vi.fn().mockResolvedValue({
     ok,
@@ -557,7 +568,7 @@ describe("extractAndRetain", () => {
       memoryId: "mem-1",
       proofCount: 1,
     });
-    const entityCtx = { stub: true } as never;
+    const entityCtx = freshEntityCtx();
 
     await extractAndRetain(
       messages,
@@ -576,6 +587,43 @@ describe("extractAndRetain", () => {
     expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledWith(entityCtx, "mem-1", [
       { name: "Sara", kind: "person" },
     ]);
+  });
+
+  it("skips entity-linking when the retained memory is user-managed", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Has a partner named Sara",
+          type: "relationship",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [{ name: "Sara", kind: "person" }],
+        },
+      ],
+    };
+    // The fact auto-merged into an existing memory the user has taken over.
+    vi.mocked(retain).mockResolvedValue({
+      action: "merge",
+      memoryId: "mem-managed",
+      proofCount: 2,
+    });
+    const userManagedCtx = {
+      database: {
+        get: () => ({ query: () => ({ fetch: async () => [{ topicsUserManaged: true }] }) }),
+      },
+    } as never;
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        entityCtx: userManagedCtx,
+      }
+    );
+
+    // Guard holds: the user's topics are not clobbered by auto-extraction.
+    expect(vi.mocked(linkMemoryEntitiesOp)).not.toHaveBeenCalled();
   });
 
   it("does not call linkMemoryEntitiesOp when entityCtx is omitted", async () => {
@@ -658,7 +706,7 @@ describe("extractAndRetain", () => {
       { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
       {
         extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
-        entityCtx: {} as never,
+        entityCtx: freshEntityCtx(),
       }
     );
 
