@@ -12,7 +12,7 @@
     ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
     ["@semantic-release/exec", {
       "prepareCmd": "npm version ${nextRelease.version} --no-git-tag-version --allow-same-version && pnpm --filter \"./packages/agents/*\" exec npm version ${nextRelease.version} --no-git-tag-version --allow-same-version",
-      "publishCmd": "npm publish --access public && pnpm --filter \"./packages/agents/*\" publish --access public --no-git-checks"
+      "publishCmd": "node scripts/publish-packages.mjs ${nextRelease.version}"
     }],
     ["@semantic-release/github", { "successComment": false, "failComment": false }]
   ]

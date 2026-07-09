@@ -8,7 +8,7 @@ To learn more, check out the [Documentation](https://docs.anuma.ai/).
 ## Installation
 
 ```bash
-npm install @anuma/sdk@next
+npm install @anuma/sdk
 ```
 
 ## Getting Started

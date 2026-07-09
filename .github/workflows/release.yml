@@ -41,12 +41,14 @@ jobs:
         run: pnpm run build
 
       - name: Release
-        # semantic-release tags + pushes vX.Y.Z and creates the GitHub Release
-        # BEFORE @semantic-release/exec runs npm/pnpm publish. If publishing
-        # fails partway (registry hiccup, partial lockstep publish), the tag may
-        # be ahead of npm. Recovery is safe: re-run this workflow (or dispatch
-        # it) — semantic-release sees the existing vX.Y.Z tag and re-publishes
-        # the same version without cutting a new one.
+        # semantic-release pushes the vX.Y.Z git tag BEFORE the publish step
+        # runs (scripts/publish-packages.mjs). If publishing fails partway, the
+        # tag is left ahead of npm — and a plain re-run will NOT re-publish,
+        # because semantic-release sees the existing tag and reports "no relevant
+        # changes". To recover: delete the tag and its GitHub Release, then re-run
+        # this workflow. semantic-release recomputes the same version and the
+        # publish script (idempotent) republishes only the packages missing from
+        # npm.
         # Toolchain pinned to exact versions for reproducibility (bump manually).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
