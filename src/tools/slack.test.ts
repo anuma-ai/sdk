@@ -291,6 +291,49 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[1][1]?.channel).toBe("C9");
   });
 
+  test("slack_search_messages resolves a '#name' channel filter to its id", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C9", name: "anuma-all" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [{ text: "deploy done", user: "bob", ts: "1.1" }],
+        });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      query: "deploy",
+      channel: "#anuma-all",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "deploy done", user: "bob", ts: "1.1", channel: "anuma-all" }]);
+    const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
+    expect(historyCalls).toHaveLength(1);
+    expect(historyCalls[0][1]?.channel).toBe("C9");
+  });
+
+  test("slack_search_messages returns a clear error for an unknown channel filter", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C9", name: "anuma-all" }] });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_search_messages, {
+      query: "deploy",
+      channel: "does-not-exist",
+    })) as unknown;
+    expect(result).toContain('no Slack channel named "does-not-exist"');
+    // An unresolved filter never fans out to history.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
+  });
+
   test("slack_search_messages fans out across at most MAX_SEARCH_CHANNELS conversations", async () => {
     const channels = Array.from({ length: 12 }, (_, i) => ({ id: `C${i}`, name: `ch${i}` }));
     const callProxy = vi.fn<SlackProxyCaller>();
@@ -435,12 +478,12 @@ describe("createSlackTools", () => {
     });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_get_channel_history, {
-      channel: "C1",
+      channel: "C08GENERAL",
       limit: 5,
     })) as Array<Record<string, unknown>>;
     expect(result).toEqual([{ text: "hi", user: "U1", ts: "1.0" }]);
     expect(callProxy.mock.calls[0][0]).toBe("/conversations.history");
-    expect(callProxy.mock.calls[0][1]?.channel).toBe("C1");
+    expect(callProxy.mock.calls[0][1]?.channel).toBe("C08GENERAL");
     expect(callProxy.mock.calls[0][1]?.limit).toBe(5);
   });
 
@@ -465,7 +508,7 @@ describe("createSlackTools", () => {
     });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_get_channel_history, {
-      channel: "C1",
+      channel: "C08GENERAL",
     })) as Array<Record<string, unknown>>;
     expect(result).toEqual([{ user: "Alice", text: "hey @Bob ping", ts: "1.0" }]);
   });
@@ -485,7 +528,7 @@ describe("createSlackTools", () => {
     });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_get_channel_history, {
-      channel: "C1",
+      channel: "C08GENERAL",
     })) as Array<Record<string, unknown>>;
     // `<#C1|general>` -> `#general`; unmapped `<@U9>` -> `@U9`; author -> username fallback.
     expect(result).toEqual([{ user: "ghost", text: "see #general and @U9", ts: "1.0" }]);
@@ -554,9 +597,86 @@ describe("createSlackTools", () => {
       .mockResolvedValueOnce(proxyResult({ ok: false, error: "ratelimited" }, 429));
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_get_channel_history, {
-      channel: "C1",
+      channel: "C08GENERAL",
     })) as unknown;
     expect(result).toBe(SLACK_PENDING_APPROVAL_NOTE);
+  });
+
+  test("slack_get_channel_history resolves a bare channel name to its id via conversations.list", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C111", name: "anuma-all" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({ ok: true, messages: [{ text: "hi", user: "U1", ts: "1.0" }] });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_channel_history, {
+      channel: "anuma-all",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "hi", user: "U1", ts: "1.0" }]);
+    // history must be scoped to the resolved id, not the raw name Slack would reject.
+    const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
+    expect(historyCalls).toHaveLength(1);
+    expect(historyCalls[0][1]?.channel).toBe("C111");
+  });
+
+  test("slack_get_channel_history strips a leading '#' before resolving the name", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C111", name: "anuma-all" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({ ok: true, messages: [{ text: "hi", user: "U1", ts: "1.0" }] });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_channel_history, {
+      channel: "#anuma-all",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "hi", user: "U1", ts: "1.0" }]);
+    const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
+    expect(historyCalls[0][1]?.channel).toBe("C111");
+  });
+
+  test("slack_get_channel_history passes a channel id straight through without a list lookup", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.history") {
+        return proxyResult({ ok: true, messages: [{ text: "hi", user: "U1", ts: "1.0" }] });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_channel_history, {
+      channel: "C08XYZ1234",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ text: "hi", user: "U1", ts: "1.0" }]);
+    // An id resolves locally, so no name lookup is issued.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.list")).toBe(false);
+    expect(callProxy.mock.calls[0][0]).toBe("/conversations.history");
+    expect(callProxy.mock.calls[0][1]?.channel).toBe("C08XYZ1234");
+  });
+
+  test("slack_get_channel_history returns a clear error for an unknown channel name", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C111", name: "anuma-all" }] });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_channel_history, {
+      channel: "does-not-exist",
+    })) as unknown;
+    expect(result).toContain('no Slack channel named "does-not-exist"');
+    // A name that doesn't resolve never reaches history.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
   });
 
   test("slack_get_thread_replies returns the pending-approval note on a 429", async () => {

@@ -710,6 +710,31 @@ async function listAllConversations(
 }
 
 /**
+ * Resolve a model-supplied channel reference to a Slack channel id. An id
+ * (C…/G…/D…) passes through; a leading '#' is stripped; anything else is treated
+ * as a channel NAME and looked up case-insensitively via the paginating
+ * conversations.list. Returns { id } on success, or an error string (the
+ * connector/auth error propagated from the list call, or a clear "no channel
+ * named X" when the name does not resolve). This is the safety net that lets
+ * "summarize #anuma-all" work whether the model passes the id, the bare name, or
+ * "#name", and without requiring a prior slack_list_channels call.
+ */
+async function resolveChannelId(
+  callProxy: SlackProxyCaller,
+  ref: string
+): Promise<{ id: string } | string> {
+  const trimmed = ref.trim().replace(/^#/, "");
+  if (SLACK_CHANNEL_ID_RE.test(trimmed)) return { id: trimmed };
+  const channels = await listAllConversations(callProxy, "public_channel,private_channel");
+  if (typeof channels === "string") return channels;
+  const match = channels.find((c) => c.name?.toLowerCase() === trimmed.toLowerCase());
+  if (!match) {
+    return `Error: no Slack channel named "${ref}" in this workspace (checked the channels you're a member of).`;
+  }
+  return { id: match.id };
+}
+
+/**
  * conversations.list returns public/private channels BEFORE DMs, so a naive
  * `slice(0, cap)` in any workspace with more than `cap` channels never reaches
  * the trailing `im`/`mpim` entries — DMs would silently drop out of search.
@@ -859,6 +884,8 @@ async function labelForChannel(
 
 /** A Slack user id: `U…` for people, `W…` for Enterprise Grid accounts. */
 const SLACK_USER_ID_RE = /^[UW][A-Z0-9]{6,}$/;
+/** Slack channel/DM ids: public/private channel (C), group DM (G), 1:1 DM (D). Ids are uppercase. */
+const SLACK_CHANNEL_ID_RE = /^[CDG][A-Z0-9]{6,}$/;
 /** References the model uses for the authenticated user. */
 const SELF_REFS = new Set(["me", "myself", "self", "i"]);
 
@@ -972,8 +999,19 @@ async function searchSlackMessages(
 
   let targets: SlackChannel[];
   if (args.channel) {
-    const found = allChannels.find((c) => c.id === args.channel || c.name === args.channel);
-    targets = [found ?? { id: args.channel, name: args.channel }];
+    const raw = args.channel.trim();
+    const bare = raw.replace(/^#/, "");
+    const found = allChannels.find(
+      (c) => c.id === raw || c.name?.toLowerCase() === bare.toLowerCase()
+    );
+    if (found) {
+      targets = [found];
+    } else if (SLACK_CHANNEL_ID_RE.test(bare)) {
+      // Looks like an id that conversations.list didn't return; try it directly.
+      targets = [{ id: bare, name: bare }];
+    } else {
+      return `Error: no Slack channel named "${args.channel}" in this workspace.`;
+    }
   } else {
     targets = interleaveChannelsAndDms(allChannels).slice(0, MAX_SEARCH_CHANNELS);
   }
@@ -1057,8 +1095,10 @@ async function getSlackChannelHistory(
   args: SlackGetChannelHistoryArgs
 ): Promise<Array<Record<string, unknown>> | string> {
   const limit = clampLimit(args.limit, 20, 1, 100);
+  const resolved = await resolveChannelId(callProxy, args.channel);
+  if (typeof resolved === "string") return resolved;
   const { status, json } = await callProxy("/conversations.history", {
-    channel: args.channel,
+    channel: resolved.id,
     limit,
   });
   const body = (json ?? null) as SlackConversationsHistoryResponse | null;
