@@ -6,6 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import { isSendableImageURL } from "../lib/chat/imageParts";
 import type { StreamResumeHandle } from "../lib/chat/resumeStream";
 import { StreamExpiredError } from "../lib/chat/resumeStream";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
@@ -226,7 +227,10 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
   // ai-portal doesn't support image_url in assistant messages for /chat/completions
   if (stored.role !== "assistant" && stored.files?.length) {
     for (const file of stored.files) {
-      if (file.url) {
+      // Only emit URLs the backend can actually scan (http(s)/data:image). A
+      // non-scannable ref (local file://, file: upload id, non-image data:) trips
+      // ai-portal's image_unscannable_blocked and hard-blocks every turn thereafter.
+      if (isSendableImageURL(file.url)) {
         content.push({
           type: "image_url",
           image_url: { url: file.url },

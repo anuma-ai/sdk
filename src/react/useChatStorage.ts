@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import { isSendableImageURL } from "../lib/chat/imageParts";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
   cleanupConversationSummary,
@@ -598,8 +599,11 @@ async function storedToLlmapiMessage(
   const imageParts: LlmapiMessage["content"] = [];
   if (stored.role !== "assistant" && stored.files?.length) {
     for (const file of stored.files) {
-      // First check if there's a direct url (user uploads with data URIs or external URLs)
-      if (file.url) {
+      // First check if there's a direct url the backend can scan (data:image or http(s)).
+      // A non-scannable url (local file://, non-image data:) must not be sent as an
+      // image_url — it trips ai-portal's image_unscannable_blocked and hard-blocks the
+      // whole turn — so fall through to sourceUrl/OPFS.
+      if (isSendableImageURL(file.url)) {
         imageParts.push({
           type: "image_url",
           image_url: { url: file.url },
