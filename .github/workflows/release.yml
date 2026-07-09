@@ -45,6 +45,17 @@ jobs:
       - name: Build SDK
         run: pnpm run build
 
+      - name: Build agent packages
+        # The root `tsup` build above only builds @anuma/sdk. The packages/agents/*
+        # packages are built here in dependency order (pnpm -r is topological), so
+        # every package's dist/*.d.ts exists before publish-packages.mjs publishes
+        # them. @anuma/agents-registry imports @anuma/agent-sentinel and
+        # @anuma/agent-haven; the publish script iterates readdirSync order (not
+        # topological), so without this pre-build registry's publish-time
+        # prepublishOnly dts build fails with "Cannot find module
+        # '@anuma/agent-sentinel'" when registry is built before its siblings.
+        run: pnpm -r build
+
       - name: Release
         # npm publishing runs in semantic-release's `prepare` step
         # (scripts/publish-packages.mjs via exec prepareCmd), which executes
