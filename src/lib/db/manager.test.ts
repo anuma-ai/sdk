@@ -96,6 +96,23 @@ describe("DatabaseManager adapter disposal (#4163)", () => {
     expect(adapters[0].dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("awaits async adapter teardown before resetDatabase resolves", async () => {
+    let torndown = false;
+    const mgr = makeManager({
+      dispose: () =>
+        new Promise<void>((resolve) =>
+          setTimeout(() => {
+            torndown = true;
+            resolve();
+          }, 10)
+        ),
+    });
+    mgr.getDatabase(WALLET_A);
+    await mgr.resetDatabase();
+
+    expect(torndown).toBe(true);
+  });
+
   it("does not throw when the adapter has no dispose method", () => {
     // opts present without a "dispose" key => factory yields adapters lacking dispose
     const mgr = makeManager({});
