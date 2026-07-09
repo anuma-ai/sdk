@@ -196,6 +196,9 @@ export class DatabaseManager {
         from: this.currentWalletAddress,
         to: walletAddress,
       });
+      // Release the old adapter's resources (e.g. terminate an OPFS-SQLite
+      // worker + free its exclusive SAHPool) before dropping the reference.
+      this.disposeAdapter(this.database);
       this.database = null;
     }
 
@@ -237,8 +240,42 @@ export class DatabaseManager {
       await db.write(async () => {
         await db.unsafeResetDatabase();
       });
+      this.disposeAdapter(db);
       this.database = null;
       this.currentWalletAddress = undefined;
+    }
+  }
+
+  /**
+   * Best-effort dispose of the adapter backing a Database, if it exposes one.
+   *
+   * OPFS/SQLite adapters use this to terminate their dedicated worker and release
+   * the exclusive SAHPool (+ WASM heap) they hold. The SDK only sees a generic
+   * `DatabaseAdapter`, so we probe `adapter.underlyingAdapter.dispose` rather than
+   * type it. Client-side implementations are refcounted + idempotent, so calling
+   * this is safe even when the adapter factory also disposes. Never throws; an
+   * async `dispose` rejection is swallowed (fire-and-forget) so callers in a
+   * synchronous path (e.g. `getDatabase`) don't block on worker teardown.
+   */
+  private disposeAdapter(db: Database): void {
+    try {
+      const underlying = (db.adapter as { underlyingAdapter?: unknown })?.underlyingAdapter as
+        | { dispose?: () => unknown }
+        | undefined;
+      const result = underlying?.dispose?.();
+      if (result && typeof (result as Promise<unknown>).then === "function") {
+        (result as Promise<unknown>).catch((error) =>
+          this.logger.warn?.("Adapter dispose failed", {
+            component: "DatabaseManager",
+            error,
+          })
+        );
+      }
+    } catch (error) {
+      this.logger.warn?.("Adapter dispose threw", {
+        component: "DatabaseManager",
+        error,
+      });
     }
   }
 
