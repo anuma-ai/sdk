@@ -350,6 +350,29 @@ describe("recall — lane selection (types)", () => {
     expect(result.memories.map((m) => m.kind)).toEqual(["fact", "chunk", "fact"]);
   });
 
+  it("suppresses a chunk whose message originated a surfaced fact (cross-lane dedup)", async () => {
+    // m1 was extracted from chunk "c1" (sourceChunkIds provenance), so "c1"
+    // must not ALSO surface in the chunk lane — otherwise the same content
+    // appears twice. "c2" is unrelated and survives. Exercises the real
+    // pipeline end-to-end (sourceChunkIds threaded through VaultSearchResult).
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      { ...makeMemory("m1", M1), sourceChunkIds: ["c1"] },
+      makeMemory("m2", M2),
+    ]);
+    vi.mocked(searchChunksOp).mockResolvedValue([
+      makeChunk("c1", "conv-1", 0.9),
+      makeChunk("c2", "conv-2", 0.8),
+    ]);
+
+    const result = await recall(QUERY, makeCtx(), { types: ["fact", "chunk"] });
+
+    const ids = result.memories.map((m) => m.id);
+    expect(ids).toContain("m1");
+    expect(ids).toContain("c2");
+    expect(ids).not.toContain("c1"); // suppressed by cross-lane dedup
+    expect(result.memories.find((m) => m.id === "c1")).toBeUndefined();
+  });
+
   it("skips RRF when one lane comes back empty (raw scores preserved)", async () => {
     // Both types requested, but no chunks match → fact lane scores pass
     // through un-quantized.

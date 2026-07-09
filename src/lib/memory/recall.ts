@@ -235,8 +235,17 @@ export async function recall(
   // by message id + text so passages from one message stay separate through
   // fusion. (chunkResults is already content-deduped, so this is 1:1.)
   const chunkKey = (r: ChunkSearchResult) => `chunk:${r.message.uniqueId}:${r.chunkText.trim()}`;
+  // Cross-lane dedup: drop a chunk whose message is the origin of a fact
+  // already surfaced in the fact lane — a fact and the chunk it was extracted
+  // from shouldn't both appear (previously they did, keyed in separate
+  // namespaces). Uses the fact's sourceChunkIds provenance, threaded through
+  // VaultSearchResult; no-op when no surfaced fact carries any.
+  const factSourceChunkIds = new Set(factResults.flatMap((r) => r.sourceChunkIds ?? []));
+  const dedupedChunkResults = factSourceChunkIds.size
+    ? chunkResults.filter((r) => !factSourceChunkIds.has(r.message.uniqueId))
+    : chunkResults;
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
-  const chunkRanking = chunkResults.map(chunkKey);
+  const chunkRanking = dedupedChunkResults.map(chunkKey);
   const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
 
   const byId = new Map<string, RankedMemory>();
@@ -247,7 +256,7 @@ export async function recall(
     m.scoreBreakdown.fused = r.similarity;
     byId.set(`fact:${r.uniqueId}`, m);
   }
-  for (const r of chunkResults) {
+  for (const r of dedupedChunkResults) {
     const m = toChunkMemory(r);
     const key = chunkKey(r);
     m.score = fused.get(key) ?? 0;

@@ -139,6 +139,10 @@ interface EmbeddedItem {
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /** Message ids this fact was extracted from — carried through to
+   * VaultSearchResult so recall() can suppress the originating chunk in the
+   * chunk lane (a fact and the chunk it came from shouldn't both surface). */
+  sourceChunkIds?: string[] | null;
 }
 
 /**
@@ -276,6 +280,7 @@ export function rankVaultMemories(
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
     eventTimeStart: item.eventTimeStart,
+    sourceChunkIds: item.sourceChunkIds,
     eventTimeEnd: item.eventTimeEnd,
     eventTimeKind: item.eventTimeKind,
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
@@ -326,6 +331,7 @@ export function rankVaultMemories(
       similarity: r.similarity,
       createdAt: item?.createdAt ?? item?.updatedAt,
       updatedAt: item?.updatedAt,
+      sourceChunkIds: item?.sourceChunkIds,
     };
   });
 }
@@ -447,6 +453,7 @@ export function rankFusedVaultMemories(
       createdAt: item.createdAt ?? item.updatedAt,
       updatedAt: item.updatedAt,
       eventTimeStart: item.eventTimeStart,
+      sourceChunkIds: item.sourceChunkIds,
       eventTimeEnd: item.eventTimeEnd,
       eventTimeKind: item.eventTimeKind,
     });
@@ -768,6 +775,7 @@ export async function rankFusedVaultMemoriesAsync(
         createdAt: orig?.createdAt,
         updatedAt: orig?.updatedAt,
         eventTimeStart: orig?.eventTimeStart,
+        sourceChunkIds: orig?.sourceChunkIds,
         eventTimeEnd: orig?.eventTimeEnd,
         eventTimeKind: orig?.eventTimeKind,
       };
@@ -946,6 +954,7 @@ export async function rankComposite(
         createdAt: item.createdAt ?? item.updatedAt,
         updatedAt: item.updatedAt,
         eventTimeStart: item.eventTimeStart,
+        sourceChunkIds: item.sourceChunkIds,
         eventTimeEnd: item.eventTimeEnd,
         eventTimeKind: item.eventTimeKind,
       };
@@ -971,6 +980,7 @@ export async function rankComposite(
           createdAt: item.createdAt ?? item.updatedAt,
           updatedAt: item.updatedAt,
           eventTimeStart: item.eventTimeStart,
+          sourceChunkIds: item.sourceChunkIds,
           eventTimeEnd: item.eventTimeEnd,
           eventTimeKind: item.eventTimeKind,
         });
@@ -1032,6 +1042,7 @@ export async function rankComposite(
         createdAt: orig?.createdAt,
         updatedAt: orig?.updatedAt,
         eventTimeStart: orig?.eventTimeStart,
+        sourceChunkIds: orig?.sourceChunkIds,
         eventTimeEnd: orig?.eventTimeEnd,
         eventTimeKind: orig?.eventTimeKind,
       };
@@ -1145,6 +1156,9 @@ export interface VaultSearchResult {
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /** Message ids this fact was extracted from (provenance). recall() uses
+   * these to suppress the originating chunk in the chunk lane. */
+  sourceChunkIds?: string[] | null;
 }
 
 /**
@@ -1273,6 +1287,7 @@ export async function searchVaultMemoriesWithSize(
     updatedAt: m.updatedAt,
     proofCount: m.proofCount,
     eventTimeStart: m.eventTimeStart,
+    sourceChunkIds: m.sourceChunkIds,
     eventTimeEnd: m.eventTimeEnd,
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
   }));
