@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # push tag + create GitHub Release
+  issues: write          # @semantic-release/github
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Generate API Client
+        run: pnpm run generate
+
+      - name: Build SDK
+        run: pnpm run build
+
+      - name: Release
+        # semantic-release tags + pushes vX.Y.Z and creates the GitHub Release
+        # BEFORE @semantic-release/exec runs npm/pnpm publish. If publishing
+        # fails partway (registry hiccup, partial lockstep publish), the tag may
+        # be ahead of npm. Recovery is safe: re-run this workflow (or dispatch
+        # it) — semantic-release sees the existing vX.Y.Z tag and re-publishes
+        # the same version without cutting a new one.
+        # Toolchain pinned to exact versions for reproducibility (bump manually).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npx --yes \
+            -p semantic-release@25.0.5 \
+            -p @semantic-release/commit-analyzer@13.0.1 \
+            -p @semantic-release/release-notes-generator@14.1.1 \
+            -p @semantic-release/exec@7.1.0 \
+            -p @semantic-release/github@12.0.9 \
+            -p conventional-changelog-conventionalcommits@10.2.1 \
+            semantic-release
