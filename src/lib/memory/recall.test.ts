@@ -392,6 +392,27 @@ describe("recall — lane selection (types)", () => {
     expect(ids).not.toContain("m2"); // cut by limit
   });
 
+  it("suppresses an origin chunk even when it outranks its own surfacing fact", async () => {
+    // m2 was extracted from chunk "c1". The chunk lane scores "c1" high enough
+    // to outrank "m2" after fusion. Suppression must still fire (a fact and its
+    // origin chunk must never both appear) — the fixpoint makes it order-
+    // independent, not "only when the fact ranks higher".
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", M1),
+      { ...makeMemory("m2", M2), sourceChunkIds: ["c1"] },
+    ]);
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.99)]);
+
+    const result = await recall(QUERY, makeCtx(), { types: ["fact", "chunk"] });
+
+    const ids = result.memories.map((m) => m.id);
+    expect(ids).toContain("m1");
+    expect(ids).toContain("m2"); // the surfacing fact wins
+    expect(ids).not.toContain("c1"); // its origin chunk is dropped regardless of rank
+    // Provenance is exposed on the returned fact, not just used internally.
+    expect(result.memories.find((m) => m.id === "m2")?.sourceChunkIds).toEqual(["c1"]);
+  });
+
   it("skips RRF when one lane comes back empty (raw scores preserved)", async () => {
     // Both types requested, but no chunks match → fact lane scores pass
     // through un-quantized.
