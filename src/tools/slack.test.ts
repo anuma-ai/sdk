@@ -755,6 +755,78 @@ describe("createSlackTools", () => {
     expect(result.group_dms).toEqual([]);
     // A targeted lookup makes zero history probes.
     expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
+    // An open 1:1 already matched, so there's no need to open one.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.open")).toBe(false);
+  });
+
+  test("slack_list_dms with_user opens a closed 1:1 via conversations.open when none is open", async () => {
+    // Charlie's 1:1 is closed, so conversations.list (open DMs only) doesn't return
+    // it. conversations.open reaches it and we synthesize that 1:1 into the result.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U2" }] });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/conversations.open") {
+        return proxyResult({ ok: true, channel: { id: "D_OPENED" } });
+      }
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U2", name: "bob", profile: { display_name: "bob" } },
+            { id: "UCH", name: "charlie", real_name: "Charlie Chen", profile: {} },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {
+      with_user: "charlie",
+    })) as DmListing;
+    // The opened DM is synthesized in, named from the users directory.
+    expect(result.direct_messages).toEqual([{ id: "D_OPENED", name: "Charlie Chen" }]);
+    expect(result.group_dms).toEqual([]);
+    // conversations.open was called as a write, with the resolved user id in the body.
+    const openCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.open");
+    expect(openCalls).toHaveLength(1);
+    expect(openCalls[0][2]).toEqual({ users: "UCH" });
+    // Still a targeted lookup: no history probing.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
+  });
+
+  test("slack_list_dms with_user does not throw when conversations.open fails", async () => {
+    // conversations.open comes back ok:false (e.g. missing im:write) -- the tool must
+    // degrade to the empty/group-only result rather than throwing or blocking.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [{ id: "G1", is_mpim: true, name: "mpdm-charlie--me-1" }],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/conversations.open") return proxyResult({ ok: false }, 200);
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U1", name: "me", profile: { display_name: "Me" } },
+            { id: "UCH", name: "charlie", profile: { display_name: "Charlie" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {
+      with_user: "charlie",
+    })) as DmListing;
+    // No 1:1 synthesized on failure; the matched group DM still comes through.
+    expect(result.direct_messages).toEqual([]);
+    expect(result.group_dms).toEqual([{ id: "G1", members: "Charlie" }]);
+    expect(callProxy.mock.calls.filter((c) => c[0] === "/conversations.open")).toHaveLength(1);
   });
 
   test("slack_list_dms with_user returns the 1:1 DM even when it has no messages", async () => {

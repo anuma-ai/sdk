@@ -186,6 +186,10 @@ interface SlackPostMessageResponse extends SlackBaseResponse {
   channel?: string;
 }
 
+interface SlackConversationsOpenResponse extends SlackBaseResponse {
+  channel?: { id?: string };
+}
+
 /** Slack `error` codes that mean the connection is broken / not authorized. */
 const AUTH_ERROR_CODES = new Set([
   "not_authed",
@@ -440,6 +444,26 @@ interface SlackDmListing {
 }
 
 /**
+ * Open (or resume) the 1:1 DM with a user and return its channel id, or null on
+ * any failure. Slack treats conversations.open as a WRITE (it needs the `im:write`
+ * scope), so passing a body makes the portal proxy classify the call as a write and
+ * mint write access. Used to reach a 1:1 that conversations.list doesn't return
+ * because it's closed. Reuses {@link callSlack} so auth/`missing_scope` failures map
+ * the same way. Never throws — any error (string result, or a response without a
+ * channel id) resolves to null.
+ */
+async function openSlackDm(callProxy: SlackProxyCaller, userId: string): Promise<string | null> {
+  const res = await callSlack<SlackConversationsOpenResponse>(
+    callProxy,
+    "/conversations.open",
+    undefined,
+    { users: userId }
+  );
+  if (typeof res === "string") return null;
+  return res.channel?.id ?? null;
+}
+
+/**
  * List the user's direct messages and group DMs, split into two lists: `direct_messages`
  * (1:1s, each with the counterparty name) and `group_dms` (each with its member names),
  * ordered like the Slack sidebar (most-recent conversation first) with conversations
@@ -455,7 +479,10 @@ interface SlackDmListing {
  * DMs. It resolves the ref (id or name) to a user id via the shared directory, then
  * keeps a 1:1 whose counterparty is that user and a group DM whose `mpdm-…` members
  * include that user's handle, splits those matches into the two lists, and returns
- * them directly. It makes NO `conversations.history` calls — no recency probing, no
+ * them directly. `conversations.list` only returns OPEN DMs, so when no 1:1 matched
+ * (the person's 1:1 is closed) it opens/resumes that DM via {@link openSlackDm} and
+ * synthesizes it into `direct_messages`, keeping any matched group DMs. It makes NO
+ * `conversations.history` calls — no recency probing, no
  * empty-DM drop, no throttle path — so a targeted DM is always returned (letting the
  * model then read it), even one with no messages in the readable window (a person who
  * is only in a group DM yields `direct_messages: []` plus that group). An unresolvable
@@ -522,7 +549,8 @@ async function listSlackDms(
   if (withUserRef) {
     const targetId = await resolveSlackUserId(withUserRef, getAuthUserId, getUsersDirectory);
     if (!targetId) return `Error: couldn't find a Slack user matching "${withUserRef}".`;
-    const targetHandle = (await getUsersDirectory()).byId.get(targetId)?.name?.toLowerCase();
+    const directory = await getUsersDirectory();
+    const targetHandle = directory.byId.get(targetId)?.name?.toLowerCase();
     const matches = res.filter((conv) => {
       if (conv.is_mpim) {
         return targetHandle
@@ -534,7 +562,24 @@ async function listSlackDms(
     // A targeted lookup returns every DM with that person -- it is NOT capped to
     // the list-all default. Only apply a cap when the model passes an explicit limit.
     const targetLimit = clampLimit(args.limit, matches.length, 1, matches.length);
-    return buildListing(matches.slice(0, targetLimit));
+    const listing = await buildListing(matches.slice(0, targetLimit));
+
+    // conversations.list only returns OPEN DMs, so a closed 1:1 (never opened, or
+    // hidden from the sidebar) isn't in `res` and won't match above. When no 1:1
+    // matched, open/resume it via conversations.open -- which reaches a closed DM --
+    // and synthesize that 1:1 into the result, keeping any matched group DMs. On a
+    // failure openSlackDm returns null and we leave the (possibly empty) result as-is.
+    if (listing.direct_messages.length === 0) {
+      const openedId = await openSlackDm(callProxy, targetId);
+      if (openedId) {
+        const counterparty = directory.byId.get(targetId);
+        listing.direct_messages.push({
+          id: openedId,
+          name: counterparty ? displayNameForUser(counterparty) : targetId,
+        });
+      }
+    }
+    return listing;
   }
 
   // Listing all DMs defaults to the 5 most recent; the model raises `limit` to get
@@ -1134,7 +1179,7 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
           with_user: {
             type: "string",
             description:
-              "Optional. Return only the DM(s) with this person, as a Slack user id or a name/handle. Use this to find and read the DM with a specific person.",
+              "Optional. Return only the DM(s) with this person, as a Slack user id or a name/handle. Use this to find and read the DM with a specific person. Works even for a DM that isn't currently open -- it will open/resume the conversation to read it.",
           },
         },
         required: [],
