@@ -21,6 +21,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # actions/checkout adds --no-tags unless fetch-tags is true (even with
+          # fetch-depth: 0), so tags would be absent. semantic-release reads local
+          # v* tags to find the last release — without them it would treat the repo
+          # as unreleased and try to re-publish the initial version.
+          fetch-tags: true
           persist-credentials: false
 
       - uses: actions/setup-node@v4
