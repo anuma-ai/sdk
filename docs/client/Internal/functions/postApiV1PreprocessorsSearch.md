@@ -2,7 +2,7 @@
 
 > **postApiV1PreprocessorsSearch**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1PreprocessorsSearchData`](../type-aliases/PostApiV1PreprocessorsSearchData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1PreprocessorsSearchResponses`](../type-aliases/PostApiV1PreprocessorsSearchResponses.md), [`PostApiV1PreprocessorsSearchErrors`](../type-aliases/PostApiV1PreprocessorsSearchErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1437](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1437)
+Defined in: [src/client/sdk.gen.ts:1447](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1447)
 
 Search the web
 

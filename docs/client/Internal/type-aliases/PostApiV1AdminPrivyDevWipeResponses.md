@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPrivyDevWipeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5483](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5483)
+Defined in: [src/client/types.gen.ts:5512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5512)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5483](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersWipePrivyDevUsersResponse`](HandlersWipePrivyDevUsersResponse.md)
 
-Defined in: [src/client/types.gen.ts:5487](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5487)
+Defined in: [src/client/types.gen.ts:5516](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5516)
 
 OK

@@ -2,4 +2,4 @@
 
 > **GetApiV1DeveloperBillingResponse** = [`GetApiV1DeveloperBillingResponses`](GetApiV1DeveloperBillingResponses.md)\[keyof [`GetApiV1DeveloperBillingResponses`](GetApiV1DeveloperBillingResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8044](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8044)
+Defined in: [src/client/types.gen.ts:8073](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8073)

@@ -72,6 +72,11 @@
 | [DeleteApiV1DeveloperAppsByAppUuidPrivyResponses](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidPrivyResponses.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidResponse](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidResponse.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidResponses](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidResponses.md) | - |
+| [DeleteApiV1SharesBySlugData](Internal/type-aliases/DeleteApiV1SharesBySlugData.md) | - |
+| [DeleteApiV1SharesBySlugError](Internal/type-aliases/DeleteApiV1SharesBySlugError.md) | - |
+| [DeleteApiV1SharesBySlugErrors](Internal/type-aliases/DeleteApiV1SharesBySlugErrors.md) | - |
+| [DeleteApiV1SharesBySlugResponse](Internal/type-aliases/DeleteApiV1SharesBySlugResponse.md) | - |
+| [DeleteApiV1SharesBySlugResponses](Internal/type-aliases/DeleteApiV1SharesBySlugResponses.md) | - |
 | [DeleteApiV1UserAgentConsentsByAgentIdData](Internal/type-aliases/DeleteApiV1UserAgentConsentsByAgentIdData.md) | - |
 | [DeleteApiV1UserAgentConsentsByAgentIdError](Internal/type-aliases/DeleteApiV1UserAgentConsentsByAgentIdError.md) | - |
 | [DeleteApiV1UserAgentConsentsByAgentIdErrors](Internal/type-aliases/DeleteApiV1UserAgentConsentsByAgentIdErrors.md) | - |
@@ -247,6 +252,9 @@
 | [GetApiV1GuestBootstrapResponse](Internal/type-aliases/GetApiV1GuestBootstrapResponse.md) | - |
 | [GetApiV1GuestBootstrapResponses](Internal/type-aliases/GetApiV1GuestBootstrapResponses.md) | - |
 | [GetApiV1MeData](Internal/type-aliases/GetApiV1MeData.md) | - |
+| [GetApiV1MediaSharedBySlugData](Internal/type-aliases/GetApiV1MediaSharedBySlugData.md) | - |
+| [GetApiV1MediaSharedBySlugError](Internal/type-aliases/GetApiV1MediaSharedBySlugError.md) | - |
+| [GetApiV1MediaSharedBySlugErrors](Internal/type-aliases/GetApiV1MediaSharedBySlugErrors.md) | - |
 | [GetApiV1MeError](Internal/type-aliases/GetApiV1MeError.md) | - |
 | [GetApiV1MeErrors](Internal/type-aliases/GetApiV1MeErrors.md) | - |
 | [GetApiV1MeResponse](Internal/type-aliases/GetApiV1MeResponse.md) | - |
@@ -271,6 +279,16 @@
 | [GetApiV1PhoneCallsByCallIdErrors](Internal/type-aliases/GetApiV1PhoneCallsByCallIdErrors.md) | - |
 | [GetApiV1PhoneCallsByCallIdResponse](Internal/type-aliases/GetApiV1PhoneCallsByCallIdResponse.md) | - |
 | [GetApiV1PhoneCallsByCallIdResponses](Internal/type-aliases/GetApiV1PhoneCallsByCallIdResponses.md) | - |
+| [GetApiV1SharesBySlugData](Internal/type-aliases/GetApiV1SharesBySlugData.md) | - |
+| [GetApiV1SharesBySlugError](Internal/type-aliases/GetApiV1SharesBySlugError.md) | - |
+| [GetApiV1SharesBySlugErrors](Internal/type-aliases/GetApiV1SharesBySlugErrors.md) | - |
+| [GetApiV1SharesBySlugResponse](Internal/type-aliases/GetApiV1SharesBySlugResponse.md) | - |
+| [GetApiV1SharesBySlugResponses](Internal/type-aliases/GetApiV1SharesBySlugResponses.md) | - |
+| [GetApiV1SharesData](Internal/type-aliases/GetApiV1SharesData.md) | - |
+| [GetApiV1SharesError](Internal/type-aliases/GetApiV1SharesError.md) | - |
+| [GetApiV1SharesErrors](Internal/type-aliases/GetApiV1SharesErrors.md) | - |
+| [GetApiV1SharesResponse](Internal/type-aliases/GetApiV1SharesResponse.md) | - |
+| [GetApiV1SharesResponses](Internal/type-aliases/GetApiV1SharesResponses.md) | - |
 | [GetApiV1SubscriptionsPlansData](Internal/type-aliases/GetApiV1SubscriptionsPlansData.md) | - |
 | [GetApiV1SubscriptionsPlansError](Internal/type-aliases/GetApiV1SubscriptionsPlansError.md) | - |
 | [GetApiV1SubscriptionsPlansErrors](Internal/type-aliases/GetApiV1SubscriptionsPlansErrors.md) | - |
@@ -406,6 +424,7 @@
 | [HandlersCreateOAuthClientResponse](Internal/type-aliases/HandlersCreateOAuthClientResponse.md) | - |
 | [HandlersCreatePersonaRequest](Internal/type-aliases/HandlersCreatePersonaRequest.md) | - |
 | [HandlersCreatePhoneCallRequest](Internal/type-aliases/HandlersCreatePhoneCallRequest.md) | - |
+| [HandlersCreateShareRequest](Internal/type-aliases/HandlersCreateShareRequest.md) | - |
 | [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
 | [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
 | [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
@@ -493,6 +512,7 @@
 | [HandlersSetToolItem](Internal/type-aliases/HandlersSetToolItem.md) | - |
 | [HandlersSetToolsRequest](Internal/type-aliases/HandlersSetToolsRequest.md) | - |
 | [HandlersSetUserAgentPreferenceRequest](Internal/type-aliases/HandlersSetUserAgentPreferenceRequest.md) | - |
+| [HandlersShareResponse](Internal/type-aliases/HandlersShareResponse.md) | - |
 | [HandlersStockPricesResponse](Internal/type-aliases/HandlersStockPricesResponse.md) | - |
 | [HandlersSubscriptionPlan](Internal/type-aliases/HandlersSubscriptionPlan.md) | - |
 | [HandlersSubscriptionPlansResponse](Internal/type-aliases/HandlersSubscriptionPlansResponse.md) | - |
@@ -908,6 +928,13 @@
 | [PostApiV1ResponsesErrors](Internal/type-aliases/PostApiV1ResponsesErrors.md) | - |
 | [PostApiV1ResponsesResponse](Internal/type-aliases/PostApiV1ResponsesResponse.md) | - |
 | [PostApiV1ResponsesResponses](Internal/type-aliases/PostApiV1ResponsesResponses.md) | - |
+| [PostApiV1SharesBySlugReportData](Internal/type-aliases/PostApiV1SharesBySlugReportData.md) | - |
+| [PostApiV1SharesBySlugReportResponses](Internal/type-aliases/PostApiV1SharesBySlugReportResponses.md) | - |
+| [PostApiV1SharesData](Internal/type-aliases/PostApiV1SharesData.md) | - |
+| [PostApiV1SharesError](Internal/type-aliases/PostApiV1SharesError.md) | - |
+| [PostApiV1SharesErrors](Internal/type-aliases/PostApiV1SharesErrors.md) | - |
+| [PostApiV1SharesResponse](Internal/type-aliases/PostApiV1SharesResponse.md) | - |
+| [PostApiV1SharesResponses](Internal/type-aliases/PostApiV1SharesResponses.md) | - |
 | [PostApiV1SubscriptionsCancelData](Internal/type-aliases/PostApiV1SubscriptionsCancelData.md) | - |
 | [PostApiV1SubscriptionsCancelError](Internal/type-aliases/PostApiV1SubscriptionsCancelError.md) | - |
 | [PostApiV1SubscriptionsCancelErrors](Internal/type-aliases/PostApiV1SubscriptionsCancelErrors.md) | - |
@@ -1072,6 +1099,7 @@
 | [deleteApiV1DeveloperAppsByAppUuid](Internal/functions/deleteApiV1DeveloperAppsByAppUuid.md) | Delete app |
 | [deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId](Internal/functions/deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId.md) | Delete API key |
 | [deleteApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/deleteApiV1DeveloperAppsByAppUuidPrivy.md) | Remove Privy |
+| [deleteApiV1SharesBySlug](Internal/functions/deleteApiV1SharesBySlug.md) | Unpublish a shared artifact |
 | [deleteApiV1UserAgentConsentsByAgentId](Internal/functions/deleteApiV1UserAgentConsentsByAgentId.md) | Revoke per-platform agent consent |
 | [deleteApiV1UserApiKeysByKeyId](Internal/functions/deleteApiV1UserApiKeysByKeyId.md) | Delete user API key |
 | [deleteApiV1UserOauthGrantsById](Internal/functions/deleteApiV1UserOauthGrantsById.md) | Revoke OAuth grant |
@@ -1109,10 +1137,13 @@
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1GuestBootstrap](Internal/functions/getApiV1GuestBootstrap.md) | Bootstrap guest session |
 | [getApiV1Me](Internal/functions/getApiV1Me.md) | Return the caller's identity and granted scopes |
+| [getApiV1MediaSharedBySlug](Internal/functions/getApiV1MediaSharedBySlug.md) | Resolve a public shared artifact's media |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
 | [getApiV1Personas](Internal/functions/getApiV1Personas.md) | List personas |
 | [getApiV1PersonasById](Internal/functions/getApiV1PersonasById.md) | Get persona |
 | [getApiV1PhoneCallsByCallId](Internal/functions/getApiV1PhoneCallsByCallId.md) | Get phone call |
+| [getApiV1Shares](Internal/functions/getApiV1Shares.md) | List my shared artifacts |
+| [getApiV1SharesBySlug](Internal/functions/getApiV1SharesBySlug.md) | Get a public shared artifact |
 | [getApiV1SubscriptionsPlans](Internal/functions/getApiV1SubscriptionsPlans.md) | List available subscription plans |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
@@ -1183,6 +1214,8 @@
 | [postApiV1PreprocessorsStockPrices](Internal/functions/postApiV1PreprocessorsStockPrices.md) | Get stock prices |
 | [postApiV1PreprocessorsWeather](Internal/functions/postApiV1PreprocessorsWeather.md) | Get weather |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
+| [postApiV1Shares](Internal/functions/postApiV1Shares.md) | Publish an artifact to a public share link |
+| [postApiV1SharesBySlugReport](Internal/functions/postApiV1SharesBySlugReport.md) | Report a shared artifact |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |
 | [postApiV1SubscriptionsCancelScheduledDowngrade](Internal/functions/postApiV1SubscriptionsCancelScheduledDowngrade.md) | Cancel scheduled downgrade |
 | [postApiV1SubscriptionsCreateCheckoutSession](Internal/functions/postApiV1SubscriptionsCreateCheckoutSession.md) | Create checkout session |

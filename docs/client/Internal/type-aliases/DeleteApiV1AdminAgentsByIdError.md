@@ -2,4 +2,4 @@
 
 > **DeleteApiV1AdminAgentsByIdError** = [`DeleteApiV1AdminAgentsByIdErrors`](DeleteApiV1AdminAgentsByIdErrors.md)\[keyof [`DeleteApiV1AdminAgentsByIdErrors`](DeleteApiV1AdminAgentsByIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:4381](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4381)
+Defined in: [src/client/types.gen.ts:4410](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4410)

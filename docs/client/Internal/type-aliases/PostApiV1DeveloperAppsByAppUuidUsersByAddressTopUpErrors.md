@@ -2,7 +2,7 @@
 
 > **PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:7970](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7970)
+Defined in: [src/client/types.gen.ts:7999](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7999)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7970](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7974](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7974)
+Defined in: [src/client/types.gen.ts:8003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8003)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7978](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7978)
+Defined in: [src/client/types.gen.ts:8007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8007)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7982](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7982)
+Defined in: [src/client/types.gen.ts:8011](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8011)
 
 Forbidden
 
@@ -40,7 +40,7 @@ Forbidden
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7986](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7986)
+Defined in: [src/client/types.gen.ts:8015](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8015)
 
 Not Found
 
@@ -50,6 +50,6 @@ Not Found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:7990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7990)
+Defined in: [src/client/types.gen.ts:8019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8019)
 
 Internal Server Error

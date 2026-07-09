@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsRenewResponse** = [`PostApiV1SubscriptionsRenewResponses`](PostApiV1SubscriptionsRenewResponses.md)\[keyof [`PostApiV1SubscriptionsRenewResponses`](PostApiV1SubscriptionsRenewResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8910](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8910)
+Defined in: [src/client/types.gen.ts:9100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9100)

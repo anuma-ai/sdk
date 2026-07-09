@@ -2,7 +2,7 @@
 
 > **postApiV1NotificationsDevices**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1NotificationsDevicesData`](../type-aliases/PostApiV1NotificationsDevicesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1NotificationsDevicesResponses`](../type-aliases/PostApiV1NotificationsDevicesResponses.md), [`PostApiV1NotificationsDevicesErrors`](../type-aliases/PostApiV1NotificationsDevicesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1336](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1336)
+Defined in: [src/client/sdk.gen.ts:1346](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1346)
 
 Register push-notification device
 

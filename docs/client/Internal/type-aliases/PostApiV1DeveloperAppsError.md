@@ -2,4 +2,4 @@
 
 > **PostApiV1DeveloperAppsError** = [`PostApiV1DeveloperAppsErrors`](PostApiV1DeveloperAppsErrors.md)\[keyof [`PostApiV1DeveloperAppsErrors`](PostApiV1DeveloperAppsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7241](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7241)
+Defined in: [src/client/types.gen.ts:7270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7270)
