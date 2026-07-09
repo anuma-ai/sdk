@@ -459,7 +459,9 @@ interface SlackDmListing {
  * empty-DM drop, no throttle path — so a targeted DM is always returned (letting the
  * model then read it), even one with no messages in the readable window (a person who
  * is only in a group DM yields `direct_messages: []` plus that group). An unresolvable
- * ref returns an error naming the person rather than every DM. `limit` applies after.
+ * ref returns an error naming the person rather than every DM. A targeted lookup is NOT
+ * capped to the list-all default: it returns all matches, honoring an explicit `limit`
+ * only when the model passes one.
  *
  * Listing all DMs (no `with_user`) instead orders like the Slack sidebar and hides
  * empty conversations. `conversations.list` carries no last-message timestamp, so
@@ -470,14 +472,14 @@ interface SlackDmListing {
  * `MAX_DM_PROBES` (can't order that many under the limit), or any probe comes back
  * rate-limited (429 / `ratelimited`). A probe that returns zero messages marks the
  * DM empty -> drop it; a non-rate-limit probe failure leaves recency unknown -> keep
- * it, ordered after the DMs we could place. `limit` bounds the total DM count and is
- * applied before the split into the two lists.
+ * it, ordered after the DMs we could place. `limit` defaults to 5 (the 5 most recent)
+ * and is capped at `MAX_DM_PROBES`; it bounds the total DM count after the recency sort
+ * and empty-drop, applied before the split into the two lists.
  */
 async function listSlackDms(
   callProxy: SlackProxyCaller,
   args: SlackListDmsArgs
 ): Promise<SlackDmListing | string> {
-  const limit = clampLimit(args.limit, 100, 1, 1000);
   const res = await listAllConversations(callProxy, "im,mpim");
   if (typeof res === "string") return res;
 
@@ -529,8 +531,15 @@ async function listSlackDms(
       }
       return conv.user === targetId;
     });
-    return buildListing(matches.slice(0, limit));
+    // A targeted lookup returns every DM with that person -- it is NOT capped to
+    // the list-all default. Only apply a cap when the model passes an explicit limit.
+    const targetLimit = clampLimit(args.limit, matches.length, 1, matches.length);
+    return buildListing(matches.slice(0, targetLimit));
   }
+
+  // Listing all DMs defaults to the 5 most recent; the model raises `limit` to get
+  // more. The max is MAX_DM_PROBES -- we can't rank more DMs than we can probe.
+  const limit = clampLimit(args.limit, 5, 1, MAX_DM_PROBES);
 
   // More DMs than we can probe under the ~1/min throttle -> we can't order them,
   // so surface the pending-approval message instead of a partial order.
@@ -1114,13 +1123,13 @@ function createSlackListDmsTool(callProxy: SlackProxyCaller): ToolConfig {
     function: {
       name: "slack_list_dms",
       description:
-        "List the user's Slack direct messages and group DMs, or find the DM with a specific person. Returns two separate lists: 'direct_messages' (1:1 conversations, each with 'name' = the other person) and 'group_dms' (group conversations, each with 'members' = the member names). When showing these to the user, present them as TWO separate bulleted lists -- a 'Direct messages' list (by the other person's name) and a 'Group DMs' list (by the member names) -- by name only, and never show the conversation ids. To show or read the conversation with one person, call this with with_user=<name or id> to get that conversation's id, then call slack_get_channel_history with that id to read the messages. Do NOT use slack_search_messages to find a person's DM conversation -- use with_user here instead. Listing all DMs (no with_user) returns them most-recent-first (like the Slack sidebar) and excludes conversations with no messages. The conversation id is only for passing to slack_get_channel_history to read a conversation.",
+        "List the user's Slack direct messages and group DMs, or find the DM with a specific person. Returns two separate lists: 'direct_messages' (1:1 conversations, each with 'name' = the other person) and 'group_dms' (group conversations, each with 'members' = the member names). When showing these to the user, present them as TWO separate bulleted lists -- a 'Direct messages' list (by the other person's name) and a 'Group DMs' list (by the member names) -- by name only, and never show the conversation ids. To show or read the conversation with one person, call this with with_user=<name or id> to get that conversation's id, then call slack_get_channel_history with that id to read the messages. Do NOT use slack_search_messages to find a person's DM conversation -- use with_user here instead. Listing all DMs (no with_user) returns the 5 MOST RECENT by default (most recent first, like the Slack sidebar, with empty conversations excluded), split across 'direct_messages' and 'group_dms'; pass a larger 'limit' to get more. The conversation id is only for passing to slack_get_channel_history to read a conversation.",
       parameters: {
         type: "object",
         properties: {
           limit: {
             type: "number",
-            description: "Max DMs to return. Between 1 and 1000 (clamped). Defaults to 100.",
+            description: "Max DMs to return, default 5, up to 50.",
           },
           with_user: {
             type: "string",

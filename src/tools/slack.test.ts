@@ -926,6 +926,108 @@ describe("createSlackTools", () => {
     expect(result.group_dms).toEqual([]);
   });
 
+  test("slack_list_dms defaults to the 5 most recent DMs across the split", async () => {
+    // Six non-empty DMs; the default limit of 5 keeps only the newest five, so the
+    // oldest (D1, ts 100) is dropped, and the cap spans both lists.
+    const lastTs: Record<string, string> = {
+      D1: "100",
+      D4: "200",
+      G2: "300",
+      G1: "400",
+      D3: "500",
+      D2: "600",
+    };
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [
+            { id: "D1", is_im: true, user: "U1x" },
+            { id: "D2", is_im: true, user: "U2x" },
+            { id: "D3", is_im: true, user: "U3x" },
+            { id: "D4", is_im: true, user: "U4x" },
+            { id: "G1", is_mpim: true, name: "mpdm-alice--me-1" },
+            { id: "G2", is_mpim: true, name: "mpdm-bob--me-1" },
+          ],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "UME" });
+      if (path === "/conversations.history") {
+        return proxyResult({ ok: true, messages: [{ ts: lastTs[String(query?.channel)] }] });
+      }
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "UME", name: "me", profile: { display_name: "Me" } },
+            { id: "U1x", name: "u1", profile: { display_name: "One" } },
+            { id: "U2x", name: "u2", profile: { display_name: "Two" } },
+            { id: "U3x", name: "u3", profile: { display_name: "Three" } },
+            { id: "U4x", name: "u4", profile: { display_name: "Four" } },
+            { id: "UA", name: "alice", profile: { display_name: "Alice" } },
+            { id: "UB", name: "bob", profile: { display_name: "Bob" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {})) as DmListing;
+    // Recency order: D2 > D3 > G1 > G2 > D4 (> D1, dropped by the 5 cap).
+    expect(result.direct_messages).toEqual([
+      { id: "D2", name: "DM with Two" },
+      { id: "D3", name: "DM with Three" },
+      { id: "D4", name: "DM with Four" },
+    ]);
+    expect(result.group_dms).toEqual([
+      { id: "G1", members: "Alice" },
+      { id: "G2", members: "Bob" },
+    ]);
+  });
+
+  test("slack_list_dms returns more than 5 DMs when limit is raised", async () => {
+    const lastTs: Record<string, string> = {
+      D1: "100",
+      D2: "600",
+      D3: "500",
+      D4: "200",
+      D5: "400",
+      D6: "300",
+    };
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: Array.from({ length: 6 }, (_, i) => ({
+            id: `D${i + 1}`,
+            is_im: true,
+            user: `U${i + 1}x`,
+          })),
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "UME" });
+      if (path === "/conversations.history") {
+        return proxyResult({ ok: true, messages: [{ ts: lastTs[String(query?.channel)] }] });
+      }
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: Array.from({ length: 6 }, (_, i) => ({
+            id: `U${i + 1}x`,
+            name: `u${i + 1}`,
+            profile: { display_name: `User${i + 1}` },
+          })),
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, { limit: 6 })) as DmListing;
+    // All six are returned once the model raises the limit past the default of 5.
+    expect(result.direct_messages).toHaveLength(6);
+    expect(result.direct_messages.map((d) => d.id)).toEqual(["D2", "D3", "D5", "D6", "D4", "D1"]);
+  });
+
   test("slack_list_dms drops a DM that has no messages", async () => {
     const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
       if (path === "/conversations.list") {
