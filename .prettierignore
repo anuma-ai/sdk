@@ -4,6 +4,7 @@ node_modules/
 coverage/
 docs/
 .claude/
+.vscode/
 *.md
 pnpm-lock.yaml
 openapi/

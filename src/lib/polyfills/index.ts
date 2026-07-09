@@ -10,7 +10,7 @@
  * First, install the required dependencies:
  *
  * ```bash
- * pnpm install @anuma/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
+ * pnpm install @anuma/sdk web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
  * ```
  *
  * ## Setup

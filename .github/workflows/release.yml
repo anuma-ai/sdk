@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push tag + create GitHub Release
+  issues: write # @semantic-release/github
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # actions/checkout adds --no-tags unless fetch-tags is true (even with
+          # fetch-depth: 0), so tags would be absent. semantic-release reads local
+          # v* tags to find the last release — without them it would treat the repo
+          # as unreleased and try to re-publish the initial version.
+          fetch-tags: true
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Generate API Client
+        run: pnpm run generate
+
+      - name: Build SDK
+        run: pnpm run build
+
+      - name: Release
+        # npm publishing runs in semantic-release's `prepare` step
+        # (scripts/publish-packages.mjs via exec prepareCmd), which executes
+        # BEFORE the vX.Y.Z git tag is created. So a failed publish aborts the
+        # release before any tag exists, and simply re-running this workflow
+        # recovers: semantic-release recomputes the same version and the publish
+        # script (idempotent) republishes only the packages missing from npm.
+        # The GitHub Release is created after the tag; if only that step fails,
+        # npm is already complete — recreate the Release by deleting the tag +
+        # Release and re-running.
+        # Toolchain pinned to exact versions for reproducibility (bump manually).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npx --yes \
+            -p semantic-release@25.0.5 \
+            -p @semantic-release/commit-analyzer@13.0.1 \
+            -p @semantic-release/release-notes-generator@14.1.1 \
+            -p @semantic-release/exec@7.1.0 \
+            -p @semantic-release/github@12.0.9 \
+            -p conventional-changelog-conventionalcommits@10.2.1 \
+            semantic-release

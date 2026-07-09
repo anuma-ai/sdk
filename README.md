@@ -8,8 +8,22 @@ To learn more, check out the [Documentation](https://docs.anuma.ai/).
 ## Installation
 
 ```bash
+npm install @anuma/sdk
+```
+
+### Testing prereleases
+
+Stable releases go to the default `latest` tag (the command above). Prerelease
+builds for trying out unreleased changes are published to the `next` tag —
+install them explicitly:
+
+```bash
 npm install @anuma/sdk@next
 ```
+
+These carry a `X.Y.Z-next.<timestamp>` version and never affect `latest`.
+Maintainers publish them on demand via the **Publish Next (prerelease)** GitHub
+Actions workflow.
 
 ## Getting Started
 

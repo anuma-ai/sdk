@@ -1,0 +1,69 @@
+name: Publish Next (prerelease)
+
+# Manual-only testing channel. Dispatch this from any branch to build that
+# branch and publish all 5 packages (root SDK + packages/agents/*) to npm under
+# the `next` dist-tag as a throwaway prerelease. This does NOT create a git tag
+# or a GitHub Release and never touches the `latest` channel — the real,
+# conventional-commit releases are owned entirely by release.yml on push to main.
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: publish-next-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish-next:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Generate API Client
+        run: pnpm run generate
+
+      - name: Build SDK
+        run: pnpm run build
+
+      - name: Compute prerelease version
+        id: version
+        run: |
+          set -euo pipefail
+          # Base the prerelease on the latest released semver tag; fall back to
+          # the root package.json version if no v* tag exists yet.
+          BASE=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null | sed 's/^v//' || true)
+          if [ -z "$BASE" ]; then
+            BASE=$(node -p "require('./package.json').version")
+          fi
+          VERSION="${BASE}-next.$(date +%Y%m%d%H%M%S)"
+          echo "Publishing prerelease: $VERSION (from ${GITHUB_REF_NAME})"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set lockstep version across all packages
+        run: |
+          npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
+          pnpm --filter "./packages/agents/*" exec \
+            npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
+
+      - name: Publish to the `next` dist-tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish --access public --tag next
+          pnpm --filter "./packages/agents/*" publish --access public --tag next --no-git-checks

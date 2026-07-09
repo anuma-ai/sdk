@@ -8,12 +8,12 @@
  * ## Installation
  *
  * ```bash
- * pnpm install @anuma/sdk@next
+ * pnpm install @anuma/sdk
  * ```
  *
- * > **Note:** Currently, the SDK is pre-release so all new versions are released
- * > under the `next` tag (released on every merge to the `main` branch). Check out
- * > npm to see the latest version.
+ * > **Note:** Versions follow semantic versioning and are published to the
+ * > `latest` tag on every merge to the `main` branch. Check out npm to see the
+ * > latest version.
  *
  * ## Configuration
  *
