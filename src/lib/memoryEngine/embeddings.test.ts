@@ -23,11 +23,13 @@ import {
   getConversationsOp,
   getMessagesOp,
   type StorageOperationsContext,
+  updateMessageChunksOp,
   updateMessageEmbeddingOp,
 } from "../db/chat/operations";
 import type { StoredConversation, StoredMessage } from "../db/chat/types";
 
 import {
+  chunkAndEmbedAllMessages,
   EmbeddingHttpError,
   embedAllMessages,
   generateEmbedding,
@@ -435,6 +437,21 @@ describe("embedAllMessages content filtering", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
   });
+
+  it("does NOT abort on a non-fatal status (404) — logs and continues per message", async () => {
+    // 404 is non-429 4xx → not retried by withEmbeddingRetry and not fatal, so
+    // the storm guard must NOT fire: each message still gets its own request
+    // (old catch-and-continue behavior). Guards against over-aborting.
+    const fetchMock = stubFetchError(404, { error: "not found" });
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "m1", content: "first message plenty long to embed" }),
+      makeMessage({ uniqueId: "m2", content: "second message plenty long to embed" }),
+    ]);
+
+    const count = await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
+    expect(count).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2); // walked both, did not abort
+  });
 });
 
 describe("isFatalEmbeddingError", () => {
@@ -450,5 +467,46 @@ describe("isFatalEmbeddingError", () => {
     expect(isFatalEmbeddingError(new EmbeddingHttpError("x", undefined))).toBe(false);
     expect(isFatalEmbeddingError(new Error("plain"))).toBe(false);
     expect(isFatalEmbeddingError(undefined)).toBe(false);
+  });
+});
+
+describe("chunkAndEmbedAllMessages retry-storm guard", () => {
+  const ctx = {} as StorageOperationsContext;
+
+  function makeMessage(overrides: Partial<StoredMessage>): StoredMessage {
+    return {
+      uniqueId: "m-default",
+      messageId: 1,
+      conversationId: "c1",
+      role: "user",
+      content: "short message plenty long to embed",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(getConversationsOp).mockResolvedValue([
+      { conversationId: "c1" } as StoredConversation,
+    ]);
+    vi.mocked(updateMessageEmbeddingOp).mockResolvedValue(null);
+    vi.mocked(updateMessageChunksOp).mockResolvedValue(null);
+  });
+
+  it("aborts the pass on a 402 in the short-message batch after one request", async () => {
+    // The other bulk entry point (short messages are batched into a single
+    // embeddings call). A fatal status there must abort too, not swallow.
+    const fetchMock = stubFetchError(402, { error: "insufficient balance" });
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "a", content: "short message one, plenty long" }),
+      makeMessage({ uniqueId: "b", content: "short message two, plenty long" }),
+    ]);
+
+    await expect(
+      chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })
+    ).rejects.toBeInstanceOf(EmbeddingHttpError);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // batched → one request, then abort
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
   });
 });
