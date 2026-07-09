@@ -373,6 +373,25 @@ describe("recall — lane selection (types)", () => {
     expect(result.memories.find((m) => m.id === "c1")).toBeUndefined();
   });
 
+  it("does NOT suppress an origin chunk when its fact never surfaces (limit cut)", async () => {
+    // m2 (cos ≈ 0.707) was extracted from chunk "c1", but ranks below the
+    // limit=2 cut. Its high-scoring origin chunk "c1" must still surface —
+    // suppression is post-fusion and only fires for facts that actually make
+    // the cut, so a non-surfacing fact can't silently remove its own chunk.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", M1), // cos 1.0 → top fact
+      { ...makeMemory("m2", M2), sourceChunkIds: ["c1"] }, // cos ≈0.707 → cut at limit 2
+    ]);
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
+
+    const result = await recall(QUERY, makeCtx(), { types: ["fact", "chunk"], limit: 2 });
+
+    const ids = result.memories.map((m) => m.id);
+    expect(ids).toContain("m1");
+    expect(ids).toContain("c1"); // NOT suppressed — m2 never surfaced
+    expect(ids).not.toContain("m2"); // cut by limit
+  });
+
   it("skips RRF when one lane comes back empty (raw scores preserved)", async () => {
     // Both types requested, but no chunks match → fact lane scores pass
     // through un-quantized.

@@ -513,6 +513,7 @@ export function rankFusedVaultMemories(
           similarity: (fused.get(id) ?? 0) * boostFor(id),
           createdAt: it.createdAt ?? it.updatedAt,
           updatedAt: it.updatedAt,
+          sourceChunkIds: it.sourceChunkIds,
         });
         seen.add(id);
       }
@@ -689,13 +690,11 @@ export async function rankFusedVaultMemoriesAsync(
       combined = headSlice.map((r) => {
         const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
         const ce = ceScoreById.get(r.uniqueId) ?? 0;
-        return {
-          uniqueId: r.uniqueId,
-          content: r.content,
-          similarity: v2 * (1 + ceWeight * ce),
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        };
+        // Spread the source result so provenance (sourceChunkIds) and
+        // event-time anchors survive the rerank — rebuilding a bare row
+        // here strips them, and recall()'s cross-lane chunk suppression
+        // then can't see which chunk a reranked fact came from.
+        return { ...r, similarity: v2 * (1 + ceWeight * ce) };
       });
       combined.sort((a, b) => b.similarity - a.similarity);
     } catch (err) {
@@ -745,6 +744,7 @@ export async function rankFusedVaultMemoriesAsync(
           similarity: fused.get(id) ?? 0,
           createdAt: it.createdAt ?? it.updatedAt,
           updatedAt: it.updatedAt,
+          sourceChunkIds: it.sourceChunkIds,
         });
         seen.add(id);
       }

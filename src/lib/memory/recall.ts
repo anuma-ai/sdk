@@ -235,28 +235,29 @@ export async function recall(
   // by message id + text so passages from one message stay separate through
   // fusion. (chunkResults is already content-deduped, so this is 1:1.)
   const chunkKey = (r: ChunkSearchResult) => `chunk:${r.message.uniqueId}:${r.chunkText.trim()}`;
-  // Cross-lane dedup: drop a chunk whose message is the origin of a fact
-  // already surfaced in the fact lane — a fact and the chunk it was extracted
-  // from shouldn't both appear (previously they did, keyed in separate
-  // namespaces). Uses the fact's sourceChunkIds provenance, threaded through
-  // VaultSearchResult; no-op when no surfaced fact carries any.
-  const factSourceChunkIds = new Set(factResults.flatMap((r) => r.sourceChunkIds ?? []));
-  const dedupedChunkResults = factSourceChunkIds.size
-    ? chunkResults.filter((r) => !factSourceChunkIds.has(r.message.uniqueId))
-    : chunkResults;
+  // Fuse both lanes at full width — no chunk is pre-dropped. Cross-lane
+  // dedup runs post-fusion (below) so a fact's provenance only suppresses
+  // its origin chunk when that fact actually surfaces.
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
-  const chunkRanking = dedupedChunkResults.map(chunkKey);
+  const chunkRanking = chunkResults.map(chunkKey);
   const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
 
+  // Provenance per fact, so score-ordered suppression can see which chunk
+  // a surfaced fact was extracted from. Threaded through VaultSearchResult.
+  const factProvenance = new Map<string, string[]>();
   const byId = new Map<string, RankedMemory>();
   for (const r of factResults) {
     const m = toFactMemory(r);
-    m.score = fused.get(`fact:${r.uniqueId}`) ?? 0;
+    const key = `fact:${r.uniqueId}`;
+    m.score = fused.get(key) ?? 0;
     if (!m.scoreBreakdown) m.scoreBreakdown = {};
     m.scoreBreakdown.fused = r.similarity;
-    byId.set(`fact:${r.uniqueId}`, m);
+    byId.set(key, m);
+    if (r.sourceChunkIds && r.sourceChunkIds.length > 0) {
+      factProvenance.set(key, r.sourceChunkIds);
+    }
   }
-  for (const r of dedupedChunkResults) {
+  for (const r of chunkResults) {
     const m = toChunkMemory(r);
     const key = chunkKey(r);
     m.score = fused.get(key) ?? 0;
@@ -265,7 +266,22 @@ export async function recall(
     byId.set(key, m);
   }
 
-  const memories = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+  // Cross-lane dedup: walk candidates in score order and drop a chunk only
+  // when a fact extracted from the same message has ALREADY surfaced (i.e.
+  // outranks it and made the cut). A fact and the chunk it was extracted
+  // from shouldn't both appear — but doing this post-fusion, instead of
+  // filtering chunks up front, means a low-scoring fact that never surfaces
+  // no longer silently removes its origin chunk from the results.
+  const ordered = [...byId.entries()].sort((a, b) => b[1].score - a[1].score);
+  const surfacedFactChunkIds = new Set<string>();
+  const memories: RankedMemory[] = [];
+  for (const [key, m] of ordered) {
+    if (memories.length >= limit) break;
+    if (m.kind === "chunk" && m.messageId && surfacedFactChunkIds.has(m.messageId)) continue;
+    memories.push(m);
+    const provenance = factProvenance.get(key);
+    if (provenance) for (const id of provenance) surfacedFactChunkIds.add(id);
+  }
   return {
     memories,
     usedBudget,
