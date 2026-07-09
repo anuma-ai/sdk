@@ -21,8 +21,6 @@ export function isSendableImageURL(url: string | undefined | null): url is strin
   if (!url) return false;
   const lower = url.toLowerCase();
   return (
-    lower.startsWith("http://") ||
-    lower.startsWith("https://") ||
-    lower.startsWith("data:image/")
+    lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("data:image/")
   );
 }
