@@ -235,6 +235,9 @@ export async function recall(
   // by message id + text so passages from one message stay separate through
   // fusion. (chunkResults is already content-deduped, so this is 1:1.)
   const chunkKey = (r: ChunkSearchResult) => `chunk:${r.message.uniqueId}:${r.chunkText.trim()}`;
+  // Fuse both lanes at full width — no chunk is pre-dropped. Cross-lane
+  // dedup runs post-fusion (below) so a fact's provenance only suppresses
+  // its origin chunk when that fact actually surfaces.
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
   const chunkRanking = chunkResults.map(chunkKey);
   const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
@@ -256,7 +259,44 @@ export async function recall(
     byId.set(key, m);
   }
 
-  const memories = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+  // Cross-lane dedup: a fact and the chunk it was extracted from must not both
+  // appear. Suppress a chunk whenever a fact that SURFACES was extracted from
+  // its message — regardless of which one scores higher (a chunk that outranks
+  // its own fact must still yield to it). Two constraints pull against each
+  // other: the chunk-outranks-fact case needs the fact to win anyway (so
+  // suppression can't just run in score order), yet a fact that never makes
+  // the cut must not remove its chunk.
+  //
+  // Both hold at the least fixpoint of the suppressed-chunk set. Removing a
+  // chunk only frees a slot (it never evicts a fact), so as the suppressed set
+  // grows the set of surviving facts — and thus their provenance — grows
+  // monotonically and converges. Start from "nothing suppressed" and iterate
+  // provenance(survivors) until stable; in practice this settles in 1–2 rounds.
+  const ordered = [...byId.values()].sort((a, b) => b.score - a.score);
+  const selectWith = (suppressed: Set<string>): RankedMemory[] => {
+    const out: RankedMemory[] = [];
+    for (const m of ordered) {
+      if (out.length >= limit) break;
+      if (m.kind === "chunk" && m.messageId && suppressed.has(m.messageId)) continue;
+      out.push(m);
+    }
+    return out;
+  };
+  const provenanceOf = (selected: RankedMemory[]): Set<string> => {
+    const s = new Set<string>();
+    for (const m of selected) {
+      if (m.kind === "fact" && m.sourceChunkIds) for (const id of m.sourceChunkIds) s.add(id);
+    }
+    return s;
+  };
+  let suppressed = new Set<string>();
+  let memories = selectWith(suppressed);
+  for (let i = 0; i < ordered.length; i++) {
+    const next = provenanceOf(memories);
+    if (next.size === suppressed.size && [...next].every((id) => suppressed.has(id))) break;
+    suppressed = next;
+    memories = selectWith(suppressed);
+  }
   return {
     memories,
     usedBudget,
@@ -278,6 +318,8 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     ...(r.eventTimeStart !== undefined && { eventTimeStart: r.eventTimeStart }),
     ...(r.eventTimeEnd !== undefined && { eventTimeEnd: r.eventTimeEnd }),
     ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
+    ...(r.sourceChunkIds !== undefined &&
+      r.sourceChunkIds !== null && { sourceChunkIds: r.sourceChunkIds }),
     // r.similarity from searchVaultMemoriesWithSize is the fused score
     // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
     // default) and pure cosine when useFusion=false. The breakdown
