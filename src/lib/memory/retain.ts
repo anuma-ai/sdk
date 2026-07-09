@@ -119,17 +119,27 @@ export async function retain(
           preserveUpdatedAt: true,
           ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
         });
-        return {
-          action: "merge",
-          memoryId: targetId,
-          targetId,
-          proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
-        };
+        if (updated) {
+          return {
+            action: "merge",
+            memoryId: targetId,
+            targetId,
+            proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
+          };
+        }
+        // A null result collapses two very different outcomes: the target was
+        // deleted mid-flight (benign race → fall through to create), or the
+        // write itself threw inside updateVaultMemoryOp and the target is
+        // still there. Re-probe to tell them apart — falling through on a real
+        // write failure would create a duplicate that callers then link
+        // entities to, instead of surfacing (and letting them retry) the failure.
+        await assertMergeTargetGoneOrThrow(ctx, targetId);
       }
     }
   }
 
-  // No merge candidate (or auto-merge disabled): create a new memory.
+  // No merge candidate (or auto-merge disabled, or the merge target was
+  // deleted between search and write): create a new memory.
   const embedding = await generateEmbedding(trimmed, ctx.embeddingOptions);
   ctx.vaultCache.set(trimmed, embedding);
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -253,11 +263,17 @@ async function tryConsolidate(
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
+    if (!updated) {
+      // Target gone → fall through to create; genuine write failure → throw
+      // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
+      await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
+      return null;
+    }
     return {
       action: "merge",
       memoryId: decision.targetId,
       targetId: decision.targetId,
-      proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
+      proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
     };
   }
 
@@ -286,13 +302,35 @@ async function tryConsolidate(
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
+    if (!updated) {
+      // Target gone → fall through to create; genuine write failure → throw
+      // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
+      await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
+      return null;
+    }
     return {
       action: "update",
       memoryId: decision.targetId,
       targetId: decision.targetId,
-      proofCount: updated?.proofCount ?? (existing.proofCount ?? 1) + 1,
+      proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
     };
   }
 
   return null;
+}
+
+/**
+ * Called when an auto-merge write (`updateVaultMemoryOp`) returns null. That
+ * op collapses two very different outcomes into null: the target was
+ * concurrently deleted (a benign race — the caller should fall through and
+ * create), or the write path threw and the memory is still there (a genuine
+ * failure). Re-probe to tell them apart: if the target still exists, the merge
+ * failed to persist, so throw rather than let the caller silently create a
+ * duplicate that entities would then link to.
+ */
+async function assertMergeTargetGoneOrThrow(ctx: RetainContext, targetId: string): Promise<void> {
+  const stillExists = await getVaultMemoryOp(ctx.vaultCtx, targetId);
+  if (stillExists) {
+    throw new Error(`retain: merge into memory ${targetId} failed to persist`);
+  }
 }

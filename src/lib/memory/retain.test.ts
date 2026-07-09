@@ -170,7 +170,9 @@ describe("retain", () => {
       updatedAt: new Date(),
       isDeleted: false,
     });
-    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null);
+    // Non-null so it stays on the merge path (a null result now falls through
+    // to create — covered by the dedicated test below).
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "id1", proofCount: 2 } as never);
 
     await retain("Foo", ctx, { sourceChunkIds: ["msg-b", "msg-c"] });
 
@@ -181,6 +183,63 @@ describe("retain", () => {
         sourceChunkIds: ["msg-a", "msg-b", "msg-c"],
       })
     );
+  });
+
+  const mergeTarget = {
+    uniqueId: "target",
+    content: "Foo",
+    scope: "private",
+    folderId: null,
+    userId: null,
+    embedding: null,
+    sourceChunkIds: [],
+    proofCount: 3,
+    source: "manual",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    isDeleted: false,
+  };
+
+  it("falls through to create when the merge target was deleted mid-flight (write → null, target gone)", async () => {
+    // Regression (#630): a null update result must NOT report a phantom merge
+    // with an optimistic +1. When the target was deleted between search and
+    // write (re-probe finds it gone), retain still retains the fact via create.
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "target", content: "Foo", similarity: 0.99 },
+    ]);
+    // First lookup (pre-write) finds the target; the post-null re-probe finds
+    // it gone → benign race → create.
+    vi.mocked(getVaultMemoryOp).mockResolvedValueOnce(mergeTarget).mockResolvedValue(null);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null); // write didn't persist
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "created-fresh" } as never);
+
+    const result = await retain("Foo", ctx, { sourceChunkIds: ["msg-x"] });
+
+    expect(vi.mocked(updateVaultMemoryOp)).toHaveBeenCalled();
+    // No phantom merge/proofCount=4 — the fact is created instead.
+    expect(result.action).toBe("create");
+    expect(result.memoryId).toBe("created-fresh");
+    expect(result.proofCount).toBe(1);
+    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalled();
+  });
+
+  it("throws (no duplicate create) when the merge write fails but the target still exists", async () => {
+    // updateVaultMemoryOp collapses a caught write error into null just like a
+    // concurrent delete. If the target is still present, falling through to
+    // create would silently duplicate the fact — surface the failure instead.
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "target", content: "Foo", similarity: 0.99 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(mergeTarget); // still there on re-probe
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null); // write threw internally
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "should-not-happen" } as never);
+
+    await expect(retain("Foo", ctx, { sourceChunkIds: ["msg-x"] })).rejects.toThrow(
+      /failed to persist/
+    );
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
   it("force-creates when enableAutoMerge=false even if similar match exists", async () => {
