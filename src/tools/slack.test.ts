@@ -163,18 +163,22 @@ describe("createSlackTools", () => {
   });
 
   test("slack_search_messages (channel-scoped) reads conversations.history and filters by query", async () => {
-    const callProxy = vi
-      .fn<SlackProxyCaller>()
-      .mockResolvedValueOnce(proxyResult({ ok: true, channels: [{ id: "C9", name: "eng" }] }))
-      .mockResolvedValueOnce(
-        proxyResult({
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C9", name: "eng" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
           ok: true,
           messages: [
             { text: "deploy done", user: "bob", ts: "1.1" },
             { text: "lunch soon?", user: "amy", ts: "1.2" },
           ],
-        })
-      );
+        });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_search_messages, {
       query: "deploy",
@@ -217,8 +221,9 @@ describe("createSlackTools", () => {
     const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
       Record<string, unknown>
     >;
+    // The author id U2 resolves to its display name via the shared directory.
     expect(result).toEqual([
-      { text: "deploy done", user: "U2", ts: "1.1", channel: "DM with bob" },
+      { text: "deploy done", user: "bob", ts: "1.1", channel: "DM with bob" },
     ]);
     // The directory covers the counterparty, so no per-DM users.info is needed.
     expect(callProxy.mock.calls.some((c) => c[0] === "/users.info")).toBe(false);
@@ -263,12 +268,19 @@ describe("createSlackTools", () => {
   });
 
   test("slack_search_messages resolves a channel name to its id before reading history", async () => {
-    const callProxy = vi
-      .fn<SlackProxyCaller>()
-      .mockResolvedValueOnce(proxyResult({ ok: true, channels: [{ id: "C9", name: "eng" }] }))
-      .mockResolvedValueOnce(
-        proxyResult({ ok: true, messages: [{ text: "deploy done", user: "bob", ts: "1.1" }] })
-      );
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C9", name: "eng" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [{ text: "deploy done", user: "bob", ts: "1.1" }],
+        });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_search_messages, {
       query: "deploy",
@@ -334,18 +346,22 @@ describe("createSlackTools", () => {
   });
 
   test("slack_search_messages caps results at count", async () => {
-    const callProxy = vi
-      .fn<SlackProxyCaller>()
-      .mockResolvedValueOnce(proxyResult({ ok: true, channels: [{ id: "C0", name: "a" }] }))
-      .mockResolvedValueOnce(
-        proxyResult({
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "C0", name: "a" }] });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({
           ok: true,
           messages: [
             { text: "deploy one", user: "u", ts: "1" },
             { text: "deploy two", user: "u", ts: "2" },
           ],
-        })
-      );
+        });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_search_messages, {
       query: "deploy",
@@ -360,13 +376,21 @@ describe("createSlackTools", () => {
       { id: "C1", name: "b" },
       { id: "C2", name: "c" },
     ];
-    const callProxy = vi.fn<SlackProxyCaller>();
-    callProxy
-      .mockResolvedValueOnce(proxyResult({ ok: true, channels }))
-      .mockResolvedValueOnce(
-        proxyResult({ ok: true, messages: [{ text: "deploy shipped", user: "u", ts: "1" }] })
-      )
-      .mockResolvedValueOnce(proxyResult({ ok: false, error: "ratelimited" }, 429));
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path, query) => {
+      if (path === "/conversations.list") return proxyResult({ ok: true, channels });
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      if (path === "/conversations.history") {
+        if (query?.channel === "C0") {
+          return proxyResult({
+            ok: true,
+            messages: [{ text: "deploy shipped", user: "u", ts: "1" }],
+          });
+        }
+        if (query?.channel === "C1") return proxyResult({ ok: false, error: "ratelimited" }, 429);
+        return proxyResult({ ok: true, messages: [] });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_search_messages, { query: "deploy" })) as Array<
       Record<string, unknown>
@@ -374,7 +398,11 @@ describe("createSlackTools", () => {
     // one real match from C0, then the pending-approval note; C2 is never fetched.
     expect(result[0]).toEqual({ text: "deploy shipped", user: "u", ts: "1", channel: "a" });
     expect(result[result.length - 1].note).toBe(SLACK_PENDING_APPROVAL_NOTE);
-    expect(callProxy).toHaveBeenCalledTimes(3);
+    const historyChannels = callProxy.mock.calls
+      .filter((c) => c[0] === "/conversations.history")
+      .map((c) => c[1]?.channel);
+    expect(historyChannels).toEqual(["C0", "C1"]);
+    expect(historyChannels).not.toContain("C2");
   });
 
   test("slack_list_users omits deactivated members", async () => {
@@ -398,12 +426,13 @@ describe("createSlackTools", () => {
   });
 
   test("slack_get_channel_history fetches conversations.history for a channel", async () => {
-    const callProxy = vi.fn<SlackProxyCaller>().mockResolvedValueOnce(
-      proxyResult({
-        ok: true,
-        messages: [{ text: "hi", user: "U1", ts: "1.0" }],
-      })
-    );
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.history") {
+        return proxyResult({ ok: true, messages: [{ text: "hi", user: "U1", ts: "1.0" }] });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_get_channel_history, {
       channel: "C1",
@@ -415,16 +444,67 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[0][1]?.limit).toBe(5);
   });
 
+  test("slack_get_channel_history resolves the author id and inline mentions to names", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [{ user: "U1", text: "hey <@U2> ping", ts: "1.0" }],
+        });
+      }
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U1", name: "alice", profile: { display_name: "Alice" } },
+            { id: "U2", name: "bob", profile: { display_name: "Bob" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_channel_history, {
+      channel: "C1",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ user: "Alice", text: "hey @Bob ping", ts: "1.0" }]);
+  });
+
+  test("slack_get_channel_history rewrites a channel mention and falls back for unmapped ids", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.history") {
+        return proxyResult({
+          ok: true,
+          messages: [
+            { user: "U9", username: "ghost", text: "see <#C1|general> and <@U9>", ts: "1.0" },
+          ],
+        });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_channel_history, {
+      channel: "C1",
+    })) as Array<Record<string, unknown>>;
+    // `<#C1|general>` -> `#general`; unmapped `<@U9>` -> `@U9`; author -> username fallback.
+    expect(result).toEqual([{ user: "ghost", text: "see #general and @U9", ts: "1.0" }]);
+  });
+
   test("slack_get_thread_replies fetches conversations.replies for a thread", async () => {
-    const callProxy = vi.fn<SlackProxyCaller>().mockResolvedValueOnce(
-      proxyResult({
-        ok: true,
-        messages: [
-          { text: "root", user: "U1", ts: "1.0" },
-          { text: "reply", username: "bob", ts: "2.0" },
-        ],
-      })
-    );
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.replies") {
+        return proxyResult({
+          ok: true,
+          messages: [
+            { text: "root", user: "U1", ts: "1.0" },
+            { text: "reply", username: "bob", ts: "2.0" },
+          ],
+        });
+      }
+      if (path === "/users.list") return proxyResult({ ok: true, members: [] });
+      return proxyResult({ ok: false }, 400);
+    });
     const tools = createSlackTools(callProxy);
     const result = (await runExecutor(tools.slack_get_thread_replies, {
       channel: "C1",
@@ -439,6 +519,33 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls[0][1]?.channel).toBe("C1");
     expect(callProxy.mock.calls[0][1]?.ts).toBe("1.0");
     expect(callProxy.mock.calls[0][1]?.limit).toBe(5);
+  });
+
+  test("slack_get_thread_replies humanizes author ids and inline mentions", async () => {
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.replies") {
+        return proxyResult({
+          ok: true,
+          messages: [{ user: "U1", text: "ok <@U2> done", ts: "1.0" }],
+        });
+      }
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U1", name: "alice", profile: { display_name: "Alice" } },
+            { id: "U2", name: "bob", profile: { display_name: "Bob" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_get_thread_replies, {
+      channel: "C1",
+      ts: "1.0",
+    })) as Array<Record<string, unknown>>;
+    expect(result).toEqual([{ user: "Alice", text: "ok @Bob done", ts: "1.0" }]);
   });
 
   test("slack_get_channel_history returns the pending-approval note on a 429", async () => {
@@ -1223,7 +1330,10 @@ describe("createSlackTools", () => {
     const result = (await runExecutor(tools.slack_search_messages, {
       from_user: "bob",
     })) as Array<Record<string, unknown>>;
-    expect(result).toEqual([{ text: "deploy done", user: "U2", ts: "2.0", channel: "eng" }]);
+    // The matched author id resolves to its directory name in the output.
+    expect(result).toEqual([
+      { text: "deploy done", user: "Bob Example", ts: "2.0", channel: "eng" },
+    ]);
   });
 
   test("slack_search_messages from_user accepts a bare user id without a users.list lookup", async () => {
@@ -1246,9 +1356,9 @@ describe("createSlackTools", () => {
     const result = (await runExecutor(tools.slack_search_messages, {
       from_user: "U0000002",
     })) as Array<Record<string, unknown>>;
+    // The directory (fetched for humanizing output) has no entry for this id, so the
+    // author id is preserved verbatim rather than being resolved to a name.
     expect(result).toEqual([{ text: "deploy done", user: "U0000002", ts: "2.0", channel: "eng" }]);
-    // A bare id needs no directory lookup.
-    expect(callProxy.mock.calls.some((c) => c[0] === "/users.list")).toBe(false);
   });
 
   test("slack_search_messages mentions keeps messages that @-mention the user (both token forms)", async () => {
@@ -1297,8 +1407,9 @@ describe("createSlackTools", () => {
     const result = (await runExecutor(tools.slack_search_messages, { mentions: "me" })) as Array<
       Record<string, unknown>
     >;
+    // The mention token is humanized in the output; the unmapped id falls back to itself.
     expect(result).toEqual([
-      { text: "ping <@U0000001> look", user: "U2", ts: "2.0", channel: "eng" },
+      { text: "ping @U0000001 look", user: "U2", ts: "2.0", channel: "eng" },
     ]);
     expect(callProxy.mock.calls.some((c) => c[0] === "/auth.test")).toBe(true);
   });

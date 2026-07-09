@@ -324,6 +324,40 @@ function displayNameForUser(user: SlackUser): string {
   return user.profile?.display_name || user.real_name || user.name || user.id;
 }
 
+/**
+ * The human-readable author of a message: the sender's display name from the
+ * users directory, then the message's own `username`, then the raw `user` id.
+ * Slack puts a bare `U…` id in `user`, which is meaningless to the user — this
+ * resolves it via the shared directory so results never surface a raw id.
+ */
+function authorName(m: SlackMessage, directory: SlackUsersDirectory): string {
+  const known = m.user ? directory.byId.get(m.user) : undefined;
+  return (known && displayNameForUser(known)) || m.username || m.user || "";
+}
+
+/** `<@U…>` / `<@U…|handle>` mention tokens in message text. */
+const USER_MENTION_RE = /<@([UW][A-Z0-9]+)(?:\|([^>]+))?>/g;
+/** `<#C…>` / `<#C…|name>` channel mention tokens in message text. */
+const CHANNEL_MENTION_RE = /<#(C[A-Z0-9]+)(?:\|([^>]+))?>/g;
+
+/**
+ * Rewrite Slack's inline mention tokens in message text into readable names so a
+ * raw id never reaches the user. `<@U…>` / `<@U…|handle>` become `@<display name
+ * from the directory, else the piped handle, else the id>`; `<#C…|name>` becomes
+ * `#name` while a nameless `<#C…>` is left as-is. Other angle-bracket tokens
+ * (`<!here>`, `<http…>` links) are deliberately left untouched. Never throws.
+ */
+function humanizeSlackText(text: string, directory: SlackUsersDirectory): string {
+  return text
+    .replace(USER_MENTION_RE, (_match, id: string, handle: string | undefined) => {
+      const known = directory.byId.get(id);
+      return `@${(known && displayNameForUser(known)) || handle || id}`;
+    })
+    .replace(CHANNEL_MENTION_RE, (match, _id: string, name: string | undefined) =>
+      name ? `#${name}` : match
+    );
+}
+
 /** Hard ceiling on users.list pages we'll follow — mirrors MAX_CONVERSATIONS_PAGES. */
 const MAX_USERS_PAGES = 10;
 
@@ -978,8 +1012,14 @@ async function searchSlackMessages(
       getAuthUserId,
       getUsersDirectory
     );
+    const directory = await getUsersDirectory();
     for (const m of matched) {
-      results.push({ text: m.text, user: m.username ?? m.user, ts: m.ts, channel: label });
+      results.push({
+        text: humanizeSlackText(m.text ?? "", directory),
+        user: authorName(m, directory),
+        ts: m.ts,
+        channel: label,
+      });
     }
   }
 
@@ -1031,9 +1071,10 @@ async function getSlackChannelHistory(
     json
   );
   if (typeof res === "string") return res;
+  const directory = await makeGetUsersDirectory(callProxy)();
   return (res.messages ?? []).map((m) => ({
-    text: m.text,
-    user: m.username ?? m.user,
+    text: humanizeSlackText(m.text ?? "", directory),
+    user: authorName(m, directory),
     ts: m.ts,
   }));
 }
@@ -1057,9 +1098,10 @@ async function getSlackThreadReplies(
     json
   );
   if (typeof res === "string") return res;
+  const directory = await makeGetUsersDirectory(callProxy)();
   return (res.messages ?? []).map((m) => ({
-    text: m.text,
-    user: m.username ?? m.user,
+    text: humanizeSlackText(m.text ?? "", directory),
+    user: authorName(m, directory),
     ts: m.ts,
   }));
 }
