@@ -303,6 +303,8 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     ...(r.eventTimeStart !== undefined && { eventTimeStart: r.eventTimeStart }),
     ...(r.eventTimeEnd !== undefined && { eventTimeEnd: r.eventTimeEnd }),
     ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
+    ...(r.sourceChunkIds !== undefined &&
+      r.sourceChunkIds !== null && { sourceChunkIds: r.sourceChunkIds }),
     // r.similarity from searchVaultMemoriesWithSize is the fused score
     // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
     // default) and pure cosine when useFusion=false. The breakdown
