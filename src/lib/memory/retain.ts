@@ -119,10 +119,6 @@ export async function retain(
           preserveUpdatedAt: true,
           ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
         });
-        // A null result means the write did NOT persist (target deleted/not
-        // owned mid-flight, or a caught write error inside updateVaultMemoryOp).
-        // Don't report a phantom merge with an optimistic +1 — fall through to
-        // create so the fact is still retained rather than silently lost.
         if (updated) {
           return {
             action: "merge",
@@ -131,12 +127,19 @@ export async function retain(
             proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
           };
         }
+        // A null result collapses two very different outcomes: the target was
+        // deleted mid-flight (benign race → fall through to create), or the
+        // write itself threw inside updateVaultMemoryOp and the target is
+        // still there. Re-probe to tell them apart — falling through on a real
+        // write failure would create a duplicate that callers then link
+        // entities to, instead of surfacing (and letting them retry) the failure.
+        await assertMergeTargetGoneOrThrow(ctx, targetId);
       }
     }
   }
 
-  // No merge candidate (or auto-merge disabled, or the merge write didn't
-  // persist): create a new memory.
+  // No merge candidate (or auto-merge disabled, or the merge target was
+  // deleted between search and write): create a new memory.
   const embedding = await generateEmbedding(trimmed, ctx.embeddingOptions);
   ctx.vaultCache.set(trimmed, embedding);
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -260,9 +263,12 @@ async function tryConsolidate(
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
-    // Write didn't persist (race or caught error) — fall through to create
-    // rather than reporting a phantom merge with an optimistic +1.
-    if (!updated) return null;
+    if (!updated) {
+      // Target gone → fall through to create; genuine write failure → throw
+      // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
+      await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
+      return null;
+    }
     return {
       action: "merge",
       memoryId: decision.targetId,
@@ -296,9 +302,12 @@ async function tryConsolidate(
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
-    // Write didn't persist (race or caught error) — fall through to create
-    // rather than reporting a phantom update with an optimistic +1.
-    if (!updated) return null;
+    if (!updated) {
+      // Target gone → fall through to create; genuine write failure → throw
+      // rather than silently create a duplicate. See assertMergeTargetGoneOrThrow.
+      await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
+      return null;
+    }
     return {
       action: "update",
       memoryId: decision.targetId,
@@ -308,4 +317,20 @@ async function tryConsolidate(
   }
 
   return null;
+}
+
+/**
+ * Called when an auto-merge write (`updateVaultMemoryOp`) returns null. That
+ * op collapses two very different outcomes into null: the target was
+ * concurrently deleted (a benign race — the caller should fall through and
+ * create), or the write path threw and the memory is still there (a genuine
+ * failure). Re-probe to tell them apart: if the target still exists, the merge
+ * failed to persist, so throw rather than let the caller silently create a
+ * duplicate that entities would then link to.
+ */
+async function assertMergeTargetGoneOrThrow(ctx: RetainContext, targetId: string): Promise<void> {
+  const stillExists = await getVaultMemoryOp(ctx.vaultCtx, targetId);
+  if (stillExists) {
+    throw new Error(`retain: merge into memory ${targetId} failed to persist`);
+  }
 }
