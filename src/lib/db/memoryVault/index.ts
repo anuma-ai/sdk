@@ -1,5 +1,6 @@
 export { VaultMemory } from "./models";
 export {
+  clearMemoryTopicsOverrideOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,
@@ -8,6 +9,7 @@ export {
   getAllVaultMemoryContentsOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  setMemoryEntitiesOp,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,

@@ -10,8 +10,11 @@ import {
   updateVaultMemoryEmbeddingOp,
   deleteVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,
+  setMemoryEntitiesOp,
+  clearMemoryTopicsOverrideOp,
   vaultMemoryToStored,
 } from "./operations";
+import { linkMemoryEntitiesOp, unlinkMemoryEntitiesOp } from "../entities/operations";
 
 // Mock encryption so tests don't need real crypto
 vi.mock("./encryption", () => ({
@@ -20,6 +23,14 @@ vi.mock("./encryption", () => ({
     ...memory,
     content: memory.content.replace("encrypted:", ""),
   })),
+}));
+
+// Mock the entity ops so setMemoryEntitiesOp's link/unlink calls are observable
+// without a real WatermelonDB.
+vi.mock("../entities/operations", () => ({
+  linkMemoryEntitiesOp: vi.fn(async () => []),
+  unlinkMemoryEntitiesOp: vi.fn(async () => undefined),
+  unlinkAllMemoryEntitiesForUserOp: vi.fn(async () => undefined),
 }));
 
 /**
@@ -60,6 +71,9 @@ function mockRecord(overrides: Record<string, any> = {}) {
     },
     get folderId() {
       return raw.folder_id ?? null;
+    },
+    get topicsUserManaged() {
+      return raw.topics_user_managed ?? null;
     },
     _setRaw(key: string, value: any) {
       raw[key] = value;
@@ -954,5 +968,75 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
     // is_deleted + sortBy = 2 conditions (no folder_id)
     const callArgs = queryFn.mock.calls[0];
     expect(callArgs.length).toBe(2);
+  });
+});
+
+describe("setMemoryEntitiesOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function ctxWithEntity(record = mockRecord()) {
+    return makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      entityCtx: {} as any,
+    });
+  }
+
+  it("replaces links and marks the memory user-managed", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const ctx = ctxWithEntity(record);
+    const result = await setMemoryEntitiesOp(ctx, "mem_1", [
+      "tokyo",
+      { name: "berlin", kind: "place" },
+    ]);
+    expect(unlinkMemoryEntitiesOp).toHaveBeenCalledWith(ctx.entityCtx, ["mem_1"]);
+    expect(linkMemoryEntitiesOp).toHaveBeenCalledWith(ctx.entityCtx, "mem_1", [
+      "tokyo",
+      { name: "berlin", kind: "place" },
+    ]);
+    expect(result?.topicsUserManaged).toBe(true);
+  });
+
+  it("clears all topics (empty set) but stays user-managed", async () => {
+    const ctx = ctxWithEntity();
+    const result = await setMemoryEntitiesOp(ctx, "mem_1", []);
+    expect(unlinkMemoryEntitiesOp).toHaveBeenCalledWith(ctx.entityCtx, ["mem_1"]);
+    // No link call for an empty set.
+    expect(linkMemoryEntitiesOp).not.toHaveBeenCalled();
+    expect(result?.topicsUserManaged).toBe(true);
+  });
+
+  it("preserves updated_at so a topic edit doesn't inflate recency", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const before = record.updatedAt.getTime(); // Date on read; op restores this ms value
+    await setMemoryEntitiesOp(ctxWithEntity(record), "mem_1", ["tokyo"]);
+    // The op writes the original ms back via _setRaw, so the raw value equals `before`.
+    expect(record.updatedAt).toBe(before);
+  });
+
+  it("throws when ctx.entityCtx is missing", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => mockRecord()) } as any,
+    });
+    await expect(setMemoryEntitiesOp(ctx, "mem_1", ["tokyo"])).rejects.toThrow(/entityCtx/);
+  });
+
+  it("returns null for a soft-deleted memory (no link changes)", async () => {
+    const ctx = ctxWithEntity(mockRecord({ id: "mem_1", isDeleted: true }));
+    const result = await setMemoryEntitiesOp(ctx, "mem_1", ["tokyo"]);
+    expect(result).toBeNull();
+    expect(unlinkMemoryEntitiesOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("clearMemoryTopicsOverrideOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("clears the user-managed flag and returns true", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("topics_user_managed", true);
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ok = await clearMemoryTopicsOverrideOp(ctx, "mem_1");
+    expect(ok).toBe(true);
+    expect(record.topicsUserManaged).toBe(false);
   });
 });

@@ -15,11 +15,29 @@
 
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
+import { VaultMemory } from "../db/memoryVault/models.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
+
+/**
+ * True if the user has taken manual control of this memory's topics, so
+ * auto-extraction must not modify its entity links. Best-effort: on any read
+ * error (e.g. the row is gone), returns false so linking proceeds as before.
+ */
+async function isMemoryTopicsUserManaged(
+  ctx: EntityOperationsContext,
+  memoryId: string
+): Promise<boolean> {
+  try {
+    const mem = await ctx.database.get<VaultMemory>(VaultMemory.table).find(memoryId);
+    return mem.topicsUserManaged === true;
+  } catch {
+    return false;
+  }
+}
 
 // GLOBAL default for ALL background extraction (not gated on privacy mode):
 // every conversation's auto-extract runs on this open-weights model
@@ -492,7 +510,13 @@ export async function extractAndRetain(
       // a failure here doesn't roll back the retain.
       if (options.entityCtx && candidate.entities.length > 0) {
         try {
-          await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities);
+          // Respect user-managed topics: if this candidate auto-merged into an
+          // existing memory whose topics the user has taken manual control of,
+          // don't graft extracted entities onto it. (A freshly created memory
+          // is never user-managed, so this only skips the merge case.)
+          if (!(await isMemoryTopicsUserManaged(options.entityCtx, result.memoryId))) {
+            await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities);
+          }
         } catch (err) {
           // Entity linking is auxiliary — don't kill the rest of the batch.
           log.warn("[memory/extract] linkMemoryEntitiesOp failed", err);

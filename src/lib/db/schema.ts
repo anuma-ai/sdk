@@ -58,7 +58,7 @@ import { VaultFolder } from "./vaultFolders/models";
  *   detectable and re-embeddable after an embedding-model change (null = legacy
  *   rows, grandfathered as compatible with the current model)
  */
-export const SDK_SCHEMA_VERSION = 33;
+export const SDK_SCHEMA_VERSION = 34;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -198,6 +198,10 @@ export const sdkSchema = appSchema({
         { name: "event_time_start", type: "number", isOptional: true, isIndexed: true },
         { name: "event_time_end", type: "number", isOptional: true },
         { name: "event_time_kind", type: "string", isOptional: true },
+        // When true, the user has manually set this memory's topics (entity
+        // links). Auto-extraction then leaves its links alone — the user owns
+        // them. Null/false = topics are auto-derived (default).
+        { name: "topics_user_managed", type: "boolean", isOptional: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -790,6 +794,18 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "embedding_model", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v33 -> v34: user-managed topics. `topics_user_managed` marks a memory
+    // whose entity links the user has taken manual control of, so
+    // auto-extraction stops touching them.
+    {
+      toVersion: 34,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "topics_user_managed", type: "boolean", isOptional: true }],
         }),
       ],
     },

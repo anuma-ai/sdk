@@ -26,6 +26,9 @@ export interface StoredVaultMemory {
   eventTimeEnd: number | null;
   /** W6 temporal lane — `point | range | ongoing | null`. */
   eventTimeKind: string | null;
+  /** When true, the user has manually set this memory's topics (entity links);
+   * auto-extraction leaves them alone. False on legacy/auto rows. */
+  topicsUserManaged: boolean;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -101,4 +104,7 @@ export interface UpdateVaultMemoryOptions {
    * without inflating recency on top.
    */
   preserveUpdatedAt?: boolean;
+  /** If provided, sets whether the user has taken manual control of this
+   * memory's topics. Set by {@link setMemoryEntitiesOp}. */
+  topicsUserManaged?: boolean;
 }

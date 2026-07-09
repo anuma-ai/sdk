@@ -20,6 +20,9 @@ export class VaultMemory extends Model {
   @field("event_time_end") eventTimeEnd!: number | null;
   /** W6 temporal lane — `point | range | ongoing | null`. */
   @field("event_time_kind") eventTimeKind!: string | null;
+  /** When true, the user has manually set this memory's topics; auto-extraction
+   *  leaves its entity links alone. Null on legacy rows (treated as false). */
+  @field("topics_user_managed") topicsUserManaged!: boolean | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;
