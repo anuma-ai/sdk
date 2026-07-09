@@ -13,6 +13,8 @@
  * Spec: see `tasks/hackathon/auto-extraction-prompt.md`.
  */
 
+import { Q } from "@nozbe/watermelondb";
+
 import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entities/operations.js";
 import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
@@ -24,18 +26,26 @@ import type { RetainOptions, RetainResult } from "./types.js";
 
 /**
  * True if the user has taken manual control of this memory's topics, so
- * auto-extraction must not modify its entity links. Best-effort: on any read
- * error (e.g. the row is gone), returns false so linking proceeds as before.
+ * auto-extraction must not modify its entity links. Uses a query (not `find`)
+ * to distinguish "row absent" from "read failed": an absent row is a fresh
+ * memory → not user-managed (link proceeds); a genuine read error fails CLOSED
+ * (returns true → skip linking) so a transient adapter/schema fault can never
+ * graft extracted topics onto a memory we couldn't verify.
  */
 async function isMemoryTopicsUserManaged(
   ctx: EntityOperationsContext,
   memoryId: string
 ): Promise<boolean> {
   try {
-    const mem = await ctx.database.get<VaultMemory>(VaultMemory.table).find(memoryId);
-    return mem.topicsUserManaged === true;
+    const rows = await ctx.database
+      .get<VaultMemory>(VaultMemory.table)
+      .query(Q.where("id", memoryId))
+      .fetch();
+    // Absent → fresh/unknown memory, safe to auto-link.
+    return rows[0]?.topicsUserManaged === true;
   } catch {
-    return false;
+    // Read failed → fail closed: treat as user-managed and skip linking.
+    return true;
   }
 }
 

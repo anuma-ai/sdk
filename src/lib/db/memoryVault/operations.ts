@@ -539,7 +539,8 @@ export async function setMemoryEntitiesOp(
   memoryId: string,
   entities: ReadonlyArray<EntityInput>
 ): Promise<StoredVaultMemory | null> {
-  if (!ctx.entityCtx) {
+  const entityCtx = ctx.entityCtx;
+  if (!entityCtx) {
     throw new Error("setMemoryEntitiesOp requires ctx.entityCtx (entity collections)");
   }
   let record: VaultMemory;
@@ -550,20 +551,42 @@ export async function setMemoryEntitiesOp(
   }
   if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
-  // Replace the link set: drop all existing rows for this memory, then link
-  // the chosen entities (auto-created/kind-backfilled by linkMemoryEntitiesOp).
-  await unlinkMemoryEntitiesOp(ctx.entityCtx, [memoryId]);
-  if (entities.length > 0) {
-    await linkMemoryEntitiesOp(ctx.entityCtx, memoryId, entities);
-  }
-
+  // 1) Mark user-managed FIRST, re-checking soft-delete inside the writer — a
+  // delete that committed after the probe must win (mirrors updateVaultMemoryOp),
+  // so we never attach links to a deleted memory. Setting the flag before
+  // touching links also means a later link failure still leaves the memory
+  // user-managed rather than silently reclaimable by auto-extraction.
+  let stale = false;
   const originalUpdatedAt = record.updatedAt.getTime();
   await ctx.database.write(async () => {
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+      stale = true;
+      return;
+    }
     await record.update((r) => {
       r._setRaw("topics_user_managed", true);
       r._setRaw("updated_at", originalUpdatedAt);
     });
   });
+  if (stale) return null;
+
+  // 2) Add the new links first (idempotent), THEN drop only the stale ones.
+  // This ordering means a transient failure can leave at most EXTRA topics
+  // (old ∪ new) — never zero — so a topic edit can't wipe a memory's topics
+  // (the delete-all-then-relink order could, on a mid-op failure).
+  const linked =
+    entities.length > 0 ? await linkMemoryEntitiesOp(entityCtx, memoryId, entities) : [];
+  const keep = new Set(linked.map((e) => e.uniqueId));
+  const existing = await entityCtx.memoryEntityCollection
+    .query(Q.where("memory_id", memoryId))
+    .fetch();
+  const staleLinks = existing.filter((l) => !keep.has(String(l.entityId)));
+  if (staleLinks.length > 0) {
+    await ctx.database.write(async () => {
+      await ctx.database.batch(...staleLinks.map((l) => l.prepareDestroyPermanently()));
+    });
+  }
+
   return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 

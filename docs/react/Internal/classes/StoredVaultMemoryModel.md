@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#23)
+Defined in: [src/lib/db/memoryVault/models.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#26)
 
 ***
 
@@ -209,7 +209,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#25)
+Defined in: [src/lib/db/memoryVault/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#28)
 
 ***
 
@@ -245,11 +245,22 @@ Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sd
 
 ***
 
+### topicsUserManaged
+
+> **topicsUserManaged**: `boolean` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#25)
+
+When true, the user has manually set this memory's topics; auto-extraction
+leaves its entity links alone. Null on legacy rows (treated as false).
+
+***
+
 ### updatedAt
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#24)
+Defined in: [src/lib/db/memoryVault/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#27)
 
 ***
 

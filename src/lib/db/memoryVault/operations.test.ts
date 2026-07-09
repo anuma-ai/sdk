@@ -14,7 +14,7 @@ import {
   clearMemoryTopicsOverrideOp,
   vaultMemoryToStored,
 } from "./operations";
-import { linkMemoryEntitiesOp, unlinkMemoryEntitiesOp } from "../entities/operations";
+import { linkMemoryEntitiesOp } from "../entities/operations";
 
 // Mock encryption so tests don't need real crypto
 vi.mock("./encryption", () => ({
@@ -974,42 +974,82 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 describe("setMemoryEntitiesOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  function ctxWithEntity(record = mockRecord()) {
-    return makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
-      entityCtx: {} as any,
-    });
+  /** Mock a memory_entity link row with a destroy spy. */
+  function linkRow(entityId: string) {
+    return { entityId, prepareDestroyPermanently: vi.fn(() => ({ _op: "destroy", entityId })) };
   }
 
-  it("replaces links and marks the memory user-managed", async () => {
-    const record = mockRecord({ id: "mem_1" });
-    const ctx = ctxWithEntity(record);
+  /** ctx whose entityCtx serves `existing` links and records batch deletes. */
+  function ctxWithEntity(record = mockRecord(), existing: ReturnType<typeof linkRow>[] = []) {
+    const batch = vi.fn(async () => undefined);
+    const ctx = makeCtx({
+      database: { write: vi.fn(async (cb: () => any) => cb()), batch } as any,
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      entityCtx: {
+        memoryEntityCollection: {
+          query: vi.fn(() => ({ fetch: vi.fn(async () => existing) })),
+        },
+      } as any,
+    });
+    return { ctx, batch };
+  }
+
+  it("adds new links, removes only stale ones, and marks user-managed", async () => {
+    // Existing links: one to keep (tokyo), one stale (paris → removed).
+    const { ctx, batch } = ctxWithEntity(mockRecord({ id: "mem_1" }), [
+      linkRow("ent_tokyo"),
+      linkRow("ent_paris"),
+    ]);
+    // linkMemoryEntitiesOp returns the (now-linked) entity set.
+    vi.mocked(linkMemoryEntitiesOp).mockResolvedValueOnce([
+      { uniqueId: "ent_tokyo" },
+      { uniqueId: "ent_berlin" },
+    ] as any);
+
     const result = await setMemoryEntitiesOp(ctx, "mem_1", [
       "tokyo",
       { name: "berlin", kind: "place" },
     ]);
-    expect(unlinkMemoryEntitiesOp).toHaveBeenCalledWith(ctx.entityCtx, ["mem_1"]);
+
     expect(linkMemoryEntitiesOp).toHaveBeenCalledWith(ctx.entityCtx, "mem_1", [
       "tokyo",
       { name: "berlin", kind: "place" },
     ]);
+    // Only the stale link (ent_paris) is destroyed; ent_tokyo is kept.
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch.mock.calls[0]).toHaveLength(1);
     expect(result?.topicsUserManaged).toBe(true);
   });
 
+  it("links are added before stale removal (no wipe on partial failure)", async () => {
+    const { ctx } = ctxWithEntity(mockRecord({ id: "mem_1" }), [linkRow("ent_old")]);
+    const order: string[] = [];
+    vi.mocked(linkMemoryEntitiesOp).mockImplementationOnce(async () => {
+      order.push("link");
+      return [{ uniqueId: "ent_new" }] as any;
+    });
+    (ctx.database.batch as any).mockImplementationOnce(async () => {
+      order.push("removeStale");
+    });
+    await setMemoryEntitiesOp(ctx, "mem_1", ["new"]);
+    expect(order).toEqual(["link", "removeStale"]);
+  });
+
   it("clears all topics (empty set) but stays user-managed", async () => {
-    const ctx = ctxWithEntity();
+    const { ctx, batch } = ctxWithEntity(mockRecord({ id: "mem_1" }), [linkRow("ent_a")]);
     const result = await setMemoryEntitiesOp(ctx, "mem_1", []);
-    expect(unlinkMemoryEntitiesOp).toHaveBeenCalledWith(ctx.entityCtx, ["mem_1"]);
-    // No link call for an empty set.
+    // No link call for an empty set; the lone existing link is removed.
     expect(linkMemoryEntitiesOp).not.toHaveBeenCalled();
+    expect(batch).toHaveBeenCalledTimes(1);
     expect(result?.topicsUserManaged).toBe(true);
   });
 
   it("preserves updated_at so a topic edit doesn't inflate recency", async () => {
     const record = mockRecord({ id: "mem_1" });
     const before = record.updatedAt.getTime(); // Date on read; op restores this ms value
-    await setMemoryEntitiesOp(ctxWithEntity(record), "mem_1", ["tokyo"]);
-    // The op writes the original ms back via _setRaw, so the raw value equals `before`.
+    const { ctx } = ctxWithEntity(record);
+    vi.mocked(linkMemoryEntitiesOp).mockResolvedValueOnce([{ uniqueId: "ent_tokyo" }] as any);
+    await setMemoryEntitiesOp(ctx, "mem_1", ["tokyo"]);
     expect(record.updatedAt).toBe(before);
   });
 
@@ -1021,10 +1061,11 @@ describe("setMemoryEntitiesOp", () => {
   });
 
   it("returns null for a soft-deleted memory (no link changes)", async () => {
-    const ctx = ctxWithEntity(mockRecord({ id: "mem_1", isDeleted: true }));
+    const { ctx, batch } = ctxWithEntity(mockRecord({ id: "mem_1", isDeleted: true }));
     const result = await setMemoryEntitiesOp(ctx, "mem_1", ["tokyo"]);
     expect(result).toBeNull();
-    expect(unlinkMemoryEntitiesOp).not.toHaveBeenCalled();
+    expect(linkMemoryEntitiesOp).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
   });
 });
 
