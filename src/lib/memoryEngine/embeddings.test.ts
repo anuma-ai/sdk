@@ -23,11 +23,19 @@ import {
   getConversationsOp,
   getMessagesOp,
   type StorageOperationsContext,
+  updateMessageChunksOp,
   updateMessageEmbeddingOp,
 } from "../db/chat/operations";
 import type { StoredConversation, StoredMessage } from "../db/chat/types";
 
-import { embedAllMessages, generateEmbedding, generateEmbeddings } from "./embeddings";
+import {
+  chunkAndEmbedAllMessages,
+  EmbeddingHttpError,
+  embedAllMessages,
+  generateEmbedding,
+  generateEmbeddings,
+  isFatalEmbeddingError,
+} from "./embeddings";
 import { PiiRedactor } from "../pii/redactor";
 
 /** text → deterministic embedding the fake API returns. */
@@ -395,5 +403,98 @@ describe("embedAllMessages content filtering", () => {
 
     expect(count).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("EmbeddingHttpError / isFatalEmbeddingError", () => {
+  it("preserves the HTTP status on the thrown error", async () => {
+    stubFetchError(402, { error: "out of credits" });
+    const err = await generateEmbedding("text", { apiKey: "k", baseUrl: BASE }).catch((e) => e);
+    expect(err).toBeInstanceOf(EmbeddingHttpError);
+    expect((err as EmbeddingHttpError).status).toBe(402);
+    expect((err as Error).message).toBe("out of credits");
+  });
+
+  it("flags 401/402/403 as fatal and everything else as non-fatal", () => {
+    for (const status of [401, 402, 403]) {
+      expect(isFatalEmbeddingError(new EmbeddingHttpError("x", status))).toBe(true);
+    }
+    for (const status of [400, 404, 429, 500, undefined]) {
+      expect(isFatalEmbeddingError(new EmbeddingHttpError("x", status))).toBe(false);
+    }
+    // Non-EmbeddingHttpError values are never fatal (network throws, etc.).
+    expect(isFatalEmbeddingError(new Error("ECONNRESET"))).toBe(false);
+    expect(isFatalEmbeddingError(undefined)).toBe(false);
+  });
+});
+
+describe("backfill retry-storm guard", () => {
+  const ctx = {} as StorageOperationsContext;
+
+  function makeMessage(overrides: Partial<StoredMessage>): StoredMessage {
+    return {
+      uniqueId: "m-default",
+      messageId: 1,
+      conversationId: "c1",
+      role: "user",
+      content: "this content is plenty long to embed",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(getConversationsOp).mockResolvedValue([
+      { conversationId: "c1" } as StoredConversation,
+    ]);
+    vi.mocked(updateMessageEmbeddingOp).mockResolvedValue(null);
+    vi.mocked(updateMessageChunksOp).mockResolvedValue(null);
+  });
+
+  it("embedAllMessages: a 402 aborts the whole walk after exactly one request", async () => {
+    const fetchMock = stubFetchError(402, { error: "out of credits" });
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "a", content: "first message long enough to embed" }),
+      makeMessage({ uniqueId: "b", content: "second message long enough to embed" }),
+      makeMessage({ uniqueId: "c", content: "third message long enough to embed" }),
+    ]);
+
+    // One doomed request, then throw — NOT one request per message.
+    await expect(embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })).rejects.toBeInstanceOf(
+      EmbeddingHttpError
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+  });
+
+  it("embedAllMessages: a non-fatal status (404) is logged and the walk continues", async () => {
+    // 404 is non-429 4xx → not retried by withEmbeddingRetry and not fatal, so
+    // each message still gets its own request (old behavior) — the storm guard
+    // only fires on 401/402/403.
+    const fetchMock = stubFetchError(404, { error: "not found" });
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "a", content: "first message long enough to embed" }),
+      makeMessage({ uniqueId: "b", content: "second message long enough to embed" }),
+    ]);
+
+    const count = await embedAllMessages(ctx, { apiKey: "k", baseUrl: BASE });
+    expect(count).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2); // walked both, did not abort
+  });
+
+  it("chunkAndEmbedAllMessages: a 402 in the short-message batch aborts the pass", async () => {
+    const fetchMock = stubFetchError(402, { error: "out of credits" });
+    vi.mocked(getMessagesOp).mockResolvedValue([
+      makeMessage({ uniqueId: "a", content: "short message one, plenty long" }),
+      makeMessage({ uniqueId: "b", content: "short message two, plenty long" }),
+    ]);
+
+    await expect(
+      chunkAndEmbedAllMessages(ctx, { apiKey: "k", baseUrl: BASE })
+    ).rejects.toBeInstanceOf(EmbeddingHttpError);
+    // Short messages are batched into a single request — one call, then abort.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
   });
 });

@@ -41,8 +41,10 @@ export {
   DEFAULT_MIN_CONTENT_LENGTH,
   embedAllMessages,
   embedMessage,
+  EmbeddingHttpError,
   generateEmbedding,
   generateEmbeddings,
+  isFatalEmbeddingError,
 } from "./embeddings";
 export type { QuantizedEmbedding } from "./quantization";
 export { cosineInt8, dequantizeEmbedding, quantizeEmbedding } from "./quantization";

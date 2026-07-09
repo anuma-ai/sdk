@@ -284,8 +284,10 @@ export {
   DEFAULT_MIN_CHUNK_SIZE,
   embedAllMessages,
   embedMessage,
+  EmbeddingHttpError,
   generateEmbedding,
   generateEmbeddings,
+  isFatalEmbeddingError,
   shouldChunkMessage,
 } from "../lib/memoryEngine";
 

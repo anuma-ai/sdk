@@ -589,8 +589,10 @@ export {
   dequantizeEmbedding,
   embedAllMessages,
   embedMessage,
+  EmbeddingHttpError,
   generateEmbedding,
   generateEmbeddings,
+  isFatalEmbeddingError,
   quantizeEmbedding,
   shouldChunkMessage,
 } from "../lib/memoryEngine";

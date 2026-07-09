@@ -32,6 +32,51 @@ import type { EmbeddingOptions } from "./types";
 export const DEFAULT_MIN_CONTENT_LENGTH = 10;
 
 /**
+ * Embedding API error that preserves the HTTP status. The generated client
+ * surfaces failures as a status-less `{ error }` object; re-throwing that as a
+ * bare `Error` discards the status, so bulk backfills (which catch-and-continue
+ * per message) can't tell a fatal 402 from a transient blip and re-request the
+ * entire corpus. Carrying the status lets {@link isFatalEmbeddingError} abort
+ * the whole pass on the first fatal response.
+ */
+export class EmbeddingHttpError extends Error {
+  readonly status: number | undefined;
+  constructor(message: string, status: number | undefined) {
+    super(message);
+    this.name = "EmbeddingHttpError";
+    this.status = status;
+  }
+}
+
+/** Statuses that will fail identically on every subsequent request in the same
+ * session: unauthorized (401), payment required / out of credits (402), and
+ * forbidden (403). Retrying or walking the rest of the corpus is pure waste. */
+const FATAL_EMBEDDING_STATUSES = new Set([401, 402, 403]);
+
+/**
+ * True for an {@link EmbeddingHttpError} whose status is one a backfill can't
+ * recover from within the session (401/402/403). Bulk loops re-throw on this to
+ * abort the pass instead of firing one doomed request per message.
+ */
+export function isFatalEmbeddingError(err: unknown): boolean {
+  return (
+    err instanceof EmbeddingHttpError &&
+    err.status !== undefined &&
+    FATAL_EMBEDDING_STATUSES.has(err.status)
+  );
+}
+
+/** Build an {@link EmbeddingHttpError} from a resolved-with-error API response,
+ * preserving both the server's message and the HTTP status. */
+function embeddingHttpError(response: { error?: unknown; response?: Response }): EmbeddingHttpError {
+  const message =
+    typeof response.error === "object" && response.error && "error" in response.error
+      ? (response.error as { error: string }).error
+      : "API embedding failed";
+  return new EmbeddingHttpError(message, response.response?.status);
+}
+
+/**
  * Generate an embedding for text using the API
  *
  * Supports two auth methods:
@@ -121,11 +166,7 @@ export async function generateEmbedding(
   );
 
   if (response.error) {
-    throw new Error(
-      typeof response.error === "object" && response.error && "error" in response.error
-        ? (response.error as { error: string }).error
-        : "API embedding failed"
-    );
+    throw embeddingHttpError(response);
   }
 
   if (!response.data?.data?.[0]?.embedding) {
@@ -174,11 +215,7 @@ async function generateEmbeddingsBatch(
   );
 
   if (response.error) {
-    throw new Error(
-      typeof response.error === "object" && response.error && "error" in response.error
-        ? (response.error as { error: string }).error
-        : "API embedding failed"
-    );
+    throw embeddingHttpError(response);
   }
 
   if (!response.data?.data) {
@@ -409,6 +446,10 @@ export async function embedAllMessages(
         await updateMessageEmbeddingOp(ctx, message.uniqueId, embedding, embeddingModel);
         embeddedCount++;
       } catch (error) {
+        // A fatal status (401/402/403) fails identically for every remaining
+        // message — abort the whole walk instead of firing one doomed request
+        // per message (the 402 retry-storm this guards against).
+        if (isFatalEmbeddingError(error)) throw error;
         getLogger().error(`Failed to embed message ${message.uniqueId}:`, error);
       }
     }
@@ -590,6 +631,8 @@ export async function chunkAndEmbedAllMessages(
         }
       }
     } catch (error) {
+      // Fatal status → abort the whole backfill (see embedAllMessages).
+      if (isFatalEmbeddingError(error)) throw error;
       getLogger().error("Failed to batch-embed short messages:", error);
     }
   }
@@ -610,6 +653,8 @@ export async function chunkAndEmbedAllMessages(
       await updateMessageChunksOp(ctx, msg.uniqueId, messageChunks, embeddingModel);
       embeddedCount++;
     } catch (error) {
+      // Fatal status → abort the whole backfill (see embedAllMessages).
+      if (isFatalEmbeddingError(error)) throw error;
       getLogger().error(`Failed to embed message ${msg.uniqueId}:`, error);
     }
   }

@@ -2,7 +2,7 @@
 
 > **generateEmbedding**(`text`: `string`, `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<`number`\[]>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#84)
+Defined in: [src/lib/memoryEngine/embeddings.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#129)
 
 ## Parameters
 
