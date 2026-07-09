@@ -10,8 +10,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write        # push tag + create GitHub Release
-  issues: write          # @semantic-release/github
+  contents: write # push tag + create GitHub Release
+  issues: write # @semantic-release/github
   pull-requests: write
 
 jobs:
@@ -41,14 +41,15 @@ jobs:
         run: pnpm run build
 
       - name: Release
-        # semantic-release pushes the vX.Y.Z git tag BEFORE the publish step
-        # runs (scripts/publish-packages.mjs). If publishing fails partway, the
-        # tag is left ahead of npm — and a plain re-run will NOT re-publish,
-        # because semantic-release sees the existing tag and reports "no relevant
-        # changes". To recover: delete the tag and its GitHub Release, then re-run
-        # this workflow. semantic-release recomputes the same version and the
-        # publish script (idempotent) republishes only the packages missing from
-        # npm.
+        # npm publishing runs in semantic-release's `prepare` step
+        # (scripts/publish-packages.mjs via exec prepareCmd), which executes
+        # BEFORE the vX.Y.Z git tag is created. So a failed publish aborts the
+        # release before any tag exists, and simply re-running this workflow
+        # recovers: semantic-release recomputes the same version and the publish
+        # script (idempotent) republishes only the packages missing from npm.
+        # The GitHub Release is created after the tag; if only that step fails,
+        # npm is already complete — recreate the Release by deleting the tag +
+        # Release and re-running.
         # Toolchain pinned to exact versions for reproducibility (bump manually).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

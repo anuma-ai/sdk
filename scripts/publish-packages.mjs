@@ -1,14 +1,14 @@
-// Idempotent lockstep publisher, invoked by semantic-release's exec publishCmd.
+// Idempotent lockstep publisher, invoked from semantic-release's exec prepareCmd.
 //
-// semantic-release creates and pushes the vX.Y.Z git tag BEFORE running the
-// publish step (see semantic-release/index.js). If a publish fails partway, the
-// tag is already ahead of npm and a plain workflow re-run will NOT re-publish
-// (semantic-release sees the tag and reports "no relevant changes"). Recovery is
-// therefore: delete the tag + GitHub Release, then re-run the workflow —
-// semantic-release recomputes the same version and calls this script again. This
-// script publishes only the packages whose exact version is missing from npm, so
-// re-publishing is a safe no-op for anything already there and only the gap is
-// filled.
+// It runs in the `prepare` step, which semantic-release executes BEFORE it
+// creates and pushes the vX.Y.Z git tag (see semantic-release/index.js: prepare
+// runs, then tag+push, then the publish step). Running the npm publish here — not
+// in publishCmd — means a failed publish aborts the release BEFORE any tag is
+// created. No tag is left ahead of npm, so simply re-running the workflow
+// recovers automatically: semantic-release recomputes the same version and calls
+// this script again, and because it publishes only the packages whose exact
+// version is missing from npm, already-published packages are skipped and only
+// the gap is filled.
 //
 // Usage: node scripts/publish-packages.mjs <version>
 //   <version> is the bare semver (no `v` prefix), passed as ${nextRelease.version}.
