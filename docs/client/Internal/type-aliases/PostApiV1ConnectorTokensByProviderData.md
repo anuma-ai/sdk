@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorTokensByProviderData** = `object`
 
-Defined in: [src/client/types.gen.ts:6633](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6633)
+Defined in: [src/client/types.gen.ts:6662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6662)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6633](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersConnectorTokenRequest`](HandlersConnectorTokenRequest.md)
 
-Defined in: [src/client/types.gen.ts:6637](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6637)
+Defined in: [src/client/types.gen.ts:6666](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6666)
 
 Token request
 
@@ -20,7 +20,7 @@ Token request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:6638](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6638)
+Defined in: [src/client/types.gen.ts:6667](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6667)
 
 **provider**
 
@@ -34,7 +34,7 @@ Logical connector provider
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6644)
+Defined in: [src/client/types.gen.ts:6673](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6673)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:6644](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/connector-tokens/{provider}"`
 
-Defined in: [src/client/types.gen.ts:6645](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6645)
+Defined in: [src/client/types.gen.ts:6674](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6674)

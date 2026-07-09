@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorTokensByProviderResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6677](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6677)
+Defined in: [src/client/types.gen.ts:6706](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6706)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6677](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersConnectorTokenResponse`](HandlersConnectorTokenResponse.md)
 
-Defined in: [src/client/types.gen.ts:6681](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6681)
+Defined in: [src/client/types.gen.ts:6710](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6710)
 
 OK

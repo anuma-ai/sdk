@@ -2,4 +2,4 @@
 
 > **GetApiV1UserAgentConsentsResponse** = [`GetApiV1UserAgentConsentsResponses`](GetApiV1UserAgentConsentsResponses.md)\[keyof [`GetApiV1UserAgentConsentsResponses`](GetApiV1UserAgentConsentsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:9238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9238)
+Defined in: [src/client/types.gen.ts:9428](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9428)

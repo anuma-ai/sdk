@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionAssistantMessageParamContentUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:3240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3240)
+Defined in: [src/client/types.gen.ts:3269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3269)
 
 The contents of the assistant message. Required unless `tool_calls` or
 `function_call` is specified.
@@ -13,7 +13,7 @@ The contents of the assistant message. Required unless `tool_calls` or
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3241](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3241)
+Defined in: [src/client/types.gen.ts:3270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3270)
 
 ***
 
@@ -21,7 +21,7 @@ Defined in: [src/client/types.gen.ts:3241](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofArrayOfContentParts**: [`OpenaiChatCompletionAssistantMessageParamContentArrayOfContentPartUnion`](OpenaiChatCompletionAssistantMessageParamContentArrayOfContentPartUnion.md)\[]
 
-Defined in: [src/client/types.gen.ts:3242](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3242)
+Defined in: [src/client/types.gen.ts:3271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3271)
 
 ***
 
@@ -29,4 +29,4 @@ Defined in: [src/client/types.gen.ts:3242](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofString**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:3243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3243)
+Defined in: [src/client/types.gen.ts:3272](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3272)

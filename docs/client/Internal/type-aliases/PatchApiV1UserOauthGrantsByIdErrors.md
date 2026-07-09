@@ -2,7 +2,7 @@
 
 > **PatchApiV1UserOauthGrantsByIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9568)
+Defined in: [src/client/types.gen.ts:9758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9758)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9568](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9572)
+Defined in: [src/client/types.gen.ts:9762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9762)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9576](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9576)
+Defined in: [src/client/types.gen.ts:9766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9766)
 
 Forbidden
 
@@ -30,6 +30,6 @@ Forbidden
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9580](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9580)
+Defined in: [src/client/types.gen.ts:9770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9770)
 
 Internal Server Error

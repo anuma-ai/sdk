@@ -2,7 +2,7 @@
 
 > **HandlersZetaMarketResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3068](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3068)
+Defined in: [src/client/types.gen.ts:3097](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3097)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3068](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **circulating\_supply**: `number`
 
-Defined in: [src/client/types.gen.ts:3069](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3069)
+Defined in: [src/client/types.gen.ts:3098](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3098)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3069](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **locked\_zeta**: `number`
 
-Defined in: [src/client/types.gen.ts:3070](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3070)
+Defined in: [src/client/types.gen.ts:3099](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3099)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3070](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **market\_cap\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:3071](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3071)
+Defined in: [src/client/types.gen.ts:3100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3100)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:3071](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **price\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:3072](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3072)
+Defined in: [src/client/types.gen.ts:3101](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3101)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:3072](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **staked\_zeta**: `number`
 
-Defined in: [src/client/types.gen.ts:3073](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3073)
+Defined in: [src/client/types.gen.ts:3102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3102)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:3073](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **total\_supply**: `number`
 
-Defined in: [src/client/types.gen.ts:3074](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3074)
+Defined in: [src/client/types.gen.ts:3103](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3103)
 
 ***
 
@@ -58,4 +58,4 @@ Defined in: [src/client/types.gen.ts:3074](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **warnings**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:3075](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3075)
+Defined in: [src/client/types.gen.ts:3104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3104)

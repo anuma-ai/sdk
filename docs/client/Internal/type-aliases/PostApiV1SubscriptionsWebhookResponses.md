@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsWebhookResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9053)
+Defined in: [src/client/types.gen.ts:9243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9243)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9053](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:9057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9057)
+Defined in: [src/client/types.gen.ts:9247](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9247)
 
 OK
 

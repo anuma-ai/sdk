@@ -2,4 +2,4 @@
 
 > **DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponse** = [`DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses`](DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses.md)\[keyof [`DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses`](DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6123)
+Defined in: [src/client/types.gen.ts:6152](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6152)

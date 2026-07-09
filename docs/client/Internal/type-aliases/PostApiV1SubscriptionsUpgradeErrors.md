@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsUpgradeErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:8991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8991)
+Defined in: [src/client/types.gen.ts:9181](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9181)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8991](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8995](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8995)
+Defined in: [src/client/types.gen.ts:9185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9185)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8999](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8999)
+Defined in: [src/client/types.gen.ts:9189](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9189)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9003)
+Defined in: [src/client/types.gen.ts:9193](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9193)
 
 Forbidden
 
@@ -40,7 +40,7 @@ Forbidden
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9007)
+Defined in: [src/client/types.gen.ts:9197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9197)
 
 Not Found
 
@@ -50,7 +50,7 @@ Not Found
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9011](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9011)
+Defined in: [src/client/types.gen.ts:9201](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9201)
 
 Too Many Requests
 
@@ -60,6 +60,6 @@ Too Many Requests
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9015](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9015)
+Defined in: [src/client/types.gen.ts:9205](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9205)
 
 Internal Server Error

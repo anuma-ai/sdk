@@ -2,7 +2,7 @@
 
 > **GetHealthResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9986](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9986)
+Defined in: [src/client/types.gen.ts:10176](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10176)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9986](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersHealthResponse`](HandlersHealthResponse.md)
 
-Defined in: [src/client/types.gen.ts:9990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9990)
+Defined in: [src/client/types.gen.ts:10180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10180)
 
 OK

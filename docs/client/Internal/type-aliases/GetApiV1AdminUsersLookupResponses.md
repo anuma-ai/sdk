@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminUsersLookupResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5815](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5815)
+Defined in: [src/client/types.gen.ts:5844](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5844)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5815](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersUserLookupResponse`](HandlersUserLookupResponse.md)
 
-Defined in: [src/client/types.gen.ts:5819](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5819)
+Defined in: [src/client/types.gen.ts:5848](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5848)
 
 OK

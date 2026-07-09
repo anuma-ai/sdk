@@ -1837,6 +1837,16 @@ export type HandlersCreatePhoneCallRequest = {
     recipient_name?: string;
 };
 
+export type HandlersCreateShareRequest = {
+    caption?: string;
+    media_type?: string;
+    media_url?: string;
+    mime_type?: string;
+    model?: string;
+    prompt?: string;
+    visibility?: string;
+};
+
 export type HandlersCreditBalanceResponse = {
     /**
      * Available credits (1 credit = $0.01)
@@ -2547,6 +2557,25 @@ export type HandlersSetUserAgentPreferenceRequest = {
      * PreferredModel is the model to use for this agent.
      */
     preferred_model?: string;
+};
+
+export type HandlersShareResponse = {
+    caption?: string;
+    created_at?: string;
+    media_type?: string;
+    /**
+     * public, slug-gated media read (portal indirection)
+     */
+    media_url?: string;
+    mime_type?: string;
+    model?: string;
+    slug?: string;
+    /**
+     * public card page link
+     */
+    url?: string;
+    view_count?: number;
+    visibility?: string;
 };
 
 export type HandlersStockPricesResponse = {
@@ -8199,6 +8228,27 @@ export type GetApiV1MeResponses = {
 
 export type GetApiV1MeResponse = GetApiV1MeResponses[keyof GetApiV1MeResponses];
 
+export type GetApiV1MediaSharedBySlugData = {
+    body?: never;
+    path: {
+        /**
+         * Share slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/media/shared/{slug}';
+};
+
+export type GetApiV1MediaSharedBySlugErrors = {
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type GetApiV1MediaSharedBySlugError = GetApiV1MediaSharedBySlugErrors[keyof GetApiV1MediaSharedBySlugErrors];
+
 export type GetApiV1ModelsData = {
     body?: never;
     path?: never;
@@ -8697,6 +8747,146 @@ export type PostApiV1ResponsesResponses = {
 };
 
 export type PostApiV1ResponsesResponse = PostApiV1ResponsesResponses[keyof PostApiV1ResponsesResponses];
+
+export type GetApiV1SharesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/shares';
+};
+
+export type GetApiV1SharesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type GetApiV1SharesError = GetApiV1SharesErrors[keyof GetApiV1SharesErrors];
+
+export type GetApiV1SharesResponses = {
+    /**
+     * OK
+     */
+    200: Array<HandlersShareResponse>;
+};
+
+export type GetApiV1SharesResponse = GetApiV1SharesResponses[keyof GetApiV1SharesResponses];
+
+export type PostApiV1SharesData = {
+    /**
+     * Share to create
+     */
+    body: HandlersCreateShareRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/shares';
+};
+
+export type PostApiV1SharesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type PostApiV1SharesError = PostApiV1SharesErrors[keyof PostApiV1SharesErrors];
+
+export type PostApiV1SharesResponses = {
+    /**
+     * Created
+     */
+    201: HandlersShareResponse;
+};
+
+export type PostApiV1SharesResponse = PostApiV1SharesResponses[keyof PostApiV1SharesResponses];
+
+export type DeleteApiV1SharesBySlugData = {
+    body?: never;
+    path: {
+        /**
+         * Share slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/shares/{slug}';
+};
+
+export type DeleteApiV1SharesBySlugErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type DeleteApiV1SharesBySlugError = DeleteApiV1SharesBySlugErrors[keyof DeleteApiV1SharesBySlugErrors];
+
+export type DeleteApiV1SharesBySlugResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteApiV1SharesBySlugResponse = DeleteApiV1SharesBySlugResponses[keyof DeleteApiV1SharesBySlugResponses];
+
+export type GetApiV1SharesBySlugData = {
+    body?: never;
+    path: {
+        /**
+         * Share slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/shares/{slug}';
+};
+
+export type GetApiV1SharesBySlugErrors = {
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type GetApiV1SharesBySlugError = GetApiV1SharesBySlugErrors[keyof GetApiV1SharesBySlugErrors];
+
+export type GetApiV1SharesBySlugResponses = {
+    /**
+     * OK
+     */
+    200: HandlersShareResponse;
+};
+
+export type GetApiV1SharesBySlugResponse = GetApiV1SharesBySlugResponses[keyof GetApiV1SharesBySlugResponses];
+
+export type PostApiV1SharesBySlugReportData = {
+    body?: never;
+    path: {
+        /**
+         * Share slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/shares/{slug}/report';
+};
+
+export type PostApiV1SharesBySlugReportResponses = {
+    /**
+     * Accepted
+     */
+    202: unknown;
+};
 
 export type PostApiV1SubscriptionsCancelData = {
     /**

@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaPasskeyVerifyBeginResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6204](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6204)
+Defined in: [src/client/types.gen.ts:6233](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6233)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6204](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:6208](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6208)
+Defined in: [src/client/types.gen.ts:6237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6237)
 
 OK
 

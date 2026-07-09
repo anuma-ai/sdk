@@ -2,7 +2,7 @@
 
 > **PostApiV1ChatStreamsByInferenceIdCancelResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6559](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6559)
+Defined in: [src/client/types.gen.ts:6588](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6588)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6559](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCancelResponse`](HandlersCancelResponse.md)
 
-Defined in: [src/client/types.gen.ts:6563](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6563)
+Defined in: [src/client/types.gen.ts:6592](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6592)
 
 Cancelled, or noop when already terminal

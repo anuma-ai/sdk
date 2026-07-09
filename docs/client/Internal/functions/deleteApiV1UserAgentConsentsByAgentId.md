@@ -2,7 +2,7 @@
 
 > **deleteApiV1UserAgentConsentsByAgentId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1UserAgentConsentsByAgentIdData`](../type-aliases/DeleteApiV1UserAgentConsentsByAgentIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1UserAgentConsentsByAgentIdResponses`](../type-aliases/DeleteApiV1UserAgentConsentsByAgentIdResponses.md), [`DeleteApiV1UserAgentConsentsByAgentIdErrors`](../type-aliases/DeleteApiV1UserAgentConsentsByAgentIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1719](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1719)
+Defined in: [src/client/sdk.gen.ts:1785](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1785)
 
 Revoke per-platform agent consent
 

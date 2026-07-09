@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsWeatherData** = `object`
 
-Defined in: [src/client/types.gen.ts:8607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8607)
+Defined in: [src/client/types.gen.ts:8657](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8657)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8607](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersPreProcessorRequest`](HandlersPreProcessorRequest.md)
 
-Defined in: [src/client/types.gen.ts:8611](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8611)
+Defined in: [src/client/types.gen.ts:8661](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8661)
 
 User prompt. q max 500 chars.
 
@@ -20,7 +20,7 @@ User prompt. q max 500 chars.
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8612](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8612)
+Defined in: [src/client/types.gen.ts:8662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8662)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8612](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8613)
+Defined in: [src/client/types.gen.ts:8663](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8663)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8613](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/preprocessors/weather"`
 
-Defined in: [src/client/types.gen.ts:8614](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8614)
+Defined in: [src/client/types.gen.ts:8664](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8664)

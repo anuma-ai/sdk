@@ -2,4 +2,4 @@
 
 > **PutApiV1AdminAppsByAppIdApiKeysByIdResponse** = [`PutApiV1AdminAppsByAppIdApiKeysByIdResponses`](PutApiV1AdminAppsByAppIdApiKeysByIdResponses.md)\[keyof [`PutApiV1AdminAppsByAppIdApiKeysByIdResponses`](PutApiV1AdminAppsByAppIdApiKeysByIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:4794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4794)
+Defined in: [src/client/types.gen.ts:4823](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4823)

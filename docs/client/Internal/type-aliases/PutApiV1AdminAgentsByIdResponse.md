@@ -2,4 +2,4 @@
 
 > **PutApiV1AdminAgentsByIdResponse** = [`PutApiV1AdminAgentsByIdResponses`](PutApiV1AdminAgentsByIdResponses.md)\[keyof [`PutApiV1AdminAgentsByIdResponses`](PutApiV1AdminAgentsByIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:4443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4443)
+Defined in: [src/client/types.gen.ts:4472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4472)

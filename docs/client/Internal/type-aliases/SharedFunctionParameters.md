@@ -2,7 +2,7 @@
 
 > **SharedFunctionParameters** = `object`
 
-Defined in: [src/client/types.gen.ts:4127](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4127)
+Defined in: [src/client/types.gen.ts:4156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4156)
 
 The parameters the functions accepts, described as a JSON Schema object. See the
 [guide](https://platform.openai.com/docs/guides/function-calling) for examples,

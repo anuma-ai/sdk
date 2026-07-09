@@ -2,7 +2,7 @@
 
 > **DeleteApiV1UserOauthGrantsByIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9529)
+Defined in: [src/client/types.gen.ts:9719](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9719)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9529](https://github.com/anuma-ai/sdk/blob/
 
 > **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9533](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9533)
+Defined in: [src/client/types.gen.ts:9723](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9723)
 
 Forbidden
 
@@ -20,6 +20,6 @@ Forbidden
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9537](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9537)
+Defined in: [src/client/types.gen.ts:9727](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9727)
 
 Internal Server Error
