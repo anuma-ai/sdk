@@ -196,12 +196,6 @@ export class DatabaseManager {
         from: this.currentWalletAddress,
         to: walletAddress,
       });
-      // Release the old adapter's resources (e.g. terminate an OPFS-SQLite
-      // worker + free its exclusive SAHPool) before dropping the reference.
-      // Fire-and-forget: getDatabase is synchronous and must not block on
-      // worker teardown. Client adapters are refcounted + idempotent and skip
-      // same-dbName re-create, which guards the fast A->B->A reopen path.
-      void this.disposeAdapter(this.database);
       this.database = null;
     }
 
@@ -240,44 +234,11 @@ export class DatabaseManager {
   async resetDatabase(): Promise<void> {
     const db = this.database;
     if (db) {
-      // Detach synchronously so a concurrent getDatabase() can't hand out the
-      // instance we're about to reset + dispose.
-      this.database = null;
-      this.currentWalletAddress = undefined;
       await db.write(async () => {
         await db.unsafeResetDatabase();
       });
-      // Await teardown: callers that await resetDatabase() must see the OPFS
-      // worker / SAHPool fully released before they reopen the same dbName.
-      await this.disposeAdapter(db);
-    }
-  }
-
-  /**
-   * Best-effort dispose of the adapter backing a Database, if it exposes one.
-   *
-   * OPFS/SQLite adapters use this to terminate their dedicated worker and release
-   * the exclusive SAHPool (+ WASM heap) they hold. The SDK only sees a generic
-   * `DatabaseAdapter`, so we probe `adapter.underlyingAdapter.dispose` rather than
-   * type it. Client-side implementations are refcounted + idempotent, so calling
-   * this is safe even when the adapter factory also disposes.
-   *
-   * Awaitable and never rejects: a sync throw or async rejection from `dispose`
-   * is caught + logged. Awaited on the async `resetDatabase` path so teardown
-   * completes before the caller reopens; fire-and-forget on the synchronous
-   * `getDatabase` path (which cannot block).
-   */
-  private async disposeAdapter(db: Database): Promise<void> {
-    try {
-      const underlying = (db.adapter as { underlyingAdapter?: unknown })?.underlyingAdapter as
-        | { dispose?: () => unknown }
-        | undefined;
-      await underlying?.dispose?.();
-    } catch (error) {
-      this.logger.warn?.("Adapter dispose failed", {
-        component: "DatabaseManager",
-        error,
-      });
+      this.database = null;
+      this.currentWalletAddress = undefined;
     }
   }
 

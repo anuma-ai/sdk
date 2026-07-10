@@ -171,7 +171,7 @@ Get the database name for a given wallet address.
 
 > **resetDatabase**(): `Promise`<`void`>
 
-Defined in: [src/lib/db/manager.ts:240](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#240)
+Defined in: [src/lib/db/manager.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#234)
 
 Reset the current database (useful for logout or testing).
 
