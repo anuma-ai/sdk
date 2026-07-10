@@ -2,7 +2,7 @@
 
 > **getConversationsByProjectLazyOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `projectId`: `string` | `null`): `Promise`<[`LazyStoredConversation`](../interfaces/LazyStoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#308)
+Defined in: [src/lib/db/chat/operations.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#306)
 
 Lazy variant of [getConversationsByProjectOp](getConversationsByProjectOp.md).
 
