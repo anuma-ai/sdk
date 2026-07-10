@@ -1160,6 +1160,117 @@ describe("createSlackTools", () => {
     expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
   });
 
+  test("slack_list_dms with_user does not surface a brand-new empty 1:1 when a group DM matched", async () => {
+    // Charlie only shares a group DM. conversations.open creates a NEW empty 1:1
+    // (we've never had a real one), and its history is empty -- so we must not
+    // surface that empty 1:1 as a side effect; only the group DM comes through.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [{ id: "G1", is_mpim: true, name: "mpdm-charlie--me-1" }],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/conversations.open") {
+        return proxyResult({ ok: true, channel: { id: "D_NEW" } });
+      }
+      // The just-created 1:1 has no history.
+      if (path === "/conversations.history") return proxyResult({ ok: true, messages: [] });
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U1", name: "me", profile: { display_name: "Me" } },
+            { id: "UCH", name: "charlie", profile: { display_name: "Charlie" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {
+      with_user: "charlie",
+    })) as DmListing;
+    // The empty new 1:1 is dropped; the matched group DM is kept.
+    expect(result.direct_messages).toEqual([]);
+    expect(result.group_dms).toEqual([{ id: "G1", members: "Charlie" }]);
+    // The opened DM was probed once to decide whether it has real history.
+    const historyCalls = callProxy.mock.calls.filter((c) => c[0] === "/conversations.history");
+    expect(historyCalls).toHaveLength(1);
+    expect(historyCalls[0][1]?.channel).toBe("D_NEW");
+  });
+
+  test("slack_list_dms with_user surfaces a resumed closed 1:1 alongside a matched group DM", async () => {
+    // Same as above but the opened 1:1 has real history -- a genuinely closed DM
+    // we're resuming, not a brand-new one. It must be surfaced next to the group DM.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({
+          ok: true,
+          channels: [{ id: "G1", is_mpim: true, name: "mpdm-charlie--me-1" }],
+        });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/conversations.open") {
+        return proxyResult({ ok: true, channel: { id: "D_CLOSED" } });
+      }
+      if (path === "/conversations.history") {
+        return proxyResult({ ok: true, messages: [{ ts: "123.45" }] });
+      }
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U1", name: "me", profile: { display_name: "Me" } },
+            { id: "UCH", name: "charlie", profile: { display_name: "Charlie" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {
+      with_user: "charlie",
+    })) as DmListing;
+    // Real closed 1:1 is surfaced, and the group DM is still there.
+    expect(result.direct_messages).toEqual([{ id: "D_CLOSED", name: "Charlie" }]);
+    expect(result.group_dms).toEqual([{ id: "G1", members: "Charlie" }]);
+  });
+
+  test("slack_list_dms with_user surfaces a resumed closed 1:1 without probing when no group DM matched", async () => {
+    // Regression for the original closed-DM feature: with no group DM to fall back
+    // on, the explicitly-requested person's opened 1:1 is surfaced regardless, and
+    // the history probe is skipped entirely.
+    const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
+      if (path === "/conversations.list") {
+        return proxyResult({ ok: true, channels: [{ id: "D1", is_im: true, user: "U2" }] });
+      }
+      if (path === "/auth.test") return proxyResult({ ok: true, user_id: "U1" });
+      if (path === "/conversations.open") {
+        return proxyResult({ ok: true, channel: { id: "D_OPENED" } });
+      }
+      if (path === "/users.list") {
+        return proxyResult({
+          ok: true,
+          members: [
+            { id: "U2", name: "bob", profile: { display_name: "bob" } },
+            { id: "UCH", name: "charlie", profile: { display_name: "Charlie" } },
+          ],
+        });
+      }
+      return proxyResult({ ok: false }, 400);
+    });
+    const tools = createSlackTools(callProxy);
+    const result = (await runExecutor(tools.slack_list_dms, {
+      with_user: "charlie",
+    })) as DmListing;
+    expect(result.direct_messages).toEqual([{ id: "D_OPENED", name: "Charlie" }]);
+    expect(result.group_dms).toEqual([]);
+    // No group DM matched, so the opened 1:1 is surfaced without a history probe.
+    expect(callProxy.mock.calls.some((c) => c[0] === "/conversations.history")).toBe(false);
+  });
+
   test("slack_list_dms with_user that can't be resolved returns the guidance error", async () => {
     const callProxy = vi.fn<SlackProxyCaller>().mockImplementation(async (path) => {
       if (path === "/conversations.list") {

@@ -498,6 +498,29 @@ async function openSlackDm(callProxy: SlackProxyCaller, userId: string): Promise
 }
 
 /**
+ * Probe whether a conversation has any messages (one conversations.history call,
+ * limit 1). Used to tell a resumed CLOSED 1:1 (has history) apart from a
+ * brand-new empty 1:1 that conversations.open just created. A rate-limited or
+ * failed probe returns true (fail open) so a real conversation is never hidden
+ * on a transient error.
+ */
+async function dmHasMessages(callProxy: SlackProxyCaller, channelId: string): Promise<boolean> {
+  const { status, json } = await callProxy("/conversations.history", {
+    channel: channelId,
+    limit: 1,
+  });
+  const body = (json ?? null) as SlackConversationsHistoryResponse | null;
+  if (isRateLimited(status, body)) return true;
+  const res = interpretSlackResult<SlackConversationsHistoryResponse>(
+    "/conversations.history",
+    status,
+    json
+  );
+  if (typeof res === "string") return true;
+  return (res.messages ?? []).length > 0;
+}
+
+/**
  * List the user's direct messages and group DMs, split into two lists: `direct_messages`
  * (1:1s, each with the counterparty name) and `group_dms` (each with its member names),
  * ordered like the Slack sidebar (most-recent conversation first) with conversations
@@ -606,11 +629,21 @@ async function listSlackDms(
     if (listing.direct_messages.length === 0) {
       const openedId = await openSlackDm(callProxy, targetId);
       if (openedId) {
-        const counterparty = directory.byId.get(targetId);
-        listing.direct_messages.push({
-          id: openedId,
-          name: counterparty ? displayNameForUser(counterparty) : targetId,
-        });
+        // conversations.open reaches a CLOSED 1:1, but for someone we've never
+        // had a 1:1 with it creates a new empty one. When a group DM already
+        // matched, only surface the opened DM if it actually has messages (a
+        // real, closed conversation) so we don't return a brand-new empty 1:1 as
+        // a side effect of a read. With no group DM, surface it regardless so the
+        // explicitly-requested person's DM is always returned.
+        const surface =
+          listing.group_dms.length === 0 || (await dmHasMessages(callProxy, openedId));
+        if (surface) {
+          const counterparty = directory.byId.get(targetId);
+          listing.direct_messages.push({
+            id: openedId,
+            name: counterparty ? displayNameForUser(counterparty) : targetId,
+          });
+        }
       }
     }
     return listing;
