@@ -122,6 +122,7 @@ export const TOOL_CATALOG: Record<string, ToolCatalogEntry> = {
   // Slack (src/tools/slack.ts)
   slack_get_me: { label: "Get my Slack profile", provider: "slack", connector: "Slack" },
   slack_list_channels: { label: "List channels", provider: "slack", connector: "Slack" },
+  slack_list_dms: { label: "List direct messages", provider: "slack", connector: "Slack" },
   slack_search_messages: { label: "Search messages", provider: "slack", connector: "Slack" },
   slack_list_users: { label: "List members", provider: "slack", connector: "Slack" },
   slack_get_channel_history: {

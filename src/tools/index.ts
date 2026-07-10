@@ -180,6 +180,7 @@ export type {
   SlackGetChannelHistoryArgs,
   SlackGetThreadRepliesArgs,
   SlackListChannelsArgs,
+  SlackListDmsArgs,
   SlackListUsersArgs,
   SlackPostMessageArgs,
   SlackProxyCaller,
