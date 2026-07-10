@@ -2,7 +2,7 @@
 
 > **upsertMessageOp**(`ctx`: [`StorageOperationsContext`](../../../react/Internal/interfaces/StorageOperationsContext.md), `opts`: [`CreateMessageOptions`](../../../react/Internal/interfaces/CreateMessageOptions.md) & `object`): `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)>
 
-Defined in: [src/lib/db/chat/operations.ts:913](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#913)
+Defined in: [src/lib/db/chat/operations.ts:813](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#813)
 
 Create-or-update a message keyed by `opts.uniqueId`.
 
