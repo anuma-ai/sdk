@@ -5,7 +5,7 @@
 Defined in: [src/lib/db/memoryVault/operations.ts:800](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#800)
 
 Decay sweep candidate scan (PR2). Selects the plaintext columns
-import("../../memory/decay").classifyDecay needs via
+`classifyDecay` (in `memory/decay`) needs via
 `unsafeFetchRaw` — NO Model per row (dodges the never-evicted RecordCache /
 web Pile-2 OOM history) and NO `content` read / decrypt (zero-knowledge).
 

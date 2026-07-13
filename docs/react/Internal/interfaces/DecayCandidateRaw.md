@@ -2,9 +2,9 @@
 
 Defined in: [src/lib/db/memoryVault/operations.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#778)
 
-The minimal plaintext shape the decay sweep needs — mirrors
-import("../../memory/decay").DecayInput plus the row id. Deliberately
-omits `content` (encrypted) so the sweep stays zero-knowledge.
+The minimal plaintext shape the decay sweep needs — mirrors the `DecayInput`
+shape in `memory/decay` plus the row id. Deliberately omits `content`
+(encrypted) so the sweep stays zero-knowledge.
 
 ## Properties
 
