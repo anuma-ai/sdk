@@ -10,7 +10,8 @@
  *   2. {@link classifyDecay} is a pure function over those plaintext fields.
  *   3. Only the (usually small) transition set is materialized as Models to
  *      archive ({@link archiveVaultMemoryOp}) or hard-delete
- *      ({@link deleteVaultMemoryOp}).
+ *      ({@link hardDeleteDecayedOp}, which re-checks archived + past-window
+ *      inside the write so a concurrent restore wins).
  *
  * The optional {@link DecayClassifier} is a PR5 seam for an on-device model that
  * refines borderline verdicts by reading decrypted content — it is NOT
@@ -20,13 +21,20 @@
 
 import {
   archiveVaultMemoryOp,
+  assertVaultScopeForSweep,
   type DecayCandidateRaw,
-  deleteVaultMemoryOp,
   getDecayCandidatesRawOp,
+  hardDeleteDecayedOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
-import { classifyDecay, type DecayInput, type DecayPolicy, type DecayVerdict } from "./decay.js";
+import {
+  classifyDecay,
+  type DecayInput,
+  type DecayPolicy,
+  type DecayVerdict,
+  DEFAULT_DECAY_POLICY,
+} from "./decay.js";
 
 /** Counts from one sweep, for UI surfacing (e.g. "N memories archived"). */
 export interface DecaySweepResult {
@@ -115,6 +123,11 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
  */
 export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySweeper {
   const { vaultCtx, policy, classifier, onSwept, onError } = options;
+  // Fail fast: never let an unscoped multi-tenant context reach a sweep.
+  assertVaultScopeForSweep(vaultCtx);
+  // Effective hard-delete window — passed to the guarded delete op so its
+  // in-write re-check uses the same threshold the classifier decided on.
+  const hardDeleteWindowMs = policy?.hardDeleteWindowMs ?? DEFAULT_DECAY_POLICY.hardDeleteWindowMs;
   let disposed = false;
 
   async function verdictFor(input: DecayInput, now: number): Promise<DecayVerdict> {
@@ -169,7 +182,9 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
         if (ok) archived++;
       }
       for (const c of toDelete) {
-        const ok = await deleteVaultMemoryOp(vaultCtx, c.uniqueId);
+        // Guarded delete: re-checks archived + past-window INSIDE the write, so a
+        // restore that landed between the scan and here wins (no wrongful loss).
+        const ok = await hardDeleteDecayedOp(vaultCtx, c.uniqueId, { hardDeleteWindowMs, now });
         if (ok) deleted++;
       }
     } catch (err) {

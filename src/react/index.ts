@@ -309,6 +309,7 @@ export {
   getDecayCandidatesRawOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  hardDeleteDecayedOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   type StoredVaultMemory,

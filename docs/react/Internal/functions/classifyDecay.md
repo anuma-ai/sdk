@@ -2,20 +2,26 @@
 
 > **classifyDecay**(`m`: [`DecayInput`](../interfaces/DecayInput.md), `now`: `number`, `policy?`: `Partial`<[`DecayPolicy`](../interfaces/DecayPolicy.md)>): [`DecayVerdict`](../type-aliases/DecayVerdict.md)
 
-Defined in: [src/lib/memory/decay.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#144)
+Defined in: [src/lib/memory/decay.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#175)
 
 Classify one memory into a decay verdict, reading only plaintext fields.
 
 Rules, in order (first match wins):
+0\. Non-finite timestamps → keep (safe) + warn (corrupt row, observable).
 
-1. `source === "manual"` → keep (user-curated; never decayed).
-2. Already archived (`archivedAt != null`): delete once past the hard-delete
-   window, else keep (still recoverable).
+1. Already archived (`archivedAt != null`): delete once past the hard-delete
+   window, else keep — runs REGARDLESS of `source`, so the purge clock
+   applies to archived manual rows too.
+2. `source === "manual"` → keep — protects manual saves from AUTO-ARCHIVE
+   only (rules 3/4). Delete-of-already-archived is handled above.
 3. `plan` / `ongoing_context` whose event has become past — `eventTimeEnd`
    is set AND older than `now - grace` → archive. An `ongoing` status with a
    null `eventTimeEnd` is still ongoing, so this rule does not fire for it.
 4. Age fallback — `now - updatedAt > TTL(factType)` → archive. Durable types
    have Infinity TTL, so this never fires for them; null/unknown use medium.
+   EXCEPTION: a `plan`/`ongoing_context` with a still-upcoming event
+   (`eventTimeEnd >= now`) is kept — it must not age-archive before the event
+   happens; only rule 3 (after it passes) may archive it.
 5. Otherwise → keep.
 
 ## Parameters

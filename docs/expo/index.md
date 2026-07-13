@@ -724,6 +724,12 @@ Re-exports [HARD\_DELETE\_WINDOW\_MS](../react/Internal/variables/HARD_DELETE_WI
 
 ***
 
+### hardDeleteDecayedOp
+
+Re-exports [hardDeleteDecayedOp](../react/Internal/functions/hardDeleteDecayedOp.md)
+
+***
+
 ### hasEncryptionKey
 
 Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)

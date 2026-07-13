@@ -788,6 +788,23 @@ export interface DecayCandidateRaw {
 }
 
 /**
+ * Guard against a decay sweep amplifying across tenants. A sweep with no
+ * `userId` reaches EVERY row in the DB — safe on the client (per-wallet
+ * isolated DB, so `walletAddress` is set) but catastrophic on a shared
+ * multi-tenant / server DB. Throw when the context is neither wallet-scoped
+ * nor user-scoped, rather than relying on caller discipline.
+ */
+export function assertVaultScopeForSweep(ctx: VaultMemoryOperationsContext): void {
+  if (ctx.userId === undefined && ctx.walletAddress === undefined) {
+    throw new Error(
+      "Refusing to run a decay sweep on an unscoped vault context (no userId and no " +
+        "walletAddress): this would sweep across all tenants. Set ctx.userId on " +
+        "server/multi-tenant contexts."
+    );
+  }
+}
+
+/**
  * Decay sweep candidate scan (PR2). Selects the plaintext columns
  * `classifyDecay` (in `memory/decay`) needs via
  * `unsafeFetchRaw` — NO Model per row (dodges the never-evicted RecordCache /
@@ -796,10 +813,14 @@ export interface DecayCandidateRaw {
  * Includes archived AND quarantined rows (so archived→delete transitions and
  * aged quarantined rows are seen) but excludes hard-deleted rows — the
  * `baseVaultConditions` default keeps `is_deleted = false`.
+ *
+ * Refuses to run on an unscoped multi-tenant context (see
+ * {@link assertVaultScopeForSweep}).
  */
 export async function getDecayCandidatesRawOp(
   ctx: VaultMemoryOperationsContext
 ): Promise<DecayCandidateRaw[]> {
+  assertVaultScopeForSweep(ctx);
   const results = (await ctx.vaultMemoryCollection
     .query(...baseVaultConditions(ctx, { includeArchived: true, includeQuarantined: true }))
     .unsafeFetchRaw()) as Record<string, unknown>[];
@@ -901,6 +922,63 @@ export async function restoreVaultMemoryOp(
       });
     });
     return !stale;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hard-delete a memory ONLY if it is still archived and still past the delete
+ * window (PR2 decay terminal transition). Unlike the generic
+ * {@link deleteVaultMemoryOp}, this re-reads `archived_at` INSIDE the writer and
+ * bails if the row was restored (`archived_at → null`) or re-archived more
+ * recently since the sweep's candidate scan. This is the restore-vs-delete
+ * mutual-exclusion guard: a user hitting Restore between the scan and this write
+ * must win, so their just-rescued memory is never permanently lost.
+ *
+ * @returns `true` if this call hard-deleted the row; `false` if it was stale
+ *   (deleted / not owned / no longer archived / no longer past the window).
+ */
+export async function hardDeleteDecayedOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  opts: { hardDeleteWindowMs: number; now?: number }
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+
+    const now = opts.now ?? Date.now();
+    let stale = false;
+    await ctx.database.write(async () => {
+      // Re-read inside the serialized writer: only delete if STILL archived and
+      // STILL past the window. A concurrent restore (archived_at → null) or a
+      // fresh re-archive must make this lose.
+      const archivedAt = record.archivedAt;
+      if (
+        record.isDeleted ||
+        !isOwnedByCtxUser(ctx, record) ||
+        archivedAt === null ||
+        now - archivedAt <= opts.hardDeleteWindowMs
+      ) {
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("is_deleted", true);
+      });
+    });
+    if (stale) return false;
+
+    // W5 cascade (best-effort), mirrors deleteVaultMemoryOp.
+    if (ctx.entityCtx) {
+      try {
+        await unlinkMemoryEntitiesOp(ctx.entityCtx, [id]);
+      } catch {
+        // Auxiliary cleanup — leave the cascade to the next sweep.
+      }
+    }
+    return true;
   } catch {
     return false;
   }

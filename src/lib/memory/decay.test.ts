@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { noopLogger, setLogger } from "../logger";
 
 import {
   classifyDecay,
@@ -48,8 +50,8 @@ describe("ttlForType", () => {
   });
 });
 
-describe("classifyDecay — manual source is never decayed", () => {
-  it("keeps a manual memory even when ancient and event-past", () => {
+describe("classifyDecay — manual source is protected from auto-archive only", () => {
+  it("keeps a manual memory even when ancient and event-past (no auto-archive)", () => {
     const verdict = classifyDecay(
       input({
         source: "manual",
@@ -62,9 +64,25 @@ describe("classifyDecay — manual source is never decayed", () => {
     expect(verdict).toBe("keep");
   });
 
-  it("keeps a manual memory even when already archived past the window", () => {
+  it("keeps a fresh manual memory", () => {
+    expect(classifyDecay(input({ source: "manual", factType: "other", updatedAt: NOW }), NOW)).toBe(
+      "keep"
+    );
+  });
+
+  it("DELETES a manual memory that is archived past the window (purge clock applies to all)", () => {
+    // Product decision: once archived, the 30d hard-delete clock applies even to
+    // manual rows — the archived check runs before the manual short-circuit.
     const verdict = classifyDecay(
       input({ source: "manual", archivedAt: NOW - (HARD_DELETE_WINDOW_MS + DAY) }),
+      NOW
+    );
+    expect(verdict).toBe("delete");
+  });
+
+  it("keeps a manual memory that is archived but still inside the window", () => {
+    const verdict = classifyDecay(
+      input({ source: "manual", archivedAt: NOW - (HARD_DELETE_WINDOW_MS - DAY) }),
       NOW
     );
     expect(verdict).toBe("keep");
@@ -148,6 +166,60 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
       NOW
     );
     expect(verdict).toBe("keep");
+  });
+
+  it("does NOT age-archive a future-dated plan even when stale, then archives once the event passes", () => {
+    // A plan whose event is upcoming but whose row is older than the short TTL:
+    // must be kept (rule 4 exception), NOT archived before the event happens.
+    const upcoming = input({
+      factType: "plan",
+      eventTimeKind: "range",
+      eventTimeEnd: NOW + 60 * DAY,
+      updatedAt: NOW - (SHORT_TTL_MS + 10 * DAY), // stale by age
+    });
+    expect(classifyDecay(upcoming, NOW)).toBe("keep");
+
+    // Once "now" advances past the event end + grace, rule 3 archives it.
+    const later = NOW + 60 * DAY + PAST_EVENT_GRACE_MS + DAY;
+    expect(classifyDecay(upcoming, later)).toBe("archive");
+  });
+});
+
+describe("classifyDecay — degenerate timestamps", () => {
+  const warn = vi.fn();
+  afterEach(() => {
+    warn.mockReset();
+    setLogger(noopLogger); // restore a silent logger for other tests
+  });
+
+  function withSpyLogger() {
+    setLogger({ debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() });
+  }
+
+  it("keeps a row with a NaN updatedAt and warns (no content)", () => {
+    withSpyLogger();
+    expect(classifyDecay(input({ updatedAt: Number.NaN }), NOW)).toBe("keep");
+    expect(warn).toHaveBeenCalledTimes(1);
+    const meta = warn.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(meta).not.toHaveProperty("content");
+  });
+
+  it("keeps a row with a NaN archivedAt and warns", () => {
+    withSpyLogger();
+    expect(classifyDecay(input({ archivedAt: Number.NaN }), NOW)).toBe("keep");
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps when now itself is non-finite", () => {
+    withSpyLogger();
+    expect(classifyDecay(input({}), Number.NaN)).toBe("keep");
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not warn on a valid (finite) row", () => {
+    withSpyLogger();
+    classifyDecay(input({ updatedAt: NOW }), NOW);
+    expect(warn).not.toHaveBeenCalled();
   });
 });
 

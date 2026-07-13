@@ -1,6 +1,6 @@
 # CreateDecaySweeperOptions
 
-Defined in: [src/lib/memory/decayWorker.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#59)
+Defined in: [src/lib/memory/decayWorker.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#67)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/decayWorker.ts:59](https://github.com/anuma-ai/sdk/b
 
 > `optional` **classifier**: [`DecayClassifier`](DecayClassifier.md)
 
-Defined in: [src/lib/memory/decayWorker.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#73)
+Defined in: [src/lib/memory/decayWorker.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#81)
 
 PR5 seam. When provided, each candidate's rule verdict is passed through
 it. Gate on key availability (it may decrypt content). Default undefined.
@@ -19,7 +19,7 @@ it. Gate on key availability (it may decrypt content). Default undefined.
 
 > `optional` **now**: [`NowSource`](../type-aliases/NowSource.md)
 
-Defined in: [src/lib/memory/decayWorker.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#66)
+Defined in: [src/lib/memory/decayWorker.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#74)
 
 Reference "now". A number is fixed (deterministic tests); a function is
 re-evaluated per sweep (long-lived interval usage). Default `Date.now`.
@@ -30,7 +30,7 @@ re-evaluated per sweep (long-lived interval usage). Default `Date.now`.
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/memory/decayWorker.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#77)
+Defined in: [src/lib/memory/decayWorker.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#85)
 
 Diagnostic — fires on an unexpected sweep-level error.
 
@@ -69,7 +69,7 @@ Diagnostic — fires on an unexpected sweep-level error.
 
 > `optional` **onSwept**: (`result`: [`DecaySweepResult`](DecaySweepResult.md)) => `void`
 
-Defined in: [src/lib/memory/decayWorker.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#75)
+Defined in: [src/lib/memory/decayWorker.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#83)
 
 Fires once after each sweep with the transition counts (UI).
 
@@ -108,7 +108,7 @@ Fires once after each sweep with the transition counts (UI).
 
 > `optional` **policy**: `Partial`<[`DecayPolicy`](DecayPolicy.md)>
 
-Defined in: [src/lib/memory/decayWorker.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#68)
+Defined in: [src/lib/memory/decayWorker.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#76)
 
 Partial policy overriding the per-type TTL defaults. Omit for defaults.
 
@@ -118,6 +118,6 @@ Partial policy overriding the per-type TTL defaults. Omit for defaults.
 
 > **vaultCtx**: [`VaultMemoryOperationsContext`](VaultMemoryOperationsContext.md)
 
-Defined in: [src/lib/memory/decayWorker.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#61)
+Defined in: [src/lib/memory/decayWorker.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#69)
 
 Vault write context — the same one recall/retain use.

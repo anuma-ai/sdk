@@ -31,12 +31,13 @@ import {
   getAllVaultMemoriesOp,
   getDecayCandidatesRawOp,
   getVaultMemoryOp,
+  hardDeleteDecayedOp,
   restoreVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
 
-import { HARD_DELETE_WINDOW_MS, MEDIUM_TTL_MS, PAST_EVENT_GRACE_MS, SHORT_TTL_MS } from "./decay";
+import { HARD_DELETE_WINDOW_MS, MEDIUM_TTL_MS, PAST_EVENT_GRACE_MS } from "./decay";
 import { createDecaySweeper } from "./decayWorker";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -283,6 +284,89 @@ describe("archiveVaultMemoryOp — concurrent-retain stale re-check", () => {
     expect(await archiveVaultMemoryOp(vaultCtx, id, { now: NOW + DAY })).toBe(false);
     // The original archived_at is preserved (not clobbered by the second call).
     expect(await archivedAtOf(id)).toBe(NOW);
+  });
+});
+
+describe("hardDeleteDecayedOp — restore-vs-delete race (wrongful-loss guard)", () => {
+  it("does NOT delete a memory that was restored between the scan and the delete write", async () => {
+    // A row archived past the window — the sweep's scan would mark it for delete.
+    const id = await seed({
+      content: "rescued at the last second",
+      factType: "other",
+      archivedAt: NOW - (HARD_DELETE_WINDOW_MS + 10 * DAY),
+    });
+
+    // The user hits Restore before the delete write lands.
+    expect(await restoreVaultMemoryOp(vaultCtx, id)).toBe(true);
+    expect(await archivedAtOf(id)).toBeNull();
+
+    // The guarded delete re-reads archived_at inside the write → row no longer
+    // archived → it must lose. The memory survives.
+    const deleted = await hardDeleteDecayedOp(vaultCtx, id, {
+      hardDeleteWindowMs: HARD_DELETE_WINDOW_MS,
+      now: NOW,
+    });
+    expect(deleted).toBe(false);
+    expect(await getVaultMemoryOp(vaultCtx, id)).not.toBeNull();
+  });
+
+  it("does NOT delete a row re-archived more recently than the window", async () => {
+    const id = await seed({
+      content: "re-archived recently",
+      factType: "other",
+      archivedAt: NOW - (HARD_DELETE_WINDOW_MS + 10 * DAY),
+    });
+    // Re-archive at NOW (e.g. a fresh decay after a restore+re-stale cycle).
+    await restoreVaultMemoryOp(vaultCtx, id);
+    await archiveVaultMemoryOp(vaultCtx, id, { now: NOW });
+
+    const deleted = await hardDeleteDecayedOp(vaultCtx, id, {
+      hardDeleteWindowMs: HARD_DELETE_WINDOW_MS,
+      now: NOW,
+    });
+    expect(deleted).toBe(false);
+    expect(await getVaultMemoryOp(vaultCtx, id)).not.toBeNull();
+  });
+
+  it("deletes a row that is still archived past the window", async () => {
+    const id = await seed({
+      content: "genuinely expired",
+      factType: "other",
+      archivedAt: NOW - (HARD_DELETE_WINDOW_MS + 10 * DAY),
+    });
+    const deleted = await hardDeleteDecayedOp(vaultCtx, id, {
+      hardDeleteWindowMs: HARD_DELETE_WINDOW_MS,
+      now: NOW,
+    });
+    expect(deleted).toBe(true);
+    expect(await getVaultMemoryOp(vaultCtx, id)).toBeNull();
+  });
+});
+
+describe("cross-user amplification guard", () => {
+  it("throws when creating a sweeper on an unscoped (no userId, no wallet) context", () => {
+    const unscoped = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+    } as VaultMemoryOperationsContext;
+    expect(() => createDecaySweeper({ vaultCtx: unscoped, now: NOW })).toThrow(/unscoped/i);
+  });
+
+  it("throws when scanning candidates on an unscoped context", async () => {
+    const unscoped = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+    } as VaultMemoryOperationsContext;
+    await expect(getDecayCandidatesRawOp(unscoped)).rejects.toThrow(/unscoped/i);
+  });
+
+  it("allows a userId-scoped context (server multi-tenant, correctly scoped)", () => {
+    const scoped = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+      userId: "user-1",
+    } as VaultMemoryOperationsContext;
+    expect(() => createDecaySweeper({ vaultCtx: scoped, now: NOW })).not.toThrow();
   });
 });
 

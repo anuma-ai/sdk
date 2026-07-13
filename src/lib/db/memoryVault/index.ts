@@ -12,6 +12,7 @@ export {
   getDecayCandidatesRawOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  hardDeleteDecayedOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   updateVaultMemoryEmbeddingOp,

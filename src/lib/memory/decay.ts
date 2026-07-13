@@ -17,8 +17,14 @@
  *     (durable facts about who the user is; Infinity TTL).
  *   - plan / ongoing_context → short TTL (they go stale as time moves on).
  *   - other / null (untyped/legacy) → medium TTL.
- * `source === "manual"` memories are NEVER decayed (user-curated).
+ * `source === "manual"` memories are protected from AUTO-ARCHIVE (user-curated)
+ * — but NOT from the hard-delete clock once they are archived: archive is the
+ * shared purge buffer for every row, so an already-archived manual memory is
+ * still deleted after the window (the archived check runs before the manual
+ * short-circuit by design).
  */
+
+import { getLogger } from "../logger.js";
 
 /** The verdict for a single memory. */
 export type DecayVerdict = "keep" | "archive" | "delete";
@@ -123,18 +129,43 @@ export function ttlForType(factType: string | null, policy?: Partial<DecayPolicy
   return resolved.ttlByType[factType] ?? resolved.fallbackTtlMs;
 }
 
+/** The "becomes past" types whose staleness tracks the event, not just age. */
+function isTimeSensitiveType(factType: string | null): boolean {
+  return factType === "plan" || factType === "ongoing_context";
+}
+
+/**
+ * Guard against degenerate timestamps. A NaN/undefined `now`/`updatedAt`, or a
+ * non-finite `archivedAt` (when set), would otherwise flow through the numeric
+ * comparisons and silently keep — or worse, delete — a row with no signal. A
+ * future-dated `archivedAt` (clock skew) is finite and self-heals, so it's fine.
+ */
+function hasFiniteTimestamps(m: DecayInput, now: number): boolean {
+  return (
+    Number.isFinite(now) &&
+    Number.isFinite(m.updatedAt) &&
+    (m.archivedAt === null || Number.isFinite(m.archivedAt))
+  );
+}
+
 /**
  * Classify one memory into a decay verdict, reading only plaintext fields.
  *
  * Rules, in order (first match wins):
- *  1. `source === "manual"` → keep (user-curated; never decayed).
- *  2. Already archived (`archivedAt != null`): delete once past the hard-delete
- *     window, else keep (still recoverable).
+ *  0. Non-finite timestamps → keep (safe) + warn (corrupt row, observable).
+ *  1. Already archived (`archivedAt != null`): delete once past the hard-delete
+ *     window, else keep — runs REGARDLESS of `source`, so the purge clock
+ *     applies to archived manual rows too.
+ *  2. `source === "manual"` → keep — protects manual saves from AUTO-ARCHIVE
+ *     only (rules 3/4). Delete-of-already-archived is handled above.
  *  3. `plan` / `ongoing_context` whose event has become past — `eventTimeEnd`
  *     is set AND older than `now - grace` → archive. An `ongoing` status with a
  *     null `eventTimeEnd` is still ongoing, so this rule does not fire for it.
  *  4. Age fallback — `now - updatedAt > TTL(factType)` → archive. Durable types
  *     have Infinity TTL, so this never fires for them; null/unknown use medium.
+ *     EXCEPTION: a `plan`/`ongoing_context` with a still-upcoming event
+ *     (`eventTimeEnd >= now`) is kept — it must not age-archive before the event
+ *     happens; only rule 3 (after it passes) may archive it.
  *  5. Otherwise → keep.
  *
  * @param m     Plaintext decay inputs for one row.
@@ -148,21 +179,36 @@ export function classifyDecay(
 ): DecayVerdict {
   const resolved = resolvePolicy(policy);
 
-  // (1) Manual saves are user-curated — never decayed.
-  if (m.source === "manual") return "keep";
+  // (0) Degenerate timestamps → keep (safe) and surface the corrupt row. No
+  // content in the log — only the enum/timestamps.
+  if (!hasFiniteTimestamps(m, now)) {
+    getLogger().warn("[memory/decay] non-finite timestamp on a memory row; keeping it", {
+      now,
+      updatedAt: m.updatedAt,
+      archivedAt: m.archivedAt,
+      factType: m.factType,
+    });
+    return "keep";
+  }
 
-  // (2) Already archived: hard-delete only after the recovery window elapses.
+  // (1) Archived rows: the hard-delete clock applies to EVERY row once archived
+  // (archive is the shared purge buffer) — including manual. This intentionally
+  // runs before the manual short-circuit below.
   if (m.archivedAt !== null) {
     return now - m.archivedAt > resolved.hardDeleteWindowMs ? "delete" : "keep";
   }
 
-  // (3) "Becomes past" types with a concluded event → archive. Keyed on
-  // event_time_end so an ongoing status with no end (still ongoing) is skipped
-  // here and only ages out via the fallback below.
-  if (m.factType === "plan" || m.factType === "ongoing_context") {
-    if (m.eventTimeEnd !== null && m.eventTimeEnd < now - resolved.pastEventGraceMs) {
-      return "archive";
-    }
+  // (2) Manual saves are protected from AUTO-ARCHIVE only (never reach 3/4).
+  if (m.source === "manual") return "keep";
+
+  // (3/4) "Becomes past" types: event-driven staleness. Keyed on event_time_end
+  // (an ongoing status with no end is still ongoing → skipped here).
+  if (isTimeSensitiveType(m.factType) && m.eventTimeEnd !== null) {
+    // Event concluded past the grace window → archive.
+    if (m.eventTimeEnd < now - resolved.pastEventGraceMs) return "archive";
+    // Event still upcoming → keep; do NOT age-archive before it happens.
+    if (m.eventTimeEnd >= now) return "keep";
+    // Recently ended (inside the grace window) → fall through to age fallback.
   }
 
   // (4) Age fallback — stale past its per-type TTL. Infinity for durable types.
