@@ -497,6 +497,17 @@ export {
   putAppFileOp,
   type StoredAppFile,
 } from "../lib/db/appFiles";
+// Conversation memories (persistence for the conversation-level Memories panel)
+export {
+  addConversationMemoriesOp,
+  clearConversationMemoriesOp,
+  type ConversationMemoryInput,
+  ConversationMemory as ConversationMemoryModel,
+  type ConversationMemoryOperationsContext,
+  conversationMemoryToStored,
+  getConversationMemoriesOp,
+  type StoredConversationMemory,
+} from "../lib/db/conversationMemory";
 
 // Saved tools storage
 export {

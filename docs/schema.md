@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v34**
+Current version: **v35**
 
 ```mermaid
 graph LR
@@ -26,6 +26,7 @@ graph LR
 - [media](#media)
 - [app_files](#app_files)
 - [saved_tools](#saved_tools)
+- [conversation_memory](#conversation_memory)
 
 ## history
 
@@ -205,10 +206,20 @@ graph LR
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
+## conversation_memory
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `conversation_id` | string | ✓ |  |
+| `memory_id` | string | ✓ |  |
+| `score` | number |  |  |
+| `created_at` | number | ✓ |  |
+
 ## Migration History
 
 | Version | Changes |
 |---------|---------|
+| v35 | Added `conversation_memory` table |
 | v34 | Added `topics_user_managed` to `memory_vault` |
 | v33 | Added `embedding_model` to `memory_vault` |
 | v32 | Added `pinned_at` to `conversations` |

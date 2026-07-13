@@ -10,6 +10,7 @@ import type { Class } from "@nozbe/watermelondb/types";
 
 import { AppFile } from "./appFiles/models";
 import { Conversation, ConversationSummary, Message } from "./chat/models";
+import { ConversationMemory } from "./conversationMemory/models";
 import { Entity, MemoryEntity } from "./entities/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
@@ -57,8 +58,10 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v33: Added embedding_model column to memory_vault so stale-model vectors are
  *   detectable and re-embeddable after an embedding-model change (null = legacy
  *   rows, grandfathered as compatible with the current model)
+ * - v35: Added conversation_memory table recording which vault memories a
+ *   conversation drew on, so the conversation-level Memories panel survives reload
  */
-export const SDK_SCHEMA_VERSION = 34;
+export const SDK_SCHEMA_VERSION = 35;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -305,6 +308,16 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
+    // ── Conversation memories (panel persistence) ────────────────────────
+    tableSchema({
+      name: "conversation_memory",
+      columns: [
+        { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "memory_id", type: "string", isIndexed: true },
+        { name: "score", type: "number" },
+        { name: "created_at", type: "number", isIndexed: true },
+      ],
+    }),
   ],
 });
 
@@ -350,6 +363,7 @@ export const sdkSchema = appSchema({
  * - v30 → v31: Added `user_id` column to memory_entity for multi-user scoping of the W5 graph lane (with backfill from memory_vault.user_id)
  * - v31 → v32: Added `pinned_at` column to conversations for pinning chats
  * - v32 → v33: Added `embedding_model` column to memory_vault (null grandfathered as current-model-compatible)
+ * - v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -809,6 +823,23 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v34 -> v35: conversation_memory table. Records which vault memories a
+    // conversation drew on (ids + score only) so the conversation-level Memories
+    // panel survives reload. Additive create — no existing data touched.
+    {
+      toVersion: 35,
+      steps: [
+        createTable({
+          name: "conversation_memory",
+          columns: [
+            { name: "conversation_id", type: "string", isIndexed: true },
+            { name: "memory_id", type: "string", isIndexed: true },
+            { name: "score", type: "number" },
+            { name: "created_at", type: "number", isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -843,4 +874,5 @@ export const sdkModelClasses: Class<Model>[] = [
   UserPreference,
   SavedTool,
   AppFile,
+  ConversationMemory,
 ];
