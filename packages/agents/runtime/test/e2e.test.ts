@@ -389,4 +389,41 @@ describe("agent-runtime e2e", () => {
     // assistant reply.
     expect(result.messages[0]).toEqual(inputMessages[0]);
   });
+
+  test("agent runtime tags LLM requests with X-Anuma-Feature: agent (keeps X-Anuma-Surface)", async () => {
+    stub = await startStubPortal({
+      grants: { [HAVEN_BEARER]: havenGrant },
+      credentials: { [havenGrant.userAddress]: [] },
+    });
+    globalThis.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ): Promise<Response> => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.startsWith(stub.url)) return originalFetch!(input, init);
+      return new Response("unexpected url: " + url, { status: 500 });
+    }) as typeof globalThis.fetch;
+
+    let captured: Record<string, string> | undefined;
+    const base = plannedTransport([{ kind: "assistant", content: "ok" }]);
+    const transport: StreamingTransport = (options) => {
+      captured = options.headers;
+      return base(options);
+    };
+
+    await runAgentRequest({
+      request: mockReq(HAVEN_BEARER),
+      agent: havenAgent,
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      toolFactories: buildGmailFactories(),
+      portalClientOpts: { baseUrl: stub.url, maxRetries: 1, retryBaseMs: 1 },
+      transport,
+      apiType: "completions",
+    });
+
+    // X-Anuma-Feature drives requests.feature (#1353); X-Anuma-Surface must remain
+    // for portal auth/grant (OAuth client_id + first-party grant) keying.
+    expect(captured?.["X-Anuma-Feature"]).toBe("agent");
+    expect(captured?.["X-Anuma-Surface"]).toBe("agent");
+  });
 });
