@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: "Model to test (leave empty for default kimi-k2p5)"
+        description: "Model to test (leave empty for default deepinfra/moonshotai/Kimi-K2.6)"
         required: false
         type: choice
         default: ""

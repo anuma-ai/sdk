@@ -29,7 +29,7 @@ on:
         default: "cerebras/qwen-3-235b-a22b-instruct-2507"
         options:
           - cerebras/qwen-3-235b-a22b-instruct-2507
-          - fireworks/accounts/fireworks/models/kimi-k2p5
+          - deepinfra/moonshotai/Kimi-K2.6
           - fireworks/accounts/fireworks/models/kimi-k2p6
           - fireworks/accounts/fireworks/models/deepseek-v3p2
           - fireworks/accounts/fireworks/models/glm-5
