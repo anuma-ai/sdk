@@ -770,6 +770,142 @@ export async function deleteAllVaultMemoriesForUserOp(
   return records.length;
 }
 
+/**
+ * The minimal plaintext shape the decay sweep needs — mirrors the `DecayInput`
+ * shape in `memory/decay` plus the row id. Deliberately omits `content`
+ * (encrypted) so the sweep stays zero-knowledge.
+ */
+export interface DecayCandidateRaw {
+  uniqueId: string;
+  factType: string | null;
+  eventTimeEnd: number | null;
+  eventTimeKind: string | null;
+  /** Unix ms — the raw `updated_at`, used both for the age rule and as the
+   * optimistic-concurrency guard passed back to {@link archiveVaultMemoryOp}. */
+  updatedAt: number;
+  archivedAt: number | null;
+  source: string | null;
+}
+
+/**
+ * Decay sweep candidate scan (PR2). Selects the plaintext columns
+ * `classifyDecay` (in `memory/decay`) needs via
+ * `unsafeFetchRaw` — NO Model per row (dodges the never-evicted RecordCache /
+ * web Pile-2 OOM history) and NO `content` read / decrypt (zero-knowledge).
+ *
+ * Includes archived AND quarantined rows (so archived→delete transitions and
+ * aged quarantined rows are seen) but excludes hard-deleted rows — the
+ * `baseVaultConditions` default keeps `is_deleted = false`.
+ */
+export async function getDecayCandidatesRawOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<DecayCandidateRaw[]> {
+  const results = (await ctx.vaultMemoryCollection
+    .query(...baseVaultConditions(ctx, { includeArchived: true, includeQuarantined: true }))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return results.map((raw) => ({
+    uniqueId: raw.id as string,
+    factType: (raw.fact_type as string | null) ?? null,
+    eventTimeEnd: (raw.event_time_end as number | null) ?? null,
+    eventTimeKind: (raw.event_time_kind as string | null) ?? null,
+    updatedAt: raw.updated_at as number,
+    archivedAt: (raw.archived_at as number | null) ?? null,
+    source: (raw.source as string | null) ?? null,
+  }));
+}
+
+/**
+ * Archive a memory (decay soft state, PR2) — set `archived_at`. An archived row
+ * drops out of every recall lane via the `baseVaultConditions` choke point but
+ * stays recoverable via {@link restoreVaultMemoryOp} until the hard-delete
+ * window elapses.
+ *
+ * Concurrency: re-checks `is_deleted` / ownership / `archived_at` INSIDE the
+ * serialized writer (mirrors {@link updateVaultMemoryOp}). Additionally, when
+ * `opts.expectedUpdatedAt` is given, the archive is skipped if the row's current
+ * `updated_at` no longer matches — i.e. a `retain()` merge (which bumps
+ * `updated_at`) landed between the sweep's candidate scan and this write, so the
+ * fact was just re-observed and must NOT be archived on stale data. Idempotent:
+ * a row another sweep already archived returns `false` (no double-write).
+ *
+ * @returns `true` if this call archived the row; `false` if it was stale
+ *   (deleted / not owned / already archived / refreshed under us).
+ */
+export async function archiveVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  opts?: {
+    /** Timestamp to stamp into `archived_at`. Default `Date.now()`. */
+    now?: number;
+    /** Optimistic-concurrency guard: skip if the row's `updated_at` changed
+     * since the sweep observed it (a concurrent re-observation). */
+    expectedUpdatedAt?: number;
+  }
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+
+    let stale = false;
+    const archivedAtValue = opts?.now ?? Date.now();
+    await ctx.database.write(async () => {
+      // Re-check inside the serialized writer: a delete/archive/merge that
+      // committed after the probe must win.
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.archivedAt !== null) {
+        stale = true;
+        return;
+      }
+      if (
+        opts?.expectedUpdatedAt !== undefined &&
+        record.updatedAt.getTime() !== opts.expectedUpdatedAt
+      ) {
+        // A retain() merge refreshed this row between scan and write — the fact
+        // was just re-observed, so leave it active.
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("archived_at", archivedAtValue);
+      });
+    });
+    return !stale;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Restore an archived memory (PR2) — clear `archived_at` so it re-enters recall.
+ * Re-checks `is_deleted` / ownership inside the writer. Idempotent on an
+ * already-active row (clearing null → null is harmless).
+ *
+ * @returns `true` if the row was restored (or already active); `false` if it was
+ *   deleted / not owned / missing.
+ */
+export async function restoreVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+
+    let stale = false;
+    await ctx.database.write(async () => {
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("archived_at", null);
+      });
+    });
+    return !stale;
+  } catch {
+    return false;
+  }
+}
+
 export async function updateVaultMemoryEmbeddingOp(
   ctx: VaultMemoryOperationsContext,
   id: string,

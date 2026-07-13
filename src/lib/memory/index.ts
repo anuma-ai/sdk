@@ -16,6 +16,27 @@ export {
   type TurnCompleteEvent,
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";
+export {
+  classifyDecay,
+  type DecayInput,
+  type DecayPolicy,
+  type DecayVerdict,
+  DEFAULT_DECAY_POLICY,
+  HARD_DELETE_WINDOW_MS,
+  MEDIUM_TTL_MS,
+  NEVER_TTL_MS,
+  PAST_EVENT_GRACE_MS,
+  SHORT_TTL_MS,
+  ttlForType,
+} from "./decay.js";
+export {
+  createDecaySweeper,
+  type CreateDecaySweeperOptions,
+  type DecayClassifier,
+  type DecaySweeper,
+  type DecaySweepResult,
+  type NowSource,
+} from "./decayWorker.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,

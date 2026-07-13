@@ -94,6 +94,12 @@ function ChatScreen() {
 
 ## Other
 
+### archiveVaultMemoryOp
+
+Re-exports [archiveVaultMemoryOp](../react/Internal/functions/archiveVaultMemoryOp.md)
+
+***
+
 ### AutoExtractMessage
 
 Re-exports [AutoExtractMessage](../react/Internal/interfaces/AutoExtractMessage.md)
@@ -181,6 +187,12 @@ Re-exports [classifyCryptoPrice](../react/Internal/functions/classifyCryptoPrice
 ### classifyCryptoPriceBatch
 
 Re-exports [classifyCryptoPriceBatch](../react/Internal/functions/classifyCryptoPriceBatch.md)
+
+***
+
+### classifyDecay
+
+Re-exports [classifyDecay](../react/Internal/functions/classifyDecay.md)
 
 ***
 
@@ -289,6 +301,18 @@ Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConver
 ### createCryptoPricePreProcessor
 
 Re-exports [createCryptoPricePreProcessor](../react/Internal/functions/createCryptoPricePreProcessor.md)
+
+***
+
+### createDecaySweeper
+
+Re-exports [createDecaySweeper](../react/Internal/functions/createDecaySweeper.md)
+
+***
+
+### CreateDecaySweeperOptions
+
+Re-exports [CreateDecaySweeperOptions](../react/Internal/interfaces/CreateDecaySweeperOptions.md)
 
 ***
 
@@ -406,6 +430,48 @@ Re-exports [DatabaseManagerOptions](../react/Internal/interfaces/DatabaseManager
 
 ***
 
+### DecayCandidateRaw
+
+Re-exports [DecayCandidateRaw](../react/Internal/interfaces/DecayCandidateRaw.md)
+
+***
+
+### DecayClassifier
+
+Re-exports [DecayClassifier](../react/Internal/interfaces/DecayClassifier.md)
+
+***
+
+### DecayInput
+
+Re-exports [DecayInput](../react/Internal/interfaces/DecayInput.md)
+
+***
+
+### DecayPolicy
+
+Re-exports [DecayPolicy](../react/Internal/interfaces/DecayPolicy.md)
+
+***
+
+### DecaySweeper
+
+Re-exports [DecaySweeper](../react/Internal/interfaces/DecaySweeper.md)
+
+***
+
+### DecaySweepResult
+
+Re-exports [DecaySweepResult](../react/Internal/interfaces/DecaySweepResult.md)
+
+***
+
+### DecayVerdict
+
+Re-exports [DecayVerdict](../react/Internal/type-aliases/DecayVerdict.md)
+
+***
+
 ### decryptConversationTitle
 
 Re-exports [decryptConversationTitle](../react/Internal/functions/decryptConversationTitle.md)
@@ -427,6 +493,12 @@ Re-exports [DEFAULT\_CHUNK\_OVERLAP](../react/Internal/variables/DEFAULT_CHUNK_O
 ### DEFAULT\_CHUNK\_SIZE
 
 Re-exports [DEFAULT\_CHUNK\_SIZE](../react/Internal/variables/DEFAULT_CHUNK_SIZE.md)
+
+***
+
+### DEFAULT\_DECAY\_POLICY
+
+Re-exports [DEFAULT\_DECAY\_POLICY](../react/Internal/variables/DEFAULT_DECAY_POLICY.md)
 
 ***
 
@@ -604,6 +676,12 @@ Re-exports [getConversationsLazyOp](../react/Internal/functions/getConversations
 
 ***
 
+### getDecayCandidatesRawOp
+
+Re-exports [getDecayCandidatesRawOp](../react/Internal/functions/getDecayCandidatesRawOp.md)
+
+***
+
 ### getLogger
 
 Re-exports [getLogger](../react/Internal/functions/getLogger.md)
@@ -640,6 +718,12 @@ Re-exports [getVaultMemoryOp](../react/Internal/functions/getVaultMemoryOp.md)
 
 ***
 
+### HARD\_DELETE\_WINDOW\_MS
+
+Re-exports [HARD\_DELETE\_WINDOW\_MS](../react/Internal/variables/HARD_DELETE_WINDOW_MS.md)
+
+***
+
 ### hasEncryptionKey
 
 Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
@@ -673,6 +757,12 @@ Re-exports [LoggerProvider](../react/Internal/functions/LoggerProvider.md)
 ### LoggerProviderProps
 
 Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProps.md)
+
+***
+
+### MEDIUM\_TTL\_MS
+
+Re-exports [MEDIUM\_TTL\_MS](../react/Internal/variables/MEDIUM_TTL_MS.md)
 
 ***
 
@@ -730,15 +820,33 @@ Re-exports [moveMemoriesToFolderOp](../react/Internal/functions/moveMemoriesToFo
 
 ***
 
+### NEVER\_TTL\_MS
+
+Re-exports [NEVER\_TTL\_MS](../react/Internal/variables/NEVER_TTL_MS.md)
+
+***
+
 ### noopLogger
 
 Re-exports [noopLogger](../react/Internal/variables/noopLogger.md)
 
 ***
 
+### NowSource
+
+Re-exports [NowSource](../react/Internal/type-aliases/NowSource.md)
+
+***
+
 ### onKeyAvailable
 
 Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
+
+***
+
+### PAST\_EVENT\_GRACE\_MS
+
+Re-exports [PAST\_EVENT\_GRACE\_MS](../react/Internal/variables/PAST_EVENT_GRACE_MS.md)
 
 ***
 
@@ -886,6 +994,12 @@ Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionK
 
 ***
 
+### restoreVaultMemoryOp
+
+Re-exports [restoreVaultMemoryOp](../react/Internal/functions/restoreVaultMemoryOp.md)
+
+***
+
 ### resumeStream
 
 Re-exports [resumeStream](../react/Internal/functions/resumeStream.md)
@@ -1000,6 +1114,12 @@ Re-exports [setLogger](../react/Internal/functions/setLogger.md)
 
 ***
 
+### SHORT\_TTL\_MS
+
+Re-exports [SHORT\_TTL\_MS](../react/Internal/variables/SHORT_TTL_MS.md)
+
+***
+
 ### shouldChunkMessage
 
 Re-exports [shouldChunkMessage](../react/Internal/functions/shouldChunkMessage.md)
@@ -1111,6 +1231,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 ### TextChunk
 
 Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
+
+***
+
+### ttlForType
+
+Re-exports [ttlForType](../react/Internal/functions/ttlForType.md)
 
 ***
 

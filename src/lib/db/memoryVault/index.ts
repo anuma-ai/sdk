@@ -1,14 +1,18 @@
 export { VaultMemory } from "./models";
 export {
+  archiveVaultMemoryOp,
   clearMemoryTopicsOverrideOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
+  type DecayCandidateRaw,
   deleteAllVaultMemoriesForUserOp,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getDecayCandidatesRawOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
