@@ -121,6 +121,16 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
+### archivedAt
+
+> **archivedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#29)
+
+Decay archive state (PR2) — Unix ms when archived, null when active.
+
+***
+
 ### collection
 
 > **collection**: `Collection`<`Model`>
@@ -145,7 +155,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#26)
+Defined in: [src/lib/db/memoryVault/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#32)
 
 ***
 
@@ -197,6 +207,16 @@ W6 temporal lane — Unix ms timestamp of when the event occurred.
 
 ***
 
+### factType
+
+> **factType**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#27)
+
+Typed memory (PR1) — the extractor's FactType. Null on legacy/manual rows.
+
+***
+
 ### folderId
 
 > **folderId**: `string` | `null`
@@ -209,7 +229,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#28)
+Defined in: [src/lib/db/memoryVault/models.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#34)
 
 ***
 
@@ -256,11 +276,21 @@ leaves its entity links alone. Null on legacy rows (treated as false).
 
 ***
 
+### trustTier
+
+> **trustTier**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
+
+Tier-0 security (PR3) — "quarantined" | "trusted" | null.
+
+***
+
 ### updatedAt
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#27)
+Defined in: [src/lib/db/memoryVault/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#33)
 
 ***
 

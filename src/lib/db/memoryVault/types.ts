@@ -1,3 +1,5 @@
+import type { FactType } from "../../memory/autoExtract.js";
+
 export interface StoredVaultMemory {
   /** WatermelonDB internal ID */
   uniqueId: string;
@@ -29,6 +31,14 @@ export interface StoredVaultMemory {
   /** When true, the user has manually set this memory's topics (entity links);
    * auto-extraction leaves them alone. False on legacy/auto rows. */
   topicsUserManaged: boolean;
+  /** Typed memory (PR1) — the extractor's FactType for this fact, or null on
+   * legacy/manual/untyped rows. Plaintext string (not narrowed to FactType
+   * here since the DB can hold any stored value). */
+  factType: string | null;
+  /** Decay archive state (PR2) — Unix ms when archived, or null when active. */
+  archivedAt: number | null;
+  /** Tier-0 security (PR3) — "quarantined" | "trusted" | null. */
+  trustTier: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -60,6 +70,12 @@ export interface CreateVaultMemoryOptions {
     /** Kind: 'point' | 'range' | 'ongoing' | null (or omit). */
     kind: "point" | "range" | "ongoing" | null;
   };
+  /** Typed memory (PR1) — the extractor's classification for this fact.
+   * Omit for manual/untyped saves (persisted as null). */
+  factType?: FactType;
+  /** Tier-0 security (PR3) — set "quarantined" when the injection screen
+   * flagged this fact. Omit for the default (null/trusted). */
+  trustTier?: string;
 }
 
 export interface UpdateVaultMemoryOptions {
@@ -107,4 +123,11 @@ export interface UpdateVaultMemoryOptions {
   /** If provided, sets whether the user has taken manual control of this
    * memory's topics. Set by {@link setMemoryEntitiesOp}. */
   topicsUserManaged?: boolean;
+  /** Typed memory (PR1) — set/refine the fact's classification on update.
+   * Used by retain()'s lazy backfill (adopt an incoming type only when the
+   * existing row has none). Omit to leave the existing value untouched. */
+  factType?: FactType;
+  /** Tier-0 security (PR3) — set the trust tier on update ("quarantined" |
+   * "trusted"). Omit to leave the existing value untouched. */
+  trustTier?: string;
 }

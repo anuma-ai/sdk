@@ -57,8 +57,16 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v33: Added embedding_model column to memory_vault so stale-model vectors are
  *   detectable and re-embeddable after an embedding-model change (null = legacy
  *   rows, grandfathered as compatible with the current model)
+ * - v34: Added topics_user_managed column to memory_vault so a memory whose
+ *   entity links the user has taken manual control of is left alone by
+ *   auto-extraction (null/false = auto-derived, the default)
+ * - v35: Added fact_type, archived_at, trust_tier columns to memory_vault for
+ *   typed memory + decay + Tier-0 security. All nullable + plaintext, no
+ *   backfill (null = legacy/untyped, active, un-screened — content is
+ *   encrypted so in-migration classification is impossible; NULL = zero-risk,
+ *   exact embedding_model precedent)
  */
-export const SDK_SCHEMA_VERSION = 34;
+export const SDK_SCHEMA_VERSION = 35;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -202,6 +210,20 @@ export const sdkSchema = appSchema({
         // links). Auto-extraction then leaves its links alone — the user owns
         // them. Null/false = topics are auto-derived (default).
         { name: "topics_user_managed", type: "boolean", isOptional: true },
+        // Typed memory (PR1) — the extractor's FactType classification for
+        // this fact (identity | preference | relationship | plan |
+        // ongoing_context | constraint | other). Null on legacy/manual/untyped
+        // rows. Plaintext + indexed so recall can filter by type without a
+        // signature prompt.
+        { name: "fact_type", type: "string", isOptional: true, isIndexed: true },
+        // Decay archive state (PR2) — Unix ms when this memory was archived by
+        // the decay sweep. Null = active. Indexed so the recall choke point can
+        // exclude archived rows cheaply.
+        { name: "archived_at", type: "number", isOptional: true, isIndexed: true },
+        // Tier-0 security (PR3) — "quarantined" when the write-time injection
+        // screen flagged this fact, else null/"trusted". Indexed so the recall
+        // choke point can default-exclude quarantined rows.
+        { name: "trust_tier", type: "string", isOptional: true, isIndexed: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -350,6 +372,8 @@ export const sdkSchema = appSchema({
  * - v30 → v31: Added `user_id` column to memory_entity for multi-user scoping of the W5 graph lane (with backfill from memory_vault.user_id)
  * - v31 → v32: Added `pinned_at` column to conversations for pinning chats
  * - v32 → v33: Added `embedding_model` column to memory_vault (null grandfathered as current-model-compatible)
+ * - v33 → v34: Added `topics_user_managed` column to memory_vault (null/false = auto-derived topics, the default)
+ * - v34 → v35: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -806,6 +830,28 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "topics_user_managed", type: "boolean", isOptional: true }],
+        }),
+      ],
+    },
+    // v34 -> v35: typed memory + decay + Tier-0 security foundation.
+    //   - fact_type: the extractor's FactType classification (was computed
+    //     then discarded; now persisted).
+    //   - archived_at: decay archive state (set by the PR2 sweep).
+    //   - trust_tier: injection-screen verdict (set by the PR3 write screen).
+    // All nullable + plaintext, no backfill — existing rows keep NULL
+    // (legacy/untyped, active, un-screened). Content is encrypted, so
+    // in-migration classification is impossible; NULL = zero data rewrite =
+    // zero risk on LokiJS + SQLite (exact embedding_model precedent).
+    {
+      toVersion: 35,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "fact_type", type: "string", isOptional: true, isIndexed: true },
+            { name: "archived_at", type: "number", isOptional: true, isIndexed: true },
+            { name: "trust_tier", type: "string", isOptional: true, isIndexed: true },
+          ],
         }),
       ],
     },

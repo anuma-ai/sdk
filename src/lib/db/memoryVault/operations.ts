@@ -38,16 +38,32 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
   return ctx.userId === undefined || record.userId === ctx.userId;
 }
 
-/** Builds the base WHERE conditions shared by all vault memory queries.
- * `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
- * opts into it (to surface "forgotten" memories); every other caller omits it
- * and keeps the default non-deleted-only behavior. */
+/** Builds the base WHERE conditions shared by all vault memory queries. This is
+ * the single choke point every read lane (cosine/BM25/temporal/graph) inherits,
+ * so the archived + quarantined exclusions applied here cover all of recall at
+ * once.
+ * - `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
+ *   opts into it (to surface "forgotten" memories); every other caller omits it
+ *   and keeps the default non-deleted-only behavior.
+ * - `includeArchived` (PR1) drops the archived-row filter. Default excludes rows
+ *   with a non-null `archived_at` (decayed memories, PR2).
+ * - `includeQuarantined` (PR1) drops the quarantine filter. Default excludes
+ *   rows with `trust_tier === "quarantined"` (injection-screened memories, PR3).
+ *   `Q.notEq` compiles to `is not` (SQLite) / `$not:$aeq` (LokiJS), both of
+ *   which KEEP null rows — so untyped/legacy rows are never excluded. */
 function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
-  options?: { since?: Date; includeDeleted?: boolean }
+  options?: {
+    since?: Date;
+    includeDeleted?: boolean;
+    includeArchived?: boolean;
+    includeQuarantined?: boolean;
+  }
 ) {
   return [
     ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
+    ...(options?.includeArchived ? [] : [Q.where("archived_at", Q.eq(null))]),
+    ...(options?.includeQuarantined ? [] : [Q.where("trust_tier", Q.notEq("quarantined"))]),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
@@ -90,6 +106,9 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeEnd: memory.eventTimeEnd ?? null,
     eventTimeKind: memory.eventTimeKind ?? null,
     topicsUserManaged: memory.topicsUserManaged ?? false,
+    factType: memory.factType ?? null,
+    archivedAt: memory.archivedAt ?? null,
+    trustTier: memory.trustTier ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -144,6 +163,15 @@ export async function createVaultMemoryOp(
         record._setRaw("event_time_start", opts.eventTime.start ?? null);
         record._setRaw("event_time_end", opts.eventTime.end ?? null);
         record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
+      // Typed memory (PR1) — persist the classification when provided; leave
+      // null otherwise (legacy/manual/untyped). archived_at is never set on
+      // create — a fresh memory is always active.
+      if (opts.factType !== undefined) {
+        record._setRaw("fact_type", opts.factType);
+      }
+      if (opts.trustTier !== undefined) {
+        record._setRaw("trust_tier", opts.trustTier);
       }
     });
   });
@@ -287,6 +315,13 @@ export async function createVaultMemoriesBatchOp(
           record._setRaw("event_time_end", opts.eventTime.end ?? null);
           record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
         }
+        // Typed memory (PR1) — see createVaultMemoryOp.
+        if (opts.factType !== undefined) {
+          record._setRaw("fact_type", opts.factType);
+        }
+        if (opts.trustTier !== undefined) {
+          record._setRaw("trust_tier", opts.trustTier);
+        }
       })
     );
     await ctx.database.batch(...prepared);
@@ -355,6 +390,9 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
+    factType: (raw.fact_type as string | null) ?? null,
+    archivedAt: (raw.archived_at as number | null) ?? null,
+    trustTier: (raw.trust_tier as string | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -389,12 +427,19 @@ export async function getAllVaultMemoriesOp(
      * render "forgotten" nodes; ordinary consumers should leave this off.
      */
     includeDeleted?: boolean;
+    /** Include archived (decayed) memories. Default `false` (PR1 choke point). */
+    includeArchived?: boolean;
+    /** Include quarantined memories. Default `false` (PR1 choke point). */
+    includeQuarantined?: boolean;
+    /** Typed memory (PR1) — restrict to these fact types. Omit for no filter. */
+    factTypes?: string[];
   }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
     ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+    ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
     ...(options?.limit !== null && options?.limit !== undefined && options.limit > 0
       ? [Q.take(options.limit)]
@@ -504,6 +549,15 @@ export async function updateVaultMemoryOp(
         }
         if (opts.topicsUserManaged !== undefined) {
           r._setRaw("topics_user_managed", opts.topicsUserManaged);
+        }
+        // Typed memory (PR1) — retain()'s lazy backfill sets this only when the
+        // existing row had no type (it decides that upstream), so a plain
+        // presence check is enough here.
+        if (opts.factType !== undefined) {
+          r._setRaw("fact_type", opts.factType);
+        }
+        if (opts.trustTier !== undefined) {
+          r._setRaw("trust_tier", opts.trustTier);
         }
         if (opts.preserveUpdatedAt) {
           // WatermelonDB's record.update() bumps updated_at automatically.

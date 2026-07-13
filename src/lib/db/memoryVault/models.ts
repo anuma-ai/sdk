@@ -23,6 +23,12 @@ export class VaultMemory extends Model {
   /** When true, the user has manually set this memory's topics; auto-extraction
    *  leaves its entity links alone. Null on legacy rows (treated as false). */
   @field("topics_user_managed") topicsUserManaged!: boolean | null;
+  /** Typed memory (PR1) — the extractor's FactType. Null on legacy/manual rows. */
+  @field("fact_type") factType!: string | null;
+  /** Decay archive state (PR2) — Unix ms when archived, null when active. */
+  @field("archived_at") archivedAt!: number | null;
+  /** Tier-0 security (PR3) — "quarantined" | "trusted" | null. */
+  @field("trust_tier") trustTier!: string | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

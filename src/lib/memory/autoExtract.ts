@@ -512,6 +512,10 @@ export async function extractAndRetain(
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(consolidateOptions !== undefined && { consolidateOptions }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
+        // Typed memory (PR1) — persist the classification the extractor already
+        // computed instead of discarding it. `candidate.type` is validated to a
+        // FactType in validateCandidates (defaults to "other").
+        factType: candidate.type,
       });
       succeededCandidates.push(candidate);
       results.push(result);

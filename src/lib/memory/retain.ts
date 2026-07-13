@@ -112,12 +112,14 @@ export async function retain(
         // proofCountIncrement (not absolute proofCount) so two parallel
         // retain() calls don't race a read-modify-write and lose updates.
         const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
+        const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
         const updated = await updateVaultMemoryOp(ctx.vaultCtx, targetId, {
           content: existing.content,
           proofCountIncrement: 1,
           sourceChunkIds: mergedSourceIds,
           preserveUpdatedAt: true,
           ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
+          ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
         });
         if (updated) {
           return {
@@ -164,6 +166,9 @@ export async function retain(
           kind: options.eventTime.kind,
         },
       }),
+    // Typed memory (PR1) — persist the extractor's classification on the
+    // fresh row. Omitted for manual writes (persisted as null).
+    ...(options.factType !== undefined && { factType: options.factType }),
   });
 
   return {
@@ -195,6 +200,23 @@ function pickEventTimeUpdate(
   if (incoming === undefined || incoming === null) return undefined;
   if (existing.eventTimeStart !== null) return undefined;
   return { start: incoming.start, end: incoming.end, kind: incoming.kind };
+}
+
+/**
+ * Decide whether the incoming observation's fact type should be written onto
+ * the merge/consolidate target. Mirrors {@link pickEventTimeUpdate}: the first
+ * classification is authoritative, so adopt the incoming type ONLY when the
+ * target carries none yet (`factType` is null — a legacy/untyped row) and the
+ * new observation has one. Never overwrite an existing non-null type — this is
+ * a lazy backfill of legacy rows, not a re-classification.
+ */
+function pickFactTypeUpdate(
+  existing: { factType: string | null },
+  incoming: RetainOptions["factType"]
+): RetainOptions["factType"] | undefined {
+  if (incoming === undefined) return undefined;
+  if (existing.factType !== null) return undefined;
+  return incoming;
 }
 
 /**
@@ -256,12 +278,14 @@ async function tryConsolidate(
       options.sourceChunkIds ?? []
     );
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
+    const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: existing.content,
       proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
+      ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });
     if (!updated) {
       // Target gone → fall through to create; genuine write failure → throw
@@ -289,6 +313,7 @@ async function tryConsolidate(
     ctx.vaultCache.set(decision.content, newEmbedding);
     const consolidatedModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
+    const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
       content: decision.content,
       proofCountIncrement: 1,
@@ -301,6 +326,7 @@ async function tryConsolidate(
       // and matches the merge/noop paths above.
       preserveUpdatedAt: true,
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
+      ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });
     if (!updated) {
       // Target gone → fall through to create; genuine write failure → throw

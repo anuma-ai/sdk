@@ -176,6 +176,7 @@ export async function recall(
         }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(options.factTypes?.length && { factTypes: options.factTypes }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),
       }
@@ -318,6 +319,9 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     ...(r.eventTimeStart !== undefined && { eventTimeStart: r.eventTimeStart }),
     ...(r.eventTimeEnd !== undefined && { eventTimeEnd: r.eventTimeEnd }),
     ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
+    // Typed memory (PR1) — surfaced from VaultSearchResult so recall results
+    // (and UI reading them) carry the fact's type. Undefined when untyped.
+    ...(r.factType !== undefined && { factType: r.factType }),
     ...(r.sourceChunkIds !== undefined &&
       r.sourceChunkIds !== null && { sourceChunkIds: r.sourceChunkIds }),
     // r.similarity from searchVaultMemoriesWithSize is the fused score

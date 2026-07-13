@@ -152,6 +152,60 @@ describe("retain", () => {
     );
   });
 
+  it("persists factType on the create path (PR1)", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
+
+    await retain("Works in engineering", ctx, { factType: "identity" });
+
+    expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({
+      factType: "identity",
+    });
+  });
+
+  it("lazily backfills factType on merge when the target has none (PR1)", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "id1", content: "Foo", similarity: 0.92 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "id1",
+      content: "Foo",
+      factType: null,
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "id1", proofCount: 2 } as never);
+
+    await retain("Foo", ctx, { factType: "preference" });
+
+    expect(vi.mocked(updateVaultMemoryOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      "id1",
+      expect.objectContaining({ factType: "preference" })
+    );
+  });
+
+  it("never overwrites an existing non-null factType on merge (PR1)", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "id1", content: "Foo", similarity: 0.92 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "id1",
+      content: "Foo",
+      factType: "identity",
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "id1", proofCount: 2 } as never);
+
+    await retain("Foo", ctx, { factType: "preference" });
+
+    // First observation is authoritative — the merge update carries no factType.
+    const updateArgs = vi.mocked(updateVaultMemoryOp).mock.calls[0][2];
+    expect(updateArgs).not.toHaveProperty("factType");
+  });
+
   it("dedupes source chunk ids on merge (no duplicates if already present)", async () => {
     vi.mocked(searchVaultMemories).mockResolvedValue([
       { uniqueId: "id1", content: "Foo", similarity: 0.9 },

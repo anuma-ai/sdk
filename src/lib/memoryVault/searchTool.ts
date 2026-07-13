@@ -42,6 +42,10 @@ export interface MemoryVaultSearchOptions {
   scopes?: string[];
   /** When provided, only search memories in this folder (null for unfiled) */
   folderId?: string | null;
+  /** Typed memory (PR1) — when provided, only search memories of these fact
+   * types. Applied at load time via `Q.oneOf` on the indexed `fact_type`
+   * column. Omit for no type filter. */
+  factTypes?: string[];
   /**
    * Use the hybrid fusion ranker (cosine + BM25 + RRF + recency) instead of
    * cosine-only. Default true — new W1 pipeline. Pass false to fall back
@@ -139,6 +143,9 @@ interface EmbeddedItem {
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /** Typed memory (PR1) — carried through to VaultSearchResult alongside the
+   * event-time anchors so recall results can surface the fact's type. */
+  factType?: string | null;
   /** Message ids this fact was extracted from — carried through to
    * VaultSearchResult so recall() can suppress the originating chunk in the
    * chunk lane (a fact and the chunk it came from shouldn't both surface). */
@@ -283,6 +290,7 @@ export function rankVaultMemories(
     sourceChunkIds: item.sourceChunkIds,
     eventTimeEnd: item.eventTimeEnd,
     eventTimeKind: item.eventTimeKind,
+    factType: item.factType,
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
@@ -456,6 +464,7 @@ export function rankFusedVaultMemories(
       sourceChunkIds: item.sourceChunkIds,
       eventTimeEnd: item.eventTimeEnd,
       eventTimeKind: item.eventTimeKind,
+      factType: item.factType,
     });
   }
 
@@ -778,6 +787,7 @@ export async function rankFusedVaultMemoriesAsync(
         sourceChunkIds: orig?.sourceChunkIds,
         eventTimeEnd: orig?.eventTimeEnd,
         eventTimeKind: orig?.eventTimeKind,
+        factType: orig?.factType,
       };
     });
     // For benchmark + temporal-margin analysis, callers that want the
@@ -957,6 +967,7 @@ export async function rankComposite(
         sourceChunkIds: item.sourceChunkIds,
         eventTimeEnd: item.eventTimeEnd,
         eventTimeKind: item.eventTimeKind,
+        factType: item.factType,
       };
     }
   );
@@ -983,6 +994,7 @@ export async function rankComposite(
           sourceChunkIds: item.sourceChunkIds,
           eventTimeEnd: item.eventTimeEnd,
           eventTimeKind: item.eventTimeKind,
+          factType: item.factType,
         });
       }
     }
@@ -1045,6 +1057,7 @@ export async function rankComposite(
         sourceChunkIds: orig?.sourceChunkIds,
         eventTimeEnd: orig?.eventTimeEnd,
         eventTimeKind: orig?.eventTimeKind,
+        factType: orig?.factType,
       };
     });
     const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
@@ -1156,6 +1169,10 @@ export interface VaultSearchResult {
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /** Typed memory (PR1) — the fact's FactType, threaded through from the
+   * storage row alongside the event-time anchors. Null/undefined when
+   * untyped. Loose string (originates from a stored column). */
+  factType?: string | null;
   /** Message ids this fact was extracted from (provenance). recall() uses
    * these to suppress the originating chunk in the chunk lane. */
   sourceChunkIds?: string[] | null;
@@ -1181,9 +1198,10 @@ export async function searchVaultMemoriesWithSize(
 
   const folderId = searchOptions?.folderId;
 
-  const queryOpts: { scopes?: string[]; folderId?: string | null } = {};
+  const queryOpts: { scopes?: string[]; folderId?: string | null; factTypes?: string[] } = {};
   if (scopes?.length) queryOpts.scopes = scopes;
   if (folderId !== undefined) queryOpts.folderId = folderId;
+  if (searchOptions?.factTypes?.length) queryOpts.factTypes = searchOptions.factTypes;
 
   const loaded = await getAllVaultMemoriesOp(
     vaultCtx,
@@ -1290,6 +1308,7 @@ export async function searchVaultMemoriesWithSize(
     sourceChunkIds: m.sourceChunkIds,
     eventTimeEnd: m.eventTimeEnd,
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
+    factType: m.factType,
   }));
 
   // Dimension net. The load loop above re-embeds stale-model and wrong-dim

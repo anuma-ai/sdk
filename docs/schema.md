@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v34**
+Current version: **v35**
 
 ```mermaid
 graph LR
@@ -117,6 +117,9 @@ graph LR
 | `event_time_end` | number |  | ✓ |
 | `event_time_kind` | string |  | ✓ |
 | `topics_user_managed` | boolean |  | ✓ |
+| `fact_type` | string | ✓ | ✓ |
+| `archived_at` | number | ✓ | ✓ |
+| `trust_tier` | string | ✓ | ✓ |
 
 ## entity
 
@@ -209,6 +212,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v35 | Added `fact_type`, `archived_at`, `trust_tier` to `memory_vault` |
 | v34 | Added `topics_user_managed` to `memory_vault` |
 | v33 | Added `embedding_model` to `memory_vault` |
 | v32 | Added `pinned_at` to `conversations` |

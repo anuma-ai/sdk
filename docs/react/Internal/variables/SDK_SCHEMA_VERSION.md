@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `34` = `34`
+> `const` **SDK\_SCHEMA\_VERSION**: `35` = `35`
 
-Defined in: [src/lib/db/schema.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#61)
+Defined in: [src/lib/db/schema.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#69)
 
 Current combined schema version for all SDK storage modules.
 
@@ -42,3 +42,11 @@ Version history:
 * v33: Added embedding\_model column to memory\_vault so stale-model vectors are
   detectable and re-embeddable after an embedding-model change (null = legacy
   rows, grandfathered as compatible with the current model)
+* v34: Added topics\_user\_managed column to memory\_vault so a memory whose
+  entity links the user has taken manual control of is left alone by
+  auto-extraction (null/false = auto-derived, the default)
+* v35: Added fact\_type, archived\_at, trust\_tier columns to memory\_vault for
+  typed memory + decay + Tier-0 security. All nullable + plaintext, no
+  backfill (null = legacy/untyped, active, un-screened — content is
+  encrypted so in-migration classification is impossible; NULL = zero-risk,
+  exact embedding\_model precedent)

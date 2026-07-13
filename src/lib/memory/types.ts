@@ -14,6 +14,7 @@ import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { PiiRedactor } from "../pii/redactor.js";
+import type { FactType } from "./autoExtract.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import type { RecencyOptions } from "./recency.js";
 
@@ -75,6 +76,14 @@ export interface RankedMemory {
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /**
+   * Typed memory (PR1) — the extractor's FactType classification for this
+   * fact, threaded through the same channel as the event-time anchors so
+   * recall results (and UI) can show the type without a second DB read.
+   * Null/undefined on legacy/untyped/manual facts. Kept as a loose string
+   * (not narrowed to FactType) since it originates from a stored column.
+   */
+  factType?: string | null;
 
   // Chunk-only
   conversationId?: string;
@@ -100,6 +109,11 @@ export interface RecallOptions {
   scopes?: string[];
   /** Vault folder filter. Vault-only. */
   folderId?: string | null;
+  /**
+   * Typed memory (PR1) — restrict fact recall to these FactTypes. Optional
+   * and no-op when unset (all types are eligible). Vault-only.
+   */
+  factTypes?: FactType[];
   /** Restrict chunk search to one conversation. Chunk-only. */
   conversationId?: string;
   /** Exclude one conversation from chunk search. Chunk-only. */
@@ -241,6 +255,13 @@ export interface RetainOptions {
     start: number;
     end: number | null;
   } | null;
+  /**
+   * Typed memory (PR1) — the extractor's classification for this fact.
+   * Persisted on create; on merge/consolidate it lazily backfills the target
+   * only when the target has no type yet (never overwrites a non-null type).
+   * Auto-extraction emits this; manual writes omit it (persisted as null).
+   */
+  factType?: FactType;
 }
 
 export interface RetainResult {
