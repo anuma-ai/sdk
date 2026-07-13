@@ -1165,4 +1165,53 @@ describe("typed memory (PR1)", () => {
     // is_deleted + archived_at + trust_tier + fact_type + sortBy = 5 conditions.
     expect(queryFn.mock.calls[0].length).toBe(5);
   });
+
+  // getAllVaultMemoriesOp reads via unsafeFetchRaw, so the raw snake_case
+  // mapper (vaultMemoryRawToStoredRaw) — NOT the Model mapper — is the code
+  // path in production. These exercise it with real raw rows so a snake_case
+  // typo (raw.fact_type -> raw.facttype) fails CI instead of passing.
+  function ctxReturningRaw(raws: Record<string, unknown>[]) {
+    const queryFn = vi.fn(() => ({
+      fetch: vi.fn(async () => []),
+      unsafeFetchRaw: vi.fn(async () => raws),
+    }));
+    return makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+  }
+
+  it("raw unsafeFetchRaw mapper round-trips fact_type / trust_tier / archived_at with real values", async () => {
+    const ctx = ctxReturningRaw([
+      {
+        id: "mem_typed",
+        content: "prefers dark roast",
+        scope: "private",
+        is_deleted: false,
+        created_at: 1_700_000_000_000,
+        updated_at: 1_700_000_000_000,
+        fact_type: "preference",
+        trust_tier: "trusted",
+        archived_at: 1_234_567_890,
+      },
+    ]);
+    const [stored] = await getAllVaultMemoriesOp(ctx);
+    expect(stored.factType).toBe("preference");
+    expect(stored.trustTier).toBe("trusted");
+    expect(stored.archivedAt).toBe(1_234_567_890);
+  });
+
+  it("raw unsafeFetchRaw mapper maps a legacy row (typed columns absent) to null", async () => {
+    const ctx = ctxReturningRaw([
+      {
+        id: "mem_legacy",
+        content: "plain legacy row",
+        scope: "private",
+        is_deleted: false,
+        created_at: 1_700_000_000_000,
+        updated_at: 1_700_000_000_000,
+      },
+    ]);
+    const [stored] = await getAllVaultMemoriesOp(ctx);
+    expect(stored.factType).toBeNull();
+    expect(stored.trustTier).toBeNull();
+    expect(stored.archivedAt).toBeNull();
+  });
 });

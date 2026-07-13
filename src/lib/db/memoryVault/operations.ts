@@ -49,8 +49,11 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
  *   with a non-null `archived_at` (decayed memories, PR2).
  * - `includeQuarantined` (PR1) drops the quarantine filter. Default excludes
  *   rows with `trust_tier === "quarantined"` (injection-screened memories, PR3).
- *   `Q.notEq` compiles to `is not` (SQLite) / `$not:$aeq` (LokiJS), both of
- *   which KEEP null rows — so untyped/legacy rows are never excluded. */
+ *   For this string value `Q.notEq` compiles to `is not` (SQLite) and, via the
+ *   LokiJS string fast-path, to `{ trust_tier: { $ne: "quarantined" } }` — both
+ *   KEEP null rows, so untyped/legacy rows are never excluded. (A non-string
+ *   value would take LokiJS's `$not:$aeq` path instead; keep this comparison
+ *   string-valued.) */
 function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
   options?: {
