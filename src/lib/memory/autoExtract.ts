@@ -20,7 +20,7 @@ import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
-import { screenCandidatesForInjection } from "./injectionScreen.js";
+import { type InjectionReason, screenCandidatesForInjection } from "./injectionScreen.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -164,6 +164,22 @@ export interface ExtractedCandidate {
     /** Unix ms timestamp of the event end. Only set when kind='range'. */
     end: number | null;
   } | null;
+}
+
+/**
+ * Tier-0 security (PR3) — describes a candidate the injection screen
+ * quarantined and persisted as an audit row. The client uses this to surface
+ * a "held for review" state. `content` lives on `candidate` (same exposure as
+ * {@link ExtractedCandidate}); never log it.
+ */
+export interface QuarantinedMemoryInfo {
+  candidate: ExtractedCandidate;
+  /** The persisted (quarantined) memory row id. */
+  memoryId: string;
+  /** Coarse reason bucket from the screen. */
+  reason: InjectionReason;
+  /** Stable signature id that matched (safe to log; carries no content). */
+  signature: string;
 }
 
 /**
@@ -454,12 +470,30 @@ export async function extractAndRetain(
      * `failedCount` and can't name which facts dropped.
      */
     onCandidateFailed?: (candidate: ExtractedCandidate, error: unknown) => void;
+    /**
+     * Tier-0 security (PR3) — invoked once per candidate the injection screen
+     * quarantined AND persisted (audit row written). Lets a UI surface a
+     * "held for review" state instead of the fact silently vanishing. Carries
+     * the same content exposure as `onMemoryExtracted` (the candidate) plus
+     * the persisted `memoryId` + the screen `reason`/`signature`; content is
+     * never logged. Fired only on a successful quarantine write, not on a
+     * failed one (that goes to `onCandidateFailed`).
+     */
+    onQuarantined?: (info: QuarantinedMemoryInfo) => void;
   }
 ): Promise<{
   candidates: ExtractedCandidate[];
   results: RetainResult[];
   failedCount: number;
   outcome: ExtractOutcome;
+  /**
+   * Tier-0 security (PR3) — candidates quarantined by the injection screen and
+   * persisted as audit rows (trust_tier="quarantined"). Kept OUT of
+   * `candidates`/`results` so `onMemoryExtracted` never announces poison;
+   * surfaced here so callers can distinguish "nothing extracted" from
+   * "extracted but held for review".
+   */
+  quarantined: QuarantinedMemoryInfo[];
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
@@ -516,17 +550,28 @@ export async function extractAndRetain(
         quarantined.map((q) => q.signature).join(", ")
     );
   }
-  const toRetain: { candidate: ExtractedCandidate; isQuarantined: boolean }[] = [
+  const toRetain: {
+    candidate: ExtractedCandidate;
+    isQuarantined: boolean;
+    reason?: InjectionReason;
+    signature?: string;
+  }[] = [
     ...clean.map((candidate) => ({ candidate, isQuarantined: false })),
-    ...quarantined.map((q) => ({ candidate: q.candidate, isQuarantined: true })),
+    ...quarantined.map((q) => ({
+      candidate: q.candidate,
+      isQuarantined: true,
+      reason: q.reason,
+      signature: q.signature,
+    })),
   ];
 
   // Both arrays grow only on success so consumers can safely pair
   // candidates[i] with results[i] after a mid-batch retain failure.
   const succeededCandidates: ExtractedCandidate[] = [];
   const results: RetainResult[] = [];
+  const quarantinedInfo: QuarantinedMemoryInfo[] = [];
   let failedWrites = 0;
-  for (const { candidate, isQuarantined } of toRetain) {
+  for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     try {
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
@@ -545,12 +590,23 @@ export async function extractAndRetain(
         ...(isQuarantined && { trustTier: "quarantined", enableAutoMerge: false }),
       });
 
-      // Quarantined candidates are persisted for audit but NOT surfaced: keep
-      // them out of the caller-visible arrays (which drive onMemoryExtracted
-      // toasts / memory-graph pulses) and out of the entity graph. The recall
-      // gate already hides them from retrieval; this also stops poisoned
-      // content from reaching any UI success path.
-      if (isQuarantined) continue;
+      // Quarantined candidates are persisted for audit but NOT surfaced via
+      // onMemoryExtracted / results (which drive success toasts + graph pulses)
+      // and are kept out of the entity graph. Instead they flow through the
+      // dedicated quarantine seam so a client can show "held for review" — the
+      // fact is never silently lost. The recall gate still hides them from
+      // retrieval.
+      if (isQuarantined) {
+        const info: QuarantinedMemoryInfo = {
+          candidate,
+          memoryId: result.memoryId,
+          reason: reason as InjectionReason,
+          signature: signature as string,
+        };
+        quarantinedInfo.push(info);
+        options.onQuarantined?.(info);
+        continue;
+      }
 
       succeededCandidates.push(candidate);
       results.push(result);
@@ -591,7 +647,13 @@ export async function extractAndRetain(
         ? "dropped-after-redaction"
         : "no-facts";
 
-  return { candidates: succeededCandidates, results, failedCount: failedWrites, outcome };
+  return {
+    candidates: succeededCandidates,
+    results,
+    failedCount: failedWrites,
+    outcome,
+    quarantined: quarantinedInfo,
+  };
 }
 
 // ---------------------------------------------------------------------------

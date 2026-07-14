@@ -7,12 +7,14 @@ export {
   type ExtractFactsOptions,
   type ExtractOutcome,
   type FactType,
+  type QuarantinedMemoryInfo,
 } from "./autoExtract.js";
 export {
   type AutoExtractor,
   createAutoExtractor,
   type CreateAutoExtractorOptions,
   type MemoryExtractedEvent,
+  type MemoryQuarantinedEvent,
   type TurnCompleteEvent,
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";

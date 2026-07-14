@@ -42,6 +42,7 @@ import {
   type ExtractedCandidate,
   type ExtractFactsOptions,
   type ExtractOutcome,
+  type QuarantinedMemoryInfo,
 } from "./autoExtract.js";
 import type { RetainContext } from "./retain.js";
 import type { ConsolidationFallbackReason, RetainOptions, RetainResult } from "./types.js";
@@ -50,6 +51,17 @@ import type { ConsolidationFallbackReason, RetainOptions, RetainResult } from ".
 export interface MemoryExtractedEvent {
   candidate: ExtractedCandidate;
   result: RetainResult;
+  conversationId?: string;
+}
+
+/**
+ * Tier-0 security (PR3) — fired once per candidate the injection screen
+ * quarantined and persisted as an audit row. Distinct from
+ * {@link MemoryExtractedEvent} so a client can render "held for review"
+ * without treating a poisoned fact as a normal saved memory.
+ * @public
+ */
+export interface MemoryQuarantinedEvent extends QuarantinedMemoryInfo {
   conversationId?: string;
 }
 
@@ -153,6 +165,12 @@ export interface CreateAutoExtractorOptions {
   };
   /** Per-fact event — fires once per memory written. */
   onMemoryExtracted?: (event: MemoryExtractedEvent) => void;
+  /**
+   * Tier-0 security (PR3) — fires once per candidate quarantined by the
+   * injection screen (and persisted as an audit row). Lets a client surface a
+   * "held for review" state instead of the fact silently disappearing.
+   */
+  onMemoryQuarantined?: (event: MemoryQuarantinedEvent) => void;
   /** Per-turn event — fires once after the whole pipeline finishes. */
   onTurnComplete?: (event: TurnCompleteEvent) => void;
   /** Diagnostic — fires when a turn is skipped. */
@@ -437,6 +455,9 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
             ...(options.onCandidateFailed && {
               onCandidateFailed: (candidate, error) =>
                 options.onCandidateFailed?.({ candidate, error, conversationId }),
+            }),
+            ...(options.onMemoryQuarantined && {
+              onQuarantined: (info) => options.onMemoryQuarantined?.({ ...info, conversationId }),
             }),
           }
         );

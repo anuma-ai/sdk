@@ -55,6 +55,83 @@ export interface ScreenResult {
   quarantined: ScreenedCandidate[];
 }
 
+/**
+ * Confusable / homoglyph map: non-Latin code points that render like the
+ * Latin letters used in trigger words. Attackers swap e.g. a Cyrillic "о"
+ * (U+043E) into "Ignоre" so `\bignore\b` misses it while the text reads
+ * identically. We fold these back to Latin BEFORE matching (matching only —
+ * the original is always what gets stored). Only characters that are
+ * genuinely confusable with a Latin letter appear here, so folding a
+ * legitimate non-Latin fact can't manufacture an English injection phrase.
+ */
+const CONFUSABLES: Record<string, string> = {
+  // Cyrillic → Latin
+  а: "a",
+  е: "e",
+  о: "o",
+  р: "p",
+  с: "c",
+  у: "y",
+  х: "x",
+  і: "i",
+  ѕ: "s",
+  к: "k",
+  м: "m",
+  н: "h",
+  т: "t",
+  в: "b",
+  ԁ: "d",
+  ј: "j",
+  А: "A",
+  Е: "E",
+  О: "O",
+  Р: "P",
+  С: "C",
+  У: "Y",
+  Х: "X",
+  К: "K",
+  М: "M",
+  Н: "H",
+  Т: "T",
+  В: "B",
+  Ј: "J",
+  // Greek → Latin
+  ο: "o",
+  α: "a",
+  ε: "e",
+  ρ: "p",
+  χ: "x",
+  ι: "i",
+  Ο: "O",
+  Α: "A",
+  Ε: "E",
+  Ρ: "P",
+  Χ: "X",
+  Ι: "I",
+};
+
+const CONFUSABLE_RE = new RegExp(`[${Object.keys(CONFUSABLES).join("")}]`, "gu");
+
+/**
+ * Normalize content for matching ONLY (never for storage). Kills the cheap
+ * evasions that defeat naive `\b…\b` / bounded-gap regexes:
+ *  1. Unicode NFKC — folds compatibility forms (full-width, ligatures, …).
+ *  2. Strip Unicode format chars (Cf: zero-width space/joiner, BOM, soft
+ *     hyphen, RTL/LTR overrides) that split trigger words invisibly.
+ *  3. Fold confusable homoglyphs back to Latin.
+ *  4. Collapse ALL whitespace (incl. newlines/tabs) to single spaces, so a
+ *     `\n` planted inside a bounded `[^.\n]` gap no longer breaks the match.
+ * Pure win: none of these can turn a benign fact into an injection phrase.
+ */
+export function normalizeForScreen(content: string): string {
+  return content
+    .normalize("NFKC")
+    .replace(/[\p{Cf}]/gu, "")
+    .replace(CONFUSABLE_RE, (ch) => CONFUSABLES[ch] ?? ch)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 interface Signature {
   /** Stable, content-free id (safe to log). */
   id: string;
@@ -67,50 +144,70 @@ interface Signature {
  * first-match: a candidate is quarantined on the first signature that
  * fires, and the first match's reason/id are reported.
  *
- * Bounds on the `[^.\n]{0,N}` gaps keep each pattern anchored to a single
- * clause so unrelated words far apart in a long fact don't co-trigger a
- * match. All are case-insensitive; none use the `g` flag (so `.test()` is
- * stateless and safe to reuse across calls).
+ * Patterns run against `normalizeForScreen(content)`, so `\n` never appears
+ * (whitespace is collapsed to single spaces) — the bounded `[^.\n]{0,N}`
+ * gaps therefore span what were previously line breaks too, while `.`
+ * (period) still bounds a gap to one clause. Gaps are widened enough to
+ * defeat filler-padding without going unbounded (ReDoS-safe). All are
+ * case-insensitive; none use the `g` flag (so `.test()` is stateless).
+ *
+ * FALSE-POSITIVE posture: signatures target the ASSISTANT as the object of
+ * an imperative (second-person directive verbs, chat role markers, explicit
+ * exfil verbs+URL). Benign third-person facts about the user ("always
+ * remember to bring an umbrella", "believes you should always tip") no
+ * longer match — see the verb-list narrowing below. On a miss we lean
+ * toward availability (keep the fact) since a false negative only reaches
+ * the additional read-time isolation + proof-count ranking layers.
  */
 const SIGNATURES: readonly Signature[] = [
   // ── Imperative overrides aimed at the assistant ──────────────────────
   {
-    // "ignore/disregard/forget/override ... previous/above/prior/all ...
-    //  instructions/context/messages/prompt/rules"
+    // "ignore/disregard/forget/override/bypass ... previous/above/prior/all
+    //  ... instructions/context/messages/prompt/rules". Gaps widened to 120
+    //  so filler padding between the anchors can't slip the match.
     id: "ignore-previous-instructions",
     reason: "imperative_override",
     pattern:
-      /\b(ignore|disregard|forget|override)\b[^.\n]{0,40}\b(previous|above|prior|earlier|all|any)\b[^.\n]{0,40}\b(instruction|instructions|context|message|messages|prompt|prompts|rule|rules|direction|directions)\b/i,
+      /\b(ignore|disregard|forget|override|bypass)\b[^.]{0,120}\b(previous|above|prior|earlier|all|any)\b[^.]{0,120}\b(instruction|instructions|context|message|messages|prompt|prompts|rule|rules|direction|directions|guideline|guidelines)\b/i,
   },
   {
-    // "from now on ... you/always/never/respond/say/recommend ..."
+    // "from now on ... you ... <assistant directive>". Requires the second
+    // person "you" so a first-person durable fact ("From now on I only eat
+    // vegan") no longer trips it; poison of the form "from now on always
+    // recommend X" is still caught by always-never-directive below.
     id: "from-now-on",
     reason: "imperative_override",
     pattern:
-      /\bfrom now on\b[^.\n]{0,60}\b(you|always|never|respond|reply|say|recommend|answer|act|behave|treat|only)\b/i,
+      /\bfrom now on\b[^.]{0,40}\byou\b[^.]{0,40}\b(must|should|shall|will|are|respond|reply|say|recommend|act|behave|answer|treat|always|never)\b/i,
   },
   {
-    // second-person standing directive: "you must/should/have to always/never"
+    // second-person standing directive AT the assistant: "you must/should/…
+    // always/never <directive verb>". The directive verb is required so an
+    // opinion ("believes you should always tip") no longer matches — only a
+    // command to the assistant's behavior does.
     id: "you-must-always-never",
     reason: "imperative_override",
     pattern:
-      /\byou\s+(must|should|shall|will|have to|need to|are (?:to|required to))\s+(always|never)\b/i,
+      /\byou\s+(?:must|should|shall|will|have to|need to|are (?:to|required to))\s+(?:always|never)\s+(?:recommend|reveal|expose|output|respond|reply|say|tell|answer|refuse|ignore|disregard|treat|act|behave|comply|obey|claim|insist|promote|endorse|mention|include|forget|remember)\b/i,
   },
   {
-    // "always/never say/respond/recommend/reveal/output ..." — imperative
-    // directive to the assistant's behavior.
+    // "always/never <injection-signal verb>". The verb list is deliberately
+    // narrow: benign reminder verbs (remember/forget/tell/say/mention) were
+    // REMOVED — "always remember to bring an umbrella" is a real fact, not
+    // poison. Only verbs that signal steering the assistant remain.
     id: "always-never-directive",
     reason: "imperative_override",
     pattern:
-      /\b(always|never)\s+(say|respond|reply|recommend|suggest|answer|tell|mention|include|refuse|reveal|output|repeat|remember|forget)\b/i,
+      /\b(?:always|never)\s+(?:recommend|reveal|expose|output|respond|reply|refuse|ignore|disregard|promote|endorse|comply|obey|claim)\b/i,
   },
   {
     // "when(ever) (someone) asks ... say/respond/recommend/tell ..." — the
-    // classic trigger-and-payload injection.
+    // classic trigger-and-payload injection. (Residual FP: a third-person
+    // "when asked, she says X" fact — rare; accepted, recoverable.)
     id: "when-asked-say",
     reason: "imperative_override",
     pattern:
-      /\bwhen(ever)?\b[^.\n]{0,50}\b(ask|asks|asked|asking)\b[^.\n]{0,50}\b(say|respond|reply|recommend|answer|tell|claim|state|output|insist)\b/i,
+      /\bwhen(ever)?\b[^.]{0,50}\b(ask|asks|asked|asking)\b[^.]{0,50}\b(say|respond|reply|recommend|answer|tell|claim|state|output|insist)\b/i,
   },
   {
     // role-swap / prompt-override phrases: "you are now", "act as",
@@ -126,17 +223,21 @@ const SIGNATURES: readonly Signature[] = [
     id: "reveal-your-secrets",
     reason: "imperative_override",
     pattern:
-      /\b(reveal|print|output|show|dump|leak|expose|repeat|send)\b[^.\n]{0,30}\b(your|the|all)\b[^.\n]{0,30}\b(system prompt|instructions?|prompt|memories|secrets?|api key|password|credentials?)\b/i,
+      /\b(reveal|print|output|show|dump|leak|expose|repeat|send)\b[^.]{0,30}\b(your|the|all)\b[^.]{0,30}\b(system prompt|instructions?|prompt|memories|secrets?|api key|password|credentials?)\b/i,
   },
 
   // ── Chat role / tool-format marker leakage ───────────────────────────
   {
-    // a line that begins with a chat role marker ("system:", "assistant:")
-    // — a stored fact is prose, not a transcript, so a leading role marker
-    // is an attempt to inject a fake turn.
-    id: "role-marker-line",
+    // a chat role marker token ("system:", "assistant:", "user:") appearing
+    // as a standalone token — a stored fact is prose, not a transcript, so a
+    // role marker is an attempt to inject a fake turn. NOT line-anchored:
+    // normalization collapses newlines, so we match the marker after any
+    // whitespace or at the start (catches mid-sentence "... system : ..."
+    // too). The trailing colon keeps false positives low ("systems
+    // administrator", "system prompt" without a colon do not match).
+    id: "role-marker",
     reason: "role_marker_leak",
-    pattern: /(?:^|\n)\s*(system|assistant|user|developer|tool)\s*:/i,
+    pattern: /(?:^|\s)(system|assistant|user)\s*:/i,
   },
   {
     // model chat-format control tokens (ChatML, Llama INST/SYS, etc.)
@@ -152,19 +253,19 @@ const SIGNATURES: readonly Signature[] = [
   },
 
   // ── Data-exfiltration URLs ───────────────────────────────────────────
-  {
-    // a URL carrying a query string — the "beacon the data out" shape.
-    // Durable personal facts don't embed tracking URLs with params.
-    id: "exfil-url-query",
-    reason: "exfiltration_url",
-    pattern: /https?:\/\/[^\s)]+\?[^\s)]*=/i,
-  },
+  //
+  // A bare query-string URL is NOT flagged — bookmarks, recipe links, and
+  // billing URLs all carry `?key=value` and were false-positiving. We now
+  // require either an explicit exfil verb next to the URL or a data-beacon
+  // shape (auto-loading markdown image).
   {
     // "send/post/upload/forward/email ... http(s)://..." — explicit exfil.
+    // Common ambiguous verbs (get/fetch/curl/post-as-publish) are excluded
+    // to avoid flagging "get your ticket at https://…".
     id: "exfil-send-to-url",
     reason: "exfiltration_url",
     pattern:
-      /\b(send|post|upload|exfiltrate|forward|leak|email|curl|fetch|GET|POST)\b[^.\n]{0,40}\bhttps?:\/\//i,
+      /\b(send|post|upload|exfiltrate|forward|email|transmit|beacon)\b[^.]{0,40}\bhttps?:\/\//i,
   },
   {
     // markdown image that auto-loads on render → silent data exfil via URL.
@@ -174,10 +275,15 @@ const SIGNATURES: readonly Signature[] = [
   },
 ];
 
-/** First signature that matches `content`, or undefined. */
+/**
+ * First signature that matches, or undefined. Matches against the NORMALIZED
+ * copy (homoglyph-folded, zero-width-stripped, whitespace-collapsed) so
+ * cheap evasions don't get a free pass; the original content is untouched.
+ */
 function matchSignature(content: string): Signature | undefined {
+  const normalized = normalizeForScreen(content);
   for (const sig of SIGNATURES) {
-    if (sig.pattern.test(content)) return sig;
+    if (sig.pattern.test(normalized)) return sig;
   }
   return undefined;
 }

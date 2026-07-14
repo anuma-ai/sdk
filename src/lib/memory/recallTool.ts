@@ -8,6 +8,7 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types.js";
+import { normalizeForScreen } from "./injectionScreen.js";
 import { recall } from "./recall.js";
 import type {
   Budget,
@@ -120,7 +121,7 @@ function generateFenceNonce(): string {
  * Tier-0 security (PR3) — READ-TIME INJECTION ISOLATION. Retrieved memory is
  * returned to the answer model, so a poisoned memory could otherwise be read
  * as an instruction (the "retrieved-memory-treated-as-instructions" gap). Two
- * defenses here, both load-bearing and SDK-side so web + mobile inherit them:
+ * defenses here:
  *
  *  1. A fixed banner tells the model the block is DATA about the user and must
  *     never be followed as instructions.
@@ -130,7 +131,17 @@ function generateFenceNonce(): string {
  *     even content that literally includes "ignore instructions" or a
  *     fence-looking payload stays quoted inside the block.
  *
- * This is defense-in-depth with the system-prompt clause (client-side) and the
+ * SCOPE (do not overstate): this nonce fence covers ONLY the recall-TOOL path
+ * — the memories the LLM pulls via `recall_memory`. It does NOT cover the
+ * dominant client path, where up to ~100 pre-loaded memories/turn are injected
+ * straight into the system prompt (web `buildVaultContext` / mobile
+ * `buildVaultContext` + `formatMemoryContext`) inside a STATIC `<memory-data>`
+ * delimiter that relies on `sanitizeMemoryContent`, not this nonce. That path
+ * is not exploitable-now (sanitize strips the naive breakout tokens), but it
+ * lacks nonce-fence parity. Applying the nonce fence to those client builders
+ * is tracked as follow-up client hardening.
+ *
+ * Defense-in-depth with the system-prompt clause (client-side) and the
  * write-time quarantine screen; none alone is a complete solve.
  */
 export function formatRecallResult(memories: RankedMemory[]): string {
@@ -218,28 +229,63 @@ const VOLUME_LIMIT_NOTICE =
 const TRUNCATION_NOTICE =
   "(Some results were truncated to stay within this turn's memory-recall budget.)";
 
+// Store-noun set: words that name the MEMORY STORE itself (not an arbitrary
+// topic). "all my memories/facts/data" targets the store (a dump); "all my
+// food preferences" names a topic (legitimate) — "preferences" is NOT here.
+const STORE_NOUN = "memor(?:y|ies)|facts?|records?|data|information|info|notes?|conversations?";
+
 /** Match "about my/the/our <topic>" — a narrowing qualifier that makes an
- * otherwise broad query legitimate ("what do you remember about my job"). */
+ * otherwise broad enumeration legitimate ("everything you know about my job").
+ * Does NOT exempt whole-store targeting (verbatim / dump / "all my memories"),
+ * which are refused regardless of any topic qualifier. */
 const NARROW_TOPIC_RE = /\babout\s+(my|the|our)\b/i;
 
-/** Enumeration intent: an imperative verb paired with everything/all/every. */
-const DUMP_ENUMERATION_RE =
-  /\b(list|repeat|dump|show|print|output|recite|enumerate|tell me|give me)\b[^.\n]{0,40}\b(everything|all|every (?:single )?(?:memor|fact|thing)|each memor)\w*/i;
+/** Strong exfil/enumeration verb + a store noun (or "everything"): refuse even
+ * without a quantifier — "dump my memory", "leak everything". */
+const STRONG_DUMP_RE = new RegExp(
+  `\\b(dump|exfiltrate|leak)\\b[^.\\n]{0,25}\\b(${STORE_NOUN}|everything)\\b`,
+  "i"
+);
 
-/** "all/every (of) my/the memories/facts/records/data" — targeting the store. */
-const DUMP_STORE_RE =
-  /\b(all|every)\b[^.\n]{0,14}\b(my|the)\b[^.\n]{0,14}\b(memor(?:y|ies)|facts?|records?|data|information|notes?)\b/i;
+/** "all/every/each (of) (my/the) <store noun>" — enumerating the store. The
+ * my/the is optional so "every memory", "recap every fact" also match; a topic
+ * noun ("all my food preferences") does NOT, since it isn't a store noun. */
+const ALL_STORE_RE = new RegExp(
+  `\\b(all|every|each)\\b[^.\\n]{0,15}(?:\\b(?:my|the|your)\\b[^.\\n]{0,12})?\\b(${STORE_NOUN})\\b`,
+  "i"
+);
+
+/** "everything/all … you … know/remember/have/stored" — asking the model to
+ * disgorge the whole store. Topic-exempt (see NARROW_TOPIC_RE). */
+const EVERYTHING_YOU_KNOW_RE =
+  /\b(everything|all)\b[^.\n]{0,25}\byou\b[^.\n]{0,20}\b(know|remember|have|stored?|kept|got|hold)\b/i;
 
 /**
- * Narrow detector for enumeration / exfiltration intents. Deliberately tight:
- * it must catch "list all my memories verbatim" / "dump everything you know"
- * but NOT a scoped question like "what do you remember about my job". A broad
- * enumeration verb is exempted when the query also names a specific topic.
+ * Narrow detector for enumeration / exfiltration intents (MEXTRA mitigation).
+ * This is inherently PARAPHRASABLE — a determined attacker rewords around any
+ * keyword list — so it is a cost-raiser, not a solve; the real bound on bulk
+ * extraction is the volume cap in the executor. The classifier aims to catch
+ * blatant dumps ("list all my memories verbatim", "dump my memory",
+ * "summarize all information you have on me") while NOT refusing scoped asks
+ * ("what do you remember about my job", "give me all my food preferences").
+ *
+ * Matches against the normalized query (homoglyph-folded, zero-width-stripped,
+ * whitespace-collapsed) so the same cheap evasions the write screen defeats
+ * don't get a free pass here either.
  */
 function isDumpQuery(query: string): boolean {
-  if (/\bverbatim\b/i.test(query)) return true;
-  if (DUMP_STORE_RE.test(query)) return true;
-  if (DUMP_ENUMERATION_RE.test(query) && !NARROW_TOPIC_RE.test(query)) return true;
+  const q = normalizeForScreen(query);
+  // Whole-store targeting — refused regardless of any topic qualifier: an
+  // explicit "verbatim" ask or a strong exfil verb (dump/exfiltrate/leak) on
+  // the store leaves no benign reading.
+  if (/\bverbatim\b/i.test(q)) return true;
+  if (STRONG_DUMP_RE.test(q)) return true;
+  // "all/every my <store noun>" and "everything you know" are dumps ONLY when
+  // not scoped to a topic — "all my notes about my trip", "everything you know
+  // about my diet" are legitimate topic-scoped asks.
+  if (NARROW_TOPIC_RE.test(q)) return false;
+  if (ALL_STORE_RE.test(q)) return true;
+  if (EVERYTHING_YOU_KNOW_RE.test(q)) return true;
   return false;
 }
 
@@ -345,11 +391,14 @@ export function createRecallTool(
         requestLimit = Math.min(HIGH_BUDGET_LIMIT_FLOOR, RECALL_MAX_LIMIT);
       }
 
-      // Tier-0 (PR3) — volume budget. Clamp this call's limit to the smaller
-      // of the remaining per-turn and per-conversation budgets so no single
-      // call (or run of calls) can surface more of the vault than the caps
-      // allow. When the budget is exhausted, return a notice instead of more
-      // memories.
+      // Tier-0 (PR3) — volume budget with RESERVATION (concurrency-safe).
+      // Parallel tool_calls both `await recall(...)`; if each only debited the
+      // budget AFTER its await, two calls would both read the same remaining
+      // budget and overshoot the cap N×. So we RESERVE `effectiveLimit` up
+      // front — synchronously, before any await — then reconcile the unused
+      // portion (reserved − actually surfaced) in `finally`. A second
+      // concurrent call therefore sees the first call's reservation already
+      // debited and clamps (or refuses) correctly.
       const remainingTurnBudget = Math.max(0, RECALL_MAX_MEMORIES_PER_TURN - turnMemories);
       const remainingConvBudget = Math.max(
         0,
@@ -360,6 +409,11 @@ export function createRecallTool(
         return VOLUME_LIMIT_NOTICE;
       }
       const truncatedByBudget = effectiveLimit < requestLimit;
+
+      // Reserve before yielding.
+      turnMemories += effectiveLimit;
+      conversationMemories += effectiveLimit;
+      let surfaced = 0;
 
       try {
         const recallOpts: RecallOptions = {
@@ -400,10 +454,9 @@ export function createRecallTool(
           }
         }
 
-        // Tier-0 (PR3) — account the surfaced volume against both budgets.
-        const surfaced = result.memories.length;
-        turnMemories += surfaced;
-        conversationMemories += surfaced;
+        // Record what actually came back; `finally` releases the unused
+        // portion of the reservation.
+        surfaced = result.memories.length;
 
         const formatted = formatRecallResult(result.memories);
         // Append a truncation notice if the caller asked for more than the
@@ -414,6 +467,12 @@ export function createRecallTool(
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         return `Error searching memory: ${message}`;
+      } finally {
+        // Reconcile: give back (reserved − surfaced). On an error, surfaced is
+        // 0, so the whole reservation is released.
+        const unused = effectiveLimit - surfaced;
+        turnMemories -= unused;
+        conversationMemories -= unused;
       }
     },
   };
