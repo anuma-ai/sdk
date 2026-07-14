@@ -355,6 +355,7 @@ export type {
   ExtractOutcome,
   FactType,
   GraphTraversalOptions,
+  InjectionClassifierOptions,
   InjectionReason,
   MemoryExtractedEvent,
   MemoryKind,
@@ -385,6 +386,7 @@ export type {
 export {
   capHopsForDensity,
   classifyDecay,
+  classifyInjectionCandidates,
   createAutoExtractor,
   createDecaySweeper,
   createRecallTool,

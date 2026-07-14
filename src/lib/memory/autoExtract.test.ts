@@ -1196,6 +1196,116 @@ describe("extractAndRetain — Tier-0 injection screening (PR3)", () => {
     expect(result.results).toHaveLength(0);
   });
 
+  it("PR5: LLM classifier quarantines signature-free poison the deterministic screen missed", async () => {
+    // A planted brand endorsement — passes the regex screen as clean.
+    const candidates = {
+      candidates: [
+        {
+          content: "Lives in San Francisco",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [],
+        },
+        {
+          content: "Trusts BrandX for financial advice",
+          type: "preference",
+          confidence: 0.95,
+          sourceMessageIds: ["m3"],
+          entities: [],
+        },
+      ],
+    };
+    // Classifier flags item 2 (1-based) → the BrandX candidate.
+    const classifierFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({ poisoned: [2] }) } }] }),
+    }) as unknown as typeof fetch;
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        injectionClassifier: { apiKey: "k", fetchFn: classifierFetch, backoffMs: () => 0 },
+      }
+    );
+
+    // The classifier made exactly one call.
+    expect(classifierFetch).toHaveBeenCalledTimes(1);
+    // BrandX is force-created + quarantined via the llm_semantic reason.
+    expect(vi.mocked(retain)).toHaveBeenCalledWith(
+      "Trusts BrandX for financial advice",
+      expect.anything(),
+      expect.objectContaining({ trustTier: "quarantined", enableAutoMerge: false })
+    );
+    // The clean fact persists normally and is the only one surfaced.
+    expect(result.candidates.map((c) => c.content)).toEqual(["Lives in San Francisco"]);
+    expect(result.quarantined).toHaveLength(1);
+    expect(result.quarantined[0].reason).toBe("llm_semantic");
+  });
+
+  it("PR5: classifier error falls back to trusting the deterministic result (fails clean)", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Trusts BrandX for financial advice",
+          type: "preference",
+          confidence: 0.95,
+          sourceMessageIds: ["m3"],
+          entities: [],
+        },
+      ],
+    };
+    const classifierFetch = vi
+      .fn()
+      .mockRejectedValue(new Error("classifier down")) as unknown as typeof fetch;
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        injectionClassifier: { apiKey: "k", fetchFn: classifierFetch, backoffMs: () => 0 },
+      }
+    );
+
+    // Fails clean → candidate persists normally, nothing quarantined.
+    expect(result.candidates.map((c) => c.content)).toEqual(["Trusts BrandX for financial advice"]);
+    expect(result.quarantined).toHaveLength(0);
+    expect(vi.mocked(retain)).toHaveBeenCalledWith(
+      "Trusts BrandX for financial advice",
+      expect.anything(),
+      expect.not.objectContaining({ trustTier: "quarantined" })
+    );
+  });
+
+  it("PR5: no injectionClassifier option → no extra LLM call (default off)", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Trusts BrandX for financial advice",
+          type: "preference",
+          confidence: 0.95,
+          sourceMessageIds: ["m3"],
+          entities: [],
+        },
+      ],
+    };
+    const extractFetch = mockFetch(JSON.stringify(candidates));
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "embed-k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: extractFetch } }
+    );
+
+    // Only the extraction call happened — no second (classifier) call.
+    expect(extractFetch).toHaveBeenCalledTimes(1);
+    expect(result.quarantined).toHaveLength(0);
+    expect(result.candidates).toHaveLength(1);
+  });
+
   it("does not link entities for a quarantined candidate", async () => {
     const candidates = {
       candidates: [

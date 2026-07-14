@@ -49,6 +49,10 @@ export {
   VAULT_SIZE_HOP_CAP,
 } from "./graphTraversal.js";
 export {
+  classifyInjectionCandidates,
+  type InjectionClassifierOptions,
+} from "./injectionClassifier.js";
+export {
   type InjectionReason,
   injectionSignatureCatalog,
   screenCandidatesForInjection,

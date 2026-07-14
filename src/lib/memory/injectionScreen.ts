@@ -33,8 +33,16 @@
 import type { ExtractedCandidate } from "./autoExtract.js";
 
 /** Why a candidate was quarantined. Coarse buckets over the signature set
- * below — surfaced for audit/telemetry, never alongside the content. */
-export type InjectionReason = "imperative_override" | "role_marker_leak" | "exfiltration_url";
+ * below — surfaced for audit/telemetry, never alongside the content.
+ * `llm_semantic` (PR5) is emitted by the optional second-layer LLM classifier
+ * ({@link ./injectionClassifier}), not by any deterministic signature here — it
+ * catches signature-free poison ("Trusts BrandX for financial advice") the
+ * regex screen passes as clean. */
+export type InjectionReason =
+  | "imperative_override"
+  | "role_marker_leak"
+  | "exfiltration_url"
+  | "llm_semantic";
 
 /** A candidate the screen flagged, with the matching signature id + reason.
  * Content is intentionally NOT duplicated here beyond the candidate itself —

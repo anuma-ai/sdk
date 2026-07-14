@@ -20,6 +20,10 @@ import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import {
+  classifyInjectionCandidates,
+  type InjectionClassifierOptions,
+} from "./injectionClassifier.js";
 import { type InjectionReason, screenCandidatesForInjection } from "./injectionScreen.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
@@ -480,6 +484,18 @@ export async function extractAndRetain(
      * failed one (that goes to `onCandidateFailed`).
      */
     onQuarantined?: (info: QuarantinedMemoryInfo) => void;
+    /**
+     * Tier-0 security (PR5) — optional SECOND-layer LLM injection classifier.
+     * When provided, candidates the deterministic {@link screenCandidatesForInjection}
+     * screen passed as CLEAN are additionally run through a cheap LLM that
+     * catches signature-free poison ("Trusts BrandX for financial advice")
+     * the regex screen can't. Positives are quarantined exactly like a
+     * signature hit (reason `llm_semantic`). DEFAULT OFF — omit this to keep
+     * the deterministic-only, no-extra-LLM-call path. Fails clean on any
+     * error. Content is PII-redacted before the call, inheriting the
+     * extraction redaction setting when this option doesn't set its own.
+     */
+    injectionClassifier?: InjectionClassifierOptions;
   }
 ): Promise<{
   candidates: ExtractedCandidate[];
@@ -542,7 +558,41 @@ export async function extractAndRetain(
   // the baseVaultConditions gate and (b) — because they never auto-merge —
   // means a poisoned fact can't bump proof_count or contaminate a clean
   // memory. Clean candidates persist normally (trust_tier null).
-  const { clean, quarantined } = screenCandidatesForInjection(filtered);
+  const screened = screenCandidatesForInjection(filtered);
+  let clean = screened.clean;
+  const quarantined = [...screened.quarantined];
+
+  // Tier-0 security (PR5) — optional LLM second layer over the candidates the
+  // deterministic screen passed as clean. Catches signature-free poison the
+  // regex can't. Opt-in (default off); fails clean (keeps candidates on any
+  // error). Inherits the extraction PII redaction unless the classifier opts
+  // set their own, so enabling redaction upstream also protects this call.
+  if (options.injectionClassifier && clean.length > 0) {
+    const classifierOpts: InjectionClassifierOptions = {
+      ...options.injectionClassifier,
+      ...(options.injectionClassifier.piiRedaction === undefined &&
+        options.extract.piiRedaction !== undefined && {
+          piiRedaction: options.extract.piiRedaction,
+        }),
+    };
+    const { flagged } = await classifyInjectionCandidates(clean, classifierOpts);
+    if (flagged.size > 0) {
+      const stillClean: ExtractedCandidate[] = [];
+      clean.forEach((candidate, i) => {
+        if (flagged.has(i)) {
+          quarantined.push({
+            candidate,
+            reason: "llm_semantic",
+            signature: "llm-injection-classifier",
+          });
+        } else {
+          stillClean.push(candidate);
+        }
+      });
+      clean = stillClean;
+    }
+  }
+
   if (quarantined.length > 0) {
     // NEVER log memory content, even quarantined. Count + signature ids only.
     log.warn(
