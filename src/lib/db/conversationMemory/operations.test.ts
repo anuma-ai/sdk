@@ -166,6 +166,40 @@ describe("conversationMemory operations", () => {
     expect(got.some((r) => r.memoryId === `m${MAX_PER_CONVERSATION + 49}`)).toBe(true);
   });
 
+  it("drops all existing rows when an oversized batch fills the cap", async () => {
+    const seed: Raw[] = Array.from({ length: 10 }, (_, i) => ({
+      id: `old_${i}`,
+      conversation_id: "c1",
+      memory_id: `old${i}`,
+      score: 0.5,
+      created_at: i + 1,
+    }));
+    const { ctx } = makeCtx(seed);
+    const items = Array.from({ length: MAX_PER_CONVERSATION + 5 }, (_, i) => ({
+      memoryId: `m${i}`,
+      score: 0.5,
+    }));
+    await addConversationMemoriesOp(ctx, "c1", items);
+    const got = await getConversationMemoriesOp(ctx, "c1");
+    expect(got).toHaveLength(MAX_PER_CONVERSATION);
+    // Batch alone fills the cap → every pre-existing row is pruned.
+    expect(got.some((r) => r.memoryId.startsWith("old"))).toBe(false);
+    // Newest MAX of the batch kept, in insertion order (staggered created_at).
+    expect(got[0].memoryId).toBe("m5");
+    expect(got[got.length - 1].memoryId).toBe(`m${MAX_PER_CONVERSATION + 4}`);
+  });
+
+  it("orders rows within a single batch by insertion (staggered created_at)", async () => {
+    const { ctx } = makeCtx();
+    await addConversationMemoriesOp(ctx, "c1", [
+      { memoryId: "first", score: 0.5 },
+      { memoryId: "second", score: 0.5 },
+      { memoryId: "third", score: 0.5 },
+    ]);
+    const got = await getConversationMemoriesOp(ctx, "c1");
+    expect(got.map((r) => r.memoryId)).toEqual(["first", "second", "third"]);
+  });
+
   it("clear removes only the target conversation's rows", async () => {
     const { ctx } = makeCtx([
       { id: "a", conversation_id: "c1", memory_id: "m1", score: 1, created_at: 1 },

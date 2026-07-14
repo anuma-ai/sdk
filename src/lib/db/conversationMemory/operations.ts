@@ -77,12 +77,17 @@ export async function addConversationMemoriesOp(
 
     const ops = [
       ...toPrune.map((r) => r.prepareDestroyPermanently()),
-      ...keptNew.map((it) =>
+      // Stagger created_at by index within the batch: a turn records several
+      // memories at once, so a single shared timestamp would make their order
+      // ambiguous under the created_at sort (getConversationMemoriesOp, the cap
+      // prune). `now + i` keeps insertion order stable and stays well below the
+      // next turn's timestamp.
+      ...keptNew.map((it, i) =>
         ctx.conversationMemoryCollection.prepareCreate((r) => {
           r._setRaw("conversation_id", conversationId);
           r._setRaw("memory_id", it.memoryId);
           r._setRaw("score", it.score);
-          r._setRaw("created_at", now);
+          r._setRaw("created_at", now + i);
         })
       ),
     ];
@@ -108,11 +113,14 @@ export async function clearConversationMemoriesOp(
   conversationId: string
 ): Promise<void> {
   if (!conversationId) return;
-  const rows = await ctx.conversationMemoryCollection
-    .query(Q.where("conversation_id", conversationId))
-    .fetch();
-  if (rows.length === 0) return;
+  // Fetch the rows to destroy INSIDE the writer (same reason as
+  // addConversationMemoriesOp): a concurrent add committing between a read-then-
+  // write here would otherwise survive the clear.
   await ctx.database.write(async () => {
+    const rows = await ctx.conversationMemoryCollection
+      .query(Q.where("conversation_id", conversationId))
+      .fetch();
+    if (rows.length === 0) return;
     await ctx.database.batch(...rows.map((r) => r.prepareDestroyPermanently()));
   });
 }
