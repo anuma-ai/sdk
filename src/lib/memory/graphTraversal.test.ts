@@ -67,7 +67,13 @@ import {
 } from "../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
 
-import { capHopsForDensity, MAX_HOPS, traverseGraphLane } from "./graphTraversal";
+import {
+  capHopsForDensity,
+  createLlmNeighborRefiner,
+  MAX_HOPS,
+  type NeighborRefiner,
+  traverseGraphLane,
+} from "./graphTraversal";
 import { recall } from "./recall";
 import type { RecallContext } from "./types";
 
@@ -201,7 +207,7 @@ describe("traverseGraphLane — hop reachability", () => {
 });
 
 describe("traverseGraphLane — caps", () => {
-  it("MAX_HOPS default is seed-only (1) and equals the single-hop ordering", async () => {
+  it("explicit maxHops=1 is seed-only and equals the single-hop ordering", async () => {
     const ctx = makeEntityCtx();
     // Distinct shared-counts pin a specific order: X shares 2, Y & Z share 1.
     await link(ctx, "X", ["Alpha", "Beta"]);
@@ -213,22 +219,31 @@ describe("traverseGraphLane — caps", () => {
     const seedMap = await getMemoriesByEntityNamesOp(ctx, ["alpha", "beta"]);
     const expected = [...seedMap.entries()].sort((a, b) => b[1].size - a[1].size).map(([id]) => id);
 
-    expect(MAX_HOPS).toBe(1);
-    // Default (no maxHops) and explicit maxHops=1 both equal the single-hop order.
-    expect(await traverseGraphLane(QUERY, ctx)).toEqual(expected);
+    // maxHops=1 equals the single-hop order (the regression guard for low/mid).
     expect(await traverseGraphLane(QUERY, ctx, { maxHops: 1 })).toEqual(expected);
     // X (shares both) must lead.
     expect(expected[0]).toBe("X");
   });
 
-  it("clamps maxHops < 1 to the seed-only default", async () => {
+  it("PR5: MAX_HOPS default is 2 (one expansion beyond the seed)", async () => {
+    const ctx = makeEntityCtx();
+    await link(ctx, "A", ["Alpha", "Beta"]);
+    await link(ctx, "C", ["Beta"]); // only reachable via a hop-2 expansion
+    expect(MAX_HOPS).toBe(2);
+    // Default (no maxHops) now expands to hop 2 → reaches C.
+    const ids = await traverseGraphLane("What about Alpha", ctx);
+    expect(ids).toContain("A");
+    expect(ids).toContain("C");
+  });
+
+  it("clamps maxHops < 1 to the MAX_HOPS default (2 → expands)", async () => {
     const ctx = makeEntityCtx();
     await link(ctx, "A", ["Alpha", "Beta"]);
     await link(ctx, "C", ["Beta"]);
-    // maxHops=0 is invalid → falls back to MAX_HOPS(1) → no expansion → no C.
+    // maxHops=0 is invalid → falls back to MAX_HOPS(2) → expands → reaches C.
     const ids = await traverseGraphLane("What about Alpha", ctx, { maxHops: 0 });
     expect(ids).toContain("A");
-    expect(ids).not.toContain("C");
+    expect(ids).toContain("C");
   });
 
   it("ENTITY_FANOUT limits how many neighbor entities expand per hop", async () => {
@@ -282,6 +297,106 @@ describe("traverseGraphLane — caps", () => {
     const ids = await traverseGraphLane("What about Alpha", ctx, { maxHops: 2, vaultSize: 5000 });
     expect(ids).toContain("A");
     expect(ids).not.toContain("C");
+  });
+});
+
+describe("traverseGraphLane — PR5 LLM neighbor refinement", () => {
+  // Frontier {A, B, D} on alpha; neighbors beta (via A, B) and gamma (via D).
+  // With fanout=1 only ONE neighbor expands, so the refiner's choice decides
+  // whether MB (beta) or MG (gamma) is reached.
+  async function seedRefineGraph(ctx: EntityOperationsContext): Promise<void> {
+    await link(ctx, "A", ["Alpha", "Beta"]);
+    await link(ctx, "B", ["Alpha", "Beta"]);
+    await link(ctx, "D", ["Alpha", "Gamma"]);
+    await link(ctx, "MB", ["Beta"]);
+    await link(ctx, "MG", ["Gamma"]);
+  }
+
+  it("expands the neighbor the refiner picks, not the co-occurrence top", async () => {
+    const ctx = makeEntityCtx();
+    await seedRefineGraph(ctx);
+    // Co-occurrence would pick beta (count 2) at fanout=1; refiner overrides to gamma.
+    const refiner: NeighborRefiner = {
+      refine: async () => ["gamma"],
+    };
+    const ids = await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 2,
+      entityFanout: 1,
+      refineNeighbors: refiner,
+    });
+    expect(ids).toContain("MG");
+    expect(ids).not.toContain("MB");
+  });
+
+  it("falls back to the deterministic order when the refiner throws", async () => {
+    const ctx = makeEntityCtx();
+    await seedRefineGraph(ctx);
+    const throwing: NeighborRefiner = {
+      refine: async () => {
+        throw new Error("refiner down");
+      },
+    };
+    const withThrow = await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 2,
+      entityFanout: 1,
+      refineNeighbors: throwing,
+    });
+    const deterministic = await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 2,
+      entityFanout: 1,
+    });
+    // Identical result → fallback path is a no-op relative to no refiner.
+    expect(withThrow).toEqual(deterministic);
+    // And the co-occurrence winner (beta → MB) is what expanded.
+    expect(withThrow).toContain("MB");
+  });
+
+  it("ignores an empty refiner result and keeps the deterministic set", async () => {
+    const ctx = makeEntityCtx();
+    await seedRefineGraph(ctx);
+    const empty: NeighborRefiner = { refine: async () => [] };
+    const ids = await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 2,
+      entityFanout: 1,
+      refineNeighbors: empty,
+    });
+    expect(ids).toContain("MB");
+  });
+});
+
+describe("createLlmNeighborRefiner", () => {
+  function mockFetch(body: unknown, ok = true): typeof fetch {
+    return vi.fn().mockResolvedValue({ ok, json: async () => body }) as unknown as typeof fetch;
+  }
+  const choices = (jsonContent: unknown) => ({
+    choices: [{ message: { content: JSON.stringify(jsonContent) } }],
+  });
+
+  it("maps the model's expand list back to real candidates (case-insensitive)", async () => {
+    const refiner = createLlmNeighborRefiner({
+      apiKey: "k",
+      fetchFn: mockFetch(choices({ expand: ["Gamma", "not-a-candidate"] })),
+      backoffMs: () => 0,
+    });
+    const out = await refiner.refine("q", ["beta", "gamma"], 2);
+    expect(out).toEqual(["gamma"]);
+  });
+
+  it("returns [] on an LLM error (caller then falls back deterministically)", async () => {
+    const refiner = createLlmNeighborRefiner({
+      apiKey: "k",
+      fetchFn: vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch,
+      maxAttempts: 1,
+      backoffMs: () => 0,
+    });
+    expect(await refiner.refine("q", ["beta", "gamma"], 2)).toEqual([]);
+  });
+
+  it("returns [] for empty candidates without calling the LLM", async () => {
+    const fetchFn = vi.fn() as unknown as typeof fetch;
+    const refiner = createLlmNeighborRefiner({ apiKey: "k", fetchFn });
+    expect(await refiner.refine("q", [], 2)).toEqual([]);
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 });
 

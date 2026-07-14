@@ -19,13 +19,19 @@
  * candidate pool — which stays bounded because `rerankTopN` remains
  * authoritative downstream.
  *
- * Determinism: neighbor-entity selection is pure co-occurrence counting (no
- * LLM). LLM-based path-refinement is deferred to PR5.
+ * Determinism: neighbor-entity selection is pure co-occurrence counting by
+ * default. An optional LLM path-refiner (PR5) can override which neighbors
+ * expand; it falls back to the deterministic order on any error.
  *
- * Hop numbering: hop 1 is the seed lookup. `MAX_HOPS = 1` therefore means "seed
+ * Hop numbering: hop 1 is the seed lookup. `maxHops = 1` therefore means "seed
  * only" — byte-for-byte identical to the single-hop lane (the regression guard).
- * `MAX_HOPS = 2` performs one expansion beyond the seed. Default is 1 for this
- * PR; 2 is deferred to PR5.
+ * `MAX_HOPS = 2` (the PR5 default) performs one expansion beyond the seed.
+ *
+ * Neighbor selection at each expansion hop is deterministic co-occurrence
+ * counting by default. PR5 adds an OPTIONAL LLM path-refiner
+ * ({@link NeighborRefiner} / {@link createLlmNeighborRefiner}) that lets a model
+ * pick which neighbor entities to expand instead; it is opt-in, capped to ≤1
+ * call per hop, and falls back to the deterministic order on any error.
  */
 
 import {
@@ -33,17 +39,21 @@ import {
   getEntitiesByMemoryIdsOp,
   getMemoriesByEntityNamesOp,
 } from "../db/entities/operations.js";
+import { normalizeEntityName } from "../db/entities/types.js";
+import { getLogger } from "../logger.js";
+import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { rrfFuse } from "./rrf.js";
 
 /**
  * Total hops the traversal performs, counting the seed lookup as hop 1.
- * `1` = seed only (identical to the single-hop lane). PR4 default; PR5
- * raises the default to `2` (one expansion). Overridable per-call for
- * ablation.
+ * `1` = seed only (identical to the single-hop lane). PR5 default is `2` (one
+ * expansion beyond the seed). Overridable per-call for ablation. Still gated to
+ * the `high` budget in recall, and capped back to 1 on large vaults by
+ * {@link capHopsForDensity}.
  * @public
  */
-export const MAX_HOPS = 1;
+export const MAX_HOPS = 2;
 
 /**
  * Max neighbor entities expanded per hop. Caps fan-out so a densely-linked
@@ -87,6 +97,25 @@ export interface GraphTraversalOptions {
    * effective hop count is capped to 1 (see {@link capHopsForDensity}).
    */
   vaultSize?: number;
+  /**
+   * PR5 — optional LLM neighbor-selection. When provided, at each expansion hop
+   * the deterministically-ranked candidate neighbor entities are handed to this
+   * refiner, which returns the subset to expand. Falls back to the
+   * co-occurrence order on any error or empty result. Called at most ONCE per
+   * hop. Build one with {@link createLlmNeighborRefiner}, or supply your own.
+   */
+  refineNeighbors?: NeighborRefiner;
+}
+
+/**
+ * Picks which candidate neighbor entities to expand at a traversal hop. Given
+ * the query and the deterministically-ranked candidate entity names, return the
+ * subset (≤ `limit`) to expand. Must be resilient: {@link traverseGraphLane}
+ * falls back to the deterministic top-`limit` on a throw or empty return.
+ * @public
+ */
+export interface NeighborRefiner {
+  refine(query: string, candidates: string[], limit: number): Promise<string[]>;
 }
 
 /** Clamp a caller-supplied positive integer knob, falling back to the default
@@ -121,8 +150,9 @@ function rankMemoriesByOverlap(map: Map<string, Set<string>>): string[] {
  * downstream changes. The caller passes it through as `entityRanking` for RRF
  * fusion with the cosine/BM25 head.
  *
- * With `maxHops <= 1` (the PR4 default) this returns the seed ordering verbatim,
- * making it a drop-in equivalent of the single-hop lane (the regression guard).
+ * With `maxHops <= 1` this returns the seed ordering verbatim, making it a
+ * drop-in equivalent of the single-hop lane (the regression guard). The PR5
+ * default is 2 (one expansion beyond the seed).
  *
  * Returns an empty array when the query has no extractable entities or no stored
  * memory shares a seed entity.
@@ -180,10 +210,37 @@ export async function traverseGraphLane(
     }
     if (neighborCounts.size === 0) break;
 
-    const topNeighbors = [...neighborCounts.entries()]
+    // Deterministic co-occurrence ranking (the always-correct fallback).
+    const rankedNeighbors = [...neighborCounts.entries()]
       .sort((a, b) => b[1] - a[1])
-      .slice(0, entityFanout)
       .map(([name]) => name);
+    // PR5 — optionally let a model pick which neighbors to expand. Capped to
+    // one call per hop; any error / empty result falls back to the top-fanout
+    // by co-occurrence. Only invoked when there are more candidates than the
+    // fan-out could take (otherwise there is nothing to prune).
+    let topNeighbors = rankedNeighbors.slice(0, entityFanout);
+    if (options.refineNeighbors && rankedNeighbors.length > entityFanout) {
+      try {
+        const refined = await options.refineNeighbors.refine(query, rankedNeighbors, entityFanout);
+        // Keep only real candidates for this hop, preserve the model's order,
+        // dedupe, and cap at the fan-out. Empty → keep the deterministic set.
+        const valid: string[] = [];
+        const seen = new Set<string>();
+        for (const name of refined) {
+          if (!neighborCounts.has(name) || seen.has(name)) continue;
+          seen.add(name);
+          valid.push(name);
+          if (valid.length >= entityFanout) break;
+        }
+        if (valid.length > 0) topNeighbors = valid;
+      } catch (err) {
+        getLogger().warn(
+          `[memory/graph] neighbor refine failed; using co-occurrence order: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
+    }
     for (const name of topNeighbors) seenEntities.add(name);
 
     // Memories reachable via the top neighbor entities.
@@ -219,4 +276,81 @@ export async function traverseGraphLane(
       return b[1] - a[1];
     })
     .map(([id]) => id);
+}
+
+/** Open-weights, reliable-JSON model — same rationale as consolidate.ts. */
+const DEFAULT_REFINER_MODEL = "inclusionai/ling-2.6-flash";
+/** Recall hot path — one shot per hop, tight budget, no aggressive retry. */
+const DEFAULT_REFINER_ATTEMPTS = 1;
+const DEFAULT_REFINER_TOTAL_TIMEOUT_MS = 8_000;
+
+/** Auth + tuning for {@link createLlmNeighborRefiner}. Reuses the recall
+ * `decomposeOptions` shape (dual auth — one of `apiKey`/`getToken`). @public */
+export interface LlmNeighborRefinerOptions extends PortalLlmAuth {
+  baseUrl?: string;
+  model?: string;
+  fetchFn?: typeof fetch;
+  maxAttempts?: number;
+  totalTimeoutMs?: number;
+  backoffMs?: (attempt: number) => number;
+}
+
+/**
+ * Build a {@link NeighborRefiner} backed by a cheap portal LLM. At each hop it
+ * asks the model to pick, from the candidate neighbor entities, the ≤`limit`
+ * most relevant to the query, so traversal expands toward the question instead
+ * of purely by co-occurrence frequency.
+ *
+ * Bounded + fail-safe: one attempt by default, a short total timeout, and
+ * {@link traverseGraphLane} falls back to the deterministic co-occurrence order
+ * on any throw or empty result — so enabling this can reorder which neighbors
+ * expand but never breaks or stalls recall.
+ *
+ * ZERO-KNOWLEDGE NOTE: this sends the query + candidate ENTITY NAMES (not
+ * memory content) to the portal. Entity names are lower-cardinality than
+ * content but are still user data derived from the stored graph; it is opt-in
+ * (default off in recall) and reuses the same auth the query-decompose step
+ * already uses. A security review should weigh entity-name exposure before
+ * enabling it broadly.
+ * @public
+ */
+export function createLlmNeighborRefiner(options: LlmNeighborRefinerOptions): NeighborRefiner {
+  return {
+    async refine(query: string, candidates: string[], limit: number): Promise<string[]> {
+      if (candidates.length === 0) return [];
+      const numbered = candidates.map((name, i) => `[${i + 1}] ${name}`).join("\n");
+      const systemPrompt = `You help a memory-retrieval system decide which related topics to explore.
+
+Given a user's question and a numbered list of candidate topics/entities linked to memories found so far, pick the ones most likely to lead to memories that help ANSWER the question. Choose at most ${limit}. Prefer topics semantically related to the question; ignore incidental ones.
+
+Output strict JSON, no prose: { "expand": [<entity names to expand, verbatim from the list>] }`;
+      const parsed = await callPortalJsonCompletion({
+        ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
+        ...(options.getToken !== undefined && { getToken: options.getToken }),
+        ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+        model: options.model ?? DEFAULT_REFINER_MODEL,
+        systemPrompt,
+        userMessage: `Question: ${query}\n\nCandidate topics:\n${numbered}\n\nWhich should be expanded?`,
+        tag: "memory/graph-refine",
+        maxAttempts: options.maxAttempts ?? DEFAULT_REFINER_ATTEMPTS,
+        totalTimeoutMs: options.totalTimeoutMs ?? DEFAULT_REFINER_TOTAL_TIMEOUT_MS,
+        ...(options.backoffMs && { backoffMs: options.backoffMs }),
+        ...(options.fetchFn && { fetchFn: options.fetchFn }),
+      });
+      // null (exhausted/failed) → empty → caller keeps the deterministic order.
+      if (parsed === null || typeof parsed !== "object") return [];
+      const list = (parsed as { expand?: unknown }).expand;
+      if (!Array.isArray(list)) return [];
+      // Match model output back to real candidates by normalized name (the
+      // model may re-case or trim). Preserve the model's order.
+      const byNormalized = new Map(candidates.map((c) => [normalizeEntityName(c), c]));
+      const out: string[] = [];
+      for (const raw of list) {
+        if (typeof raw !== "string") continue;
+        const match = byNormalized.get(normalizeEntityName(raw));
+        if (match) out.push(match);
+      }
+      return out;
+    },
+  };
 }

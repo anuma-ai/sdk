@@ -25,6 +25,7 @@ vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
   getMemoriesByEventTimeOp: vi.fn(),
   updateVaultMemoryEmbeddingOp: vi.fn(),
+  countActiveVaultMemoriesOp: vi.fn(),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -48,6 +49,7 @@ import {
   getMemoriesByEntityNamesOp,
 } from "../db/entities/operations";
 import {
+  countActiveVaultMemoriesOp,
   getAllVaultMemoriesOp,
   getMemoriesByEventTimeOp,
   updateVaultMemoryEmbeddingOp,
@@ -139,6 +141,7 @@ beforeEach(() => {
   ]);
   vi.mocked(updateVaultMemoryEmbeddingOp).mockResolvedValue(null);
   vi.mocked(getMemoriesByEventTimeOp).mockResolvedValue([]);
+  vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(3);
   vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
   vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
   vi.mocked(searchChunksOp).mockResolvedValue([]);
@@ -522,20 +525,38 @@ describe("recall — entity (W5) lane", () => {
     expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
   });
 
-  it("does NOT expand at budget=high with the default MAX_HOPS=1 (seed only)", async () => {
-    // High enables the traverse flag, but the PR4 default is 1 hop — the seed
-    // lookup — so the reverse-edge op still never runs. Behavior-preserving.
+  it("PR5: expands past the seed at budget=high with the default MAX_HOPS=2", async () => {
+    // The PR5 default is 2 hops, so high budget now expands past the seed —
+    // the reverse-edge op fires once on the seed frontier.
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high" });
-    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledTimes(1);
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledWith(entityCtx, ["m3"]);
   });
 
-  it("expands past the seed only at budget=high AND maxHops>1", async () => {
+  it("expands past the seed at budget=high with explicit maxHops>1", async () => {
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
     vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high", maxHops: 2 });
     expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledTimes(1);
     expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledWith(entityCtx, ["m3"]);
+  });
+
+  it("PR5: caps to seed-only when the vault-size count exceeds the density threshold", async () => {
+    // The threaded count (5000 > VAULT_SIZE_HOP_CAP) forces seed-only, so the
+    // reverse-edge op never runs even at high budget with default hops.
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(5000);
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high" });
+    expect(countActiveVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx);
+    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+  });
+
+  it("PR5: single-hop budgets do NOT compute the vault-size count", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
+    expect(countActiveVaultMemoriesOp).not.toHaveBeenCalled();
   });
 });
 

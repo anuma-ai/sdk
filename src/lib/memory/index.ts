@@ -45,9 +45,12 @@ export {
 } from "./decayWorker.js";
 export {
   capHopsForDensity,
+  createLlmNeighborRefiner,
   ENTITY_FANOUT,
   type GraphTraversalOptions,
+  type LlmNeighborRefinerOptions,
   MAX_HOPS,
+  type NeighborRefiner,
   NODE_BUDGET,
   traverseGraphLane,
   VAULT_SIZE_HOP_CAP,

@@ -507,6 +507,23 @@ export async function getAllVaultMemoryContentsOp(
   });
 }
 
+/**
+ * Cheap count of the active (recall-reachable) vault rows (PR5). Used as the
+ * graph-lane density hint that gates multi-hop traversal (see
+ * {@link ../../memory/graphTraversal}.capHopsForDensity): above the threshold
+ * the traversal degrades to seed-only rather than pay an unbounded expansion.
+ *
+ * Uses `fetchCount` over the same {@link baseVaultConditions} choke point every
+ * read lane inherits (excludes deleted / archived / quarantined), so it counts
+ * exactly the rows recall can reach. NO Model materialization and NO content
+ * decrypt — a pure indexed COUNT, safe to run on the recall hot path.
+ */
+export async function countActiveVaultMemoriesOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<number> {
+  return ctx.vaultMemoryCollection.query(...baseVaultConditions(ctx)).fetchCount();
+}
+
 export async function updateVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string,

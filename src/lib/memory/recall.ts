@@ -15,12 +15,19 @@
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
-import { getMemoriesByEventTimeOp } from "../db/memoryVault/operations.js";
+import {
+  countActiveVaultMemoriesOp,
+  getMemoriesByEventTimeOp,
+} from "../db/memoryVault/operations.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
-import { traverseGraphLane } from "./graphTraversal.js";
+import {
+  createLlmNeighborRefiner,
+  type NeighborRefiner,
+  traverseGraphLane,
+} from "./graphTraversal.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
 import { rrfFuse } from "./rrf.js";
@@ -129,6 +136,13 @@ export async function recall(
   // look up memories whose event_time overlaps.
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
   const wantsTemporal = types.includes("fact") && ctx.vaultCtx;
+  // PR5 — optional LLM graph path-refinement, opt-in (default off) and only on
+  // the high-budget traverse path. Reuses the query-decompose auth. Falls back
+  // to deterministic co-occurrence order inside traverseGraphLane on any error.
+  const graphRefiner: NeighborRefiner | undefined =
+    flags.traverse && options.graphRefine && options.decomposeOptions
+      ? createLlmNeighborRefiner(options.decomposeOptions)
+      : undefined;
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
     needsChunkEmbedding
       ? generateEmbedding(query, ctx.embeddingOptions)
@@ -138,6 +152,7 @@ export async function recall(
       ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
       ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
       ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+      ...(graphRefiner && { refineNeighbors: graphRefiner }),
     }),
     wantsTemporal
       ? buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
@@ -364,12 +379,13 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
  * just the order to RRF fusion. The tanh shaping happens inside
  * `rankByEntityOverlap` for callers that want the score directly.
  *
- * PR4: when `traverse` is true (high budget only), the lane runs a bounded
- * multi-hop BFS via {@link traverseGraphLane} instead of the single-hop
- * lookup. With the PR4 default `MAX_HOPS = 1` even the traverse path returns
- * the seed ordering verbatim, so enabling it is behavior-preserving until a
- * caller opts into `maxHops > 1`. When `traverse` is false the exact pre-PR4
- * single-hop path below runs — low/mid budgets are byte-for-byte unchanged.
+ * PR4/PR5: when `traverse` is true (high budget only), the lane runs a bounded
+ * multi-hop BFS via {@link traverseGraphLane} instead of the single-hop lookup,
+ * threading a cheap vault-size count so the density guard can cap hops on large
+ * vaults. The PR5 default `MAX_HOPS = 2` performs one expansion beyond the seed
+ * (capped back to seed-only above the density threshold). When `traverse` is
+ * false the exact single-hop path below runs — low/mid budgets are byte-for-byte
+ * unchanged (and never pay the count).
  */
 async function buildGraphLaneRanking(
   query: string,
@@ -380,6 +396,7 @@ async function buildGraphLaneRanking(
     entityFanout?: number;
     nodeBudget?: number;
     rrfK?: number;
+    refineNeighbors?: NeighborRefiner;
   } = {}
 ): Promise<string[]> {
   // Fall back to vaultCtx.entityCtx so callers don't have to thread the
@@ -387,11 +404,15 @@ async function buildGraphLaneRanking(
   const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
   if (!entityCtx) return [];
   if (traverse) {
-    // Multi-hop path. vaultSize is intentionally not threaded here: the graph
-    // lane runs concurrently with the vault load (see the Promise.all above),
-    // so the count isn't known yet, and the PR4 default MAX_HOPS=1 makes the
-    // density cap dormant anyway. PR5 (default MAX_HOPS=2) wires a size hint.
-    return traverseGraphLane(query, entityCtx, traversalOptions);
+    // Multi-hop path. PR5: with the default MAX_HOPS=2 the density guard matters,
+    // so thread a vault-size hint (a cheap indexed COUNT — no decrypt, no Model)
+    // so capHopsForDensity can cap back to seed-only on large vaults. A count
+    // failure just leaves the hint unset (guard dormant), never breaks recall.
+    const vaultSize = await safeCountVault(ctx);
+    return traverseGraphLane(query, entityCtx, {
+      ...traversalOptions,
+      ...(vaultSize !== undefined && { vaultSize }),
+    });
   }
   const queryEntities = extractQueryEntities(query);
   if (queryEntities.length === 0) return [];
@@ -402,6 +423,21 @@ async function buildGraphLaneRanking(
   return [...memoryToEntities.entries()]
     .sort((a, b) => b[1].size - a[1].size)
     .map(([memoryId]) => memoryId);
+}
+
+/**
+ * Cheap active-vault count for the graph-lane density hint (PR5), or `undefined`
+ * when unavailable. Returns undefined (rather than throwing) when there is no
+ * vaultCtx or the count fails — the traversal then runs without the density cap
+ * hint, which is safe (it just doesn't down-cap hops on a large vault this call).
+ */
+async function safeCountVault(ctx: RecallContext): Promise<number | undefined> {
+  if (!ctx.vaultCtx) return undefined;
+  try {
+    return await countActiveVaultMemoriesOp(ctx.vaultCtx);
+  } catch {
+    return undefined;
+  }
 }
 
 /**

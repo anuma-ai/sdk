@@ -174,6 +174,15 @@ export interface RecallOptions {
   entityFanout?: number;
   /** Hard cap on accumulated memory IDs across all hops. Default: 64. */
   nodeBudget?: number;
+  /**
+   * PR5 — enable LLM graph path-refinement: at each traversal hop a model picks
+   * which neighbor entities to expand instead of pure co-occurrence ranking.
+   * Opt-in (default false); only active on the `high` budget (needs the
+   * `traverse` flag) AND when `decomposeOptions` is set (reuses that auth).
+   * Falls back to deterministic co-occurrence order on any error. Adds ≤1 LLM
+   * call per expansion hop.
+   */
+  graphRefine?: boolean;
 }
 
 export interface RecallContext {
