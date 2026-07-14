@@ -169,6 +169,12 @@ export async function retain(
     // Typed memory (PR1) — persist the extractor's classification on the
     // fresh row. Omitted for manual writes (persisted as null).
     ...(options.factType !== undefined && { factType: options.factType }),
+    // Tier-0 security (PR3) — persist the trust tier on the fresh row when
+    // the injection screen flagged it ("quarantined"). Only set on create:
+    // quarantined candidates are force-created (enableAutoMerge: false), so
+    // this never lands on the merge/update path where it could flip a clean
+    // memory's tier. The DB op re-validates against the known set.
+    ...(options.trustTier !== undefined && { trustTier: options.trustTier }),
   });
 
   return {

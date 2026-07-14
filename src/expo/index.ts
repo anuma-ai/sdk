@@ -354,6 +354,7 @@ export type {
   ExtractFactsOptions,
   ExtractOutcome,
   FactType,
+  InjectionReason,
   MemoryExtractedEvent,
   MemoryKind,
   NowSource,
@@ -373,6 +374,8 @@ export type {
   RetainResult,
   RetainSource,
   ScoreBreakdown,
+  ScreenedCandidate,
+  ScreenResult,
   TurnCompleteEvent,
   TurnSkippedEvent,
 } from "../lib/memory";
@@ -385,6 +388,7 @@ export {
   extractAndRetain,
   extractFacts,
   HARD_DELETE_WINDOW_MS,
+  injectionSignatureCatalog,
   MEDIUM_TTL_MS,
   NEVER_TTL_MS,
   PAST_EVENT_GRACE_MS,
@@ -393,6 +397,7 @@ export {
   RECALL_TOOL_NAME,
   reflect,
   retain,
+  screenCandidatesForInjection,
   SHORT_TTL_MS,
   ttlForType,
 } from "../lib/memory";

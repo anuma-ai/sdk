@@ -262,6 +262,15 @@ export interface RetainOptions {
    * Auto-extraction emits this; manual writes omit it (persisted as null).
    */
   factType?: FactType;
+  /**
+   * Tier-0 security (PR3) — trust tier for this fact. The write-time
+   * injection screen threads `"quarantined"` here for flagged candidates;
+   * omit for the default (null/trusted). Persisted only on create (a
+   * quarantined candidate is force-created, never merged, so it can't bump
+   * or contaminate a clean memory). The DB op re-validates the value
+   * against the known set before writing.
+   */
+  trustTier?: string;
 }
 
 export interface RetainResult {

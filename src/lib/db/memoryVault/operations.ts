@@ -72,6 +72,33 @@ function baseVaultConditions(
   ];
 }
 
+/**
+ * Tier-0 security (PR3) — the allowed `trust_tier` values.
+ *
+ * `trust_tier` is a loose plaintext string column, so a future direct
+ * caller (not the injection screen) could pass an arbitrary value straight
+ * into `_setRaw`. Constrain every write to this known set here — the single
+ * place all writes funnel through — so the recall quarantine gate (which
+ * keys off the exact string `"quarantined"`) can't be bypassed by a typo'd
+ * or hostile tier, and so no unexpected value ever reaches the DB.
+ */
+const KNOWN_TRUST_TIERS = new Set(["quarantined", "trusted"]);
+
+/**
+ * Coerce a caller-supplied trust tier to the known set. `null`/`undefined`
+ * and any unrecognized value collapse to `null` (untyped/trusted default).
+ *
+ * Coerce (not throw) so a bad value degrades to the SAFE direction: `null`
+ * = visible, i.e. the pre-PR3 behavior for that row. This never HIDES a
+ * fact the caller didn't explicitly quarantine (fail-open on visibility is
+ * correct here — the screen sets the exact `"quarantined"` constant, which
+ * is in the set and survives), and it never lets garbage forge a state.
+ */
+function normalizeTrustTier(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  return KNOWN_TRUST_TIERS.has(value) ? value : null;
+}
+
 /** Processes items in batches of 50 to avoid blocking the event loop. */
 async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Promise<R[]> {
   const BATCH = 50;
@@ -174,7 +201,8 @@ export async function createVaultMemoryOp(
         record._setRaw("fact_type", opts.factType);
       }
       if (opts.trustTier !== undefined) {
-        record._setRaw("trust_tier", opts.trustTier);
+        // Tier-0 (PR3): re-validate the loose string against the known set.
+        record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
       }
     });
   });
@@ -323,7 +351,8 @@ export async function createVaultMemoriesBatchOp(
           record._setRaw("fact_type", opts.factType);
         }
         if (opts.trustTier !== undefined) {
-          record._setRaw("trust_tier", opts.trustTier);
+          // Tier-0 (PR3): re-validate the loose string against the known set.
+          record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
         }
       })
     );
@@ -560,7 +589,8 @@ export async function updateVaultMemoryOp(
           r._setRaw("fact_type", opts.factType);
         }
         if (opts.trustTier !== undefined) {
-          r._setRaw("trust_tier", opts.trustTier);
+          // Tier-0 (PR3): re-validate the loose string against the known set.
+          r._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
         }
         if (opts.preserveUpdatedAt) {
           // WatermelonDB's record.update() bumps updated_at automatically.

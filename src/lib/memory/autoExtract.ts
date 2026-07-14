@@ -20,6 +20,7 @@ import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { screenCandidatesForInjection } from "./injectionScreen.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -498,12 +499,34 @@ export async function extractAndRetain(
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
+
+  // Tier-0 security (PR3) — screen the filtered candidates for prompt-injection
+  // / memory-poisoning signatures BEFORE persisting. Runs right after the
+  // confidence filter and before the retain loop. Flagged candidates are still
+  // written (audit trail) but quarantined: they are force-created with
+  // trust_tier="quarantined", which (a) hides them from every recall lane via
+  // the baseVaultConditions gate and (b) — because they never auto-merge —
+  // means a poisoned fact can't bump proof_count or contaminate a clean
+  // memory. Clean candidates persist normally (trust_tier null).
+  const { clean, quarantined } = screenCandidatesForInjection(filtered);
+  if (quarantined.length > 0) {
+    // NEVER log memory content, even quarantined. Count + signature ids only.
+    log.warn(
+      `[memory/extract] ${quarantined.length} candidate(s) quarantined by injection screen: ` +
+        quarantined.map((q) => q.signature).join(", ")
+    );
+  }
+  const toRetain: { candidate: ExtractedCandidate; isQuarantined: boolean }[] = [
+    ...clean.map((candidate) => ({ candidate, isQuarantined: false })),
+    ...quarantined.map((q) => ({ candidate: q.candidate, isQuarantined: true })),
+  ];
+
   // Both arrays grow only on success so consumers can safely pair
   // candidates[i] with results[i] after a mid-batch retain failure.
   const succeededCandidates: ExtractedCandidate[] = [];
   const results: RetainResult[] = [];
   let failedWrites = 0;
-  for (const candidate of filtered) {
+  for (const { candidate, isQuarantined } of toRetain) {
     try {
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
@@ -516,7 +539,19 @@ export async function extractAndRetain(
         // computed instead of discarding it. `candidate.type` is validated to a
         // FactType in validateCandidates (defaults to "other").
         factType: candidate.type,
+        // Tier-0 security (PR3) — quarantine flagged candidates and force-create
+        // them (no auto-merge) so a poisoned fact never merges into / bumps a
+        // clean memory. The DB op re-validates the tier string.
+        ...(isQuarantined && { trustTier: "quarantined", enableAutoMerge: false }),
       });
+
+      // Quarantined candidates are persisted for audit but NOT surfaced: keep
+      // them out of the caller-visible arrays (which drive onMemoryExtracted
+      // toasts / memory-graph pulses) and out of the entity graph. The recall
+      // gate already hides them from retrieval; this also stops poisoned
+      // content from reaching any UI success path.
+      if (isQuarantined) continue;
+
       succeededCandidates.push(candidate);
       results.push(result);
 

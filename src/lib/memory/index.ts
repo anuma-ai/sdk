@@ -37,6 +37,13 @@ export {
   type DecaySweepResult,
   type NowSource,
 } from "./decayWorker.js";
+export {
+  type InjectionReason,
+  injectionSignatureCatalog,
+  screenCandidatesForInjection,
+  type ScreenedCandidate,
+  type ScreenResult,
+} from "./injectionScreen.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,

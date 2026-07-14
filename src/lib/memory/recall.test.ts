@@ -56,7 +56,7 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
 
 import { recall } from "./recall";
-import { createRecallTool, RECALL_MAX_LIMIT } from "./recallTool";
+import { createRecallTool, RECALL_MAX_LIMIT, RECALL_MAX_MEMORIES_PER_TURN } from "./recallTool";
 import { rerankPairs } from "./reranker";
 import type { RecallContext } from "./types";
 
@@ -680,14 +680,19 @@ describe("createRecallTool executor", () => {
     await expect(tool.executor!({ query: "" })).rejects.toThrow(/query/);
   });
 
-  it("clamps an LLM-supplied limit to RECALL_MAX_LIMIT", async () => {
+  it("clamps an LLM-supplied limit to the per-turn volume budget (Tier-0 PR3)", async () => {
+    // RECALL_MAX_LIMIT (50) is the hard arg ceiling, but the PR3 extraction-
+    // resistance per-turn volume budget (40) is tighter and now wins, with a
+    // truncation notice appended.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(bulkVault(60));
     const tool = createRecallTool(makeCtx(), { types: ["fact"] });
 
     const output = await tool.executor!({ query: QUERY, limit: 999 });
 
     expect(RECALL_MAX_LIMIT).toBe(50);
-    expect(output).toContain(`Found ${RECALL_MAX_LIMIT} relevant memories`);
+    expect(RECALL_MAX_MEMORIES_PER_TURN).toBeLessThan(RECALL_MAX_LIMIT);
+    expect(output).toContain(`Found ${RECALL_MAX_MEMORIES_PER_TURN} relevant memories`);
+    expect(output).toContain("truncated");
   });
 
   it("uses the default limit of 8 when the LLM omits it", async () => {
