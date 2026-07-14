@@ -16,6 +16,31 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
 /**
+ * The 7 FactTypes a manual save may self-classify into (PR5). Mirrors the
+ * extractor's `FactType` union in `memory/autoExtract` — kept as a local const
+ * (not imported) to avoid a memoryVault → memory runtime import cycle. Only used
+ * to validate the optional `type` tool argument; an unrecognized value is
+ * dropped (persisted as null, the untyped/medium-decay bucket).
+ */
+const MANUAL_FACT_TYPES = [
+  "identity",
+  "preference",
+  "relationship",
+  "plan",
+  "ongoing_context",
+  "constraint",
+  "other",
+] as const;
+
+/** Validate a caller/LLM-supplied `type` arg to a known FactType, or undefined. */
+function normalizeManualFactType(value: unknown): (typeof MANUAL_FACT_TYPES)[number] | undefined {
+  return typeof value === "string" &&
+    (MANUAL_FACT_TYPES as readonly string[]).includes(value)
+    ? (value as (typeof MANUAL_FACT_TYPES)[number])
+    : undefined;
+}
+
+/**
  * Describes a pending vault save operation for UI confirmation.
  */
 export interface VaultSaveOperation {
@@ -117,6 +142,15 @@ export function createMemoryVaultTool(
               "If omitted, a new memory is created. " +
               "Prefer updating existing memories over creating new ones.",
           },
+          type: {
+            type: "string",
+            enum: [...MANUAL_FACT_TYPES],
+            description:
+              "Optional classification of the memory: identity, preference, relationship, " +
+              "plan, ongoing_context, constraint, or other. Omit if unsure — it defaults to " +
+              "untyped. Durable types (identity/preference/relationship/constraint) are kept " +
+              "indefinitely; plan/ongoing_context and untyped memories may be archived as they age.",
+          },
           ...(folderNames.length > 0 && {
             folderName: {
               type: "string",
@@ -143,6 +177,9 @@ export function createMemoryVaultTool(
           const content = args.content as string;
           const id = args.id as string | undefined;
           const folderName = args.folderName as string | undefined;
+          // PR5 — optional self-classification. Unknown/absent → undefined
+          // (persisted as null, the untyped/medium-decay bucket).
+          const factType = normalizeManualFactType(args.type);
 
           if (!content || typeof content !== "string") {
             return "Error: content is required and must be a string.";
@@ -187,6 +224,9 @@ export function createMemoryVaultTool(
                 content,
                 embedding: null,
                 folderId,
+                // Manual update sets the type when the user explicitly picked one
+                // (an intentional classification, so overwrite is fine here).
+                ...(factType !== undefined && { factType }),
               });
               if (!updated) {
                 return `Error: Failed to update memory "${id}".`;
@@ -204,7 +244,12 @@ export function createMemoryVaultTool(
               return `Memory updated successfully (ID: ${updated.uniqueId}).`;
             } else {
               const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
-              const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
+              const created = await createVaultMemoryOp(vaultCtx, {
+                content,
+                scope,
+                folderId,
+                ...(factType !== undefined && { factType }),
+              });
               // Eagerly embed the new memory so it's searchable immediately
               if (embeddingOptions && cache) {
                 eagerEmbedContent(
