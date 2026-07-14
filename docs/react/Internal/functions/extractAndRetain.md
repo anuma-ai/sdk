@@ -1,8 +1,8 @@
 # extractAndRetain
 
-> **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
+> **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `quarantined`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)\[]; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
 
-Defined in: [src/lib/memory/autoExtract.ts:427](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#427)
+Defined in: [src/lib/memory/autoExtract.ts:444](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#444)
 
 Stage 2 — for each extracted candidate, call retain() with auto-merge
 enabled. The resolver path (decide create/merge/update via a second LLM
@@ -189,6 +189,29 @@ X" toasts; without it consumers only see the aggregate
 <tr>
 <td>
 
+`options.onQuarantined?`
+
+</td>
+<td>
+
+(`info`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)) => `void`
+
+</td>
+<td>
+
+Tier-0 security (PR3) — invoked once per candidate the injection screen
+quarantined AND persisted (audit row written). Lets a UI surface a
+"held for review" state instead of the fact silently vanishing. Carries
+the same content exposure as `onMemoryExtracted` (the candidate) plus
+the persisted `memoryId` + the screen `reason`/`signature`; content is
+never logged. Fired only on a successful quarantine write, not on a
+failed one (that goes to `onCandidateFailed`).
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.scope?`
 
 </td>
@@ -208,4 +231,4 @@ Override scope/folder for all retained facts.
 
 ## Returns
 
-`Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
+`Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `quarantined`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)\[]; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>

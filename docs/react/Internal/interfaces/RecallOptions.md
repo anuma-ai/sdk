@@ -71,6 +71,16 @@ of `apiKey` / `getToken` is required; see [PortalLlmAuth](PortalLlmAuth.md).
 
 ***
 
+### entityFanout?
+
+> `optional` **entityFanout**: `number`
+
+Defined in: [src/lib/memory/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#174)
+
+Max neighbor entities expanded per hop. Default: 8.
+
+***
+
 ### excludeConversationId?
 
 > `optional` **excludeConversationId**: `string`
@@ -122,6 +132,16 @@ Max items returned. Default: 8.
 
 ***
 
+### maxHops?
+
+> `optional` **maxHops**: `number`
+
+Defined in: [src/lib/memory/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#172)
+
+Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only).
+
+***
+
 ### maxTokens?
 
 > `optional` **maxTokens**: `number`
@@ -149,6 +169,16 @@ Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors t
 Defined in: [src/lib/memory/types.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#155)
 
 Apply MMR diversification after ranking (rerank pipeline only). Default: false.
+
+***
+
+### nodeBudget?
+
+> `optional` **nodeBudget**: `number`
+
+Defined in: [src/lib/memory/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#176)
+
+Hard cap on accumulated memory IDs across all hops. Default: 64.
 
 ***
 

@@ -124,6 +124,12 @@ Re-exports [CachedServerTools](../react/Internal/interfaces/CachedServerTools.md
 
 ***
 
+### capHopsForDensity
+
+Re-exports [capHopsForDensity](../react/Internal/functions/capHopsForDensity.md)
+
+***
+
 ### ChatConversation
 
 Re-exports [ChatConversation](../react/Internal/classes/ChatConversation.md)
@@ -568,6 +574,12 @@ Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFol
 
 ***
 
+### ENTITY\_FANOUT
+
+Re-exports [ENTITY\_FANOUT](../react/Internal/variables/ENTITY_FANOUT.md)
+
+***
+
 ### extractAndRetain
 
 Re-exports [extractAndRetain](../react/Internal/functions/extractAndRetain.md)
@@ -718,6 +730,12 @@ Re-exports [getVaultMemoryOp](../react/Internal/functions/getVaultMemoryOp.md)
 
 ***
 
+### GraphTraversalOptions
+
+Re-exports [GraphTraversalOptions](../react/Internal/interfaces/GraphTraversalOptions.md)
+
+***
+
 ### HARD\_DELETE\_WINDOW\_MS
 
 Re-exports [HARD\_DELETE\_WINDOW\_MS](../react/Internal/variables/HARD_DELETE_WINDOW_MS.md)
@@ -742,6 +760,18 @@ Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEAD
 
 ***
 
+### InjectionReason
+
+Re-exports [InjectionReason](../react/Internal/type-aliases/InjectionReason.md)
+
+***
+
+### injectionSignatureCatalog
+
+Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSignatureCatalog.md)
+
+***
+
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
@@ -763,6 +793,12 @@ Re-exports [LoggerProvider](../react/Internal/functions/LoggerProvider.md)
 ### LoggerProviderProps
 
 Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProps.md)
+
+***
+
+### MAX\_HOPS
+
+Re-exports [MAX\_HOPS](../react/Internal/variables/MAX_HOPS.md)
 
 ***
 
@@ -802,6 +838,12 @@ Re-exports [MemoryKind](../react/Internal/type-aliases/MemoryKind.md)
 
 ***
 
+### MemoryQuarantinedEvent
+
+Re-exports [MemoryQuarantinedEvent](../react/Internal/interfaces/MemoryQuarantinedEvent.md)
+
+***
+
 ### MemoryVaultSearchOptions
 
 Re-exports [MemoryVaultSearchOptions](../react/Internal/interfaces/MemoryVaultSearchOptions.md)
@@ -829,6 +871,12 @@ Re-exports [moveMemoriesToFolderOp](../react/Internal/functions/moveMemoriesToFo
 ### NEVER\_TTL\_MS
 
 Re-exports [NEVER\_TTL\_MS](../react/Internal/variables/NEVER_TTL_MS.md)
+
+***
+
+### NODE\_BUDGET
+
+Re-exports [NODE\_BUDGET](../react/Internal/variables/NODE_BUDGET.md)
 
 ***
 
@@ -895,6 +943,12 @@ Re-exports [QuantizedEmbedding](../react/Internal/interfaces/QuantizedEmbedding.
 ### quantizeEmbedding
 
 Re-exports [quantizeEmbedding](../react/Internal/functions/quantizeEmbedding.md)
+
+***
+
+### QuarantinedMemoryInfo
+
+Re-exports [QuarantinedMemoryInfo](../react/Internal/interfaces/QuarantinedMemoryInfo.md)
 
 ***
 
@@ -1063,6 +1117,24 @@ Re-exports [RetainSource](../react/Internal/type-aliases/RetainSource.md)
 ### ScoreBreakdown
 
 Re-exports [ScoreBreakdown](../react/Internal/interfaces/ScoreBreakdown.md)
+
+***
+
+### screenCandidatesForInjection
+
+Re-exports [screenCandidatesForInjection](../react/Internal/functions/screenCandidatesForInjection.md)
+
+***
+
+### ScreenedCandidate
+
+Re-exports [ScreenedCandidate](../react/Internal/interfaces/ScreenedCandidate.md)
+
+***
+
+### ScreenResult
+
+Re-exports [ScreenResult](../react/Internal/interfaces/ScreenResult.md)
 
 ***
 
@@ -1240,6 +1312,12 @@ Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
 
 ***
 
+### traverseGraphLane
+
+Re-exports [traverseGraphLane](../react/Internal/functions/traverseGraphLane.md)
+
+***
+
 ### ttlForType
 
 Re-exports [ttlForType](../react/Internal/functions/ttlForType.md)
@@ -1327,6 +1405,12 @@ Re-exports [useModels](../react/Hooks/useModels.md)
 ### UseModelsResult
 
 Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)
+
+***
+
+### VAULT\_SIZE\_HOP\_CAP
+
+Re-exports [VAULT\_SIZE\_HOP\_CAP](../react/Internal/variables/VAULT_SIZE_HOP_CAP.md)
 
 ***
 

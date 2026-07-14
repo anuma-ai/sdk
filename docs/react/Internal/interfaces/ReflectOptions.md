@@ -119,6 +119,20 @@ of `apiKey` / `getToken` is required; see [PortalLlmAuth](PortalLlmAuth.md).
 
 ***
 
+### entityFanout?
+
+> `optional` **entityFanout**: `number`
+
+Defined in: [src/lib/memory/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#174)
+
+Max neighbor entities expanded per hop. Default: 8.
+
+**Inherited from**
+
+[`RecallOptions`](RecallOptions.md).[`entityFanout`](RecallOptions.md#entityfanout)
+
+***
+
 ### excludeConversationId?
 
 > `optional` **excludeConversationId**: `string`
@@ -322,6 +336,20 @@ Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
 ***
 
+### maxHops?
+
+> `optional` **maxHops**: `number`
+
+Defined in: [src/lib/memory/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#172)
+
+Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only).
+
+**Inherited from**
+
+[`RecallOptions`](RecallOptions.md).[`maxHops`](RecallOptions.md#maxhops)
+
+***
+
 ### maxTokens?
 
 > `optional` **maxTokens**: `number`
@@ -361,6 +389,20 @@ Apply MMR diversification after ranking (rerank pipeline only). Default: false.
 **Inherited from**
 
 [`RecallOptions`](RecallOptions.md).[`mmr`](RecallOptions.md#mmr)
+
+***
+
+### nodeBudget?
+
+> `optional` **nodeBudget**: `number`
+
+Defined in: [src/lib/memory/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#176)
+
+Hard cap on accumulated memory IDs across all hops. Default: 64.
+
+**Inherited from**
+
+[`RecallOptions`](RecallOptions.md).[`nodeBudget`](RecallOptions.md#nodebudget)
 
 ***
 

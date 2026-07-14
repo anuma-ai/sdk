@@ -1,6 +1,6 @@
 # RetainResult
 
-Defined in: [src/lib/memory/types.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#267)
+Defined in: [src/lib/memory/types.ts:287](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#287)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:267](https://github.com/anuma-ai/sdk/blob/m
 
 > **action**: [`RetainAction`](../type-aliases/RetainAction.md)
 
-Defined in: [src/lib/memory/types.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#268)
+Defined in: [src/lib/memory/types.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#288)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/types.ts:268](https://github.com/anuma-ai/sdk/blob/m
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/types.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#269)
+Defined in: [src/lib/memory/types.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#289)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/types.ts:269](https://github.com/anuma-ai/sdk/blob/m
 
 > **proofCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:273](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#273)
+Defined in: [src/lib/memory/types.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#293)
 
 Updated proof\_count after this write.
 
@@ -34,6 +34,6 @@ Updated proof\_count after this write.
 
 > `optional` **targetId**: `string`
 
-Defined in: [src/lib/memory/types.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#271)
+Defined in: [src/lib/memory/types.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#291)
 
 When action is 'merge' or 'update', the prior memory's id.
