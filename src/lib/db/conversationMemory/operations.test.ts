@@ -152,6 +152,20 @@ describe("conversationMemory operations", () => {
     expect(got.some((r) => r.memoryId === "new")).toBe(true);
   });
 
+  it("caps a single oversized batch to the newest MAX_PER_CONVERSATION", async () => {
+    const { ctx } = makeCtx();
+    const items = Array.from({ length: MAX_PER_CONVERSATION + 50 }, (_, i) => ({
+      memoryId: `m${i}`,
+      score: 0.5,
+    }));
+    await addConversationMemoriesOp(ctx, "c1", items);
+    const got = await getConversationMemoriesOp(ctx, "c1");
+    expect(got).toHaveLength(MAX_PER_CONVERSATION);
+    // Newest MAX kept (m50..m249); oldest 50 of the batch dropped.
+    expect(got.some((r) => r.memoryId === "m0")).toBe(false);
+    expect(got.some((r) => r.memoryId === `m${MAX_PER_CONVERSATION + 49}`)).toBe(true);
+  });
+
   it("clear removes only the target conversation's rows", async () => {
     const { ctx } = makeCtx([
       { id: "a", conversation_id: "c1", memory_id: "m1", score: 1, created_at: 1 },

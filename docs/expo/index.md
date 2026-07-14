@@ -94,6 +94,12 @@ function ChatScreen() {
 
 ## Other
 
+### addConversationMemoriesOp
+
+Re-exports [addConversationMemoriesOp](../react/Internal/functions/addConversationMemoriesOp.md)
+
+***
+
 ### AutoExtractMessage
 
 Re-exports [AutoExtractMessage](../react/Internal/interfaces/AutoExtractMessage.md)
@@ -232,6 +238,12 @@ Re-exports [clearAllEncryptionState](../react/Internal/functions/clearAllEncrypt
 
 ***
 
+### clearConversationMemoriesOp
+
+Re-exports [clearConversationMemoriesOp](../react/Internal/functions/clearConversationMemoriesOp.md)
+
+***
+
 ### clearEncryptionKey
 
 Re-exports [clearEncryptionKey](../react/Internal/functions/clearEncryptionKey.md)
@@ -259,6 +271,30 @@ Re-exports [consoleLogger](../react/Internal/variables/consoleLogger.md)
 ### ConsolidationFallbackReason
 
 Re-exports [ConsolidationFallbackReason](../react/Internal/type-aliases/ConsolidationFallbackReason.md)
+
+***
+
+### ConversationMemoryInput
+
+Re-exports [ConversationMemoryInput](../react/Internal/interfaces/ConversationMemoryInput.md)
+
+***
+
+### ConversationMemoryModel
+
+Re-exports [ConversationMemoryModel](../react/Internal/classes/ConversationMemoryModel.md)
+
+***
+
+### ConversationMemoryOperationsContext
+
+Re-exports [ConversationMemoryOperationsContext](../react/Internal/interfaces/ConversationMemoryOperationsContext.md)
+
+***
+
+### conversationMemoryToStored
+
+Re-exports [conversationMemoryToStored](../react/Internal/functions/conversationMemoryToStored.md)
 
 ***
 
@@ -589,6 +625,12 @@ Re-exports [getAllVaultMemoryContentsOp](../react/Internal/functions/getAllVault
 ### getCachedServerTools
 
 Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerTools.md)
+
+***
+
+### getConversationMemoriesOp
+
+Re-exports [getConversationMemoriesOp](../react/Internal/functions/getConversationMemoriesOp.md)
 
 ***
 
@@ -1033,6 +1075,12 @@ Re-exports [StoredChatCompletionUsage](../react/Internal/interfaces/StoredChatCo
 ### StoredConversation
 
 Re-exports [StoredConversation](../react/Internal/interfaces/StoredConversation.md)
+
+***
+
+### StoredConversationMemory
+
+Re-exports [StoredConversationMemory](../react/Internal/interfaces/StoredConversationMemory.md)
 
 ***
 

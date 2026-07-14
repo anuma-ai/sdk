@@ -40,32 +40,44 @@ export async function addConversationMemoriesOp(
 ): Promise<void> {
   if (!conversationId || items.length === 0) return;
 
-  const existing = await ctx.conversationMemoryCollection
-    .query(Q.where("conversation_id", conversationId), Q.sortBy("created_at", Q.asc))
-    .fetch();
-
-  const seen = new Set(existing.map((r) => r.memoryId));
-  const additions = items.filter((it) => it.memoryId && !seen.has(it.memoryId));
-  // Dedupe within this turn's batch too.
-  const deduped: ConversationMemoryInput[] = [];
-  const batchSeen = new Set<string>();
-  for (const it of additions) {
-    if (batchSeen.has(it.memoryId)) continue;
-    batchSeen.add(it.memoryId);
-    deduped.push(it);
-  }
-  if (deduped.length === 0) return;
-
   const now = Date.now();
-  const total = existing.length + deduped.length;
-  // Oldest-first rows to prune so the conversation stays within the cap.
-  const overflow = Math.max(0, total - MAX_PER_CONVERSATION);
-  const toPrune = existing.slice(0, overflow);
 
+  // Read existing rows, dedupe, prune, and write all inside a single
+  // database.write() so two concurrent calls for the same conversation can't
+  // both act on a stale snapshot — that would let duplicate
+  // (conversation_id, memory_id) pairs slip in or push the row count past the
+  // cap (mirrors linkMemoryEntitiesOp, which reads inside the writer for the
+  // same reason).
   await ctx.database.write(async () => {
+    const existing = await ctx.conversationMemoryCollection
+      .query(Q.where("conversation_id", conversationId), Q.sortBy("created_at", Q.asc))
+      .fetch();
+
+    const seen = new Set(existing.map((r) => r.memoryId));
+    const batchSeen = new Set<string>();
+    const deduped: ConversationMemoryInput[] = [];
+    for (const it of items) {
+      if (!it.memoryId || seen.has(it.memoryId) || batchSeen.has(it.memoryId)) continue;
+      batchSeen.add(it.memoryId);
+      deduped.push(it);
+    }
+    if (deduped.length === 0) return;
+
+    // Enforce the per-conversation cap over the RESULTING set (existing + new),
+    // keeping the newest. New rows are newest, so if a single batch alone
+    // exceeds the cap, keep only its newest MAX and drop every existing row;
+    // otherwise keep all new rows plus the newest existing that still fit.
+    const keptNew =
+      deduped.length > MAX_PER_CONVERSATION
+        ? deduped.slice(deduped.length - MAX_PER_CONVERSATION)
+        : deduped;
+    const keepExistingCount = MAX_PER_CONVERSATION - keptNew.length;
+    const pruneCount = Math.max(0, existing.length - keepExistingCount);
+    const toPrune = existing.slice(0, pruneCount);
+
     const ops = [
       ...toPrune.map((r) => r.prepareDestroyPermanently()),
-      ...deduped.map((it) =>
+      ...keptNew.map((it) =>
         ctx.conversationMemoryCollection.prepareCreate((r) => {
           r._setRaw("conversation_id", conversationId);
           r._setRaw("memory_id", it.memoryId);
