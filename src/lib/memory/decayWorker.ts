@@ -106,9 +106,12 @@ function resolveNow(now?: NowSource): number {
   return Date.now();
 }
 
-/** Map a raw candidate to the pure classifier's input shape. */
+/** Map a raw candidate to the pure classifier's input shape. Threads the row
+ * id so an optional content-reading classifier (PR5) can fetch + decrypt it;
+ * the rule engine ignores it. */
 function toDecayInput(c: DecayCandidateRaw): DecayInput {
   return {
+    id: c.uniqueId,
     factType: c.factType,
     eventTimeEnd: c.eventTimeEnd,
     eventTimeKind: c.eventTimeKind,
@@ -116,6 +119,33 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
     archivedAt: c.archivedAt,
     source: c.source,
   };
+}
+
+/**
+ * Whether a row is a BORDERLINE decay case worth an optional classifier's
+ * (more expensive, content-reading) opinion. Only these rows consult the
+ * classifier — clear keeps/deletes (durable types, manual saves, plans with a
+ * concrete event end, already-archived rows) are decided by the rule engine
+ * alone, so the classifier is never invoked for them.
+ *
+ * Borderline = the rule engine has the weakest signal:
+ *  - `factType` is `other` or null (the medium/age-only bucket — no type-driven
+ *    TTL, so staleness is a pure guess from `updated_at`), OR
+ *  - a `plan`/`ongoing_context` with NO `event_time_end` (can't be
+ *    event-driven; falls back to the age rule).
+ * An already-archived row is never borderline — its fate is the deterministic
+ * hard-delete window, which no content read should override.
+ */
+function isBorderline(input: DecayInput): boolean {
+  if (input.archivedAt !== null) return false;
+  if (input.factType === null || input.factType === "other") return true;
+  if (
+    (input.factType === "plan" || input.factType === "ongoing_context") &&
+    input.eventTimeEnd === null
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -132,9 +162,12 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
 
   async function verdictFor(input: DecayInput, now: number): Promise<DecayVerdict> {
     const ruleVerdict = classifyDecay(input, now, policy);
-    if (!classifier) return ruleVerdict;
-    // PR5 seam — refine via the on-device model, falling back to the rule
-    // verdict on any error (a flaky classifier must never worsen the sweep).
+    // PR5 — only borderline rows consult the classifier; clear keeps/deletes
+    // are decided by the rule engine alone, so the (more expensive,
+    // content-reading) classifier is never invoked for them.
+    if (!classifier || !isBorderline(input)) return ruleVerdict;
+    // Refine via the on-device model, falling back to the rule verdict on any
+    // error (a flaky classifier must never worsen the sweep).
     try {
       return await classifier.classify(input, ruleVerdict);
     } catch (err) {

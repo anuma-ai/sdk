@@ -32,6 +32,10 @@ export {
   ttlForType,
 } from "./decay.js";
 export {
+  createLlmDecayClassifier,
+  type LlmDecayClassifierOptions,
+} from "./decayClassifier.js";
+export {
   createDecaySweeper,
   type CreateDecaySweeperOptions,
   type DecayClassifier,

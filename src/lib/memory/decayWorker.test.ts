@@ -37,7 +37,13 @@ import {
 } from "../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
 
-import { HARD_DELETE_WINDOW_MS, MEDIUM_TTL_MS, PAST_EVENT_GRACE_MS } from "./decay";
+import {
+  type DecayInput,
+  type DecayVerdict,
+  HARD_DELETE_WINDOW_MS,
+  MEDIUM_TTL_MS,
+  PAST_EVENT_GRACE_MS,
+} from "./decay";
 import { createDecaySweeper } from "./decayWorker";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -458,12 +464,13 @@ describe("createDecaySweeper.runSweep — zero-knowledge", () => {
 });
 
 describe("createDecaySweeper — PR5 classifier seam", () => {
-  it("routes verdicts through an optional classifier, overriding the rule", async () => {
-    // A durable identity fact the rule engine would KEEP. The classifier flips
-    // it to "archive" — proving the seam can override, without decrypting here.
-    const identityId = await seed({
-      content: "durable fact",
-      factType: "identity",
+  it("routes borderline verdicts through an optional classifier, overriding the rule", async () => {
+    // A FRESH `other` fact the rule engine would KEEP — but `other` is
+    // borderline, so the classifier is consulted and flips it to "archive",
+    // proving the seam can override (without decrypting here).
+    const borderlineId = await seed({
+      content: "borderline fact",
+      factType: "other",
       updatedAt: NOW,
     });
 
@@ -471,13 +478,61 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
       vaultCtx,
       now: NOW,
       classifier: {
-        classify: (input, ruleVerdict) => (input.factType === "identity" ? "archive" : ruleVerdict),
+        classify: () => "archive",
       },
     });
 
     const result = await sweeper.runSweep();
     expect(result.archived).toBe(1);
-    expect(await archivedAtOf(identityId)).toBe(NOW);
+    expect(await archivedAtOf(borderlineId)).toBe(NOW);
+  });
+
+  it("consults the classifier ONLY for borderline rows (never clear keep/delete)", async () => {
+    // Borderline: `other` (age-only bucket) and a `plan` with no event end.
+    await seed({ content: "other fact", factType: "other", updatedAt: NOW });
+    await seed({
+      content: "plan without an end",
+      factType: "plan",
+      eventTime: { start: NOW - 40 * DAY, end: null, kind: "point" },
+      updatedAt: NOW,
+    });
+    // Clear (NOT borderline): durable identity (rule keep) + a plan whose event
+    // ended in the past (rule archives it deterministically via event_time_end).
+    await seed({ content: "identity fact", factType: "identity", updatedAt: NOW });
+    await seed({
+      content: "plan already past",
+      factType: "plan",
+      eventTime: {
+        start: NOW - 60 * DAY,
+        end: NOW - (PAST_EVENT_GRACE_MS + 5 * DAY),
+        kind: "range",
+      },
+      updatedAt: NOW,
+    });
+
+    const seen: (string | null)[] = [];
+    const classify = vi.fn((input: DecayInput, ruleVerdict: DecayVerdict): DecayVerdict => {
+      seen.push(input.factType);
+      return ruleVerdict; // passthrough — don't change outcomes
+    });
+
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+    await sweeper.runSweep();
+
+    // Exactly the two borderline rows reached the classifier.
+    expect(classify).toHaveBeenCalledTimes(2);
+    expect(seen.sort()).toEqual(["other", "plan"]);
+  });
+
+  it("threads the row id to the classifier so it can fetch decrypted content", async () => {
+    const id = await seed({ content: "borderline fact", factType: "other", updatedAt: NOW });
+    const classify = vi.fn(
+      (_input: DecayInput, ruleVerdict: DecayVerdict): DecayVerdict => ruleVerdict
+    );
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+    await sweeper.runSweep();
+    expect(classify).toHaveBeenCalledTimes(1);
+    expect(classify.mock.calls[0][0].id).toBe(id);
   });
 
   it("falls back to the rule verdict when the classifier throws", async () => {
