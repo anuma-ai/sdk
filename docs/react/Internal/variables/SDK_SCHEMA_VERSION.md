@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `34` = `34`
+> `const` **SDK\_SCHEMA\_VERSION**: `35` = `35`
 
-Defined in: [src/lib/db/schema.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#61)
+Defined in: [src/lib/db/schema.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#64)
 
 Current combined schema version for all SDK storage modules.
 
@@ -42,3 +42,5 @@ Version history:
 * v33: Added embedding\_model column to memory\_vault so stale-model vectors are
   detectable and re-embeddable after an embedding-model change (null = legacy
   rows, grandfathered as compatible with the current model)
+* v35: Added conversation\_memory table recording which vault memories a
+  conversation drew on, so the conversation-level Memories panel survives reload
