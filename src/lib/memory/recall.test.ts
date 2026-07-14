@@ -18,6 +18,7 @@ vi.mock("../db/chat/operations", () => ({
 
 vi.mock("../db/entities/operations", () => ({
   getMemoriesByEntityNamesOp: vi.fn(),
+  getEntitiesByMemoryIdsOp: vi.fn(),
 }));
 
 vi.mock("../db/memoryVault/operations", () => ({
@@ -43,6 +44,7 @@ import { searchChunksOp, type StorageOperationsContext } from "../db/chat/operat
 import type { ChunkSearchResult } from "../db/chat/types";
 import {
   type EntityOperationsContext,
+  getEntitiesByMemoryIdsOp,
   getMemoriesByEntityNamesOp,
 } from "../db/entities/operations";
 import {
@@ -138,6 +140,7 @@ beforeEach(() => {
   vi.mocked(updateVaultMemoryEmbeddingOp).mockResolvedValue(null);
   vi.mocked(getMemoriesByEventTimeOp).mockResolvedValue([]);
   vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
+  vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
   vi.mocked(searchChunksOp).mockResolvedValue([]);
   vi.mocked(generateEmbedding).mockImplementation(async (text) => vecFor(text));
   vi.mocked(generateEmbeddings).mockImplementation(async (texts) => texts.map(vecFor));
@@ -501,6 +504,38 @@ describe("recall — entity (W5) lane", () => {
     } as VaultMemoryOperationsContext;
     await recall(ENTITY_QUERY, makeCtx({ vaultCtx: vaultCtxWithEntities }));
     expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+  });
+
+  // PR4 — multi-hop traversal gating. The reverse-edge op
+  // getEntitiesByMemoryIdsOp is the tell that the BFS expanded past the seed;
+  // it must fire ONLY on the high budget (traverse flag) AND only when the
+  // caller opts into more than one hop.
+  it("does NOT traverse (single-hop only) at budget=low", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
+    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+  });
+
+  it("does NOT traverse (single-hop only) at budget=mid", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "mid" });
+    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+  });
+
+  it("does NOT expand at budget=high with the default MAX_HOPS=1 (seed only)", async () => {
+    // High enables the traverse flag, but the PR4 default is 1 hop — the seed
+    // lookup — so the reverse-edge op still never runs. Behavior-preserving.
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high" });
+    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+  });
+
+  it("expands past the seed only at budget=high AND maxHops>1", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high", maxHops: 2 });
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledTimes(1);
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledWith(entityCtx, ["m3"]);
   });
 });
 

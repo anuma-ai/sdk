@@ -163,6 +163,17 @@ export interface RecallOptions {
   bm25AdmissionDivisor?: number;
   /** RRF smoothing constant for lane fusion (facts × chunks and side lanes). Default: 60. */
   rrfK?: number;
+  // -------------------------------------------------------------------------
+  // Multi-hop graph traversal knobs (PR4). Only active on the `high` budget
+  // (the W5 lane's `traverse` flag); no-ops on low/mid. All optional; defaults
+  // are the exported constants in `graphTraversal.ts`. Exposed for ablation.
+  // -------------------------------------------------------------------------
+  /** Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only). */
+  maxHops?: number;
+  /** Max neighbor entities expanded per hop. Default: 8. */
+  entityFanout?: number;
+  /** Hard cap on accumulated memory IDs across all hops. Default: 64. */
+  nodeBudget?: number;
 }
 
 export interface RecallContext {

@@ -20,6 +20,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { traverseGraphLane } from "./graphTraversal.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
 import { rrfFuse } from "./rrf.js";
@@ -40,17 +41,24 @@ const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 interface BudgetFlags {
   rerank: boolean;
   decompose: boolean;
+  /**
+   * PR4 — enable multi-hop entity-graph traversal in the W5 lane. Gated to
+   * `high` only: multi-hop widens the candidate pool (more RRF entries + a
+   * larger rerank input), so low/mid keep the cheap single-hop lane. When
+   * false, `buildGraphLaneRanking` runs the exact pre-PR4 single-hop path.
+   */
+  traverse: boolean;
 }
 
 function flagsForBudget(budget: Budget): BudgetFlags {
   switch (budget) {
     case "high":
-      return { rerank: true, decompose: true };
+      return { rerank: true, decompose: true, traverse: true };
     case "mid":
-      return { rerank: true, decompose: false };
+      return { rerank: true, decompose: false, traverse: false };
     case "low":
     default:
-      return { rerank: false, decompose: false };
+      return { rerank: false, decompose: false, traverse: false };
   }
 }
 
@@ -125,7 +133,12 @@ export async function recall(
     needsChunkEmbedding
       ? generateEmbedding(query, ctx.embeddingOptions)
       : Promise.resolve(undefined),
-    buildGraphLaneRanking(query, ctx),
+    buildGraphLaneRanking(query, ctx, flags.traverse, {
+      ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+      ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+      ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+      ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+    }),
     wantsTemporal
       ? buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
       : Promise.resolve([] as string[]),
@@ -350,12 +363,36 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
  * The ranking is by raw shared-count, not the tanh score — we hand off
  * just the order to RRF fusion. The tanh shaping happens inside
  * `rankByEntityOverlap` for callers that want the score directly.
+ *
+ * PR4: when `traverse` is true (high budget only), the lane runs a bounded
+ * multi-hop BFS via {@link traverseGraphLane} instead of the single-hop
+ * lookup. With the PR4 default `MAX_HOPS = 1` even the traverse path returns
+ * the seed ordering verbatim, so enabling it is behavior-preserving until a
+ * caller opts into `maxHops > 1`. When `traverse` is false the exact pre-PR4
+ * single-hop path below runs — low/mid budgets are byte-for-byte unchanged.
  */
-async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise<string[]> {
+async function buildGraphLaneRanking(
+  query: string,
+  ctx: RecallContext,
+  traverse = false,
+  traversalOptions: {
+    maxHops?: number;
+    entityFanout?: number;
+    nodeBudget?: number;
+    rrfK?: number;
+  } = {}
+): Promise<string[]> {
   // Fall back to vaultCtx.entityCtx so callers don't have to thread the
   // graph-lane context twice (it's also where cascade-delete wiring lives).
   const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
   if (!entityCtx) return [];
+  if (traverse) {
+    // Multi-hop path. vaultSize is intentionally not threaded here: the graph
+    // lane runs concurrently with the vault load (see the Promise.all above),
+    // so the count isn't known yet, and the PR4 default MAX_HOPS=1 makes the
+    // density cap dormant anyway. PR5 (default MAX_HOPS=2) wires a size hint.
+    return traverseGraphLane(query, entityCtx, traversalOptions);
+  }
   const queryEntities = extractQueryEntities(query);
   if (queryEntities.length === 0) return [];
   const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, queryEntities);

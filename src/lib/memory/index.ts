@@ -40,6 +40,15 @@ export {
   type NowSource,
 } from "./decayWorker.js";
 export {
+  capHopsForDensity,
+  ENTITY_FANOUT,
+  type GraphTraversalOptions,
+  MAX_HOPS,
+  NODE_BUDGET,
+  traverseGraphLane,
+  VAULT_SIZE_HOP_CAP,
+} from "./graphTraversal.js";
+export {
   type InjectionReason,
   injectionSignatureCatalog,
   screenCandidatesForInjection,
@@ -73,7 +82,8 @@ export type {
   ScoreBreakdown,
 } from "./types.js";
 
-// W5 — entity-graph ops are consumed internally by extractAndRetain and
-// recall(); intentionally not re-exported here because none of the
-// SDK's public entry points (server/, react/, expo/) surface them yet.
-// Promote individual ops to those entry points when consumers need them.
+// W5 — the low-level entity-graph DB ops (getMemoriesByEntityNamesOp,
+// getEntitiesByMemoryIdsOp, link/unlink) live in db/entities/operations and
+// are surfaced from the react entry point directly, next to the Entity models.
+// The recall-time traversal built on them (traverseGraphLane, PR4) is a
+// memory-layer concern and IS re-exported above.

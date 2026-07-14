@@ -331,6 +331,7 @@ export type {
   ExtractFactsOptions,
   ExtractOutcome,
   FactType,
+  GraphTraversalOptions,
   InjectionReason,
   MemoryExtractedEvent,
   MemoryKind,
@@ -359,17 +360,21 @@ export type {
   TurnSkippedEvent,
 } from "../lib/memory";
 export {
+  capHopsForDensity,
   classifyDecay,
   createAutoExtractor,
   createDecaySweeper,
   createRecallTool,
   DEFAULT_DECAY_POLICY,
+  ENTITY_FANOUT,
   extractAndRetain,
   extractFacts,
   HARD_DELETE_WINDOW_MS,
   injectionSignatureCatalog,
+  MAX_HOPS,
   MEDIUM_TTL_MS,
   NEVER_TTL_MS,
+  NODE_BUDGET,
   PAST_EVENT_GRACE_MS,
   recall,
   RECALL_MAX_LIMIT,
@@ -378,7 +383,9 @@ export {
   retain,
   screenCandidatesForInjection,
   SHORT_TTL_MS,
+  traverseGraphLane,
   ttlForType,
+  VAULT_SIZE_HOP_CAP,
 } from "../lib/memory";
 
 // ── Server Tools ──
