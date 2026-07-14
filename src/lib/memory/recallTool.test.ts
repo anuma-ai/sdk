@@ -15,6 +15,7 @@ import {
   createRecallTool,
   formatRecallResult,
   RECALL_MAX_INVOCATIONS_PER_TURN,
+  RECALL_MAX_MEMORIES_PER_CONVERSATION,
   RECALL_MAX_MEMORIES_PER_TURN,
   RECALL_TURN_WINDOW_MS,
 } from "./recallTool";
@@ -237,5 +238,42 @@ describe("createRecallTool executor — concurrent volume-cap race", () => {
     // Exactly 40 surfaced (two calls of 20); the third is fully budget-blocked.
     expect(totalSurfaced).toBe(RECALL_MAX_MEMORIES_PER_TURN);
     expect(outs.some((o) => /budget for this turn/i.test(o))).toBe(true);
+  });
+});
+
+// Hardening pass — the per-conversation cap is a hard ceiling that does NOT
+// reset on the per-turn idle window.
+describe("createRecallTool executor — per-conversation volume cap", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("caps cumulative surfaced at RECALL_MAX_MEMORIES_PER_CONVERSATION across turns", async () => {
+    expect(RECALL_MAX_MEMORIES_PER_CONVERSATION).toBeGreaterThan(RECALL_MAX_MEMORIES_PER_TURN);
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) =>
+      recallResult(Array.from({ length: opts?.limit ?? 0 }, (_, i) => fact(`m${i}`, `f${i}`)))
+    );
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+
+    let total = 0;
+    let turnCalls = 0;
+    // Drain to the conversation cap, hopping the turn window to dodge the
+    // per-turn invocation + volume caps. Bounded to avoid an infinite loop.
+    for (let guard = 0; guard < 500 && total < RECALL_MAX_MEMORIES_PER_CONVERSATION; guard++) {
+      if (turnCalls >= RECALL_MAX_INVOCATIONS_PER_TURN) {
+        vi.setSystemTime(Date.now() + RECALL_TURN_WINDOW_MS + 1);
+        turnCalls = 0;
+      }
+      const out = await tool.executor!({ query: `fill ${guard}`, limit: 10 });
+      turnCalls++;
+      total += (out.match(/^\[\d+\] fact/gm) ?? []).length;
+    }
+    expect(total).toBe(RECALL_MAX_MEMORIES_PER_CONVERSATION);
+
+    // A brand-new (idle-reset) turn resets the per-turn budget, but the
+    // conversation cap is exhausted → still refused.
+    vi.setSystemTime(Date.now() + RECALL_TURN_WINDOW_MS + 1);
+    const over = await tool.executor!({ query: "one more please", limit: 10 });
+    expect(over).toMatch(/budget/i);
   });
 });
