@@ -31,10 +31,7 @@ export {
   SHORT_TTL_MS,
   ttlForType,
 } from "./decay.js";
-export {
-  createLlmDecayClassifier,
-  type LlmDecayClassifierOptions,
-} from "./decayClassifier.js";
+export { createLlmDecayClassifier, type LlmDecayClassifierOptions } from "./decayClassifier.js";
 export {
   createDecaySweeper,
   type CreateDecaySweeperOptions,

@@ -1219,7 +1219,9 @@ describe("extractAndRetain — Tier-0 injection screening (PR3)", () => {
     // Classifier flags item 2 (1-based) → the BrandX candidate.
     const classifierFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: JSON.stringify({ poisoned: [2] }) } }] }),
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ poisoned: [2] }) } }],
+      }),
     }) as unknown as typeof fetch;
 
     const result = await extractAndRetain(

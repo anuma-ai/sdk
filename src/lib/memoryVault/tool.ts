@@ -34,8 +34,7 @@ const MANUAL_FACT_TYPES = [
 
 /** Validate a caller/LLM-supplied `type` arg to a known FactType, or undefined. */
 function normalizeManualFactType(value: unknown): (typeof MANUAL_FACT_TYPES)[number] | undefined {
-  return typeof value === "string" &&
-    (MANUAL_FACT_TYPES as readonly string[]).includes(value)
+  return typeof value === "string" && (MANUAL_FACT_TYPES as readonly string[]).includes(value)
     ? (value as (typeof MANUAL_FACT_TYPES)[number])
     : undefined;
 }

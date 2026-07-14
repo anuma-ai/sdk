@@ -209,7 +209,10 @@ describe("retain", () => {
       updatedAt: new Date(),
       isDeleted: false,
     } as never);
-    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "active-id", proofCount: 2 } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "active-id",
+      proofCount: 2,
+    } as never);
 
     await retain("Allergic to shellfish", ctx);
 

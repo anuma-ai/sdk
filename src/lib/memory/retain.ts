@@ -252,9 +252,7 @@ function resurrectFields(existing: {
   archivedAt?: number | null;
 }): { restore: true } | { preserveUpdatedAt: true } {
   // Only a real archived timestamp counts as archived; null/undefined = active.
-  return typeof existing.archivedAt === "number"
-    ? { restore: true }
-    : { preserveUpdatedAt: true };
+  return typeof existing.archivedAt === "number" ? { restore: true } : { preserveUpdatedAt: true };
 }
 
 /**
