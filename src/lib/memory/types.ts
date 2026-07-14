@@ -114,6 +114,13 @@ export interface RecallOptions {
    * and no-op when unset (all types are eligible). Vault-only.
    */
   factTypes?: FactType[];
+  /**
+   * PR5 — optional per-FactType score multiplier applied in the fusion boost
+   * stage (e.g. boost `identity`/`constraint`, down-weight `ongoing_context`).
+   * A type absent from the map (and untyped rows) uses 1.0, so an empty/omitted
+   * map is a no-op (uniform weighting). Vault-only.
+   */
+  factTypeWeights?: Partial<Record<FactType, number>>;
   /** Restrict chunk search to one conversation. Chunk-only. */
   conversationId?: string;
   /** Exclude one conversation from chunk search. Chunk-only. */

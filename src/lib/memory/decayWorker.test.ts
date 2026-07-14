@@ -33,6 +33,7 @@ import {
   getVaultMemoryOp,
   hardDeleteDecayedOp,
   restoreVaultMemoryOp,
+  updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
@@ -522,6 +523,19 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
     // Exactly the two borderline rows reached the classifier.
     expect(classify).toHaveBeenCalledTimes(2);
     expect(seen.sort()).toEqual(["other", "plan"]);
+  });
+
+  it("PR5: updateVaultMemoryOp { restore: true } clears archived_at (un-archive primitive)", async () => {
+    const id = await seed({ content: "resurrectable fact", factType: "other", updatedAt: NOW });
+    await archiveVaultMemoryOp(vaultCtx, id, { now: NOW });
+    expect(await archivedAtOf(id)).toBe(NOW);
+
+    const updated = await updateVaultMemoryOp(vaultCtx, id, {
+      content: "resurrectable fact",
+      restore: true,
+    });
+    expect(updated).not.toBeNull();
+    expect(await archivedAtOf(id)).toBeNull();
   });
 
   it("threads the row id to the classifier so it can fetch decrypted content", async () => {

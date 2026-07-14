@@ -205,6 +205,7 @@ export async function recall(
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),
+        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),
       }

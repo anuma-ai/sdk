@@ -130,4 +130,12 @@ export interface UpdateVaultMemoryOptions {
   /** Tier-0 security (PR3) — set the trust tier on update ("quarantined" |
    * "trusted"). Omit to leave the existing value untouched. */
   trustTier?: string;
+  /**
+   * PR5 — un-archive on re-observe. When true, clears `archived_at` (null) as
+   * part of the write, resurrecting a decayed row that a new observation just
+   * merged into. retain() sets this (with `preserveUpdatedAt` OFF) so the
+   * restored row's decay clock resets and it doesn't immediately re-archive.
+   * Omit/false to leave `archived_at` untouched.
+   */
+  restore?: boolean;
 }

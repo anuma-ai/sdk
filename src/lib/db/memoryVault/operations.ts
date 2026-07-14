@@ -609,6 +609,14 @@ export async function updateVaultMemoryOp(
           // Tier-0 (PR3): re-validate the loose string against the known set.
           r._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
         }
+        // PR5 — un-archive on re-observe: clear archived_at so a decayed row a
+        // new observation merged into re-enters recall. Ordering note: this runs
+        // BEFORE the preserveUpdatedAt restore below, but retain() sets restore
+        // WITHOUT preserveUpdatedAt (so updated_at bumps and the decay clock
+        // resets) — the two are not combined.
+        if (opts.restore) {
+          r._setRaw("archived_at", null);
+        }
         if (opts.preserveUpdatedAt) {
           // WatermelonDB's record.update() bumps updated_at automatically.
           // Restore the original so re-observation doesn't double-count
