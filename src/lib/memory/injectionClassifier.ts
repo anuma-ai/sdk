@@ -28,9 +28,13 @@
  *     path (inherited by `extractAndRetain`); the model only ever returns
  *     integer indices, so nothing needs de-anonymizing on the way back.
  *
- * NOTE: this is a NEW portal call surface for memory content. It is gated on an
- * explicit opt-in and redacts like the extractor, but a security review should
- * treat enabling it as widening the set of models that see (redacted) facts.
+ * SECURITY (MEDIUM, residual): this is a NEW portal call surface for memory
+ * content. It is gated on an explicit opt-in and redacts like the extractor, but
+ * a security review should treat enabling it as widening the set of models that
+ * see (redacted) facts. A malicious / MITM'd portal can also use it as a lever
+ * to QUARANTINE the affected rows (they drop out of recall) — reversible, and it
+ * can never delete or alter a memory. Bounded, recoverable trust tradeoff; gate
+ * on trust in the portal.
  */
 
 import { getLogger } from "../logger.js";

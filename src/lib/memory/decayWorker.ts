@@ -52,6 +52,18 @@ export interface DecaySweepResult {
  * Because it may read decrypted content, callers MUST gate providing it on
  * wallet-key availability. Left undefined here → pure rule-based sweep.
  *
+ * Egress is bounded by the sweeper (NOT the classifier): each sweep caps how
+ * many rows reach the classifier ({@link CreateDecaySweeperOptions.maxClassifierCallsPerSweep})
+ * and a row whose (id, updated_at) was already classified is never re-sent on a
+ * later sweep — so a stable borderline "keep" row egresses at most once.
+ *
+ * SECURITY (MEDIUM, residual) — enabling a classifier hands whoever answers the
+ * portal (incl. a malicious / MITM'd endpoint) a lever over the affected rows:
+ * a hostile verdict can only quarantine-adjacent OUTCOMES here, i.e. archive a
+ * row (reversible — never a hard delete, which stays the deterministic
+ * archived-past-window mechanic). Bounded, reversible trust tradeoff; gate the
+ * classifier on trust in the portal.
+ *
  * @param input      The same plaintext inputs the rule engine saw.
  * @param ruleVerdict The rule-based verdict, as a starting point / fallback.
  * @returns The (possibly refined) verdict.
@@ -75,10 +87,20 @@ export interface CreateDecaySweeperOptions {
   /** Partial policy overriding the per-type TTL defaults. Omit for defaults. */
   policy?: Partial<DecayPolicy>;
   /**
-   * PR5 seam. When provided, each candidate's rule verdict is passed through
-   * it. Gate on key availability (it may decrypt content). Default undefined.
+   * PR5 seam. When provided, borderline candidates' rule verdict is passed
+   * through it. Gate on key availability (it may decrypt content). Default
+   * undefined. Egress is bounded — see {@link maxClassifierCallsPerSweep}.
    */
   classifier?: DecayClassifier;
+  /**
+   * PR5 — hard ceiling on classifier invocations (and thus decrypted-content
+   * portal egress) per sweep. Once hit, the remaining borderline rows fall back
+   * to the rule verdict for that sweep (no call). Prevents a large vault from
+   * firing hundreds of sequential content-bearing calls in one sweep. Default
+   * {@link DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP} (20). Cache hits (a row
+   * already classified at its current `updated_at`) do NOT count against this.
+   */
+  maxClassifierCallsPerSweep?: number;
   /** Fires once after each sweep with the transition counts (UI). */
   onSwept?: (result: DecaySweepResult) => void;
   /** Diagnostic — fires on an unexpected sweep-level error. */
@@ -99,6 +121,16 @@ export interface DecaySweeper {
 }
 
 const EMPTY_RESULT: DecaySweepResult = { archived: 0, deleted: 0, scanned: 0 };
+
+/**
+ * Default per-sweep ceiling on decay-classifier invocations (see
+ * {@link CreateDecaySweeperOptions.maxClassifierCallsPerSweep}). Kept small: the
+ * classifier egresses DECRYPTED content, so a sweep must never fan out to
+ * hundreds of sequential calls. 20 covers the borderline churn of a typical
+ * sweep while capping worst-case egress; stable rows are also cached so this
+ * ceiling is rarely reached after the first sweep.
+ */
+export const DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP = 20;
 
 function resolveNow(now?: NowSource): number {
   if (typeof now === "function") return now();
@@ -158,18 +190,62 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
   // Effective hard-delete window — passed to the guarded delete op so its
   // in-write re-check uses the same threshold the classifier decided on.
   const hardDeleteWindowMs = policy?.hardDeleteWindowMs ?? DEFAULT_DECAY_POLICY.hardDeleteWindowMs;
+  const maxClassifierCalls =
+    options.maxClassifierCallsPerSweep ?? DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP;
+  // Cross-sweep memo of classifier verdicts, keyed by row id → (updated_at,
+  // verdict). A stable borderline row (unchanged `updated_at`) reuses its cached
+  // verdict on later sweeps and is NEVER re-sent to the portal; a re-observed
+  // row (bumped `updated_at`) misses the cache and is re-classified. Pruned each
+  // sweep to the live candidate set so it can't grow unbounded.
+  const classifierCache = new Map<string, { updatedAt: number; verdict: DecayVerdict }>();
   let disposed = false;
 
-  async function verdictFor(input: DecayInput, now: number): Promise<DecayVerdict> {
+  /** Per-sweep mutable egress budget, threaded into {@link verdictFor}. */
+  interface SweepState {
+    classifierCalls: number;
+    ceilingLogged: boolean;
+  }
+
+  async function verdictFor(
+    input: DecayInput,
+    now: number,
+    sweep: SweepState
+  ): Promise<DecayVerdict> {
     const ruleVerdict = classifyDecay(input, now, policy);
     // PR5 — only borderline rows consult the classifier; clear keeps/deletes
     // are decided by the rule engine alone, so the (more expensive,
     // content-reading) classifier is never invoked for them.
     if (!classifier || !isBorderline(input)) return ruleVerdict;
+
+    // Stable-row reuse: a row already classified at its current `updated_at`
+    // reuses that verdict WITHOUT any portal call — so a stable borderline
+    // "keep" row is never re-egressed on a later sweep.
+    if (input.id) {
+      const cached = classifierCache.get(input.id);
+      if (cached && cached.updatedAt === input.updatedAt) return cached.verdict;
+    }
+
+    // Per-sweep egress ceiling: beyond it, fall back to the rule verdict (no
+    // call) for the rest of this sweep. Log once so the cap is observable.
+    if (sweep.classifierCalls >= maxClassifierCalls) {
+      if (!sweep.ceilingLogged) {
+        sweep.ceilingLogged = true;
+        getLogger().warn(
+          `[memory/decay] classifier per-sweep ceiling (${maxClassifierCalls}) reached; ` +
+            "remaining borderline rows use the rule verdict this sweep"
+        );
+      }
+      return ruleVerdict;
+    }
+
     // Refine via the on-device model, falling back to the rule verdict on any
-    // error (a flaky classifier must never worsen the sweep).
+    // error (a flaky classifier must never worsen the sweep). Count the call
+    // (an attempt egresses content) and memo the result for stable-row reuse.
+    sweep.classifierCalls++;
     try {
-      return await classifier.classify(input, ruleVerdict);
+      const verdict = await classifier.classify(input, ruleVerdict);
+      if (input.id) classifierCache.set(input.id, { updatedAt: input.updatedAt, verdict });
+      return verdict;
     } catch (err) {
       getLogger().warn(
         `[memory/decay] classifier failed; falling back to rule verdict: ${
@@ -192,10 +268,20 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
       return { ...EMPTY_RESULT };
     }
 
+    // Prune the classifier memo to the live candidate set so it can't grow
+    // unbounded as rows are deleted (a deleted row's stale entry is dead weight).
+    if (classifierCache.size > 0) {
+      const liveIds = new Set(candidates.map((c) => c.uniqueId));
+      for (const id of classifierCache.keys()) {
+        if (!liveIds.has(id)) classifierCache.delete(id);
+      }
+    }
+
+    const sweep: SweepState = { classifierCalls: 0, ceilingLogged: false };
     const toArchive: DecayCandidateRaw[] = [];
     const toDelete: DecayCandidateRaw[] = [];
     for (const c of candidates) {
-      const verdict = await verdictFor(toDecayInput(c), now);
+      const verdict = await verdictFor(toDecayInput(c), now, sweep);
       if (verdict === "archive") toArchive.push(c);
       else if (verdict === "delete") toDelete.push(c);
     }

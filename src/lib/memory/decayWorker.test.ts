@@ -549,6 +549,52 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
     expect(classify.mock.calls[0][0].id).toBe(id);
   });
 
+  it("PR5 security: respects the per-sweep classifier ceiling (rest use rule verdict, no call)", async () => {
+    // Four borderline rows, ceiling of 2 → only 2 reach the classifier this
+    // sweep; the other two fall back to the rule verdict with no call.
+    for (let i = 0; i < 4; i++) {
+      await seed({ content: `borderline ${i}`, factType: "other", updatedAt: NOW });
+    }
+    const classify = vi.fn((_i: DecayInput, rule: DecayVerdict): DecayVerdict => rule);
+    const sweeper = createDecaySweeper({
+      vaultCtx,
+      now: NOW,
+      classifier: { classify },
+      maxClassifierCallsPerSweep: 2,
+    });
+    await sweeper.runSweep();
+    expect(classify).toHaveBeenCalledTimes(2);
+  });
+
+  it("PR5 security: a stable 'keep' borderline row is NOT re-classified on a later sweep", async () => {
+    await seed({ content: "stable borderline fact", factType: "other", updatedAt: NOW });
+    const classify = vi.fn((): DecayVerdict => "keep");
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+
+    await sweeper.runSweep(); // first sweep classifies + caches "keep"
+    await sweeper.runSweep(); // second sweep: unchanged updated_at → cache hit, no call
+
+    // Only one portal-bound classify call across BOTH sweeps.
+    expect(classify).toHaveBeenCalledTimes(1);
+  });
+
+  it("PR5 security: a re-observed borderline row (bumped updated_at) IS re-classified", async () => {
+    const id = await seed({ content: "changing fact", factType: "other", updatedAt: NOW });
+    const classify = vi.fn((): DecayVerdict => "keep");
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+
+    await sweeper.runSweep();
+    // Simulate a re-observation bumping updated_at (retain merge).
+    const rec = await vaultCtx.vaultMemoryCollection.find(id);
+    await database.write(async () => {
+      await rec.update((r) => r._setRaw("updated_at", NOW + DAY));
+    });
+    await sweeper.runSweep();
+
+    // Cache miss on the new updated_at → classified again.
+    expect(classify).toHaveBeenCalledTimes(2);
+  });
+
   it("falls back to the rule verdict when the classifier throws", async () => {
     await seed({
       content: "aged → rule archives",

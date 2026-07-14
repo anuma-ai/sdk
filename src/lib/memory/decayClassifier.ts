@@ -19,7 +19,12 @@
  *     availability: return `null` when no key is loaded. With no content the
  *     classifier degrades to the rule verdict — never blocks, never guesses.
  *   - When it does read content and calls the portal, the content is
- *     PII-redacted first (same switch as the extraction/consolidation paths).
+ *     PII-redacted first. Redaction is OPT-OUT, not opt-in: it defaults ON when
+ *     the consumer omits `piiRedaction`, so a caller can never accidentally
+ *     egress raw PII. Pass `piiRedaction: false` to deliberately disable it.
+ *   - Egress is bounded by the SWEEPER, not this classifier: the sweep caps
+ *     invocations per pass and never re-sends an unchanged (id, updated_at) row
+ *     (see `decayWorker`), so a stable borderline "keep" row egresses once.
  *   - It only ever chooses keep vs archive. It NEVER escalates to `delete` —
  *     hard-delete is exclusively the deterministic archived-past-window mechanic
  *     (rule 1), which no content read should be able to trigger.
@@ -28,10 +33,11 @@
  * response — like every other optional LLM layer in this subsystem it can only
  * refine a borderline verdict, never make the sweep worse.
  *
- * NOTE: this is a NEW portal call surface that carries (redacted) memory
- * content. It is opt-in (you must construct and pass it) and gated on key
- * availability, but a security review should treat enabling it as widening the
- * set of models that see facts.
+ * SECURITY (MEDIUM, residual) — this is a NEW portal call surface carrying
+ * (redacted) memory content. It is opt-in (you must construct + pass it) and
+ * gated on key availability. Beyond widening which models see facts, a
+ * malicious / MITM'd portal can steer the verdict — but only to ARCHIVE a row
+ * (reversible; never a hard delete). Gate it on trust in the portal.
  */
 
 import { getLogger } from "../logger.js";
@@ -78,9 +84,11 @@ export interface LlmDecayClassifierOptions extends PortalLlmAuth {
   /** Backoff before each retry (ms). Tests pass `() => 0`. */
   backoffMs?: (attempt: number) => number;
   /**
-   * PII redaction for the outbound content. Pass `true` (fresh per-call
-   * redactor) or a shared {@link PiiRedactor}. The verdict returned is a bare
-   * enum, so there is nothing to de-anonymize on the way back.
+   * PII redaction for the outbound content. OPT-OUT: defaults to ON (a fresh
+   * per-call redactor) when omitted, so decrypted content is never egressed
+   * raw by accident. Pass a shared {@link PiiRedactor} to keep placeholder
+   * numbering consistent with other calls, or `false` to deliberately disable
+   * redaction. The verdict returned is a bare enum — nothing to de-anonymize.
    */
   piiRedaction?: boolean | PiiRedactor;
   /**
@@ -101,7 +109,10 @@ export interface LlmDecayClassifierOptions extends PortalLlmAuth {
  * @public
  */
 export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): DecayClassifier {
-  const redactor: PiiRedactor | undefined = resolvePiiRedactor(options.piiRedaction);
+  // Redaction is OPT-OUT: default to a fresh redactor when `piiRedaction` is
+  // omitted so decrypted content can never egress unredacted by accident. Only
+  // an explicit `false` disables it (resolvePiiRedactor(false) → undefined).
+  const redactor: PiiRedactor | undefined = resolvePiiRedactor(options.piiRedaction ?? true);
 
   return {
     async classify(input: DecayInput, ruleVerdict: DecayVerdict): Promise<DecayVerdict> {

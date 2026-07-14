@@ -2,7 +2,7 @@
 
 > **createLlmNeighborRefiner**(`options`: [`LlmNeighborRefinerOptions`](../interfaces/LlmNeighborRefinerOptions.md)): [`NeighborRefiner`](../interfaces/NeighborRefiner.md)
 
-Defined in: [src/lib/memory/graphTraversal.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#317)
+Defined in: [src/lib/memory/graphTraversal.ts:322](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#322)
 
 Build a [NeighborRefiner](../interfaces/NeighborRefiner.md) backed by a cheap portal LLM. At each hop it
 asks the model to pick, from the candidate neighbor entities, the ≤`limit`
@@ -14,12 +14,17 @@ Bounded + fail-safe: one attempt by default, a short total timeout, and
 on any throw or empty result — so enabling this can reorder which neighbors
 expand but never breaks or stalls recall.
 
-ZERO-KNOWLEDGE NOTE: this sends the query + candidate ENTITY NAMES (not
-memory content) to the portal. Entity names are lower-cardinality than
-content but are still user data derived from the stored graph; it is opt-in
-(default off in recall) and reuses the same auth the query-decompose step
-already uses. A security review should weigh entity-name exposure before
-enabling it broadly.
+SECURITY / ZERO-KNOWLEDGE (must stay default-OFF): this sends the query +
+candidate ENTITY NAMES to the portal UNREDACTED. Those names ARE user PII —
+people, places, orgs pulled from the stored graph (e.g. "Sara", "Kyoto",
+"Acme") — not lower-risk than content just because they're short. It reuses
+the query-decompose auth and is opt-in (`RecallOptions.graphRefine`, default
+off in recall); leave it off unless you accept that exposure.
+
+MEDIUM residual: a malicious / MITM'd portal can only steer WHICH neighbor
+entities expand — a recall-ranking nudge, not a data-integrity change (no
+memory is written, archived, or deleted), and [traverseGraphLane](traverseGraphLane.md)
+falls back to deterministic order on any bad/empty response. Bounded tradeoff.
 
 ## Parameters
 

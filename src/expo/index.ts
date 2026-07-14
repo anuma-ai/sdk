@@ -396,6 +396,7 @@ export {
   createLlmNeighborRefiner,
   createRecallTool,
   DEFAULT_DECAY_POLICY,
+  DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP,
   ENTITY_FANOUT,
   extractAndRetain,
   extractFacts,

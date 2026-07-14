@@ -2,7 +2,7 @@
 
 > **createDecaySweeper**(`options`: [`CreateDecaySweeperOptions`](../interfaces/CreateDecaySweeperOptions.md)): [`DecaySweeper`](../interfaces/DecaySweeper.md)
 
-Defined in: [src/lib/memory/decayWorker.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#154)
+Defined in: [src/lib/memory/decayWorker.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#186)
 
 Create a decay sweeper. See module docstring for the zero-knowledge contract.
 

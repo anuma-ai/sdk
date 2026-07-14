@@ -1,11 +1,23 @@
 # DecayClassifier
 
-Defined in: [src/lib/memory/decayWorker.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#59)
+Defined in: [src/lib/memory/decayWorker.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#71)
 
 PR5 seam — an on-device classifier that refines the rule-based verdict for
 borderline rows (e.g. type `other`/null, or a `plan` without an event end).
 Because it may read decrypted content, callers MUST gate providing it on
 wallet-key availability. Left undefined here → pure rule-based sweep.
+
+Egress is bounded by the sweeper (NOT the classifier): each sweep caps how
+many rows reach the classifier ([CreateDecaySweeperOptions.maxClassifierCallsPerSweep](CreateDecaySweeperOptions.md#maxclassifiercallspersweep))
+and a row whose (id, updated\_at) was already classified is never re-sent on a
+later sweep — so a stable borderline "keep" row egresses at most once.
+
+SECURITY (MEDIUM, residual) — enabling a classifier hands whoever answers the
+portal (incl. a malicious / MITM'd endpoint) a lever over the affected rows:
+a hostile verdict can only quarantine-adjacent OUTCOMES here, i.e. archive a
+row (reversible — never a hard delete, which stays the deterministic
+archived-past-window mechanic). Bounded, reversible trust tradeoff; gate the
+classifier on trust in the portal.
 
 ## Param
 
@@ -21,7 +33,7 @@ The rule-based verdict, as a starting point / fallback.
 
 > **classify**(`input`: [`DecayInput`](DecayInput.md), `ruleVerdict`: [`DecayVerdict`](../type-aliases/DecayVerdict.md)): [`DecayVerdict`](../type-aliases/DecayVerdict.md) | `Promise`<[`DecayVerdict`](../type-aliases/DecayVerdict.md)>
 
-Defined in: [src/lib/memory/decayWorker.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#60)
+Defined in: [src/lib/memory/decayWorker.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#72)
 
 **Parameters**
 

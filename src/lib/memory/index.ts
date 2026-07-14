@@ -38,6 +38,7 @@ export {
   type DecayClassifier,
   type DecaySweeper,
   type DecaySweepResult,
+  DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP,
   type NowSource,
 } from "./decayWorker.js";
 export {

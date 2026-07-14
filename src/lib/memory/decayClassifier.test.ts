@@ -107,6 +107,43 @@ describe("createLlmDecayClassifier", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("PR5 security: redacts content by DEFAULT when piiRedaction is omitted", async () => {
+    let sentBody = "";
+    const fetchFn = vi.fn(async (_url: unknown, init: { body?: unknown }) => {
+      sentBody = String(init?.body ?? "");
+      return { ok: true, json: async () => choices({ verdict: "keep" }) };
+    }) as unknown as typeof fetch;
+    const classifier = createLlmDecayClassifier({
+      apiKey: "k",
+      fetchFn,
+      // NO piiRedaction option → must default ON.
+      getContent: async () => "Email me at bob@acme.com about the trip",
+      backoffMs: () => 0,
+    });
+    await classifier.classify(input(), "archive");
+    expect(fetchFn).toHaveBeenCalled();
+    // The raw PII must NOT appear in the outbound request body (it was redacted).
+    expect(sentBody).not.toContain("bob@acme.com");
+  });
+
+  it("PR5 security: only an explicit piiRedaction:false disables redaction", async () => {
+    let sentBody = "";
+    const fetchFn = vi.fn(async (_url: unknown, init: { body?: unknown }) => {
+      sentBody = String(init?.body ?? "");
+      return { ok: true, json: async () => choices({ verdict: "keep" }) };
+    }) as unknown as typeof fetch;
+    const classifier = createLlmDecayClassifier({
+      apiKey: "k",
+      fetchFn,
+      piiRedaction: false, // deliberate opt-out
+      getContent: async () => "Email me at bob@acme.com about the trip",
+      backoffMs: () => 0,
+    });
+    await classifier.classify(input(), "archive");
+    // Explicit opt-out → raw content egresses verbatim.
+    expect(sentBody).toContain("bob@acme.com");
+  });
+
   it("falls back to the rule verdict when the row has no id", async () => {
     const fetchFn = vi.fn() as unknown as typeof fetch;
     const classifier = createLlmDecayClassifier({

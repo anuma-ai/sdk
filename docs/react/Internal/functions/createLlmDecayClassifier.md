@@ -2,7 +2,7 @@
 
 > **createLlmDecayClassifier**(`options`: [`LlmDecayClassifierOptions`](../interfaces/LlmDecayClassifierOptions.md)): [`DecayClassifier`](../interfaces/DecayClassifier.md)
 
-Defined in: [src/lib/memory/decayClassifier.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#103)
+Defined in: [src/lib/memory/decayClassifier.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayClassifier.ts#111)
 
 Build a [DecayClassifier](../interfaces/DecayClassifier.md) that reads a borderline row's decrypted
 content and returns a keep/archive verdict via a cheap portal LLM. Pass it as

@@ -526,6 +526,12 @@ Re-exports [DEFAULT\_DECAY\_POLICY](../react/Internal/variables/DEFAULT_DECAY_PO
 
 ***
 
+### DEFAULT\_MAX\_CLASSIFIER\_CALLS\_PER\_SWEEP
+
+Re-exports [DEFAULT\_MAX\_CLASSIFIER\_CALLS\_PER\_SWEEP](../react/Internal/variables/DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP.md)
+
+***
+
 ### DEFAULT\_MIN\_CHUNK\_SIZE
 
 Re-exports [DEFAULT\_MIN\_CHUNK\_SIZE](../react/Internal/variables/DEFAULT_MIN_CHUNK_SIZE.md)
