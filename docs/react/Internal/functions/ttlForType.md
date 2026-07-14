@@ -2,7 +2,7 @@
 
 > **ttlForType**(`factType`: `string` | `null`, `policy?`: `Partial`<[`DecayPolicy`](../interfaces/DecayPolicy.md)>): `number`
 
-Defined in: [src/lib/memory/decay.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#126)
+Defined in: [src/lib/memory/decay.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#134)
 
 The age TTL for a fact type. `null` / unknown types fall to the medium
 fallback bucket (never Infinity — untyped rows must still eventually age out).

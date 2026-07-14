@@ -12,7 +12,7 @@ these columns so it stays zero-knowledge.
 
 > **archivedAt**: `number` | `null`
 
-Defined in: [src/lib/memory/decay.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#106)
+Defined in: [src/lib/memory/decay.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#114)
 
 Unix ms when archived, or null when active.
 
@@ -22,7 +22,7 @@ Unix ms when archived, or null when active.
 
 > **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/memory/decay.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#100)
+Defined in: [src/lib/memory/decay.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#108)
 
 W6 temporal lane — Unix ms the event ended (range/ongoing), or null.
 
@@ -32,7 +32,7 @@ W6 temporal lane — Unix ms the event ended (range/ongoing), or null.
 
 > **eventTimeKind**: `string` | `null`
 
-Defined in: [src/lib/memory/decay.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#102)
+Defined in: [src/lib/memory/decay.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#110)
 
 W6 temporal lane — `point | range | ongoing | null`.
 
@@ -42,9 +42,23 @@ W6 temporal lane — `point | range | ongoing | null`.
 
 > **factType**: `string` | `null`
 
-Defined in: [src/lib/memory/decay.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#98)
+Defined in: [src/lib/memory/decay.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#106)
 
 The extractor's FactType, or null (legacy/manual/untyped → medium bucket).
+
+***
+
+### id?
+
+> `optional` **id**: `string`
+
+Defined in: [src/lib/memory/decay.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#104)
+
+The row's stable id. Not read by the rule engine ([classifyDecay](../functions/classifyDecay.md)
+ignores it) — it is threaded through so an optional content-reading decay
+classifier (PR5, [createLlmDecayClassifier](../functions/createLlmDecayClassifier.md)) can fetch + decrypt the
+row for a borderline verdict. Optional so pure rule-based callers/tests can
+omit it.
 
 ***
 
@@ -52,7 +66,7 @@ The extractor's FactType, or null (legacy/manual/untyped → medium bucket).
 
 > **source**: `string` | `null`
 
-Defined in: [src/lib/memory/decay.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#108)
+Defined in: [src/lib/memory/decay.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#116)
 
 `manual` | `auto-extracted` | `capsule` | null. Manual is never decayed.
 
@@ -62,6 +76,6 @@ Defined in: [src/lib/memory/decay.ts:108](https://github.com/anuma-ai/sdk/blob/m
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/memory/decay.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#104)
+Defined in: [src/lib/memory/decay.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#112)
 
 Unix ms of the row's last write (re-observation resets this).

@@ -2,7 +2,7 @@
 
 > **capHopsForDensity**(`maxHops`: `number`, `vaultSize?`: `number`): `number`
 
-Defined in: src/lib/memory/graphTraversal.ts:106
+Defined in: [src/lib/memory/graphTraversal.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#135)
 
 Cap the hop count on large vaults. Fan-out grows with graph density, so above
 [VAULT\_SIZE\_HOP\_CAP](../variables/VAULT_SIZE_HOP_CAP.md) memories we force seed-only traversal (1 hop)

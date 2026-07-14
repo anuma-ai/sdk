@@ -2,7 +2,7 @@
 
 > **classifyDecay**(`m`: [`DecayInput`](../interfaces/DecayInput.md), `now`: `number`, `policy?`: `Partial`<[`DecayPolicy`](../interfaces/DecayPolicy.md)>): [`DecayVerdict`](../type-aliases/DecayVerdict.md)
 
-Defined in: [src/lib/memory/decay.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#175)
+Defined in: [src/lib/memory/decay.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decay.ts#183)
 
 Classify one memory into a decay verdict, reading only plaintext fields.
 

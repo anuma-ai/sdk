@@ -1,6 +1,6 @@
 # ScreenResult
 
-Defined in: [src/lib/memory/injectionScreen.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#51)
+Defined in: [src/lib/memory/injectionScreen.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#59)
 
 Result of screening a candidate batch.
 
@@ -10,7 +10,7 @@ Result of screening a candidate batch.
 
 > **clean**: [`ExtractedCandidate`](ExtractedCandidate.md)\[]
 
-Defined in: [src/lib/memory/injectionScreen.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#53)
+Defined in: [src/lib/memory/injectionScreen.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#61)
 
 Candidates with no injection signature — persist normally.
 
@@ -20,6 +20,6 @@ Candidates with no injection signature — persist normally.
 
 > **quarantined**: [`ScreenedCandidate`](ScreenedCandidate.md)\[]
 
-Defined in: [src/lib/memory/injectionScreen.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#55)
+Defined in: [src/lib/memory/injectionScreen.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#63)
 
 Candidates that matched a signature — persist quarantined.

@@ -202,6 +202,12 @@ Re-exports [classifyDecay](../react/Internal/functions/classifyDecay.md)
 
 ***
 
+### classifyInjectionCandidates
+
+Re-exports [classifyInjectionCandidates](../react/Internal/functions/classifyInjectionCandidates.md)
+
+***
+
 ### classifyStockPrice
 
 Re-exports [classifyStockPrice](../react/Internal/functions/classifyStockPrice.md)
@@ -319,6 +325,18 @@ Re-exports [createDecaySweeper](../react/Internal/functions/createDecaySweeper.m
 ### CreateDecaySweeperOptions
 
 Re-exports [CreateDecaySweeperOptions](../react/Internal/interfaces/CreateDecaySweeperOptions.md)
+
+***
+
+### createLlmDecayClassifier
+
+Re-exports [createLlmDecayClassifier](../react/Internal/functions/createLlmDecayClassifier.md)
+
+***
+
+### createLlmNeighborRefiner
+
+Re-exports [createLlmNeighborRefiner](../react/Internal/functions/createLlmNeighborRefiner.md)
 
 ***
 
@@ -760,6 +778,12 @@ Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEAD
 
 ***
 
+### InjectionClassifierOptions
+
+Re-exports [InjectionClassifierOptions](../react/Internal/interfaces/InjectionClassifierOptions.md)
+
+***
+
 ### InjectionReason
 
 Re-exports [InjectionReason](../react/Internal/type-aliases/InjectionReason.md)
@@ -775,6 +799,18 @@ Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSign
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
+
+***
+
+### LlmDecayClassifierOptions
+
+Re-exports [LlmDecayClassifierOptions](../react/Internal/interfaces/LlmDecayClassifierOptions.md)
+
+***
+
+### LlmNeighborRefinerOptions
+
+Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborRefinerOptions.md)
 
 ***
 
@@ -865,6 +901,12 @@ Re-exports [MessageSkeleton](../react/Internal/interfaces/MessageSkeleton.md)
 ### moveMemoriesToFolderOp
 
 Re-exports [moveMemoriesToFolderOp](../react/Internal/functions/moveMemoriesToFolderOp.md)
+
+***
+
+### NeighborRefiner
+
+Re-exports [NeighborRefiner](../react/Internal/interfaces/NeighborRefiner.md)
 
 ***
 

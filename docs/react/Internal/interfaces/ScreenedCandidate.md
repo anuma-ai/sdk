@@ -1,6 +1,6 @@
 # ScreenedCandidate
 
-Defined in: [src/lib/memory/injectionScreen.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#42)
+Defined in: [src/lib/memory/injectionScreen.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#50)
 
 A candidate the screen flagged, with the matching signature id + reason.
 Content is intentionally NOT duplicated here beyond the candidate itself —
@@ -12,7 +12,7 @@ callers must never log `candidate.content`.
 
 > **candidate**: [`ExtractedCandidate`](ExtractedCandidate.md)
 
-Defined in: [src/lib/memory/injectionScreen.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#43)
+Defined in: [src/lib/memory/injectionScreen.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#51)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/memory/injectionScreen.ts:43](https://github.com/anuma-ai/s
 
 > **reason**: [`InjectionReason`](../type-aliases/InjectionReason.md)
 
-Defined in: [src/lib/memory/injectionScreen.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#45)
+Defined in: [src/lib/memory/injectionScreen.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#53)
 
 Coarse reason bucket.
 
@@ -30,6 +30,6 @@ Coarse reason bucket.
 
 > **signature**: `string`
 
-Defined in: [src/lib/memory/injectionScreen.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#47)
+Defined in: [src/lib/memory/injectionScreen.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#55)
 
 Stable id of the signature that matched (safe to log; carries no content).

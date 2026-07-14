@@ -2,7 +2,7 @@
 
 > **screenCandidatesForInjection**(`candidates`: readonly [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]): [`ScreenResult`](../interfaces/ScreenResult.md)
 
-Defined in: [src/lib/memory/injectionScreen.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#299)
+Defined in: [src/lib/memory/injectionScreen.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#307)
 
 Screen extraction candidates for injection / poisoning signatures.
 

@@ -1,6 +1,6 @@
 # GraphTraversalOptions
 
-Defined in: src/lib/memory/graphTraversal.ts:76
+Defined in: [src/lib/memory/graphTraversal.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#86)
 
 Options for [traverseGraphLane](../functions/traverseGraphLane.md). All optional; defaults are the
 exported constants above. Exposed for ablation / evaluation sweeps.
@@ -11,7 +11,7 @@ exported constants above. Exposed for ablation / evaluation sweeps.
 
 > `optional` **entityFanout**: `number`
 
-Defined in: src/lib/memory/graphTraversal.ts:80
+Defined in: [src/lib/memory/graphTraversal.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#90)
 
 Max neighbor entities expanded per hop. Default [ENTITY\_FANOUT](../variables/ENTITY_FANOUT.md).
 
@@ -21,7 +21,7 @@ Max neighbor entities expanded per hop. Default [ENTITY\_FANOUT](../variables/EN
 
 > `optional` **maxHops**: `number`
 
-Defined in: src/lib/memory/graphTraversal.ts:78
+Defined in: [src/lib/memory/graphTraversal.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#88)
 
 Total hops incl. the seed lookup (hop 1). Default [MAX\_HOPS](../variables/MAX_HOPS.md).
 
@@ -31,9 +31,23 @@ Total hops incl. the seed lookup (hop 1). Default [MAX\_HOPS](../variables/MAX_H
 
 > `optional` **nodeBudget**: `number`
 
-Defined in: src/lib/memory/graphTraversal.ts:82
+Defined in: [src/lib/memory/graphTraversal.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#92)
 
 Hard cap on accumulated memory IDs. Default [NODE\_BUDGET](../variables/NODE_BUDGET.md).
+
+***
+
+### refineNeighbors?
+
+> `optional` **refineNeighbors**: [`NeighborRefiner`](NeighborRefiner.md)
+
+Defined in: [src/lib/memory/graphTraversal.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#107)
+
+PR5 — optional LLM neighbor-selection. When provided, at each expansion hop
+the deterministically-ranked candidate neighbor entities are handed to this
+refiner, which returns the subset to expand. Falls back to the
+co-occurrence order on any error or empty result. Called at most ONCE per
+hop. Build one with [createLlmNeighborRefiner](../functions/createLlmNeighborRefiner.md), or supply your own.
 
 ***
 
@@ -41,7 +55,7 @@ Hard cap on accumulated memory IDs. Default [NODE\_BUDGET](../variables/NODE_BUD
 
 > `optional` **rrfK**: `number`
 
-Defined in: src/lib/memory/graphTraversal.ts:84
+Defined in: [src/lib/memory/graphTraversal.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#94)
 
 RRF smoothing constant for per-hop fusion. Default 60 (rrf.ts).
 
@@ -51,7 +65,7 @@ RRF smoothing constant for per-hop fusion. Default 60 (rrf.ts).
 
 > `optional` **vaultSize**: `number`
 
-Defined in: src/lib/memory/graphTraversal.ts:89
+Defined in: [src/lib/memory/graphTraversal.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#99)
 
 Vault size hint. When provided and above [VAULT\_SIZE\_HOP\_CAP](../variables/VAULT_SIZE_HOP_CAP.md), the
 effective hop count is capped to 1 (see [capHopsForDensity](../functions/capHopsForDensity.md)).

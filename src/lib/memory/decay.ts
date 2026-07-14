@@ -97,8 +97,9 @@ export interface DecayInput {
   /**
    * The row's stable id. Not read by the rule engine ({@link classifyDecay}
    * ignores it) — it is threaded through so an optional content-reading decay
-   * classifier (PR5, {@link ./decayClassifier}) can fetch + decrypt the row for
-   * a borderline verdict. Optional so pure rule-based callers/tests can omit it.
+   * classifier (PR5, {@link createLlmDecayClassifier}) can fetch + decrypt the
+   * row for a borderline verdict. Optional so pure rule-based callers/tests can
+   * omit it.
    */
   id?: string;
   /** The extractor's FactType, or null (legacy/manual/untyped → medium bucket). */

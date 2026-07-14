@@ -118,6 +118,20 @@ loses its increment. Wins over `proofCount` when both are set.
 
 ***
 
+### restore?
+
+> `optional` **restore**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/types.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#140)
+
+PR5 — un-archive on re-observe. When true, clears `archived_at` (null) as
+part of the write, resurrecting a decayed row that a new observation just
+merged into. retain() sets this (with `preserveUpdatedAt` OFF) so the
+restored row's decay clock resets and it doesn't immediately re-archive.
+Omit/false to leave `archived_at` untouched.
+
+***
+
 ### scope?
 
 > `optional` **scope**: `string`

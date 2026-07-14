@@ -1,6 +1,6 @@
 # MemoryVaultToolOptions
 
-Defined in: [src/lib/memoryVault/tool.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#37)
+Defined in: [src/lib/memoryVault/tool.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#61)
 
 Options for creating a memory vault tool.
 
@@ -10,7 +10,7 @@ Options for creating a memory vault tool.
 
 > `optional` **folderMap**: `Map`<`string`, `string`>
 
-Defined in: [src/lib/memoryVault/tool.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#58)
+Defined in: [src/lib/memoryVault/tool.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#82)
 
 Map of folder names to folder IDs for auto-classification.
 When provided, the LLM can specify a folderName argument.
@@ -21,7 +21,7 @@ When provided, the LLM can specify a folderName argument.
 
 > `optional` **onSave**: (`operation`: [`VaultSaveOperation`](VaultSaveOperation.md)) => `Promise`<`boolean`>
 
-Defined in: [src/lib/memoryVault/tool.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#46)
+Defined in: [src/lib/memoryVault/tool.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#70)
 
 Callback invoked before each save operation.
 Return `true` to confirm the save, `false` to cancel it.
@@ -65,7 +65,7 @@ via onToolCall so the host app can handle it.
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#52)
+Defined in: [src/lib/memoryVault/tool.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#76)
 
 Scope to assign to new memories. Defaults to "private".
 This is injected by the client, not controlled by the LLM.
