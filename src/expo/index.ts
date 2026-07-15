@@ -255,6 +255,17 @@ export {
   type UpdateVaultMemoryOptions,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
+// Conversation memories (persistence for the conversation-level Memories panel)
+export {
+  addConversationMemoriesOp,
+  clearConversationMemoriesOp,
+  type ConversationMemoryInput,
+  ConversationMemory as ConversationMemoryModel,
+  type ConversationMemoryOperationsContext,
+  conversationMemoryToStored,
+  getConversationMemoriesOp,
+  type StoredConversationMemory,
+} from "../lib/db/conversationMemory";
 // Vault folders
 export {
   createVaultFolderOp,

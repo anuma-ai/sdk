@@ -10,6 +10,7 @@ import type { Class } from "@nozbe/watermelondb/types";
 
 import { AppFile } from "./appFiles/models";
 import { Conversation, ConversationSummary, Message } from "./chat/models";
+import { ConversationMemory } from "./conversationMemory/models";
 import { Entity, MemoryEntity } from "./entities/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
@@ -60,13 +61,15 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v34: Added topics_user_managed column to memory_vault so a memory whose
  *   entity links the user has taken manual control of is left alone by
  *   auto-extraction (null/false = auto-derived, the default)
- * - v35: Added fact_type, archived_at, trust_tier columns to memory_vault for
+ * - v35: Added conversation_memory table recording which vault memories a
+ *   conversation drew on, so the conversation-level Memories panel survives reload
+ * - v36: Added fact_type, archived_at, trust_tier columns to memory_vault for
  *   typed memory + decay + Tier-0 security. All nullable + plaintext, no
  *   backfill (null = legacy/untyped, active, un-screened — content is
  *   encrypted so in-migration classification is impossible; NULL = zero-risk,
  *   exact embedding_model precedent)
  */
-export const SDK_SCHEMA_VERSION = 35;
+export const SDK_SCHEMA_VERSION = 36;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -327,6 +330,16 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
+    // ── Conversation memories (panel persistence) ────────────────────────
+    tableSchema({
+      name: "conversation_memory",
+      columns: [
+        { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "memory_id", type: "string", isIndexed: true },
+        { name: "score", type: "number" },
+        { name: "created_at", type: "number", isIndexed: true },
+      ],
+    }),
   ],
 });
 
@@ -373,7 +386,8 @@ export const sdkSchema = appSchema({
  * - v31 → v32: Added `pinned_at` column to conversations for pinning chats
  * - v32 → v33: Added `embedding_model` column to memory_vault (null grandfathered as current-model-compatible)
  * - v33 → v34: Added `topics_user_managed` column to memory_vault (null/false = auto-derived topics, the default)
- * - v34 → v35: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
+ * - v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
+ * - v35 → v36: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -833,7 +847,24 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v34 -> v35: typed memory + decay + Tier-0 security foundation.
+    // v34 -> v35: conversation_memory table. Records which vault memories a
+    // conversation drew on (ids + score only) so the conversation-level Memories
+    // panel survives reload. Additive create — no existing data touched.
+    {
+      toVersion: 35,
+      steps: [
+        createTable({
+          name: "conversation_memory",
+          columns: [
+            { name: "conversation_id", type: "string", isIndexed: true },
+            { name: "memory_id", type: "string", isIndexed: true },
+            { name: "score", type: "number" },
+            { name: "created_at", type: "number", isIndexed: true },
+          ],
+        }),
+      ],
+    },
+    // v35 -> v36: typed memory + decay + Tier-0 security foundation.
     //   - fact_type: the extractor's FactType classification (was computed
     //     then discarded; now persisted).
     //   - archived_at: decay archive state (set by the PR2 sweep).
@@ -843,7 +874,7 @@ export const sdkMigrations = schemaMigrations({
     // in-migration classification is impossible; NULL = zero data rewrite =
     // zero risk on LokiJS + SQLite (exact embedding_model precedent).
     {
-      toVersion: 35,
+      toVersion: 36,
       steps: [
         addColumns({
           table: "memory_vault",
@@ -889,4 +920,5 @@ export const sdkModelClasses: Class<Model>[] = [
   UserPreference,
   SavedTool,
   AppFile,
+  ConversationMemory,
 ];

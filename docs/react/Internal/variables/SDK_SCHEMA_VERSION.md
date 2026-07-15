@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `35` = `35`
+> `const` **SDK\_SCHEMA\_VERSION**: `36` = `36`
 
-Defined in: [src/lib/db/schema.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#69)
+Defined in: [src/lib/db/schema.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#72)
 
 Current combined schema version for all SDK storage modules.
 
@@ -45,7 +45,9 @@ Version history:
 * v34: Added topics\_user\_managed column to memory\_vault so a memory whose
   entity links the user has taken manual control of is left alone by
   auto-extraction (null/false = auto-derived, the default)
-* v35: Added fact\_type, archived\_at, trust\_tier columns to memory\_vault for
+* v35: Added conversation\_memory table recording which vault memories a
+  conversation drew on, so the conversation-level Memories panel survives reload
+* v36: Added fact\_type, archived\_at, trust\_tier columns to memory\_vault for
   typed memory + decay + Tier-0 security. All nullable + plaintext, no
   backfill (null = legacy/untyped, active, un-screened — content is
   encrypted so in-migration classification is impossible; NULL = zero-risk,

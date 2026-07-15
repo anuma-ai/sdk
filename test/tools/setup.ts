@@ -4,7 +4,7 @@
  * Environment:
  *   PORTAL_API_KEY   (required)  Portal API key
  *   ANUMA_API_URL    (optional)  Portal API base URL override
- *   E2E_MODEL        (optional)  Model to use (default: fireworks kimi-k2p5)
+ *   E2E_MODEL        (optional)  Model to use (default: deepinfra Kimi-K2.6)
  *   E2E_API_TYPE     (optional)  "completions" or "responses" (default: completions)
  */
 
@@ -20,7 +20,10 @@ import type { ApiType } from "../../src/lib/chat/useChat/strategies/types.js";
 import { record, type RecordedStep } from "./recorder.js";
 
 export const config = {
-  model: process.env.E2E_MODEL || "fireworks/accounts/fireworks/models/kimi-k2p5",
+  // Successor to the retired fireworks kimi-k2p5 (Fireworks returns NOT_FOUND for
+  // it, which stalled the merge queue). Kimi 2.6 is served healthily via deepinfra
+  // in dev; there is no fireworks kimi-k2p6.
+  model: process.env.E2E_MODEL || "deepinfra/moonshotai/Kimi-K2.6",
   // Default to "auto" so the SDK picks the best endpoint per model
   // (responses vs. completions) via `resolveApiType`. Many models
   // (Gemini, DeepSeek, MiniMax M2.7) 500 on the completions endpoint.

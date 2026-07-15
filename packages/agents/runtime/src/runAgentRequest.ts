@@ -280,7 +280,11 @@ export async function runAgentRequest(opts: AgentRequestOpts): Promise<AgentResp
     model: opts.agent.model.default,
     token: grant.bearer,
     tools,
-    headers: { "X-Anuma-Surface": "agent" },
+    // X-Anuma-Surface drives portal auth/grant keying (OAuth client_id + first-party
+    // grant surface) — keep it. X-Anuma-Feature is the provenance header the portal
+    // records into requests.feature (#1353); without it, agent-runtime LLM traffic
+    // lands feature=null and can't be told apart from chat/background in prod.
+    headers: { "X-Anuma-Surface": "agent", "X-Anuma-Feature": "agent" },
     ...(opts.portalBaseUrl ? { baseUrl: opts.portalBaseUrl } : undefined),
     ...(opts.transport ? { transport: opts.transport } : undefined),
     ...(opts.apiType ? { apiType: opts.apiType } : undefined),
