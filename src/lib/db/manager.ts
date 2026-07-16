@@ -255,11 +255,23 @@ export class DatabaseManager {
     //    orphan this change guards against, client#4821);
     //  - a rejected reset can't leave an already-wiped instance cached — only
     //    successfully-reset entries are removed.
+    const errors: Array<{ dbName: string; error: unknown }> = [];
+
     for (const [dbName, db] of [...this.databases.entries()]) {
-      await db.write(async () => {
-        await db.unsafeResetDatabase();
-      });
-      this.databases.delete(dbName);
+      try {
+        await db.write(async () => {
+          await db.unsafeResetDatabase();
+        });
+        this.databases.delete(dbName);
+      } catch (error) {
+        errors.push({ dbName, error });
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(
+        `Failed to reset ${errors.length} database(s): ${errors.map((e) => e.dbName).join(", ")}`
+      );
     }
   }
 
