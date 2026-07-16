@@ -152,8 +152,18 @@ function getMigrationReloadKey(prefix: string, walletAddress?: string): string {
  * ```
  */
 export class DatabaseManager {
-  private database: Database | null = null;
-  private currentWalletAddress: string | undefined = undefined;
+  /**
+   * WatermelonDB instances cached by their derived `dbName` (not by raw wallet
+   * address). Caching per dbName makes {@link getDatabase} idempotent: a wallet
+   * that is requested again — including after a transient `undefined`/guest
+   * excursion or an address that briefly arrives in a different form during
+   * sign-up — reuses the SAME instance instead of being torn down and rebuilt.
+   * The rebuild was what left the web OPFS adapter disposed/orphaned mid-session
+   * (client#4821). Instances are kept for the lifetime of the manager (typically
+   * guest + one wallet); switching wallets keeps prior ones cached rather than
+   * disposing an instance the app may still hold a reference to.
+   */
+  private readonly databases = new Map<string, Database>();
   private migrationInProgress = false;
 
   private readonly dbNamePrefix: string;
@@ -180,8 +190,9 @@ export class DatabaseManager {
   /**
    * Get or create a WatermelonDB Database instance for the given wallet.
    *
-   * If the wallet address has changed since the last call, the previous
-   * database instance is discarded and a new one is created.
+   * Instances are cached per derived dbName and reused across calls (including
+   * repeat/guest-interleaved requests for the same wallet); a new one is built
+   * only for a dbName not yet seen. See the `databases` field for why.
    *
    * @param walletAddress - The wallet address to scope the database to.
    *   If undefined, uses a "guest" database.
@@ -189,28 +200,31 @@ export class DatabaseManager {
    * @throws If a destructive migration is in progress
    */
   getDatabase(walletAddress?: string): Database {
-    // If wallet changed, discard the current instance
-    if (this.database && this.currentWalletAddress !== walletAddress) {
-      this.logger.debug?.("Wallet changed, switching database", {
-        component: "DatabaseManager",
-        from: this.currentWalletAddress,
-        to: walletAddress,
-      });
-      this.database = null;
+    const dbName = this.getDbName(walletAddress);
+
+    // Idempotent per dbName: an already-built instance is reused as-is. This is
+    // the key that stops the sign-up-time teardown/rebuild churn — a wallet whose
+    // request briefly interleaves with a guest (`undefined`) render resolves to
+    // the same dbName and hits this cache instead of recreating the adapter
+    // (client#4821).
+    //
+    // The cache key is the raw dbName, so callers must pass a wallet address in a
+    // consistent CASE (the same address checksummed vs lowercase would key two
+    // entries → a split store). Callers do: the app resolves every address through
+    // one source (getEmbeddedWalletAddress → Privy's checksummed address), and
+    // prod telemetry shows addresses uniformly checksummed. We intentionally do
+    // NOT lowercase here: existing on-device stores were created under the
+    // checksummed dbName, so normalizing would strand them (see client#4821).
+    const cached = this.databases.get(dbName);
+    if (cached) {
+      return cached;
     }
 
-    if (this.database) {
-      return this.database;
-    }
-
-    // Check for destructive migration
+    // Check for destructive migration (runs once per dbName, before first build)
     const needsMigration = this.handleSchemaMigration(walletAddress);
     if (needsMigration) {
       throw new Error("Database migration in progress - app will restart");
     }
-
-    this.currentWalletAddress = walletAddress;
-    const dbName = this.getDbName(walletAddress);
 
     this.logger.debug?.("Initializing database", {
       component: "DatabaseManager",
@@ -220,25 +234,44 @@ export class DatabaseManager {
 
     const adapter = this.createAdapter(dbName, sdkSchema, sdkMigrations);
 
-    this.database = new Database({
+    const database = new Database({
       adapter,
       modelClasses: sdkModelClasses,
     });
+    this.databases.set(dbName, database);
 
-    return this.database;
+    return database;
   }
 
   /**
-   * Reset the current database (useful for logout or testing).
+   * Reset ALL cached databases (useful for logout or testing).
    */
   async resetDatabase(): Promise<void> {
-    const db = this.database;
-    if (db) {
-      await db.write(async () => {
-        await db.unsafeResetDatabase();
-      });
-      this.database = null;
-      this.currentWalletAddress = undefined;
+    // Reset EVERY cached instance, not just a "current" one — a transient guest
+    // render leaves the last-seen wallet ambiguous, and logout/testing wants all
+    // local stores cleared. Delete each entry only AFTER its own reset resolves so:
+    //  - a concurrent getDatabase for the same dbName hits the still-cached
+    //    instance instead of building a duplicate adapter mid-reset (the OPFS
+    //    orphan this change guards against, client#4821);
+    //  - a rejected reset can't leave an already-wiped instance cached — only
+    //    successfully-reset entries are removed.
+    const errors: Array<{ dbName: string; error: unknown }> = [];
+
+    for (const [dbName, db] of [...this.databases.entries()]) {
+      try {
+        await db.write(async () => {
+          await db.unsafeResetDatabase();
+        });
+        this.databases.delete(dbName);
+      } catch (error) {
+        errors.push({ dbName, error });
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(
+        `Failed to reset ${errors.length} database(s): ${errors.map((e) => e.dbName).join(", ")}`
+      );
     }
   }
 
