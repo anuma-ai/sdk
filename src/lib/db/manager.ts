@@ -255,13 +255,13 @@ export class DatabaseManager {
     // guest entry, keying off it would wipe guest while leaving the wallet DB
     // cached and stale. Logout/testing wants all local stores cleared anyway.
     const instances = [...this.databases.values()];
-    this.databases.clear();
     this.currentWalletAddress = undefined;
     for (const db of instances) {
       await db.write(async () => {
         await db.unsafeResetDatabase();
       });
     }
+    this.databases.clear();
   }
 
   /**
