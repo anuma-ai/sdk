@@ -52,6 +52,9 @@ export interface ExtractionCase {
    * Scored by the benchmark's kind-accuracy pass: coverage (was the entity
    * extracted at all?) + kind correctness (did it get the right label?).
    * A subset of cases — only those with unambiguous named entities are labeled.
+   * `thing` is sparse and `other` is unlabeled on purpose: they are residual
+   * buckets, and clean, unambiguous NAMED exemplars are rare (most named things
+   * are products/orgs/places), so a forced golden would be a subjective target.
    */
   expectedEntities?: ExpectedEntity[];
 }
@@ -254,6 +257,31 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     expectedEntities: [
       { name: "MIT", kind: "organization" },
       { name: "computational biology", kind: "concept" },
+    ],
+  },
+  {
+    id: "k-product-vs-thing",
+    category: "multi-fact",
+    messages: turn(
+      "k3",
+      "I keep all my notes in Obsidian these days, and on weekends we sail our boat, the Kestrel."
+    ),
+    expected: ["User takes notes in Obsidian.", "User owns a sailboat named Kestrel."],
+    // Obsidian = a named app (product); Kestrel = a named physical object that
+    // is NOT a brand (thing) — the discriminator the "thing" bucket is for.
+    expectedEntities: [
+      { name: "Obsidian", kind: "product" },
+      { name: "Kestrel", kind: "thing" },
+    ],
+  },
+  {
+    id: "k-events",
+    category: "multi-fact",
+    messages: turn("k4", "I speak at WWDC every June, and I run the Boston Marathon each April."),
+    expected: ["User speaks at WWDC every June.", "User runs the Boston Marathon each April."],
+    expectedEntities: [
+      { name: "WWDC", kind: "event" },
+      { name: "Boston Marathon", kind: "event" },
     ],
   },
 
