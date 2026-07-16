@@ -18,6 +18,14 @@
  * output convention, so embedding-match scoring is apples-to-apples.
  */
 
+import type { EntityKind } from "../../../../src/lib/db/entities/types.js";
+
+/** A named entity the extractor should surface, with its expected kind. */
+export interface ExpectedEntity {
+  name: string;
+  kind: EntityKind;
+}
+
 export type ExtractionCategory =
   | "durable" // one or more clear durable facts
   | "multi-fact" // several durable facts in one turn
@@ -39,6 +47,13 @@ export interface ExtractionCase {
   expected: string[];
   /** Junk that must NOT be extracted (optional; for eyeballing/regression). */
   forbidden?: string[];
+  /**
+   * Named entities the extractor should surface, each with its correct kind.
+   * Scored by the benchmark's kind-accuracy pass: coverage (was the entity
+   * extracted at all?) + kind correctness (did it get the right label?).
+   * A subset of cases — only those with unambiguous named entities are labeled.
+   */
+  expectedEntities?: ExpectedEntity[];
 }
 
 // Compact helper for two-turn transcripts (user then assistant ack).
@@ -54,6 +69,7 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     category: "durable",
     messages: turn("d1", "My wife's name is Sara and we just celebrated our 5th anniversary."),
     expected: ["User's wife is named Sara.", "User has been married for 5 years."],
+    expectedEntities: [{ name: "Sara", kind: "person" }],
   },
   {
     id: "d-allergy",
@@ -66,6 +82,7 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     category: "durable",
     messages: turn("d3", "I work as a pediatric nurse at Boston Children’s Hospital."),
     expected: ["User works as a pediatric nurse at Boston Children's Hospital."],
+    expectedEntities: [{ name: "Boston Children's Hospital", kind: "organization" }],
   },
   {
     id: "d-pet",
@@ -90,6 +107,7 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     category: "durable",
     messages: turn("d7", "I live in Austin, Texas — been here about three years now."),
     expected: ["User lives in Austin, Texas."],
+    expectedEntities: [{ name: "Austin", kind: "place" }],
   },
 
   // ---- multi-fact ----
@@ -106,6 +124,11 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
       "User's partner is named Jordan.",
       "Jordan teaches high-school chemistry.",
     ],
+    expectedEntities: [
+      { name: "Leo", kind: "person" },
+      { name: "Mia", kind: "person" },
+      { name: "Jordan", kind: "person" },
+    ],
   },
   {
     id: "m-work-stack",
@@ -119,6 +142,10 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
       "User works mostly with Go and Postgres.",
       "User is the tech lead for the payments team.",
     ],
+    expectedEntities: [
+      { name: "Go", kind: "concept" },
+      { name: "Postgres", kind: "product" },
+    ],
   },
   {
     id: "m-goals",
@@ -130,6 +157,10 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     expected: [
       "User is training for the Chicago marathon in October.",
       "User is learning Spanish.",
+    ],
+    expectedEntities: [
+      { name: "Chicago marathon", kind: "event" },
+      { name: "Spanish", kind: "concept" },
     ],
   },
 
@@ -143,6 +174,7 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     ),
     expected: ["User lives in the Capitol Hill neighborhood of Seattle."],
     forbidden: ["User had a long day.", "User had cold coffee."],
+    expectedEntities: [{ name: "Seattle", kind: "place" }],
   },
   {
     id: "b-diet-in-question",
@@ -174,6 +206,7 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     ),
     expected: ["User lives in San Francisco."],
     forbidden: ["User lives in Portland."],
+    expectedEntities: [{ name: "San Francisco", kind: "place" }],
   },
   {
     id: "u-job-change",
@@ -184,6 +217,7 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     ),
     expected: ["User works at a startup called Riverbend."],
     forbidden: ["User works at Google."],
+    expectedEntities: [{ name: "Riverbend", kind: "organization" }],
   },
   {
     id: "u-status",
@@ -191,6 +225,36 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
     messages: turn("u3", "Update: the wedding is off, we broke up. Rough few weeks."),
     expected: ["User went through a breakup."],
     forbidden: ["User is getting married.", "User had a rough few weeks."],
+  },
+
+  // ---- entity-kind stress: org / product / event vs the old "thing" bucket ----
+  {
+    id: "k-org-product-event",
+    category: "multi-fact",
+    messages: turn(
+      "k1",
+      "I'm speaking at DEF CON in August, I do all my design work in Figma, and my sister works at Pixar."
+    ),
+    expected: [
+      "User is speaking at DEF CON in August.",
+      "User does design work in Figma.",
+      "User's sister works at Pixar.",
+    ],
+    expectedEntities: [
+      { name: "DEF CON", kind: "event" },
+      { name: "Figma", kind: "product" },
+      { name: "Pixar", kind: "organization" },
+    ],
+  },
+  {
+    id: "k-school-is-org",
+    category: "durable",
+    messages: turn("k2", "I just started grad school at MIT, studying computational biology."),
+    expected: ["User is in grad school at MIT studying computational biology."],
+    expectedEntities: [
+      { name: "MIT", kind: "organization" },
+      { name: "computational biology", kind: "concept" },
+    ],
   },
 
   // ---- negative: nothing durable should be extracted ----

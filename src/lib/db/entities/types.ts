@@ -4,7 +4,16 @@
  * can't drift apart.
  * @public
  */
-export const ENTITY_KINDS = ["person", "place", "thing", "concept", "other"] as const;
+export const ENTITY_KINDS = [
+  "person",
+  "organization",
+  "place",
+  "event",
+  "product",
+  "thing",
+  "concept",
+  "other",
+] as const;
 
 /** @public */
 export type EntityKind = (typeof ENTITY_KINDS)[number];

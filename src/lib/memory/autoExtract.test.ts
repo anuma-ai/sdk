@@ -83,6 +83,37 @@ describe("extractFacts", () => {
     expect(result[1].entities).toEqual([{ name: "Portland", kind: "place" }]);
   });
 
+  it("admits the expanded entity-kind taxonomy and drops unknown kinds", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Works at Pixar",
+          type: "identity",
+          confidence: 0.9,
+          sourceMessageIds: ["m1"],
+          entities: [
+            { name: "Pixar", kind: "organization" },
+            { name: "Figma", kind: "product" },
+            { name: "DEF CON", kind: "event" },
+            // "animal" is intentionally NOT in ENTITY_KINDS — the kind is
+            // dropped but the name is preserved (pre-kind fallback).
+            { name: "Mochi", kind: "animal" },
+          ],
+        },
+      ],
+    };
+    const result = await extractFacts(messages, {
+      apiKey: "k",
+      fetchFn: mockFetch(JSON.stringify(candidates)),
+    });
+    expect(result[0].entities).toEqual([
+      { name: "Pixar", kind: "organization" },
+      { name: "Figma", kind: "product" },
+      { name: "DEF CON", kind: "event" },
+      { name: "Mochi" },
+    ]);
+  });
+
   it("injects the reference date so relative temporal phrases have an anchor", async () => {
     let capturedUserMessage = "";
     const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
