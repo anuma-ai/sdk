@@ -525,6 +525,38 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
     expect(seen.sort()).toEqual(["other", "plan"]);
   });
 
+  it("HIGH regression: an active MANUAL row is NEVER borderline — classifier not called, stays keep", async () => {
+    // A manual row with a borderline factType (`other`) AND with null factType —
+    // both would be borderline for an auto-extracted row. The rule engine keeps
+    // manual rows (source==="manual" → keep), so the escalation gate passes and,
+    // WITHOUT the manual guard in isBorderline, they would reach the classifier.
+    // A classifier that WOULD archive them must NOT be consulted at all, so the
+    // "manual is never auto-archived" guarantee holds via the classifier path.
+    const manualOther = await seed({
+      content: "user-curated fact",
+      source: "manual",
+      factType: "other",
+      updatedAt: NOW,
+    });
+    const manualUntyped = await seed({
+      content: "user-curated untyped fact",
+      source: "manual",
+      updatedAt: NOW, // no factType → null bucket (would be borderline if auto)
+    });
+
+    const classify = vi.fn((): DecayVerdict => "archive"); // hostile: always archive
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+
+    const result = await sweeper.runSweep();
+
+    // Neither manual row was archived, and the classifier was never invoked for
+    // either (manual rows never egress content to / are decided by the classifier).
+    expect(classify).not.toHaveBeenCalled();
+    expect(result.archived).toBe(0);
+    expect(await archivedAtOf(manualOther)).toBeNull();
+    expect(await archivedAtOf(manualUntyped)).toBeNull();
+  });
+
   it("PR5: updateVaultMemoryOp { restore: true } clears archived_at (un-archive primitive)", async () => {
     const id = await seed({ content: "resurrectable fact", factType: "other", updatedAt: NOW });
     await archiveVaultMemoryOp(vaultCtx, id, { now: NOW });

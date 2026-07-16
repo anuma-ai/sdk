@@ -17,8 +17,10 @@ import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
 import {
   countActiveVaultMemoriesOp,
+  getActiveVaultMemoryIdsOp,
   getMemoriesByEventTimeOp,
 } from "../db/memoryVault/operations.js";
+import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
@@ -147,15 +149,21 @@ export async function recall(
     needsChunkEmbedding
       ? generateEmbedding(query, ctx.embeddingOptions)
       : Promise.resolve(undefined),
-    buildGraphLaneRanking(query, ctx, flags.traverse, {
-      ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-      ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-      ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-      ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-      ...(graphRefiner && { refineNeighbors: graphRefiner }),
-    }),
+    // The graph + temporal lanes are AUXILIARY (RRF side-signals). A transient
+    // WatermelonDB throw in either must NOT reject this Promise.all and take
+    // PRIMARY cosine/BM25 recall down with it — degrade the failing lane to an
+    // empty ranking instead (mirrors safeCountVault's fail-soft posture).
+    safeLane("graph", () =>
+      buildGraphLaneRanking(query, ctx, flags.traverse, {
+        ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+        ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+        ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+        ...(graphRefiner && { refineNeighbors: graphRefiner }),
+      })
+    ),
     wantsTemporal
-      ? buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
+      ? safeLane("temporal", () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now))
       : Promise.resolve([] as string[]),
   ]);
 
@@ -410,9 +418,17 @@ async function buildGraphLaneRanking(
     // so capHopsForDensity can cap back to seed-only on large vaults. A count
     // failure just leaves the hint unset (guard dormant), never breaks recall.
     const vaultSize = await safeCountVault(ctx);
+    // Resolve discovered ids to the ACTIVE set at each hop so archived /
+    // quarantined ("forgotten") memories can't steer traversal or egress their
+    // entity names to the path-refiner. Only wired when a vaultCtx is present
+    // (the same context the final recall gate filters against).
+    const vaultCtx = ctx.vaultCtx;
     return traverseGraphLane(query, entityCtx, {
       ...traversalOptions,
       ...(vaultSize !== undefined && { vaultSize }),
+      ...(vaultCtx && {
+        filterActiveMemoryIds: (ids: string[]) => getActiveVaultMemoryIdsOp(vaultCtx, ids),
+      }),
     });
   }
   const queryEntities = extractQueryEntities(query);
@@ -438,6 +454,27 @@ async function safeCountVault(ctx: RecallContext): Promise<number | undefined> {
     return await countActiveVaultMemoriesOp(ctx.vaultCtx);
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Run an auxiliary recall lane (graph / temporal), degrading to an EMPTY ranking
+ * on any throw. These lanes are RRF side-signals fused with the primary
+ * cosine/BM25 head — a transient failure in one must never reject the shared
+ * `Promise.all` and zero out primary recall. Mirrors {@link safeCountVault}'s
+ * fail-soft posture, but logs a warning so a persistently-broken lane is
+ * observable rather than silently disabled.
+ */
+async function safeLane(label: string, run: () => Promise<string[]>): Promise<string[]> {
+  try {
+    return await run();
+  } catch (err) {
+    getLogger().warn(
+      `[memory/recall] ${label} lane failed; continuing without it: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
+    return [];
   }
 }
 

@@ -233,11 +233,25 @@ const TRUNCATION_NOTICE =
 // food preferences" names a topic (legitimate) — "preferences" is NOT here.
 const STORE_NOUN = "memor(?:y|ies)|facts?|records?|data|information|info|notes?|conversations?";
 
-/** Match "about my/the/our <topic>" — a narrowing qualifier that makes an
- * otherwise broad enumeration legitimate ("everything you know about my job").
- * Does NOT exempt whole-store targeting (verbatim / dump / "all my memories"),
- * which are refused regardless of any topic qualifier. */
-const NARROW_TOPIC_RE = /\babout\s+(my|the|our)\b/i;
+/** Topics that name the WHOLE subject/store rather than a narrowing slice — an
+ * "about my life" / "about the user" tail does NOT scope an enumeration, it just
+ * restates "dump everything". Excluded from the topic exemption below so they
+ * can't launder a dump ("list all my memories about my life"). */
+const WHOLE_SUBJECT_TOPIC =
+  "me|myself|self|life|lives|user|users|everyone|everything|anything|existence|past|history";
+
+/** Match "about my/the/our <topic>" where <topic> is a REAL narrowing slice
+ * (not a whole-subject pseudo-topic) — the qualifier that makes an otherwise
+ * broad enumeration legitimate ("everything you know about my job"). Two ways an
+ * enumeration stays refused despite an "about …" tail: (1) the topic is a
+ * whole-subject pseudo-topic — "about my life" / "about the user" name the whole
+ * store, so the negative lookahead rejects them; (2) verbatim / dump / strong
+ * exfil verbs, which short-circuit BEFORE this exemption is consulted. Requires
+ * a determiner + an actual topic word so a bare "about" can't grant the pass. */
+const NARROW_TOPIC_RE = new RegExp(
+  `\\babout\\s+(?:my|the|our|your|his|her|their)\\s+(?!(?:${WHOLE_SUBJECT_TOPIC})\\b)[a-z]`,
+  "i"
+);
 
 /** Strong exfil/enumeration verb + a store noun (or "everything"): refuse even
  * without a quantifier — "dump my memory", "leak everything". */

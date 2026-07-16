@@ -2,7 +2,7 @@
 
 > **getDecayCandidatesRawOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<[`DecayCandidateRaw`](../interfaces/DecayCandidateRaw.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:875](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#875)
+Defined in: [src/lib/db/memoryVault/operations.ts:902](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#902)
 
 Decay sweep candidate scan (PR2). Selects the plaintext columns
 `classifyDecay` (in `memory/decay`) needs via

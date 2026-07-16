@@ -17,6 +17,51 @@ Max neighbor entities expanded per hop. Default [ENTITY\_FANOUT](../variables/EN
 
 ***
 
+### filterActiveMemoryIds()?
+
+> `optional` **filterActiveMemoryIds**: (`ids`: `string`\[]) => `Promise`<`Set`<`string`>>
+
+Defined in: [src/lib/memory/graphTraversal.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#136)
+
+Resolve a batch of candidate memory ids to just the ACTIVE ones (not
+archived, not quarantined, not soft-deleted — the same set the final recall
+gate admits). When provided, traversal drops "forgotten" memories from the
+frontier AT EACH HOP so they neither steer neighbor-entity ranking nor
+egress their entity names to [refineNeighbors](#refineneighbors). Omit (tests /
+entity-only callers) to traverse over every linked memory. Wire it from a
+vault context with ../db/memoryVault/operations.getActiveVaultMemoryIdsOp.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`ids`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`Set`<`string`>>
+
+***
+
 ### maxHops?
 
 > `optional` **maxHops**: `number`

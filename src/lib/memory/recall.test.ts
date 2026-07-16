@@ -26,6 +26,7 @@ vi.mock("../db/memoryVault/operations", () => ({
   getMemoriesByEventTimeOp: vi.fn(),
   updateVaultMemoryEmbeddingOp: vi.fn(),
   countActiveVaultMemoriesOp: vi.fn(),
+  getActiveVaultMemoryIdsOp: vi.fn(),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -50,6 +51,7 @@ import {
 } from "../db/entities/operations";
 import {
   countActiveVaultMemoriesOp,
+  getActiveVaultMemoryIdsOp,
   getAllVaultMemoriesOp,
   getMemoriesByEventTimeOp,
   updateVaultMemoryEmbeddingOp,
@@ -142,6 +144,11 @@ beforeEach(() => {
   vi.mocked(updateVaultMemoryEmbeddingOp).mockResolvedValue(null);
   vi.mocked(getMemoriesByEventTimeOp).mockResolvedValue([]);
   vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(3);
+  // Default: every discovered id is active (the traversal active-set filter is a
+  // no-op unless a test archives something).
+  vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
+    async (_ctx, ids: string[]) => new Set(ids)
+  );
   vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
   vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
   vi.mocked(searchChunksOp).mockResolvedValue([]);
@@ -557,6 +564,32 @@ describe("recall — entity (W5) lane", () => {
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
     expect(countActiveVaultMemoriesOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("recall — auxiliary lane fail-isolation", () => {
+  // The graph + temporal lanes are RRF side-signals sharing a Promise.all with
+  // primary recall. A transient throw in one must NOT reject that Promise.all
+  // and zero out primary cosine/BM25 recall (the regression this guards).
+  it("a throwing graph lane still returns primary cosine/BM25 results", async () => {
+    // Query M1 both matches m1 by cosine (1.0) AND yields extractable entities
+    // (["owns","bailey"]), so the graph lane runs — and here throws.
+    vi.mocked(getMemoriesByEntityNamesOp).mockRejectedValue(new Error("watermelon boom"));
+
+    const result = await recall(M1, makeCtx({ entityCtx }), { budget: "high" });
+
+    // The graph lane WAS exercised (the throw path)...
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalled();
+    // ...yet primary recall still surfaced the cosine hit.
+    expect(result.memories.map((m) => m.id)).toContain("m1");
+  });
+
+  it("a throwing temporal lane does not reject recall", async () => {
+    vi.mocked(getMemoriesByEventTimeOp).mockRejectedValue(new Error("watermelon boom"));
+    // A temporal phrase activates the temporal lane, which throws. Pre-fix this
+    // rejected the whole recall; now it degrades to an empty lane.
+    await expect(recall("what did i do yesterday", makeCtx())).resolves.toBeDefined();
+    expect(getMemoriesByEventTimeOp).toHaveBeenCalled();
   });
 });
 

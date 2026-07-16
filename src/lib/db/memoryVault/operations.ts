@@ -524,6 +524,33 @@ export async function countActiveVaultMemoriesOp(
   return ctx.vaultMemoryCollection.query(...baseVaultConditions(ctx)).fetchCount();
 }
 
+/**
+ * Given a set of candidate memory ids, return the subset that is ACTIVE — i.e.
+ * passes the same {@link baseVaultConditions} choke point every recall lane
+ * inherits (not soft-deleted, not archived, not quarantined, and user-scoped).
+ *
+ * Used by the graph-traversal lane (see {@link ../../memory/graphTraversal})
+ * to drop "forgotten" (archived / quarantined) memories from the traversal
+ * FRONTIER before they can steer neighbor-entity ranking or egress their entity
+ * names to the optional path-refiner. The final recall result gate already
+ * hides archived/quarantined rows, but the traversal walks over ids directly —
+ * so it must resolve them against the active set itself, at each hop.
+ *
+ * Plaintext-only: selects just the `id` column via `unsafeFetchRaw` — NO Model
+ * per row (dodges the never-evicted RecordCache) and NO content decrypt — so it
+ * is cheap enough to call per traversal hop. Empty input → empty set (no query).
+ */
+export async function getActiveVaultMemoryIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  ids: string[]
+): Promise<Set<string>> {
+  if (ids.length === 0) return new Set<string>();
+  const rows = (await ctx.vaultMemoryCollection
+    .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids)))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return new Set(rows.map((r) => r.id as string));
+}
+
 export async function updateVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string,

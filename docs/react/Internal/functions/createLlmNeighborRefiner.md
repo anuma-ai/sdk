@@ -2,7 +2,7 @@
 
 > **createLlmNeighborRefiner**(`options`: [`LlmNeighborRefinerOptions`](../interfaces/LlmNeighborRefinerOptions.md)): [`NeighborRefiner`](../interfaces/NeighborRefiner.md)
 
-Defined in: [src/lib/memory/graphTraversal.ts:373](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#373)
+Defined in: [src/lib/memory/graphTraversal.ts:397](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#397)
 
 Build a [NeighborRefiner](../interfaces/NeighborRefiner.md) backed by a cheap portal LLM. At each hop it
 asks the model to pick, from the candidate neighbor entities, the ≤`limit`

@@ -124,6 +124,16 @@ export interface GraphTraversalOptions {
    * hop. Build one with {@link createLlmNeighborRefiner}, or supply your own.
    */
   refineNeighbors?: NeighborRefiner;
+  /**
+   * Resolve a batch of candidate memory ids to just the ACTIVE ones (not
+   * archived, not quarantined, not soft-deleted — the same set the final recall
+   * gate admits). When provided, traversal drops "forgotten" memories from the
+   * frontier AT EACH HOP so they neither steer neighbor-entity ranking nor
+   * egress their entity names to {@link refineNeighbors}. Omit (tests /
+   * entity-only callers) to traverse over every linked memory. Wire it from a
+   * vault context with {@link ../db/memoryVault/operations.getActiveVaultMemoryIdsOp}.
+   */
+  filterActiveMemoryIds?: (ids: string[]) => Promise<Set<string>>;
 }
 
 /**
@@ -190,8 +200,20 @@ export async function traverseGraphLane(
   const nodeBudget = clampPositiveInt(options.nodeBudget, NODE_BUDGET);
   const maxHops = capHopsForDensity(clampPositiveInt(options.maxHops, MAX_HOPS), options.vaultSize);
 
-  // Hop 1 — seed lookup. Identical to the single-hop lane.
-  const hop1 = await getMemoriesByEntityNamesOp(entityCtx, seedNames);
+  // Drop any memory ids that are NOT active (archived / quarantined / deleted)
+  // from a discovered set, so "forgotten" memories never enter the frontier —
+  // they must neither steer neighbor ranking nor egress entity names to the
+  // refiner. A no-op when no filter is supplied (entity-only callers / tests).
+  const keepActive = async (map: Map<string, Set<string>>): Promise<Map<string, Set<string>>> => {
+    if (!options.filterActiveMemoryIds || map.size === 0) return map;
+    const active = await options.filterActiveMemoryIds([...map.keys()]);
+    const filtered = new Map<string, Set<string>>();
+    for (const [id, names] of map) if (active.has(id)) filtered.set(id, names);
+    return filtered;
+  };
+
+  // Hop 1 — seed lookup. Identical to the single-hop lane (minus archived rows).
+  const hop1 = await keepActive(await getMemoriesByEntityNamesOp(entityCtx, seedNames));
   if (hop1.size === 0) return [];
   const hop1Ranking = rankMemoriesByOverlap(hop1);
 
@@ -285,8 +307,10 @@ export async function traverseGraphLane(
     }
     for (const name of topNeighbors) seenEntities.add(name);
 
-    // Memories reachable via the top neighbor entities.
-    const hopMap = await getMemoriesByEntityNamesOp(entityCtx, topNeighbors);
+    // Memories reachable via the top neighbor entities. Drop archived /
+    // quarantined ids here too so a forgotten memory can neither enter the
+    // emitted pool nor seed the NEXT hop's frontier (and thus its egress).
+    const hopMap = await keepActive(await getMemoriesByEntityNamesOp(entityCtx, topNeighbors));
     if (hopMap.size === 0) break;
     const hopRanking = rankMemoriesByOverlap(hopMap);
 

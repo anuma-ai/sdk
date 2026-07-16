@@ -174,8 +174,17 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
  *    event-driven; falls back to the age rule).
  * An already-archived row is never borderline — its fate is the deterministic
  * hard-delete window, which no content read should override.
+ *
+ * A `source === "manual"` row is NEVER borderline either: the rule engine
+ * protects manual saves from auto-archive ({@link classifyDecay} short-circuits
+ * `manual` → `keep`), so it must never be handed to the classifier — otherwise a
+ * classifier verdict of `archive` would route a user-curated fact onto the
+ * hard-delete clock, silently breaking the "manual is never auto-archived"
+ * guarantee via the classifier path. Manual rows are excluded here so they
+ * never reach (nor egress content to) the classifier at all.
  */
 function isBorderline(input: DecayInput): boolean {
+  if (input.source === "manual") return false;
   if (input.archivedAt !== null) return false;
   if (input.factType === null || input.factType === "other") return true;
   if (

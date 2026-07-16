@@ -665,7 +665,16 @@ export async function extractAndRetain(
           signature: signature as string,
         };
         quarantinedInfo.push(info);
-        options.onQuarantined?.(info);
+        // Isolate the listener (mirrors the entity-link best-effort block
+        // below): the candidate is already persisted AND already recorded in
+        // quarantinedInfo, so a throwing handler must NOT fall through to the
+        // retain catch — that would double-report it (onCandidateFailed) and
+        // wrongly bump failedCount for a write that actually succeeded.
+        try {
+          options.onQuarantined?.(info);
+        } catch (err) {
+          log.warn("[memory/extract] onQuarantined listener threw", err);
+        }
         continue;
       }
 

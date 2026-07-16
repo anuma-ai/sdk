@@ -2,7 +2,7 @@
 
 > **traverseGraphLane**(`query`: `string`, `entityCtx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `options`: [`GraphTraversalOptions`](../interfaces/GraphTraversalOptions.md)): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/graphTraversal.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#181)
+Defined in: [src/lib/memory/graphTraversal.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#191)
 
 Bounded multi-hop entity-graph traversal. Returns an ordered list of memory
 IDs (best first) — the SAME output shape as the single-hop lane, so nothing

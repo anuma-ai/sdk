@@ -63,6 +63,7 @@ import type { VaultMemory } from "../db/memoryVault/models";
 import {
   archiveVaultMemoryOp,
   createVaultMemoryOp,
+  getActiveVaultMemoryIdsOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
@@ -455,6 +456,82 @@ describe("createLlmNeighborRefiner", () => {
     const refiner = createLlmNeighborRefiner({ apiKey: "k", fetchFn });
     expect(await refiner.refine("q", [], 2)).toEqual([]);
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("traverseGraphLane — forgotten memories don't steer or egress", () => {
+  it("an archived seed memory is dropped from the frontier: not in output, entities never egressed", async () => {
+    const vaultCtx: VaultMemoryOperationsContext = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+    };
+    const entityCtx = makeEntityCtx();
+
+    // Two memories both share the query seed "Alpha". CLEAN is active and links
+    // extra active neighbors (Beta, Gamma); ARCH is archived and links a PRIVATE
+    // entity ("SecretPerson") that must never steer traversal nor egress.
+    const clean = await createVaultMemoryOp(vaultCtx, { content: "clean alpha note" });
+    const arch = await createVaultMemoryOp(vaultCtx, { content: "archived alpha note" });
+    await link(entityCtx, clean.uniqueId, ["Alpha", "Beta", "Gamma"]);
+    await link(entityCtx, arch.uniqueId, ["Alpha", "SecretPerson"]);
+    await archiveVaultMemoryOp(vaultCtx, arch.uniqueId);
+
+    // Record every candidate entity name handed to the refiner across all hops.
+    const egressed: string[] = [];
+    const refiner: NeighborRefiner = {
+      refine: async (_q, candidates) => {
+        egressed.push(...candidates);
+        return [];
+      },
+    };
+
+    const ids = await traverseGraphLane("What about Alpha", entityCtx, {
+      maxHops: 2,
+      entityFanout: 1, // >1 candidate → refiner is consulted when a frontier is dense
+      refineNeighbors: refiner,
+      filterActiveMemoryIds: (batch) => getActiveVaultMemoryIdsOp(vaultCtx, batch),
+    });
+
+    // The archived memory neither surfaces in traversal output...
+    expect(ids).toContain(clean.uniqueId);
+    expect(ids).not.toContain(arch.uniqueId);
+    // ...nor does its private entity ever reach (egress to) the refiner: only the
+    // active memory's neighbors (Beta, Gamma) are eligible to expand.
+    expect(egressed.some((name) => /secret/i.test(name))).toBe(false);
+    expect(egressed.length).toBeGreaterThan(0); // proves the refiner WAS consulted
+  });
+
+  it("without the active filter the archived memory DOES steer (guard is load-bearing)", async () => {
+    // Same graph, but no filterActiveMemoryIds → the pre-fix behavior: the
+    // archived memory's private entity leaks into the refiner candidate list.
+    const vaultCtx: VaultMemoryOperationsContext = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+    };
+    const entityCtx = makeEntityCtx();
+    const clean = await createVaultMemoryOp(vaultCtx, { content: "clean alpha note" });
+    const arch = await createVaultMemoryOp(vaultCtx, { content: "archived alpha note" });
+    await link(entityCtx, clean.uniqueId, ["Alpha", "Beta", "Gamma"]);
+    await link(entityCtx, arch.uniqueId, ["Alpha", "SecretPerson"]);
+    await archiveVaultMemoryOp(vaultCtx, arch.uniqueId);
+
+    const egressed: string[] = [];
+    const refiner: NeighborRefiner = {
+      refine: async (_q, candidates) => {
+        egressed.push(...candidates);
+        return [];
+      },
+    };
+    const ids = await traverseGraphLane("What about Alpha", entityCtx, {
+      maxHops: 2,
+      entityFanout: 1,
+      refineNeighbors: refiner,
+      // no filterActiveMemoryIds
+    });
+    // Pre-fix: the archived memory is in the frontier, so its private entity
+    // egresses. (This asserts the vulnerability the filter closes.)
+    expect(ids).toContain(arch.uniqueId);
+    expect(egressed.some((name) => /secret/i.test(name))).toBe(true);
   });
 });
 
