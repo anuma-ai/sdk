@@ -26,9 +26,43 @@ import "dotenv/config";
 import { parseArgs } from "node:util";
 
 import { extractFacts } from "../../../../src/lib/memory/autoExtract.js";
+import { normalizeEntityName } from "../../../../src/lib/db/entities/types.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
 import { EXTRACTION_CASES, type ExtractionCase, type ExtractionCategory } from "./dataset.js";
+
+/**
+ * Token-set match SCORE between a gold entity name and an extracted one —
+ * normalized (lower/trim) then split on non-alphanumerics (Unicode-aware, so
+ * non-ASCII names like "São Paulo" don't tokenize to nothing). A valid match
+ * requires one side's tokens to be a subset of the other's — which blocks the
+ * substring false-positives plain `includes` gives ("Go" ⊄ "Google") and the
+ * spurious partial overlaps a bare intersection would ("Boston Marathon" vs
+ * "Boston Children's Hospital" share only "boston" → not a subset → 0).
+ *
+ * Returns a Jaccard-style score in (0,1] for a valid match, else 0. Exact
+ * token-set equality scores 1; a subset like "Austin" ⊆ "Austin, Texas" scores
+ * <1. Callers pick the HIGHEST-scoring extracted entity so an exact match wins
+ * over a looser one and a gold entity isn't mis-paired to the first candidate.
+ */
+function entityMatchScore(gold: string, extracted: string): number {
+  const toks = (s: string): Set<string> =>
+    new Set(
+      normalizeEntityName(s)
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((t) => t.length > 0)
+    );
+  const g = toks(gold);
+  const e = toks(extracted);
+  if (g.size === 0 || e.size === 0) return 0;
+  const [small, big] = g.size <= e.size ? [g, e] : [e, g];
+  for (const t of small) if (!big.has(t)) return 0;
+  return small.size / big.size; // subset ⇒ |intersection| = small.size
+}
+
+/** Bucket label for the kind an extracted entity was given (or its absence). */
+const NO_KIND = "(no-kind)";
+const MISSED = "(missed)";
 
 const { values: args } = parseArgs({
   options: {
@@ -110,6 +144,21 @@ interface CaseResult {
   candidateDetail: { content: string; matched: boolean; best: number; forbidden: boolean }[];
   /** Candidates that matched a `forbidden` fact — confirmed junk, the strongest signal. */
   forbiddenHits: number;
+  /**
+   * Per gold entity: was it extracted (covered), what kind did the model give
+   * it, and was that the right kind. `predicted` is the bucket for the
+   * confusion matrix — the extracted kind, or NO_KIND (extracted, no kind) /
+   * MISSED (not extracted at all).
+   */
+  entityDetail: {
+    name: string;
+    expectedKind: string;
+    covered: boolean;
+    extractedName: string | null;
+    extractedKind: string | null;
+    kindCorrect: boolean;
+    predicted: string;
+  }[];
 }
 
 // Production keeps only candidates at/above this confidence (DEFAULT_MIN_
@@ -128,6 +177,42 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
   const candidates = rawCandidates.filter((c2) => c2.confidence >= PROD_MIN_CONFIDENCE);
   const candTexts = candidates.map((c2) => c2.content);
   const forbidden = c.forbidden ?? [];
+
+  // Kind scoring: gather entities off the retained candidates and match each
+  // labeled gold entity to the BEST-scoring extracted entity by name overlap
+  // (highest match score wins, so an exact match beats a looser subset and a
+  // gold entity is never mis-paired to whichever candidate happened to be first).
+  // Track matched entities to ensure one-to-one assignment and prevent double-counting.
+  const extractedEntities = candidates.flatMap((c2) => c2.entities);
+  const matchedIndices = new Set<number>();
+  const entityDetail = (c.expectedEntities ?? []).map((exp) => {
+    let match: (typeof extractedEntities)[number] | undefined;
+    let bestScore = 0;
+    let bestIndex = -1;
+    for (let i = 0; i < extractedEntities.length; i++) {
+      if (matchedIndices.has(i)) continue;
+      const ee = extractedEntities[i];
+      const score = entityMatchScore(exp.name, ee.name);
+      if (score > bestScore) {
+        bestScore = score;
+        match = ee;
+        bestIndex = i;
+      }
+    }
+    if (bestIndex >= 0) matchedIndices.add(bestIndex);
+    const covered = match !== undefined;
+    const extractedKind = match?.kind ?? null;
+    const predicted = !covered ? MISSED : (extractedKind ?? NO_KIND);
+    return {
+      name: exp.name,
+      expectedKind: exp.kind,
+      covered,
+      extractedName: match?.name ?? null,
+      extractedKind,
+      kindCorrect: covered && extractedKind === exp.kind,
+      predicted,
+    };
+  });
 
   // Embed gold + forbidden + candidate texts together, then match by cosine.
   const texts = [...c.expected, ...forbidden, ...candTexts];
@@ -176,6 +261,7 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     expectedDetail,
     candidateDetail,
     forbiddenHits: candidateDetail.filter((e) => e.forbidden).length,
+    entityDetail,
   };
 }
 
@@ -193,7 +279,23 @@ interface RunSummary {
     negativeCleanRate: number;
     forbiddenHits: number;
     totalCandidates: number;
+    expectedEntities: number;
+    coveredEntities: number;
+    kindCorrect: number;
+    /** Fraction of labeled gold entities that were extracted at all. */
+    entityCoverage: number;
+    /** Fraction of EXTRACTED gold entities given the correct kind (isolates
+     * classification quality from extraction coverage). */
+    kindAccuracy: number;
   };
+  /** Per expected kind: correct/covered/total + predicted-bucket tally. */
+  kindConfusion: {
+    kind: string;
+    total: number;
+    covered: number;
+    correct: number;
+    predictions: Record<string, number>;
+  }[];
   byCategory: {
     category: ExtractionCategory;
     cases: number;
@@ -219,6 +321,31 @@ async function runOnce(): Promise<RunSummary> {
   const cleanNegatives = negatives.filter((r) => r.candidates.length === 0).length;
   const forbiddenHits = results.reduce((s, r) => s + r.forbiddenHits, 0);
 
+  // Kind aggregation over every labeled gold entity across all cases.
+  const allEntities = results.flatMap((r) => r.entityDetail);
+  const expectedEntities = allEntities.length;
+  const coveredEntities = allEntities.filter((e) => e.covered).length;
+  const kindCorrect = allEntities.filter((e) => e.kindCorrect).length;
+
+  const confusionMap = new Map<
+    string,
+    { total: number; covered: number; correct: number; predictions: Record<string, number> }
+  >();
+  for (const e of allEntities) {
+    let row = confusionMap.get(e.expectedKind);
+    if (!row) {
+      row = { total: 0, covered: 0, correct: 0, predictions: {} };
+      confusionMap.set(e.expectedKind, row);
+    }
+    row.total++;
+    if (e.covered) row.covered++;
+    if (e.kindCorrect) row.correct++;
+    row.predictions[e.predicted] = (row.predictions[e.predicted] ?? 0) + 1;
+  }
+  const kindConfusion = Array.from(confusionMap.entries())
+    .map(([kind, v]) => ({ kind, ...v }))
+    .sort((a, b) => b.total - a.total);
+
   const overall = {
     recall: totalMatchedExpected / (totalExpected || 1),
     precision: totalGoodCandidates / (totalCandidates || 1),
@@ -227,6 +354,15 @@ async function runOnce(): Promise<RunSummary> {
     negativeCleanRate: cleanNegatives / (negatives.length || 1),
     forbiddenHits,
     totalCandidates,
+    expectedEntities,
+    coveredEntities,
+    kindCorrect,
+    entityCoverage: coveredEntities / (expectedEntities || 1),
+    // Accuracy over EXTRACTED gold entities. Degenerate 0-covered case yields 0
+    // here, but `coveredEntities` is emitted alongside (so the 0 denominator is
+    // explicit) and the human report renders "—" via pct(); with any labeled
+    // corpus coverage is ≥1 so it never actually hits.
+    kindAccuracy: kindCorrect / (coveredEntities || 1),
   };
 
   const categories: ExtractionCategory[] = [
@@ -254,6 +390,7 @@ async function runOnce(): Promise<RunSummary> {
   return {
     results,
     overall,
+    kindConfusion,
     byCategory,
     negativesCount: negatives.length,
     cleanNegatives,
@@ -281,6 +418,8 @@ function computeVariance(runs: RunSummary[]): Record<string, VarianceBand> {
     precision: band(runs.map((r) => r.overall.precision)),
     negativeCleanRate: band(runs.map((r) => r.overall.negativeCleanRate)),
     forbiddenHits: band(runs.map((r) => r.overall.forbiddenHits)),
+    entityCoverage: band(runs.map((r) => r.overall.entityCoverage)),
+    kindAccuracy: band(runs.map((r) => r.overall.kindAccuracy)),
   };
 }
 
@@ -310,6 +449,38 @@ function printRunHuman(run: RunSummary): void {
     `  Forbidden-fact hits            ${overall.forbiddenHits} (matched a known junk pattern)`
   );
   console.log(`  Avg candidates/case            ${overall.avgCandidatesPerCase.toFixed(2)}`);
+  printKindReport(run);
+}
+
+/** Entity-kind classification quality: coverage, accuracy, confusion by kind. */
+function printKindReport(run: RunSummary): void {
+  const { overall, kindConfusion } = run;
+  if (overall.expectedEntities === 0) return;
+  console.log("\n  ENTITY KIND CLASSIFICATION\n");
+  console.log(
+    `  Entity coverage (gold entities extracted)  ` +
+      `${pct(overall.coveredEntities, overall.expectedEntities)} ` +
+      `(${overall.coveredEntities}/${overall.expectedEntities})`
+  );
+  console.log(
+    `  Kind accuracy (of extracted, right kind)   ` +
+      `${pct(overall.kindCorrect, overall.coveredEntities)} ` +
+      `(${overall.kindCorrect}/${overall.coveredEntities})`
+  );
+  console.log("\n  Expected kind   Total  Cov'd  Correct  Confusions (predicted×n)");
+  console.log("  ──────────────  ─────  ─────  ───────  ───────────────────────");
+  for (const k of kindConfusion) {
+    // Confusions = predicted buckets that aren't the correct kind, worst first.
+    const confusions = Object.entries(k.predictions)
+      .filter(([pred]) => pred !== k.kind)
+      .sort((a, b) => b[1] - a[1])
+      .map(([pred, n]) => `${pred}×${n}`)
+      .join(", ");
+    console.log(
+      `  ${k.kind.padEnd(14)}  ${String(k.total).padStart(5)}  ` +
+        `${String(k.covered).padStart(5)}  ${String(k.correct).padStart(7)}  ${confusions || "—"}`
+    );
+  }
 }
 
 /** Per-case detail to STDERR (never stdout, so it can't corrupt --json). */
@@ -326,6 +497,17 @@ function printVerbose(run: RunSummary): void {
         console.error(`  ✗ FORBIDDEN: ${cd.content}  (matched a junk pattern)`);
       } else if (!cd.matched) {
         console.error(`  • extra: ${cd.content}  (best ${cd.best.toFixed(2)})`);
+      }
+    }
+    for (const ed of r.entityDetail) {
+      if (!ed.covered) {
+        console.error(`  ✗ entity MISSED: ${ed.name} (want ${ed.expectedKind})`);
+      } else if (ed.kindCorrect) {
+        console.error(`  ✓ entity: ${ed.name} → ${ed.expectedKind}`);
+      } else {
+        console.error(
+          `  ✗ entity KIND: ${ed.name} want ${ed.expectedKind}, got ${ed.extractedKind ?? "(none)"}`
+        );
       }
     }
   }
@@ -345,6 +527,8 @@ function printVarianceHuman(variance: Record<string, VarianceBand>): void {
   line("Precision", variance.precision);
   line("Negative clean rate", variance.negativeCleanRate);
   line("Forbidden-fact hits", variance.forbiddenHits, false);
+  line("Entity coverage", variance.entityCoverage);
+  line("Kind accuracy", variance.kindAccuracy);
 }
 
 async function main(): Promise<void> {
@@ -369,6 +553,7 @@ async function main(): Promise<void> {
         {
           matchThreshold: MATCH_THRESHOLD,
           overall: primary.overall,
+          kindConfusion: primary.kindConfusion,
           byCategory: primary.byCategory,
           ...(variance && { runs: REPEAT, variance }),
         },

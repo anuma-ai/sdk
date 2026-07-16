@@ -1,6 +1,6 @@
 # ENTITY\_KINDS
 
-> `const` **ENTITY\_KINDS**: readonly \[`"person"`, `"place"`, `"thing"`, `"concept"`, `"other"`]
+> `const` **ENTITY\_KINDS**: readonly \[`"person"`, `"organization"`, `"place"`, `"event"`, `"product"`, `"thing"`, `"concept"`, `"other"`]
 
 Defined in: [src/lib/db/entities/types.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#7)
 

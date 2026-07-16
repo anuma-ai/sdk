@@ -116,7 +116,18 @@ For each durable fact, output:
 - type: one of identity | preference | relationship | plan | ongoing_context | constraint | other
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
-- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "place" | "thing" | "concept" | "other" }. Optional. Skip generic nouns. Pick the best-fitting kind: a company/product/physical object is "thing"; a topic, skill, or idea is "concept"; use "other" only when none fit.
+- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "organization" | "place" | "event" | "product" | "thing" | "concept" | "other" }. Optional — include only NAMED entities, skip generic/common nouns. Choose the MOST SPECIFIC kind:
+    - person: a named individual ("Sara", "Dr. Lee")
+    - organization: a company, team, school, or group ("Google", "the Warriors", "Stanford")
+    - place: a geographic location or venue ("San Francisco", "Blue Bottle on Valencia")
+    - event: a dated or nameable occurrence ("Chicago Marathon", "the Japan trip", "their wedding")
+    - product: a named app, tool, brand, device, book, film, or other media title ("Linear", "iPhone", "Dune", "Ableton")
+    - thing: a concrete physical object that isn't a branded product ("road bike", "sourdough starter")
+    - concept: a topic, skill, field, language, or idea ("machine learning", "Spanish", "async communication")
+    - other: a named entity that genuinely fits none of the above — use sparingly
+  Prefer organization / product / event / place over the generic "thing"; fall back to "thing" or "other" only when no specific kind fits. Examples:
+    - "started a new job at Hollowpoint Labs and I'm learning Haskell for it" → entities: [{ "name": "Hollowpoint Labs", "kind": "organization" }, { "name": "Haskell", "kind": "concept" }]
+    - "running the Berlin Half in May and I track workouts in Whoop" → entities: [{ "name": "Berlin Half", "kind": "event" }, { "name": "Whoop", "kind": "product" }]
 - eventTime: when the event in this fact occurs/occurred. Resolve relative phrases ("yesterday", "next week") against the current date given in the user message. Output one of:
     - { "kind": "point", "start": "YYYY-MM-DD" }     for a single date ("met Sara on March 14, 2026")
     - { "kind": "range", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }  for a span ("Japan trip May 4–15, 2026")
