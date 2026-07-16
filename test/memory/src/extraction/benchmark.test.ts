@@ -32,25 +32,32 @@ import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js
 import { EXTRACTION_CASES, type ExtractionCase, type ExtractionCategory } from "./dataset.js";
 
 /**
- * Token-set match between a gold entity name and an extracted one — normalized
- * (lower/trim) then split on non-alphanumerics; a match is when one side's
- * tokens are a subset of the other's. Handles "Austin" vs "Austin, Texas" and
- * casing/punctuation drift, without the substring false-positives that plain
- * `includes` would give (e.g. "Go" ⊄ "Google").
+ * Token-set match SCORE between a gold entity name and an extracted one —
+ * normalized (lower/trim) then split on non-alphanumerics (Unicode-aware, so
+ * non-ASCII names like "São Paulo" don't tokenize to nothing). A valid match
+ * requires one side's tokens to be a subset of the other's — which blocks the
+ * substring false-positives plain `includes` gives ("Go" ⊄ "Google") and the
+ * spurious partial overlaps a bare intersection would ("Boston Marathon" vs
+ * "Boston Children's Hospital" share only "boston" → not a subset → 0).
+ *
+ * Returns a Jaccard-style score in (0,1] for a valid match, else 0. Exact
+ * token-set equality scores 1; a subset like "Austin" ⊆ "Austin, Texas" scores
+ * <1. Callers pick the HIGHEST-scoring extracted entity so an exact match wins
+ * over a looser one and a gold entity isn't mis-paired to the first candidate.
  */
-function entityNameMatches(gold: string, extracted: string): boolean {
+function entityMatchScore(gold: string, extracted: string): number {
   const toks = (s: string): Set<string> =>
     new Set(
       normalizeEntityName(s)
-        .split(/[^a-z0-9]+/i)
+        .split(/[^\p{L}\p{N}]+/u)
         .filter((t) => t.length > 0)
     );
   const g = toks(gold);
   const e = toks(extracted);
-  if (g.size === 0 || e.size === 0) return false;
+  if (g.size === 0 || e.size === 0) return 0;
   const [small, big] = g.size <= e.size ? [g, e] : [e, g];
-  for (const t of small) if (!big.has(t)) return false;
-  return true;
+  for (const t of small) if (!big.has(t)) return 0;
+  return small.size / big.size; // subset ⇒ |intersection| = small.size
 }
 
 /** Bucket label for the kind an extracted entity was given (or its absence). */
@@ -172,10 +179,20 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
   const forbidden = c.forbidden ?? [];
 
   // Kind scoring: gather entities off the retained candidates and match each
-  // labeled gold entity to the first extracted entity with an overlapping name.
+  // labeled gold entity to the BEST-scoring extracted entity by name overlap
+  // (highest match score wins, so an exact match beats a looser subset and a
+  // gold entity is never mis-paired to whichever candidate happened to be first).
   const extractedEntities = candidates.flatMap((c2) => c2.entities);
   const entityDetail = (c.expectedEntities ?? []).map((exp) => {
-    const match = extractedEntities.find((ee) => entityNameMatches(exp.name, ee.name));
+    let match: (typeof extractedEntities)[number] | undefined;
+    let bestScore = 0;
+    for (const ee of extractedEntities) {
+      const score = entityMatchScore(exp.name, ee.name);
+      if (score > bestScore) {
+        bestScore = score;
+        match = ee;
+      }
+    }
     const covered = match !== undefined;
     const extractedKind = match?.kind ?? null;
     const predicted = !covered ? MISSED : (extractedKind ?? NO_KIND);
@@ -334,6 +351,10 @@ async function runOnce(): Promise<RunSummary> {
     coveredEntities,
     kindCorrect,
     entityCoverage: coveredEntities / (expectedEntities || 1),
+    // Accuracy over EXTRACTED gold entities. Degenerate 0-covered case yields 0
+    // here, but `coveredEntities` is emitted alongside (so the 0 denominator is
+    // explicit) and the human report renders "—" via pct(); with any labeled
+    // corpus coverage is ≥1 so it never actually hits.
     kindAccuracy: kindCorrect / (coveredEntities || 1),
   };
 
