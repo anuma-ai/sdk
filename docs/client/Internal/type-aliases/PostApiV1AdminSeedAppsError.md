@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminSeedAppsError** = [`PostApiV1AdminSeedAppsErrors`](PostApiV1AdminSeedAppsErrors.md)\[keyof [`PostApiV1AdminSeedAppsErrors`](PostApiV1AdminSeedAppsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5622](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5622)
+Defined in: [src/client/types.gen.ts:5812](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5812)

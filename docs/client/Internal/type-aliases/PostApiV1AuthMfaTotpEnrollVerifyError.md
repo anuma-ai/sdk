@@ -2,4 +2,4 @@
 
 > **PostApiV1AuthMfaTotpEnrollVerifyError** = [`PostApiV1AuthMfaTotpEnrollVerifyErrors`](PostApiV1AuthMfaTotpEnrollVerifyErrors.md)\[keyof [`PostApiV1AuthMfaTotpEnrollVerifyErrors`](PostApiV1AuthMfaTotpEnrollVerifyErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6382)
+Defined in: [src/client/types.gen.ts:6572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6572)

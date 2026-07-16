@@ -2,7 +2,7 @@
 
 > **getApiV1DeveloperAppsByAppUuid**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsByAppUuidData`](../type-aliases/GetApiV1DeveloperAppsByAppUuidData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DeveloperAppsByAppUuidResponses`](../type-aliases/GetApiV1DeveloperAppsByAppUuidResponses.md), [`GetApiV1DeveloperAppsByAppUuidErrors`](../type-aliases/GetApiV1DeveloperAppsByAppUuidErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1052](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1052)
+Defined in: [src/client/sdk.gen.ts:1104](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1104)
 
 Get app
 

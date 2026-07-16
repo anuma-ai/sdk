@@ -2,7 +2,7 @@
 
 > **DeleteApiV1WalletsBindingByAddressData** = `object`
 
-Defined in: [src/client/types.gen.ts:9876](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9876)
+Defined in: [src/client/types.gen.ts:10109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10109)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9876](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9877](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9877)
+Defined in: [src/client/types.gen.ts:10110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10110)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9877](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:9878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9878)
+Defined in: [src/client/types.gen.ts:10111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10111)
 
 **address**
 
@@ -32,7 +32,7 @@ Defined in: [src/client/types.gen.ts:9878](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9884](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9884)
+Defined in: [src/client/types.gen.ts:10117](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10117)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:9884](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/wallets/binding/{address}"`
 
-Defined in: [src/client/types.gen.ts:9885](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9885)
+Defined in: [src/client/types.gen.ts:10118](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10118)

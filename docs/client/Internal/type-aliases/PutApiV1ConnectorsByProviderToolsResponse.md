@@ -2,4 +2,4 @@
 
 > **PutApiV1ConnectorsByProviderToolsResponse** = [`PutApiV1ConnectorsByProviderToolsResponses`](PutApiV1ConnectorsByProviderToolsResponses.md)\[keyof [`PutApiV1ConnectorsByProviderToolsResponses`](PutApiV1ConnectorsByProviderToolsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:7033](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7033)
+Defined in: [src/client/types.gen.ts:7223](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7223)

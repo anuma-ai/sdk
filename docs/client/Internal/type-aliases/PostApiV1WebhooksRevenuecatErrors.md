@@ -2,7 +2,7 @@
 
 > **PostApiV1WebhooksRevenuecatErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9919)
+Defined in: [src/client/types.gen.ts:10152](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10152)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9919](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9923](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9923)
+Defined in: [src/client/types.gen.ts:10156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10156)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9927](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9927)
+Defined in: [src/client/types.gen.ts:10160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10160)
 
 Unauthorized

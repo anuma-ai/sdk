@@ -2,7 +2,7 @@
 
 > **getApiV1AdminOauthClientsByClientId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminOauthClientsByClientIdData`](../type-aliases/GetApiV1AdminOauthClientsByClientIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminOauthClientsByClientIdResponses`](../type-aliases/GetApiV1AdminOauthClientsByClientIdResponses.md), [`GetApiV1AdminOauthClientsByClientIdErrors`](../type-aliases/GetApiV1AdminOauthClientsByClientIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:342](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#342)
+Defined in: [src/client/sdk.gen.ts:394](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#394)
 
 Get an OAuth client
 

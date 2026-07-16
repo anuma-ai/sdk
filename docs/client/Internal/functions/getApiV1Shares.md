@@ -2,7 +2,7 @@
 
 > **getApiV1Shares**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SharesData`](../type-aliases/GetApiV1SharesData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1SharesResponses`](../type-aliases/GetApiV1SharesResponses.md), [`GetApiV1SharesErrors`](../type-aliases/GetApiV1SharesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1509](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1509)
+Defined in: [src/client/sdk.gen.ts:1577](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1577)
 
 List my shared artifacts
 

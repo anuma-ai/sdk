@@ -2,7 +2,7 @@
 
 > **HandlersWipePrivyDevUsersRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3062](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3062)
+Defined in: [src/client/types.gen.ts:3099](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3099)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3062](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **dry\_run**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3067](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3067)
+Defined in: [src/client/types.gen.ts:3104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3104)
 
 DryRun, when true, lists the target users (and whether a portal account
 matches) without calling any DELETE endpoint.
@@ -21,7 +21,7 @@ matches) without calling any DELETE endpoint.
 
 > `optional` **limit**: `number`
 
-Defined in: [src/client/types.gen.ts:3072](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3072)
+Defined in: [src/client/types.gen.ts:3109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3109)
 
 Limit caps the number of Privy users to delete this run. Defaults to 50
 when zero, capped at 200.

@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminOauthClientsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5195](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5195)
+Defined in: [src/client/types.gen.ts:5385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5385)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5195](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5199](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5199)
+Defined in: [src/client/types.gen.ts:5389](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5389)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5203](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5203)
+Defined in: [src/client/types.gen.ts:5393](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5393)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5207](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5207)
+Defined in: [src/client/types.gen.ts:5397](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5397)
 
 Conflict

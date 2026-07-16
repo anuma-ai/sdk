@@ -1,6 +1,6 @@
 # ExtractFactsOptions
 
-Defined in: [src/lib/memory/autoExtract.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#194)
+Defined in: [src/lib/memory/autoExtract.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#205)
 
 Auth + endpoint for the extraction LLM call. Auth is the dual pattern —
 one of `apiKey` / `getToken` is required at runtime; see
@@ -30,7 +30,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#243)
+Defined in: [src/lib/memory/autoExtract.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#254)
 
 Override the retry backoff (ms) for a given 1-based attempt index. The
 extraction call retries transient failures internally (default exponential
@@ -71,7 +71,7 @@ backoff); pass `() => 0` to retry without delay (useful for tests).
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#195)
+Defined in: [src/lib/memory/autoExtract.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#206)
 
 ***
 
@@ -79,7 +79,7 @@ Defined in: [src/lib/memory/autoExtract.ts:195](https://github.com/anuma-ai/sdk/
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/autoExtract.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#198)
+Defined in: [src/lib/memory/autoExtract.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#209)
 
 Override the global fetch implementation (useful for tests).
 
@@ -201,7 +201,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **maxAttempts**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#228)
+Defined in: [src/lib/memory/autoExtract.ts:239](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#239)
 
 Max attempts for the extraction call on a transient failure (default 3).
 Lower it to bound how long extraction can hold a turn open — e.g. a worker
@@ -214,7 +214,7 @@ repeated failures from delaying later turns.
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#196)
+Defined in: [src/lib/memory/autoExtract.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#207)
 
 ***
 
@@ -222,7 +222,7 @@ Defined in: [src/lib/memory/autoExtract.ts:196](https://github.com/anuma-ai/sdk/
 
 > `optional` **now**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#221)
+Defined in: [src/lib/memory/autoExtract.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#232)
 
 Reference "now" (Unix ms) for resolving relative temporal phrases in the
 transcript ("yesterday", "next week", "in two days") into the absolute
@@ -244,7 +244,7 @@ process timezone doesn't match the user's.
 
 > `optional` **onCandidatesDropped**: () => `void`
 
-Defined in: [src/lib/memory/autoExtract.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#277)
+Defined in: [src/lib/memory/autoExtract.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#288)
 
 Called when the extractor DID produce candidates but PII de-anonymization
 dropped every one of them — the model mangled its placeholders (so they
@@ -264,7 +264,7 @@ H3's `outcome` surface `dropped-after-redaction` so a rising PII-drop rate
 
 > `optional` **onExhaustedEmpty**: () => `void`
 
-Defined in: [src/lib/memory/autoExtract.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#267)
+Defined in: [src/lib/memory/autoExtract.ts:278](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#278)
 
 Called when the extraction LLM returned no usable result after exhausting
 its retries (empty/malformed completion, network/HTTP error) — i.e. a
@@ -283,7 +283,7 @@ indistinguishable). See [extractAndRetain](../functions/extractAndRetain.md)'s `
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#258)
+Defined in: [src/lib/memory/autoExtract.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#269)
 
 When set, PII (emails, phones, SSNs, cards, IPs, API keys, …) in the
 conversation transcript is replaced with tagged placeholders before the
@@ -304,7 +304,7 @@ as well — the two are independent switches.
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#231)
+Defined in: [src/lib/memory/autoExtract.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#242)
 
 Per-attempt timeout (ms) for the extraction call. Defaults to the portal
 helper's 60s. Combine with [maxAttempts](#maxattempts) to cap the total time budget.
@@ -315,7 +315,7 @@ helper's 60s. Combine with [maxAttempts](#maxattempts) to cap the total time bud
 
 > `optional` **totalTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#237)
+Defined in: [src/lib/memory/autoExtract.ts:248](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#248)
 
 Absolute wall-clock budget (ms) across ALL extraction attempts incl. backoff.
 When set, the loop stops before an attempt that would exceed it, so worst-case
@@ -327,7 +327,7 @@ latency is bounded rather than `maxAttempts × timeoutMs`.
 
 > `optional` **userIdentity**: `string`\[]
 
-Defined in: [src/lib/memory/autoExtract.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#205)
+Defined in: [src/lib/memory/autoExtract.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#216)
 
 The user's own name(s) / handle(s) (e.g. profile nickname, wallet display
 name). Candidates whose entire content is just one of these are dropped —

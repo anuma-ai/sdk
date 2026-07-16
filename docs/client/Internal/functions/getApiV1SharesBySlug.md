@@ -2,7 +2,7 @@
 
 > **getApiV1SharesBySlug**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SharesBySlugData`](../type-aliases/GetApiV1SharesBySlugData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1SharesBySlugResponses`](../type-aliases/GetApiV1SharesBySlugResponses.md), [`GetApiV1SharesBySlugErrors`](../type-aliases/GetApiV1SharesBySlugErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1545](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1545)
+Defined in: [src/client/sdk.gen.ts:1613](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1613)
 
 Get a public shared artifact
 

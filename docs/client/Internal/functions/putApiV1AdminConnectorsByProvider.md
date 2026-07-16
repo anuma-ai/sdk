@@ -2,7 +2,7 @@
 
 > **putApiV1AdminConnectorsByProvider**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AdminConnectorsByProviderData`](../type-aliases/PutApiV1AdminConnectorsByProviderData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AdminConnectorsByProviderResponses`](../type-aliases/PutApiV1AdminConnectorsByProviderResponses.md), [`PutApiV1AdminConnectorsByProviderErrors`](../type-aliases/PutApiV1AdminConnectorsByProviderErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#258)
+Defined in: [src/client/sdk.gen.ts:310](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#310)
 
 Enable or disable a connector (admin)
 

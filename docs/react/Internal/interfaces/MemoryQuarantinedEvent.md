@@ -17,7 +17,7 @@ without treating a poisoned fact as a normal saved memory.
 
 > **candidate**: [`ExtractedCandidate`](ExtractedCandidate.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#180)
+Defined in: [src/lib/memory/autoExtract.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#191)
 
 **Inherited from**
 
@@ -37,7 +37,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:65](https://github.com/anuma-ai
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#182)
+Defined in: [src/lib/memory/autoExtract.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#193)
 
 The persisted (quarantined) memory row id.
 
@@ -51,7 +51,7 @@ The persisted (quarantined) memory row id.
 
 > **reason**: [`InjectionReason`](../type-aliases/InjectionReason.md)
 
-Defined in: [src/lib/memory/autoExtract.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#184)
+Defined in: [src/lib/memory/autoExtract.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#195)
 
 Coarse reason bucket from the screen.
 
@@ -65,7 +65,7 @@ Coarse reason bucket from the screen.
 
 > **signature**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#186)
+Defined in: [src/lib/memory/autoExtract.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#197)
 
 Stable signature id that matched (safe to log; carries no content).
 
