@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectTicketsData** = `object`
 
-Defined in: [src/client/types.gen.ts:6622](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6622)
+Defined in: [src/client/types.gen.ts:6812](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6812)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6622](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersConnectTicketRequest`](HandlersConnectTicketRequest.md)
 
-Defined in: [src/client/types.gen.ts:6626](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6626)
+Defined in: [src/client/types.gen.ts:6816](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6816)
 
 Connect ticket request
 
@@ -20,7 +20,7 @@ Connect ticket request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6627)
+Defined in: [src/client/types.gen.ts:6817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6817)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:6627](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6628](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6628)
+Defined in: [src/client/types.gen.ts:6818](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6818)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:6628](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/connect-tickets"`
 
-Defined in: [src/client/types.gen.ts:6629](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6629)
+Defined in: [src/client/types.gen.ts:6819](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6819)

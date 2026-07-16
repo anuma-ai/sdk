@@ -2,7 +2,7 @@
 
 > **postApiV1AdminNotificationsAnnounceModel**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminNotificationsAnnounceModelData`](../type-aliases/PostApiV1AdminNotificationsAnnounceModelData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminNotificationsAnnounceModelResponses`](../type-aliases/PostApiV1AdminNotificationsAnnounceModelResponses.md), [`PostApiV1AdminNotificationsAnnounceModelErrors`](../type-aliases/PostApiV1AdminNotificationsAnnounceModelErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#274)
+Defined in: [src/client/sdk.gen.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#326)
 
 Announce a new model via push notification (admin)
 

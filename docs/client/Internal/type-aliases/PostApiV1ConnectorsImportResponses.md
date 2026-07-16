@@ -2,7 +2,7 @@
 
 > **PostApiV1ConnectorsImportResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6771](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6771)
+Defined in: [src/client/types.gen.ts:6961](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6961)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6771](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:6775](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6775)
+Defined in: [src/client/types.gen.ts:6965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6965)
 
 {"imported": true}
 

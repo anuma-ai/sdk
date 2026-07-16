@@ -2,7 +2,7 @@
 
 > **HandlersConnectorProxyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1607)
+Defined in: [src/client/types.gen.ts:1608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1608)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1607](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:1608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1608)
+Defined in: [src/client/types.gen.ts:1609](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1609)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1608](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `string`
 
-Defined in: [src/client/types.gen.ts:1609](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1609)
+Defined in: [src/client/types.gen.ts:1610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1610)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1609](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:1610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1610)
+Defined in: [src/client/types.gen.ts:1611](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1611)
 
 **Index Signature**
 

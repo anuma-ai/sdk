@@ -16,10 +16,18 @@ Apps is the list of active apps
 
 ***
 
+### mobile\_app?
+
+> `optional` **mobile\_app**: [`HandlersMobileAppVersions`](HandlersMobileAppVersions.md)
+
+Defined in: [src/client/types.gen.ts:1541](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1541)
+
+***
+
 ### phone\_calls\_enabled?
 
 > `optional` **phone\_calls\_enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1544](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1544)
+Defined in: [src/client/types.gen.ts:1545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1545)
 
 PhoneCallsEnabled indicates whether Bland phone calling is available

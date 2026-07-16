@@ -2,7 +2,7 @@
 
 > **postApiV1AdminPrivyDevWipe**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminPrivyDevWipeData`](../type-aliases/PostApiV1AdminPrivyDevWipeData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminPrivyDevWipeResponses`](../type-aliases/PostApiV1AdminPrivyDevWipeResponses.md), [`PostApiV1AdminPrivyDevWipeErrors`](../type-aliases/PostApiV1AdminPrivyDevWipeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:412](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#412)
+Defined in: [src/client/sdk.gen.ts:464](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#464)
 
 Bulk-delete test users from the Privy dev app
 

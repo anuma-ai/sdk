@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminAppsByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4957](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4957)
+Defined in: [src/client/types.gen.ts:4994](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4994)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4957](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersAppResponse`](HandlersAppResponse.md)
 
-Defined in: [src/client/types.gen.ts:4961](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4961)
+Defined in: [src/client/types.gen.ts:4998](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4998)
 
 OK

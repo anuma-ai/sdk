@@ -2,7 +2,7 @@
 
 > **PostApiV1GuestChatCompletionsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8197)
+Defined in: [src/client/types.gen.ts:8387](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8387)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8197](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersGuestChatResponse`](HandlersGuestChatResponse.md)
 
-Defined in: [src/client/types.gen.ts:8201](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8201)
+Defined in: [src/client/types.gen.ts:8391](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8391)
 
 OK

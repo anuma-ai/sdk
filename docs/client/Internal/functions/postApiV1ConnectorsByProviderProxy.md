@@ -2,7 +2,7 @@
 
 > **postApiV1ConnectorsByProviderProxy**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ConnectorsByProviderProxyData`](../type-aliases/PostApiV1ConnectorsByProviderProxyData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ConnectorsByProviderProxyResponses`](../type-aliases/PostApiV1ConnectorsByProviderProxyResponses.md), [`PostApiV1ConnectorsByProviderProxyErrors`](../type-aliases/PostApiV1ConnectorsByProviderProxyErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:872](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#872)
+Defined in: [src/client/sdk.gen.ts:924](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#924)
 
 Proxy a connector API call
 
