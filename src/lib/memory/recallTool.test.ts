@@ -227,6 +227,30 @@ describe("createRecallTool executor — dump-query hardening", () => {
     expect(out).not.toMatch(/can't dump or enumerate/i);
     expect(recall).toHaveBeenCalledTimes(1);
   });
+
+  // A pseudo-topic word is only whole-subject when TERMINAL. As the HEAD of a
+  // compound topic ("life insurance", "past trips", "self care") it names a real
+  // slice, so these must NOT be refused (regression from the pseudo-topic guard).
+  it.each([
+    "everything you know about my life insurance",
+    "everything you know about my past trips",
+    "list everything you know about my self care routine",
+  ])("no longer over-refuses a compound topic starting with a pseudo-word: %s", async (query) => {
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const out = await tool.executor!({ query });
+    expect(out).not.toMatch(/can't dump or enumerate/i);
+    expect(recall).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["list all my memories about my life", "everything you know about the user"])(
+    "still refuses a TERMINAL whole-subject dump: %s",
+    async (query) => {
+      const tool = createRecallTool(ctx, { types: ["fact"] });
+      const out = await tool.executor!({ query });
+      expect(out).toMatch(/can't dump or enumerate/i);
+      expect(recall).not.toHaveBeenCalled();
+    }
+  );
 });
 
 // Hardening pass — MEXTRA volume-cap concurrency race (part D).

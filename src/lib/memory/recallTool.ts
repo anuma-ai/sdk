@@ -233,23 +233,31 @@ const TRUNCATION_NOTICE =
 // food preferences" names a topic (legitimate) — "preferences" is NOT here.
 const STORE_NOUN = "memor(?:y|ies)|facts?|records?|data|information|info|notes?|conversations?";
 
-/** Topics that name the WHOLE subject/store rather than a narrowing slice — an
- * "about my life" / "about the user" tail does NOT scope an enumeration, it just
- * restates "dump everything". Excluded from the topic exemption below so they
- * can't launder a dump ("list all my memories about my life"). */
+/** Words that, ON THEIR OWN, name the WHOLE subject/store rather than a
+ * narrowing slice — a bare "about my life" / "about the user" tail does NOT
+ * scope an enumeration, it just restates "dump everything". These only count as
+ * whole-subject when TERMINAL (see {@link NARROW_TOPIC_RE}); as the head of a
+ * compound topic ("my life insurance", "my past trips") they're legitimate. */
 const WHOLE_SUBJECT_TOPIC =
   "me|myself|self|life|lives|user|users|everyone|everything|anything|existence|past|history";
 
-/** Match "about my/the/our <topic>" where <topic> is a REAL narrowing slice
- * (not a whole-subject pseudo-topic) — the qualifier that makes an otherwise
- * broad enumeration legitimate ("everything you know about my job"). Two ways an
- * enumeration stays refused despite an "about …" tail: (1) the topic is a
- * whole-subject pseudo-topic — "about my life" / "about the user" name the whole
- * store, so the negative lookahead rejects them; (2) verbatim / dump / strong
- * exfil verbs, which short-circuit BEFORE this exemption is consulted. Requires
- * a determiner + an actual topic word so a bare "about" can't grant the pass. */
+/** Match "about <determiner> <topic>" where <topic> is a REAL narrowing slice —
+ * the qualifier that makes an otherwise broad enumeration legitimate
+ * ("everything you know about my job"). A whole-subject pseudo-topic only blocks
+ * the exemption when it is TERMINAL (nothing but the pseudo-word follows the
+ * determiner): "about my life" / "about the user" stay dumps, but "about my life
+ * insurance" / "about my past trips" are real compound topics and are allowed.
+ * Two alternatives:
+ *  1. the first topic token is NOT a pseudo-word → a plain narrowing topic, OR
+ *  2. it IS a pseudo-word BUT another topic token follows it → a compound topic.
+ * Verbatim / dump / strong exfil verbs short-circuit BEFORE this exemption is
+ * consulted, so they are unaffected. Requires a determiner + an actual topic
+ * word so a bare "about" can't grant the pass.
+ * ReDoS-safe: single `\s+` runs, one fixed-width lookahead, no nested or
+ * overlapping quantifiers → linear-time. */
 const NARROW_TOPIC_RE = new RegExp(
-  `\\babout\\s+(?:my|the|our|your|his|her|their)\\s+(?!(?:${WHOLE_SUBJECT_TOPIC})\\b)[a-z]`,
+  `\\babout\\s+(?:my|the|our|your|his|her|their)\\s+` +
+    `(?:(?!(?:${WHOLE_SUBJECT_TOPIC})\\b)[a-z]|(?:${WHOLE_SUBJECT_TOPIC})\\s+[a-z])`,
   "i"
 );
 

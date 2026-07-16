@@ -871,10 +871,26 @@ export interface DecayCandidateRaw {
 
 /**
  * Guard against a decay sweep amplifying across tenants. A sweep with no
- * `userId` reaches EVERY row in the DB — safe on the client (per-wallet
- * isolated DB, so `walletAddress` is set) but catastrophic on a shared
- * multi-tenant / server DB. Throw when the context is neither wallet-scoped
- * nor user-scoped, rather than relying on caller discipline.
+ * `userId` reaches EVERY row the query can see, so this refuses a context that
+ * is neither user- nor wallet-scoped rather than relying on caller discipline.
+ *
+ * IMPORTANT — what `walletAddress` actually buys here: `baseVaultConditions`
+ * scopes the query by `user_id` ONLY (there is no `wallet_address` column). So a
+ * context with `walletAddress` set but `userId` undefined PASSES this guard yet
+ * runs an UNSCOPED scan/archive/delete across every row in the DB. That is safe
+ * TODAY solely because client DBs are physically per-wallet isolated (one
+ * wallet's rows per DB, written with `user_id = null`) — `walletAddress`
+ * presence is TRUSTED as a proxy for "this is a per-wallet client DB", NOT an
+ * enforced scope. A future walletAddress-only context on a SHARED / multi-tenant
+ * DB would satisfy this guard and sweep across ALL tenants.
+ *
+ * We do NOT tighten this to `userId`-required, because the shipping client
+ * `vaultCtx` is walletAddress-only over `user_id = null` rows (no backfill), so
+ * requiring `userId` would break (or silently no-op) the client decay sweep.
+ * TODO(follow-up): make the trust explicit with an `isPerWalletDb` /
+ * `singleTenant` flag on the context and gate on
+ * `userId !== undefined || singleTenant === true`. That needs a coordinated
+ * client change to pass the flag, so it is out of scope for this SDK-only pass.
  */
 export function assertVaultScopeForSweep(ctx: VaultMemoryOperationsContext): void {
   if (ctx.userId === undefined && ctx.walletAddress === undefined) {

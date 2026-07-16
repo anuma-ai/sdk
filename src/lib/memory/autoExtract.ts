@@ -673,7 +673,13 @@ export async function extractAndRetain(
         try {
           options.onQuarantined?.(info);
         } catch (err) {
-          log.warn("[memory/extract] onQuarantined listener threw", err);
+          // Log only the message (not the raw error) so a listener can't leak
+          // memory content into logs via a thrown object.
+          log.warn(
+            `[memory/extract] onQuarantined listener threw: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
         }
         continue;
       }
