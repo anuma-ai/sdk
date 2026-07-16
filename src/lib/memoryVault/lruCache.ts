@@ -40,10 +40,12 @@ export class LRUCache<K, V> extends Map<K, V> {
 }
 
 /**
- * Create a VaultEmbeddingCache backed by an LRU with a default cap of 1000 entries.
+ * Create a VaultEmbeddingCache backed by an LRU with a default cap of
+ * DEFAULT_VAULT_CACHE_SIZE entries. Values are Float32Array — the model's
+ * native precision — not float64 number[], halving resident RAM losslessly.
  */
 export function createVaultEmbeddingCache(
   maxSize: number = DEFAULT_VAULT_CACHE_SIZE
 ): VaultEmbeddingCache {
-  return new LRUCache<string, number[]>(maxSize);
+  return new LRUCache<string, Float32Array>(maxSize);
 }

@@ -8,7 +8,7 @@
  * zero-magnitude inputs so callers can iterate without NaN-poisoning
  * downstream sorts.
  */
-export function cosineSimilarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: ArrayLike<number>, b: ArrayLike<number>): number {
   if (a.length !== b.length) return 0;
   let dot = 0;
   let normA = 0;

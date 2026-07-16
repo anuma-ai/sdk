@@ -92,7 +92,7 @@ describe("createVaultEmbeddingCache", () => {
   it("creates an LRU cache with custom size", () => {
     const cache = createVaultEmbeddingCache(5);
     for (let i = 0; i < 10; i++) {
-      cache.set(`key-${i}`, [i]);
+      cache.set(`key-${i}`, new Float32Array([i]));
     }
     expect(cache.size).toBe(5);
   });

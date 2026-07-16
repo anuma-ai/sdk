@@ -191,11 +191,10 @@ export function createMemoryVaultTool(
               if (!updated) {
                 return `Error: Failed to update memory "${id}".`;
               }
-              // Sync embedding cache: evict stale entry, embed new content
+              // Sync embedding cache: eagerEmbedContent overwrites the entry
+              // keyed by this memory's id (same id → new vector replaces the
+              // stale one), so no explicit evict-by-content is needed.
               if (embeddingOptions && cache) {
-                if (previousContent) {
-                  cache.delete(previousContent);
-                }
                 eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
                   // Silently swallow – SDK must not use console.*; embedding will be retried on next search
                   () => {}

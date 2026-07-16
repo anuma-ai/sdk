@@ -66,7 +66,7 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("cats are great", [1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
 
     const results = await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -124,9 +124,9 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("cats are great", [1, 0, 0]); // cos = 1.0
-    cache.set("dogs are fun", [0.5, 0.5, 0]); // cos ≈ 0.71
-    cache.set("birds can fly", [0, 1, 0]); // cos = 0.0
+    cache.set("m1", new Float32Array([1, 0, 0])); // cos = 1.0
+    cache.set("m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
+    cache.set("m3", new Float32Array([0, 1, 0])); // cos = 0.0
 
     // Test cosine-ranker semantics directly; the fusion ranker has its
     // own coverage in rankFusedVaultMemories.test.ts.
@@ -182,8 +182,8 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("high relevance", [1, 0, 0]); // similarity = 1.0
-    cache.set("low relevance", [0, 1, 0]); // similarity = 0.0
+    cache.set("m1", new Float32Array([1, 0, 0])); // similarity = 1.0
+    cache.set("m2", new Float32Array([0, 1, 0])); // similarity = 0.0
 
     const results = await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -203,9 +203,9 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("content a", [1, 0, 0]);
-    cache.set("content b", [0.9, 0.1, 0]);
-    cache.set("content c", [0.8, 0.2, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
+    cache.set("m2", new Float32Array([0.9, 0.1, 0]));
+    cache.set("m3", new Float32Array([0.8, 0.2, 0]));
 
     const results = await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       limit: 2,
@@ -222,7 +222,7 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("private data", [1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
 
     await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       scopes: ["private"],
@@ -247,7 +247,7 @@ describe("searchVaultMemories", () => {
     });
 
     expect(results).toHaveLength(1);
-    expect(cache.get("db-persisted")).toEqual([1, 0, 0]);
+    expect(Array.from(cache.get("m1")!)).toEqual([1, 0, 0]);
     expect(generateEmbeddings).not.toHaveBeenCalled();
   });
 
@@ -279,13 +279,13 @@ describe("searchVaultMemories", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[0.9, 0.1, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("cached", [1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
 
     await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
     });
 
-    expect(cache.has("uncached")).toBe(true);
+    expect(cache.has("m2")).toBe(true);
     expect(generateEmbeddings).toHaveBeenCalledWith(["uncached"], mockEmbeddingOptions);
   });
 });
@@ -305,9 +305,9 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("cats are great", [1, 0, 0]); // cos = 1.0
-    cache.set("dogs are fun", [0.5, 0.5, 0]); // cos ≈ 0.71
-    cache.set("birds can fly", [0, 1, 0]); // cos = 0.0
+    cache.set("m1", new Float32Array([1, 0, 0])); // cos = 1.0
+    cache.set("m2", new Float32Array([0.5, 0.5, 0])); // cos ≈ 0.71
+    cache.set("m3", new Float32Array([0, 1, 0])); // cos = 0.0
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -328,8 +328,8 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("high relevance", [1, 0, 0]); // similarity = 1.0
-    cache.set("low relevance", [0, 1, 0]); // similarity = 0.0
+    cache.set("m1", new Float32Array([1, 0, 0])); // similarity = 1.0
+    cache.set("m2", new Float32Array([0, 1, 0])); // similarity = 0.0
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -346,7 +346,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("unrelated", [0, 1, 0]);
+    cache.set("m1", new Float32Array([0, 1, 0]));
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0.5,
@@ -363,7 +363,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[0.9, 0.1, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("cached content", [1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -371,7 +371,7 @@ describe("createMemoryVaultSearchTool", () => {
     const result = (await tool.executor!({ query: "test" })) as string;
 
     expect(generateEmbeddings).toHaveBeenCalledWith(["uncached content"], mockEmbeddingOptions);
-    expect(cache.has("uncached content")).toBe(true);
+    expect(cache.has("m2")).toBe(true);
     expect(result).toContain("Found 2 vault memories");
   });
 
@@ -404,7 +404,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("API rate limit"));
 
     const cache = createVaultEmbeddingCache();
-    cache.set("content", [1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
 
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
     const result = await tool.executor!({ query: "test" });
@@ -453,8 +453,8 @@ describe("preEmbedVaultMemories", () => {
     const cache = createVaultEmbeddingCache();
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
-    expect(cache.get("first")).toEqual([1, 0, 0]);
-    expect(cache.get("second")).toEqual([0, 1, 0]);
+    expect(Array.from(cache.get("m1")!)).toEqual([1, 0, 0]);
+    expect(Array.from(cache.get("m2")!)).toEqual([0, 1, 0]);
   });
 
   it("loads persisted embeddings from DB instead of re-embedding", async () => {
@@ -467,7 +467,7 @@ describe("preEmbedVaultMemories", () => {
     const cache = createVaultEmbeddingCache();
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
-    expect(cache.get("persisted")).toEqual([9, 8, 7]);
+    expect(Array.from(cache.get("m1")!)).toEqual([9, 8, 7]);
     expect(generateEmbeddings).not.toHaveBeenCalled();
   });
 
@@ -483,7 +483,7 @@ describe("preEmbedVaultMemories", () => {
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
     expect(generateEmbeddings).toHaveBeenCalledWith(["bad json"], mockEmbeddingOptions);
-    expect(cache.get("bad json")).toEqual([1, 1, 1]);
+    expect(Array.from(cache.get("m1")!)).toEqual([1, 1, 1]);
   });
 
   it("persists newly generated embeddings to DB via updateVaultMemoryEmbeddingOp", async () => {
@@ -512,13 +512,13 @@ describe("preEmbedVaultMemories", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[0, 1, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("cached", [1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
 
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
     expect(generateEmbeddings).toHaveBeenCalledWith(["not cached"], mockEmbeddingOptions);
-    expect(cache.get("cached")).toEqual([1, 0, 0]); // unchanged
-    expect(cache.get("not cached")).toEqual([0, 1, 0]);
+    expect(Array.from(cache.get("m1")!)).toEqual([1, 0, 0]); // unchanged
+    expect(Array.from(cache.get("m2")!)).toEqual([0, 1, 0]);
   });
 });
 
@@ -620,7 +620,9 @@ describe("searchVaultMemories — invalid JSON in persisted embedding during sea
     // Should have re-embedded because JSON parse failed
     expect(generateEmbeddings).toHaveBeenCalledWith(["bad embed content"], mockEmbeddingOptions);
     expect(results).toHaveLength(1);
-    expect(cache.get("bad embed content")).toEqual([0.8, 0.2, 0]);
+    // Compare against the float32-roundtripped expected — the cache stores
+    // Float32Array, so 0.8/0.2 won't equal their float64 literals exactly.
+    expect(Array.from(cache.get("m1")!)).toEqual(Array.from(new Float32Array([0.8, 0.2, 0])));
   });
 });
 
@@ -640,20 +642,20 @@ describe("eagerEmbedContent — failure resilience", () => {
       eagerEmbedContent("cache me anyway", mockEmbeddingOptions, cache, mockVaultCtx, "mem-1")
     ).resolves.toBeUndefined();
 
-    // Cache should be populated despite DB failure
-    await vi.waitFor(() => expect(cache.get("cache me anyway")).toEqual([1, 2, 3]));
+    // Cache should be populated despite DB failure (keyed by memory id).
+    await vi.waitFor(() => expect(Array.from(cache.get("mem-1")!)).toEqual([1, 2, 3]));
   });
 });
 
 describe("eagerEmbedContent", () => {
-  it("generates an embedding and stores it in the cache", async () => {
+  it("generates an embedding and stores it in the cache (keyed by memory id)", async () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 2, 3]);
 
     const cache = createVaultEmbeddingCache();
-    await eagerEmbedContent("new memory text", mockEmbeddingOptions, cache);
+    await eagerEmbedContent("new memory text", mockEmbeddingOptions, cache, undefined, "mem-42");
 
     expect(generateEmbedding).toHaveBeenCalledWith("new memory text", mockEmbeddingOptions);
-    expect(cache.get("new memory text")).toEqual([1, 2, 3]);
+    expect(Array.from(cache.get("mem-42")!)).toEqual([1, 2, 3]);
   });
 
   it("persists embedding to DB when vaultCtx and memoryId are provided", async () => {
@@ -703,8 +705,8 @@ describe("rerank graceful degradation", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("cats are great", [1, 0, 0]);
-    cache.set("dogs are loyal", [0, 1, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
+    cache.set("m2", new Float32Array([0, 1, 0]));
 
     const { results } = await searchVaultMemoriesWithSize(
       "cats",
@@ -753,7 +755,7 @@ describe("embedding dimension-mismatch guard", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("good dim", [1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
 
     await searchVaultMemoriesWithSize("anything", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
@@ -838,7 +840,7 @@ describe("embedding model versioning", () => {
     vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
 
     const cache = createVaultEmbeddingCache();
-    cache.set("seeded wrong dim", [1, 0]); // 2-dim — stale from an old model
+    cache.set("m1", new Float32Array([1, 0])); // 2-dim — stale from an old model
 
     const { results } = await searchVaultMemoriesWithSize(
       "q",

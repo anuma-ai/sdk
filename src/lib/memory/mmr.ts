@@ -23,7 +23,7 @@ interface MMRItem {
   /** Pre-computed relevance score (e.g. fused or CE score). */
   score: number;
   /** Embedding used for diversity computation. */
-  embedding: number[];
+  embedding: ArrayLike<number>;
 }
 
 /**
