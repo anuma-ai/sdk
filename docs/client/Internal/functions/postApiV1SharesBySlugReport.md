@@ -2,7 +2,7 @@
 
 > **postApiV1SharesBySlugReport**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SharesBySlugReportData`](../type-aliases/PostApiV1SharesBySlugReportData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SharesBySlugReportResponses`](../type-aliases/PostApiV1SharesBySlugReportResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1555](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1555)
+Defined in: [src/client/sdk.gen.ts:1623](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1623)
 
 Report a shared artifact
 

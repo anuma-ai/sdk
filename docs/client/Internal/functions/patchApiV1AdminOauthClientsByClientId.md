@@ -2,7 +2,7 @@
 
 > **patchApiV1AdminOauthClientsByClientId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PatchApiV1AdminOauthClientsByClientIdData`](../type-aliases/PatchApiV1AdminOauthClientsByClientIdData.md), `ThrowOnError`>): `RequestResult`<[`PatchApiV1AdminOauthClientsByClientIdResponses`](../type-aliases/PatchApiV1AdminOauthClientsByClientIdResponses.md), [`PatchApiV1AdminOauthClientsByClientIdErrors`](../type-aliases/PatchApiV1AdminOauthClientsByClientIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:352](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#352)
+Defined in: [src/client/sdk.gen.ts:404](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#404)
 
 Update an OAuth client
 

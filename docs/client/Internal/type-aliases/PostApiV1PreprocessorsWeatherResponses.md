@@ -2,7 +2,7 @@
 
 > **PostApiV1PreprocessorsWeatherResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8688](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8688)
+Defined in: [src/client/types.gen.ts:8917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8917)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8688](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersWeatherResponse`](HandlersWeatherResponse.md)
 
-Defined in: [src/client/types.gen.ts:8692](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8692)
+Defined in: [src/client/types.gen.ts:8921](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8921)
 
 OK

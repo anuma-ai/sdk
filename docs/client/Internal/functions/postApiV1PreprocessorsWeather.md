@@ -2,7 +2,7 @@
 
 > **postApiV1PreprocessorsWeather**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1PreprocessorsWeatherData`](../type-aliases/PostApiV1PreprocessorsWeatherData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1PreprocessorsWeatherResponses`](../type-aliases/PostApiV1PreprocessorsWeatherResponses.md), [`PostApiV1PreprocessorsWeatherErrors`](../type-aliases/PostApiV1PreprocessorsWeatherErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1479](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1479)
+Defined in: [src/client/sdk.gen.ts:1547](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1547)
 
 Get weather
 

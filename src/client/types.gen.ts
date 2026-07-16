@@ -1538,6 +1538,7 @@ export type HandlersConfigResponse = {
      * Apps is the list of active apps
      */
     apps?: Array<HandlersAppConfig>;
+    mobile_app?: HandlersMobileAppVersions;
     /**
      * PhoneCallsEnabled indicates whether Bland phone calling is available
      */
@@ -2173,6 +2174,30 @@ export type HandlersMeResponse = {
     user_address?: string;
 };
 
+/**
+ * MobileApp is the mobile app version info; absent when not configured
+ */
+export type HandlersMobileAppVersions = {
+    android?: HandlersMobilePlatformVersions;
+    ios?: HandlersMobilePlatformVersions;
+};
+
+/**
+ * Android versions for the Play Store build
+ */
+export type HandlersMobilePlatformVersions = {
+    /**
+     * LatestVersion is the newest version live in the platform's store;
+     * older clients show a dismissible update nudge
+     */
+    latest_version?: string;
+    /**
+     * MinSupportedVersion is the oldest version still supported; older
+     * clients are blocked behind an update-required wall
+     */
+    min_supported_version?: string;
+};
+
 export type HandlersModalityUsageItem = {
     cost_usd: number;
     credits: number;
@@ -2193,6 +2218,18 @@ export type HandlersModelUsageItem = {
     request_count: number;
     request_tokens: number;
     response_tokens: number;
+};
+
+export type HandlersModerateRequest = {
+    texts?: Array<string>;
+};
+
+export type HandlersModerateResponse = {
+    categories?: Array<string>;
+    flagged?: boolean;
+    scores?: {
+        [key: string]: number;
+    };
 };
 
 export type HandlersNonceResponse = {
@@ -4962,6 +4999,159 @@ export type PutApiV1AdminAppsByIdResponses = {
 };
 
 export type PutApiV1AdminAppsByIdResponse = PutApiV1AdminAppsByIdResponses[keyof PutApiV1AdminAppsByIdResponses];
+
+export type PutApiV1AdminBotConfigData = {
+    /**
+     * Partial BotConfig patch
+     */
+    body: {
+        [key: string]: unknown;
+    };
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/bot/config';
+};
+
+export type PutApiV1AdminBotConfigErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminBotConfigError = PutApiV1AdminBotConfigErrors[keyof PutApiV1AdminBotConfigErrors];
+
+export type PutApiV1AdminBotConfigResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutApiV1AdminBotConfigResponse = PutApiV1AdminBotConfigResponses[keyof PutApiV1AdminBotConfigResponses];
+
+export type PostApiV1AdminBotPollerStartData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/bot/poller/start';
+};
+
+export type PostApiV1AdminBotPollerStartErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminBotPollerStartError = PostApiV1AdminBotPollerStartErrors[keyof PostApiV1AdminBotPollerStartErrors];
+
+export type PostApiV1AdminBotPollerStartResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostApiV1AdminBotPollerStartResponse = PostApiV1AdminBotPollerStartResponses[keyof PostApiV1AdminBotPollerStartResponses];
+
+export type PostApiV1AdminBotPollerStopData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/bot/poller/stop';
+};
+
+export type PostApiV1AdminBotPollerStopErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminBotPollerStopError = PostApiV1AdminBotPollerStopErrors[keyof PostApiV1AdminBotPollerStopErrors];
+
+export type PostApiV1AdminBotPollerStopResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostApiV1AdminBotPollerStopResponse = PostApiV1AdminBotPollerStopResponses[keyof PostApiV1AdminBotPollerStopResponses];
+
+export type GetApiV1AdminBotStatusData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/bot/status';
+};
+
+export type GetApiV1AdminBotStatusErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminBotStatusError = GetApiV1AdminBotStatusErrors[keyof GetApiV1AdminBotStatusErrors];
+
+export type GetApiV1AdminBotStatusResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetApiV1AdminBotStatusResponse = GetApiV1AdminBotStatusResponses[keyof GetApiV1AdminBotStatusResponses];
 
 export type GetApiV1AdminConnectorsData = {
     body?: never;
@@ -8249,6 +8439,13 @@ export type GetApiV1MediaSharedBySlugErrors = {
 
 export type GetApiV1MediaSharedBySlugError = GetApiV1MediaSharedBySlugErrors[keyof GetApiV1MediaSharedBySlugErrors];
 
+export type GetApiV1MediaSharedBySlugResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
 export type GetApiV1ModelsData = {
     body?: never;
     path?: never;
@@ -8294,6 +8491,38 @@ export type GetApiV1ModelsResponses = {
 };
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
+
+export type PostApiV1ModerateData = {
+    /**
+     * Texts to moderate
+     */
+    body: HandlersModerateRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/moderate';
+};
+
+export type PostApiV1ModerateErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Moderation backend error
+     */
+    502: ResponseErrorResponse;
+};
+
+export type PostApiV1ModerateError = PostApiV1ModerateErrors[keyof PostApiV1ModerateErrors];
+
+export type PostApiV1ModerateResponses = {
+    /**
+     * OK
+     */
+    200: HandlersModerateResponse;
+};
+
+export type PostApiV1ModerateResponse = PostApiV1ModerateResponses[keyof PostApiV1ModerateResponses];
 
 export type PostApiV1NotificationsDevicesData = {
     /**
@@ -8792,6 +9021,10 @@ export type PostApiV1SharesErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
 };
 
 export type PostApiV1SharesError = PostApiV1SharesErrors[keyof PostApiV1SharesErrors];

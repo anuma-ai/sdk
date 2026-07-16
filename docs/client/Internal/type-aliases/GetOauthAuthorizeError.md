@@ -2,4 +2,4 @@
 
 > **GetOauthAuthorizeError** = [`GetOauthAuthorizeErrors`](GetOauthAuthorizeErrors.md)\[keyof [`GetOauthAuthorizeErrors`](GetOauthAuthorizeErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10232](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10232)
+Defined in: [src/client/types.gen.ts:10465](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10465)

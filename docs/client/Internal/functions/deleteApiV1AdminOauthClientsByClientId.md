@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminOauthClientsByClientId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminOauthClientsByClientIdData`](../type-aliases/DeleteApiV1AdminOauthClientsByClientIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminOauthClientsByClientIdResponses`](../type-aliases/DeleteApiV1AdminOauthClientsByClientIdResponses.md), [`DeleteApiV1AdminOauthClientsByClientIdErrors`](../type-aliases/DeleteApiV1AdminOauthClientsByClientIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:332](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#332)
+Defined in: [src/client/sdk.gen.ts:384](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#384)
 
 Revoke an OAuth client (soft delete)
 

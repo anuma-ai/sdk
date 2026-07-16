@@ -117,6 +117,11 @@
 | [GetApiV1AdminAppsErrors](Internal/type-aliases/GetApiV1AdminAppsErrors.md) | - |
 | [GetApiV1AdminAppsResponse](Internal/type-aliases/GetApiV1AdminAppsResponse.md) | - |
 | [GetApiV1AdminAppsResponses](Internal/type-aliases/GetApiV1AdminAppsResponses.md) | - |
+| [GetApiV1AdminBotStatusData](Internal/type-aliases/GetApiV1AdminBotStatusData.md) | - |
+| [GetApiV1AdminBotStatusError](Internal/type-aliases/GetApiV1AdminBotStatusError.md) | - |
+| [GetApiV1AdminBotStatusErrors](Internal/type-aliases/GetApiV1AdminBotStatusErrors.md) | - |
+| [GetApiV1AdminBotStatusResponse](Internal/type-aliases/GetApiV1AdminBotStatusResponse.md) | - |
+| [GetApiV1AdminBotStatusResponses](Internal/type-aliases/GetApiV1AdminBotStatusResponses.md) | - |
 | [GetApiV1AdminConnectorsData](Internal/type-aliases/GetApiV1AdminConnectorsData.md) | - |
 | [GetApiV1AdminConnectorsError](Internal/type-aliases/GetApiV1AdminConnectorsError.md) | - |
 | [GetApiV1AdminConnectorsErrors](Internal/type-aliases/GetApiV1AdminConnectorsErrors.md) | - |
@@ -255,6 +260,7 @@
 | [GetApiV1MediaSharedBySlugData](Internal/type-aliases/GetApiV1MediaSharedBySlugData.md) | - |
 | [GetApiV1MediaSharedBySlugError](Internal/type-aliases/GetApiV1MediaSharedBySlugError.md) | - |
 | [GetApiV1MediaSharedBySlugErrors](Internal/type-aliases/GetApiV1MediaSharedBySlugErrors.md) | - |
+| [GetApiV1MediaSharedBySlugResponses](Internal/type-aliases/GetApiV1MediaSharedBySlugResponses.md) | - |
 | [GetApiV1MeError](Internal/type-aliases/GetApiV1MeError.md) | - |
 | [GetApiV1MeErrors](Internal/type-aliases/GetApiV1MeErrors.md) | - |
 | [GetApiV1MeResponse](Internal/type-aliases/GetApiV1MeResponse.md) | - |
@@ -464,9 +470,13 @@
 | [HandlersMeResponse](Internal/type-aliases/HandlersMeResponse.md) | - |
 | [HandlersMfaSessionResponse](Internal/type-aliases/HandlersMfaSessionResponse.md) | - |
 | [HandlersMfaStatusResponse](Internal/type-aliases/HandlersMfaStatusResponse.md) | - |
+| [HandlersMobileAppVersions](Internal/type-aliases/HandlersMobileAppVersions.md) | MobileApp is the mobile app version info; absent when not configured |
+| [HandlersMobilePlatformVersions](Internal/type-aliases/HandlersMobilePlatformVersions.md) | Android versions for the Play Store build |
 | [HandlersModalityUsageItem](Internal/type-aliases/HandlersModalityUsageItem.md) | - |
 | [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
+| [HandlersModerateRequest](Internal/type-aliases/HandlersModerateRequest.md) | - |
+| [HandlersModerateResponse](Internal/type-aliases/HandlersModerateResponse.md) | - |
 | [HandlersNonceResponse](Internal/type-aliases/HandlersNonceResponse.md) | - |
 | [HandlersNotificationDeviceResponse](Internal/type-aliases/HandlersNotificationDeviceResponse.md) | - |
 | [HandlersOAuthClientResponse](Internal/type-aliases/HandlersOAuthClientResponse.md) | - |
@@ -713,6 +723,16 @@
 | [PostApiV1AdminAppsErrors](Internal/type-aliases/PostApiV1AdminAppsErrors.md) | - |
 | [PostApiV1AdminAppsResponse](Internal/type-aliases/PostApiV1AdminAppsResponse.md) | - |
 | [PostApiV1AdminAppsResponses](Internal/type-aliases/PostApiV1AdminAppsResponses.md) | - |
+| [PostApiV1AdminBotPollerStartData](Internal/type-aliases/PostApiV1AdminBotPollerStartData.md) | - |
+| [PostApiV1AdminBotPollerStartError](Internal/type-aliases/PostApiV1AdminBotPollerStartError.md) | - |
+| [PostApiV1AdminBotPollerStartErrors](Internal/type-aliases/PostApiV1AdminBotPollerStartErrors.md) | - |
+| [PostApiV1AdminBotPollerStartResponse](Internal/type-aliases/PostApiV1AdminBotPollerStartResponse.md) | - |
+| [PostApiV1AdminBotPollerStartResponses](Internal/type-aliases/PostApiV1AdminBotPollerStartResponses.md) | - |
+| [PostApiV1AdminBotPollerStopData](Internal/type-aliases/PostApiV1AdminBotPollerStopData.md) | - |
+| [PostApiV1AdminBotPollerStopError](Internal/type-aliases/PostApiV1AdminBotPollerStopError.md) | - |
+| [PostApiV1AdminBotPollerStopErrors](Internal/type-aliases/PostApiV1AdminBotPollerStopErrors.md) | - |
+| [PostApiV1AdminBotPollerStopResponse](Internal/type-aliases/PostApiV1AdminBotPollerStopResponse.md) | - |
+| [PostApiV1AdminBotPollerStopResponses](Internal/type-aliases/PostApiV1AdminBotPollerStopResponses.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelData](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelData.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelError](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelError.md) | - |
 | [PostApiV1AdminNotificationsAnnounceModelErrors](Internal/type-aliases/PostApiV1AdminNotificationsAnnounceModelErrors.md) | - |
@@ -888,6 +908,11 @@
 | [PostApiV1GuestChatCompletionsErrors](Internal/type-aliases/PostApiV1GuestChatCompletionsErrors.md) | - |
 | [PostApiV1GuestChatCompletionsResponse](Internal/type-aliases/PostApiV1GuestChatCompletionsResponse.md) | - |
 | [PostApiV1GuestChatCompletionsResponses](Internal/type-aliases/PostApiV1GuestChatCompletionsResponses.md) | - |
+| [PostApiV1ModerateData](Internal/type-aliases/PostApiV1ModerateData.md) | - |
+| [PostApiV1ModerateError](Internal/type-aliases/PostApiV1ModerateError.md) | - |
+| [PostApiV1ModerateErrors](Internal/type-aliases/PostApiV1ModerateErrors.md) | - |
+| [PostApiV1ModerateResponse](Internal/type-aliases/PostApiV1ModerateResponse.md) | - |
+| [PostApiV1ModerateResponses](Internal/type-aliases/PostApiV1ModerateResponses.md) | - |
 | [PostApiV1NotificationsDevicesData](Internal/type-aliases/PostApiV1NotificationsDevicesData.md) | - |
 | [PostApiV1NotificationsDevicesError](Internal/type-aliases/PostApiV1NotificationsDevicesError.md) | - |
 | [PostApiV1NotificationsDevicesErrors](Internal/type-aliases/PostApiV1NotificationsDevicesErrors.md) | - |
@@ -1045,6 +1070,11 @@
 | [PutApiV1AdminAppsByIdErrors](Internal/type-aliases/PutApiV1AdminAppsByIdErrors.md) | - |
 | [PutApiV1AdminAppsByIdResponse](Internal/type-aliases/PutApiV1AdminAppsByIdResponse.md) | - |
 | [PutApiV1AdminAppsByIdResponses](Internal/type-aliases/PutApiV1AdminAppsByIdResponses.md) | - |
+| [PutApiV1AdminBotConfigData](Internal/type-aliases/PutApiV1AdminBotConfigData.md) | - |
+| [PutApiV1AdminBotConfigError](Internal/type-aliases/PutApiV1AdminBotConfigError.md) | - |
+| [PutApiV1AdminBotConfigErrors](Internal/type-aliases/PutApiV1AdminBotConfigErrors.md) | - |
+| [PutApiV1AdminBotConfigResponse](Internal/type-aliases/PutApiV1AdminBotConfigResponse.md) | - |
+| [PutApiV1AdminBotConfigResponses](Internal/type-aliases/PutApiV1AdminBotConfigResponses.md) | - |
 | [PutApiV1AdminConnectorsByProviderData](Internal/type-aliases/PutApiV1AdminConnectorsByProviderData.md) | - |
 | [PutApiV1AdminConnectorsByProviderError](Internal/type-aliases/PutApiV1AdminConnectorsByProviderError.md) | - |
 | [PutApiV1AdminConnectorsByProviderErrors](Internal/type-aliases/PutApiV1AdminConnectorsByProviderErrors.md) | - |
@@ -1108,6 +1138,7 @@
 | [getApiV1AdminAppsByAppIdApiKeys](Internal/functions/getApiV1AdminAppsByAppIdApiKeys.md) | List API keys for an app |
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
+| [getApiV1AdminBotStatus](Internal/functions/getApiV1AdminBotStatus.md) | Get X-bot status (admin) |
 | [getApiV1AdminConnectors](Internal/functions/getApiV1AdminConnectors.md) | List connector enable/disable state (admin) |
 | [getApiV1AdminOauthClients](Internal/functions/getApiV1AdminOauthClients.md) | List OAuth clients |
 | [getApiV1AdminOauthClientsByClientId](Internal/functions/getApiV1AdminOauthClientsByClientId.md) | Get an OAuth client |
@@ -1171,6 +1202,8 @@
 | [postApiV1AdminAgents](Internal/functions/postApiV1AdminAgents.md) | Create agent |
 | [postApiV1AdminApps](Internal/functions/postApiV1AdminApps.md) | Create app |
 | [postApiV1AdminAppsByAppIdApiKeys](Internal/functions/postApiV1AdminAppsByAppIdApiKeys.md) | Create API key |
+| [postApiV1AdminBotPollerStart](Internal/functions/postApiV1AdminBotPollerStart.md) | Start the X-bot poller (admin) |
+| [postApiV1AdminBotPollerStop](Internal/functions/postApiV1AdminBotPollerStop.md) | Stop the X-bot poller (admin) |
 | [postApiV1AdminNotificationsAnnounceModel](Internal/functions/postApiV1AdminNotificationsAnnounceModel.md) | Announce a new model via push notification (admin) |
 | [postApiV1AdminNotificationsSend](Internal/functions/postApiV1AdminNotificationsSend.md) | Send test push notification (admin) |
 | [postApiV1AdminOauthClients](Internal/functions/postApiV1AdminOauthClients.md) | Create an OAuth client (agent registration) |
@@ -1206,6 +1239,7 @@
 | [postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp](Internal/functions/postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp.md) | Top up user credits |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1GuestChatCompletions](Internal/functions/postApiV1GuestChatCompletions.md) | Guest chat completion (free trial) |
+| [postApiV1Moderate](Internal/functions/postApiV1Moderate.md) | Moderate content |
 | [postApiV1NotificationsDevices](Internal/functions/postApiV1NotificationsDevices.md) | Register push-notification device |
 | [postApiV1NotificationsDevicesUnregister](Internal/functions/postApiV1NotificationsDevicesUnregister.md) | Unregister push-notification device |
 | [postApiV1PhoneCalls](Internal/functions/postApiV1PhoneCalls.md) | Create phone call |
@@ -1238,6 +1272,7 @@
 | [putApiV1AdminAgentsById](Internal/functions/putApiV1AdminAgentsById.md) | Update agent |
 | [putApiV1AdminAppsByAppIdApiKeysById](Internal/functions/putApiV1AdminAppsByAppIdApiKeysById.md) | Update API key |
 | [putApiV1AdminAppsById](Internal/functions/putApiV1AdminAppsById.md) | Update app |
+| [putApiV1AdminBotConfig](Internal/functions/putApiV1AdminBotConfig.md) | Update X-bot config (admin) |
 | [putApiV1AdminConnectorsByProvider](Internal/functions/putApiV1AdminConnectorsByProvider.md) | Enable or disable a connector (admin) |
 | [putApiV1AdminPersonasById](Internal/functions/putApiV1AdminPersonasById.md) | Update persona |
 | [putApiV1AgentsByIdPreference](Internal/functions/putApiV1AgentsByIdPreference.md) | Set user agent preference |

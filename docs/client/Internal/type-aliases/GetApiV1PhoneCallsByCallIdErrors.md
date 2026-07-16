@@ -2,7 +2,7 @@
 
 > **GetApiV1PhoneCallsByCallIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:8503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8503)
+Defined in: [src/client/types.gen.ts:8732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8732)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8503](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8507](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8507)
+Defined in: [src/client/types.gen.ts:8736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8736)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8511](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8511)
+Defined in: [src/client/types.gen.ts:8740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8740)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8515](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8515)
+Defined in: [src/client/types.gen.ts:8744](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8744)
 
 Not Found
 
@@ -40,7 +40,7 @@ Not Found
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8519](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8519)
+Defined in: [src/client/types.gen.ts:8748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8748)
 
 Bad Gateway
 
@@ -50,6 +50,6 @@ Bad Gateway
 
 > **503**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:8523](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8523)
+Defined in: [src/client/types.gen.ts:8752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8752)
 
 Service Unavailable

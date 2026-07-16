@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaRecoveryCodesRegenerateErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6287)
+Defined in: [src/client/types.gen.ts:6477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6477)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6287](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6291](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6291)
+Defined in: [src/client/types.gen.ts:6481](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6481)
 
 Unauthorized

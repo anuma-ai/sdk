@@ -2,7 +2,7 @@
 
 > **getApiV1CuratedModels**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1CuratedModelsData`](../type-aliases/GetApiV1CuratedModelsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1CuratedModelsResponses`](../type-aliases/GetApiV1CuratedModelsResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1000](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1000)
+Defined in: [src/client/sdk.gen.ts:1052](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1052)
 
 List curated models
 

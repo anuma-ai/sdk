@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsCreateCheckoutSessionError** = [`PostApiV1SubscriptionsCreateCheckoutSessionErrors`](PostApiV1SubscriptionsCreateCheckoutSessionErrors.md)\[keyof [`PostApiV1SubscriptionsCreateCheckoutSessionErrors`](PostApiV1SubscriptionsCreateCheckoutSessionErrors.md)]
 
-Defined in: [src/client/types.gen.ts:8989](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8989)
+Defined in: [src/client/types.gen.ts:9222](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9222)

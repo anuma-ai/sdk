@@ -2,7 +2,7 @@
 
 > **PutApiV1ConnectorsByProviderScopesData** = `object`
 
-Defined in: [src/client/types.gen.ts:6915](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6915)
+Defined in: [src/client/types.gen.ts:7105](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7105)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6915](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersSetScopesRequest`](HandlersSetScopesRequest.md)
 
-Defined in: [src/client/types.gen.ts:6919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6919)
+Defined in: [src/client/types.gen.ts:7109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7109)
 
 Capability toggles
 
@@ -20,7 +20,7 @@ Capability toggles
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:6920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6920)
+Defined in: [src/client/types.gen.ts:7110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7110)
 
 **provider**
 
@@ -34,7 +34,7 @@ Logical connector provider
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6926](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6926)
+Defined in: [src/client/types.gen.ts:7116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7116)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:6926](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/connectors/{provider}/scopes"`
 
-Defined in: [src/client/types.gen.ts:6927](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6927)
+Defined in: [src/client/types.gen.ts:7117](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7117)
