@@ -182,17 +182,24 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
   // labeled gold entity to the BEST-scoring extracted entity by name overlap
   // (highest match score wins, so an exact match beats a looser subset and a
   // gold entity is never mis-paired to whichever candidate happened to be first).
+  // Track matched entities to ensure one-to-one assignment and prevent double-counting.
   const extractedEntities = candidates.flatMap((c2) => c2.entities);
+  const matchedIndices = new Set<number>();
   const entityDetail = (c.expectedEntities ?? []).map((exp) => {
     let match: (typeof extractedEntities)[number] | undefined;
     let bestScore = 0;
-    for (const ee of extractedEntities) {
+    let bestIndex = -1;
+    for (let i = 0; i < extractedEntities.length; i++) {
+      if (matchedIndices.has(i)) continue;
+      const ee = extractedEntities[i];
       const score = entityMatchScore(exp.name, ee.name);
       if (score > bestScore) {
         bestScore = score;
         match = ee;
+        bestIndex = i;
       }
     }
+    if (bestIndex >= 0) matchedIndices.add(bestIndex);
     const covered = match !== undefined;
     const extractedKind = match?.kind ?? null;
     const predicted = !covered ? MISSED : (extractedKind ?? NO_KIND);
