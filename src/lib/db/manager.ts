@@ -204,9 +204,17 @@ export class DatabaseManager {
 
     // Idempotent per dbName: an already-built instance is reused as-is. This is
     // the key that stops the sign-up-time teardown/rebuild churn — a wallet whose
-    // request briefly interleaves with a guest (`undefined`) render, or arrives
-    // in a transient form, resolves to the same dbName and hits this cache
-    // instead of recreating the adapter (client#4821).
+    // request briefly interleaves with a guest (`undefined`) render resolves to
+    // the same dbName and hits this cache instead of recreating the adapter
+    // (client#4821).
+    //
+    // The cache key is the raw dbName, so callers must pass a wallet address in a
+    // consistent CASE (the same address checksummed vs lowercase would key two
+    // entries → a split store). Callers do: the app resolves every address through
+    // one source (getEmbeddedWalletAddress → Privy's checksummed address), and
+    // prod telemetry shows addresses uniformly checksummed. We intentionally do
+    // NOT lowercase here: existing on-device stores were created under the
+    // checksummed dbName, so normalizing would strand them (see client#4821).
     const cached = this.databases.get(dbName);
     if (cached) {
       this.currentWalletAddress = walletAddress;
@@ -239,18 +247,20 @@ export class DatabaseManager {
   }
 
   /**
-   * Reset the current database (useful for logout or testing).
+   * Reset ALL cached databases (useful for logout or testing).
    */
   async resetDatabase(): Promise<void> {
-    const dbName = this.getDbName(this.currentWalletAddress);
-    const db = this.databases.get(dbName);
-    if (db) {
+    // Reset EVERY cached instance, not just `currentWalletAddress`'s. Since a
+    // transient guest render can leave `currentWalletAddress` pointing at the
+    // guest entry, keying off it would wipe guest while leaving the wallet DB
+    // cached and stale. Logout/testing wants all local stores cleared anyway.
+    const instances = [...this.databases.values()];
+    this.databases.clear();
+    this.currentWalletAddress = undefined;
+    for (const db of instances) {
       await db.write(async () => {
         await db.unsafeResetDatabase();
       });
-      // Drop the cached instance so the next getDatabase rebuilds a fresh one.
-      this.databases.delete(dbName);
-      this.currentWalletAddress = undefined;
     }
   }
 

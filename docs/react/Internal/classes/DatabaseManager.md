@@ -40,7 +40,7 @@ const database = dbManager.getDatabase(walletAddress);
 
 > **new DatabaseManager**(`options`: [`DatabaseManagerOptions`](../interfaces/DatabaseManagerOptions.md)): `DatabaseManager`
 
-Defined in: [src/lib/db/manager.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#165)
+Defined in: [src/lib/db/manager.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#176)
 
 **Parameters**
 
@@ -77,7 +77,7 @@ Defined in: [src/lib/db/manager.ts:165](https://github.com/anuma-ai/sdk/blob/mai
 
 > **getDatabase**(`walletAddress?`: `string`): `Database`
 
-Defined in: [src/lib/db/manager.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#191)
+Defined in: [src/lib/db/manager.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#202)
 
 Get or create a WatermelonDB Database instance for the given wallet.
 
@@ -132,7 +132,7 @@ If a destructive migration is in progress
 
 > **getDbName**(`walletAddress?`: `string`): `string`
 
-Defined in: [src/lib/db/manager.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#176)
+Defined in: [src/lib/db/manager.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#187)
 
 Get the database name for a given wallet address.
 
@@ -171,9 +171,9 @@ Get the database name for a given wallet address.
 
 > **resetDatabase**(): `Promise`<`void`>
 
-Defined in: [src/lib/db/manager.ts:234](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#234)
+Defined in: [src/lib/db/manager.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#252)
 
-Reset the current database (useful for logout or testing).
+Reset ALL cached databases (useful for logout or testing).
 
 **Returns**
 

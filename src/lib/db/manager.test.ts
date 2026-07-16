@@ -98,6 +98,18 @@ describe("DatabaseManager.getDatabase caching", () => {
     expect(createAdapter).toHaveBeenCalledTimes(2);
   });
 
+  // resetDatabase must clear the wallet entry even when the last lookup was a
+  // transient guest render (otherwise a logout would wipe guest and leave the
+  // wallet DB cached + stale).
+  it("resets the wallet DB even when the last getDatabase was guest", async () => {
+    const { manager } = makeManager();
+    const wallet = manager.getDatabase(WALLET);
+    manager.getDatabase(undefined); // currentWalletAddress now points at guest
+    await manager.resetDatabase();
+    // Both entries were dropped: the wallet is rebuilt fresh, not the stale one.
+    expect(manager.getDatabase(WALLET)).not.toBe(wallet);
+  });
+
   it("still triggers a destructive migration (and does not cache) when the stored schema is too old", () => {
     const onDestructiveMigration = vi.fn();
     const { manager, createAdapter, storage } = makeManager({ onDestructiveMigration });
