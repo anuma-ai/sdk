@@ -1,0 +1,132 @@
+name: Extraction Eval
+
+# Runs the extraction-quality benchmark (recall / precision / junk +
+# entity-kind accuracy) against the portal LLM. Two ways in:
+#   - workflow_dispatch: on-demand, pick repeats/model/threshold.
+#   - push (this feature branch only): auto-run the before/after A/B so the
+#     PR gets kind-accuracy numbers without a local PORTAL_API_KEY. The branch
+#     filter means it stops firing once merged to main.
+on:
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: "Runs per config (extraction is non-deterministic; ≥3 recommended)"
+        required: false
+        type: string
+        default: "3"
+      model:
+        description: "Extractor model (blank = default gpt-oss-120b)"
+        required: false
+        type: string
+        default: ""
+      match_threshold:
+        description: "Content-match cosine threshold (blank = 0.62 default)"
+        required: false
+        type: string
+        default: ""
+      baseline:
+        description: "Also run the main-branch prompt/taxonomy as an A/B baseline"
+        required: false
+        type: choice
+        default: "true"
+        options: ["true", "false"]
+  push:
+    branches: [feat/entity-kind-classification]
+    paths:
+      - ".github/workflows/extraction-eval.yml"
+      - "src/lib/memory/autoExtract.ts"
+      - "src/lib/db/entities/types.ts"
+      - "test/memory/src/extraction/**"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      # Free-form inputs via env (not ${{ }} inline) so the shell tokenizes
+      # after substitution — blocks command injection from the dispatch UI.
+      INPUT_REPEAT: ${{ inputs.repeat || '3' }}
+      INPUT_MODEL: ${{ inputs.model }}
+      INPUT_MATCH_THRESHOLD: ${{ inputs.match_threshold }}
+      INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need origin/main for the A/B baseline swap
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build eval args
+        id: args
+        run: |
+          args=(--json --repeat "$INPUT_REPEAT")
+          [ -n "$INPUT_MODEL" ] && args+=(--model "$INPUT_MODEL")
+          [ -n "$INPUT_MATCH_THRESHOLD" ] && args+=(--match-threshold "$INPUT_MATCH_THRESHOLD")
+          # Persist as a newline-safe single string for later steps.
+          printf 'EVAL_ARGS=%s\n' "${args[*]}" >> "$GITHUB_ENV"
+
+      - name: Run eval (this branch = AFTER)
+        run: |
+          echo "::group::after (branch prompt + 8-kind taxonomy)"
+          pnpm eval:extraction $EVAL_ARGS | tee after.json
+          echo "::endgroup::"
+
+      - name: Run eval (main = BEFORE baseline)
+        if: env.INPUT_BASELINE == 'true'
+        run: |
+          # Swap ONLY the prompt + taxonomy back to main; keep the branch's
+          # eval corpus + scorer (they live in test/, identical on both sides)
+          # so the comparison is apples-to-apples. tsx runs without a typecheck,
+          # so main's 5-kind EntityKind vs the corpus's org/product/event labels
+          # is fine at runtime (kind is a string).
+          git checkout origin/main -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
+          echo "::group::before (main prompt + 5-kind taxonomy)"
+          pnpm eval:extraction $EVAL_ARGS | tee before.json
+          echo "::endgroup::"
+          git checkout HEAD -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
+
+      - name: Summarize kind accuracy (before vs after)
+        if: always()
+        run: |
+          summarize() {
+            local f="$1" label="$2"
+            [ -f "$f" ] || { echo "  ($label: no result)"; return; }
+            jq -r --arg L "$label" '
+              .overall as $o |
+              "  \($L):",
+              "    entity coverage : \(($o.entityCoverage*1000|round/10))%  (\($o.coveredEntities)/\($o.expectedEntities))",
+              "    kind accuracy   : \(($o.kindAccuracy*1000|round/10))%  (\($o.kindCorrect)/\($o.coveredEntities))",
+              "    recall/precision: \(($o.recall*1000|round/10))% / \(($o.precision*1000|round/10))%",
+              (.variance // {} | to_entries[]? | "    ~\(.key): mean \((.value.mean*1000|round/10)) [\((.value.min*1000|round/10))–\((.value.max*1000|round/10))]")
+            ' "$f"
+          }
+          {
+            echo "## Extraction eval — entity-kind classification"
+            echo '```'
+            summarize before.json "BEFORE (main)"
+            summarize after.json  "AFTER  (branch)"
+            echo '```'
+            echo "Per-kind confusion (AFTER):"
+            echo '```'
+            jq -r '.kindConfusion[]? | "  \(.kind): \(.correct)/\(.covered) correct (of \(.total) expected)  preds=\(.predictions)"' after.json 2>/dev/null || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extraction-eval-results
+          path: |
+            before.json
+            after.json
+          if-no-files-found: ignore
