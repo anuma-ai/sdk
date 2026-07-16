@@ -2,7 +2,7 @@
 
 > **createLlmNeighborRefiner**(`options`: [`LlmNeighborRefinerOptions`](../interfaces/LlmNeighborRefinerOptions.md)): [`NeighborRefiner`](../interfaces/NeighborRefiner.md)
 
-Defined in: [src/lib/memory/graphTraversal.ts:322](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#322)
+Defined in: [src/lib/memory/graphTraversal.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#359)
 
 Build a [NeighborRefiner](../interfaces/NeighborRefiner.md) backed by a cheap portal LLM. At each hop it
 asks the model to pick, from the candidate neighbor entities, the ≤`limit`
@@ -19,7 +19,10 @@ candidate ENTITY NAMES to the portal UNREDACTED. Those names ARE user PII —
 people, places, orgs pulled from the stored graph (e.g. "Sara", "Kyoto",
 "Acme") — not lower-risk than content just because they're short. It reuses
 the query-decompose auth and is opt-in (`RecallOptions.graphRefine`, default
-off in recall); leave it off unless you accept that exposure.
+off in recall); leave it off unless you accept that exposure. To bound that
+exposure, [traverseGraphLane](traverseGraphLane.md) caps the candidate list it hands this
+refiner per hop to `max(entityFanout * 2, MIN_REFINER_CANDIDATES)` names — the
+full frontier is never egressed, only the top co-occurring candidates.
 
 MEDIUM residual: a malicious / MITM'd portal can only steer WHICH neighbor
 entities expand — a recall-ranking nudge, not a data-integrity change (no

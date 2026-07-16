@@ -1,6 +1,9 @@
+import { Database } from "@nozbe/watermelondb";
+import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
 import {
+  archiveVaultMemoryOp,
   createVaultMemoryOp,
   createVaultMemoriesBatchOp,
   getVaultMemoryOp,
@@ -15,6 +18,8 @@ import {
   vaultMemoryToStored,
 } from "./operations";
 import { linkMemoryEntitiesOp } from "../entities/operations";
+import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
+import type { VaultMemory } from "./models";
 
 // Mock encryption so tests don't need real crypto
 vi.mock("./encryption", () => ({
@@ -1213,5 +1218,71 @@ describe("typed memory (PR1)", () => {
     expect(stored.factType).toBeNull();
     expect(stored.trustTier).toBeNull();
     expect(stored.archivedAt).toBeNull();
+  });
+});
+
+// Behavioral choke-point test against a REAL in-memory WatermelonDB (LokiJS) —
+// asserts the INVARIANT the condition-count tests above only approximate: what
+// the default read actually keeps vs drops. This is the guard that would catch a
+// `Q.notEq("quarantined")` regression that silently excludes NULL trust_tier
+// rows (the exact hazard the choke-point comment warns about).
+describe("baseVaultConditions — real read semantics (in-memory LokiJS)", () => {
+  function makeRealDatabase(): Database {
+    const adapter = new LokiJSAdapter({
+      schema: sdkSchema,
+      migrations: sdkMigrations,
+      useWebWorker: false,
+      useIncrementalIndexedDB: false,
+      dbName: `ops-choke-test-${Math.random().toString(36).slice(2)}`,
+    });
+    return new Database({ adapter, modelClasses: sdkModelClasses });
+  }
+
+  let db: Database;
+  let ctx: VaultMemoryOperationsContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db = makeRealDatabase();
+    // No wallet → content stored/read as plaintext (encryption never invoked).
+    ctx = { database: db, vaultMemoryCollection: db.get<VaultMemory>("memory_vault") };
+  });
+
+  it("keeps NULL trust_tier, drops quarantined, hides archived by default; include flags surface them", async () => {
+    // Active, untyped: trust_tier is NULL (the legacy / normal row).
+    const active = await createVaultMemoryOp(ctx, { content: "active null-tier fact" });
+    // Quarantined: trust_tier === "quarantined" — must be dropped by default.
+    const quarantined = await createVaultMemoryOp(ctx, {
+      content: "quarantined fact",
+      trustTier: "quarantined",
+    });
+    // Archived: archived_at set — dropped by default, returned with includeArchived.
+    const archived = await createVaultMemoryOp(ctx, { content: "archived fact" });
+    await archiveVaultMemoryOp(ctx, archived.uniqueId, { now: Date.now() });
+
+    const defaultIds = (await getAllVaultMemoriesOp(ctx)).map((m) => m.uniqueId);
+    // The NULL-tier row SURVIVES `Q.notEq("quarantined")` and the active read.
+    expect(defaultIds).toContain(active.uniqueId);
+    // Quarantined + archived are dropped by the shared choke point.
+    expect(defaultIds).not.toContain(quarantined.uniqueId);
+    expect(defaultIds).not.toContain(archived.uniqueId);
+
+    // Sanity: the surviving row genuinely has a NULL tier (not coerced to a string).
+    const activeRow = await getVaultMemoryOp(ctx, active.uniqueId);
+    expect(activeRow?.trustTier).toBeNull();
+
+    // includeArchived surfaces the archived row (still excludes quarantined).
+    const withArchived = (await getAllVaultMemoriesOp(ctx, { includeArchived: true })).map(
+      (m) => m.uniqueId
+    );
+    expect(withArchived).toContain(archived.uniqueId);
+    expect(withArchived).toContain(active.uniqueId);
+    expect(withArchived).not.toContain(quarantined.uniqueId);
+
+    // includeQuarantined surfaces the quarantined row.
+    const withQuarantined = (await getAllVaultMemoriesOp(ctx, { includeQuarantined: true })).map(
+      (m) => m.uniqueId
+    );
+    expect(withQuarantined).toContain(quarantined.uniqueId);
   });
 });

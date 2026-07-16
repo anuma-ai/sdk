@@ -1,6 +1,6 @@
 # DecayClassifier
 
-Defined in: [src/lib/memory/decayWorker.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#71)
+Defined in: [src/lib/memory/decayWorker.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#74)
 
 PR5 seam — an on-device classifier that refines the rule-based verdict for
 borderline rows (e.g. type `other`/null, or a `plan` without an event end).
@@ -27,13 +27,19 @@ The same plaintext inputs the rule engine saw.
 
 The rule-based verdict, as a starting point / fallback.
 
+## Param
+
+The sweep's reference time (Unix ms). Injected so the
+classifier derives any age math from the same clock the rule engine used,
+never wall-clock `Date.now()` — keeping a fixed-`now` sweep deterministic.
+
 ## Methods
 
 ### classify()
 
-> **classify**(`input`: [`DecayInput`](DecayInput.md), `ruleVerdict`: [`DecayVerdict`](../type-aliases/DecayVerdict.md)): [`DecayVerdict`](../type-aliases/DecayVerdict.md) | `Promise`<[`DecayVerdict`](../type-aliases/DecayVerdict.md)>
+> **classify**(`input`: [`DecayInput`](DecayInput.md), `ruleVerdict`: [`DecayVerdict`](../type-aliases/DecayVerdict.md), `now`: `number`): [`DecayVerdict`](../type-aliases/DecayVerdict.md) | `Promise`<[`DecayVerdict`](../type-aliases/DecayVerdict.md)>
 
-Defined in: [src/lib/memory/decayWorker.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#72)
+Defined in: [src/lib/memory/decayWorker.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#75)
 
 **Parameters**
 
@@ -66,6 +72,18 @@ Defined in: [src/lib/memory/decayWorker.ts:72](https://github.com/anuma-ai/sdk/b
 <td>
 
 [`DecayVerdict`](../type-aliases/DecayVerdict.md)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`now`
+
+</td>
+<td>
+
+`number`
 
 </td>
 </tr>

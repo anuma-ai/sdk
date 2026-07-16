@@ -115,7 +115,11 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
   const redactor: PiiRedactor | undefined = resolvePiiRedactor(options.piiRedaction ?? true);
 
   return {
-    async classify(input: DecayInput, ruleVerdict: DecayVerdict): Promise<DecayVerdict> {
+    async classify(
+      input: DecayInput,
+      ruleVerdict: DecayVerdict,
+      now: number
+    ): Promise<DecayVerdict> {
       // Never let a content read escalate to a hard delete — delete is the
       // deterministic archived-past-window mechanic only. If the rule already
       // says delete (it shouldn't for a borderline row, but be defensive),
@@ -135,7 +139,7 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
 
       const trimmed = content.trim().slice(0, MAX_CONTENT_CHARS);
       const safe = redactor ? redactor.redactText(trimmed).text : trimmed;
-      const meta = `factType: ${input.factType ?? "none"}; ageDays: ${ageDays(input.updatedAt)}`;
+      const meta = `factType: ${input.factType ?? "none"}; ageDays: ${ageDays(input.updatedAt, now)}`;
 
       let parsed: unknown;
       try {
@@ -168,10 +172,12 @@ export function createLlmDecayClassifier(options: LlmDecayClassifierOptions): De
   };
 }
 
-/** Whole days since `updatedAt` (for the prompt's age hint). */
-function ageDays(updatedAt: number): number {
-  if (!Number.isFinite(updatedAt)) return 0;
-  return Math.max(0, Math.floor((Date.now() - updatedAt) / (24 * 60 * 60 * 1000)));
+/** Whole days between `updatedAt` and the sweep's injected `now` (for the
+ * prompt's age hint). Uses the injected clock — NOT wall-clock `Date.now()` — so
+ * a fixed-`now` sweep is deterministic. */
+function ageDays(updatedAt: number, now: number): number {
+  if (!Number.isFinite(updatedAt) || !Number.isFinite(now)) return 0;
+  return Math.max(0, Math.floor((now - updatedAt) / (24 * 60 * 60 * 1000)));
 }
 
 /** Parse `{ verdict: "keep" | "archive" }`. Returns null on anything else — the

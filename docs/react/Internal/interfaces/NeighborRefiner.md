@@ -1,6 +1,6 @@
 # NeighborRefiner
 
-Defined in: [src/lib/memory/graphTraversal.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#117)
+Defined in: [src/lib/memory/graphTraversal.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#128)
 
 Picks which candidate neighbor entities to expand at a traversal hop. Given
 the query and the deterministically-ranked candidate entity names, return the
@@ -13,7 +13,7 @@ falls back to the deterministic top-`limit` on a throw or empty return.
 
 > **refine**(`query`: `string`, `candidates`: `string`\[], `limit`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/graphTraversal.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#118)
+Defined in: [src/lib/memory/graphTraversal.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#129)
 
 **Parameters**
 

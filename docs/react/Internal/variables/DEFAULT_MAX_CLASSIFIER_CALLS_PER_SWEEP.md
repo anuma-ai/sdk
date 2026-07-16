@@ -2,7 +2,7 @@
 
 > `const` **DEFAULT\_MAX\_CLASSIFIER\_CALLS\_PER\_SWEEP**: `20` = `20`
 
-Defined in: [src/lib/memory/decayWorker.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#133)
+Defined in: [src/lib/memory/decayWorker.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#140)
 
 Default per-sweep ceiling on decay-classifier invocations (see
 [CreateDecaySweeperOptions.maxClassifierCallsPerSweep](../interfaces/CreateDecaySweeperOptions.md#maxclassifiercallspersweep)). Kept small: the

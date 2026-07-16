@@ -596,11 +596,10 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
   });
 
   it("falls back to the rule verdict when the classifier throws", async () => {
-    await seed({
-      content: "aged → rule archives",
-      factType: "other",
-      updatedAt: NOW - (MEDIUM_TTL_MS + 20 * DAY),
-    });
+    // A FRESH borderline `other` row → rule verdict is KEEP, so the classifier
+    // IS consulted (a rule archive/delete short-circuits before it). It throws;
+    // the sweep must fall back to the rule verdict (keep) → nothing archived.
+    const id = await seed({ content: "fresh borderline", factType: "other", updatedAt: NOW });
     const sweeper = createDecaySweeper({
       vaultCtx,
       now: NOW,
@@ -611,7 +610,31 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
       },
     });
     const result = await sweeper.runSweep();
-    // Classifier threw → rule verdict (archive) still applied.
-    expect(result.archived).toBe(1);
+    // Classifier threw on a rule-keep row → falls back to keep; nothing archived.
+    expect(result.archived).toBe(0);
+    expect(await archivedAtOf(id)).toBeNull();
+  });
+
+  it("HIGH regression: a borderline row cached 'keep' at day 10 IS archived at day 200 when the rule crosses its TTL", async () => {
+    // A borderline `other` row, never re-observed (updated_at fixed at NOW).
+    const id = await seed({ content: "borderline other fact", factType: "other", updatedAt: NOW });
+    // Classifier always says keep — its verdict is cached after the first call.
+    const classify = vi.fn((): DecayVerdict => "keep");
+
+    let clock = NOW + 10 * DAY; // day 10 — well within the 180-day medium TTL
+    const sweeper = createDecaySweeper({ vaultCtx, now: () => clock, classifier: { classify } });
+
+    // Day 10: the rule keeps (fresh) → classifier consulted → keep, cached.
+    expect(await sweeper.runSweep()).toEqual({ archived: 0, deleted: 0, scanned: 1 });
+
+    // Day 200: the medium TTL (180d) has elapsed, so the RULE now says archive.
+    // The stale cached "keep" must NOT freeze the escalation — the row archives.
+    clock = NOW + 200 * DAY;
+    expect(await sweeper.runSweep()).toEqual({ archived: 1, deleted: 0, scanned: 1 });
+    expect(await archivedAtOf(id)).toBe(clock);
+
+    // The classifier ran ONLY at day 10 (rule keep + borderline). At day 200 the
+    // rule escalated first, so the classifier — and its stale cache — are bypassed.
+    expect(classify).toHaveBeenCalledTimes(1);
   });
 });

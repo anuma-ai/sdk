@@ -127,7 +127,10 @@ const CONFUSABLE_RE = new RegExp(`[${Object.keys(CONFUSABLES).join("")}]`, "gu")
  *  2. Strip Unicode format chars (Cf: zero-width space/joiner, BOM, soft
  *     hyphen, RTL/LTR overrides) that split trigger words invisibly.
  *  3. Fold confusable homoglyphs back to Latin.
- *  4. Collapse ALL whitespace (incl. newlines/tabs) to single spaces, so a
+ *  4. Strip Unicode combining marks (Mn/Mc/Me) that stack on a base letter to
+ *     disguise a trigger word — e.g. "Ig̈nore" (g + U+0308 combining diaeresis)
+ *     reads as "Ignore" but `\bignore\b` misses it until the mark is dropped.
+ *  5. Collapse ALL whitespace (incl. newlines/tabs) to single spaces, so a
  *     `\n` planted inside a bounded `[^.\n]` gap no longer breaks the match.
  * Pure win: none of these can turn a benign fact into an injection phrase.
  */
@@ -136,6 +139,7 @@ export function normalizeForScreen(content: string): string {
     .normalize("NFKC")
     .replace(/[\p{Cf}]/gu, "")
     .replace(CONFUSABLE_RE, (ch) => CONFUSABLES[ch] ?? ch)
+    .replace(/\p{M}/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -64,6 +64,17 @@ export const MAX_HOPS = 2;
 export const ENTITY_FANOUT = 8;
 
 /**
+ * Floor for the per-hop cap on candidate entity NAMES handed to an LLM neighbor
+ * refiner. The effective cap is `max(entityFanout * 2, MIN_REFINER_CANDIDATES)`:
+ * enough choices for the model to reorder the fan-out, but a hard bound on how
+ * many (PII-bearing) entity names egress to the portal per hop — the full
+ * frontier is never sent. See the call site in {@link traverseGraphLane} and the
+ * SECURITY note on {@link createLlmNeighborRefiner}. Module-private (an internal
+ * egress bound, not a tuning knob).
+ */
+const MIN_REFINER_CANDIDATES = 16;
+
+/**
  * Hard ceiling on total accumulated memory IDs across all hops. The BFS stops
  * expanding once the accumulated set reaches this size (and the frontier is
  * bounded to it too), keeping the RRF pool — and the downstream reranker
@@ -180,17 +191,23 @@ export async function traverseGraphLane(
   // single-hop lane (no RRF round-trip that could perturb order).
   if (maxHops <= 1) return hop1Ranking;
 
-  const perHopRankings: string[][] = [hop1Ranking];
+  // Multi-hop: bound the EMITTED candidate pool at NODE_BUDGET across ALL hops
+  // (not just the next frontier). A dense seed entity can itself return far more
+  // than the budget, so truncate the seed ranking here too — otherwise a 500-row
+  // seed would emit all 500 into entityRanking regardless of NODE_BUDGET,
+  // blowing up the RRF pool and the downstream reranker workload.
+  const hop1Emitted = hop1Ranking.slice(0, nodeBudget);
+  const perHopRankings: string[][] = [hop1Emitted];
   // memoryId → the earliest hop it was discovered at. This is the PRIMARY rank
   // key at the end (hop-decayed weight → "closer hops rank higher").
   const firstHopOf = new Map<string, number>();
-  for (const id of hop1Ranking) if (!firstHopOf.has(id)) firstHopOf.set(id, 1);
+  for (const id of hop1Emitted) if (!firstHopOf.has(id)) firstHopOf.set(id, 1);
 
-  const accumulated = new Set<string>(hop1Ranking);
+  const accumulated = new Set<string>(hop1Emitted);
   // Entities already used as expansion cues (seed + every expanded neighbor).
   // Excluding them prevents re-expanding the same cue → cycles / wasted joins.
   const seenEntities = new Set<string>(seedNames);
-  let frontier = hop1Ranking.slice(0, nodeBudget);
+  let frontier = hop1Emitted;
 
   for (let hop = 2; hop <= maxHops; hop++) {
     if (frontier.length === 0) break;
@@ -221,7 +238,19 @@ export async function traverseGraphLane(
     let topNeighbors = rankedNeighbors.slice(0, entityFanout);
     if (options.refineNeighbors && rankedNeighbors.length > entityFanout) {
       try {
-        const refined = await options.refineNeighbors.refine(query, rankedNeighbors, entityFanout);
+        // SECURITY / egress bound: hand the refiner only the top-N co-occurring
+        // candidates, never the full frontier. Neighbor entity NAMES are user
+        // PII (people/places/orgs) egressed to the portal, so a dense frontier
+        // must not fan hundreds of names out per hop. `refinerCandidateCap`
+        // keeps the outbound list small while still giving the model enough
+        // choices to reorder the fan-out. See {@link createLlmNeighborRefiner}.
+        const refinerCandidateCap = Math.max(entityFanout * 2, MIN_REFINER_CANDIDATES);
+        const refinerCandidates = rankedNeighbors.slice(0, refinerCandidateCap);
+        const refined = await options.refineNeighbors.refine(
+          query,
+          refinerCandidates,
+          entityFanout
+        );
         // Keep only real candidates for this hop, preserve the model's order,
         // dedupe, and cap at the fan-out. Empty → keep the deterministic set.
         const valid: string[] = [];
@@ -247,17 +276,22 @@ export async function traverseGraphLane(
     const hopMap = await getMemoriesByEntityNamesOp(entityCtx, topNeighbors);
     if (hopMap.size === 0) break;
     const hopRanking = rankMemoriesByOverlap(hopMap);
-    perHopRankings.push(hopRanking);
-    for (const id of hopRanking) if (!firstHopOf.has(id)) firstHopOf.set(id, hop);
 
-    // Next frontier = newly-discovered ids only, bounded by NODE_BUDGET.
+    // Emit only the newly-discovered ids up to the remaining NODE_BUDGET. This
+    // both feeds the next frontier AND bounds what this hop contributes to the
+    // emitted candidate pool (perHopRankings), so a dense entity returning far
+    // more than the budget adds at most the remaining slots — the total emitted
+    // pool never exceeds NODE_BUDGET.
     const newlyDiscovered: string[] = [];
     for (const id of hopRanking) {
       if (accumulated.has(id)) continue;
       accumulated.add(id);
       newlyDiscovered.push(id);
+      firstHopOf.set(id, hop); // genuinely new → this is its earliest hop
       if (accumulated.size >= nodeBudget) break;
     }
+    if (newlyDiscovered.length === 0) break;
+    perHopRankings.push(newlyDiscovered);
     frontier = newlyDiscovered;
   }
 
@@ -311,7 +345,10 @@ export interface LlmNeighborRefinerOptions extends PortalLlmAuth {
  * people, places, orgs pulled from the stored graph (e.g. "Sara", "Kyoto",
  * "Acme") — not lower-risk than content just because they're short. It reuses
  * the query-decompose auth and is opt-in (`RecallOptions.graphRefine`, default
- * off in recall); leave it off unless you accept that exposure.
+ * off in recall); leave it off unless you accept that exposure. To bound that
+ * exposure, {@link traverseGraphLane} caps the candidate list it hands this
+ * refiner per hop to `max(entityFanout * 2, MIN_REFINER_CANDIDATES)` names — the
+ * full frontier is never egressed, only the top co-occurring candidates.
  *
  * MEDIUM residual: a malicious / MITM'd portal can only steer WHICH neighbor
  * entities expand — a recall-ranking nudge, not a data-integrity change (no

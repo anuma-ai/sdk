@@ -283,6 +283,17 @@ describe("traverseGraphLane — caps", () => {
     expect(roomy).toContain("C");
   });
 
+  it("caps the emitted candidate pool at NODE_BUDGET even when one entity returns more", async () => {
+    const ctx = makeEntityCtx();
+    // A single dense seed entity "Hub" linked to 10 memories — more than the
+    // budget. The seed ranking alone would emit all 10 if untruncated.
+    for (let i = 0; i < 10; i++) await link(ctx, `M${i}`, ["Hub"]);
+
+    const ids = await traverseGraphLane("What about Hub", ctx, { maxHops: 2, nodeBudget: 4 });
+    // Emission is bounded to the budget — never the full 10 the entity returns.
+    expect(ids.length).toBe(4);
+  });
+
   it("capHopsForDensity forces seed-only above the vault-size threshold", () => {
     expect(capHopsForDensity(2, 500)).toBe(2); // below threshold
     expect(capHopsForDensity(2, 5000)).toBe(1); // above → capped
@@ -361,6 +372,30 @@ describe("traverseGraphLane — PR5 LLM neighbor refinement", () => {
       refineNeighbors: empty,
     });
     expect(ids).toContain("MB");
+  });
+
+  it("caps the candidate list handed to the refiner (PII egress bound)", async () => {
+    const ctx = makeEntityCtx();
+    // Seed memory S shares the query seed "Alpha" and links to 30 other distinct
+    // entities → 30 candidate neighbors at hop 2, far above the cap.
+    const many = Array.from({ length: 30 }, (_, i) => `Ent${i}`);
+    await link(ctx, "S", ["Alpha", ...many]);
+
+    let received = -1;
+    const refiner: NeighborRefiner = {
+      refine: async (_q, candidates) => {
+        received = candidates.length;
+        return [];
+      },
+    };
+    await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 2,
+      entityFanout: 1,
+      refineNeighbors: refiner,
+    });
+    // entityFanout=1 → cap = max(1*2, 16) = 16. The refiner must never see all 30
+    // entity names; only the top-16 co-occurring candidates are egressed.
+    expect(received).toBe(16);
   });
 });
 

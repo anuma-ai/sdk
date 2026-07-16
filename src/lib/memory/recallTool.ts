@@ -131,15 +131,13 @@ function generateFenceNonce(): string {
  *     even content that literally includes "ignore instructions" or a
  *     fence-looking payload stays quoted inside the block.
  *
- * SCOPE (do not overstate): this nonce fence covers ONLY the recall-TOOL path
- * — the memories the LLM pulls via `recall_memory`. It does NOT cover the
- * dominant client path, where up to ~100 pre-loaded memories/turn are injected
- * straight into the system prompt (web `buildVaultContext` / mobile
- * `buildVaultContext` + `formatMemoryContext`) inside a STATIC `<memory-data>`
- * delimiter that relies on `sanitizeMemoryContent`, not this nonce. That path
- * is not exploitable-now (sanitize strips the naive breakout tokens), but it
- * lacks nonce-fence parity. Applying the nonce fence to those client builders
- * is tracked as follow-up client hardening.
+ * SCOPE (do not overstate): this nonce fence covers the recall-TOOL path — the
+ * memories the LLM pulls via `recall_memory`. The dominant client PRE-LOAD path,
+ * where up to ~100 memories/turn are injected straight into the system prompt
+ * (web `buildVaultContext` / mobile `buildVaultContext` + `memoryPromptHelpers`),
+ * now ALSO carries a per-turn nonce fence (client #4792), so both the tool path
+ * and the pre-load path are fenced — no longer a client follow-up. Each path
+ * generates its own nonce; this SDK constant is the tool-path fence.
  *
  * Defense-in-depth with the system-prompt clause (client-side) and the
  * write-time quarantine screen; none alone is a complete solve.

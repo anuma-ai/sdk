@@ -66,10 +66,17 @@ export interface DecaySweepResult {
  *
  * @param input      The same plaintext inputs the rule engine saw.
  * @param ruleVerdict The rule-based verdict, as a starting point / fallback.
+ * @param now        The sweep's reference time (Unix ms). Injected so the
+ *   classifier derives any age math from the same clock the rule engine used,
+ *   never wall-clock `Date.now()` — keeping a fixed-`now` sweep deterministic.
  * @returns The (possibly refined) verdict.
  */
 export interface DecayClassifier {
-  classify(input: DecayInput, ruleVerdict: DecayVerdict): Promise<DecayVerdict> | DecayVerdict;
+  classify(
+    input: DecayInput,
+    ruleVerdict: DecayVerdict,
+    now: number
+  ): Promise<DecayVerdict> | DecayVerdict;
 }
 
 /** A clock: a fixed timestamp (tests) or a getter (production intervals). */
@@ -212,14 +219,28 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     sweep: SweepState
   ): Promise<DecayVerdict> {
     const ruleVerdict = classifyDecay(input, now, policy);
-    // PR5 — only borderline rows consult the classifier; clear keeps/deletes
-    // are decided by the rule engine alone, so the (more expensive,
-    // content-reading) classifier is never invoked for them.
+    // Rule ESCALATION always wins — and is never frozen by the classifier cache.
+    // The rule verdict is recomputed every sweep against the current `now`, so a
+    // row the time-based rule now wants to archive/delete (e.g. it just crossed
+    // its TTL, or an archived row passed the hard-delete window) transitions
+    // regardless of any stale cached "keep". The classifier (and its cache) may
+    // therefore only REFINE a row whose CURRENT rule verdict is still `keep`;
+    // it can never resurrect one the rule has already aged out. (Without this a
+    // borderline row cached `keep` at day 10 would stay cached and never archive
+    // once the rule crossed its TTL at day 200 — the cache would suppress the
+    // escalation.)
+    if (ruleVerdict !== "keep") return ruleVerdict;
+
+    // PR5 — only borderline rows (whose rule verdict is `keep`) consult the
+    // classifier; clear keeps are cheap-decided by the rule engine alone, so the
+    // (more expensive, content-reading) classifier is never invoked for them.
     if (!classifier || !isBorderline(input)) return ruleVerdict;
 
     // Stable-row reuse: a row already classified at its current `updated_at`
     // reuses that verdict WITHOUT any portal call — so a stable borderline
-    // "keep" row is never re-egressed on a later sweep.
+    // "keep" row is never re-egressed on a later sweep. Safe against staleness:
+    // the rule-escalation gate above already ran this sweep, so a cache hit here
+    // can only return a refinement of a row the rule STILL keeps.
     if (input.id) {
       const cached = classifierCache.get(input.id);
       if (cached && cached.updatedAt === input.updatedAt) return cached.verdict;
@@ -243,7 +264,7 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
     // (an attempt egresses content) and memo the result for stable-row reuse.
     sweep.classifierCalls++;
     try {
-      const verdict = await classifier.classify(input, ruleVerdict);
+      const verdict = await classifier.classify(input, ruleVerdict, now);
       if (input.id) classifierCache.set(input.id, { updatedAt: input.updatedAt, verdict });
       return verdict;
     } catch (err) {
