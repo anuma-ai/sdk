@@ -393,9 +393,32 @@ describe("traverseGraphLane — PR5 LLM neighbor refinement", () => {
       entityFanout: 1,
       refineNeighbors: refiner,
     });
-    // entityFanout=1 → cap = max(1*2, 16) = 16. The refiner must never see all 30
-    // entity names; only the top-16 co-occurring candidates are egressed.
+    // entityFanout=1 → cap = min(max(1*2, 16), 64) = 16. The refiner must never
+    // see all 30 entity names; only the top-16 co-occurring candidates egress.
     expect(received).toBe(16);
+  });
+
+  it("hard-caps the refiner candidate list regardless of a large entityFanout", async () => {
+    const ctx = makeEntityCtx();
+    // 200 candidate neighbors — a caller cranking entityFanout must NOT be able
+    // to widen PII egress past the hard ceiling.
+    const many = Array.from({ length: 200 }, (_, i) => `Ent${i}`);
+    await link(ctx, "S", ["Alpha", ...many]);
+
+    let received = -1;
+    const refiner: NeighborRefiner = {
+      refine: async (_q, candidates) => {
+        received = candidates.length;
+        return [];
+      },
+    };
+    await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 2,
+      entityFanout: 100,
+      refineNeighbors: refiner,
+    });
+    // cap = min(max(100*2, 16), 64) = 64 — the hard ceiling wins over the floor.
+    expect(received).toBe(64);
   });
 });
 

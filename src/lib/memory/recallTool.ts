@@ -135,9 +135,10 @@ function generateFenceNonce(): string {
  * memories the LLM pulls via `recall_memory`. The dominant client PRE-LOAD path,
  * where up to ~100 memories/turn are injected straight into the system prompt
  * (web `buildVaultContext` / mobile `buildVaultContext` + `memoryPromptHelpers`),
- * now ALSO carries a per-turn nonce fence (client #4792), so both the tool path
- * and the pre-load path are fenced — no longer a client follow-up. Each path
- * generates its own nonce; this SDK constant is the tool-path fence.
+ * gains a matching per-turn nonce fence in client #4792 (in review, not yet
+ * merged as of this writing) — once that lands, both the tool path and the
+ * pre-load path are fenced. Each path generates its own nonce; this SDK code is
+ * the tool-path fence.
  *
  * Defense-in-depth with the system-prompt clause (client-side) and the
  * write-time quarantine screen; none alone is a complete solve.

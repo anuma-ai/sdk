@@ -65,14 +65,22 @@ export const ENTITY_FANOUT = 8;
 
 /**
  * Floor for the per-hop cap on candidate entity NAMES handed to an LLM neighbor
- * refiner. The effective cap is `max(entityFanout * 2, MIN_REFINER_CANDIDATES)`:
- * enough choices for the model to reorder the fan-out, but a hard bound on how
- * many (PII-bearing) entity names egress to the portal per hop — the full
- * frontier is never sent. See the call site in {@link traverseGraphLane} and the
- * SECURITY note on {@link createLlmNeighborRefiner}. Module-private (an internal
- * egress bound, not a tuning knob).
+ * refiner: give the model at least this many choices to reorder the fan-out even
+ * when `entityFanout` is tiny. Effective cap =
+ * `min(max(entityFanout * 2, MIN_REFINER_CANDIDATES), MAX_REFINER_CANDIDATES)`.
+ * Module-private (an internal egress bound, not a tuning knob).
  */
 const MIN_REFINER_CANDIDATES = 16;
+
+/**
+ * HARD ceiling on candidate entity NAMES egressed to the refiner per hop,
+ * regardless of `entityFanout`. `MIN_REFINER_CANDIDATES` is only a floor — a
+ * caller cranking `entityFanout` would otherwise widen PII egress without limit
+ * — so this ceiling is the REAL bound: at most this many (PII-bearing) names
+ * ever leave per hop. See the call site in {@link traverseGraphLane} and the
+ * SECURITY note on {@link createLlmNeighborRefiner}. Module-private.
+ */
+const MAX_REFINER_CANDIDATES = 64;
 
 /**
  * Hard ceiling on total accumulated memory IDs across all hops. The BFS stops
@@ -241,10 +249,15 @@ export async function traverseGraphLane(
         // SECURITY / egress bound: hand the refiner only the top-N co-occurring
         // candidates, never the full frontier. Neighbor entity NAMES are user
         // PII (people/places/orgs) egressed to the portal, so a dense frontier
-        // must not fan hundreds of names out per hop. `refinerCandidateCap`
-        // keeps the outbound list small while still giving the model enough
-        // choices to reorder the fan-out. See {@link createLlmNeighborRefiner}.
-        const refinerCandidateCap = Math.max(entityFanout * 2, MIN_REFINER_CANDIDATES);
+        // must not fan hundreds of names out per hop. The cap is floored at
+        // MIN_REFINER_CANDIDATES (enough choices to reorder) AND ceilinged at
+        // MAX_REFINER_CANDIDATES — the ceiling is the real bound, so cranking
+        // entityFanout can never widen egress past it. See
+        // {@link createLlmNeighborRefiner}.
+        const refinerCandidateCap = Math.min(
+          Math.max(entityFanout * 2, MIN_REFINER_CANDIDATES),
+          MAX_REFINER_CANDIDATES
+        );
         const refinerCandidates = rankedNeighbors.slice(0, refinerCandidateCap);
         const refined = await options.refineNeighbors.refine(
           query,
@@ -347,8 +360,9 @@ export interface LlmNeighborRefinerOptions extends PortalLlmAuth {
  * the query-decompose auth and is opt-in (`RecallOptions.graphRefine`, default
  * off in recall); leave it off unless you accept that exposure. To bound that
  * exposure, {@link traverseGraphLane} caps the candidate list it hands this
- * refiner per hop to `max(entityFanout * 2, MIN_REFINER_CANDIDATES)` names — the
- * full frontier is never egressed, only the top co-occurring candidates.
+ * refiner per hop — at most `MAX_REFINER_CANDIDATES` entity names ever leave per
+ * hop, REGARDLESS of `entityFanout` (the cap is a hard ceiling, not just a
+ * fanout-scaled floor), so the full frontier is never egressed.
  *
  * MEDIUM residual: a malicious / MITM'd portal can only steer WHICH neighbor
  * entities expand — a recall-ranking nudge, not a data-integrity change (no

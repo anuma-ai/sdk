@@ -5,14 +5,23 @@
  * from plaintext columns ALONE — it never sees `content`, which is what keeps
  * the default decay sweep zero-knowledge. That is the right default, but it is
  * weakest on BORDERLINE rows: an `other`/untyped fact, or a `plan` with no
- * event end, is aged out on a pure `updated_at` guess with no idea whether the
- * content is a still-relevant durable fact ("Is lactose intolerant" mistyped as
- * `other`) or genuinely stale ("Is training for the 2025 marathon").
+ * event end, whose staleness is a pure `updated_at` guess.
  *
  * This factory builds a {@link DecayClassifier} that reads the DECRYPTED content
- * of a borderline row and asks a cheap model keep-vs-archive. The decay sweeper
- * only calls it for borderline rows (see `decayWorker.isBorderline`), so it is
- * bounded to the rows where content actually adds signal.
+ * of such a row and returns keep-vs-archive. The sweeper consults it ONLY for a
+ * borderline row whose CURRENT rule verdict is `keep` — a rule archive/delete
+ * short-circuits before the classifier ever runs (see `decayWorker.verdictFor` +
+ * `isBorderline`). So its whole job is to REFINE a still-kept borderline row
+ * toward EARLIER archive when the content shows it is genuinely ephemeral (a
+ * finished one-off plan, an expired temporary state) — turning a weak age-only
+ * "keep" into an "archive" sooner.
+ *
+ * DIRECTIONALITY IS DELIBERATE (a security property, not a shortcoming): it can
+ * move a borderline keep → archive, never the reverse. It CANNOT rescue /
+ * keep-alive a row the rule would archive — the escalation gate makes that path
+ * unreachable, and archive is reversible while un-archiving poison would not be.
+ * Enabling a classifier hands whoever answers the portal (incl. a malicious /
+ * MITM'd endpoint) a lever, and that lever must only ever archive-reversibly.
  *
  * ZERO-KNOWLEDGE CONTRACT (the caller MUST honor this):
  *   - `getContent` is supplied by the caller and MUST be gated on wallet-key
@@ -25,13 +34,21 @@
  *   - Egress is bounded by the SWEEPER, not this classifier: the sweep caps
  *     invocations per pass and never re-sends an unchanged (id, updated_at) row
  *     (see `decayWorker`), so a stable borderline "keep" row egresses once.
- *   - It only ever chooses keep vs archive. It NEVER escalates to `delete` —
- *     hard-delete is exclusively the deterministic archived-past-window mechanic
- *     (rule 1), which no content read should be able to trigger.
+ *   - It only ever chooses keep vs archive, and only for a row the rule already
+ *     keeps. It NEVER escalates to `delete` and NEVER un-archives — hard-delete
+ *     is exclusively the deterministic archived-past-window mechanic (rule 1),
+ *     and a row the rule wants archived is archived regardless of this layer.
  *
- * Fails to the rule verdict on any error, missing id, no key, or malformed
- * response — like every other optional LLM layer in this subsystem it can only
- * refine a borderline verdict, never make the sweep worse.
+ * Fails to the rule verdict (keep) on any error, missing id, no key, or
+ * malformed response — like every other optional LLM layer in this subsystem it
+ * can only refine a borderline keep toward archive, never make the sweep worse.
+ *
+ * RESIDUAL SCOPE (accepted): a genuinely durable fact MISTYPED as `other`/null
+ * and never re-mentioned within its medium TTL WILL age-archive — this layer can
+ * only bring that archive EARLIER, never prevent it. Accepted because it is
+ * recoverable: archived rows stay in the Archived section, Restore clears
+ * `archived_at`, and any re-observation resets the TTL. The alternative — a
+ * keep-alive lever — is exactly the capability a hostile portal must NOT have.
  *
  * SECURITY (MEDIUM, residual) — this is a NEW portal call surface carrying
  * (redacted) memory content. It is opt-in (you must construct + pass it) and
@@ -54,16 +71,16 @@ const DEFAULT_TOTAL_TIMEOUT_MS = 12_000;
 /** Cap the content sent — a durable fact is short; anything longer is trimmed. */
 const MAX_CONTENT_CHARS = 400;
 
-const SYSTEM_PROMPT = `You maintain a personal memory system by deciding whether a stored fact about a user has BECOME STALE and should be archived, or is still worth keeping.
+const SYSTEM_PROMPT = `You maintain a personal memory system. A stored fact about a user is currently being KEPT, but it is a borderline case decided only by a weak age signal. Your job is to decide whether its content shows it has actually become STALE and should be archived early, or should keep being kept.
 
 You are given one memory's content plus light metadata. Decide:
-- "keep": the fact is still a durable, useful thing to know about the user (identity, a lasting preference, an ongoing situation, a constraint like an allergy). When unsure, keep.
-- "archive": the fact has clearly become past or no longer relevant — a completed one-off plan, an expired temporary state, an event that has already happened and won't recur.
+- "archive": the fact is clearly ephemeral or now past — a completed one-off plan, an expired temporary state, an event that has already happened and won't recur.
+- "keep": the fact is still a durable, useful thing to know about the user (identity, a lasting preference, an ongoing situation, a constraint like an allergy), OR you are unsure.
 
 Rules:
-- Durable traits (allergies, dietary needs, long-standing preferences, relationships, where they live/work) are almost always "keep", even if old.
+- Durable traits (allergies, dietary needs, long-standing preferences, relationships, where they live/work) are "keep", even if old — do NOT archive them early.
 - A concrete plan or temporary state whose moment has passed is "archive".
-- When genuinely uncertain, choose "keep" — archiving is reversible but should not be the default.
+- When genuinely uncertain, choose "keep" — archive early only for clearly-ephemeral facts.
 
 Output strict JSON, no prose: { "verdict": "keep" | "archive" }`;
 
