@@ -104,7 +104,7 @@ describe("DatabaseManager.getDatabase caching", () => {
   it("resets the wallet DB even when the last getDatabase was guest", async () => {
     const { manager } = makeManager();
     const wallet = manager.getDatabase(WALLET);
-    manager.getDatabase(undefined); // currentWalletAddress now points at guest
+    manager.getDatabase(undefined); // a transient guest render after the wallet
     await manager.resetDatabase();
     // Both entries were dropped: the wallet is rebuilt fresh, not the stale one.
     expect(manager.getDatabase(WALLET)).not.toBe(wallet);
