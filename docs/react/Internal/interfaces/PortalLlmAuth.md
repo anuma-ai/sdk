@@ -15,6 +15,7 @@ runtime); `apiKey` takes precedence when both are set.
 
 * [`ExtractFactsOptions`](ExtractFactsOptions.md)
 * [`ReflectOptions`](ReflectOptions.md)
+* [`TopicExtractOptions`](TopicExtractOptions.md)
 
 ## Properties
 

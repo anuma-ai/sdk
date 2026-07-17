@@ -2,7 +2,7 @@
 
 > **getMemoriesByEntityNamesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `entityNames`: readonly `string`\[]): `Promise`<`Map`<`string`, `Set`<`string`>>>
 
-Defined in: [src/lib/db/entities/operations.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#266)
+Defined in: [src/lib/db/entities/operations.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#300)
 
 W5 graph-lane read: given a set of entity names (e.g. extracted from
 a query), return the set of memory IDs linked to *any* of them, with

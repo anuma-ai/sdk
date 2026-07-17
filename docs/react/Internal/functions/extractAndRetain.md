@@ -2,7 +2,7 @@
 
 > **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
 
-Defined in: [src/lib/memory/autoExtract.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#438)
+Defined in: [src/lib/memory/autoExtract.ts:448](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#448)
 
 Stage 2 — for each extracted candidate, call retain() with auto-merge
 enabled. The resolver path (decide create/merge/update via a second LLM
