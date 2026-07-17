@@ -47,6 +47,7 @@ function mockRecord(overrides: Record<string, any> = {}) {
     is_deleted: false,
     created_at: new Date("2025-01-01"),
     updated_at: new Date("2025-01-01"),
+    ...overrides,
   };
   return {
     id: overrides.id ?? "mem_1",
@@ -1172,9 +1173,12 @@ describe("stampTopicsExtractedAtOp", () => {
   it("stamps eligible rows, preserves updated_at, and returns stamped ids", async () => {
     const record = mockRecord({ id: "mem_1" });
     const batchFn = vi.fn(async () => {});
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(async () => [record._raw]),
+    }));
     const ctx = makeCtx({
       database: { write: vi.fn(async (cb: () => any) => cb()), batch: batchFn } as any,
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: { find: vi.fn(async () => record), query: queryFn } as any,
     });
 
     const stamped = await stampTopicsExtractedAtOp(ctx, ["mem_1"], 5_000);
@@ -1190,22 +1194,26 @@ describe("stampTopicsExtractedAtOp", () => {
   });
 
   it("skips deleted and user-managed rows (re-checked in the writer)", async () => {
-    const managed = mockRecord({ id: "mem_managed" });
-    managed._setRaw("topics_user_managed", true);
-    const deleted = mockRecord({ id: "mem_deleted" });
-    deleted._setRaw("is_deleted", true);
+    const managed = mockRecord({ id: "mem_managed", topics_user_managed: true });
+    const deleted = mockRecord({ id: "mem_deleted", is_deleted: true });
     const ok = mockRecord({ id: "mem_ok" });
     const records: Record<string, any> = {
       mem_managed: managed,
       mem_deleted: deleted,
       mem_ok: ok,
     };
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(async () => [managed._raw, deleted._raw, ok._raw]),
+    }));
     const ctx = makeCtx({
       database: {
         write: vi.fn(async (cb: () => any) => cb()),
         batch: vi.fn(async () => {}),
       } as any,
-      vaultMemoryCollection: { find: vi.fn(async (id: string) => records[id]) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(async (id: string) => records[id]),
+        query: queryFn,
+      } as any,
     });
 
     const stamped = await stampTopicsExtractedAtOp(
@@ -1220,11 +1228,15 @@ describe("stampTopicsExtractedAtOp", () => {
   });
 
   it("returns [] for missing rows and empty input", async () => {
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(async () => []),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: {
         find: vi.fn(async () => {
           throw new Error("not found");
         }),
+        query: queryFn,
       } as any,
     });
     expect(await stampTopicsExtractedAtOp(ctx, [], 1)).toEqual([]);

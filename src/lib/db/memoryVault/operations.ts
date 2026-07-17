@@ -594,7 +594,8 @@ export async function setMemoryEntitiesOp(
 
 /**
  * Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
- * auto-extraction resumes owning its links. Existing links are left in place
+ * auto-extraction resumes owning its links. Invalidates `topics_extracted_at`
+ * so the next sweep will re-extract topics. Existing links are left in place
  * (the next extraction pass may add to them). Preserves `updated_at`.
  */
 export async function clearMemoryTopicsOverrideOp(
@@ -612,6 +613,7 @@ export async function clearMemoryTopicsOverrideOp(
   await ctx.database.write(async () => {
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
+      r._setRaw("topics_extracted_at", null);
       r._setRaw("updated_at", originalUpdatedAt);
     });
   });
@@ -781,6 +783,7 @@ export async function getMemoriesNeedingTopicExtractionOp(
  * content edit from the next sweep. Skips deleted, foreign-user, and
  * user-managed rows (re-checked inside the serialized writer, so a manual
  * topic edit that lands mid-pass wins). Returns the IDs actually stamped.
+ * Uses raw queries in chunks to avoid pinning Models in RecordCache (web Pile-2).
  */
 export async function stampTopicsExtractedAtOp(
   ctx: VaultMemoryOperationsContext,
@@ -788,35 +791,62 @@ export async function stampTopicsExtractedAtOp(
   extractedAt: number
 ): Promise<string[]> {
   if (memoryIds.length === 0) return [];
-  const records: VaultMemory[] = [];
-  // Dedupe: WatermelonDB Models are shared cached instances, so a duplicate id
-  // would prepareUpdate the same record twice and trip its pending-changes
-  // invariant, failing the whole batch.
-  for (const id of new Set(memoryIds)) {
-    try {
-      records.push(await ctx.vaultMemoryCollection.find(id));
-    } catch {
-      // Missing row — skip.
-    }
-  }
-  if (records.length === 0) return [];
 
+  // Dedupe to avoid prepareUpdate conflicts on shared Model instances.
+  const uniqueIds = Array.from(new Set(memoryIds));
+
+  // Chunk to respect SQLite bind limits (999) and avoid huge Q.oneOf arrays
+  // that hurt LokiJS. Same chunking pattern as linkedUnstamped checks.
+  const CHUNK = 500;
   const stamped: string[] = [];
-  await ctx.database.write(async () => {
-    const prepared = records
-      // Truthiness (not `!== true`) on the flag so an unsanitized SQLite `1`
-      // can never fail open and stamp a user-managed row.
-      .filter((r) => !r.isDeleted && isOwnedByCtxUser(ctx, r) && !r.topicsUserManaged)
-      .map((record) => {
-        stamped.push(record.id);
-        const originalUpdatedAt = record.updatedAt.getTime();
-        return record.prepareUpdate((r) => {
-          r._setRaw("topics_extracted_at", extractedAt);
-          r._setRaw("updated_at", originalUpdatedAt);
-        });
-      });
-    if (prepared.length > 0) await ctx.database.batch(...prepared);
-  });
+
+  for (let i = 0; i < uniqueIds.length; i += CHUNK) {
+    const chunkIds = uniqueIds.slice(i, i + CHUNK);
+
+    // unsafeFetchRaw (NOT fetch): avoid pinning Models for thousands of IDs
+    // on the first post-migration sweep (web Pile-2).
+    const raws = (await ctx.vaultMemoryCollection
+      .query(Q.where("id", Q.oneOf(chunkIds)))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+
+    await ctx.database.write(async () => {
+      const prepared = [];
+      for (const raw of raws) {
+        // Truthiness (not `!== true`) on the flag so an unsanitized SQLite `1`
+        // can never fail open and stamp a user-managed row.
+        const isDeleted = raw.is_deleted === true || raw.is_deleted === 1;
+        const userManaged = raw.topics_user_managed === true || raw.topics_user_managed === 1;
+        const userId = (raw.user_id as string | null) ?? null;
+        const ownedByUser = ctx.userId === undefined || userId === ctx.userId;
+
+        if (isDeleted || !ownedByUser || userManaged) continue;
+
+        const id = raw.id as string;
+        // Handle both timestamp (production) and Date (test mocks)
+        const originalUpdatedAt =
+          raw.updated_at instanceof Date
+            ? (raw.updated_at as Date).getTime()
+            : (raw.updated_at as number);
+
+        // Must load the Model to prepareUpdate, but only for rows that pass
+        // all filters — typical case: a handful of edits, not thousands.
+        try {
+          const record = await ctx.vaultMemoryCollection.find(id);
+          prepared.push(
+            record.prepareUpdate((r) => {
+              r._setRaw("topics_extracted_at", extractedAt);
+              r._setRaw("updated_at", originalUpdatedAt);
+            })
+          );
+          stamped.push(id);
+        } catch {
+          // Missing row — skip.
+        }
+      }
+      if (prepared.length > 0) await ctx.database.batch(...prepared);
+    });
+  }
+
   return stamped;
 }
 
