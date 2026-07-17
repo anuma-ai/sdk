@@ -342,3 +342,22 @@ describe("patchUserSettingsSnapshot", () => {
     expect(() => patchUserSettingsSnapshot(database, undefined, { isLoading: true })).not.toThrow();
   });
 });
+
+describe("null database (not yet bound)", () => {
+  it("subscribeUserSettings is an inert no-op and never touches the pool", () => {
+    const listener = vi.fn();
+    // A null database can't key the WeakMap pool — this must not throw.
+    const cleanup = subscribeUserSettings(null, "0xABC", listener);
+    expect(listener).not.toHaveBeenCalled();
+    expect(getUserPreferenceOp).not.toHaveBeenCalled();
+    expect(() => cleanup()).not.toThrow();
+  });
+
+  it("getUserSettingsSnapshot returns the empty snapshot for a null database", () => {
+    expect(getUserSettingsSnapshot(null, "0xABC")).toBe(EMPTY_SNAPSHOT);
+  });
+
+  it("patchUserSettingsSnapshot is a no-op for a null database", () => {
+    expect(() => patchUserSettingsSnapshot(null, "0xABC", { isLoading: true })).not.toThrow();
+  });
+});

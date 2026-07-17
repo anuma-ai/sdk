@@ -38,6 +38,9 @@ import {
  */
 export type UseSettingsOptions = BaseUseSettingsOptions;
 
+/** Thrown by mutation callbacks when invoked before the database is bound. */
+const DB_NOT_READY = "Database not ready";
+
 /**
  * Extended result returned by useSettings hook (React version)
  * Includes both legacy modelPreference API and new userPreference API
@@ -129,20 +132,28 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   // Storage operation contexts for the mutation callbacks. Collection lookups
-  // are stable per-database in WatermelonDB so these are cheap.
-  const storageCtx = useMemo<UserPreferencesStorageOperationsContext>(
-    () => ({
-      database,
-      userPreferencesCollection: database.get<UserPreference>("userPreferences"),
-      modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
-    }),
+  // are stable per-database in WatermelonDB so these are cheap. `null` when the
+  // database is not yet bound — the callbacks below reject in that state rather
+  // than dereferencing a missing collection.
+  const storageCtx = useMemo<UserPreferencesStorageOperationsContext | null>(
+    () =>
+      database
+        ? {
+            database,
+            userPreferencesCollection: database.get<UserPreference>("userPreferences"),
+            modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
+          }
+        : null,
     [database]
   );
-  const legacyStorageCtx = useMemo<SettingsStorageOperationsContext>(
-    () => ({
-      database,
-      modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
-    }),
+  const legacyStorageCtx = useMemo<SettingsStorageOperationsContext | null>(
+    () =>
+      database
+        ? {
+            database,
+            modelPreferencesCollection: database.get<ModelPreference>("modelPreferences"),
+          }
+        : null,
     [database]
   );
 
@@ -156,6 +167,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string): Promise<StoredModelPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!legacyStorageCtx) throw new Error(DB_NOT_READY);
         const result = await getModelPreferenceOp(legacyStorageCtx, address);
         return result;
       } catch (error) {
@@ -174,6 +186,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string, models?: string): Promise<StoredModelPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!legacyStorageCtx) throw new Error(DB_NOT_READY);
         const result = await setModelPreferenceOp(legacyStorageCtx, address, models);
         if (walletAddress && address === walletAddress) {
           patchUserSettingsSnapshot(database, walletAddress, { modelPreference: result });
@@ -195,6 +208,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string): Promise<boolean> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!legacyStorageCtx) throw new Error(DB_NOT_READY);
         const deleted = await deleteModelPreferenceOp(legacyStorageCtx, address);
         if (deleted && walletAddress && address === walletAddress) {
           patchUserSettingsSnapshot(database, walletAddress, { modelPreference: null });
@@ -217,6 +231,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string): Promise<StoredUserPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!storageCtx) throw new Error(DB_NOT_READY);
         const result = await getUserPreferenceOp(storageCtx, address);
         return result;
       } catch (error) {
@@ -234,6 +249,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string, opts: UpdateUserPreferenceOptions): Promise<StoredUserPreference> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!storageCtx) throw new Error(DB_NOT_READY);
         const result = await setUserPreferenceOp(storageCtx, address, opts);
         if (walletAddress && address === walletAddress) {
           patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
@@ -254,6 +270,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string, profile: ProfileUpdate): Promise<StoredUserPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!storageCtx) throw new Error(DB_NOT_READY);
         const result = await updateProfileOp(storageCtx, address, profile);
         if (result && walletAddress && address === walletAddress) {
           patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
@@ -277,6 +294,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     ): Promise<StoredUserPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!storageCtx) throw new Error(DB_NOT_READY);
         const result = await updatePersonalityOp(storageCtx, address, personality);
         if (result && walletAddress && address === walletAddress) {
           patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
@@ -297,6 +315,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string, models: string): Promise<StoredUserPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!storageCtx) throw new Error(DB_NOT_READY);
         const result = await updateModelsOp(storageCtx, address, models);
         if (result && walletAddress && address === walletAddress) {
           patchUserSettingsSnapshot(database, walletAddress, { userPreference: result });
@@ -317,6 +336,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     async (address: string): Promise<boolean> => {
       try {
         if (!address) throw new Error("Wallet address is required");
+        if (!storageCtx) throw new Error(DB_NOT_READY);
         const deleted = await deleteUserPreferenceOp(storageCtx, address);
         if (deleted && walletAddress && address === walletAddress) {
           patchUserSettingsSnapshot(database, walletAddress, { userPreference: null });
