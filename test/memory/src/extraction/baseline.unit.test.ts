@@ -49,7 +49,7 @@ describe("compareToBaseline", () => {
   );
 
   it("passes when metrics hold within tolerance", () => {
-    // recall dips 0.02 < 0.03 floor → not a regression.
+    // recall dips 0.02 < the tolerance floor → not a regression.
     const runs = [overall({ recall: 0.88 })];
     expect(compareToBaseline(runs, baseline)).toEqual([]);
   });

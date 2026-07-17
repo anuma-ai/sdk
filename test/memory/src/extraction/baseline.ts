@@ -22,8 +22,11 @@ export const BASELINE_METRICS = [
 export type BaselineMetric = (typeof BASELINE_METRICS)[number];
 
 /** Floor on the per-metric tolerance so a lucky low-variance baseline run can't
- * set an impossibly tight gate. */
-export const MIN_METRIC_TOLERANCE = 0.03;
+ * set an impossibly tight gate. Sized above one entity's worth of the labeled
+ * corpus (~22 entities → a single (mis)classification flips kindAccuracy by
+ * ~4.5%), so an inherent single-item flip on a ceiling metric isn't a false
+ * regression — a real drop moves more than one item. */
+export const MIN_METRIC_TOLERANCE = 0.05;
 /** Forbidden-fact hits is a count where higher is worse; small absolute slack so
  * a single unlucky flip doesn't red the gate. */
 export const FORBIDDEN_HITS_TOLERANCE = 1;

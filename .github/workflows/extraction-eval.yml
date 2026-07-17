@@ -85,6 +85,8 @@ jobs:
       - name: Run eval (this branch = AFTER)
         if: env.INPUT_MODE == 'ab'
         run: |
+          # pipefail so a failed eval isn't masked by tee's exit code.
+          set -o pipefail
           echo "::group::after (branch prompt + 8-kind taxonomy)"
           pnpm eval:extraction $EVAL_ARGS | tee after.json
           echo "::endgroup::"
@@ -97,6 +99,7 @@ jobs:
           # so the comparison is apples-to-apples. tsx runs without a typecheck,
           # so main's 5-kind EntityKind vs the corpus's org/product/event labels
           # is fine at runtime (kind is a string).
+          set -o pipefail
           git checkout origin/main -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
           echo "::group::before (main prompt + 5-kind taxonomy)"
           pnpm eval:extraction $EVAL_ARGS | tee before.json
@@ -108,6 +111,7 @@ jobs:
         run: |
           # Writes test/memory/src/extraction/baseline.json. CI can't commit it
           # back, so it's uploaded as an artifact for a human to download+commit.
+          set -o pipefail
           echo "::group::save-baseline"
           pnpm eval:extraction $EVAL_ARGS --save-baseline | tee after.json
           echo "::endgroup::"
@@ -130,6 +134,8 @@ jobs:
           # Exits non-zero if any metric drops below its committed baseline mean
           # by more than the baseline's own tolerance. Requires baseline.json to
           # already be committed (generate it once via mode=save-baseline).
+          # pipefail so the gate's non-zero exit isn't swallowed by tee.
+          set -o pipefail
           pnpm eval:extraction $EVAL_ARGS --baseline test/memory/src/extraction/baseline.json | tee after.json
 
       - name: Summarize kind accuracy (before vs after)
