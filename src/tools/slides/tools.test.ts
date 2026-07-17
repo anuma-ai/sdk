@@ -1352,12 +1352,9 @@ describe("buildSlideSystemPrompt IMAGES section conditionality", () => {
     expect(prompt).toContain("no image-generation tool bound");
   });
 
-  // ⚠ freeloader fingerprint must stay in sync with ai-portal detection/markers.go
-  // (FingerprintSlides). The backend freeloader detector treats a request as a
-  // genuine slides flow ONLY if its system prompt contains this exact substring. If
-  // you change this string, update internal/detection/markers.go in the SAME PR or
-  // real slides traffic gets misflagged as programmatic abuse.
-  it("freeloader fingerprint must stay in sync with ai-portal detection/markers.go", () => {
+  // ⚠ This exact opener is relied on by backend infrastructure; keep it in sync —
+  // see internal docs. This test fails if it drifts.
+  it("opener stays in sync with backend infrastructure", () => {
     expect(buildSlideSystemPrompt()).toContain("You are a presentation design assistant.");
   });
 });
