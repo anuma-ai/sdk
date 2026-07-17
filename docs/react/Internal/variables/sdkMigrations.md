@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#368)
+Defined in: [src/lib/db/schema.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#377)
 
 Combined migrations for all SDK storage modules.
 
@@ -47,3 +47,4 @@ Migration history:
 * v31 → v32: Added `pinned_at` column to conversations for pinning chats
 * v32 → v33: Added `embedding_model` column to memory\_vault (null grandfathered as current-model-compatible)
 * v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
+* v35 → v36: Added `topics_extracted_at` column to memory\_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)

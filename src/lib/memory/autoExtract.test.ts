@@ -614,10 +614,14 @@ describe("extractAndRetain", () => {
       }
     );
 
-    // The extracted kind flows through to linkMemoryEntitiesOp.
-    expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledWith(entityCtx, "mem-1", [
-      { name: "Sara", kind: "person" },
-    ]);
+    // The extracted kind flows through to linkMemoryEntitiesOp, with the
+    // in-write user-managed guard engaged.
+    expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledWith(
+      entityCtx,
+      "mem-1",
+      [{ name: "Sara", kind: "person" }],
+      { unlessTopicsUserManaged: true }
+    );
   });
 
   it("skips entity-linking when the retained memory is user-managed", async () => {

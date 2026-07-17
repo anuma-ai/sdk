@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#32)
+Defined in: [src/lib/db/memoryVault/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#36)
 
 ***
 
@@ -87,7 +87,7 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#34)
+Defined in: [src/lib/db/memoryVault/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#38)
 
 ***
 
@@ -131,6 +131,18 @@ JSON-stringified array of source message IDs this fact was extracted from.
 
 ***
 
+### topicsExtractedAt
+
+> **topicsExtractedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#35)
+
+Unix ms of the last LLM topic-extraction pass over this memory's content.
+Null = never extracted standalone; rows that already carry entity links
+are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp).
+
+***
+
 ### topicsUserManaged
 
 > **topicsUserManaged**: `boolean`
@@ -156,7 +168,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#33)
+Defined in: [src/lib/db/memoryVault/types.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#37)
 
 ***
 

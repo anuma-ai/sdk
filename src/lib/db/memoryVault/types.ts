@@ -29,6 +29,10 @@ export interface StoredVaultMemory {
   /** When true, the user has manually set this memory's topics (entity links);
    * auto-extraction leaves them alone. False on legacy/auto rows. */
   topicsUserManaged: boolean;
+  /** Unix ms of the last LLM topic-extraction pass over this memory's content.
+   * Null = never extracted standalone; rows that already carry entity links
+   * are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp). */
+  topicsExtractedAt: number | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;

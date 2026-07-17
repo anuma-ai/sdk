@@ -60,8 +60,12 @@ import { VaultFolder } from "./vaultFolders/models";
  *   rows, grandfathered as compatible with the current model)
  * - v35: Added conversation_memory table recording which vault memories a
  *   conversation drew on, so the conversation-level Memories panel survives reload
+ * - v36: Added topics_extracted_at column to memory_vault — watermark of the last
+ *   LLM topic-extraction pass, so the background topic worker re-extracts only
+ *   memories edited since (updated_at > topics_extracted_at) instead of
+ *   re-running the whole vault
  */
-export const SDK_SCHEMA_VERSION = 35;
+export const SDK_SCHEMA_VERSION = 36;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -205,6 +209,10 @@ export const sdkSchema = appSchema({
         // links). Auto-extraction then leaves its links alone — the user owns
         // them. Null/false = topics are auto-derived (default).
         { name: "topics_user_managed", type: "boolean", isOptional: true },
+        // Unix ms of the last LLM topic-extraction pass over this memory's
+        // content. Null = never extracted standalone (legacy rows with entity
+        // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
+        { name: "topics_extracted_at", type: "number", isOptional: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -364,6 +372,7 @@ export const sdkSchema = appSchema({
  * - v31 → v32: Added `pinned_at` column to conversations for pinning chats
  * - v32 → v33: Added `embedding_model` column to memory_vault (null grandfathered as current-model-compatible)
  * - v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
+ * - v35 → v36: Added `topics_extracted_at` column to memory_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -837,6 +846,19 @@ export const sdkMigrations = schemaMigrations({
             { name: "score", type: "number" },
             { name: "created_at", type: "number", isIndexed: true },
           ],
+        }),
+      ],
+    },
+    // v35 -> v36: topics_extracted_at watermark on memory_vault. Existing rows
+    // keep it NULL — rows that already have entity links are grandfathered as
+    // extracted (no mass re-extraction on upgrade), rows without links are the
+    // backfill target. See getMemoriesNeedingTopicExtractionOp.
+    {
+      toVersion: 36,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "topics_extracted_at", type: "number", isOptional: true }],
         }),
       ],
     },

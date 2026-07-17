@@ -532,6 +532,12 @@ Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFol
 
 ***
 
+### extractAndLinkEntitiesForMemoriesOp
+
+Re-exports [extractAndLinkEntitiesForMemoriesOp](../react/Internal/functions/extractAndLinkEntitiesForMemoriesOp.md)
+
+***
+
 ### extractAndRetain
 
 Re-exports [extractAndRetain](../react/Internal/functions/extractAndRetain.md)
@@ -547,6 +553,12 @@ Re-exports [ExtractedCandidate](../react/Internal/interfaces/ExtractedCandidate.
 ### ExtractedEntity
 
 Re-exports [ExtractedEntity](../react/Internal/interfaces/ExtractedEntity.md)
+
+***
+
+### extractEntitiesForMemories
+
+Re-exports [extractEntitiesForMemories](../react/Internal/functions/extractEntitiesForMemories.md)
 
 ***
 
@@ -652,6 +664,12 @@ Re-exports [getLogger](../react/Internal/functions/getLogger.md)
 
 ***
 
+### getMemoriesNeedingTopicExtractionOp
+
+Re-exports [getMemoriesNeedingTopicExtractionOp](../react/Internal/functions/getMemoriesNeedingTopicExtractionOp.md)
+
+***
+
 ### GetMessagesPageOptions
 
 Re-exports [GetMessagesPageOptions](../react/Internal/interfaces/GetMessagesPageOptions.md)
@@ -715,6 +733,12 @@ Re-exports [LoggerProvider](../react/Internal/functions/LoggerProvider.md)
 ### LoggerProviderProps
 
 Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProps.md)
+
+***
+
+### MemoriesNeedingTopicExtraction
+
+Re-exports [MemoriesNeedingTopicExtraction](../react/Internal/interfaces/MemoriesNeedingTopicExtraction.md)
 
 ***
 
@@ -1054,6 +1078,12 @@ Re-exports [SignMessageFn](../react/Internal/type-aliases/SignMessageFn.md)
 
 ***
 
+### stampTopicsExtractedAtOp
+
+Re-exports [stampTopicsExtractedAtOp](../react/Internal/functions/stampTopicsExtractedAtOp.md)
+
+***
+
 ### StockPriceClassification
 
 Re-exports [StockPriceClassification](../react/Internal/interfaces/StockPriceClassification.md)
@@ -1159,6 +1189,30 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 ### TextChunk
 
 Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
+
+***
+
+### TOPIC\_EXTRACTION\_BATCH\_SIZE
+
+Re-exports [TOPIC\_EXTRACTION\_BATCH\_SIZE](../react/Internal/variables/TOPIC_EXTRACTION_BATCH_SIZE.md)
+
+***
+
+### TopicExtractionInput
+
+Re-exports [TopicExtractionInput](../react/Internal/interfaces/TopicExtractionInput.md)
+
+***
+
+### TopicExtractionRunResult
+
+Re-exports [TopicExtractionRunResult](../react/Internal/interfaces/TopicExtractionRunResult.md)
+
+***
+
+### TopicExtractOptions
+
+Re-exports [TopicExtractOptions](../react/Internal/interfaces/TopicExtractOptions.md)
 
 ***
 
