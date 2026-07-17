@@ -27,7 +27,9 @@ describe("useSettings with a null database (not yet bound)", () => {
     await expect(result.current.setUserPreference("0xABC", { nickname: "X" })).rejects.toThrow(
       "Database not ready"
     );
-    await expect(result.current.deleteUserPreference("0xABC")).rejects.toThrow("Database not ready");
+    await expect(result.current.deleteUserPreference("0xABC")).rejects.toThrow(
+      "Database not ready"
+    );
     // Legacy API path is guarded too.
     await expect(result.current.setModelPreference("0xABC", "gpt-4")).rejects.toThrow(
       "Database not ready"
@@ -44,7 +46,8 @@ describe("useSettings with a null database (not yet bound)", () => {
 describe("useSettings own-name filter contract (never crashes on missing db)", () => {
   it("keeps a stable hook identity across a null → still-null render", () => {
     const { result, rerender } = renderHook(
-      (props: { database: null }) => useSettings({ database: props.database, walletAddress: "0xABC" }),
+      (props: { database: null }) =>
+        useSettings({ database: props.database, walletAddress: "0xABC" }),
       { initialProps: { database: null } }
     );
     const first = result.current.updateProfile;
