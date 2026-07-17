@@ -290,8 +290,6 @@ async function tryConsolidate(
     );
     // Re-embed the consolidated content; embeddingOptions includes the cache.
     const newEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
-    // Cache keyed by memory id (not content).
-    ctx.vaultCache.set(decision.targetId, Float32Array.from(newEmbedding));
     const consolidatedModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
     const updated = await updateVaultMemoryOp(ctx.vaultCtx, decision.targetId, {
@@ -313,6 +311,10 @@ async function tryConsolidate(
       await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
       return null;
     }
+    // Cache keyed by memory id (not content) — set only after the DB write
+    // committed, so a failed update can't poison the cache with a vector for
+    // content that was never persisted.
+    ctx.vaultCache.set(decision.targetId, Float32Array.from(newEmbedding));
     return {
       action: "update",
       memoryId: decision.targetId,

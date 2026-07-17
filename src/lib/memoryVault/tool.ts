@@ -195,6 +195,10 @@ export function createMemoryVaultTool(
               // keyed by this memory's id (same id → new vector replaces the
               // stale one), so no explicit evict-by-content is needed.
               if (embeddingOptions && cache) {
+                // Drop the stale vector first: if the async re-embed fails, the
+                // id has no entry (next search re-embeds from DB) instead of
+                // serving the pre-edit vector under this id.
+                cache.delete(id);
                 eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
                   // Silently swallow – SDK must not use console.*; embedding will be retried on next search
                   () => {}
