@@ -6,16 +6,16 @@
  * memories never get LLM topics and used to fall back to a client-side regex.
  * This module is the LLM half of "continuously LLM-managed topics": a batched
  * pass that takes memories already in the vault, asks the extraction model for
- * their named entities, links them (append, guarded by the user-managed flag),
- * and stamps `topics_extracted_at` so the sweep query
- * (`getMemoriesNeedingTopicExtractionOp`) only revisits edited memories.
+ * their named entities, REPLACES their auto-managed links (guarded — a manual
+ * edit or delete always wins), and stamps `topics_extracted_at` so the sweep
+ * query (`getMemoriesNeedingTopicExtractionOp`) only revisits edited memories.
  *
  * Batching: memories are classified ~10 per LLM call (mirroring the folder
  * Auto-Sort harness) with per-memory content truncation, so a whole-vault
  * backfill or a bulk import costs ceil(n/10) requests, not n.
  */
 
-import { linkMemoryEntitiesOp } from "../db/entities/operations.js";
+import { replaceMemoryEntitiesGuardedOp } from "../db/entities/operations.js";
 import {
   stampTopicsExtractedAtOp,
   type VaultMemoryOperationsContext,
@@ -95,9 +95,10 @@ export interface TopicExtractOptions extends PortalLlmAuth {
  * {@link TOPIC_EXTRACTION_BATCH_SIZE}. Pure LLM step — no persistence.
  *
  * Returns memoryId → entities. A memory PRESENT with an empty array is a
- * successful "no named entities" result; a memory ABSENT from the map was in
- * a batch whose LLM call failed after retries (caller should retry it in a
- * later sweep, not stamp it).
+ * successful, explicit "no named entities" answer; a memory ABSENT from the
+ * map is UNANSWERED — its batch failed after retries, returned an unusable
+ * shape, or the model omitted its id. Callers must retry absent ids in a
+ * later sweep, never stamp them.
  */
 export async function extractEntitiesForMemories(
   memories: readonly TopicExtractionInput[],
@@ -163,7 +164,14 @@ export async function extractEntitiesForMemories(
       continue;
     }
     for (const m of batch) {
-      const entities = byId.get(m.id) ?? [];
+      const entities = byId.get(m.id);
+      if (entities === undefined) {
+        // The model omitted this id. Treat as UNANSWERED (absent → retried
+        // next sweep), never as "no entities" — defaulting an omission to []
+        // would stamp the memory permanently topic-less. The prompt demands
+        // one element per input; retries are bounded by the caller's caps.
+        continue;
+      }
       out.set(m.id, redactor ? restoreEntities(entities, redactor) : entities);
     }
   }
@@ -187,10 +195,11 @@ function restoreEntities(entities: ExtractedEntity[], redactor: PiiRedactor): Ex
  *
  * Returns null on a total shape failure (no `memories` array) — the caller
  * treats that as a failed batch to retry, not as answers. Within a valid
- * list, elements with unknown/missing ids are dropped and entities go
- * through the same validator as the conversation pipeline
- * ({@link parseEntities}); the caller defaults ids a compliant model simply
- * omitted to [] ("no entities" — re-asking wouldn't make it more compliant).
+ * list, elements with unknown/missing ids are dropped, a duplicated id keeps
+ * its FIRST answer (a repeat is model noise, not a correction), and entities
+ * go through the same validator as the conversation pipeline
+ * ({@link parseEntities}). Ids absent from the returned map are UNANSWERED —
+ * the caller must leave them for a later sweep, not stamp them.
  */
 function parseTopicResponse(
   parsed: unknown,
@@ -203,7 +212,7 @@ function parseTopicResponse(
   for (const raw of list) {
     if (typeof raw !== "object" || raw === null) continue;
     const obj = raw as Record<string, unknown>;
-    if (typeof obj.id !== "string" || !validIds.has(obj.id)) continue;
+    if (typeof obj.id !== "string" || !validIds.has(obj.id) || out.has(obj.id)) continue;
     const entities = Array.isArray(obj.entities) ? parseEntities(obj.entities) : [];
     out.set(obj.id, entities);
   }
@@ -226,19 +235,22 @@ export interface TopicExtractionRunResult {
 
 /**
  * Run LLM topic extraction over existing vault memories and persist the
- * results: append entity links (never removing existing ones) and stamp
- * `topics_extracted_at`.
+ * results: REPLACE each memory's auto-managed entity links with the extracted
+ * set (via {@link replaceMemoryEntitiesGuardedOp} — an edited memory drops the
+ * entities its previous content mentioned) and stamp `topics_extracted_at`.
  *
  * User intent is enforced twice: rows already user-managed are skipped up
- * front, and the link write re-checks the flag INSIDE its writer
- * (`unlessTopicsUserManaged`) so a manual topic edit landing during the LLM
- * round-trip wins — its replace semantics also erase anything this pass
- * linked just before it. The watermark is captured BEFORE contents are read:
- * an edit landing mid-run keeps `updated_at` > stamp, so the next sweep
- * re-extracts it rather than trusting this run's stale read.
+ * front, and the replace write re-checks the vault row INSIDE its writer
+ * (user-managed / deleted / absent ⇒ null, and the memory is neither linked
+ * nor stamped) so a manual topic edit or delete landing during the LLM
+ * round-trip wins — a manual edit's own replace semantics also erase anything
+ * this pass linked just before it. The watermark is captured BEFORE contents
+ * are read: an edit landing mid-run keeps `updated_at` > stamp, so the next
+ * sweep re-extracts it rather than trusting this run's stale read.
  *
  * Requires `ctx.entityCtx`. Contents are decrypted via the ctx's wallet
- * fields, exactly like the vault read ops.
+ * fields, exactly like the vault read ops; a memory whose decryption fails is
+ * skipped (retried next sweep), not fatal to the run.
  */
 export async function extractAndLinkEntitiesForMemoriesOp(
   ctx: VaultMemoryOperationsContext,
@@ -267,21 +279,30 @@ export async function extractAndLinkEntitiesForMemoriesOp(
       skippedIds.push(id);
       continue;
     }
+    // Truthiness (not `=== true`) on the flag so an unsanitized SQLite `1`
+    // can never fail open.
     if (
       record.isDeleted ||
       (ctx.userId !== undefined && record.userId !== ctx.userId) ||
-      record.topicsUserManaged === true
+      record.topicsUserManaged
     ) {
       skippedIds.push(id);
       continue;
     }
-    const stored = await vaultMemoryToStored(
-      record,
-      ctx.walletAddress,
-      ctx.signMessage,
-      ctx.embeddedWalletSigner
-    );
-    inputs.push({ id, content: stored.content });
+    try {
+      const stored = await vaultMemoryToStored(
+        record,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      inputs.push({ id, content: stored.content });
+    } catch (err) {
+      // A single undecryptable/corrupt row must not abort the whole sweep —
+      // skip it (retried next sweep; callers cap attempts) and keep going.
+      log.warn("[memory/topics] failed to load memory for extraction", err);
+      skippedIds.push(id);
+    }
   }
 
   const entitiesByMemory = await extractEntitiesForMemories(inputs, options);
@@ -290,23 +311,29 @@ export async function extractAndLinkEntitiesForMemoriesOp(
   for (const input of inputs) {
     const entities = entitiesByMemory.get(input.id);
     if (entities === undefined) {
-      // Batch failed — retry next sweep.
+      // Unanswered (failed batch or omitted id) — retry next sweep.
       skippedIds.push(input.id);
       continue;
     }
-    if (entities.length > 0) {
-      try {
-        await linkMemoryEntitiesOp(entityCtx, input.id, entities, {
-          unlessTopicsUserManaged: true,
-        });
-      } catch (err) {
-        // Don't stamp a memory whose links failed to persist — leave it for
-        // the next sweep rather than recording a pass that didn't land.
-        log.warn("[memory/topics] linkMemoryEntitiesOp failed", err);
+    try {
+      // Replace (not append) so re-extraction of an edited memory drops
+      // stale entities. Runs for answered-empty results too — "likes tea"
+      // must unlink whatever the previous content mentioned. Null = the
+      // in-write guard skipped (user-managed/deleted/absent/read-fault):
+      // nothing persisted, so don't stamp.
+      const linked = await replaceMemoryEntitiesGuardedOp(entityCtx, input.id, entities);
+      if (linked === null) {
         skippedIds.push(input.id);
         entitiesByMemory.delete(input.id);
         continue;
       }
+    } catch (err) {
+      // Don't stamp a memory whose links failed to persist — leave it for
+      // the next sweep rather than recording a pass that didn't land.
+      log.warn("[memory/topics] replaceMemoryEntitiesGuardedOp failed", err);
+      skippedIds.push(input.id);
+      entitiesByMemory.delete(input.id);
+      continue;
     }
     toStamp.push(input.id);
   }

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type EntityOperationsContext, linkMemoryEntitiesOp } from "./operations";
+import {
+  type EntityOperationsContext,
+  linkMemoryEntitiesOp,
+  replaceMemoryEntitiesGuardedOp,
+} from "./operations";
 
 /**
  * Mock a stored Entity row (WatermelonDB Model-ish). `prepareUpdate` mutates
@@ -180,7 +184,11 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
     expect(memoryEntityCollection.prepareCreate).toHaveBeenCalledTimes(1);
   });
 
-  it("links normally for a missing row (fresh memory)", async () => {
+  it("skips linking for an absent row (deleted mid-call — no orphan links)", async () => {
+    // Auto paths always link a row that exists (retain() commits before the
+    // link), so an absent row here means it was deleted during the LLM
+    // round-trip — linking would orphan memory_entity rows the delete
+    // cascade already swept.
     const { ctx, memoryEntityCollection } = makeCtx();
     withVaultRow(ctx, undefined);
 
@@ -188,8 +196,8 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
       unlessTopicsUserManaged: true,
     });
 
-    expect(result.length).toBe(1);
-    expect(memoryEntityCollection.prepareCreate).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([]);
+    expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
   });
 
   it("fails CLOSED: a flag-read fault skips linking", async () => {
@@ -214,5 +222,123 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
     expect(result.length).toBe(1);
     expect(getSpy).not.toHaveBeenCalled();
     expect(memoryEntityCollection.prepareCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("linkMemoryEntitiesOp — guard also covers deleted rows and raw SQLite booleans", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function withVaultRow2(ctx: EntityOperationsContext, row: Record<string, unknown> | undefined) {
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({ fetch: vi.fn(async () => (row ? [row] : [])) })),
+    }));
+  }
+
+  it("skips linking when the memory was soft-deleted mid-call", async () => {
+    const { ctx, memoryEntityCollection } = makeCtx();
+    withVaultRow2(ctx, { isDeleted: true, topicsUserManaged: null });
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result).toEqual([]);
+    expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
+  });
+
+  it("skips linking when the flag is a raw SQLite 1 (unsanitized)", async () => {
+    const { ctx, memoryEntityCollection } = makeCtx();
+    withVaultRow2(ctx, { isDeleted: false, topicsUserManaged: 1 });
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result).toEqual([]);
+    expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("replaceMemoryEntitiesGuardedOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /** Existing memory_entity link row with a destroy hook. */
+  function makeLink(entityId: string) {
+    return {
+      entityId,
+      memoryId: "mem_1",
+      prepareDestroyPermanently: vi.fn(() => ({ _op: "destroy", entityId })),
+    };
+  }
+
+  function makeReplaceCtx(
+    existingEntities: ReturnType<typeof makeEntityRecord>[],
+    existingLinks: ReturnType<typeof makeLink>[],
+    vaultRow: Record<string, unknown> | undefined
+  ) {
+    const { ctx, memoryEntityCollection } = makeCtx(existingEntities);
+    (memoryEntityCollection.query as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      fetch: vi.fn(async () => existingLinks),
+    }));
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({ fetch: vi.fn(async () => (vaultRow ? [vaultRow] : [])) })),
+    }));
+    return { ctx, memoryEntityCollection };
+  }
+
+  const liveRow = { isDeleted: false, topicsUserManaged: null };
+
+  it("creates missing links and destroys stale ones in one batch", async () => {
+    const keep = makeEntityRecord("zetachain", null, "ent_keep");
+    const stale = makeLink("ent_stale");
+    const kept = makeLink("ent_keep");
+    const { ctx } = makeReplaceCtx([keep], [kept, stale], liveRow);
+
+    const result = await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain", "new entity"]);
+
+    expect(result).not.toBeNull();
+    expect(result!.map((e) => e.canonicalName).sort()).toEqual(["new entity", "zetachain"]);
+    // Stale link destroyed, kept link untouched.
+    expect(stale.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
+    expect(kept.prepareDestroyPermanently).not.toHaveBeenCalled();
+    // One batch write carried both the create and the destroy.
+    const batchFn = (ctx.database as unknown as { batch: ReturnType<typeof vi.fn> }).batch;
+    expect(batchFn).toHaveBeenCalled();
+  });
+
+  it("an empty set removes ALL existing links (answered-empty replace)", async () => {
+    const a = makeLink("ent_a");
+    const b = makeLink("ent_b");
+    const { ctx } = makeReplaceCtx([], [a, b], liveRow);
+
+    const result = await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", []);
+
+    expect(result).toEqual([]);
+    expect(a.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
+    expect(b.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null and touches nothing when the row is user-managed", async () => {
+    const stale = makeLink("ent_stale");
+    const { ctx, memoryEntityCollection } = makeReplaceCtx([], [stale], {
+      isDeleted: false,
+      topicsUserManaged: true,
+    });
+
+    const result = await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain"]);
+
+    expect(result).toBeNull();
+    expect(stale.prepareDestroyPermanently).not.toHaveBeenCalled();
+    expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns null for deleted and absent rows (guard, fail closed)", async () => {
+    for (const vaultRow of [{ isDeleted: true, topicsUserManaged: null }, undefined]) {
+      const stale = makeLink("ent_stale");
+      const { ctx } = makeReplaceCtx([], [stale], vaultRow);
+      const result = await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain"]);
+      expect(result).toBeNull();
+      expect(stale.prepareDestroyPermanently).not.toHaveBeenCalled();
+    }
   });
 });

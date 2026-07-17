@@ -421,6 +421,7 @@ export {
   type EntityOperationsContext,
   getMemoriesByEntityNamesOp,
   linkMemoryEntitiesOp,
+  replaceMemoryEntitiesGuardedOp,
 } from "../lib/db/entities/operations";
 export type { CreateEntityOptions, EntityKind, StoredEntity } from "../lib/db/entities/types";
 export { ENTITY_KINDS } from "../lib/db/entities/types";

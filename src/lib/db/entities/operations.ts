@@ -123,15 +123,16 @@ async function upsertEntitiesOp(
  * back-filled — see {@link upsertEntitiesOp}. Idempotent — duplicate
  * (memory_id, entity_id) pairs are skipped.
  *
- * `options.unlessTopicsUserManaged` re-checks the memory's
- * `topics_user_managed` flag INSIDE the serialized writer and skips link
- * creation when set. Auto paths (extraction, topic worker) need this: a
- * pre-call check races the LLM round-trip — `setMemoryEntitiesOp` sets the
- * flag in its own writer, so only an in-write check guarantees a user's
- * manual topic edit can't be grafted over. The flag read fails CLOSED (skip
- * links) so a transient read fault never attaches topics to a memory we
- * couldn't verify. Entity upserts still happen (vocabulary is global);
- * returns [] when links were skipped.
+ * `options.unlessTopicsUserManaged` re-checks the memory's vault row INSIDE
+ * the serialized writer and skips link creation when the row is user-managed
+ * (`topics_user_managed`), soft-deleted, or absent. Auto paths (extraction,
+ * topic worker) need this: a pre-call check races the LLM round-trip —
+ * `setMemoryEntitiesOp` sets the flag in its own writer and a delete can land
+ * mid-call (orphaning links the cascade already swept) — so only an in-write
+ * check guarantees a user's manual edit or delete can't be grafted over. The
+ * row read fails CLOSED (skip links) so a transient fault never attaches
+ * topics to a memory we couldn't verify. Entity upserts still happen
+ * (vocabulary is global); returns [] when links were skipped.
  */
 export async function linkMemoryEntitiesOp(
   ctx: EntityOperationsContext,
@@ -153,24 +154,9 @@ export async function linkMemoryEntitiesOp(
   // both insert overlapping (memory_id, entity_id) rows — which would
   // inflate the shared-count downstream in rankByEntityOverlap.
   await ctx.database.write(async () => {
-    if (options?.unlessTopicsUserManaged) {
-      // In-write flag check: writers are serialized, so a committed
-      // setMemoryEntitiesOp (which sets the flag in ITS writer) is always
-      // visible here, and our links can never land after a user's replace.
-      try {
-        const rows = await ctx.database
-          .get<VaultMemory>("memory_vault")
-          .query(Q.where("id", memoryId))
-          .fetch();
-        if (rows[0]?.topicsUserManaged === true) {
-          skipped = true;
-          return;
-        }
-      } catch {
-        // Fail closed — don't attach topics to a memory we couldn't verify.
-        skipped = true;
-        return;
-      }
+    if (options?.unlessTopicsUserManaged && (await autoLinkBlocked(ctx, memoryId))) {
+      skipped = true;
+      return;
     }
     const existingLinks = await ctx.memoryEntityCollection
       .query(Q.where("memory_id", memoryId))
@@ -189,6 +175,80 @@ export async function linkMemoryEntitiesOp(
   });
 
   return skipped ? [] : entities;
+}
+
+/**
+ * In-write guard for auto link paths: true when auto-managed links must NOT
+ * be written to this memory — the vault row is user-managed, soft-deleted, or
+ * absent, or the read failed (fail CLOSED). Truthiness (not `=== true`) so an
+ * unsanitized SQLite `1` can never fail open. MUST be called from inside a
+ * `database.write()` block: writers are serialized, so a committed
+ * `setMemoryEntitiesOp` (flag) or vault delete is always visible here.
+ */
+async function autoLinkBlocked(ctx: EntityOperationsContext, memoryId: string): Promise<boolean> {
+  try {
+    const rows = await ctx.database
+      .get<VaultMemory>("memory_vault")
+      .query(Q.where("id", memoryId))
+      .fetch();
+    const row = rows[0];
+    return !row || !!row.isDeleted || !!row.topicsUserManaged;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * REPLACE a memory's entity links with an auto-derived set — the topic
+ * worker's write primitive. Unlike {@link setMemoryEntitiesOp} it does NOT
+ * mark the memory user-managed (the pass is automatic), and unlike
+ * {@link linkMemoryEntitiesOp} it removes stale links, so re-extracting an
+ * edited memory drops entities its previous content mentioned ("works at
+ * Acme" → "works at Globex" must unlink Acme). Insert-missing and
+ * destroy-stale are batched in ONE writer, after the same in-write guard as
+ * the link op (user-managed / deleted / absent / read-fault ⇒ skip).
+ *
+ * Returns the linked entities ([] for an answered-empty set), or null when
+ * the guard skipped — callers must treat null as "not persisted" (e.g. don't
+ * stamp `topics_extracted_at`).
+ */
+export async function replaceMemoryEntitiesGuardedOp(
+  ctx: EntityOperationsContext,
+  memoryId: string,
+  entityInputs: ReadonlyArray<EntityInput>
+): Promise<StoredEntity[] | null> {
+  const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
+  const byName = await upsertEntitiesOp(ctx, normalized);
+  const entities = Array.from(byName.values());
+
+  const userId = ctx.userId;
+  let skipped = false;
+  await ctx.database.write(async () => {
+    if (await autoLinkBlocked(ctx, memoryId)) {
+      skipped = true;
+      return;
+    }
+    const existingLinks = await ctx.memoryEntityCollection
+      .query(Q.where("memory_id", memoryId))
+      .fetch();
+    const keep = new Set(entities.map((e) => e.uniqueId));
+    const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
+    const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
+    const toDestroy = existingLinks.filter((l) => !keep.has(String(l.entityId)));
+    if (toCreate.length === 0 && toDestroy.length === 0) return;
+    await ctx.database.batch(
+      ...toCreate.map((e) =>
+        ctx.memoryEntityCollection.prepareCreate((record) => {
+          record._setRaw("memory_id", memoryId);
+          record._setRaw("entity_id", e.uniqueId);
+          if (userId !== undefined) record._setRaw("user_id", userId);
+        })
+      ),
+      ...toDestroy.map((l) => l.prepareDestroyPermanently())
+    );
+  });
+
+  return skipped ? null : entities;
 }
 
 /**

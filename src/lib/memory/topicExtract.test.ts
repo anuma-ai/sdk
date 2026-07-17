@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/entities/operations", () => ({
-  linkMemoryEntitiesOp: vi.fn().mockResolvedValue([]),
+  // Echo the requested entities (non-null = persisted); tests override with
+  // null to simulate the in-write guard skipping.
+  replaceMemoryEntitiesGuardedOp: vi.fn(
+    async (_ctx: unknown, _id: string, entities: unknown[]) => entities
+  ),
 }));
 
 // vaultMemoryToStored is exercised by its own tests — here it just surfaces the
@@ -14,7 +18,7 @@ vi.mock("../db/memoryVault/operations", () => ({
   stampTopicsExtractedAtOp: vi.fn(async (_ctx: unknown, ids: readonly string[]) => [...ids]),
 }));
 
-import { linkMemoryEntitiesOp } from "../db/entities/operations";
+import { replaceMemoryEntitiesGuardedOp } from "../db/entities/operations";
 import {
   stampTopicsExtractedAtOp,
   type VaultMemoryOperationsContext,
@@ -47,10 +51,11 @@ describe("extractEntitiesForMemories", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
-  it("parses entities per memory and defaults unanswered ids to []", async () => {
+  it("parses entities per memory; omitted ids stay ABSENT (unanswered)", async () => {
     const fetchFn = mockFetch(
       topicResponse([
         { id: "mem_1", entities: [{ name: "ZetaChain", kind: "organization" }] },
+        { id: "mem_2", entities: [] },
         { id: "mem_bogus", entities: [{ name: "Dropped" }] },
       ])
     );
@@ -58,14 +63,31 @@ describe("extractEntitiesForMemories", () => {
       [
         { id: "mem_1", content: "Works at ZetaChain" },
         { id: "mem_2", content: "Likes tea" },
+        { id: "mem_omitted", content: "Enjoys walks" },
       ],
       { apiKey: "k", fetchFn }
     );
     expect(result.get("mem_1")).toEqual([{ name: "ZetaChain", kind: "organization" }]);
-    // Answered batch, unanswered id → present with [] (extracted, no entities).
+    // Explicitly answered empty → present with [].
     expect(result.get("mem_2")).toEqual([]);
+    // Omitted by the model → UNANSWERED, absent (never stamped-as-empty).
+    expect(result.has("mem_omitted")).toBe(false);
     // Ids not in the batch are dropped.
     expect(result.has("mem_bogus")).toBe(false);
+  });
+
+  it("keeps the FIRST answer when the model duplicates an id", async () => {
+    const fetchFn = mockFetch(
+      topicResponse([
+        { id: "mem_1", entities: [{ name: "First", kind: "concept" }] },
+        { id: "mem_1", entities: [{ name: "Second", kind: "concept" }] },
+      ])
+    );
+    const result = await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(result.get("mem_1")).toEqual([{ name: "First", kind: "concept" }]);
   });
 
   it("chunks into batches of TOPIC_EXTRACTION_BATCH_SIZE", async () => {
@@ -73,10 +95,28 @@ describe("extractEntitiesForMemories", () => {
       { length: TOPIC_EXTRACTION_BATCH_SIZE + 2 },
       (_, i) => ({ id: `mem_${i}`, content: `fact ${i}` })
     );
-    const fetchFn = mockFetch(topicResponse([]));
+    // Each call answers every id it was sent (echo-all), so both batches count.
+    const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      const userMessage = body.messages.find((m) => m.role === "user")!.content;
+      const ids = [...userMessage.matchAll(/\[(mem_\d+)\]/g)].map((m) => m[1]);
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: topicResponse(ids.map((id) => ({ id, entities: [] }))),
+              },
+            },
+          ],
+        }),
+      };
+    }) as unknown as typeof fetch;
     const result = await extractEntitiesForMemories(memories, { apiKey: "k", fetchFn });
     expect(fetchFn).toHaveBeenCalledTimes(2);
-    // Every memory answered-empty (successful batches).
     expect(result.size).toBe(memories.length);
   });
 
@@ -223,7 +263,7 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     ).rejects.toThrow(/entityCtx/);
   });
 
-  it("links extracted entities (guarded) and stamps the watermark", async () => {
+  it("replaces entity links (guarded) and stamps the watermark", async () => {
     const ctx = makeOpCtx({
       mem_1: mockVaultRecord({ id: "mem_1" }),
       mem_2: mockVaultRecord({ id: "mem_2", content: "Likes tea" }),
@@ -241,13 +281,18 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       now: 1_700_000_000_000,
     });
 
-    // Only the memory WITH entities links; the guard flag is always passed.
-    expect(linkMemoryEntitiesOp).toHaveBeenCalledTimes(1);
-    expect(linkMemoryEntitiesOp).toHaveBeenCalledWith(
+    // BOTH memories get the replace write — an answered-empty result must
+    // still remove stale links from the previous content.
+    expect(replaceMemoryEntitiesGuardedOp).toHaveBeenCalledTimes(2);
+    expect(replaceMemoryEntitiesGuardedOp).toHaveBeenCalledWith(
       (ctx as { entityCtx: unknown }).entityCtx,
       "mem_1",
-      [{ name: "ZetaChain", kind: "organization" }],
-      { unlessTopicsUserManaged: true }
+      [{ name: "ZetaChain", kind: "organization" }]
+    );
+    expect(replaceMemoryEntitiesGuardedOp).toHaveBeenCalledWith(
+      (ctx as { entityCtx: unknown }).entityCtx,
+      "mem_2",
+      []
     );
     // BOTH memories stamped — zero-entity results count as extracted.
     expect(stampTopicsExtractedAtOp).toHaveBeenCalledWith(
@@ -260,6 +305,56 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
     expect(result.entitiesByMemory.get("mem_1")).toEqual([
       { name: "ZetaChain", kind: "organization" },
     ]);
+  });
+
+  it("does not stamp a memory the replace guard skipped (null return)", async () => {
+    const ctx = makeOpCtx({
+      mem_1: mockVaultRecord({ id: "mem_1" }),
+      mem_2: mockVaultRecord({ id: "mem_2", content: "Likes tea" }),
+    });
+    // Guard skipped mem_1 (user-managed/deleted mid-run, or fail-closed read
+    // fault) — nothing persisted, so it must not be stamped.
+    (replaceMemoryEntitiesGuardedOp as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+    const fetchFn = mockFetch(
+      topicResponse([
+        { id: "mem_1", entities: [{ name: "ZetaChain", kind: "organization" }] },
+        { id: "mem_2", entities: [] },
+      ])
+    );
+
+    const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["mem_1", "mem_2"], {
+      apiKey: "k",
+      fetchFn,
+      now: 1,
+    });
+
+    expect(result.skippedIds).toEqual(["mem_1"]);
+    expect(result.stampedIds).toEqual(["mem_2"]);
+    expect(result.entitiesByMemory.has("mem_1")).toBe(false);
+  });
+
+  it("skips a memory whose decryption fails without aborting the sweep", async () => {
+    const ctx = makeOpCtx({
+      mem_bad: mockVaultRecord({ id: "mem_bad" }),
+      mem_ok: mockVaultRecord({ id: "mem_ok", content: "Likes tea" }),
+    });
+    const { vaultMemoryToStored } = await import("../db/memoryVault/operations");
+    (vaultMemoryToStored as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("decrypt failed")
+    );
+    const fetchFn = mockFetch(topicResponse([{ id: "mem_ok", entities: [] }]));
+
+    const result = await extractAndLinkEntitiesForMemoriesOp(ctx, ["mem_bad", "mem_ok"], {
+      apiKey: "k",
+      fetchFn,
+      now: 1,
+    });
+
+    expect(result.skippedIds).toEqual(["mem_bad"]);
+    expect(result.stampedIds).toEqual(["mem_ok"]);
+    // The undecryptable memory never reached the LLM.
+    const rawBody = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string;
+    expect(rawBody).not.toContain("mem_bad");
   });
 
   it("skips missing, deleted, foreign-user, and user-managed memories up front", async () => {
@@ -299,7 +394,7 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
 
     expect(result.skippedIds).toEqual(["mem_1"]);
     expect(result.stampedIds).toEqual([]);
-    expect(linkMemoryEntitiesOp).not.toHaveBeenCalled();
+    expect(replaceMemoryEntitiesGuardedOp).not.toHaveBeenCalled();
     expect(stampTopicsExtractedAtOp).toHaveBeenCalledWith(ctx, [], 1);
   });
 
@@ -308,7 +403,7 @@ describe("extractAndLinkEntitiesForMemoriesOp", () => {
       mem_1: mockVaultRecord({ id: "mem_1" }),
       mem_2: mockVaultRecord({ id: "mem_2", content: "Likes tea" }),
     });
-    (linkMemoryEntitiesOp as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+    (replaceMemoryEntitiesGuardedOp as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error("write failed")
     );
     const fetchFn = mockFetch(

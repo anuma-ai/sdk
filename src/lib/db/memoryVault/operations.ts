@@ -804,7 +804,9 @@ export async function stampTopicsExtractedAtOp(
   const stamped: string[] = [];
   await ctx.database.write(async () => {
     const prepared = records
-      .filter((r) => !r.isDeleted && isOwnedByCtxUser(ctx, r) && r.topicsUserManaged !== true)
+      // Truthiness (not `!== true`) on the flag so an unsanitized SQLite `1`
+      // can never fail open and stamp a user-managed row.
+      .filter((r) => !r.isDeleted && isOwnedByCtxUser(ctx, r) && !r.topicsUserManaged)
       .map((record) => {
         stamped.push(record.id);
         const originalUpdatedAt = record.updatedAt.getTime();
