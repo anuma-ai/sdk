@@ -1143,12 +1143,27 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
     expect(result.linkedUnstamped).toEqual(["mem_legacy"]);
   });
 
-  it("applies limit to pending only", async () => {
+  it("applies limit to pending", async () => {
     const rows = [rawRow("mem_a"), rawRow("mem_b"), rawRow("mem_c")];
     const { ctx } = sweepCtx(rows, []);
 
     const result = await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 2 });
     expect(result.pending.length).toBe(2);
+  });
+
+  it("also caps linkedUnstamped under limit (grandfather backlog drains across sweeps)", async () => {
+    // All linked + unstamped → all grandfathered. Stamping loads a Model per
+    // row, so an uncapped list would spike the RecordCache on a legacy vault.
+    const rows = [rawRow("mem_1"), rawRow("mem_2"), rawRow("mem_3")];
+    const { ctx } = sweepCtx(rows, [
+      { memory_id: "mem_1" },
+      { memory_id: "mem_2" },
+      { memory_id: "mem_3" },
+    ]);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 2 });
+    expect(result.pending).toEqual([]);
+    expect(result.linkedUnstamped.length).toBe(2);
   });
 
   it("excludes user-managed rows via the query conditions", async () => {
@@ -1191,6 +1206,36 @@ describe("stampTopicsExtractedAtOp", () => {
     prepared({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", 5_000);
     expect(setRawSpy).toHaveBeenCalledWith("updated_at", new Date("2025-01-01").getTime());
+  });
+
+  it("reads updated_at from the LIVE model in-writer, not a stale pre-fetch", async () => {
+    // Concurrent-edit guard: the value written back must be the live Model's
+    // updated_at (an edit that committed before the writer), never a snapshot
+    // taken earlier — otherwise updated_at could fall behind topics_extracted_at
+    // and the edited memory would never re-enter the sweep.
+    const liveUpdatedAt = new Date("2026-03-03").getTime();
+    const record = mockRecord({ id: "mem_1", updated_at: new Date("2026-03-03") });
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => {}),
+      } as any,
+      // A raw snapshot with a DIFFERENT (older) updated_at — the op must ignore it.
+      vaultMemoryCollection: {
+        find: vi.fn(async () => record),
+        query: vi.fn(() => ({
+          unsafeFetchRaw: vi.fn(async () => [{ ...record._raw, updated_at: 1 }]),
+        })),
+      } as any,
+    });
+
+    await stampTopicsExtractedAtOp(ctx, ["mem_1"], 9_999);
+
+    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    prepared({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("updated_at", liveUpdatedAt);
+    expect(setRawSpy).not.toHaveBeenCalledWith("updated_at", 1);
   });
 
   it("skips deleted and user-managed rows (re-checked in the writer)", async () => {

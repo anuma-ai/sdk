@@ -12,12 +12,14 @@ should merely stamp as already-extracted.
 
 > **linkedUnstamped**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/operations.ts:697](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#697)
+Defined in: [src/lib/db/memoryVault/operations.ts:699](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#699)
 
 IDs of rows that already have entity links but no watermark — legacy rows
 extracted by the conversation pipeline before v36. Grandfather these with
 [stampTopicsExtractedAtOp](../functions/stampTopicsExtractedAtOp.md) (no LLM call) so a later content edit
-makes them re-extractable instead of invisible forever.
+makes them re-extractable instead of invisible forever. Bounded by the
+same `limit` as [pending](#pending) — stamping loads a Model per row, so the
+grandfather backlog is drained across sweeps rather than in one spike.
 
 ***
 

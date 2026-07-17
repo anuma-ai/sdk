@@ -692,7 +692,9 @@ export interface MemoriesNeedingTopicExtraction {
    * IDs of rows that already have entity links but no watermark — legacy rows
    * extracted by the conversation pipeline before v36. Grandfather these with
    * {@link stampTopicsExtractedAtOp} (no LLM call) so a later content edit
-   * makes them re-extractable instead of invisible forever.
+   * makes them re-extractable instead of invisible forever. Bounded by the
+   * same `limit` as {@link pending} — stamping loads a Model per row, so the
+   * grandfather backlog is drained across sweeps rather than in one spike.
    */
   linkedUnstamped: string[];
 }
@@ -754,21 +756,25 @@ export async function getMemoriesNeedingTopicExtractionOp(
     for (const link of links) linkedIds.add(String(link.memory_id));
   }
 
-  const linkedUnstamped: string[] = [];
+  const linkedUnstampedAll: string[] = [];
   const pendingRaw: Record<string, unknown>[] = [...stampedPending];
   for (const raw of unstamped) {
     if (linkedIds.has(raw.id as string)) {
-      linkedUnstamped.push(raw.id as string);
+      linkedUnstampedAll.push(raw.id as string);
     } else {
       pendingRaw.push(raw);
     }
   }
 
-  const limited =
-    options?.limit !== undefined && options.limit > 0
-      ? pendingRaw.slice(0, options.limit)
-      : pendingRaw;
-  const pending = await mapInBatches(limited, (raw) =>
+  // Cap BOTH lists under `limit`. The worker stamps every `linkedUnstamped` id
+  // (via stampTopicsExtractedAtOp, which must load a Model per row to update) —
+  // uncapped, the first post-migration sweep of a legacy vault would grandfather
+  // thousands at once and pin that many Models in the never-evicted RecordCache
+  // (web Pile-2). Bounding it here drains the grandfather backlog across sweeps.
+  const cap = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined;
+  const limitedPendingRaw = cap !== undefined ? pendingRaw.slice(0, cap) : pendingRaw;
+  const linkedUnstamped = cap !== undefined ? linkedUnstampedAll.slice(0, cap) : linkedUnstampedAll;
+  const pending = await mapInBatches(limitedPendingRaw, (raw) =>
     vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
   );
   return { pending, linkedUnstamped };
@@ -781,9 +787,20 @@ export async function getMemoriesNeedingTopicExtractionOp(
  * `linkedUnstamped` rows without an LLM call. Preserves `updated_at` so a
  * stamp never inflates the recency multiplier — and never masks a concurrent
  * content edit from the next sweep. Skips deleted, foreign-user, and
- * user-managed rows (re-checked inside the serialized writer, so a manual
- * topic edit that lands mid-pass wins). Returns the IDs actually stamped.
- * Uses raw queries in chunks to avoid pinning Models in RecordCache (web Pile-2).
+ * user-managed rows. Returns the IDs actually stamped.
+ *
+ * ALL eligibility AND `updated_at` are read from the LIVE Model inside the
+ * serialized writer — never a pre-writer snapshot. Writers are serialized, so
+ * a content edit or topic-override that commits before this writer runs is
+ * observed here: its fresh `updated_at` is preserved (so the next sweep's
+ * `updated_at > stamp` check still fires) and a mid-pass user-managed flip
+ * skips the row. Reading `updated_at` from a raw pre-fetch instead would write
+ * a stale value back, pushing `updated_at < topics_extracted_at` and hiding
+ * the edited memory from every future sweep.
+ *
+ * Callers bound the input via `getMemoriesNeedingTopicExtractionOp`'s `limit`
+ * (both `pending` and `linkedUnstamped` are capped), so the per-row Model load
+ * needed to `prepareUpdate` stays bounded and never spikes the RecordCache.
  */
 export async function stampTopicsExtractedAtOp(
   ctx: VaultMemoryOperationsContext,
@@ -795,53 +812,37 @@ export async function stampTopicsExtractedAtOp(
   // Dedupe to avoid prepareUpdate conflicts on shared Model instances.
   const uniqueIds = Array.from(new Set(memoryIds));
 
-  // Chunk to respect SQLite bind limits (999) and avoid huge Q.oneOf arrays
-  // that hurt LokiJS. Same chunking pattern as linkedUnstamped checks.
+  // Chunk the writer batches to keep any single batch reasonable.
   const CHUNK = 500;
   const stamped: string[] = [];
 
   for (let i = 0; i < uniqueIds.length; i += CHUNK) {
     const chunkIds = uniqueIds.slice(i, i + CHUNK);
 
-    // unsafeFetchRaw (NOT fetch): avoid pinning Models for thousands of IDs
-    // on the first post-migration sweep (web Pile-2).
-    const raws = (await ctx.vaultMemoryCollection
-      .query(Q.where("id", Q.oneOf(chunkIds)))
-      .unsafeFetchRaw()) as Record<string, unknown>[];
-
     await ctx.database.write(async () => {
       const prepared = [];
-      for (const raw of raws) {
-        // Truthiness (not `!== true`) on the flag so an unsanitized SQLite `1`
-        // can never fail open and stamp a user-managed row.
-        const isDeleted = raw.is_deleted === true || raw.is_deleted === 1;
-        const userManaged = raw.topics_user_managed === true || raw.topics_user_managed === 1;
-        const userId = (raw.user_id as string | null) ?? null;
-        const ownedByUser = ctx.userId === undefined || userId === ctx.userId;
-
-        if (isDeleted || !ownedByUser || userManaged) continue;
-
-        const id = raw.id as string;
-        // Handle both timestamp (production) and Date (test mocks)
-        const originalUpdatedAt =
-          raw.updated_at instanceof Date
-            ? (raw.updated_at as Date).getTime()
-            : (raw.updated_at as number);
-
-        // Must load the Model to prepareUpdate, but only for rows that pass
-        // all filters — typical case: a handful of edits, not thousands.
+      for (const id of chunkIds) {
+        let record: VaultMemory;
         try {
-          const record = await ctx.vaultMemoryCollection.find(id);
-          prepared.push(
-            record.prepareUpdate((r) => {
-              r._setRaw("topics_extracted_at", extractedAt);
-              r._setRaw("updated_at", originalUpdatedAt);
-            })
-          );
-          stamped.push(id);
+          record = await ctx.vaultMemoryCollection.find(id);
         } catch {
           // Missing row — skip.
+          continue;
         }
+        // Read eligibility + updated_at from the LIVE Model, in-writer — never a
+        // pre-fetch snapshot (see the doc comment). Truthiness (not `!== true`)
+        // on the flag so an unsanitized SQLite `1` can't fail open.
+        if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.topicsUserManaged) {
+          continue;
+        }
+        const originalUpdatedAt = record.updatedAt.getTime();
+        prepared.push(
+          record.prepareUpdate((r) => {
+            r._setRaw("topics_extracted_at", extractedAt);
+            r._setRaw("updated_at", originalUpdatedAt);
+          })
+        );
+        stamped.push(id);
       }
       if (prepared.length > 0) await ctx.database.batch(...prepared);
     });
