@@ -393,8 +393,17 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
  * threading a cheap vault-size count so the density guard can cap hops on large
  * vaults. The PR5 default `MAX_HOPS = 2` performs one expansion beyond the seed
  * (capped back to seed-only above the density threshold). When `traverse` is
- * false the exact single-hop path below runs — low/mid budgets are byte-for-byte
- * unchanged (and never pay the count).
+ * false the single-hop path below runs — low/mid budgets never pay the
+ * vault-size count and never expand past the seed.
+ *
+ * Active filter (both paths): archived / quarantined ("forgotten") memory ids
+ * are dropped before they enter the returned ranking — the multi-hop path
+ * filters per hop (so inactive rows can't steer traversal), the single-hop path
+ * filters the resolved seed ids. Both reuse the same decrypt-free indexed
+ * active-id read ({@link getActiveVaultMemoryIdsOp}) and only engage when a
+ * `vaultCtx` is present. Low/mid budgets thus pay one extra indexed id read
+ * (no decrypt, no Model) so inactive ids don't occupy RRF rank slots that would
+ * otherwise dilute active memories' graph-lane contribution.
  */
 async function buildGraphLaneRanking(
   query: string,
@@ -437,9 +446,21 @@ async function buildGraphLaneRanking(
   if (memoryToEntities.size === 0) return [];
   // Sort by shared-entity count descending. Ties broken arbitrarily by
   // map insertion order — RRF rank-quantization makes fine ties moot.
-  return [...memoryToEntities.entries()]
+  const ranked = [...memoryToEntities.entries()]
     .sort((a, b) => b[1].size - a[1].size)
     .map(([memoryId]) => memoryId);
+  // Drop archived / quarantined ("forgotten") ids BEFORE they enter
+  // entityRanking — mirroring the multi-hop branch's per-hop active filter
+  // above. They never load for display (the downstream itemById gate drops
+  // them), but if left in the ranking they still occupy RRF rank slots and
+  // dilute active memories' graph-lane contribution. Decrypt-free: reuses the
+  // same indexed active-id read the high-budget path already pays. Only wired
+  // when a vaultCtx is present (the same context the final recall gate filters
+  // against); without it the lane keeps its pre-fix behavior.
+  const vaultCtx = ctx.vaultCtx;
+  if (!vaultCtx) return ranked;
+  const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, ranked);
+  return ranked.filter((id) => activeIds.has(id));
 }
 
 /**

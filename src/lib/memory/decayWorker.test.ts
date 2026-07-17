@@ -73,6 +73,10 @@ beforeEach(() => {
     vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
     walletAddress: "0xtest",
     signMessage: async (_message: string) => "0xsig",
+    // Per-wallet, physically single-tenant client DB — the sweep scope guard
+    // now requires this explicit flag (or a userId) rather than trusting
+    // walletAddress alone.
+    singleTenant: true,
   };
 });
 
@@ -374,6 +378,28 @@ describe("cross-user amplification guard", () => {
       userId: "user-1",
     } as VaultMemoryOperationsContext;
     expect(() => createDecaySweeper({ vaultCtx: scoped, now: NOW })).not.toThrow();
+  });
+
+  it("REFUSES a bare walletAddress context (no userId, not singleTenant)", () => {
+    // Behavior change: walletAddress alone no longer passes — it doesn't scope
+    // the sweep query, so trusting it was an unstated multi-tenant risk.
+    const walletOnly = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+      walletAddress: "0xtest",
+    } as VaultMemoryOperationsContext;
+    expect(() => createDecaySweeper({ vaultCtx: walletOnly, now: NOW })).toThrow(/unscoped/i);
+    return expect(getDecayCandidatesRawOp(walletOnly)).rejects.toThrow(/unscoped/i);
+  });
+
+  it("allows a singleTenant per-wallet client DB context (no userId)", () => {
+    const perWallet = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+      walletAddress: "0xtest",
+      singleTenant: true,
+    } as VaultMemoryOperationsContext;
+    expect(() => createDecaySweeper({ vaultCtx: perWallet, now: NOW })).not.toThrow();
   });
 });
 

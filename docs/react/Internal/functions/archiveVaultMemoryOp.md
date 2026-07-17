@@ -2,7 +2,7 @@
 
 > **archiveVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`, `opts?`: `object`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:953](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#953)
+Defined in: [src/lib/db/memoryVault/operations.ts:971](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#971)
 
 Archive a memory (decay soft state, PR2) — set `archived_at`. An archived row
 drops out of every recall lane via the `baseVaultConditions` choke point but

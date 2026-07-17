@@ -37,6 +37,16 @@ vi.mock("../memoryEngine/embeddings", () => {
   };
 });
 
+// Partial mock so the fusion pipeline still runs for real (delegates to the
+// actual impl) while letting a test inspect the `entityRanking` the recall
+// orchestrator forwards into the vault search — the only place the single-hop
+// active filter's effect is directly observable (inactive ids are dropped from
+// results downstream regardless, so results alone can't distinguish the fix).
+vi.mock("../memoryVault/searchTool", async (importActual) => {
+  const actual = await importActual<typeof import("../memoryVault/searchTool")>();
+  return { ...actual, searchVaultMemoriesWithSize: vi.fn(actual.searchVaultMemoriesWithSize) };
+});
+
 // Same deterministic embedder as the mock above (mock factories are hoisted and
 // can't close over module scope, so the row-embedding helper is duplicated).
 const EMBED_DIM = 64;
@@ -67,6 +77,7 @@ import {
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
+import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool";
 
 import {
   capHopsForDensity,
@@ -584,5 +595,54 @@ describe("recall graph lane — archived / quarantined never leak", () => {
     expect(ids).not.toContain(archived.uniqueId);
     expect(result.memories.some((m) => m.content.includes("quarantined"))).toBe(false);
     expect(result.memories.some((m) => m.content.includes("archived"))).toBe(false);
+  });
+
+  it("single-hop (low budget): an archived id never enters entityRanking", async () => {
+    // Mirrors the multi-hop guard above but for the low/mid-budget single-hop
+    // path. Inactive rows are dropped from RESULTS downstream regardless, so we
+    // assert the stronger, directly-observable invariant: the archived id is
+    // absent from the `entityRanking` the recall orchestrator forwards to the
+    // vault search — i.e. it never occupies an RRF rank slot that would dilute
+    // the active memory's graph-lane contribution.
+    const searchSpy = vi.mocked(searchVaultMemoriesWithSize);
+    searchSpy.mockClear();
+
+    const vaultCtx: VaultMemoryOperationsContext = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+    };
+    const entityCtx = makeEntityCtx();
+
+    const QUERY = "What about Zeta"; // seed = ["zeta"]
+    const vec = JSON.stringify(embed(QUERY));
+
+    const clean = await createVaultMemoryOp(vaultCtx, {
+      content: "clean zeta note",
+      embedding: vec,
+    });
+    const archived = await createVaultMemoryOp(vaultCtx, {
+      content: "archived zeta note",
+      embedding: vec,
+    });
+    await archiveVaultMemoryOp(vaultCtx, archived.uniqueId);
+
+    // Both linked to the seed entity, so both would enter entityRanking pre-fix.
+    for (const id of [clean.uniqueId, archived.uniqueId]) {
+      await link(entityCtx, id, ["Zeta"]);
+    }
+
+    const recallCtx: RecallContext = {
+      vaultCtx,
+      entityCtx,
+      embeddingOptions: { apiKey: "test-key" },
+      vaultCache: new Map<string, number[]>(),
+    };
+    // budget:"low" → single-hop path (traverse=false), no reverse-edge expansion.
+    await recall(QUERY, recallCtx, { budget: "low", minScore: 0 });
+
+    const lastCall = searchSpy.mock.calls.at(-1);
+    const entityRanking = lastCall?.[4]?.entityRanking ?? [];
+    expect(entityRanking).toContain(clean.uniqueId);
+    expect(entityRanking).not.toContain(archived.uniqueId);
   });
 });
