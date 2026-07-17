@@ -123,7 +123,7 @@ function makeCtx(overrides: Partial<RecallContext> = {}): RecallContext {
     vaultCtx,
     storageCtx,
     embeddingOptions: { apiKey: "test-key" },
-    vaultCache: new Map<string, number[]>(),
+    vaultCache: new Map<string, Float32Array>(),
     ...overrides,
   };
 }

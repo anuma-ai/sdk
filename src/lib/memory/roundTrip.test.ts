@@ -68,7 +68,7 @@ beforeEach(() => {
     vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
   };
   const embeddingOptions = { apiKey: "test-key" };
-  const vaultCache = new Map<string, number[]>();
+  const vaultCache = new Map<string, Float32Array>();
   retainCtx = { vaultCtx, embeddingOptions, vaultCache };
   recallCtx = { vaultCtx, embeddingOptions, vaultCache };
 });

@@ -50,7 +50,8 @@ describe("embedding cache lifecycle", () => {
 
     await preEmbedVaultMemories(mockVaultCtx, embeddingOptions, cache);
     expect(cache.size).toBe(1);
-    expect(cache.get("original fact")).toEqual([1, 0, 0]);
+    // Cache keyed by memory id; values are Float32Array (model-native precision).
+    expect(Array.from(cache.get("m1")!)).toEqual([1, 0, 0]);
 
     // Step 2: Create a new memory via tool (eager embed fires)
     vi.mocked(createVaultMemoryOp).mockResolvedValue(makeMemory("m2", "new fact"));
@@ -65,10 +66,11 @@ describe("embedding cache lifecycle", () => {
     await saveTool.executor!({ content: "new fact" });
     await new Promise((r) => setTimeout(r, 10)); // fire-and-forget
 
-    expect(cache.get("new fact")).toEqual([0, 1, 0]);
+    expect(Array.from(cache.get("m2")!)).toEqual([0, 1, 0]);
     expect(cache.size).toBe(2);
 
-    // Step 3: Update existing memory (evicts old key, embeds new)
+    // Step 3: Update existing memory — same id overwrites its vector in place
+    // (edit-invalidation is by id, not a content-key eviction).
     vi.mocked(getVaultMemoryOp).mockResolvedValue(makeMemory("m1", "original fact"));
     vi.mocked(updateVaultMemoryOp).mockResolvedValue(makeMemory("m1", "updated fact"));
     vi.mocked(generateEmbedding).mockResolvedValue([0, 0, 1]);
@@ -76,9 +78,9 @@ describe("embedding cache lifecycle", () => {
     await saveTool.executor!({ content: "updated fact", id: "m1" });
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(cache.has("original fact")).toBe(false);
-    expect(cache.get("updated fact")).toEqual([0, 0, 1]);
-    expect(cache.size).toBe(2); // "new fact" + "updated fact"
+    expect(cache.has("m1")).toBe(true);
+    expect(Array.from(cache.get("m1")!)).toEqual([0, 0, 1]); // vector replaced
+    expect(cache.size).toBe(2); // m1 (updated) + m2
 
     // Step 4: Search uses cached embeddings — no batch re-embedding
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([

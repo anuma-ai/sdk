@@ -17,7 +17,7 @@ const baseOptions = {
   retainCtx: {
     vaultCtx: {} as never,
     embeddingOptions: { apiKey: "k" },
-    vaultCache: new Map<string, number[]>(),
+    vaultCache: new Map<string, Float32Array>(),
   },
   extract: { apiKey: "k" },
 };

@@ -28,7 +28,7 @@ export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache"
  * Embedding cache keyed by content string. Stores pre-computed embeddings
  * so that search only needs to embed the query, not the vault entries.
  */
-export type VaultEmbeddingCache = Map<string, number[]>;
+export type VaultEmbeddingCache = Map<string, Float32Array>;
 
 /**
  * Options for the vault search tool.
@@ -125,7 +125,7 @@ function normalizeEventTimeKind(
 interface EmbeddedItem {
   id: string;
   content: string;
-  embedding: number[];
+  embedding: ArrayLike<number>;
   /** Original creation timestamp — what `RankedMemory.createdAt` surfaces.
    * Distinct from `updatedAt` since `proofCountIncrement` re-observation
    * doesn't bump `created_at`. */
@@ -204,7 +204,12 @@ function supersessionDelta(
  * Returns an array of [oldId, newId] pairs to adjust.
  */
 function findSupersessionPairs(
-  candidates: Array<{ id: string; embedding: number[]; updatedAt?: Date; similarity: number }>
+  candidates: Array<{
+    id: string;
+    embedding: ArrayLike<number>;
+    updatedAt?: Date;
+    similarity: number;
+  }>
 ): Array<[string, string]> {
   // Collect all valid pairs with confidence scores
   const allPairs: Array<{ oldId: string; newId: string; confidence: number }> = [];
@@ -1070,11 +1075,13 @@ export async function preEmbedVaultMemories(
   const uncachedKeys: string[] = [];
   const uncachedIds: string[] = [];
   for (const m of memories) {
-    const key = m.content;
+    const content = m.content;
     // Never embed (or cache) ciphertext — decryption is best-effort and
     // returns the enc:vN: payload when the key is unavailable.
-    if (isEncrypted(key)) continue;
-    if (!cache.has(key)) {
+    if (isEncrypted(content)) continue;
+    // Cache is keyed by memory id (not content): keeps plaintext out of the
+    // key space and lets edits/deletes invalidate by id.
+    if (!cache.has(m.uniqueId)) {
       // Use a persisted embedding only if it was produced by the current
       // model. null/undefined = legacy, grandfathered (coalesces to the
       // current model). Stale-model vectors are re-embedded so a model change
@@ -1084,7 +1091,7 @@ export async function preEmbedVaultMemories(
         try {
           const parsed = JSON.parse(m.embedding) as number[];
           if (Array.isArray(parsed)) {
-            cache.set(key, parsed);
+            cache.set(m.uniqueId, Float32Array.from(parsed));
             continue;
           }
         } catch {
@@ -1092,14 +1099,14 @@ export async function preEmbedVaultMemories(
         }
       }
       uncachedTexts.push(m.content);
-      uncachedKeys.push(key);
+      uncachedKeys.push(m.uniqueId);
       uncachedIds.push(m.uniqueId);
     }
   }
   if (uncachedTexts.length > 0) {
     const embeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let i = 0; i < uncachedKeys.length; i++) {
-      cache.set(uncachedKeys[i], embeddings[i]);
+      cache.set(uncachedKeys[i], Float32Array.from(embeddings[i]));
       // Persist embedding + model to DB (fire-and-forget)
       updateVaultMemoryEmbeddingOp(
         vaultCtx,
@@ -1128,7 +1135,10 @@ export async function eagerEmbedContent(
   // ciphertext embedding that poisons ranking even after the key returns.
   if (isEncrypted(content)) return;
   const embedding = await generateEmbedding(content, embeddingOptions);
-  cache.set(content, embedding);
+  // Cache is keyed by memory id (not content). Without an id there's nothing
+  // to key on, so skip the cache write and rely on the DB-persist below /
+  // next search to populate it.
+  if (memoryId) cache.set(memoryId, Float32Array.from(embedding));
   if (vaultCtx && memoryId) {
     const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding), currentModel).catch(
@@ -1225,13 +1235,14 @@ export async function searchVaultMemoriesWithSize(
   let staleReembedCount = 0;
   for (let i = 0; i < memories.length; i++) {
     const content = memories[i].content;
+    const memoryId = memories[i].uniqueId;
     // A cache hit is usable only if its dimension matches the query. The cache
-    // is keyed by content (not model) and can be seeded by preEmbedVaultMemories
+    // is keyed by memory id (not model) and can be seeded by preEmbedVaultMemories
     // — which has no query vector to dim-check against — so a grandfathered
     // wrong-dim vector could otherwise live in the cache and evade re-embed.
-    const cached = cache.get(content);
+    const cached = cache.get(memoryId);
     if (cached && cached.length === queryEmbedding.length) continue;
-    if (cached) cache.delete(content); // wrong-dim cache entry — drop and re-resolve
+    if (cached) cache.delete(memoryId); // wrong-dim cache entry — drop and re-resolve
 
     // Check for a usable persisted embedding in DB first. null/undefined model
     // is grandfathered (coalesces to current); a real different model is stale.
@@ -1241,7 +1252,7 @@ export async function searchVaultMemoriesWithSize(
       try {
         const parsed = JSON.parse(memories[i].embedding!) as number[];
         if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
-          cache.set(content, parsed);
+          cache.set(memoryId, Float32Array.from(parsed));
           continue;
         }
         // Dimension mismatch — model changed dims (even a grandfathered
@@ -1263,7 +1274,7 @@ export async function searchVaultMemoriesWithSize(
   if (uncachedTexts.length > 0) {
     const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let j = 0; j < uncachedTexts.length; j++) {
-      cache.set(memories[uncachedIndices[j]].content, newEmbeddings[j]);
+      cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
       // Persist embedding + model to DB (fire-and-forget)
       updateVaultMemoryEmbeddingOp(
         vaultCtx,
@@ -1282,7 +1293,7 @@ export async function searchVaultMemoriesWithSize(
   const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
     id: m.uniqueId,
     content: m.content,
-    embedding: cache.get(m.content) ?? [],
+    embedding: cache.get(m.uniqueId) ?? [],
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
     proofCount: m.proofCount,
