@@ -3,15 +3,15 @@
   "runs": 5,
   "metrics": {
     "recall": {
-      "mean": 1,
-      "min": 1,
+      "mean": 0.9935483870967742,
+      "min": 0.967741935483871,
       "max": 1,
       "tolerance": 0.05
     },
     "precision": {
-      "mean": 0.9548252688172043,
-      "min": 0.9354838709677419,
-      "max": 0.96875,
+      "mean": 0.9876893939393939,
+      "min": 0.96875,
+      "max": 1,
       "tolerance": 0.05
     },
     "entityCoverage": {
@@ -21,7 +21,7 @@
       "tolerance": 0.05
     },
     "kindAccuracy": {
-      "mean": 0.9818181818181818,
+      "mean": 0.990909090909091,
       "min": 0.9545454545454546,
       "max": 1,
       "tolerance": 0.05
@@ -34,7 +34,7 @@
     }
   },
   "forbiddenHits": {
-    "mean": 1.4,
-    "max": 2
+    "mean": 0.2,
+    "max": 1
   }
 }
