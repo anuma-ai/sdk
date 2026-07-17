@@ -23,6 +23,9 @@ export class VaultMemory extends Model {
   /** When true, the user has manually set this memory's topics; auto-extraction
    *  leaves its entity links alone. Null on legacy rows (treated as false). */
   @field("topics_user_managed") topicsUserManaged!: boolean | null;
+  /** Unix ms of the last LLM topic-extraction pass. Null = never extracted
+   *  standalone (linked legacy rows are grandfathered as extracted). */
+  @field("topics_extracted_at") topicsExtractedAt!: number | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

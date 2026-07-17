@@ -133,3 +133,86 @@ describe("linkMemoryEntitiesOp — entity kinds", () => {
     expect(created[0]).toMatchObject({ canonicalName: "sara", kind: "person" });
   });
 });
+
+describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /** Attach a memory_vault lookup to the mocked database so the in-write
+   * guard can read the flag. */
+  function withVaultRow(
+    ctx: EntityOperationsContext,
+    row: { topicsUserManaged: boolean | null } | undefined,
+    opts?: { throws?: boolean }
+  ) {
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => {
+          if (opts?.throws) throw new Error("adapter fault");
+          return row ? [row] : [];
+        }),
+      })),
+    }));
+  }
+
+  it("skips link creation and returns [] when the memory is user-managed", async () => {
+    const { ctx, memoryEntityCollection } = makeCtx();
+    withVaultRow(ctx, { topicsUserManaged: true });
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result).toEqual([]);
+    expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
+    // Entity upsert still ran — vocabulary is global.
+    expect(created.length).toBe(1);
+  });
+
+  it("links normally when the flag is unset/false", async () => {
+    const { ctx, memoryEntityCollection } = makeCtx();
+    withVaultRow(ctx, { topicsUserManaged: null });
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result.length).toBe(1);
+    expect(memoryEntityCollection.prepareCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("links normally for a missing row (fresh memory)", async () => {
+    const { ctx, memoryEntityCollection } = makeCtx();
+    withVaultRow(ctx, undefined);
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result.length).toBe(1);
+    expect(memoryEntityCollection.prepareCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails CLOSED: a flag-read fault skips linking", async () => {
+    const { ctx, memoryEntityCollection } = makeCtx();
+    withVaultRow(ctx, { topicsUserManaged: null }, { throws: true });
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result).toEqual([]);
+    expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
+  });
+
+  it("does not read the flag at all when the option is absent (default path)", async () => {
+    const { ctx, memoryEntityCollection } = makeCtx();
+    const getSpy = vi.fn();
+    (ctx.database as unknown as { get: unknown }).get = getSpy;
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"]);
+
+    expect(result.length).toBe(1);
+    expect(getSpy).not.toHaveBeenCalled();
+    expect(memoryEntityCollection.prepareCreate).toHaveBeenCalledTimes(1);
+  });
+});

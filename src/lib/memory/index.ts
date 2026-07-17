@@ -27,6 +27,14 @@ export {
 export type { RecencyOptions } from "./recency.js";
 export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { retain, type RetainContext } from "./retain.js";
+export {
+  extractAndLinkEntitiesForMemoriesOp,
+  extractEntitiesForMemories,
+  TOPIC_EXTRACTION_BATCH_SIZE,
+  type TopicExtractionInput,
+  type TopicExtractionRunResult,
+  type TopicExtractOptions,
+} from "./topicExtract.js";
 export type {
   Budget,
   ConsolidationFallbackReason,

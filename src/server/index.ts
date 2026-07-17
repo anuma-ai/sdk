@@ -134,8 +134,11 @@ export {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  type MemoriesNeedingTopicExtraction,
+  stampTopicsExtractedAtOp,
   type StoredVaultMemory,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
@@ -337,19 +340,25 @@ export type {
   RetainResult,
   RetainSource,
   ScoreBreakdown,
+  TopicExtractionInput,
+  TopicExtractionRunResult,
+  TopicExtractOptions,
   TurnCompleteEvent,
   TurnSkippedEvent,
 } from "../lib/memory";
 export {
   createAutoExtractor,
   createRecallTool,
+  extractAndLinkEntitiesForMemoriesOp,
   extractAndRetain,
+  extractEntitiesForMemories,
   extractFacts,
   recall,
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
   reflect,
   retain,
+  TOPIC_EXTRACTION_BATCH_SIZE,
 } from "../lib/memory";
 
 // ── Server Tools ──

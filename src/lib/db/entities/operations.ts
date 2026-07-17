@@ -1,6 +1,9 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+// Type-only — no runtime dependency on the memoryVault module (which imports
+// from this file), so this cannot create an import cycle.
+import type { VaultMemory } from "../memoryVault/models";
 import type { Entity, MemoryEntity } from "./models";
 import { type EntityKind, normalizeEntityName as normalizeName, type StoredEntity } from "./types";
 
@@ -119,11 +122,22 @@ async function upsertEntitiesOp(
  * auto-created (with their kind), and an existing entity's null kind is
  * back-filled — see {@link upsertEntitiesOp}. Idempotent — duplicate
  * (memory_id, entity_id) pairs are skipped.
+ *
+ * `options.unlessTopicsUserManaged` re-checks the memory's
+ * `topics_user_managed` flag INSIDE the serialized writer and skips link
+ * creation when set. Auto paths (extraction, topic worker) need this: a
+ * pre-call check races the LLM round-trip — `setMemoryEntitiesOp` sets the
+ * flag in its own writer, so only an in-write check guarantees a user's
+ * manual topic edit can't be grafted over. The flag read fails CLOSED (skip
+ * links) so a transient read fault never attaches topics to a memory we
+ * couldn't verify. Entity upserts still happen (vocabulary is global);
+ * returns [] when links were skipped.
  */
 export async function linkMemoryEntitiesOp(
   ctx: EntityOperationsContext,
   memoryId: string,
-  entityInputs: ReadonlyArray<EntityInput>
+  entityInputs: ReadonlyArray<EntityInput>,
+  options?: { unlessTopicsUserManaged?: boolean }
 ): Promise<StoredEntity[]> {
   if (entityInputs.length === 0) return [];
 
@@ -133,11 +147,31 @@ export async function linkMemoryEntitiesOp(
   if (entities.length === 0) return [];
 
   const userId = ctx.userId;
+  let skipped = false;
   // Read existing pairs *inside* the write so two parallel
   // linkMemoryEntitiesOp calls for the same memory can't both miss and
   // both insert overlapping (memory_id, entity_id) rows — which would
   // inflate the shared-count downstream in rankByEntityOverlap.
   await ctx.database.write(async () => {
+    if (options?.unlessTopicsUserManaged) {
+      // In-write flag check: writers are serialized, so a committed
+      // setMemoryEntitiesOp (which sets the flag in ITS writer) is always
+      // visible here, and our links can never land after a user's replace.
+      try {
+        const rows = await ctx.database
+          .get<VaultMemory>("memory_vault")
+          .query(Q.where("id", memoryId))
+          .fetch();
+        if (rows[0]?.topicsUserManaged === true) {
+          skipped = true;
+          return;
+        }
+      } catch {
+        // Fail closed — don't attach topics to a memory we couldn't verify.
+        skipped = true;
+        return;
+      }
+    }
     const existingLinks = await ctx.memoryEntityCollection
       .query(Q.where("memory_id", memoryId))
       .fetch();
@@ -154,7 +188,7 @@ export async function linkMemoryEntitiesOp(
     await ctx.database.batch(...prepared);
   });
 
-  return entities;
+  return skipped ? [] : entities;
 }
 
 /**

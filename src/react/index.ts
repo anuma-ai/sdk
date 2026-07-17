@@ -304,9 +304,12 @@ export {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  type MemoriesNeedingTopicExtraction,
   setMemoryEntitiesOp,
+  stampTopicsExtractedAtOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
   updateVaultMemoryEmbeddingOp,
@@ -386,16 +389,24 @@ export type {
   TurnCompleteEvent,
   TurnSkippedEvent,
 } from "../lib/memory";
+export type {
+  TopicExtractionInput,
+  TopicExtractionRunResult,
+  TopicExtractOptions,
+} from "../lib/memory";
 export {
   createAutoExtractor,
   createRecallTool,
+  extractAndLinkEntitiesForMemoriesOp,
   extractAndRetain,
+  extractEntitiesForMemories,
   extractFacts,
   recall,
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
   reflect,
   retain,
+  TOPIC_EXTRACTION_BATCH_SIZE,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that
