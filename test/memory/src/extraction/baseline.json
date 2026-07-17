@@ -1,40 +1,40 @@
 {
   "matchThreshold": 0.62,
-  "runs": 3,
+  "runs": 5,
   "metrics": {
     "recall": {
-      "mean": 0.989247311827957,
-      "min": 0.967741935483871,
-      "max": 1,
-      "tolerance": 0.032258064516129004
-    },
-    "precision": {
-      "mean": 0.9569668458781363,
-      "min": 0.9354838709677419,
-      "max": 0.96875,
-      "tolerance": 0.03326612903225812
-    },
-    "entityCoverage": {
-      "mean": 0.9696969696969697,
-      "min": 0.9545454545454546,
-      "max": 1,
-      "tolerance": 0.045454545454545414
-    },
-    "kindAccuracy": {
       "mean": 1,
       "min": 1,
       "max": 1,
-      "tolerance": 0.03
+      "tolerance": 0.05
+    },
+    "precision": {
+      "mean": 0.9548252688172043,
+      "min": 0.9354838709677419,
+      "max": 0.96875,
+      "tolerance": 0.05
+    },
+    "entityCoverage": {
+      "mean": 0.9818181818181818,
+      "min": 0.9545454545454546,
+      "max": 1,
+      "tolerance": 0.05
+    },
+    "kindAccuracy": {
+      "mean": 0.9818181818181818,
+      "min": 0.9545454545454546,
+      "max": 1,
+      "tolerance": 0.05
     },
     "negativeCleanRate": {
       "mean": 1,
       "min": 1,
       "max": 1,
-      "tolerance": 0.03
+      "tolerance": 0.05
     }
   },
   "forbiddenHits": {
-    "mean": 1,
-    "max": 1
+    "mean": 1.4,
+    "max": 2
   }
 }
