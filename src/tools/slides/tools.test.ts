@@ -1351,6 +1351,15 @@ describe("buildSlideSystemPrompt IMAGES section conditionality", () => {
     expect(prompt).not.toContain("AnumaMediaMCP-anuma_create_image");
     expect(prompt).toContain("no image-generation tool bound");
   });
+
+  // ⚠ freeloader fingerprint must stay in sync with ai-portal detection/markers.go
+  // (FingerprintSlides). The backend freeloader detector treats a request as a
+  // genuine slides flow ONLY if its system prompt contains this exact substring. If
+  // you change this string, update internal/detection/markers.go in the SAME PR or
+  // real slides traffic gets misflagged as programmatic abuse.
+  it("freeloader fingerprint must stay in sync with ai-portal detection/markers.go", () => {
+    expect(buildSlideSystemPrompt()).toContain("You are a presentation design assistant.");
+  });
 });
 
 describe("createSlideTools tool list", () => {

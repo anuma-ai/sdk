@@ -19,6 +19,12 @@
  * The workflow this prompt mandates (create → critique → patch → audit →
  * patch → verify) needs 7–8 tool rounds on a substantial turn. Hosts capping
  * `maxToolRounds` below 8 starve the trailing `verify_app` step.
+ *
+ * ⚠ The prompt's opening "App Builder tools (create_file, patch_file," is a
+ * freeloader-detection fingerprint — it must stay byte-identical to
+ * FingerprintAppBuilder in ai-portal internal/detection/markers.go. Changing it
+ * without syncing the backend makes the detector misflag genuine app-builder
+ * traffic. Guarded by the "freeloader fingerprint" test in appBuilderPrompt.test.ts.
  */
 export const APP_BUILDER_PROMPT = `App Builder tools (create_file, patch_file, and the rest described below) are available this turn, but they are OPTIONAL — having them does not mean you should build anything.
 
