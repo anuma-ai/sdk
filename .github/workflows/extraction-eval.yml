@@ -30,6 +30,12 @@ on:
         required: false
         type: string
         default: ""
+      verbose:
+        description: "Print per-case detail (extracted vs gold, forbidden hits) to the log"
+        required: false
+        type: choice
+        default: "false"
+        options: ["true", "false"]
       baseline:
         description: "ab mode only: also run the main-branch prompt/taxonomy as an A/B baseline"
         required: false
@@ -58,6 +64,7 @@ jobs:
       INPUT_MODEL: ${{ inputs.model }}
       INPUT_MATCH_THRESHOLD: ${{ inputs.match_threshold }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
+      INPUT_VERBOSE: ${{ inputs.verbose || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,6 +86,7 @@ jobs:
           args=(--json --repeat "$INPUT_REPEAT")
           [ -n "$INPUT_MODEL" ] && args+=(--model "$INPUT_MODEL")
           [ -n "$INPUT_MATCH_THRESHOLD" ] && args+=(--match-threshold "$INPUT_MATCH_THRESHOLD")
+          [ "$INPUT_VERBOSE" = "true" ] && args+=(--verbose)
           # Persist as a newline-safe single string for later steps.
           printf 'EVAL_ARGS=%s\n' "${args[*]}" >> "$GITHUB_ENV"
 
