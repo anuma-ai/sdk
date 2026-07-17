@@ -33,7 +33,7 @@ import { extractFacts } from "../../../../src/lib/memory/autoExtract.js";
 import { normalizeEntityName } from "../../../../src/lib/db/entities/types.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
-import { buildBaseline, compareToBaseline, type ExtractionBaseline } from "./baseline.js";
+import { buildBaseline, compareToBaseline, isValidBaseline } from "./baseline.js";
 import { EXTRACTION_CASES, type ExtractionCase, type ExtractionCategory } from "./dataset.js";
 
 /**
@@ -458,11 +458,33 @@ async function saveBaseline(runs: RunSummary[], path: string): Promise<void> {
 
 /** Load, compare, and exit non-zero on regression. Returns on a clean gate. */
 async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<void> {
-  let baseline: ExtractionBaseline;
+  let parsed: unknown;
   try {
-    baseline = JSON.parse(await readFile(path, "utf-8")) as ExtractionBaseline;
+    parsed = JSON.parse(await readFile(path, "utf-8"));
   } catch (err) {
     console.error(`Failed to load baseline from ${path}: ${String(err)}`);
+    process.exit(1);
+  }
+  // Fail loudly on a wrong-shaped file rather than passing vacuously — a
+  // malformed baseline (or the eval's after.json by mistake) would otherwise
+  // skip every metric and report "no regressions".
+  if (!isValidBaseline(parsed)) {
+    console.error(
+      `\n  ${path} is not a valid extraction baseline ` +
+        `(expected a matchThreshold + metrics object). ` +
+        `Generate one with --save-baseline.\n`
+    );
+    process.exit(1);
+  }
+  const baseline = parsed;
+  // The match threshold changes what counts as a hit, so comparing runs scored
+  // at a different threshold than the baseline is apples-to-oranges. Refuse it.
+  if (Math.abs(baseline.matchThreshold - MATCH_THRESHOLD) > 1e-9) {
+    console.error(
+      `\n  match-threshold ${MATCH_THRESHOLD} differs from the baseline's ` +
+        `${baseline.matchThreshold}; re-run with --match-threshold ${baseline.matchThreshold} ` +
+        `or regenerate the baseline.\n`
+    );
     process.exit(1);
   }
   const regressions = compareToBaseline(

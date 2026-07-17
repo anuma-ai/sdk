@@ -54,6 +54,28 @@ export interface BaselineRegression {
   tolerance: number;
 }
 
+/**
+ * Structural check that a parsed object is actually a baseline, not e.g. the
+ * eval's raw `after.json` (which has `overall`, not `metrics`) or an empty
+ * `{ "metrics": {} }`. Requires a finite `matchThreshold` and at least one known
+ * metric with numeric mean + tolerance — so `compareToBaseline`'s forward-compat
+ * "skip a missing metric" branch can't be tricked into passing vacuously on a
+ * wrong-shaped file. (A baseline missing one NEWER metric still validates.)
+ */
+export function isValidBaseline(obj: unknown): obj is ExtractionBaseline {
+  if (!obj || typeof obj !== "object") return false;
+  const b = obj as Record<string, unknown>;
+  if (typeof b.matchThreshold !== "number" || !Number.isFinite(b.matchThreshold)) return false;
+  const metrics = b.metrics;
+  if (!metrics || typeof metrics !== "object") return false;
+  return BASELINE_METRICS.some((m) => {
+    const band = (metrics as Record<string, unknown>)[m];
+    if (!band || typeof band !== "object") return false;
+    const { mean, tolerance } = band as Record<string, unknown>;
+    return typeof mean === "number" && typeof tolerance === "number";
+  });
+}
+
 function meanOf(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
 }

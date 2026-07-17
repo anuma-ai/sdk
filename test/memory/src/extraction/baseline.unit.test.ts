@@ -6,6 +6,7 @@ import {
   compareToBaseline,
   type ExtractionBaseline,
   FORBIDDEN_HITS_TOLERANCE,
+  isValidBaseline,
   MIN_METRIC_TOLERANCE,
 } from "./baseline.js";
 
@@ -86,5 +87,38 @@ describe("compareToBaseline", () => {
     const runs = [overall({ kindAccuracy: 0 })];
     const regressions = compareToBaseline(runs, partial);
     expect(regressions.map((r) => r.metric)).not.toContain("kindAccuracy");
+  });
+});
+
+describe("isValidBaseline", () => {
+  const good = buildBaseline([overall({})], 0.62);
+
+  it("accepts a well-formed baseline", () => {
+    expect(isValidBaseline(good)).toBe(true);
+  });
+
+  it("accepts a baseline missing one newer metric (forward-compat)", () => {
+    const partial = JSON.parse(JSON.stringify(good)) as ExtractionBaseline;
+    delete (partial.metrics as Record<string, unknown>).kindAccuracy;
+    expect(isValidBaseline(partial)).toBe(true);
+  });
+
+  it("rejects an empty metrics object (would pass the gate vacuously)", () => {
+    expect(isValidBaseline({ matchThreshold: 0.62, metrics: {} })).toBe(false);
+  });
+
+  it("rejects the eval's raw result shape (overall, not metrics)", () => {
+    expect(isValidBaseline({ matchThreshold: 0.62, overall: { recall: 1 } })).toBe(false);
+  });
+
+  it("rejects a missing / non-numeric matchThreshold", () => {
+    const noThreshold = JSON.parse(JSON.stringify(good)) as Record<string, unknown>;
+    delete noThreshold.matchThreshold;
+    expect(isValidBaseline(noThreshold)).toBe(false);
+  });
+
+  it("rejects null / non-objects", () => {
+    expect(isValidBaseline(null)).toBe(false);
+    expect(isValidBaseline("{}")).toBe(false);
   });
 });
