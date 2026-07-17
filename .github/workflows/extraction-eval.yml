@@ -9,6 +9,12 @@ name: Extraction Eval
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "ab = before/after A/B; save-baseline = write golden baseline artifact; gate = fail on regression vs committed baseline"
+        required: false
+        type: choice
+        default: "ab"
+        options: ["ab", "save-baseline", "gate"]
       repeat:
         description: "Runs per config (extraction is non-deterministic; ≥3 recommended)"
         required: false
@@ -25,13 +31,13 @@ on:
         type: string
         default: ""
       baseline:
-        description: "Also run the main-branch prompt/taxonomy as an A/B baseline"
+        description: "ab mode only: also run the main-branch prompt/taxonomy as an A/B baseline"
         required: false
         type: choice
         default: "true"
         options: ["true", "false"]
   push:
-    branches: [feat/entity-kind-classification]
+    branches: [feat/entity-kind-classification, feat/extraction-eval-baseline]
     paths:
       - ".github/workflows/extraction-eval.yml"
       - "src/lib/memory/autoExtract.ts"
@@ -46,6 +52,8 @@ jobs:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       # Free-form inputs via env (not ${{ }} inline) so the shell tokenizes
       # after substitution — blocks command injection from the dispatch UI.
+      # push (no inputs) defaults to the A/B mode, matching prior behavior.
+      INPUT_MODE: ${{ inputs.mode || 'ab' }}
       INPUT_REPEAT: ${{ inputs.repeat || '3' }}
       INPUT_MODEL: ${{ inputs.model }}
       INPUT_MATCH_THRESHOLD: ${{ inputs.match_threshold }}
@@ -75,13 +83,14 @@ jobs:
           printf 'EVAL_ARGS=%s\n' "${args[*]}" >> "$GITHUB_ENV"
 
       - name: Run eval (this branch = AFTER)
+        if: env.INPUT_MODE == 'ab'
         run: |
           echo "::group::after (branch prompt + 8-kind taxonomy)"
           pnpm eval:extraction $EVAL_ARGS | tee after.json
           echo "::endgroup::"
 
       - name: Run eval (main = BEFORE baseline)
-        if: env.INPUT_BASELINE == 'true'
+        if: env.INPUT_MODE == 'ab' && env.INPUT_BASELINE == 'true'
         run: |
           # Swap ONLY the prompt + taxonomy back to main; keep the branch's
           # eval corpus + scorer (they live in test/, identical on both sides)
@@ -94,8 +103,37 @@ jobs:
           echo "::endgroup::"
           git checkout HEAD -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
 
+      - name: Run eval (save golden baseline)
+        if: env.INPUT_MODE == 'save-baseline'
+        run: |
+          # Writes test/memory/src/extraction/baseline.json. CI can't commit it
+          # back, so it's uploaded as an artifact for a human to download+commit.
+          echo "::group::save-baseline"
+          pnpm eval:extraction $EVAL_ARGS --save-baseline | tee after.json
+          echo "::endgroup::"
+          echo "### Generated baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat test/memory/src/extraction/baseline.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated baseline
+        if: env.INPUT_MODE == 'save-baseline'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extraction-baseline
+          path: test/memory/src/extraction/baseline.json
+          if-no-files-found: error
+
+      - name: Run eval (regression gate)
+        if: env.INPUT_MODE == 'gate'
+        run: |
+          # Exits non-zero if any metric drops below its committed baseline mean
+          # by more than the baseline's own tolerance. Requires baseline.json to
+          # already be committed (generate it once via mode=save-baseline).
+          pnpm eval:extraction $EVAL_ARGS --baseline test/memory/src/extraction/baseline.json | tee after.json
+
       - name: Summarize kind accuracy (before vs after)
-        if: always()
+        if: always() && env.INPUT_MODE == 'ab'
         run: |
           summarize() {
             local f="$1" label="$2"

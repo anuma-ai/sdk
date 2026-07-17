@@ -20,15 +20,20 @@
  *   pnpm eval:extraction --json
  *   pnpm eval:extraction --match-threshold 0.6
  *   pnpm eval:extraction --model openai/gpt-5-mini   # A/B a different extractor
+ *   pnpm eval:extraction --repeat 3 --save-baseline  # write the golden baseline
+ *   pnpm eval:extraction --repeat 3 --baseline test/memory/src/extraction/baseline.json
+ *                                                    # gate: exit 1 on a regression
  */
 
 import "dotenv/config";
+import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
 import { extractFacts } from "../../../../src/lib/memory/autoExtract.js";
 import { normalizeEntityName } from "../../../../src/lib/db/entities/types.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
+import { buildBaseline, compareToBaseline, type ExtractionBaseline } from "./baseline.js";
 import { EXTRACTION_CASES, type ExtractionCase, type ExtractionCategory } from "./dataset.js";
 
 /**
@@ -72,6 +77,13 @@ const { values: args } = parseArgs({
     model: { type: "string" },
     concurrency: { type: "string" },
     repeat: { type: "string" },
+    // Regression gate. `--save-baseline` writes the current run(s) as the golden
+    // baseline (to `--baseline <path>` if given, else the default path).
+    // `--baseline <path>` alone compares the current run(s) against that file and
+    // exits non-zero on a regression. Pair `--save-baseline` with `--repeat 3+`
+    // so the stored tolerance reflects real run-to-run noise.
+    baseline: { type: "string", short: "b" },
+    "save-baseline": { type: "boolean", default: false },
   },
 });
 
@@ -423,6 +435,58 @@ function computeVariance(runs: RunSummary[]): Record<string, VarianceBand> {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Baseline (regression gate). Pure comparison math lives in ./baseline.ts so it
+// can be unit-tested without a live LLM run; this section is only I/O + display.
+// ---------------------------------------------------------------------------
+
+const DEFAULT_BASELINE_PATH = "test/memory/src/extraction/baseline.json";
+
+/** Write the baseline file and report where it landed. */
+async function saveBaseline(runs: RunSummary[], path: string): Promise<void> {
+  const baseline = buildBaseline(
+    runs.map((r) => r.overall),
+    MATCH_THRESHOLD
+  );
+  await writeFile(path, JSON.stringify(baseline, null, 2) + "\n");
+  console.error(
+    `\nBaseline written to ${path} ` +
+      `(${runs.length} run${runs.length === 1 ? "" : "s"}; ` +
+      `pair --save-baseline with --repeat 3+ for a noise-aware tolerance).`
+  );
+}
+
+/** Load, compare, and exit non-zero on regression. Returns on a clean gate. */
+async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<void> {
+  let baseline: ExtractionBaseline;
+  try {
+    baseline = JSON.parse(await readFile(path, "utf-8")) as ExtractionBaseline;
+  } catch (err) {
+    console.error(`Failed to load baseline from ${path}: ${String(err)}`);
+    process.exit(1);
+  }
+  const regressions = compareToBaseline(
+    runs.map((r) => r.overall),
+    baseline
+  );
+  if (regressions.length === 0) {
+    console.error("\n  Baseline comparison: no regressions detected.\n");
+    return;
+  }
+  console.error("\n  REGRESSION DETECTED\n");
+  console.error("  Metric             Baseline   Current    Tolerance");
+  console.error("  ─────────────────  ─────────  ─────────  ─────────");
+  for (const r of regressions) {
+    const fmt = (v: number) => (r.metric === "forbiddenHits" ? v.toFixed(1) : pct(v, 1));
+    console.error(
+      `  ${r.metric.padEnd(17)}  ${fmt(r.baseline).padStart(9)}  ` +
+        `${fmt(r.current).padStart(9)}  ${fmt(r.tolerance).padStart(9)}`
+    );
+  }
+  console.error("");
+  process.exit(1);
+}
+
 /** Human-readable single-run report (category table + headline metrics). */
 function printRunHuman(run: RunSummary): void {
   const { overall, byCategory, negativesCount, cleanNegatives } = run;
@@ -567,6 +631,15 @@ async function main(): Promise<void> {
   }
   // Verbose detail goes to stderr in both modes — safe alongside --json stdout.
   if (args.verbose) printVerbose(primary);
+
+  // Baseline handling runs last so the normal report is always emitted first.
+  // All baseline I/O goes to stderr so it never corrupts --json stdout.
+  const baselinePath = args.baseline ?? DEFAULT_BASELINE_PATH;
+  if (args["save-baseline"]) {
+    await saveBaseline(runs, baselinePath);
+  } else if (args.baseline) {
+    await gateAgainstBaseline(runs, baselinePath);
+  }
 }
 
 main().catch((err) => {
