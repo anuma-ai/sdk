@@ -33,7 +33,7 @@ const mockEmbeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
 const ctx = {
   vaultCtx: mockVaultCtx,
   embeddingOptions: mockEmbeddingOptions,
-  vaultCache: new Map<string, number[]>(),
+  vaultCache: new Map<string, Float32Array>(),
 };
 
 beforeEach(() => {

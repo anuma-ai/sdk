@@ -1853,7 +1853,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope, embedding: null });
       if (result && getToken) {
         if (existing) {
-          vaultEmbeddingCacheRef.current.delete(existing.content);
+          // Cache is keyed by memory id; evict the stale vector before the
+          // async re-embed overwrites it under the same id.
+          vaultEmbeddingCacheRef.current.delete(id);
         }
         eagerEmbedContent(
           content,
@@ -1878,7 +1880,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const existing = await getVaultMemoryOp(vaultCtx, id);
       const result = await deleteVaultMemoryOp(vaultCtx, id);
       if (result && existing) {
-        vaultEmbeddingCacheRef.current.delete(existing.content);
+        // Cache is keyed by memory id, not content.
+        vaultEmbeddingCacheRef.current.delete(id);
       }
       return result;
     },

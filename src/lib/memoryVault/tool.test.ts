@@ -343,19 +343,18 @@ describe("createMemoryVaultTool", () => {
       );
     });
 
-    it("evicts old cache entry and embeds new content on update", async () => {
+    it("re-embeds new content on update (cache invalidation is by id via eagerEmbedContent)", async () => {
       vi.mocked(getVaultMemoryOp).mockResolvedValue(
         makeStoredMemory({ uniqueId: "mem-1", content: "old content" })
       );
       vi.mocked(updateVaultMemoryOp).mockResolvedValue(
         makeStoredMemory({ uniqueId: "mem-1", content: "new content" })
       );
-      cache.set("old content", [1, 2, 3]);
-
+      // Cache invalidation is by id: eagerEmbedContent overwrites the id-keyed
+      // entry with the new vector — no separate delete-by-content step.
       const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
       await tool.executor!({ content: "new content", id: "mem-1" });
 
-      expect(cache.has("old content")).toBe(false);
       expect(eagerEmbedContent).toHaveBeenCalledWith(
         "new content",
         embeddingOptions,

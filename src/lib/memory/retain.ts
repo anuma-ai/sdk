@@ -148,7 +148,6 @@ export async function retain(
   // No merge candidate (or auto-merge disabled, or the merge target was
   // deleted between search and write): create a new memory.
   const embedding = await generateEmbedding(trimmed, ctx.embeddingOptions);
-  ctx.vaultCache.set(trimmed, embedding);
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, {
@@ -181,6 +180,11 @@ export async function retain(
     // memory's tier. The DB op re-validates against the known set.
     ...(options.trustTier !== undefined && { trustTier: options.trustTier }),
   });
+
+  // Cache is keyed by memory id (not content) — set after the create returns
+  // the uniqueId. Float32Array = model-native precision, half the RAM of a
+  // float64 number[].
+  ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
 
   return {
     action: "create",
@@ -350,7 +354,6 @@ async function tryConsolidate(
     );
     // Re-embed the consolidated content; embeddingOptions includes the cache.
     const newEmbedding = await generateEmbedding(decision.content, ctx.embeddingOptions);
-    ctx.vaultCache.set(decision.content, newEmbedding);
     const consolidatedModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
     const eventTimeUpdate = pickEventTimeUpdate(existing, options.eventTime);
     const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
@@ -376,6 +379,10 @@ async function tryConsolidate(
       await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
       return null;
     }
+    // Cache keyed by memory id (not content) — set only after the DB write
+    // committed, so a failed update can't poison the cache with a vector for
+    // content that was never persisted.
+    ctx.vaultCache.set(decision.targetId, Float32Array.from(newEmbedding));
     return {
       action: "update",
       memoryId: decision.targetId,
