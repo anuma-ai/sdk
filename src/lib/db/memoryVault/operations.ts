@@ -90,6 +90,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeEnd: memory.eventTimeEnd ?? null,
     eventTimeKind: memory.eventTimeKind ?? null,
     topicsUserManaged: memory.topicsUserManaged ?? false,
+    topicsExtractedAt: memory.topicsExtractedAt ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -355,6 +356,7 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
+    topicsExtractedAt: (raw.topics_extracted_at as number | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -592,7 +594,8 @@ export async function setMemoryEntitiesOp(
 
 /**
  * Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
- * auto-extraction resumes owning its links. Existing links are left in place
+ * auto-extraction resumes owning its links. Invalidates `topics_extracted_at`
+ * so the next sweep will re-extract topics. Existing links are left in place
  * (the next extraction pass may add to them). Preserves `updated_at`.
  */
 export async function clearMemoryTopicsOverrideOp(
@@ -610,6 +613,7 @@ export async function clearMemoryTopicsOverrideOp(
   await ctx.database.write(async () => {
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
+      r._setRaw("topics_extracted_at", null);
       r._setRaw("updated_at", originalUpdatedAt);
     });
   });
@@ -669,6 +673,182 @@ export async function getUnfiledVaultMemoriesOp(
   return mapInBatches(results, (record) =>
     vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
   );
+}
+
+/**
+ * Result of {@link getMemoriesNeedingTopicExtractionOp}: which memories the
+ * background topic worker should run LLM entity extraction on, and which it
+ * should merely stamp as already-extracted.
+ */
+export interface MemoriesNeedingTopicExtraction {
+  /**
+   * Memories to run LLM topic extraction on (decrypted): never-extracted rows
+   * with no entity links, plus stamped rows edited since their last pass
+   * (`updated_at` > `topics_extracted_at`). Edited rows come first (they get
+   * priority under `limit`), each group newest-created first.
+   */
+  pending: StoredVaultMemory[];
+  /**
+   * IDs of rows that already have entity links but no watermark — legacy rows
+   * extracted by the conversation pipeline before v36. Grandfather these with
+   * {@link stampTopicsExtractedAtOp} (no LLM call) so a later content edit
+   * makes them re-extractable instead of invisible forever. Bounded by the
+   * same `limit` as {@link pending} — stamping loads a Model per row, so the
+   * grandfather backlog is drained across sweeps rather than in one spike.
+   */
+  linkedUnstamped: string[];
+}
+
+/**
+ * Sweep query for the background topic-extraction worker: partition the
+ * user's non-deleted, non-user-managed memories by what the worker should do
+ * with them (see {@link MemoriesNeedingTopicExtraction}). User-managed rows
+ * are never returned — the user owns their topics, including an intentionally
+ * empty set. Requires `ctx.entityCtx` for the entity-links check.
+ */
+export async function getMemoriesNeedingTopicExtractionOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: { limit?: number }
+): Promise<MemoriesNeedingTopicExtraction> {
+  const entityCtx = ctx.entityCtx;
+  if (!entityCtx) {
+    throw new Error("getMemoriesNeedingTopicExtractionOp requires ctx.entityCtx");
+  }
+  const conditions = [
+    // Boolean optional column: null (legacy) and false both mean auto-managed.
+    // Q.notEq(true) is a NULL trap on SQLite (NULL <> TRUE is NULL) — enumerate.
+    Q.or(Q.where("topics_user_managed", null), Q.where("topics_user_managed", false)),
+    ...baseVaultConditions(ctx),
+    Q.sortBy("created_at", Q.desc),
+  ];
+  // unsafeFetchRaw (NOT fetch): whole-vault sweep must not pin a Model per row
+  // into the never-evicted RecordCache (web Pile-2) — see getAllVaultMemoriesOp.
+  const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+
+  // Stamped rows re-extract only when edited since the last pass. Unstamped
+  // rows split on whether they already have links (grandfather) or not (backfill).
+  const stampedPending: Record<string, unknown>[] = [];
+  const unstamped: Record<string, unknown>[] = [];
+  for (const raw of rows) {
+    const stamp = (raw.topics_extracted_at as number | null) ?? null;
+    if (stamp !== null) {
+      if ((raw.updated_at as number) > stamp) stampedPending.push(raw);
+    } else {
+      unstamped.push(raw);
+    }
+  }
+
+  // Which unstamped rows already have entity links? Chunk the id list — SQLite
+  // caps bound variables (999), and huge Q.oneOf arrays hurt LokiJS too.
+  // unsafeFetchRaw (NOT fetch) here too: the first post-migration sweep over a
+  // legacy vault can touch thousands of link rows, and .fetch() would pin a
+  // Model per row into the never-evicted RecordCache (web Pile-2).
+  const linkedIds = new Set<string>();
+  const CHUNK = 500;
+  for (let i = 0; i < unstamped.length; i += CHUNK) {
+    const ids = unstamped.slice(i, i + CHUNK).map((r) => r.id as string);
+    const links = (await entityCtx.memoryEntityCollection
+      .query(Q.where("memory_id", Q.oneOf(ids)))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    for (const link of links) linkedIds.add(String(link.memory_id));
+  }
+
+  const linkedUnstampedAll: string[] = [];
+  const pendingRaw: Record<string, unknown>[] = [...stampedPending];
+  for (const raw of unstamped) {
+    if (linkedIds.has(raw.id as string)) {
+      linkedUnstampedAll.push(raw.id as string);
+    } else {
+      pendingRaw.push(raw);
+    }
+  }
+
+  // Cap BOTH lists under `limit`. The worker stamps every `linkedUnstamped` id
+  // (via stampTopicsExtractedAtOp, which must load a Model per row to update) —
+  // uncapped, the first post-migration sweep of a legacy vault would grandfather
+  // thousands at once and pin that many Models in the never-evicted RecordCache
+  // (web Pile-2). Bounding it here drains the grandfather backlog across sweeps.
+  const cap = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined;
+  const limitedPendingRaw = cap !== undefined ? pendingRaw.slice(0, cap) : pendingRaw;
+  const linkedUnstamped = cap !== undefined ? linkedUnstampedAll.slice(0, cap) : linkedUnstampedAll;
+  const pending = await mapInBatches(limitedPendingRaw, (raw) =>
+    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
+  return { pending, linkedUnstamped };
+}
+
+/**
+ * Stamp `topics_extracted_at` on the given memories — the topic worker calls
+ * this after a successful extraction pass (including zero-entity results, so
+ * quiet memories aren't re-asked every sweep) and to grandfather
+ * `linkedUnstamped` rows without an LLM call. Preserves `updated_at` so a
+ * stamp never inflates the recency multiplier — and never masks a concurrent
+ * content edit from the next sweep. Skips deleted, foreign-user, and
+ * user-managed rows. Returns the IDs actually stamped.
+ *
+ * ALL eligibility AND `updated_at` are read from the LIVE Model inside the
+ * serialized writer — never a pre-writer snapshot. Writers are serialized, so
+ * a content edit or topic-override that commits before this writer runs is
+ * observed here: its fresh `updated_at` is preserved (so the next sweep's
+ * `updated_at > stamp` check still fires) and a mid-pass user-managed flip
+ * skips the row. Reading `updated_at` from a raw pre-fetch instead would write
+ * a stale value back, pushing `updated_at < topics_extracted_at` and hiding
+ * the edited memory from every future sweep.
+ *
+ * Callers bound the input via `getMemoriesNeedingTopicExtractionOp`'s `limit`
+ * (both `pending` and `linkedUnstamped` are capped), so the per-row Model load
+ * needed to `prepareUpdate` stays bounded and never spikes the RecordCache.
+ */
+export async function stampTopicsExtractedAtOp(
+  ctx: VaultMemoryOperationsContext,
+  memoryIds: readonly string[],
+  extractedAt: number
+): Promise<string[]> {
+  if (memoryIds.length === 0) return [];
+
+  // Dedupe to avoid prepareUpdate conflicts on shared Model instances.
+  const uniqueIds = Array.from(new Set(memoryIds));
+
+  // Chunk the writer batches to keep any single batch reasonable.
+  const CHUNK = 500;
+  const stamped: string[] = [];
+
+  for (let i = 0; i < uniqueIds.length; i += CHUNK) {
+    const chunkIds = uniqueIds.slice(i, i + CHUNK);
+
+    await ctx.database.write(async () => {
+      const prepared = [];
+      for (const id of chunkIds) {
+        let record: VaultMemory;
+        try {
+          record = await ctx.vaultMemoryCollection.find(id);
+        } catch {
+          // Missing row — skip.
+          continue;
+        }
+        // Read eligibility + updated_at from the LIVE Model, in-writer — never a
+        // pre-fetch snapshot (see the doc comment). Truthiness (not `!== true`)
+        // on the flag so an unsanitized SQLite `1` can't fail open.
+        if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.topicsUserManaged) {
+          continue;
+        }
+        const originalUpdatedAt = record.updatedAt.getTime();
+        prepared.push(
+          record.prepareUpdate((r) => {
+            r._setRaw("topics_extracted_at", extractedAt);
+            r._setRaw("updated_at", originalUpdatedAt);
+          })
+        );
+        stamped.push(id);
+      }
+      if (prepared.length > 0) await ctx.database.batch(...prepared);
+    });
+  }
+
+  return stamped;
 }
 
 export async function deleteAllVaultMemoriesForUserOp(
