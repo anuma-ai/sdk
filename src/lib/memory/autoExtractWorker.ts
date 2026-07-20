@@ -451,6 +451,10 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         // entries appear only when their retain() write succeeded, so
         // candidates[i] always pairs with results[i].
         for (let i = 0; i < results.length; i++) {
+          // A tombstone-suppressed candidate wrote nothing — don't emit
+          // "extracted", or Memory Studio toasts "remembered" for a fact the
+          // user had deleted and we deliberately didn't re-create.
+          if (results[i].action === "suppressed") continue;
           options.onMemoryExtracted?.({
             candidate: candidates[i],
             result: results[i],
