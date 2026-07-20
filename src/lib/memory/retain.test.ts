@@ -23,6 +23,7 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { searchVaultMemories } from "../memoryVault/searchTool";
@@ -365,8 +366,16 @@ describe("retain", () => {
 });
 
 describe("retain — tombstones (respectTombstones)", () => {
+  // ctx passes no model, so retain embeds with the default model; tombstone rows
+  // must carry the same model to be comparable (embedding-space guard).
+  const MODEL = DEFAULT_API_EMBEDDING_MODEL;
   // Minimal soft-deleted / live row for getAllVaultMemoriesOp results.
-  function row(uniqueId: string, embedding: number[], isDeleted: boolean) {
+  function row(
+    uniqueId: string,
+    embedding: number[],
+    isDeleted: boolean,
+    embeddingModel: string | null = MODEL
+  ) {
     return {
       uniqueId,
       content: uniqueId,
@@ -374,7 +383,7 @@ describe("retain — tombstones (respectTombstones)", () => {
       folderId: null,
       userId: null,
       embedding: JSON.stringify(embedding),
-      embeddingModel: null,
+      embeddingModel,
       sourceChunkIds: null,
       proofCount: 1,
       source: "manual",
@@ -410,6 +419,30 @@ describe("retain — tombstones (respectTombstones)", () => {
 
     expect(result.action).toBe("create");
     expect(createVaultMemoryOp).toHaveBeenCalledOnce();
+  });
+
+  it("ignores tombstones embedded with a different model", async () => {
+    // Same vector, but a different embedding space → not comparable → create.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      row("dead-1", [1, 0, 0], true, "some/other-embedding-model"),
+    ]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
+
+    const result = await retain("Works at Google", ctx, { respectTombstones: true });
+
+    expect(result.action).toBe("create");
+  });
+
+  it("scopes the tombstone query by folderId when provided", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("dead-1", [1, 0, 0], true)]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
+
+    await retain("Works at Google", ctx, { respectTombstones: true, folderId: "folder-b" });
+
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ includeDeleted: true, folderId: "folder-b" })
+    );
   });
 
   it("ignores LIVE rows returned alongside deleted ones", async () => {
