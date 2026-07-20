@@ -30,10 +30,19 @@
  * the next launch, fall back to a trailing-window guess and could skip the
  * un-extracted tail. Pass a {@link ExtractionCursorStore} (`cursorStore`) to
  * persist the watermark per conversation — it is hydrated synchronously the
- * first time a conversation is touched and written through on every advance, so
- * a later session resumes exactly after the last extracted message. Backing it
- * with a process-shared store (web `localStorage`, mobile MMKV) also stops two
- * concurrent sessions from double-extracting the same turn. Omit it for the
+ * first time a conversation is touched, and written through on every *contiguous*
+ * advance (never on a trailing-slice guess, which could jump the durable cursor
+ * past an un-extracted gap), so a later session resumes exactly after the last
+ * extracted message. The primary guarantee is single-session resume across
+ * process death.
+ *
+ * Concurrent sessions sharing one store (web `localStorage`, mobile MMKV) are
+ * best-effort, NOT exclusive: two sessions can each hydrate the same cursor
+ * before either advances it and briefly re-extract the same turn (retain()'s
+ * dedup/consolidation absorbs the duplicate — wasteful, not corrupting). The
+ * durable write is last-writer-wins with a regression guard (it won't move the
+ * cursor backwards when the currently-stored id is ahead within the same turn's
+ * messages), but it does not serialize writers. Omit `cursorStore` for the
  * legacy in-memory-only behavior.
  *
  * Memory Studio panel subscribes by passing `onMemoryExtracted` and/or
@@ -396,7 +405,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   function computeWindow(
     messages: AutoExtractMessage[],
     conversationId?: string
-  ): AutoExtractMessage[] {
+  ): { window: AutoExtractMessage[]; contiguous: boolean } {
     // stateFor (not a bare Map.get) so the durable cursor is hydrated into the
     // watermark before this first read — otherwise a post-restart turn would
     // fall back to the trailing window and could skip the un-extracted tail.
@@ -404,9 +413,18 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     // No watermark (or it scrolled out of the provided history) → trailing slice.
     // `findIndex` short-circuits to -1 when lastId is undefined (no id matches).
     const idx = lastId === undefined ? -1 : messages.findIndex((m) => m.id === lastId);
-    if (idx === -1) return messages.slice(-windowSize);
+    // `contiguous` = advancing the durable cursor to this window's end strands
+    // no un-extracted messages. True when the watermark was found (idx ≥ 0, the
+    // window continues directly from it). On the no-watermark trailing-slice
+    // path it's true ONLY when the slice covers the whole provided history
+    // (len ≤ windowSize → starts at message 0, no gap); a trailing slice that
+    // drops the head leaves a gap, so the durable cursor must NOT advance past
+    // it (see persistCursor) or a fuller-history session couldn't resume it.
+    if (idx === -1) {
+      return { window: messages.slice(-windowSize), contiguous: messages.length <= windowSize };
+    }
     // Watermark is already the last message → nothing new to extract.
-    if (idx >= messages.length - 1) return [];
+    if (idx >= messages.length - 1) return { window: [], contiguous: true };
     const start = Math.max(0, idx + 1 - CONTEXT_OVERLAP);
     let window = messages.slice(start);
     if (window.length > maxWindowSize) {
@@ -420,8 +438,39 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       );
       window = window.slice(0, maxWindowSize);
     }
-    return window;
+    return { window, contiguous: true };
   }
+
+  /**
+   * Persist the durable cursor after a successful extraction — best-effort,
+   * and only when it's SAFE to advance:
+   * - `contiguous` must hold: a trailing-slice guess may have skipped an
+   *   un-extracted gap, so advancing the durable cursor past it would strand
+   *   those messages for a later fuller-history session (cursor:403).
+   * - Don't regress a cursor a concurrent session already moved further: if the
+   *   currently-stored id sits at/after the new one within THIS turn's message
+   *   array, another session is ahead — leave it (cursor:557). We can only
+   *   compare when both ids are in the array; otherwise we advance (best-effort).
+   */
+  const persistCursor = (
+    conversationId: string | undefined,
+    messages: AutoExtractMessage[],
+    advancedToId: string,
+    contiguous: boolean
+  ): void => {
+    if (!cursorStore || conversationId === undefined || !contiguous) return;
+    try {
+      const stored = cursorStore.get(conversationId);
+      if (stored && stored !== advancedToId) {
+        const storedIdx = messages.findIndex((m) => m.id === stored);
+        const newIdx = messages.findIndex((m) => m.id === advancedToId);
+        if (storedIdx !== -1 && newIdx !== -1 && storedIdx >= newIdx) return; // don't regress
+      }
+      cursorStore.set(conversationId, advancedToId);
+    } catch {
+      /* best-effort */
+    }
+  };
 
   // Resolve once — options are fixed for the extractor's lifetime. The
   // consolidation pass reuses the extract credentials (it hits the same
@@ -512,7 +561,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
 
   /** Run extraction now for the given turn. Assumes no extraction is in flight. */
   function dispatch(messages: AutoExtractMessage[], conversationId?: string): boolean {
-    const window = computeWindow(messages, conversationId);
+    const { window, contiguous } = computeWindow(messages, conversationId);
     if (window.length === 0) {
       options.onSkipped?.({ reason: "no-new-content", conversationId });
       drainPending();
@@ -546,16 +595,11 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         // leaving these messages to be re-covered next turn (transient retry).
         const advancedTo = window[window.length - 1].id;
         stateFor(conversationId).watermark = advancedTo;
-        // Persist through the durable cursor so a later session resumes here.
-        // Best-effort + only for real conversation ids (the undefined bucket is
-        // ephemeral); guarded so a throwing store never fails the turn.
-        if (cursorStore && conversationId !== undefined) {
-          try {
-            cursorStore.set(conversationId, advancedTo);
-          } catch {
-            /* best-effort */
-          }
-        }
+        // Persist through the durable cursor so a later session resumes here —
+        // but only on a contiguous advance and without regressing a concurrent
+        // writer (see persistCursor). The in-memory watermark always advances;
+        // only the durable write is guarded.
+        persistCursor(conversationId, messages, advancedTo, contiguous);
 
         // extractAndRetain returns candidates and results length-aligned:
         // entries appear only when their retain() write succeeded, so

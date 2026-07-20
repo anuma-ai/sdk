@@ -573,4 +573,40 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
     // Extraction still ran despite the throwing store.
     expect(extractAndRetain).toHaveBeenCalledTimes(1);
   });
+
+  it("does NOT advance the durable cursor on a trailing-slice guess (gap-clobber)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store, set, get } = makeCursorStore();
+    // Cursor points at a message NOT in the provided history (scrolled out),
+    // and history is longer than the window → the fallback trailing slice skips
+    // the un-extracted gap. Persisting its end would strand that gap durably.
+    get.mockReturnValue("m-scrolled-out");
+
+    const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
+    extractor.processTurn(mk(10), "conv1"); // windowSize 6 < 10 → trailing slice
+    await flush();
+
+    expect(set).not.toHaveBeenCalled(); // durable cursor left intact for a fuller-history session
+  });
+
+  it("does not regress the durable cursor when a concurrent writer is ahead", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store, set, get } = makeCursorStore();
+    // Hydrate at m0; a concurrent session advanced the shared store to m5 by the
+    // time we persist. Our window (truncated by maxWindowSize) ends earlier, so
+    // the write must NOT move the cursor backwards.
+    get.mockReturnValueOnce("m0").mockReturnValueOnce("m5");
+
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      cursorStore: store,
+      windowSize: 1,
+      maxWindowSize: 2, // window truncates to [m0, m1] → advancedTo = m1 (index 1)
+    });
+    extractor.processTurn(mk(10), "conv1");
+    await flush();
+
+    // m5 (index 5) is ahead of m1 (index 1) within this turn's messages → skip.
+    expect(set).not.toHaveBeenCalled();
+  });
 });
