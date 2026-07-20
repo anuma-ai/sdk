@@ -8,7 +8,7 @@
  * may converge later, the API will not.
  */
 
-import type { StorageOperationsContext } from "../db/chat/operations.js";
+import type { ChunkVectorCache, StorageOperationsContext } from "../db/chat/operations.js";
 import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
@@ -160,6 +160,12 @@ export interface RecallContext {
   embeddingOptions: EmbeddingOptions;
   /** Vault embedding LRU cache. */
   vaultCache?: VaultEmbeddingCache;
+  /**
+   * Optional chunk-vector LRU cache. When provided, the chunk lane skips the
+   * per-query decrypt + JSON.parse of every message's chunk vectors on warm
+   * entries. Build via `createChunkVectorCache`. Omit for legacy behavior.
+   */
+  chunkCache?: ChunkVectorCache;
   /**
    * Optional — when provided, recall extracts entities from the query
    * and adds a graph lane to the RRF fusion (memories sharing entities

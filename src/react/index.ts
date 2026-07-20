@@ -361,6 +361,8 @@ export type {
   AutoExtractMessage,
   AutoExtractor,
   Budget,
+  CachedChunkVectors,
+  ChunkVectorCache,
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   ExtractedCandidate,
@@ -396,7 +398,9 @@ export type {
 } from "../lib/memory";
 export {
   createAutoExtractor,
+  createChunkVectorCache,
   createRecallTool,
+  DEFAULT_CHUNK_CACHE_SIZE,
   extractAndLinkEntitiesForMemoriesOp,
   extractAndRetain,
   extractEntitiesForMemories,

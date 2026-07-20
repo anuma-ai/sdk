@@ -13,7 +13,7 @@ import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
-import { rerankPairs } from "../memory/reranker";
+import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
@@ -676,12 +676,14 @@ export async function rankFusedVaultMemoriesAsync(
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = v2Ranked.slice(0, rerankTopN);
 
-    // The cross-encoder is a network call (portal). A transient rerank failure
-    // degrades to the V2 ordering we already computed rather than erroring the
-    // whole recall — the executor's outer catch would otherwise turn a CE
-    // hiccup into "Error searching vault" and surface zero memories to the
-    // answer model. The downgrade is logged (warn) as the observability signal;
-    // threading it up to RecallResult.reranked is a follow-up.
+    // The cross-encoder runs on-device (transformers.js), not over the
+    // network. Either way a rerank failure degrades to the V2 ordering we
+    // already computed rather than erroring the whole recall — the executor's
+    // outer catch would otherwise turn a CE hiccup into "Error searching vault"
+    // and surface zero memories to the answer model. A missing optional dep
+    // (RN) is the expected-unavailable case and logs at debug; genuine
+    // transient failures warn. recall() reports the honest `reranked` flag via
+    // isRerankerAvailable().
     try {
       const reranked = await rerankPairs(
         query,
@@ -703,7 +705,11 @@ export async function rankFusedVaultMemoriesAsync(
       });
       combined.sort((a, b) => b.similarity - a.similarity);
     } catch (err) {
-      getLogger().warn("[memory/search] cross-encoder rerank failed; using V2 ranking", err);
+      if (err instanceof RerankerUnavailableError) {
+        getLogger().debug("[memory/search] cross-encoder unavailable; using V2 ranking");
+      } else {
+        getLogger().warn("[memory/search] cross-encoder rerank failed; using V2 ranking", err);
+      }
       combined = v2Ranked;
     }
   } else {
@@ -1016,10 +1022,14 @@ export async function rankComposite(
       head.sort((a, b) => b.similarity - a.similarity);
       combined = [...head, ...tailSlice];
     } catch (err) {
-      getLogger().warn(
-        "[memory/search] composite cross-encoder rerank failed; using fused ranking",
-        err
-      );
+      if (err instanceof RerankerUnavailableError) {
+        getLogger().debug("[memory/search] cross-encoder unavailable; using fused ranking");
+      } else {
+        getLogger().warn(
+          "[memory/search] composite cross-encoder rerank failed; using fused ranking",
+          err
+        );
+      }
     }
   }
 

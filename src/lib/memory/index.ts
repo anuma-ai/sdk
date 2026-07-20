@@ -1,3 +1,4 @@
+export type { CachedChunkVectors, ChunkVectorCache } from "../db/chat/operations.js";
 export {
   type AutoExtractMessage,
   extractAndRetain,
@@ -16,6 +17,7 @@ export {
   type TurnCompleteEvent,
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";
+export { createChunkVectorCache, DEFAULT_CHUNK_CACHE_SIZE } from "./chunkVectorCache.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,

@@ -22,6 +22,7 @@ import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
+import { isRerankerAvailable } from "./reranker.js";
 import { rrfFuse } from "./rrf.js";
 import type {
   Budget,
@@ -197,6 +198,7 @@ export async function recall(
       minSimilarity: chunkMinScore,
       embeddingModel: ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,
       ...(options.conversationId && { conversationId: options.conversationId }),
+      ...(ctx.chunkCache && { chunkCache: ctx.chunkCache }),
     });
     chunkResults.push(
       ...dedupeBy(
@@ -210,6 +212,14 @@ export async function recall(
     );
   }
 
+  // Honest rerank diagnostic: reranking only runs on the fact lane, and only
+  // when the cross-encoder is actually operational. On React Native the
+  // optional transformers dep is absent, so a requested rerank silently
+  // degrades to the fused ranking — report that here instead of echoing the
+  // requested budget flag. `isRerankerAvailable()` is set during the fact-lane
+  // search above; `=== true` means the model loaded and the CE was engaged.
+  const didRerank = flags.rerank && types.includes("fact") && isRerankerAvailable() === true;
+
   // Fuse across lanes. Single-lane requests skip RRF — preserves the raw
   // score on the result so callers downstream of `recall()` can reason
   // about cosine-vs-cosine ordering directly.
@@ -222,7 +232,7 @@ export async function recall(
     return {
       memories: memories.slice(0, limit),
       usedBudget,
-      reranked: flags.rerank,
+      reranked: didRerank,
       candidateCount: factResults.length + chunkResults.length,
       ...(vaultSize !== undefined && { vaultSize }),
     };
@@ -300,7 +310,7 @@ export async function recall(
   return {
     memories,
     usedBudget,
-    reranked: flags.rerank,
+    reranked: didRerank,
     candidateCount: byId.size,
     ...(vaultSize !== undefined && { vaultSize }),
   };

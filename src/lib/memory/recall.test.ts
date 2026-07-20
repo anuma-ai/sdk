@@ -31,8 +31,12 @@ vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbeddings: vi.fn(),
 }));
 
-vi.mock("./reranker", () => ({
+vi.mock("./reranker", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./reranker")>()),
   rerankPairs: vi.fn(),
+  // rerankPairs is mocked as a working reranker, so report it available;
+  // the "unavailable ⇒ reranked:false" path is covered by its own test.
+  isRerankerAvailable: vi.fn(() => true),
 }));
 
 vi.mock("../memoryVault/decomposeQuery", () => ({
@@ -57,7 +61,7 @@ import { decomposeQuery } from "../memoryVault/decomposeQuery";
 
 import { recall } from "./recall";
 import { createRecallTool, RECALL_MAX_LIMIT } from "./recallTool";
-import { rerankPairs } from "./reranker";
+import { isRerankerAvailable, rerankPairs } from "./reranker";
 import type { RecallContext } from "./types";
 
 // ── Deterministic embedding fixture ─────────────────────────────────────
@@ -276,14 +280,30 @@ describe("recall — budget tiers", () => {
   });
 
   it("degrades to the V2 ranking when the cross-encoder fails (soft-degrade)", async () => {
-    // A transient CE/portal failure must not error the whole recall — the
-    // search layer catches it and returns the already-computed V2 ordering.
-    // (Threading the downgrade up to RecallResult.reranked is a follow-up;
-    // the warn log is the current observability signal.)
+    // A transient CE failure must not error the whole recall — the search
+    // layer catches it and returns the already-computed V2 ordering. The
+    // reranker is still *available* (a per-call hiccup, not a missing dep), so
+    // reranked stays true; only a permanently-unavailable reranker reports
+    // false (see the next test).
     vi.mocked(rerankPairs).mockRejectedValue(new Error("CE model download failed"));
 
     const result = await recall(QUERY, makeCtx(), { budget: "mid" });
 
+    expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
+    expect(result.reranked).toBe(true);
+  });
+
+  it("reports reranked:false when the cross-encoder is unavailable (e.g. React Native)", async () => {
+    // On RN the optional @huggingface/transformers dep is absent, so a
+    // requested rerank silently degrades. recall() must report the honest
+    // flag rather than echoing the budget's rerank intent.
+    vi.mocked(isRerankerAvailable).mockReturnValueOnce(false);
+
+    const result = await recall(QUERY, makeCtx(), { budget: "high" });
+
+    expect(result.usedBudget).toBe("mid"); // high downgrades w/o decomposeOptions
+    expect(result.reranked).toBe(false);
+    // Recall still returns the fused ranking — degradation is graceful.
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
   });
 });

@@ -25,21 +25,92 @@ interface ModelHandle {
   model: unknown;
 }
 
+/**
+ * Thrown when the cross-encoder cannot run because its optional peer
+ * dependency (`@huggingface/transformers`) isn't installed — the expected
+ * state on React Native, where the package isn't part of the bundle. Callers
+ * treat this as "reranker unavailable, degrade to the fused ranking" rather
+ * than a transient error worth warning about on every recall.
+ *
+ * @public
+ */
+export class RerankerUnavailableError extends Error {
+  /** The underlying import failure, kept for debugging. */
+  readonly reason: unknown;
+  constructor(reason: unknown) {
+    super("cross-encoder reranker unavailable (@huggingface/transformers not installed)");
+    this.name = "RerankerUnavailableError";
+    this.reason = reason;
+  }
+}
+
+// Tri-state reranker availability: undefined = not yet attempted, true =
+// loaded successfully, false = permanently unavailable (optional dep missing).
+// Consumers read this to report an honest `reranked` diagnostic instead of
+// assuming a requested rerank actually ran (RN silently lacks the package).
+let available: boolean | undefined = undefined;
 let modelPromise: Promise<ModelHandle> | null = null;
 
+/**
+ * Whether the cross-encoder reranker can run in this environment.
+ *
+ * - `true` — the model loaded successfully at least once.
+ * - `false` — the optional `@huggingface/transformers` dependency is missing
+ *   (e.g. React Native); reranking is permanently degraded to the fused
+ *   ranking and no further load attempts are made.
+ * - `undefined` — no rerank has been attempted yet, so availability is unknown.
+ *
+ * @public
+ */
+export function isRerankerAvailable(): boolean | undefined {
+  return available;
+}
+
+/** Does this error mean the transformers package isn't installed (vs. a
+ * transient load failure like a network hiccup fetching the model)? Walks the
+ * `cause` chain because bundlers/loaders (Metro, webpack, vitest) wrap the
+ * underlying module-not-found error. */
+function isModuleMissing(err: unknown): boolean {
+  let e: unknown = err;
+  for (let depth = 0; depth < 5 && e !== null && e !== undefined; depth++) {
+    const code = (e as { code?: string }).code;
+    if (code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND") return true;
+    if (e instanceof Error && /cannot find (module|package)|failed to resolve/i.test(e.message)) {
+      return true;
+    }
+    e = (e as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
 async function getModel(): Promise<ModelHandle> {
+  // Short-circuit once we know the package is absent: no repeated import
+  // attempts and no per-recall warn spam on React Native.
+  if (available === false) throw new RerankerUnavailableError(undefined);
   if (!modelPromise) {
     // Clear the cache on rejection so a transient first-load failure
     // doesn't brick the reranker for the process lifetime.
     const load = (async () => {
-      const transformers = (await import("@huggingface/transformers")) as unknown as {
+      let transformers: {
         AutoTokenizer: AnyClass;
         AutoModelForSequenceClassification: AnyClass;
       };
+      try {
+        transformers =
+          (await import("@huggingface/transformers")) as unknown as typeof transformers;
+      } catch (err) {
+        // Missing optional dep is a permanent environment fact, not transient.
+        if (isModuleMissing(err)) {
+          available = false;
+          throw new RerankerUnavailableError(err);
+        }
+        throw err;
+      }
       const [tokenizer, model] = await Promise.all([
         transformers.AutoTokenizer.from_pretrained(MODEL_ID),
         transformers.AutoModelForSequenceClassification.from_pretrained(MODEL_ID),
       ]);
+      available = true;
       return { tokenizer, model };
     })();
     modelPromise = load;
