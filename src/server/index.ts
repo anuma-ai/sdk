@@ -320,6 +320,7 @@ export type {
   ExtractedCandidate,
   ExtractedEntity,
   ExtractFactsOptions,
+  ExtractionCursorStore,
   ExtractOutcome,
   FactType,
   MemoryExtractedEvent,
@@ -348,6 +349,7 @@ export type {
 } from "../lib/memory";
 export {
   createAutoExtractor,
+  createPlatformCursorStore,
   createRecallTool,
   extractAndLinkEntitiesForMemoriesOp,
   extractAndRetain,

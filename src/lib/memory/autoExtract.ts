@@ -529,6 +529,8 @@ export async function extractAndRetain(
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: candidate.sourceMessageIds,
+        // Don't let extraction silently resurrect a fact the user deleted.
+        respectTombstones: true,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(consolidateOptions !== undefined && { consolidateOptions }),
@@ -538,8 +540,10 @@ export async function extractAndRetain(
       results.push(result);
 
       // W5 — link entities to the freshly persisted memory. Best-effort:
-      // a failure here doesn't roll back the retain.
-      if (options.entityCtx && candidate.entities.length > 0) {
+      // a failure here doesn't roll back the retain. Skip when the write was
+      // suppressed by a tombstone — `result.memoryId` is the soft-deleted row,
+      // not a live memory to graft entities onto.
+      if (result.action !== "suppressed" && options.entityCtx && candidate.entities.length > 0) {
         try {
           // Respect user-managed topics: if this candidate auto-merged into an
           // existing memory whose topics the user has taken manual control of,
