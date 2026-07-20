@@ -436,9 +436,12 @@ export type ExtractOutcome =
 
 /**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
- * enabled. The resolver path (decide create/merge/update via a second LLM
- * call against the existing vault) is deferred — the auto-merge inside
- * retain() handles dedup at the cosine-similarity level for hackathon.
+ * enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
+ * is the "resolver": a second LLM call against the top-K existing vault
+ * memories that decides create/update/noop/supersede — including retiring a
+ * stale value on a state change (the supersession the extraction prompt above
+ * promises). Without consolidation, retain() still dedups at the cosine-merge
+ * level, and the read-time supersession heuristic remains the fallback.
  *
  * Returns the candidates that survived validation along with the retain
  * result for each (which captures whether the fact was created, merged,
@@ -529,6 +532,8 @@ export async function extractAndRetain(
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: candidate.sourceMessageIds,
+        // Don't let extraction silently resurrect a fact the user deleted.
+        respectTombstones: true,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(consolidateOptions !== undefined && { consolidateOptions }),
@@ -538,8 +543,10 @@ export async function extractAndRetain(
       results.push(result);
 
       // W5 — link entities to the freshly persisted memory. Best-effort:
-      // a failure here doesn't roll back the retain.
-      if (options.entityCtx && candidate.entities.length > 0) {
+      // a failure here doesn't roll back the retain. Skip when the write was
+      // suppressed by a tombstone — `result.memoryId` is the soft-deleted row,
+      // not a live memory to graft entities onto.
+      if (result.action !== "suppressed" && options.entityCtx && candidate.entities.length > 0) {
         try {
           // Respect user-managed topics: if this candidate auto-merged into an
           // existing memory whose topics the user has taken manual control of,

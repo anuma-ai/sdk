@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#36)
+Defined in: [src/lib/db/memoryVault/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#43)
 
 ***
 
@@ -87,7 +87,7 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#38)
+Defined in: [src/lib/db/memoryVault/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#45)
 
 ***
 
@@ -131,6 +131,29 @@ JSON-stringified array of source message IDs this fact was extracted from.
 
 ***
 
+### supersededAt
+
+> **supersededAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#42)
+
+Unix ms when this memory was superseded. Null when live.
+
+***
+
+### supersededBy
+
+> **supersededBy**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#40)
+
+Write-time supersession (A2): id of the newer memory that replaced this
+one (incompatible-value update, e.g. "Lives in Portland" → "Lives in SF").
+Null = live. Superseded rows are excluded from recall/dedup by default but
+kept for history + the read-time fallback.
+
+***
+
 ### topicsExtractedAt
 
 > **topicsExtractedAt**: `number` | `null`
@@ -168,7 +191,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#37)
+Defined in: [src/lib/db/memoryVault/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#44)
 
 ***
 

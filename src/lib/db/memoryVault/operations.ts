@@ -41,13 +41,16 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
 /** Builds the base WHERE conditions shared by all vault memory queries.
  * `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
  * opts into it (to surface "forgotten" memories); every other caller omits it
- * and keeps the default non-deleted-only behavior. */
+ * and keeps the default non-deleted-only behavior. `includeSuperseded` likewise
+ * drops the A2 supersession filter (default excludes superseded rows from recall
+ * + dedup, same as deleted); a "memory history" view can opt in. */
 function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
-  options?: { since?: Date; includeDeleted?: boolean }
+  options?: { since?: Date; includeDeleted?: boolean; includeSuperseded?: boolean }
 ) {
   return [
     ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
+    ...(options?.includeSuperseded ? [] : [Q.where("superseded_by", null)]),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
@@ -91,6 +94,8 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeKind: memory.eventTimeKind ?? null,
     topicsUserManaged: memory.topicsUserManaged ?? false,
     topicsExtractedAt: memory.topicsExtractedAt ?? null,
+    supersededBy: memory.supersededBy ?? null,
+    supersededAt: memory.supersededAt ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -357,6 +362,8 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
     topicsExtractedAt: (raw.topics_extracted_at as number | null) ?? null,
+    supersededBy: (raw.superseded_by as string | null) ?? null,
+    supersededAt: (raw.superseded_at as number | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -391,6 +398,12 @@ export async function getAllVaultMemoriesOp(
      * render "forgotten" nodes; ordinary consumers should leave this off.
      */
     includeDeleted?: boolean;
+    /**
+     * Include A2-superseded memories (each carries `supersededBy`). Default
+     * `false` — superseded rows are excluded, as they are from recall/dedup.
+     * Used by a "memory history" view to render retired facts.
+     */
+    includeSuperseded?: boolean;
   }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
@@ -653,6 +666,46 @@ export async function deleteVaultMemoryOp(
     }
 
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mark a memory as superseded by a newer one (A2 write-time supersession).
+ * The row stays in the table (history + read-time fallback) but is excluded
+ * from recall/dedup by default via `superseded_by`. Idempotent-ish: no-op if
+ * the row is missing, not owned, deleted, or already superseded. Does NOT
+ * preserve `updated_at` — superseded rows are hidden from recall, so their
+ * recency is irrelevant.
+ *
+ * @param id - the memory being retired (e.g. "Lives in Portland")
+ * @param supersededById - the newer memory that replaced it (e.g. "Lives in SF")
+ */
+export async function supersedeVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  supersededById: string
+): Promise<boolean> {
+  // A memory can't supersede itself.
+  if (id === supersededById) return false;
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) return false;
+
+    let stale = false;
+    await ctx.database.write(async () => {
+      // Re-check inside the serialized writer (see updateVaultMemoryOp).
+      if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("superseded_by", supersededById);
+        r._setRaw("superseded_at", Date.now());
+      });
+    });
+    return !stale;
   } catch {
     return false;
   }

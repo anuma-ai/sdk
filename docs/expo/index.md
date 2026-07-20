@@ -1186,6 +1186,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 
 ***
 
+### supersedeVaultMemoryOp
+
+Re-exports [supersedeVaultMemoryOp](../react/Internal/functions/supersedeVaultMemoryOp.md)
+
+***
+
 ### TextChunk
 
 Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)

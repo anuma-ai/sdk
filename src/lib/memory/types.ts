@@ -185,7 +185,7 @@ export interface RecallResult {
 // Retain API — for completeness / future-proofing. Implemented Wed 5/6 (W2).
 // ---------------------------------------------------------------------------
 
-export type RetainAction = "create" | "merge" | "update" | "skip";
+export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /** Why the consolidator fell back to "create" instead of a real decision. */
@@ -198,6 +198,14 @@ export interface RetainOptions {
   folderId?: string | null;
   /** When provided, applies merge-on-write logic instead of plain insert. */
   enableAutoMerge?: boolean;
+  /**
+   * When true, a would-be create is suppressed if it matches a soft-deleted
+   * ("tombstoned") memory above the auto-merge threshold — so auto-extraction
+   * can't silently resurrect a fact the user deleted. Off by default so manual
+   * and other `retain()` callers are unaffected; auto-extraction opts in.
+   * Returns `action: 'suppressed'` with the matched `tombstoneId`.
+   */
+  respectTombstones?: boolean;
   /** Cosine similarity threshold for auto-merge. Default: 0.85. */
   autoMergeThreshold?: number;
   /**
@@ -246,8 +254,14 @@ export interface RetainOptions {
 export interface RetainResult {
   action: RetainAction;
   memoryId: string;
-  /** When action is 'merge' or 'update', the prior memory's id. */
+  /** When action is 'merge' or 'update', the prior memory's id. When action is
+   * 'supersede', the stale memory that was retired (`memoryId` is the new one). */
   targetId?: string;
-  /** Updated proof_count after this write. */
+  /**
+   * When action is 'suppressed', the id of the soft-deleted memory that blocked
+   * re-creation. `memoryId` is set to the same id (no new memory was written).
+   */
+  tombstoneId?: string;
+  /** Updated proof_count after this write. 0 when nothing was written (suppressed). */
   proofCount: number;
 }
