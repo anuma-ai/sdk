@@ -455,6 +455,7 @@ describe("extractAndRetain", () => {
       expect.objectContaining({
         source: "auto-extracted",
         sourceChunkIds: ["m1"],
+        respectTombstones: true,
       })
     );
   });
@@ -622,6 +623,38 @@ describe("extractAndRetain", () => {
       [{ name: "Sara", kind: "person" }],
       { unlessTopicsUserManaged: true }
     );
+  });
+
+  it("does NOT link entities when a candidate was suppressed by a tombstone", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Works at Google",
+          type: "identity",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [{ name: "Google", kind: "organization" }],
+        },
+      ],
+    };
+    // `memoryId` is the tombstone (a soft-deleted row) — entities must NOT be
+    // grafted onto it.
+    vi.mocked(retain).mockResolvedValue({
+      action: "suppressed",
+      memoryId: "dead-1",
+      tombstoneId: "dead-1",
+      proofCount: 0,
+    });
+    const entityCtx = freshEntityCtx();
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) }, entityCtx }
+    );
+
+    expect(result.results[0]?.action).toBe("suppressed");
+    expect(vi.mocked(linkMemoryEntitiesOp)).not.toHaveBeenCalled();
   });
 
   it("skips entity-linking when the retained memory is user-managed", async () => {

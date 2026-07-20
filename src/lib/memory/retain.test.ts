@@ -4,6 +4,7 @@ vi.mock("../db/memoryVault/operations", () => ({
   createVaultMemoryOp: vi.fn(),
   getVaultMemoryOp: vi.fn(),
   updateVaultMemoryOp: vi.fn(),
+  getAllVaultMemoriesOp: vi.fn(),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -17,10 +18,12 @@ vi.mock("../memoryVault/searchTool", () => ({
 
 import {
   createVaultMemoryOp,
+  getAllVaultMemoriesOp,
   getVaultMemoryOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { searchVaultMemories } from "../memoryVault/searchTool";
@@ -359,5 +362,119 @@ describe("retain", () => {
     const result = await retain("x", ctx);
 
     expect(result.action).toBe("create");
+  });
+});
+
+describe("retain — tombstones (respectTombstones)", () => {
+  // ctx passes no model, so retain embeds with the default model; tombstone rows
+  // must carry the same model to be comparable (embedding-space guard).
+  const MODEL = DEFAULT_API_EMBEDDING_MODEL;
+  // Minimal soft-deleted / live row for getAllVaultMemoriesOp results.
+  function row(
+    uniqueId: string,
+    embedding: number[],
+    isDeleted: boolean,
+    embeddingModel: string | null = MODEL
+  ) {
+    return {
+      uniqueId,
+      content: uniqueId,
+      scope: "private",
+      folderId: null,
+      userId: null,
+      embedding: JSON.stringify(embedding),
+      embeddingModel,
+      sourceChunkIds: null,
+      proofCount: 1,
+      source: "manual",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted,
+    } as Awaited<ReturnType<typeof getAllVaultMemoriesOp>>[number];
+  }
+
+  beforeEach(() => {
+    // No live merge candidate by default — exercise the create path.
+    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+  });
+
+  it("suppresses a create that matches a soft-deleted memory", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("dead-1", [1, 0, 0], true)]);
+
+    const result = await retain("Works at Google", ctx, { respectTombstones: true });
+
+    expect(result.action).toBe("suppressed");
+    expect(result.tombstoneId).toBe("dead-1");
+    expect(result.memoryId).toBe("dead-1");
+    expect(createVaultMemoryOp).not.toHaveBeenCalled();
+  });
+
+  it("still creates when the nearest tombstone is below threshold", async () => {
+    // cosine([1,0,0],[0.8,0.6,0]) = 0.8 < 0.85
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("dead-1", [0.8, 0.6, 0], true)]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
+
+    const result = await retain("Likes tea", ctx, { respectTombstones: true });
+
+    expect(result.action).toBe("create");
+    expect(createVaultMemoryOp).toHaveBeenCalledOnce();
+  });
+
+  it("ignores tombstones embedded with a different model", async () => {
+    // Same vector, but a different embedding space → not comparable → create.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      row("dead-1", [1, 0, 0], true, "some/other-embedding-model"),
+    ]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
+
+    const result = await retain("Works at Google", ctx, { respectTombstones: true });
+
+    expect(result.action).toBe("create");
+  });
+
+  it("scopes the tombstone query by folderId when provided", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("dead-1", [1, 0, 0], true)]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
+
+    await retain("Works at Google", ctx, { respectTombstones: true, folderId: "folder-b" });
+
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ includeDeleted: true, folderId: "folder-b" })
+    );
+  });
+
+  it("ignores LIVE rows returned alongside deleted ones", async () => {
+    // A live row matches exactly, but it's not a tombstone → must not suppress.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("live-1", [1, 0, 0], false)]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
+
+    const result = await retain("Likes tea", ctx, { respectTombstones: true });
+
+    expect(result.action).toBe("create");
+  });
+
+  it("does NOT consult tombstones when respectTombstones is off (default)", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("dead-1", [1, 0, 0], true)]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
+
+    const result = await retain("Works at Google", ctx);
+
+    expect(result.action).toBe("create");
+    expect(getAllVaultMemoriesOp).not.toHaveBeenCalled();
+  });
+
+  it("a live merge still wins and never reaches the tombstone check", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "live-1" } as Awaited<ReturnType<typeof searchVaultMemories>>[number],
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue(row("live-1", [1, 0, 0], false));
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(row("live-1", [1, 0, 0], false));
+
+    const result = await retain("Works at Google", ctx, { respectTombstones: true });
+
+    expect(result.action).toBe("merge");
+    expect(getAllVaultMemoriesOp).not.toHaveBeenCalled();
   });
 });
