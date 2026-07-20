@@ -2,7 +2,7 @@
 
 > **HandlersPasskeyDeleteResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3216](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3216)
+Defined in: [src/client/types.gen.ts:3224](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3224)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3216](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **remaining\_credentials**: [`HandlersPasskeyCredentialDto`](HandlersPasskeyCredentialDto.md)\[]
 
-Defined in: [src/client/types.gen.ts:3217](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3217)
+Defined in: [src/client/types.gen.ts:3225](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3225)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:3217](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **removed**: `boolean`
 
-Defined in: [src/client/types.gen.ts:3218](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3218)
+Defined in: [src/client/types.gen.ts:3226](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3226)

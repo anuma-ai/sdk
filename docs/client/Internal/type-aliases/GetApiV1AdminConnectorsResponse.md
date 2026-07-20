@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminConnectorsResponse** = [`GetApiV1AdminConnectorsResponses`](GetApiV1AdminConnectorsResponses.md)\[keyof [`GetApiV1AdminConnectorsResponses`](GetApiV1AdminConnectorsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5189](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5189)
+Defined in: [src/client/types.gen.ts:5197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5197)

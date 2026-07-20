@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminAppsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:4908](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4908)
+Defined in: [src/client/types.gen.ts:4916](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4916)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4908](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4909](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4909)
+Defined in: [src/client/types.gen.ts:4917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4917)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4909](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4910](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4910)
+Defined in: [src/client/types.gen.ts:4918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4918)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4916](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4916)
+Defined in: [src/client/types.gen.ts:4924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4924)
 
 **id**
 
@@ -46,7 +46,7 @@ App ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4922](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4922)
+Defined in: [src/client/types.gen.ts:4930](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4930)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:4922](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{id}"`
 
-Defined in: [src/client/types.gen.ts:4923](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4923)
+Defined in: [src/client/types.gen.ts:4931](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4931)

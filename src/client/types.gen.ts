@@ -2599,6 +2599,10 @@ export type HandlersSetUserAgentPreferenceRequest = {
 export type HandlersShareResponse = {
     caption?: string;
     created_at?: string;
+    /**
+     * pixel height, when known
+     */
+    height?: number;
     media_type?: string;
     /**
      * public, slug-gated media read (portal indirection)
@@ -2613,6 +2617,10 @@ export type HandlersShareResponse = {
     url?: string;
     view_count?: number;
     visibility?: string;
+    /**
+     * pixel width, when known (for OG image dimensions)
+     */
+    width?: number;
 };
 
 export type HandlersStockPricesResponse = {
@@ -5819,6 +5827,57 @@ export type PostApiV1AdminSeedAppsResponses = {
 };
 
 export type PostApiV1AdminSeedAppsResponse = PostApiV1AdminSeedAppsResponses[keyof PostApiV1AdminSeedAppsResponses];
+
+export type DeleteApiV1AdminSharesBySlugData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Share slug
+         */
+        slug: string;
+    };
+    query?: {
+        /**
+         * Takedown reason (recorded)
+         */
+        reason?: string;
+    };
+    url: '/api/v1/admin/shares/{slug}';
+};
+
+export type DeleteApiV1AdminSharesBySlugErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminSharesBySlugError = DeleteApiV1AdminSharesBySlugErrors[keyof DeleteApiV1AdminSharesBySlugErrors];
+
+export type DeleteApiV1AdminSharesBySlugResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1AdminSharesBySlugResponse = DeleteApiV1AdminSharesBySlugResponses[keyof DeleteApiV1AdminSharesBySlugResponses];
 
 export type PostApiV1AdminSubscriptionTierData = {
     /**

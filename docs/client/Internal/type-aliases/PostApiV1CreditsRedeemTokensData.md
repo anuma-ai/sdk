@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsRedeemTokensData** = `object`
 
-Defined in: [src/client/types.gen.ts:7337](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7337)
+Defined in: [src/client/types.gen.ts:7396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7396)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7337](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersRedeemTokensRequest`](HandlersRedeemTokensRequest.md)
 
-Defined in: [src/client/types.gen.ts:7341](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7341)
+Defined in: [src/client/types.gen.ts:7400](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7400)
 
 Redemption request
 
@@ -20,7 +20,7 @@ Redemption request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:7342](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7342)
+Defined in: [src/client/types.gen.ts:7401](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7401)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:7342](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7343)
+Defined in: [src/client/types.gen.ts:7402](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7402)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:7343](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/credits/redeem-tokens"`
 
-Defined in: [src/client/types.gen.ts:7344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7344)
+Defined in: [src/client/types.gen.ts:7403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7403)

@@ -2,7 +2,7 @@
 
 > **postApiV1Moderate**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ModerateData`](../type-aliases/PostApiV1ModerateData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ModerateResponses`](../type-aliases/PostApiV1ModerateResponses.md), [`PostApiV1ModerateErrors`](../type-aliases/PostApiV1ModerateErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1398](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1398)
+Defined in: [src/client/sdk.gen.ts:1408](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1408)
 
 Moderate content
 

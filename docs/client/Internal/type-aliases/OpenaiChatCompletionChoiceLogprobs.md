@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionChoiceLogprobs** = `object`
 
-Defined in: [src/client/types.gen.ts:3407](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3407)
+Defined in: [src/client/types.gen.ts:3415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3415)
 
 Log probability information for the choice.
 
@@ -12,7 +12,7 @@ Log probability information for the choice.
 
 > `optional` **content**: [`OpenaiChatCompletionTokenLogprob`](OpenaiChatCompletionTokenLogprob.md)\[]
 
-Defined in: [src/client/types.gen.ts:3411](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3411)
+Defined in: [src/client/types.gen.ts:3419](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3419)
 
 A list of message content tokens with log probability information.
 
@@ -22,6 +22,6 @@ A list of message content tokens with log probability information.
 
 > `optional` **refusal**: [`OpenaiChatCompletionTokenLogprob`](OpenaiChatCompletionTokenLogprob.md)\[]
 
-Defined in: [src/client/types.gen.ts:3415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3415)
+Defined in: [src/client/types.gen.ts:3423](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3423)
 
 A list of message refusal tokens with log probability information.

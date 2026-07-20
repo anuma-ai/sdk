@@ -2,7 +2,7 @@
 
 > **HandlersListConsentsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3194](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3194)
+Defined in: [src/client/types.gen.ts:3202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3202)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:3194](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **consents**: [`HandlersConsentResponse`](HandlersConsentResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:3195](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3195)
+Defined in: [src/client/types.gen.ts:3203](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3203)

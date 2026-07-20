@@ -2,7 +2,7 @@
 
 > **GetApiV1DocsSwaggerJsonData** = `object`
 
-Defined in: [src/client/types.gen.ts:8265](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8265)
+Defined in: [src/client/types.gen.ts:8324](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8324)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8265](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:8266](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8266)
+Defined in: [src/client/types.gen.ts:8325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8325)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:8266](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8267)
+Defined in: [src/client/types.gen.ts:8326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8326)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:8267](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8268)
+Defined in: [src/client/types.gen.ts:8327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8327)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:8268](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/docs/swagger.json"`
 
-Defined in: [src/client/types.gen.ts:8269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8269)
+Defined in: [src/client/types.gen.ts:8328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8328)

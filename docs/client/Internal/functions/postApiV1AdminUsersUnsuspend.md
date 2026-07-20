@@ -2,7 +2,7 @@
 
 > **postApiV1AdminUsersUnsuspend**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminUsersUnsuspendData`](../type-aliases/PostApiV1AdminUsersUnsuspendData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminUsersUnsuspendResponses`](../type-aliases/PostApiV1AdminUsersUnsuspendResponses.md), [`PostApiV1AdminUsersUnsuspendErrors`](../type-aliases/PostApiV1AdminUsersUnsuspendErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:588](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#588)
+Defined in: [src/client/sdk.gen.ts:598](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#598)
 
 Unsuspend a user account
 

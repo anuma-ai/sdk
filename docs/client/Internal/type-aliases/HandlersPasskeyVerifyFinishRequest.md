@@ -2,7 +2,7 @@
 
 > **HandlersPasskeyVerifyFinishRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:3234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3234)
+Defined in: [src/client/types.gen.ts:3242](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3242)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:3234](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **credential**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:3235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3235)
+Defined in: [src/client/types.gen.ts:3243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3243)

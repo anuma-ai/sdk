@@ -2,7 +2,7 @@
 
 > **GetApiV1AgentsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6171](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6171)
+Defined in: [src/client/types.gen.ts:6230](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6230)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6171](https://github.com/anuma-ai/sdk/blob/
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6175](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6175)
+Defined in: [src/client/types.gen.ts:6234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6234)
 
 Internal Server Error

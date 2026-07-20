@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4748)
+Defined in: [src/client/types.gen.ts:4756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4756)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4748](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:4752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4752)
+Defined in: [src/client/types.gen.ts:4760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4760)
 
 OK
 

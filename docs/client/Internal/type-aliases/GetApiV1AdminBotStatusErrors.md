@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminBotStatusErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5132)
+Defined in: [src/client/types.gen.ts:5140](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5140)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5132](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5136)
+Defined in: [src/client/types.gen.ts:5144](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5144)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5140](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5140)
+Defined in: [src/client/types.gen.ts:5148](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5148)
 
 Bad Gateway
