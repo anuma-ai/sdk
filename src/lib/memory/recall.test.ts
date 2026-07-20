@@ -805,6 +805,23 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen[0].degraded).toContain("rerank-unavailable");
   });
 
+  it("does NOT flag rerank-unavailable on a chunk-only recall (rerank never attempted)", async () => {
+    // Chunk-only: no fact lane → no rerank candidates. A mid/high budget sets
+    // flags.rerank, but there was nothing to rerank, so this must not be
+    // reported as a degradation (it would inflate the outage metric).
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      types: ["chunk"],
+      budget: "mid",
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].factCount).toBe(0);
+    expect(seen[0].degraded).not.toContain("rerank-unavailable");
+  });
+
   it("flags decompose-unavailable when budget:high lacks decomposeOptions", async () => {
     const seen: RecallDiagnostics[] = [];
 

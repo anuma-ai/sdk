@@ -44,6 +44,13 @@ on:
         type: choice
         default: "true"
         options: ["true", "false"]
+  # Default activity types (opened / synchronize / reopened) — enough for the
+  # normal flow (PR opened against main, then every push). Caveat: GitHub has no
+  # `retargeted` pull_request activity, and changing the base only fires
+  # `edited` — which we deliberately DON'T subscribe to, since it also fires on
+  # every title/description edit and would re-run this ~5-min LLM gate needlessly.
+  # So a STACKED PR retargeted to `main` must get one more push (or reopen) to
+  # run the gate; that's the standard stacked-PR flow and normally happens anyway.
   pull_request:
     branches: [main]
     paths:

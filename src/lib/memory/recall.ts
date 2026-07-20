@@ -132,7 +132,14 @@ export async function recall(
     const cb = options.onDiagnostics;
     if (!cb) return;
     const degraded: RecallDegradation[] = [];
-    if (flags.rerank && !didRerank) degraded.push("rerank-unavailable");
+    // Only a genuine degradation: rerank was requested AND there were fact
+    // candidates to rerank, yet the CE didn't run. Guarding on factResults
+    // avoids false "outages" when rerank was never attempted — a chunk-only
+    // recall, an empty-query early return, or a fact lane that produced no
+    // candidates (nothing to rerank) must not inflate the outage metric.
+    if (flags.rerank && factResults.length > 0 && !didRerank) {
+      degraded.push("rerank-unavailable");
+    }
     if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
     const diagnostics: RecallDiagnostics = {
       usedBudget,
