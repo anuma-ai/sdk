@@ -126,6 +126,100 @@ async function messageToStored(
   return baseMessage;
 }
 
+/**
+ * Map a raw `history` row (snake_case `_raw` from `unsafeFetchRaw`) to the StoredMessage shape
+ * WITHOUT instantiating a WatermelonDB Model — mirrors {@link messageToStoredRaw} but reads raw
+ * columns directly. Used by the bulk/thread read ops so a whole-thread load doesn't pin a Model
+ * per row in the never-evicted RecordCache (web Pile-2). Return shape is identical, so callers
+ * are unaffected. `skipEmbeddings` drops the heavy `vector`/`chunks` columns just like the Model path.
+ */
+function messageRawToStoredRaw(
+  raw: Record<string, unknown>,
+  projection?: MessageProjectionOptions
+): StoredMessage {
+  // @json parses plaintext columns into objects on the Model path; unsafeFetchRaw returns the raw
+  // stored string. For columns that may be encrypted, keep the ciphertext string for later
+  // decryption; otherwise parse. Mirrors the parseJsonField helper in messageToStoredRaw.
+  const parseJsonField = <T>(rawValue: unknown): T | undefined => {
+    if (!rawValue) return undefined;
+    if (typeof rawValue === "string") {
+      if (rawValue.startsWith("enc:")) return rawValue as T;
+      try {
+        return JSON.parse(rawValue) as T;
+      } catch {
+        return undefined;
+      }
+    }
+    return rawValue as T;
+  };
+
+  const skipEmbeddings = projection?.skipEmbeddings === true;
+  const vectorRaw = skipEmbeddings ? null : raw.vector;
+  const chunksRaw = skipEmbeddings ? null : raw.chunks;
+
+  // WatermelonDB @text/@field GETTERS return `_getRaw` verbatim (the trim/null coercion happens
+  // only on SET), so reading a raw column directly matches the Model path exactly — including a
+  // stored NULL for an unset column. Do NOT `?? undefined`/`?? ""` those: it would diverge from the
+  // Model path (null → "" / undefined) on unset fields. Only @date (number → Date) and booleans
+  // (SQLite stores 0/1, unsafeFetchRaw returns them unsanitized) need transforming.
+  return {
+    uniqueId: raw.id as string,
+    messageId: raw.message_id as number,
+    conversationId: String(raw.conversation_id),
+    role: raw.role as StoredMessage["role"],
+    content: raw.content as string,
+    model: raw.model as string | undefined,
+    imageModel: raw.image_model as string | undefined,
+    files: parseJsonField<StoredMessage["files"]>(raw.files),
+    fileIds: parseJsonField<StoredMessage["fileIds"]>(raw.file_ids),
+    createdAt: new Date(raw.created_at as number),
+    updatedAt: new Date(raw.updated_at as number),
+    vector: skipEmbeddings ? undefined : parseJsonField(vectorRaw),
+    embeddingModel: raw.embedding_model as string | undefined,
+    chunks: skipEmbeddings ? undefined : parseJsonField(chunksRaw),
+    usage: parseJsonField<StoredMessage["usage"]>(raw.usage),
+    sources: parseJsonField(raw.sources),
+    responseDuration: raw.response_duration as number | undefined,
+    // `was_stopped` is an OPTIONAL boolean: an unset row sanitizes to null, and the Model path
+    // (message.wasStopped) returns that null verbatim. Preserve it (don't collapse to false) so the
+    // raw path is byte-identical. When set, coerce SQLite 0/1 and LokiJS true/false alike.
+    wasStopped:
+      raw.was_stopped == null
+        ? (raw.was_stopped as boolean | undefined)
+        : raw.was_stopped === true || raw.was_stopped === 1,
+    error: raw.error as string | undefined,
+    thoughtProcess: parseJsonField(raw.thought_process),
+    thinking: raw.thinking as string | undefined,
+    parentMessageId: raw.parent_message_id as string | undefined,
+    feedback: (raw.feedback as StoredMessage["feedback"]) || null,
+    toolCallEvents: parseJsonField(raw.tool_call_events),
+  };
+}
+
+/**
+ * Raw-row variant of {@link messageToStored}: map then decrypt, no Model built.
+ */
+async function messageRawToStored(
+  raw: Record<string, unknown>,
+  walletAddress?: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn,
+  projection?: MessageProjectionOptions
+): Promise<StoredMessage> {
+  const baseMessage = messageRawToStoredRaw(raw, projection);
+
+  if (walletAddress) {
+    return await decryptMessageFields(
+      baseMessage,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner
+    );
+  }
+
+  return baseMessage;
+}
+
 export function conversationToStoredRaw(conversation: Conversation): StoredConversation {
   return {
     uniqueId: conversation.id,
@@ -160,6 +254,51 @@ async function conversationToStored(
     );
   }
 
+  return baseConversation;
+}
+
+/**
+ * Map a raw `conversations` row (snake_case `_raw` from `unsafeFetchRaw`) to the Stored shape
+ * WITHOUT instantiating a WatermelonDB Model — mirrors {@link conversationToStoredRaw} but reads
+ * raw columns. Used by the bulk list read ops so a whole-list load doesn't pin a Model per row in
+ * the never-evicted RecordCache (web Pile-2 tab-memory; mobile SQLite is paged so it's harmless
+ * there). Return shape is identical, so callers are unaffected.
+ */
+function conversationRawToStoredRaw(raw: Record<string, unknown>): StoredConversation {
+  // @text/@field getters return `_getRaw` verbatim (see messageRawToStoredRaw) — read raw columns
+  // as-is so an unset `project_id`/`title` maps to the same value the Model path yields. Only @date
+  // and the @field boolean need transforming.
+  const pinnedAt = raw.pinned_at as number | null | undefined;
+  return {
+    uniqueId: raw.id as string,
+    conversationId: raw.conversation_id as string,
+    title: raw.title as string,
+    projectId: raw.project_id as string | undefined,
+    createdAt: new Date(raw.created_at as number),
+    updatedAt: new Date(raw.updated_at as number),
+    // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
+    isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
+    // @date maps a non-number raw column (incl. an explicit unpin null) to null; a number → Date.
+    pinnedAt: typeof pinnedAt === "number" ? new Date(pinnedAt) : null,
+  };
+}
+
+/** Raw-row variant of {@link conversationToStored}: map then decrypt, no Model built. */
+async function conversationRawToStored(
+  raw: Record<string, unknown>,
+  walletAddress?: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<StoredConversation> {
+  const baseConversation = conversationRawToStoredRaw(raw);
+  if (walletAddress) {
+    return await decryptConversationFields(
+      baseConversation,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner
+    );
+  }
   return baseConversation;
 }
 
@@ -237,36 +376,40 @@ export async function getConversationOp(
 export async function getConversationsOp(
   ctx: StorageOperationsContext
 ): Promise<StoredConversation[]> {
-  const results = await ctx.conversationsCollection
+  // unsafeFetchRaw (NOT fetch): a whole-list load must not build a Model per row into the
+  // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy); raws decrypted directly.
+  const results = (await ctx.conversationsCollection
     .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
-    .fetch();
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
   return Promise.all(
-    results.map((conv) =>
-      conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    results.map((raw) =>
+      conversationRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     )
   );
 }
 
 /**
- * Lazy projection of a Conversation: keeps the raw stored title under
- * `encryptedTitle` instead of decrypting eagerly.
+ * Lazy projection of a raw `conversations` row (snake_case `_raw` from `unsafeFetchRaw`): keeps the
+ * raw stored title under `encryptedTitle` instead of decrypting eagerly, and builds NO WatermelonDB
+ * Model (so the never-evicted RecordCache stays empty — web Pile-2).
  *
- * Synchronous and pure — no encryption context needed and no DB write.
- * This is the entire point: callers can hold thousands of these in a
- * Zustand store without paying the per-row decrypt cost or holding
- * plaintext titles in RAM.
+ * Synchronous and pure — no encryption context needed and no DB write. This is the entire point:
+ * callers can hold thousands of these in a Zustand store without paying the per-row decrypt cost or
+ * holding plaintext titles in RAM. @text getters return `_getRaw` verbatim, so raw reads match the
+ * old Model path exactly.
  */
-function conversationToLazyStored(conversation: Conversation): LazyStoredConversation {
+function conversationRawToLazyStored(raw: Record<string, unknown>): LazyStoredConversation {
+  const pinnedAt = raw.pinned_at as number | null | undefined;
   return {
-    uniqueId: conversation.id,
-    conversationId: conversation.conversationId,
-    encryptedTitle: conversation.title,
-    projectId: conversation.projectId,
-    createdAt: conversation.createdAt,
-    updatedAt: conversation.updatedAt,
-    isDeleted: conversation.isDeleted,
-    pinnedAt: conversation.pinnedAt,
+    uniqueId: raw.id as string,
+    conversationId: raw.conversation_id as string,
+    encryptedTitle: raw.title as string,
+    projectId: raw.project_id as string | undefined,
+    createdAt: new Date(raw.created_at as number),
+    updatedAt: new Date(raw.updated_at as number),
+    isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
+    pinnedAt: typeof pinnedAt === "number" ? new Date(pinnedAt) : null,
   };
 }
 
@@ -289,11 +432,13 @@ function conversationToLazyStored(conversation: Conversation): LazyStoredConvers
 export async function getConversationsLazyOp(
   ctx: StorageOperationsContext
 ): Promise<LazyStoredConversation[]> {
-  const results = await ctx.conversationsCollection
+  // unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2). This op decrypts nothing,
+  // so the raw title is mapped straight to `encryptedTitle` — same shape as the Model variant.
+  const results = (await ctx.conversationsCollection
     .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
-    .fetch();
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
-  return results.map(conversationToLazyStored);
+  return results.map(conversationRawToLazyStored);
 }
 
 /**
@@ -307,15 +452,16 @@ export async function getConversationsByProjectLazyOp(
   ctx: StorageOperationsContext,
   projectId: string | null
 ): Promise<LazyStoredConversation[]> {
-  const results = await ctx.conversationsCollection
+  // unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2). No decrypt here either.
+  const results = (await ctx.conversationsCollection
     .query(
       Q.where("project_id", projectId === null ? "" : projectId),
       Q.where("is_deleted", false),
       Q.sortBy("created_at", Q.desc)
     )
-    .fetch();
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
-  return results.map(conversationToLazyStored);
+  return results.map(conversationRawToLazyStored);
 }
 
 export async function updateConversationTitleOp(
@@ -435,17 +581,18 @@ export async function getConversationsByProjectOp(
   ctx: StorageOperationsContext,
   projectId: string | null
 ): Promise<StoredConversation[]> {
-  const results = await ctx.conversationsCollection
+  // unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2). Same SQL; raws decrypted.
+  const results = (await ctx.conversationsCollection
     .query(
       Q.where("project_id", projectId === null ? "" : projectId),
       Q.where("is_deleted", false),
       Q.sortBy("created_at", Q.desc)
     )
-    .fetch();
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
   return Promise.all(
-    results.map((conv) =>
-      conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    results.map((raw) =>
+      conversationRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     )
   );
 }
@@ -454,13 +601,15 @@ export async function getMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<StoredMessage[]> {
-  const results = await ctx.messagesCollection
+  // unsafeFetchRaw (NOT fetch): a whole-thread load must not pin a Model per row into the
+  // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy); raws decrypted directly.
+  const results = (await ctx.messagesCollection
     .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
-    .fetch();
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
   return Promise.all(
-    results.map((msg) =>
-      messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    results.map((raw) =>
+      messageRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     )
   );
 }
@@ -506,21 +655,23 @@ export async function getMessagesPageOp(
     );
   }
 
-  const fetched = await ctx.messagesCollection
+  // unsafeFetchRaw (NOT fetch): the windowed render hot path must not pin a Model per row into the
+  // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy + take); raws decrypted directly.
+  const fetched = (await ctx.messagesCollection
     .query(...clauses, Q.sortBy("message_id", Q.desc), Q.take(limit + exclude.size))
-    .fetch();
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
-  // Drop the caller's already-held boundary rows, keep the newest `limit`.
+  // Drop the caller's already-held boundary rows, keep the newest `limit`. Raw rows expose `id`.
   const results = (
-    exclude.size > 0 ? fetched.filter((msg) => !exclude.has(msg.id)) : fetched
+    exclude.size > 0 ? fetched.filter((raw) => !exclude.has(raw.id as string)) : fetched
   ).slice(0, limit);
 
   // Fetched newest-first to take the tail; consumers expect ascending.
   results.reverse();
 
   return Promise.all(
-    results.map((msg) =>
-      messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner, {
+    results.map((raw) =>
+      messageRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner, {
         skipEmbeddings: true,
       })
     )
@@ -538,33 +689,37 @@ export async function getMessageSkeletonsOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<MessageSkeleton[]> {
-  const results = await ctx.messagesCollection
+  // unsafeFetchRaw (NOT fetch): the whole-thread branch-tree scan must not pin a Model per row into
+  // the never-evicted RecordCache (web Pile-2). We read raw columns directly and only decrypt the
+  // selected `content` cells below. @text getters return `_getRaw` verbatim, so raw reads match.
+  const results = (await ctx.messagesCollection
     .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
-    .fetch();
+    .unsafeFetchRaw()) as Record<string, unknown>[];
 
   const roleById = new Map<string, string>();
-  for (const msg of results) {
-    roleById.set(msg.id, msg.role);
+  for (const raw of results) {
+    roleById.set(raw.id as string, raw.role as string);
   }
 
-  const skeletons: MessageSkeleton[] = results.map((msg) => ({
-    uniqueId: msg.id,
-    messageId: msg.messageId,
-    conversationId: String(msg._getRaw("conversation_id")),
-    role: msg.role,
-    createdAt: msg.createdAt,
+  const skeletons: MessageSkeleton[] = results.map((raw) => ({
+    uniqueId: raw.id as string,
+    messageId: raw.message_id as number,
+    conversationId: String(raw.conversation_id),
+    role: raw.role as MessageSkeleton["role"],
+    createdAt: new Date(raw.created_at as number),
     // WatermelonDB surfaces unset text columns as null at runtime — normalize
     // to undefined so `parentMessageId ?? undefined` keying works everywhere.
-    parentMessageId: msg.parentMessageId ?? undefined,
-    model: msg.model ?? undefined,
+    parentMessageId: (raw.parent_message_id as string | null | undefined) ?? undefined,
+    model: (raw.model as string | null | undefined) ?? undefined,
   }));
 
   // Second pass: decrypt content ONLY for user rows parented by a user row.
   const artifactIndices: number[] = [];
   for (let i = 0; i < results.length; i++) {
-    const msg = results[i];
-    if (msg.role !== "user" || !msg.parentMessageId) continue;
-    if (roleById.get(msg.parentMessageId) === "user") {
+    const raw = results[i];
+    const parentMessageId = raw.parent_message_id as string | null | undefined;
+    if (raw.role !== "user" || !parentMessageId) continue;
+    if (roleById.get(parentMessageId) === "user") {
       artifactIndices.push(i);
     }
   }
@@ -580,12 +735,12 @@ export async function getMessageSkeletonsOp(
     }
     await Promise.all(
       artifactIndices.map(async (i) => {
-        skeletons[i].content = await decryptField(results[i].content, address);
+        skeletons[i].content = await decryptField(results[i].content as string, address);
       })
     );
   } else {
     for (const i of artifactIndices) {
-      skeletons[i].content = results[i].content;
+      skeletons[i].content = results[i].content as string;
     }
   }
 
