@@ -127,6 +127,17 @@ async function messageToStored(
 }
 
 /**
+ * Mirror the WatermelonDB `@date` getter for a raw column: a numeric timestamp → `Date`, anything
+ * else — null (a legacy/partially-migrated row with no timestamp) or a non-number — → null (NOT
+ * `new Date(null)` = epoch, nor `new Date(undefined)` = Invalid Date). The `@date` decorator returns
+ * null for a non-number raw value, so this keeps the raw read path byte-identical. Typed `Date` to
+ * match the decorator's declared type (which likewise returns null at runtime for an unset column).
+ */
+function rawDate(value: unknown): Date {
+  return (typeof value === "number" ? new Date(value) : null) as unknown as Date;
+}
+
+/**
  * Map a raw `history` row (snake_case `_raw` from `unsafeFetchRaw`) to the StoredMessage shape
  * WITHOUT instantiating a WatermelonDB Model — mirrors {@link messageToStoredRaw} but reads raw
  * columns directly. Used by the bulk/thread read ops so a whole-thread load doesn't pin a Model
@@ -172,8 +183,8 @@ function messageRawToStoredRaw(
     imageModel: raw.image_model as string | undefined,
     files: parseJsonField<StoredMessage["files"]>(raw.files),
     fileIds: parseJsonField<StoredMessage["fileIds"]>(raw.file_ids),
-    createdAt: new Date(raw.created_at as number),
-    updatedAt: new Date(raw.updated_at as number),
+    createdAt: rawDate(raw.created_at),
+    updatedAt: rawDate(raw.updated_at),
     vector: skipEmbeddings ? undefined : parseJsonField(vectorRaw),
     embeddingModel: raw.embedding_model as string | undefined,
     chunks: skipEmbeddings ? undefined : parseJsonField(chunksRaw),
@@ -184,7 +195,7 @@ function messageRawToStoredRaw(
     // (message.wasStopped) returns that null verbatim. Preserve it (don't collapse to false) so the
     // raw path is byte-identical. When set, coerce SQLite 0/1 and LokiJS true/false alike.
     wasStopped:
-      raw.was_stopped == null
+      raw.was_stopped === null || raw.was_stopped === undefined
         ? (raw.was_stopped as boolean | undefined)
         : raw.was_stopped === true || raw.was_stopped === 1,
     error: raw.error as string | undefined,
@@ -274,8 +285,8 @@ function conversationRawToStoredRaw(raw: Record<string, unknown>): StoredConvers
     conversationId: raw.conversation_id as string,
     title: raw.title as string,
     projectId: raw.project_id as string | undefined,
-    createdAt: new Date(raw.created_at as number),
-    updatedAt: new Date(raw.updated_at as number),
+    createdAt: rawDate(raw.created_at),
+    updatedAt: rawDate(raw.updated_at),
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
     // @date maps a non-number raw column (incl. an explicit unpin null) to null; a number → Date.
@@ -406,8 +417,8 @@ function conversationRawToLazyStored(raw: Record<string, unknown>): LazyStoredCo
     conversationId: raw.conversation_id as string,
     encryptedTitle: raw.title as string,
     projectId: raw.project_id as string | undefined,
-    createdAt: new Date(raw.created_at as number),
-    updatedAt: new Date(raw.updated_at as number),
+    createdAt: rawDate(raw.created_at),
+    updatedAt: rawDate(raw.updated_at),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
     pinnedAt: typeof pinnedAt === "number" ? new Date(pinnedAt) : null,
   };
@@ -706,7 +717,7 @@ export async function getMessageSkeletonsOp(
     messageId: raw.message_id as number,
     conversationId: String(raw.conversation_id),
     role: raw.role as MessageSkeleton["role"],
-    createdAt: new Date(raw.created_at as number),
+    createdAt: rawDate(raw.created_at),
     // WatermelonDB surfaces unset text columns as null at runtime — normalize
     // to undefined so `parentMessageId ?? undefined` keying works everywhere.
     parentMessageId: (raw.parent_message_id as string | null | undefined) ?? undefined,

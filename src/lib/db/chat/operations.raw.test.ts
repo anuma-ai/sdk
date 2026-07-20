@@ -140,6 +140,15 @@ describe("chat read ops — use unsafeFetchRaw, never fetch (no Model retained)"
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(out[0].role).toBe("user");
   });
+
+  it("maps a NULL timestamp to null, not epoch/Invalid Date (matches the @date getter)", async () => {
+    // A legacy / partially-migrated row can carry a null created_at/updated_at. The old @date
+    // getter returns null; the raw path must too — never new Date(null)=epoch or new Date(undefined).
+    const { ctx } = spyCtx([{ ...rawMsg(), created_at: null, updated_at: null }]);
+    const [msg] = await getMessagesOp(ctx, "conv_1");
+    expect(msg.createdAt).toBeNull();
+    expect(msg.updatedAt).toBeNull();
+  });
 });
 
 describe("chat read ops — unsafeFetchRaw decrypt parity (real adapter, encrypted)", () => {
