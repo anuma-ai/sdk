@@ -217,6 +217,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      endpointOverride,
       piiRedaction: requestPiiRedaction,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
@@ -300,6 +301,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           baseUrl,
           headers,
           apiType: requestApiType ?? defaultApiType,
+          endpointOverride,
           temperature,
           maxOutputTokens,
           tools,

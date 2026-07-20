@@ -422,6 +422,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      endpointOverride,
       piiRedaction: requestPiiRedaction,
       headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
@@ -501,6 +502,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           token: token!,
           baseUrl,
           apiType: requestApiType ?? defaultApiType,
+          endpointOverride,
           temperature,
           maxOutputTokens,
           tools,

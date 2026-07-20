@@ -414,6 +414,14 @@ export type RunToolLoopOptions = {
   headers?: Record<string, string>;
   /** Which API backend to use. @default "auto" */
   apiType?: ApiType;
+  /**
+   * Optional per-call override for the request path. When set, every streaming
+   * request targets this path instead of the endpoint the strategy resolves from
+   * the model. Only the URL path changes — the request body and response parsing
+   * follow the resolved strategy exactly as they would without the override.
+   * @default undefined (path resolved from the model / `apiType`)
+   */
+  endpointOverride?: string;
   /** Controls randomness (0.0 to 2.0). */
   temperature?: number;
   /** Maximum tokens to generate. */
@@ -833,6 +841,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     baseUrl = BASE_URL,
     headers,
     apiType = "auto",
+    endpointOverride,
     temperature,
     maxOutputTokens,
     tools,
@@ -877,6 +886,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
   const resolved = resolveApiType(apiType, model);
   const strategy = getStrategy(resolved);
+  // The strategy still drives the request body and response parsing; only the
+  // path can be redirected via `endpointOverride`.
+  const effectiveEndpoint = endpointOverride ?? strategy.endpoint;
 
   // `onRunEnd` and `onRunError` are mutually exclusive and fire at most once
   // per run. Every terminal path (validation failure, pre-start abort, clean
@@ -1232,7 +1244,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       const sseResult = makeStreamingRequest({
         baseUrl,
-        endpoint: strategy.endpoint,
+        endpoint: effectiveEndpoint,
         body: requestBody,
         token,
         headers: effectiveHeaders,
@@ -1890,7 +1902,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         const continuationRound = toolIteration;
         const continuationResult = makeStreamingRequest({
           baseUrl,
-          endpoint: strategy.endpoint,
+          endpoint: effectiveEndpoint,
           body: continuationRequestBody,
           token,
           headers: effectiveHeaders,
