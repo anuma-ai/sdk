@@ -18,15 +18,23 @@
  * newest (superset) message list re-covers any superseded turn. Turns for
  * different conversations queue independently and never displace each other.
  *
- * Watermark + window: the worker keeps an in-memory, per-conversation
- * watermark of the last message it extracted through. Each run sends every
- * message *after* that watermark (plus a small overlap for coreference,
- * capped at `maxWindowSize`) rather than a fixed trailing slice — so facts
- * stated in turns that arrived during a busy window are still examined instead
- * of scrolling out of a last-N window. The watermark is session-scoped (in
- * memory); it does NOT survive process death, so an extraction killed mid-flight
- * by app backgrounding is not replayed in a later session. Durable cross-process
- * replay would require a persisted watermark (out of scope here).
+ * Watermark + window: the worker keeps a per-conversation watermark of the
+ * last message it extracted through. Each run sends every message *after* that
+ * watermark (plus a small overlap for coreference, capped at `maxWindowSize`)
+ * rather than a fixed trailing slice — so facts stated in turns that arrived
+ * during a busy window are still examined instead of scrolling out of a last-N
+ * window.
+ *
+ * Durability: the in-memory watermark alone does NOT survive process death, so
+ * a session killed after messages accumulate but before extraction would, on
+ * the next launch, fall back to a trailing-window guess and could skip the
+ * un-extracted tail. Pass a {@link ExtractionCursorStore} (`cursorStore`) to
+ * persist the watermark per conversation — it is hydrated synchronously the
+ * first time a conversation is touched and written through on every advance, so
+ * a later session resumes exactly after the last extracted message. Backing it
+ * with a process-shared store (web `localStorage`, mobile MMKV) also stops two
+ * concurrent sessions from double-extracting the same turn. Omit it for the
+ * legacy in-memory-only behavior.
  *
  * Memory Studio panel subscribes by passing `onMemoryExtracted` and/or
  * `onTurnComplete` callbacks. The Studio uses `onMemoryExtracted` to
@@ -90,6 +98,60 @@ export interface TurnCompleteEvent {
 }
 
 /** @public */
+/**
+ * Durable per-conversation extraction cursor. Synchronous by contract (both
+ * SDK platform stores — web `localStorage`, mobile MMKV — are sync), so the
+ * worker can hydrate the watermark inline without changing its fire-and-forget
+ * control flow. Implementations should be best-effort; the worker guards every
+ * call, so a throwing store degrades to in-memory-only rather than breaking
+ * extraction.
+ *
+ * @public
+ */
+export interface ExtractionCursorStore {
+  /** Last message id extracted through for `conversationId`, or undefined. */
+  get(conversationId: string): string | undefined;
+  /** Persist the last-extracted message id for `conversationId`. */
+  set(conversationId: string, messageId: string): void;
+}
+
+/** Minimal synchronous key/value surface — satisfied by the SDK's
+ * `PlatformStorage` (web `localStorage`, mobile MMKV). */
+interface SyncKeyValueStore {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+/**
+ * Build an {@link ExtractionCursorStore} over a synchronous key/value store
+ * (e.g. the SDK's `PlatformStorage`). Keys are namespaced by `keyPrefix`.
+ * Reads/writes are guarded so a store that throws (quota, private mode) can't
+ * break extraction — the watermark just falls back to in-memory.
+ *
+ * @public
+ */
+export function createPlatformCursorStore(
+  storage: SyncKeyValueStore,
+  keyPrefix = "anuma:mem:xcursor:"
+): ExtractionCursorStore {
+  return {
+    get(conversationId) {
+      try {
+        return storage.getItem(keyPrefix + conversationId) ?? undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    set(conversationId, messageId) {
+      try {
+        storage.setItem(keyPrefix + conversationId, messageId);
+      } catch {
+        /* best-effort */
+      }
+    },
+  };
+}
+
 export interface CreateAutoExtractorOptions {
   retainCtx: RetainContext;
   extract: ExtractFactsOptions;
@@ -120,6 +182,15 @@ export interface CreateAutoExtractorOptions {
    * sessions in RAM-constrained hosts. Default 200.
    */
   maxTrackedConversations?: number;
+  /**
+   * Durable per-conversation watermark store. When provided, the watermark is
+   * hydrated from it the first time each conversation is touched and written
+   * through on every advance, so extraction resumes exactly after the last
+   * extracted message across process restarts (and, with a process-shared
+   * store, across concurrent sessions). Build via {@link createPlatformCursorStore}.
+   * Omit for in-memory-only (legacy) behavior.
+   */
+  cursorStore?: ExtractionCursorStore;
   /**
    * Entity / memory_entity write context — when provided, each retained
    * candidate's `entities[]` is persisted via `linkMemoryEntitiesOp`,
@@ -236,6 +307,9 @@ interface ConversationState {
    * advanced, so the newer superset re-covers it).
    */
   pending?: AutoExtractMessage[];
+  /** True once the persisted cursor has been read into `watermark` (at most
+   * once per state instance), so hydration never clobbers a live watermark. */
+  hydrated?: boolean;
 }
 
 /**
@@ -264,12 +338,34 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   // watermark only advances on completion); across conversations a displaced
   // turn would be silently lost. Queued turns drain one at a time (≤1 in-flight).
   const conversations = new Map<string | undefined, ConversationState>();
+  const cursorStore = options.cursorStore;
+
+  /**
+   * Seed a fresh state's watermark from the durable cursor exactly once. Only
+   * for real (string) conversation ids — the `undefined` bucket is ephemeral
+   * and not persisted. Guarded so a throwing store degrades to in-memory-only.
+   * Re-hydrates transparently after eviction (the cursor outlives the map
+   * entry), which is strictly better than the old trailing-window fallback.
+   */
+  const hydrate = (state: ConversationState, conversationId?: string): void => {
+    if (state.hydrated) return;
+    state.hydrated = true;
+    if (!cursorStore || conversationId === undefined || state.watermark !== undefined) return;
+    try {
+      const persisted = cursorStore.get(conversationId);
+      if (persisted) state.watermark = persisted;
+    } catch {
+      /* best-effort — a throwing store degrades to in-memory-only */
+    }
+  };
+
   const stateFor = (conversationId?: string): ConversationState => {
     let state = conversations.get(conversationId);
     if (!state) {
       if (conversations.size >= maxTrackedConversations) evictOldestIdle(conversationId);
       state = {};
       conversations.set(conversationId, state);
+      hydrate(state, conversationId);
     }
     return state;
   };
@@ -301,7 +397,10 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     messages: AutoExtractMessage[],
     conversationId?: string
   ): AutoExtractMessage[] {
-    const lastId = conversations.get(conversationId)?.watermark;
+    // stateFor (not a bare Map.get) so the durable cursor is hydrated into the
+    // watermark before this first read — otherwise a post-restart turn would
+    // fall back to the trailing window and could skip the un-extracted tail.
+    const lastId = stateFor(conversationId).watermark;
     // No watermark (or it scrolled out of the provided history) → trailing slice.
     // `findIndex` short-circuits to -1 when lastId is undefined (no id matches).
     const idx = lastId === undefined ? -1 : messages.findIndex((m) => m.id === lastId);
@@ -445,7 +544,18 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         // nothing durable") → advance the watermark past everything we sent, so
         // the next turn starts after it. Only on success: a throw skips this,
         // leaving these messages to be re-covered next turn (transient retry).
-        stateFor(conversationId).watermark = window[window.length - 1].id;
+        const advancedTo = window[window.length - 1].id;
+        stateFor(conversationId).watermark = advancedTo;
+        // Persist through the durable cursor so a later session resumes here.
+        // Best-effort + only for real conversation ids (the undefined bucket is
+        // ephemeral); guarded so a throwing store never fails the turn.
+        if (cursorStore && conversationId !== undefined) {
+          try {
+            cursorStore.set(conversationId, advancedTo);
+          } catch {
+            /* best-effort */
+          }
+        }
 
         // extractAndRetain returns candidates and results length-aligned:
         // entries appear only when their retain() write succeeded, so

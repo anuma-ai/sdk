@@ -1,6 +1,6 @@
 # CreateAutoExtractorOptions
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#93)
+Defined in: [src/lib/memory/autoExtractWorker.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#155)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:93](https://github.com/anuma-ai
 
 > `optional` **consolidate**: `object`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#142)
+Defined in: [src/lib/memory/autoExtractWorker.ts:213](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#213)
 
 Enable the LLM-based consolidation pass (Hindsight facet-dedup) on
 every retain() write. Auth is NOT configured here — the consolidation
@@ -68,11 +68,26 @@ schema-violating response). See
 
 ***
 
+### cursorStore?
+
+> `optional` **cursorStore**: [`ExtractionCursorStore`](ExtractionCursorStore.md)
+
+Defined in: [src/lib/memory/autoExtractWorker.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#193)
+
+Durable per-conversation watermark store. When provided, the watermark is
+hydrated from it the first time each conversation is touched and written
+through on every advance, so extraction resumes exactly after the last
+extracted message across process restarts (and, with a process-shared
+store, across concurrent sessions). Build via [createPlatformCursorStore](../functions/createPlatformCursorStore.md).
+Omit for in-memory-only (legacy) behavior.
+
+***
+
 ### entityCtx?
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#129)
+Defined in: [src/lib/memory/autoExtractWorker.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#200)
 
 Entity / memory\_entity write context — when provided, each retained
 candidate's `entities[]` is persisted via `linkMemoryEntitiesOp`,
@@ -85,7 +100,7 @@ empty and recall's graph fusion is a no-op.
 
 > **extract**: [`ExtractFactsOptions`](ExtractFactsOptions.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#95)
+Defined in: [src/lib/memory/autoExtractWorker.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#157)
 
 ***
 
@@ -93,7 +108,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:95](https://github.com/anuma-ai
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#133)
+Defined in: [src/lib/memory/autoExtractWorker.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#204)
 
 Override folderId for all retained facts.
 
@@ -103,7 +118,7 @@ Override folderId for all retained facts.
 
 > `optional` **maxTrackedConversations**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#122)
+Defined in: [src/lib/memory/autoExtractWorker.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#184)
 
 Cap on the number of conversations whose extraction state (watermark +
 coalescing queue) is held in memory. When exceeded, the oldest entry with
@@ -118,7 +133,7 @@ sessions in RAM-constrained hosts. Default 200.
 
 > `optional` **maxWindowSize**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#113)
+Defined in: [src/lib/memory/autoExtractWorker.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#175)
 
 Upper bound on the widened (post-watermark) window. Under an extreme burst
 — more un-extracted messages accumulate than this cap while an extraction
@@ -132,7 +147,7 @@ Default 20. Coerced to be ≥ `windowSize`.
 
 > `optional` **minConfidence**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#97)
+Defined in: [src/lib/memory/autoExtractWorker.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#159)
 
 Confidence floor for retained facts. Default 0.7.
 
@@ -142,7 +157,7 @@ Confidence floor for retained facts. Default 0.7.
 
 > `optional` **onCandidateFailed**: (`event`: `object`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#168)
+Defined in: [src/lib/memory/autoExtractWorker.ts:239](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#239)
 
 Per-candidate retain() failure. Lets UI layers ("Anuma is saving …
 — couldn't save Lives in Portland") surface the specific fact that
@@ -220,7 +235,7 @@ once per filtered candidate that threw during retain.
 
 > `optional` **onError**: (`error`: `Error`, `conversationId?`: `string`) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#161)
+Defined in: [src/lib/memory/autoExtractWorker.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#232)
 
 Diagnostic — fires on unexpected pipeline errors.
 
@@ -271,7 +286,7 @@ Diagnostic — fires on unexpected pipeline errors.
 
 > `optional` **onMemoryExtracted**: (`event`: [`MemoryExtractedEvent`](MemoryExtractedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#155)
+Defined in: [src/lib/memory/autoExtractWorker.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#226)
 
 Per-fact event — fires once per memory written.
 
@@ -310,7 +325,7 @@ Per-fact event — fires once per memory written.
 
 > `optional` **onSkipped**: (`event`: [`TurnSkippedEvent`](TurnSkippedEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#159)
+Defined in: [src/lib/memory/autoExtractWorker.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#230)
 
 Diagnostic — fires when a turn is skipped.
 
@@ -349,7 +364,7 @@ Diagnostic — fires when a turn is skipped.
 
 > `optional` **onTurnComplete**: (`event`: [`TurnCompleteEvent`](TurnCompleteEvent.md)) => `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#157)
+Defined in: [src/lib/memory/autoExtractWorker.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#228)
 
 Per-turn event — fires once after the whole pipeline finishes.
 
@@ -388,7 +403,7 @@ Per-turn event — fires once after the whole pipeline finishes.
 
 > **retainCtx**: [`RetainContext`](RetainContext.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#94)
+Defined in: [src/lib/memory/autoExtractWorker.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#156)
 
 ***
 
@@ -396,7 +411,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:94](https://github.com/anuma-ai
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#131)
+Defined in: [src/lib/memory/autoExtractWorker.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#202)
 
 Override scope for all retained facts.
 
@@ -406,7 +421,7 @@ Override scope for all retained facts.
 
 > `optional` **windowSize**: `number`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#105)
+Defined in: [src/lib/memory/autoExtractWorker.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#167)
 
 Trailing-window size used when there is no watermark yet for a
 conversation (the first extraction, or after the watermark scrolled out of

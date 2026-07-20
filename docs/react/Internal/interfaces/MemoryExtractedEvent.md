@@ -1,6 +1,6 @@
 # MemoryExtractedEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#50)
+Defined in: [src/lib/memory/autoExtractWorker.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#58)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:50](https://github.com/anuma-ai
 
 > **candidate**: [`ExtractedCandidate`](ExtractedCandidate.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#51)
+Defined in: [src/lib/memory/autoExtractWorker.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#59)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:51](https://github.com/anuma-ai
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#53)
+Defined in: [src/lib/memory/autoExtractWorker.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#61)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:53](https://github.com/anuma-ai
 
 > **result**: [`RetainResult`](RetainResult.md)
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#52)
+Defined in: [src/lib/memory/autoExtractWorker.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#60)
