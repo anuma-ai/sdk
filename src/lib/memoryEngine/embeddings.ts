@@ -132,10 +132,14 @@ export async function generateEmbedding(
 ): Promise<number[]> {
   const { baseUrl = BASE_URL, getToken, apiKey, model, cache } = options;
 
-  // Check cache first
+  // Check cache first. The cache holds Float32Array (native embedding
+  // precision, half the resident RAM of a float64 number[]); the public
+  // contract still returns number[], so re-materialize a plain array at this
+  // boundary. This is not the RAM-critical resident structure (the Map stays
+  // f32) and the array handed back equals what a cache miss would return.
   if (cache) {
     const cached = cache.get(text);
-    if (cached) return cached;
+    if (cached) return Array.from(cached);
   }
 
   // Build auth headers - prefer apiKey if provided
@@ -183,9 +187,10 @@ export async function generateEmbedding(
     });
   }
 
-  // Store in cache
+  // Store in cache as Float32Array — the API returns a float64 number[] but
+  // embeddings are natively f32, so this is lossless and halves resident RAM.
   if (cache) {
-    cache.set(text, embedding);
+    cache.set(text, Float32Array.from(embedding));
   }
 
   return embedding;
@@ -262,7 +267,9 @@ export async function generateEmbeddings(
     if (cache) {
       const cached = cache.get(texts[i]);
       if (cached) {
-        results[i] = cached;
+        // Cache holds Float32Array; the batch contract returns number[][], so
+        // re-materialize at this boundary (the resident f32 Map is untouched).
+        results[i] = Array.from(cached);
         continue;
       }
     }
@@ -340,7 +347,8 @@ export async function generateEmbeddings(
   for (let i = 0; i < uncachedIndices.length; i++) {
     results[uncachedIndices[i]] = newEmbeddings[i];
     if (cache) {
-      cache.set(uncachedTexts[i], newEmbeddings[i]);
+      // Store native f32 — lossless, halves the cache's resident RAM.
+      cache.set(uncachedTexts[i], Float32Array.from(newEmbeddings[i]));
     }
   }
 

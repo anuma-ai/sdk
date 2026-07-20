@@ -72,8 +72,13 @@ export interface EmbeddingOptions {
    * are looked up in this map before calling the API, and new embeddings
    * are stored after generation. Useful when the same texts are embedded
    * repeatedly (e.g., across eval iterations or re-indexing runs).
+   *
+   * Values are stored as `Float32Array` (the embedding model's native
+   * precision) rather than a float64 `number[]`, halving the resident RAM of
+   * the cache with no precision loss. `generateEmbedding(s)` still return
+   * `number[]` at the API boundary, so callers are unaffected.
    */
-  cache?: Map<string, number[]>;
+  cache?: Map<string, Float32Array>;
   /** Called after each embedding API call with the token usage from the response. */
   onUsage?: (usage: { promptTokens: number; totalTokens: number }) => void;
   /**
