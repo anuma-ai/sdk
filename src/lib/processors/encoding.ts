@@ -8,15 +8,18 @@
  * These avoid direct use of `atob`/`btoa` (unavailable in older Node.js versions)
  * by preferring `Buffer` when available, with browser globals as fallback.
  *
- * The browser fallbacks encode/decode in bounded chunks. `btoa(String.fromCharCode(...bytes))`
- * spreads every byte as a function argument, which throws
- * `RangeError: Maximum call stack size exceeded` above ~100–500KB — so it must never be used
- * on payloads of unknown size (e.g. whole-DB backups). Chunking keeps the argument count bounded
- * and only one small chunk string live at a time.
+ * The browser encode fallback builds the binary string one byte at a time in bounded chunks.
+ * It deliberately avoids `String.fromCharCode(...bytes)` (spread) AND `String.fromCharCode.apply`
+ * (both pass every byte as a function argument): spreading throws
+ * `RangeError: Maximum call stack size exceeded` above ~100–500KB, and `apply` has an
+ * engine-dependent argument-count cap (~65536 on Safari/JavaScriptCore, the CloudKit runtime) that
+ * would reintroduce the same crash on large payloads. A per-byte loop has no argument-count limit
+ * on any engine, so it is safe for whole-DB backups (MBs to hundreds of MB).
  */
 
-// 0x8000 bytes, a multiple of 3 so base64 chunk boundaries never split a 3-byte group
-// (no `=` padding lands mid-stream when concatenating per-chunk base64 output).
+// Base64 chunk size, a multiple of 3 so chunk boundaries never split a 3-byte group
+// (no `=` padding lands mid-stream when concatenating per-chunk base64 output). Keeps only one
+// chunk-sized binary string live at a time on the encode path.
 const B64_ENCODE_CHUNK = 0x8000 * 3;
 
 /**
@@ -64,11 +67,15 @@ export function uint8ArrayToBase64(data: Uint8Array): string {
 
   // Browser: encode in bounded chunks. Concatenating per-chunk base64 is only safe when each
   // chunk (except the last) is a multiple of 3 bytes, so no `=` padding appears mid-stream.
+  // The binary string is built with a per-byte loop (no spread, no `apply`) so there is no
+  // argument-count limit to hit — the whole point of this fix.
   let base64 = "";
   for (let i = 0; i < data.length; i += B64_ENCODE_CHUNK) {
     const slice = data.subarray(i, i + B64_ENCODE_CHUNK); // view, no copy
-    // apply on a bounded (<= B64_ENCODE_CHUNK) view keeps the argument count well under the limit
-    const binary = String.fromCharCode.apply(null, slice as unknown as number[]);
+    let binary = "";
+    for (let j = 0; j < slice.length; j++) {
+      binary += String.fromCharCode(slice[j]);
+    }
     base64 += btoa(binary);
   }
   return base64;
