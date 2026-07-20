@@ -28,6 +28,8 @@ import type {
   MemoryKind,
   RankedMemory,
   RecallContext,
+  RecallDegradation,
+  RecallDiagnostics,
   RecallOptions,
   RecallResult,
 } from "./types.js";
@@ -35,6 +37,13 @@ import type {
 const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 const DEFAULT_FACT_MIN_SCORE = 0.1;
+
+/** Monotonic wall clock in ms; `performance.now()` where available (browser /
+ * RN / Node), else `Date.now()`. Used only for best-effort recall timings. */
+const nowMs = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
 const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 
 interface BudgetFlags {
@@ -104,7 +113,54 @@ export async function recall(
   const usedBudget: "low" | "mid" | "high" =
     requestedBudget === "high" && !decomposeAvailable ? "mid" : requestedBudget;
 
+  // Best-effort observability state (D2). Populated as phases run; flushed to
+  // options.onDiagnostics just before every return.
+  const t0 = nowMs();
+  let prepMs = 0;
+  let factLaneMs = 0;
+  let chunkLaneMs = 0;
+  let fuseMs = 0;
+  const factResults: VaultSearchResult[] = [];
+  const chunkResults: ChunkSearchResult[] = [];
+  let vaultSize: number | undefined;
+  // Whether the cross-encoder actually reranked this call's fact lane —
+  // threaded from the search layer (not the requested budget flag, which lied
+  // on RN, and not a module-global, which couldn't see per-call degradation).
+  let didRerank = false;
+
+  const emitDiagnostics = (candidateCount: number): void => {
+    const cb = options.onDiagnostics;
+    if (!cb) return;
+    const degraded: RecallDegradation[] = [];
+    if (flags.rerank && !didRerank) degraded.push("rerank-unavailable");
+    if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
+    const diagnostics: RecallDiagnostics = {
+      usedBudget,
+      reranked: didRerank,
+      candidateCount,
+      ...(vaultSize !== undefined && { vaultSize }),
+      factCount: factResults.length,
+      chunkCount: chunkResults.length,
+      timings: {
+        total: nowMs() - t0,
+        prep: prepMs,
+        factLane: factLaneMs,
+        chunkLane: chunkLaneMs,
+        fuse: fuseMs,
+      },
+      degraded,
+    };
+    // Diagnostics are pure observability — a throwing sink must never break
+    // retrieval.
+    try {
+      cb(diagnostics);
+    } catch {
+      /* swallow */
+    }
+  };
+
   if (!query || typeof query !== "string" || query.trim().length === 0) {
+    emitDiagnostics(0);
     return { memories: [], usedBudget, reranked: false, candidateCount: 0 };
   }
 
@@ -121,6 +177,7 @@ export async function recall(
   // look up memories whose event_time overlaps.
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
   const wantsTemporal = types.includes("fact") && ctx.vaultCtx;
+  const prepStart = nowMs();
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
     needsChunkEmbedding
       ? generateEmbedding(query, ctx.embeddingOptions)
@@ -130,16 +187,10 @@ export async function recall(
       ? buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
       : Promise.resolve([] as string[]),
   ]);
-
-  const factResults: VaultSearchResult[] = [];
-  const chunkResults: ChunkSearchResult[] = [];
-  let vaultSize: number | undefined;
-  // Whether the cross-encoder actually reranked this call's fact lane —
-  // threaded from the search layer (not the requested budget flag, which lied
-  // on RN, and not a module-global, which couldn't see per-call degradation).
-  let didRerank = false;
+  prepMs = nowMs() - prepStart;
 
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
+    const factStart = nowMs();
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
     const {
       results,
@@ -197,9 +248,11 @@ export async function recall(
     );
     vaultSize = size;
     didRerank = reranked;
+    factLaneMs = nowMs() - factStart;
   }
 
   if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
+    const chunkStart = nowMs();
     const chunkMinScore = options.minScore ?? DEFAULT_CHUNK_MIN_SCORE;
     const results = await searchChunksOp(ctx.storageCtx, queryEmbedding, {
       limit: types.includes("fact") ? Math.max(limit * 2, 16) : limit,
@@ -218,7 +271,10 @@ export async function recall(
         (r) => r.chunkText.trim()
       )
     );
+    chunkLaneMs = nowMs() - chunkStart;
   }
+
+  const fuseStart = nowMs();
 
   // Fuse across lanes. Single-lane requests skip RRF — preserves the raw
   // score on the result so callers downstream of `recall()` can reason
@@ -229,11 +285,14 @@ export async function recall(
       ...chunkResults.map(toChunkMemory),
     ];
     memories.sort((a, b) => b.score - a.score);
+    const candidateCount = factResults.length + chunkResults.length;
+    fuseMs = nowMs() - fuseStart;
+    emitDiagnostics(candidateCount);
     return {
       memories: memories.slice(0, limit),
       usedBudget,
       reranked: didRerank,
-      candidateCount: factResults.length + chunkResults.length,
+      candidateCount,
       ...(vaultSize !== undefined && { vaultSize }),
     };
   }
@@ -307,6 +366,8 @@ export async function recall(
     suppressed = next;
     memories = selectWith(suppressed);
   }
+  fuseMs = nowMs() - fuseStart;
+  emitDiagnostics(byId.size);
   return {
     memories,
     usedBudget,

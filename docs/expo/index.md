@@ -922,6 +922,18 @@ Re-exports [RecallContext](../react/Internal/interfaces/RecallContext.md)
 
 ***
 
+### RecallDegradation
+
+Re-exports [RecallDegradation](../react/Internal/type-aliases/RecallDegradation.md)
+
+***
+
+### RecallDiagnostics
+
+Re-exports [RecallDiagnostics](../react/Internal/interfaces/RecallDiagnostics.md)
+
+***
+
 ### RecallOptions
 
 Re-exports [RecallOptions](../react/Internal/interfaces/RecallOptions.md)

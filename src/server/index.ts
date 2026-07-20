@@ -329,6 +329,8 @@ export type {
   PortalLlmAuth,
   RankedMemory,
   RecallContext,
+  RecallDegradation,
+  RecallDiagnostics,
   RecallOptions,
   RecallResult,
   RecallToolCallbacks,

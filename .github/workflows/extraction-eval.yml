@@ -2,10 +2,12 @@ name: Extraction Eval
 
 # Runs the extraction-quality benchmark (recall / precision / junk +
 # entity-kind accuracy) against the portal LLM. Two ways in:
-#   - workflow_dispatch: on-demand, pick repeats/model/threshold.
-#   - push (this feature branch only): auto-run the before/after A/B so the
-#     PR gets kind-accuracy numbers without a local PORTAL_API_KEY. The branch
-#     filter means it stops firing once merged to main.
+#   - workflow_dispatch: on-demand, pick mode/repeats/model/threshold.
+#   - pull_request touching the extraction path: auto-run the regression gate
+#     against the committed baseline so a prompt/taxonomy/corpus change can't
+#     merge with a silent quality drop. Paths-scoped so ordinary PRs skip it.
+#     (Same-repo branches get PORTAL_API_KEY; fork PRs don't and will fail —
+#     acceptable for a private SDK where contributors push branches, not forks.)
 on:
   workflow_dispatch:
     inputs:
@@ -42,8 +44,8 @@ on:
         type: choice
         default: "true"
         options: ["true", "false"]
-  push:
-    branches: [feat/entity-kind-classification, feat/extraction-eval-baseline]
+  pull_request:
+    branches: [main]
     paths:
       - ".github/workflows/extraction-eval.yml"
       - "src/lib/memory/autoExtract.ts"
@@ -58,9 +60,10 @@ jobs:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       # Free-form inputs via env (not ${{ }} inline) so the shell tokenizes
       # after substitution — blocks command injection from the dispatch UI.
-      # push (no inputs) defaults to the A/B mode, matching prior behavior.
-      INPUT_MODE: ${{ inputs.mode || 'ab' }}
-      INPUT_REPEAT: ${{ inputs.repeat || '3' }}
+      # pull_request (no inputs) runs the regression gate at repeat 5 (matches
+      # how baseline.json was generated); dispatch defaults to the A/B mode.
+      INPUT_MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'gate') || 'ab' }}
+      INPUT_REPEAT: ${{ inputs.repeat || (github.event_name == 'pull_request' && '5') || '3' }}
       INPUT_MODEL: ${{ inputs.model }}
       INPUT_MATCH_THRESHOLD: ${{ inputs.match_threshold }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
@@ -145,6 +148,26 @@ jobs:
           # pipefail so the gate's non-zero exit isn't swallowed by tee.
           set -o pipefail
           pnpm eval:extraction $EVAL_ARGS --baseline test/memory/src/extraction/baseline.json | tee after.json
+
+      - name: Summarize gate result
+        if: always() && env.INPUT_MODE == 'gate'
+        run: |
+          {
+            echo "## Extraction eval — regression gate (vs committed baseline)"
+            if [ -f after.json ]; then
+              echo '```'
+              jq -r '
+                .overall as $o |
+                "  entity coverage : \(($o.entityCoverage*1000|round/10))%  (\($o.coveredEntities)/\($o.expectedEntities))",
+                "  kind accuracy   : \(($o.kindAccuracy*1000|round/10))%  (\($o.kindCorrect)/\($o.coveredEntities))",
+                "  recall/precision: \(($o.recall*1000|round/10))% / \(($o.precision*1000|round/10))%",
+                (.variance // {} | to_entries[]? | "  ~\(.key): mean \((.value.mean*1000|round/10)) [\((.value.min*1000|round/10))–\((.value.max*1000|round/10))]")
+              ' after.json 2>/dev/null || echo "  (could not parse after.json)"
+              echo '```'
+            else
+              echo "_Gate did not produce a result (eval step failed before writing after.json)._"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize kind accuracy (before vs after)
         if: always() && env.INPUT_MODE == 'ab'
