@@ -208,13 +208,20 @@ export async function retain(
   // only reached on the create path (a tombstone-suppressed new fact returned
   // above, leaving the old fact untouched — an ambiguous case we don't retire).
   if (supersedeTargetId) {
-    await supersedeVaultMemoryOp(ctx.vaultCtx, supersedeTargetId, created.uniqueId);
-    return {
-      action: "supersede",
-      memoryId: created.uniqueId,
-      targetId: supersedeTargetId,
-      proofCount: 1,
-    };
+    // Report supersede ONLY if the stale row was actually retired. The op
+    // no-ops (returns false) when the target was concurrently deleted/retired
+    // or the write failed — in that case the new fact still exists, but the
+    // old one is (or stays) live, so this is honestly a "create", not a
+    // supersede. Don't claim a retirement that didn't happen.
+    const retired = await supersedeVaultMemoryOp(ctx.vaultCtx, supersedeTargetId, created.uniqueId);
+    if (retired) {
+      return {
+        action: "supersede",
+        memoryId: created.uniqueId,
+        targetId: supersedeTargetId,
+        proofCount: 1,
+      };
+    }
   }
 
   return {
@@ -360,11 +367,15 @@ async function tryConsolidate(
   if (decision.action === "create") return null; // fall through to insert
 
   // supersede — the new fact replaces a standing value that changed. Validate
-  // the stale target still exists, then hand back its id; retain() creates the
-  // new fact fresh (never merges) and stamps superseded_by on the old one.
+  // the stale target still exists AND isn't already retired (a concurrent
+  // supersession may have beaten us to it); then hand back its id. retain()
+  // creates the new fact fresh (never merges) and stamps superseded_by on the
+  // old one. `getVaultMemoryOp` already excludes deleted rows.
   if (decision.action === "supersede" && decision.targetId) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
-    if (!existing) return null; // race: target gone → plain create
+    // Target gone or already superseded → fall through to plain create rather
+    // than re-retiring an already-retired row.
+    if (!existing || existing.supersededBy) return null;
     return { supersede: decision.targetId };
   }
 

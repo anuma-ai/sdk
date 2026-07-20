@@ -577,4 +577,52 @@ describe("retain — write-time supersession (A2)", () => {
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
     expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
   });
+
+  it("reports create (not supersede) when the retirement no-ops", async () => {
+    // The new fact is created, but supersedeVaultMemoryOp returns false (target
+    // concurrently deleted/retired or write failed). We must NOT claim a
+    // retirement that didn't happen — the honest outcome is a plain create.
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
+    ]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "old",
+      content: "Lives in San Francisco",
+    });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "old" } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new-sf" } as never);
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(false); // retirement failed
+
+    const result = await retain("Lives in San Francisco", ctx, { consolidateOptions });
+
+    expect(result).toMatchObject({ action: "create", memoryId: "new-sf" });
+    expect(vi.mocked(supersedeVaultMemoryOp)).toHaveBeenCalled();
+  });
+
+  it("falls through to plain create when the target is already superseded", async () => {
+    vi.mocked(searchVaultMemories)
+      .mockResolvedValueOnce([
+        { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
+      ]) // consolidate candidate search
+      .mockResolvedValueOnce([]); // Stage-2 strict merge search on the fall-through
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "old",
+      content: "Lives in San Francisco",
+    });
+    // Target already retired by a concurrent supersession.
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "old",
+      supersededBy: "someone-else",
+    } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new-sf" } as never);
+
+    const result = await retain("Lives in San Francisco", ctx, { consolidateOptions });
+
+    expect(result.action).toBe("create");
+    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
+  });
 });

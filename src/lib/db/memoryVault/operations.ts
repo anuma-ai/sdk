@@ -693,6 +693,20 @@ export async function supersedeVaultMemoryOp(
     const record = await ctx.vaultMemoryCollection.find(id);
     if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) return false;
 
+    // Validate the successor before pointing at it: it must exist, be live (not
+    // deleted, not itself superseded), and belong to the same user — otherwise
+    // we'd hide `record` behind a dangling or cross-user pointer that history
+    // consumers can't resolve.
+    let successor;
+    try {
+      successor = await ctx.vaultMemoryCollection.find(supersededById);
+    } catch {
+      return false; // successor id doesn't exist
+    }
+    if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
+      return false;
+    }
+
     let stale = false;
     await ctx.database.write(async () => {
       // Re-check inside the serialized writer (see updateVaultMemoryOp).

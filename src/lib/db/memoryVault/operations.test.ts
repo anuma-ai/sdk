@@ -627,6 +627,34 @@ describe("supersedeVaultMemoryOp (A2)", () => {
     expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
   });
 
+  it("returns false when the successor id does not exist (no dangling pointer)", async () => {
+    const target = mockRecord({ id: "old", update: vi.fn() });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async (id: string) => {
+          if (id === "old") return target;
+          throw new Error("not found");
+        }),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "missing")).toBe(false);
+    expect(target.update).not.toHaveBeenCalled();
+  });
+
+  it("returns false when the successor is deleted or already superseded", async () => {
+    const target = mockRecord({ id: "old", update: vi.fn() });
+    for (const bad of [{ isDeleted: true }, { superseded_by: "x" }]) {
+      const successor = mockRecord({ id: "new", ...bad });
+      const ctx = makeCtx({
+        vaultMemoryCollection: {
+          find: vi.fn(async (id: string) => (id === "old" ? target : successor)),
+        } as any,
+      });
+      expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+    }
+    expect(target.update).not.toHaveBeenCalled();
+  });
+
   it("returns false for a soft-deleted row", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
