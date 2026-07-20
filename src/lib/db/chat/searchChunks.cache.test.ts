@@ -97,6 +97,13 @@ describe("searchChunksOp — chunk vector cache", () => {
     // Warm the cache against the original vectors.
     await searchChunksOp(ctx, [1, 0, 0], { minSimilarity: 0, chunkCache: cache });
 
+    // The cache version token is the message's `updated_at` (ms). Real
+    // re-embeds happen minutes after a message is first embedded; here the seed
+    // write and the re-embed would otherwise race inside the same millisecond,
+    // leaving updated_at unchanged and the cache legitimately valid. Wait past
+    // the ms boundary so the re-embed is a genuinely newer version.
+    await new Promise((r) => setTimeout(r, 5));
+
     // Re-embed msg-a so its top chunk now points the other way. This bumps
     // updated_at, so the cached (stale) vectors must be discarded.
     await updateMessageChunksOp(

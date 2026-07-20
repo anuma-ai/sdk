@@ -1253,7 +1253,7 @@ export async function searchChunksOp(
     similarity: number;
     chunkTextSource:
       | { kind: "chunk"; text: string }
-      | { kind: "chunk-cached"; chunkIndex: number }
+      | { kind: "chunk-cached"; chunkIndex: number; version: number }
       | { kind: "message" };
   };
   const candidates: Candidate[] = [];
@@ -1290,7 +1290,7 @@ export async function searchChunksOp(
             candidates.push({
               message,
               similarity,
-              chunkTextSource: { kind: "chunk-cached", chunkIndex: ci },
+              chunkTextSource: { kind: "chunk-cached", chunkIndex: ci, version },
             });
           }
         }
@@ -1383,19 +1383,24 @@ export async function searchChunksOp(
   // once per unique survivor message that was scored from cached vectors.
   // Bounded by top-K, so a warm chunk lane decrypts at most `limit` messages
   // instead of the whole table.
-  const chunkTextByMsgId = new Map<string, MessageChunk[]>();
+  //
+  // Also capture the message's `updated_at` *after* the decrypt so a re-embed
+  // that lands between scoring (pass 1) and here is detected: the cached
+  // vector's chunkIndex only maps to the freshly-decrypted `chunks` array when
+  // the row hasn't changed. Reading the version post-decrypt means any write
+  // during the decrypt bumps it away from the scored version → we fall back to
+  // message content instead of applying a stale index to a reordered array.
+  const chunkStateByMsgId = new Map<string, { version: number; chunks: MessageChunk[] }>();
   const needsChunkText = new Set<string>();
   for (const c of topK) {
     if (c.chunkTextSource.kind === "chunk-cached") needsChunkText.add(c.message.id);
   }
   await Promise.all(
     Array.from(needsChunkText, async (id) => {
-      const parsed = await readJsonField<MessageChunk[]>(
-        uniqueMessages.get(id)!,
-        "chunks",
-        ctx.walletAddress
-      );
-      if (parsed) chunkTextByMsgId.set(id, parsed);
+      const m = uniqueMessages.get(id)!;
+      const parsed = await readJsonField<MessageChunk[]>(m, "chunks", ctx.walletAddress);
+      const version = Number(m._getRaw("updated_at")) || 0;
+      if (parsed) chunkStateByMsgId.set(id, { version, chunks: parsed });
     })
   );
 
@@ -1411,10 +1416,16 @@ export async function searchChunksOp(
     if (chunkTextSource.kind === "chunk") {
       chunkText = chunkTextSource.text;
     } else if (chunkTextSource.kind === "chunk-cached") {
-      // Fall back to message content if the chunk row vanished between the
-      // scoring pass and here (e.g. a concurrent re-embed) — never crash recall.
-      chunkText =
-        chunkTextByMsgId.get(message.id)?.[chunkTextSource.chunkIndex]?.text ?? stored.content;
+      // Trust the scored index only if the row is unchanged since scoring
+      // (version match) and the index is still in range; otherwise a concurrent
+      // re-embed may have reordered/resized the array, so fall back to message
+      // content rather than returning unrelated chunk text.
+      const state = chunkStateByMsgId.get(message.id);
+      const chunk =
+        state && state.version === chunkTextSource.version
+          ? state.chunks[chunkTextSource.chunkIndex]
+          : undefined;
+      chunkText = chunk?.text ?? stored.content;
     } else {
       chunkText = stored.content;
     }
