@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/memoryVault/operations", () => ({
   createVaultMemoryOp: vi.fn(),
+  deleteVaultMemoryOp: vi.fn(),
   getVaultMemoryOp: vi.fn(),
   updateVaultMemoryOp: vi.fn(),
   getAllVaultMemoriesOp: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("./consolidate", () => ({
 
 import {
   createVaultMemoryOp,
+  deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
   supersedeVaultMemoryOp,
