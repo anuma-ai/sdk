@@ -127,17 +127,22 @@ export async function recall(
   // threaded from the search layer (not the requested budget flag, which lied
   // on RN, and not a module-global, which couldn't see per-call degradation).
   let didRerank = false;
+  // Whether the V2 head (cosine/BM25 fusion before side lanes) was non-empty.
+  // Used to distinguish "CE skipped on empty head (lane-only hits)" from
+  // "CE failed on a non-empty head (actual outage)".
+  let hadV2Head = false;
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
     if (!cb) return;
     const degraded: RecallDegradation[] = [];
     // Only a genuine degradation: rerank was requested AND there were fact
-    // candidates to rerank, yet the CE didn't run. Guarding on factResults
-    // avoids false "outages" when rerank was never attempted — a chunk-only
-    // recall, an empty-query early return, or a fact lane that produced no
-    // candidates (nothing to rerank) must not inflate the outage metric.
-    if (flags.rerank && factResults.length > 0 && !didRerank) {
+    // candidates to rerank AND there was a V2 head (not just lane-only hits),
+    // yet the CE didn't run. The hadV2Head guard distinguishes "CE skipped
+    // because V2 head was empty (lane-only hits, by design)" from "CE failed
+    // on a non-empty head (actual outage)". Without it, lane-only entity/
+    // temporal recalls falsely report rerank-unavailable.
+    if (flags.rerank && factResults.length > 0 && hadV2Head && !didRerank) {
       degraded.push("rerank-unavailable");
     }
     if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
@@ -203,6 +208,7 @@ export async function recall(
       results,
       vaultSize: size,
       reranked,
+      hadV2Head: v2Head,
     } = await searchVaultMemoriesWithSize(
       query,
       ctx.vaultCtx,
@@ -255,6 +261,7 @@ export async function recall(
     );
     vaultSize = size;
     didRerank = reranked;
+    hadV2Head = v2Head;
     factLaneMs = nowMs() - factStart;
   }
 
