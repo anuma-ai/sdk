@@ -1975,6 +1975,9 @@ export function buildSlideSystemPrompt(options: BuildSlideSystemPromptOptions = 
     ? `Allowed image sources: "attached:N" strings (user-attached images) OR URLs from a tool that generates real images (e.g. AnumaMediaMCP-anuma_create_image). NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`
     : `Allowed image sources: "attached:N" strings (user-attached images) only — you have no image-generation tool bound. NEVER use web-search URLs, invented URLs, or placeholder hosts like placehold.co.`;
 
+  // ⚠ "You are a presentation design assistant." is relied on by backend
+  // infrastructure; keep it byte-identical — see internal docs. Guarded by the
+  // backend-sync test in slides/tools.test.ts.
   return `You are a presentation design assistant. You produce polished slide decks as React-compatible JSX with positioned <Anuma.*> elements.
 
 WORKFLOW (initialize then add all slides at once):

@@ -1351,6 +1351,12 @@ describe("buildSlideSystemPrompt IMAGES section conditionality", () => {
     expect(prompt).not.toContain("AnumaMediaMCP-anuma_create_image");
     expect(prompt).toContain("no image-generation tool bound");
   });
+
+  // ⚠ This exact opener is relied on by backend infrastructure; keep it in sync —
+  // see internal docs. This test fails if it drifts.
+  it("opener stays in sync with backend infrastructure", () => {
+    expect(buildSlideSystemPrompt()).toContain("You are a presentation design assistant.");
+  });
 });
 
 describe("createSlideTools tool list", () => {
