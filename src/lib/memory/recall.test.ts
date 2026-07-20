@@ -34,9 +34,6 @@ vi.mock("../memoryEngine/embeddings", () => ({
 vi.mock("./reranker", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./reranker")>()),
   rerankPairs: vi.fn(),
-  // rerankPairs is mocked as a working reranker, so report it available;
-  // the "unavailable ⇒ reranked:false" path is covered by its own test.
-  isRerankerAvailable: vi.fn(() => true),
 }));
 
 vi.mock("../memoryVault/decomposeQuery", () => ({
@@ -61,7 +58,7 @@ import { decomposeQuery } from "../memoryVault/decomposeQuery";
 
 import { recall } from "./recall";
 import { createRecallTool, RECALL_MAX_LIMIT } from "./recallTool";
-import { isRerankerAvailable, rerankPairs } from "./reranker";
+import { RerankerUnavailableError, rerankPairs } from "./reranker";
 import type { RecallContext } from "./types";
 
 // ── Deterministic embedding fixture ─────────────────────────────────────
@@ -279,25 +276,24 @@ describe("recall — budget tiers", () => {
     expect(result.reranked).toBe(true);
   });
 
-  it("degrades to the V2 ranking when the cross-encoder fails (soft-degrade)", async () => {
+  it("degrades to the V2 ranking and reports reranked:false when the CE fails", async () => {
     // A transient CE failure must not error the whole recall — the search
     // layer catches it and returns the already-computed V2 ordering. The
-    // reranker is still *available* (a per-call hiccup, not a missing dep), so
-    // reranked stays true; only a permanently-unavailable reranker reports
-    // false (see the next test).
+    // reranked flag is threaded from the actual per-call outcome, so a degrade
+    // (transient OR permanent) reports false — it did not rerank this call.
     vi.mocked(rerankPairs).mockRejectedValue(new Error("CE model download failed"));
 
     const result = await recall(QUERY, makeCtx(), { budget: "mid" });
 
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
-    expect(result.reranked).toBe(true);
+    expect(result.reranked).toBe(false);
   });
 
   it("reports reranked:false when the cross-encoder is unavailable (e.g. React Native)", async () => {
-    // On RN the optional @huggingface/transformers dep is absent, so a
-    // requested rerank silently degrades. recall() must report the honest
-    // flag rather than echoing the budget's rerank intent.
-    vi.mocked(isRerankerAvailable).mockReturnValueOnce(false);
+    // On RN the optional @huggingface/transformers dep is absent, so rerankPairs
+    // throws RerankerUnavailableError; recall must report the honest flag rather
+    // than echoing the budget's rerank intent.
+    vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
 
     const result = await recall(QUERY, makeCtx(), { budget: "high" });
 

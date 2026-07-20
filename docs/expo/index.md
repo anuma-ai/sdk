@@ -118,6 +118,12 @@ Re-exports [Budget](../react/Internal/type-aliases/Budget.md)
 
 ***
 
+### CachedChunkVectors
+
+Re-exports [CachedChunkVectors](../react/Internal/interfaces/CachedChunkVectors.md)
+
+***
+
 ### CachedServerTools
 
 Re-exports [CachedServerTools](../react/Internal/interfaces/CachedServerTools.md)
@@ -175,6 +181,12 @@ Re-exports [ChunkingOptions](../react/Internal/interfaces/ChunkingOptions.md)
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)
+
+***
+
+### ChunkVectorCache
+
+Re-exports [ChunkVectorCache](../react/Internal/type-aliases/ChunkVectorCache.md)
 
 ***
 
@@ -316,6 +328,12 @@ Re-exports [CreateAutoExtractorOptions](../react/Internal/interfaces/CreateAutoE
 
 ***
 
+### createChunkVectorCache
+
+Re-exports [createChunkVectorCache](../react/Internal/functions/createChunkVectorCache.md)
+
+***
+
 ### CreateConversationOptions
 
 Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConversationOptions.md)
@@ -451,6 +469,12 @@ Re-exports [decryptConversationTitle](../react/Internal/functions/decryptConvers
 ### DEFAULT\_CACHE\_EXPIRATION\_MS
 
 Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
+
+***
+
+### DEFAULT\_CHUNK\_CACHE\_SIZE
+
+Re-exports [DEFAULT\_CHUNK\_CACHE\_SIZE](../react/Internal/variables/DEFAULT_CHUNK_CACHE_SIZE.md)
 
 ***
 

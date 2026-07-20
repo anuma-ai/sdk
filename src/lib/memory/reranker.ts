@@ -75,7 +75,15 @@ function isModuleMissing(err: unknown): boolean {
   for (let depth = 0; depth < 5 && e !== null && e !== undefined; depth++) {
     const code = (e as { code?: string }).code;
     if (code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND") return true;
-    if (e instanceof Error && /cannot find (module|package)|failed to resolve/i.test(e.message)) {
+    // Node: "Cannot find module/package". Metro/Expo (React Native):
+    // "Unable to resolve module", "Requiring unknown module". Bundlers:
+    // "failed to resolve".
+    if (
+      e instanceof Error &&
+      /cannot find (module|package)|failed to resolve|unable to resolve module|requiring unknown module/i.test(
+        e.message
+      )
+    ) {
       return true;
     }
     e = (e as { cause?: unknown }).cause;

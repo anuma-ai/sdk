@@ -22,7 +22,6 @@ import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
-import { isRerankerAvailable } from "./reranker.js";
 import { rrfFuse } from "./rrf.js";
 import type {
   Budget,
@@ -135,10 +134,18 @@ export async function recall(
   const factResults: VaultSearchResult[] = [];
   const chunkResults: ChunkSearchResult[] = [];
   let vaultSize: number | undefined;
+  // Whether the cross-encoder actually reranked this call's fact lane —
+  // threaded from the search layer (not the requested budget flag, which lied
+  // on RN, and not a module-global, which couldn't see per-call degradation).
+  let didRerank = false;
 
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
-    const { results, vaultSize: size } = await searchVaultMemoriesWithSize(
+    const {
+      results,
+      vaultSize: size,
+      reranked,
+    } = await searchVaultMemoriesWithSize(
       query,
       ctx.vaultCtx,
       ctx.embeddingOptions,
@@ -189,6 +196,7 @@ export async function recall(
       )
     );
     vaultSize = size;
+    didRerank = reranked;
   }
 
   if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
@@ -211,14 +219,6 @@ export async function recall(
       )
     );
   }
-
-  // Honest rerank diagnostic: reranking only runs on the fact lane, and only
-  // when the cross-encoder is actually operational. On React Native the
-  // optional transformers dep is absent, so a requested rerank silently
-  // degrades to the fused ranking — report that here instead of echoing the
-  // requested budget flag. `isRerankerAvailable()` is set during the fact-lane
-  // search above; `=== true` means the model loaded and the CE was engaged.
-  const didRerank = flags.rerank && types.includes("fact") && isRerankerAvailable() === true;
 
   // Fuse across lanes. Single-lane requests skip RRF — preserves the raw
   // score on the result so callers downstream of `recall()` can reason

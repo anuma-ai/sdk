@@ -113,7 +113,12 @@ import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
-import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
+import {
+  hasEncryptionKey,
+  onClearAllEncryptionState,
+  onKeyAvailable,
+  requestEncryptionKey,
+} from "../react/useEncryption";
 import { useChat } from "./useChat";
 
 /**
@@ -1040,6 +1045,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * entries; stale entries self-invalidate on updated_at mismatch.
    */
   const chunkVectorCacheRef = useRef<ChunkVectorCache>(createChunkVectorCache());
+
+  /**
+   * Drop both recall caches when all encryption state is cleared (logout /
+   * wallet switch). Vectors are derived from decrypted content, so leaving
+   * them populated would keep the previous identity's data resident and could
+   * serve stale vectors to the next identity. Mirrors the React hook.
+   */
+  useEffect(() => {
+    return onClearAllEncryptionState(() => {
+      vaultEmbeddingCacheRef.current.clear();
+      chunkVectorCacheRef.current.clear();
+    });
+  }, []);
 
   /**
    * Create the unified recall tool — fact + chunk fused via RRF in one
