@@ -2,7 +2,7 @@
 
 > **HandlersUpdatePersonaRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:2856](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2856)
+Defined in: [src/client/types.gen.ts:2864](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2864)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2856](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **config**: `object`
 
-Defined in: [src/client/types.gen.ts:2860](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2860)
+Defined in: [src/client/types.gen.ts:2868](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2868)
 
 Config is the new persona configuration JSON.
 
@@ -24,6 +24,6 @@ Config is the new persona configuration JSON.
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:2866](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2866)
+Defined in: [src/client/types.gen.ts:2874](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2874)
 
 Name is the new persona name.

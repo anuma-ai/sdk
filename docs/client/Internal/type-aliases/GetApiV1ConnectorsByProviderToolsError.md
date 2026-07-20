@@ -2,4 +2,4 @@
 
 > **GetApiV1ConnectorsByProviderToolsError** = [`GetApiV1ConnectorsByProviderToolsErrors`](GetApiV1ConnectorsByProviderToolsErrors.md)\[keyof [`GetApiV1ConnectorsByProviderToolsErrors`](GetApiV1ConnectorsByProviderToolsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7173](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7173)
+Defined in: [src/client/types.gen.ts:7232](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7232)

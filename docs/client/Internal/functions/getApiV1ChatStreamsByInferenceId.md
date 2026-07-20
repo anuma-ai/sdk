@@ -2,7 +2,7 @@
 
 > **getApiV1ChatStreamsByInferenceId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ChatStreamsByInferenceIdData`](../type-aliases/GetApiV1ChatStreamsByInferenceIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ChatStreamsByInferenceIdResponses`](../type-aliases/GetApiV1ChatStreamsByInferenceIdResponses.md), [`GetApiV1ChatStreamsByInferenceIdErrors`](../type-aliases/GetApiV1ChatStreamsByInferenceIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:816](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#816)
+Defined in: [src/client/sdk.gen.ts:826](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#826)
 
 Resume (replay + tail) a buffered chat stream
 

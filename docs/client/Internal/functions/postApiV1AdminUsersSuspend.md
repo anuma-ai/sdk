@@ -2,7 +2,7 @@
 
 > **postApiV1AdminUsersSuspend**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminUsersSuspendData`](../type-aliases/PostApiV1AdminUsersSuspendData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminUsersSuspendResponses`](../type-aliases/PostApiV1AdminUsersSuspendResponses.md), [`PostApiV1AdminUsersSuspendErrors`](../type-aliases/PostApiV1AdminUsersSuspendErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#572)
+Defined in: [src/client/sdk.gen.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#582)
 
 Suspend a user account
 

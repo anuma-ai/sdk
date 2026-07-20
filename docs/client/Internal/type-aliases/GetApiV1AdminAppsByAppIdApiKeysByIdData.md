@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminAppsByAppIdApiKeysByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:4759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4759)
+Defined in: [src/client/types.gen.ts:4767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4767)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4759](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4760)
+Defined in: [src/client/types.gen.ts:4768](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4768)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4760](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:4761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4761)
+Defined in: [src/client/types.gen.ts:4769](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4769)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4767)
+Defined in: [src/client/types.gen.ts:4775](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4775)
 
 **app\_id**
 
@@ -52,7 +52,7 @@ API Key ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4777)
+Defined in: [src/client/types.gen.ts:4785](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4785)
 
 ***
 
@@ -60,4 +60,4 @@ Defined in: [src/client/types.gen.ts:4777](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{app_id}/api-keys/{id}"`
 
-Defined in: [src/client/types.gen.ts:4778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4778)
+Defined in: [src/client/types.gen.ts:4786](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4786)

@@ -2,7 +2,7 @@
 
 > **DeleteApiV1SharesBySlugErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9053)
+Defined in: [src/client/types.gen.ts:9112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9112)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9053](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9057)
+Defined in: [src/client/types.gen.ts:9116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9116)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9061](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9061)
+Defined in: [src/client/types.gen.ts:9120](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9120)
 
 Not Found

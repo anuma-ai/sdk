@@ -2,7 +2,7 @@
 
 > **postApiV1ChatStreamsByInferenceIdCancel**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ChatStreamsByInferenceIdCancelData`](../type-aliases/PostApiV1ChatStreamsByInferenceIdCancelData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ChatStreamsByInferenceIdCancelResponses`](../type-aliases/PostApiV1ChatStreamsByInferenceIdCancelResponses.md), [`PostApiV1ChatStreamsByInferenceIdCancelErrors`](../type-aliases/PostApiV1ChatStreamsByInferenceIdCancelErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:828](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#828)
+Defined in: [src/client/sdk.gen.ts:838](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#838)
 
 Cancel a buffered chat stream
 

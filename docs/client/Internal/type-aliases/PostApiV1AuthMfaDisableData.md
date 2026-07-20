@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaDisableData** = `object`
 
-Defined in: [src/client/types.gen.ts:6272](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6272)
+Defined in: [src/client/types.gen.ts:6331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6331)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6272](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersDisableRequest`](HandlersDisableRequest.md)
 
-Defined in: [src/client/types.gen.ts:6276](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6276)
+Defined in: [src/client/types.gen.ts:6335](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6335)
 
 method (+ code for recovery\_code)
 
@@ -20,7 +20,7 @@ method (+ code for recovery\_code)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6277](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6277)
+Defined in: [src/client/types.gen.ts:6336](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6336)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:6277](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6278)
+Defined in: [src/client/types.gen.ts:6337](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6337)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:6278](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/disable"`
 
-Defined in: [src/client/types.gen.ts:6279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6279)
+Defined in: [src/client/types.gen.ts:6338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6338)

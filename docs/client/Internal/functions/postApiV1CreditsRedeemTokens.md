@@ -2,7 +2,7 @@
 
 > **postApiV1CreditsRedeemTokens**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsRedeemTokensData`](../type-aliases/PostApiV1CreditsRedeemTokensData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsRedeemTokensResponses`](../type-aliases/PostApiV1CreditsRedeemTokensResponses.md), [`PostApiV1CreditsRedeemTokensErrors`](../type-aliases/PostApiV1CreditsRedeemTokensErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1036](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1036)
+Defined in: [src/client/sdk.gen.ts:1046](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1046)
 
 Redeem Anuma Tokens for credits
 

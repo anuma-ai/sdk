@@ -2,7 +2,7 @@
 
 > **SharedMetadata** = `object`
 
-Defined in: [src/client/types.gen.ts:4205](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4205)
+Defined in: [src/client/types.gen.ts:4213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4213)
 
 Set of 16 key-value pairs that can be attached to an object. This can be useful
 for storing additional information about the object in a structured format, and

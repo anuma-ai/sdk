@@ -2,7 +2,7 @@
 
 > **getApiV1UsageByModality**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UsageByModalityData`](../type-aliases/GetApiV1UsageByModalityData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1UsageByModalityResponses`](../type-aliases/GetApiV1UsageByModalityResponses.md), [`GetApiV1UsageByModalityErrors`](../type-aliases/GetApiV1UsageByModalityErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1791](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1791)
+Defined in: [src/client/sdk.gen.ts:1801](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1801)
 
 Get usage by modality
 
