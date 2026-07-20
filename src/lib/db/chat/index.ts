@@ -12,6 +12,7 @@ export {
   getConversationsLazyOp,
   getConversationsOp,
   getMessageCountOp,
+  getMessageOp,
   getMessageSkeletonsOp,
   getMessagesOp,
   getMessagesPageOp,

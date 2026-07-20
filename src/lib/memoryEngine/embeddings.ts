@@ -8,6 +8,7 @@ import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import {
   getConversationsOp,
+  getMessageOp,
   getMessagesOp,
   type StorageOperationsContext,
   updateMessageChunksOp,
@@ -360,16 +361,9 @@ export async function embedMessage(
   messageId: string,
   options: EmbeddingOptions
 ): Promise<StoredMessage | null> {
-  // Find the message by uniqueId
-  let message: StoredMessage | undefined;
-
-  const conversations = await getConversationsOp(ctx);
-  for (const conv of conversations) {
-    const messages = await getMessagesOp(ctx, conv.conversationId);
-    message = messages.find((m) => m.uniqueId === messageId);
-    if (message) break;
-  }
-
+  // O(1) indexed lookup by id — not a scan+decrypt of every conversation's
+  // full history (which is quadratic when this runs per message).
+  const message = await getMessageOp(ctx, messageId);
   if (!message) {
     return null;
   }
@@ -478,16 +472,8 @@ export async function chunkAndEmbedMessage(
 ): Promise<StoredMessage | null> {
   const { chunkSize = DEFAULT_CHUNK_SIZE } = options;
 
-  // Find the message by uniqueId
-  let message: StoredMessage | undefined;
-
-  const conversations = await getConversationsOp(ctx);
-  for (const conv of conversations) {
-    const messages = await getMessagesOp(ctx, conv.conversationId);
-    message = messages.find((m) => m.uniqueId === messageId);
-    if (message) break;
-  }
-
+  // O(1) indexed lookup by id (see embedMessage) — not a full-history scan.
+  const message = await getMessageOp(ctx, messageId);
   if (!message) {
     return null;
   }

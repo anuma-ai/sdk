@@ -73,6 +73,7 @@ export {
   getConversationsLazyOp,
   getConversationsOp,
   getConversationSummaryOp,
+  getMessageOp,
   getMessagesOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
