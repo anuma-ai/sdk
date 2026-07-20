@@ -124,6 +124,14 @@ export interface RecallOptions {
    * resolves windows in 2026 and never overlaps stored event_time.
    */
   now?: number;
+  /**
+   * Best-effort observability hook. Called once per `recall()` with per-lane
+   * timings, lane counts, and soft-degradation signals — the raw material for
+   * tuning latency/quality and for wiring recall telemetry to PostHog. Invoked
+   * synchronously just before `recall()` returns; a throwing callback is
+   * swallowed (diagnostics must never break retrieval). Off unless provided.
+   */
+  onDiagnostics?: (diagnostics: RecallDiagnostics) => void;
   // -------------------------------------------------------------------------
   // Ranking tuning knobs — forwarded verbatim to the vault search pipeline.
   // All optional; defaults below match the pipeline's hardcoded behavior, so
@@ -185,6 +193,50 @@ export interface RecallResult {
   candidateCount: number;
   /** Diagnostic: total memories in the vault when fact lane was queried. */
   vaultSize?: number;
+}
+
+/** Soft-degradation signals surfaced via {@link RecallDiagnostics.degraded}. */
+export type RecallDegradation =
+  /** Rerank was requested (budget mid/high) but the cross-encoder didn't run
+   *  this call — unavailable (e.g. React Native) or a transient failure. */
+  | "rerank-unavailable"
+  /** `budget: 'high'` requested but no `decomposeOptions`, so query
+   *  decomposition was skipped and the budget downgraded to mid. */
+  | "decompose-unavailable";
+
+/**
+ * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
+ * All timings are wall-clock milliseconds. Lane counts are post-dedupe,
+ * pre-fusion. Intended to be forwarded to a metrics sink (e.g. PostHog).
+ */
+export interface RecallDiagnostics {
+  /** Budget actually executed (may have downgraded from the requested one). */
+  usedBudget: Budget;
+  /** Whether the cross-encoder actually reranked the fact lane this call. */
+  reranked: boolean;
+  /** Total candidates considered before truncation. */
+  candidateCount: number;
+  /** Total vault size when the fact lane ran (absent if it didn't). */
+  vaultSize?: number;
+  /** Facts the fact lane returned (post-dedupe, pre-fusion). */
+  factCount: number;
+  /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
+  chunkCount: number;
+  /** Wall-clock phase timings (ms). */
+  timings: {
+    /** Whole `recall()` call. */
+    total: number;
+    /** Parallel query-embed + graph/temporal side-lane build. */
+    prep: number;
+    /** Vault fact-lane search (`searchVaultMemoriesWithSize`). */
+    factLane: number;
+    /** Chunk-lane search (`searchChunksOp`). */
+    chunkLane: number;
+    /** Cross-lane RRF fusion + provenance dedup after both lanes. */
+    fuse: number;
+  };
+  /** Soft-degradation signals that fired this call (empty when clean). */
+  degraded: RecallDegradation[];
 }
 
 // ---------------------------------------------------------------------------
