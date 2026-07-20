@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:194](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **autoMergeThreshold**: `number`
 
-Defined in: [src/lib/memory/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#202)
+Defined in: [src/lib/memory/types.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#210)
 
 Cosine similarity threshold for auto-merge. Default: 0.85.
 
@@ -18,7 +18,7 @@ Cosine similarity threshold for auto-merge. Default: 0.85.
 
 > `optional` **consolidateOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/types.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#210)
+Defined in: [src/lib/memory/types.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#218)
 
 When provided, runs an LLM-based consolidation pass against the top-K
 existing memories above `consolidateThreshold` (looser than auto-merge).
@@ -90,7 +90,7 @@ persistence. Auto-extraction inherits this from its `extract` options.
 
 > `optional` **consolidateThreshold**: `number`
 
-Defined in: [src/lib/memory/types.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#230)
+Defined in: [src/lib/memory/types.ts:238](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#238)
 
 Cosine similarity floor for the consolidator candidate set. Default: 0.65.
 
@@ -100,7 +100,7 @@ Cosine similarity floor for the consolidator candidate set. Default: 0.65.
 
 > `optional` **consolidateTopK**: `number`
 
-Defined in: [src/lib/memory/types.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#232)
+Defined in: [src/lib/memory/types.ts:240](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#240)
 
 Top-K consolidation candidates to feed the LLM. Default: 5.
 
@@ -120,7 +120,7 @@ When provided, applies merge-on-write logic instead of plain insert.
 
 > `optional` **eventTime**: { `end`: `number` | `null`; `kind`: `"point"` | `"range"` | `"ongoing"`; `start`: `number`; } | `null`
 
-Defined in: [src/lib/memory/types.ts:239](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#239)
+Defined in: [src/lib/memory/types.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#247)
 
 W6 temporal lane — when the event in this fact occurred. Persisted to
 memory\_vault.event\_time\_\* columns; recall's temporal lane filters
@@ -134,6 +134,20 @@ Auto-extraction emits this; manual writes can omit it.
 > `optional` **folderId**: `string` | `null`
 
 Defined in: [src/lib/memory/types.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#198)
+
+***
+
+### respectTombstones?
+
+> `optional` **respectTombstones**: `boolean`
+
+Defined in: [src/lib/memory/types.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#208)
+
+When true, a would-be create is suppressed if it matches a soft-deleted
+("tombstoned") memory above the auto-merge threshold — so auto-extraction
+can't silently resurrect a fact the user deleted. Off by default so manual
+and other `retain()` callers are unaffected; auto-extraction opts in.
+Returns `action: 'suppressed'` with the matched `tombstoneId`.
 
 ***
 

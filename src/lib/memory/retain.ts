@@ -15,6 +15,7 @@
 
 import {
   createVaultMemoryOp,
+  getAllVaultMemoriesOp,
   getVaultMemoryOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
@@ -22,6 +23,7 @@ import {
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
+import { cosineSimilarity } from "../memoryEngine/vector.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
@@ -143,6 +145,23 @@ export async function retain(
   const embedding = await generateEmbedding(trimmed, ctx.embeddingOptions);
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
+  // Tombstone gate: if this create matches a soft-deleted memory, the user (or
+  // the cleanup pass) removed that fact — don't let auto-extraction silently
+  // resurrect it. Runs only on the create path (the live-merge search above
+  // excludes deleted rows), and only when the caller opts in (auto-extraction
+  // does; manual writes don't). Also closes the #647-M4 delete-race: a merge
+  // target that vanished mid-flight is now soft-deleted, so it's suppressed
+  // here instead of re-created.
+  if (options.respectTombstones) {
+    const tombstoneId = await findTombstoneMatch(embedding, embeddingModel, resolvedScope, ctx, {
+      threshold,
+      folderId: options.folderId,
+    });
+    if (tombstoneId) {
+      return { action: "suppressed", memoryId: tombstoneId, tombstoneId, proofCount: 0 };
+    }
+  }
+
   const created = await createVaultMemoryOp(ctx.vaultCtx, {
     content: trimmed,
     scope: resolvedScope,
@@ -179,6 +198,56 @@ export async function retain(
 
 function unionStrings(a: string[], b: string[]): string[] {
   return [...new Set([...a, ...b])];
+}
+
+/**
+ * Return the id of a soft-deleted ("tombstoned") memory whose embedding is
+ * within `threshold` cosine of the incoming candidate, or null.
+ *
+ * Soft-deleted rows keep their `content`/`embedding`/`scope` (delete only flips
+ * `is_deleted`), so they double as the tombstone store — no separate table.
+ * `getAllVaultMemoriesOp` is the one read path that surfaces deleted rows
+ * (`includeDeleted`); we filter to the deleted ones and cosine-match against the
+ * persisted embedding (the id-keyed cache isn't populated for deleted rows).
+ *
+ * Scoped exactly like the live-merge search — same `scope` AND `folderId` — so a
+ * fact deleted in one folder can't suppress a valid extraction into another.
+ * Only rows embedded with the SAME model are compared: cosine across two
+ * embedding spaces (a model swap at equal dimensionality) is meaningless and
+ * would cause false suppressions/misses.
+ */
+async function findTombstoneMatch(
+  embedding: number[],
+  embeddingModel: string,
+  scope: string,
+  ctx: RetainContext,
+  opts: { threshold: number; folderId?: string | null }
+): Promise<string | null> {
+  const rows = await getAllVaultMemoriesOp(ctx.vaultCtx, {
+    includeDeleted: true,
+    scopes: [scope],
+    ...(opts.folderId !== undefined && { folderId: opts.folderId }),
+  });
+  let bestId: string | null = null;
+  let bestSim = opts.threshold;
+  for (const row of rows) {
+    if (!row.isDeleted || !row.embedding) continue;
+    // Only compare vectors from the same embedding space.
+    if (row.embeddingModel !== embeddingModel) continue;
+    let vec: number[];
+    try {
+      vec = JSON.parse(row.embedding) as number[];
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(vec) || vec.length !== embedding.length) continue;
+    const sim = cosineSimilarity(embedding, vec);
+    if (sim >= bestSim) {
+      bestSim = sim;
+      bestId = row.uniqueId;
+    }
+  }
+  return bestId;
 }
 
 /**
