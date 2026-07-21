@@ -116,6 +116,7 @@ import {
   getToolName,
   mergeTools,
   type ServerTool,
+  type ToolSet,
 } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
@@ -377,6 +378,33 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * Auto-flush queued operations when key becomes available. @default true
    */
   autoFlushOnKeyAvailable?: boolean;
+
+  /**
+   * Additional tool sets to apply on top of the built-in ones (app-generation,
+   * slides, github). When any anchor tool in a custom set is selected by
+   * semantic matching, all members of that set are included automatically.
+   *
+   * Treated as static config — set once at hook setup. Changing it across
+   * renders does not affect in-flight `sendMessage` calls; use
+   * `activeToolSets` for dynamic, conversation-state-driven overrides.
+   */
+  extraToolSets?: ToolSet[];
+
+  /**
+   * Tool set names that should expand unconditionally for this request,
+   * bypassing the anchor-similarity check. Use when conversation state
+   * implies a set should be present regardless of how the prompt is phrased
+   * — e.g., pass `["documents"]` when the conversation already contains a
+   * generated document, so short follow-up prompts ("make the background red")
+   * still get the full document toolkit.
+   *
+   * Read via a ref so updates are visible to in-flight `sendMessage` calls
+   * without rebuilding the callback.
+   *
+   * Names must match a set's `name` from `BUILT_IN_TOOL_SETS` or
+   * `extraToolSets`. Unknown names are ignored.
+   */
+  activeToolSets?: string[];
 
   /**
    * Opt into resumable streaming. When `true`, `sendMessage` sends the
@@ -685,6 +713,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getWalletAddress,
     enableQueue = true,
     autoFlushOnKeyAvailable = true,
+    extraToolSets,
+    activeToolSets,
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
@@ -1514,6 +1544,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     throw new Error("No conversation ID provided and autoCreateConversation is disabled");
   }, [currentConversationId, getConversation, autoCreateConversation, createConversation]);
 
+  // `activeToolSets` is dynamic per-conversation state; read it via a ref so an
+  // update (e.g. "a document now exists") reaches an in-flight `sendMessage`
+  // without rebuilding the callback. Mirrors the react entry.
+  const activeToolSetsRef = useRef<string[] | undefined>(activeToolSets);
+  activeToolSetsRef.current = activeToolSets;
+
   /**
    * Send a message with automatic storage
    */
@@ -1919,8 +1955,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               userMessageEmbedding ?? null,
               clientToolFilterCache,
               { getToken, baseUrl, model: embeddingModel },
-              [],
-              [],
+              extraToolSets ?? [],
+              activeToolSetsRef.current ?? [],
               userMessageEmbeddingFailed ? "error" : "short-prompt"
             );
             narrowedClientTools = autoTools;
