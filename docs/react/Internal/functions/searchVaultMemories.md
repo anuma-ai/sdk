@@ -2,7 +2,7 @@
 
 > **searchVaultMemories**(`query`: `string`, `vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `Promise`<[`VaultSearchResult`](../interfaces/VaultSearchResult.md)\[]>
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1482](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1482)
+Defined in: [src/lib/memoryVault/searchTool.ts:1514](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1514)
 
 Search vault memories by semantic similarity. Returns structured results
 sorted by descending similarity, filtered by threshold and limit.
