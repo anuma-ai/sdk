@@ -533,7 +533,7 @@ export async function updateVaultMemoryOp(
     // inside the write block below (a concurrent delete could land
     // between this read and the write).
     const probe = await ctx.vaultMemoryCollection.find(id);
-    if (probe.isDeleted || !isOwnedByCtxUser(ctx, probe)) return null;
+    if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
 
     const encryptedContent =
       ctx.walletAddress && ctx.signMessage
@@ -552,7 +552,7 @@ export async function updateVaultMemoryOp(
       // Re-check inside the serialized writer: a delete that committed
       // after the probe must win — updating a soft-deleted row would
       // silently resurrect content on an invisible record.
-      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+      if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
       }
