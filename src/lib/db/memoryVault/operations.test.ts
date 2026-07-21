@@ -1085,7 +1085,7 @@ describe("clearMemoryTopicsOverrideOp", () => {
     expect(record.topicsUserManaged).toBe(false);
   });
 
-  it("invalidates both the watermark and the extraction version", async () => {
+  it("nulls only the version (keeps the stamp) so the row re-extracts via the stale-version path", async () => {
     const setRawSpy = vi.fn();
     const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
     const record = mockRecord({ id: "mem_1", update: updateFn });
@@ -1093,8 +1093,10 @@ describe("clearMemoryTopicsOverrideOp", () => {
 
     await clearMemoryTopicsOverrideOp(ctx, "mem_1");
 
-    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", null);
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", null);
+    // The stamp is intentionally preserved — nulling it would grandfather a
+    // still-linked row (stampedPending needs a non-null stamp to route to LLM).
+    expect(setRawSpy).not.toHaveBeenCalledWith("topics_extracted_at", null);
   });
 });
 

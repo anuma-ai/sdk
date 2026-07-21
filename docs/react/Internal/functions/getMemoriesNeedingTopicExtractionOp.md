@@ -2,7 +2,7 @@
 
 > **getMemoriesNeedingTopicExtractionOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`MemoriesNeedingTopicExtraction`](../interfaces/MemoriesNeedingTopicExtraction.md)>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:724](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#724)
+Defined in: [src/lib/db/memoryVault/operations.ts:728](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#728)
 
 Sweep query for the background topic-extraction worker: partition the
 user's non-deleted, non-user-managed memories by what the worker should do

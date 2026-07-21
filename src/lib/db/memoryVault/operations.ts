@@ -596,10 +596,13 @@ export async function setMemoryEntitiesOp(
 
 /**
  * Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
- * auto-extraction resumes owning its links. Invalidates `topics_extracted_at`
- * (and `topics_extracted_version`) so the next sweep will re-extract topics.
- * Existing links are left in place (the next extraction pass may add to them).
- * Preserves `updated_at`.
+ * auto-extraction resumes owning its links. Invalidates `topics_extracted_version`
+ * (leaving `topics_extracted_at` in place) so the next sweep routes the row
+ * through the stale-version pending path and actually RE-EXTRACTS it via the LLM
+ * — nulling the stamp instead would send a still-linked row down the
+ * `linkedUnstamped` grandfather path (stamped current, no LLM pass). Existing
+ * links are left in place until the re-extraction replaces them. Preserves
+ * `updated_at`.
  */
 export async function clearMemoryTopicsOverrideOp(
   ctx: VaultMemoryOperationsContext,
@@ -616,7 +619,8 @@ export async function clearMemoryTopicsOverrideOp(
   await ctx.database.write(async () => {
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
-      r._setRaw("topics_extracted_at", null);
+      // Null only the version (keep the stamp) so a still-linked row re-extracts
+      // via the stale-version pending path instead of being grandfathered.
       r._setRaw("topics_extracted_version", null);
       r._setRaw("updated_at", originalUpdatedAt);
     });

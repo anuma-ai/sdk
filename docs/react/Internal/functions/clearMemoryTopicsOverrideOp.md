@@ -2,13 +2,16 @@
 
 > **clearMemoryTopicsOverrideOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:604](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#604)
+Defined in: [src/lib/db/memoryVault/operations.ts:607](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#607)
 
 Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
-auto-extraction resumes owning its links. Invalidates `topics_extracted_at`
-(and `topics_extracted_version`) so the next sweep will re-extract topics.
-Existing links are left in place (the next extraction pass may add to them).
-Preserves `updated_at`.
+auto-extraction resumes owning its links. Invalidates `topics_extracted_version`
+(leaving `topics_extracted_at` in place) so the next sweep routes the row
+through the stale-version pending path and actually RE-EXTRACTS it via the LLM
+— nulling the stamp instead would send a still-linked row down the
+`linkedUnstamped` grandfather path (stamped current, no LLM pass). Existing
+links are left in place until the re-extraction replaces them. Preserves
+`updated_at`.
 
 ## Parameters
 

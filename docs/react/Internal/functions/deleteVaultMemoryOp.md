@@ -2,7 +2,7 @@
 
 > **deleteVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:627](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#627)
+Defined in: [src/lib/db/memoryVault/operations.ts:631](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#631)
 
 ## Parameters
 
