@@ -2073,10 +2073,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             );
             narrowedClientTools = autoTools;
           }
+          // Merge only when something survived — mirrors the skipStorage branch
+          // and react. An empty `narrowedClientTools` (short prompt / a filter
+          // that dropped everything, with no server tools) must OMIT tools, not
+          // send `tools: []`: an empty array is truthy, so the strategies would
+          // serialize it and break a turn with a required `toolChoice`.
           mergedTools =
-            filteredServerTools.length > 0
+            filteredServerTools.length > 0 || narrowedClientTools.length > 0
               ? mergeTools(filteredServerTools, narrowedClientTools, effectiveApiType)
-              : narrowedClientTools;
+              : undefined;
         } catch (error) {
           getLogger().warn("[useChatStorage] client tool filtering failed:", error);
         }
