@@ -106,4 +106,13 @@ describe("getMessageOp (by-id indexed lookup)", () => {
 
     expect(await getMessageOp(ctx, "nope")).toBeNull();
   });
+
+  it("propagates storage failures instead of masking them as null", async () => {
+    const ctx = makeCtx(makeDatabase());
+    ctx.messagesCollection.find = async () => {
+      throw new Error("database is locked");
+    };
+
+    await expect(getMessageOp(ctx, "msg-x")).rejects.toThrow("database is locked");
+  });
 });

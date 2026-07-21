@@ -866,8 +866,14 @@ export async function getMessageOp(
   let message;
   try {
     message = await ctx.messagesCollection.find(uniqueId);
-  } catch {
-    return null;
+  } catch (error) {
+    // WatermelonDB throws for both "not found" and storage failures. Only
+    // return null for "not found" — let storage errors (locked DB, adapter
+    // failures) propagate so they're visible rather than silently dropped.
+    if (error instanceof Error && /not found/i.test(error.message)) {
+      return null;
+    }
+    throw error;
   }
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
