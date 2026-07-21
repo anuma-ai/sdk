@@ -154,6 +154,35 @@ export default defineConfig([
       };
     },
   },
+  // Tool-selection engine + resolver — the node/RN/RSC-safe orchestration layer
+  // exposed as "@anuma/sdk/tools/selection" (issue #702). Its own entry with
+  // isolated externals — the "tools/" prefix is a naming grouping, NOT part of
+  // the "@anuma/sdk/tools" factory bundle. Deliberately free of WatermelonDB and
+  // recharts (the embedding calls come from the db-free memoryEngine/generate
+  // core), so both externals are belt-and-suspenders. The ../client rewrite
+  // mirrors server/react/expo so the generated HTTP client is not re-bundled.
+  {
+    entry: ["src/tools/selection/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/tools/selection",
+    external: ["react", "recharts", "@nozbe/watermelondb"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+    esbuildPlugins: [
+      {
+        name: "rewrite-client-import",
+        setup(build) {
+          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+            return { path: "@anuma/sdk", external: true };
+          });
+        },
+      },
+    ],
+  },
   // Design — pointer-driven gesture system for AnumaNode trees.
   // The foundation for any visual editor on the SDK runtime
   // (slide editor, app-mockup designer, etc.). React-only; same

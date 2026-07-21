@@ -109,7 +109,14 @@ import {
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
-import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
+import {
+  autoFilterClientTools,
+  filterServerTools,
+  getServerTools,
+  getToolName,
+  mergeTools,
+  type ServerTool,
+} from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
 import { useChat } from "./useChat";
@@ -130,6 +137,12 @@ const NO_CONVERSATION_KEY = "__no_conversation__";
 // (enabled→disabled, or one instance swapped for another) rebuilds rather than
 // silently reusing a redactor wired to the old detector. Mirrors the react entry.
 const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
+
+// Tool-description embedding cache for the semantic client-tool filter
+// (`autoFilterClientTools`). Content-keyed and stable across sends, so it is
+// module-scoped (shared by all hook instances) — mirrors the react entry's
+// `clientToolEmbeddingsCache`.
+const clientToolFilterCache = new Map<string, number[]>();
 
 function getConversationRedactor(
   conversationId: string | null,
@@ -1530,6 +1543,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         maxOutputTokens,
         clientTools,
         serverTools: serverToolsFilter,
+        clientToolsFilter,
         toolChoice,
         reasoning,
         thinking,
@@ -1830,6 +1844,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Track embeddings for function-based tool filtering (to reuse for message storage)
       let userMessageEmbedding: number[] | undefined;
+      let userMessageEmbeddingFailed = false;
+      // Server tools resolved for this send — hoisted so the client-tool filter
+      // below can re-merge them after semantic narrowing.
+      let filteredServerTools: ServerTool[] = [];
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
@@ -1842,8 +1860,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,
           });
-
-          let filteredServerTools: ServerTool[];
 
           if (isServerToolsFunction) {
             // Function-based filtering: generate embedding and call the function
@@ -1871,6 +1887,50 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // Log but don't block - server tools are optional
 
           getLogger().warn("[useChatStorage] Failed to fetch server tools:", error);
+        }
+      }
+
+      // Semantic client-tool narrowing (parity with the react useChatStorage entry).
+      // An explicit `clientToolsFilter` (include-all for slide/app modes) is applied
+      // as-is; otherwise auto-filter by the prompt embedding so plain chat ships only
+      // prompt-relevant client tools instead of the whole toolkit. Fully defensive:
+      // any failure leaves `mergedTools` as-is (the full toolkit — today's behavior),
+      // so this can never strip a tool the turn needs.
+      if (clientTools?.length) {
+        try {
+          let narrowedClientTools = clientTools;
+          if (typeof clientToolsFilter === "function") {
+            const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
+            narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+          } else if (getToken) {
+            if (!userMessageEmbedding && contentForStorage.length >= minContentLength) {
+              try {
+                userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
+                  getToken,
+                  baseUrl,
+                  model: embeddingModel,
+                });
+              } catch {
+                userMessageEmbeddingFailed = true;
+              }
+            }
+            const { tools: autoTools } = await autoFilterClientTools(
+              clientTools,
+              userMessageEmbedding ?? null,
+              clientToolFilterCache,
+              { getToken, baseUrl, model: embeddingModel },
+              [],
+              [],
+              userMessageEmbeddingFailed ? "error" : "short-prompt"
+            );
+            narrowedClientTools = autoTools;
+          }
+          mergedTools =
+            filteredServerTools.length > 0
+              ? mergeTools(filteredServerTools, narrowedClientTools, effectiveApiType)
+              : narrowedClientTools;
+        } catch (error) {
+          getLogger().warn("[useChatStorage] client tool filtering failed:", error);
         }
       }
 
