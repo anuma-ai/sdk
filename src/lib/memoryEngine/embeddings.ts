@@ -187,13 +187,14 @@ export async function generateEmbedding(
     });
   }
 
-  // Store in cache as Float32Array — the API returns a float64 number[] but
-  // embeddings are natively f32, so this is lossless and halves resident RAM.
+  // Convert to f32 precision before returning so cache miss and hit return
+  // identical values (cache hits materialize from Float32Array).
+  const f32Embedding = Float32Array.from(embedding);
   if (cache) {
-    cache.set(text, Float32Array.from(embedding));
+    cache.set(text, f32Embedding);
   }
 
-  return embedding;
+  return Array.from(f32Embedding);
 }
 
 const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
@@ -343,12 +344,14 @@ export async function generateEmbeddings(
     newEmbeddings = allEmbeddings.flat();
   }
 
-  // Merge new embeddings into results and populate cache
+  // Merge new embeddings into results and populate cache. Convert to f32
+  // precision so cache miss and hit return identical values (hits materialize
+  // from Float32Array).
   for (let i = 0; i < uncachedIndices.length; i++) {
-    results[uncachedIndices[i]] = newEmbeddings[i];
+    const f32Embedding = Float32Array.from(newEmbeddings[i]);
+    results[uncachedIndices[i]] = Array.from(f32Embedding);
     if (cache) {
-      // Store native f32 — lossless, halves the cache's resident RAM.
-      cache.set(uncachedTexts[i], Float32Array.from(newEmbeddings[i]));
+      cache.set(uncachedTexts[i], f32Embedding);
     }
   }
 
