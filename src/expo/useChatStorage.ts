@@ -1696,7 +1696,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let skipEmbeddingFailed = false;
 
         if (
-          getToken &&
+          getTokenRef.current &&
           effectiveApiType === "responses" &&
           !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
         ) {
@@ -1704,7 +1704,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             const allServerTools = await getServerTools({
               baseUrl,
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
-              getToken,
+              getToken: getTokenRef.current,
             });
 
             if (isServerToolsFunction) {
@@ -1897,12 +1897,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Determine which messages to send: summarized + window or all verbatim.
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
         // corrupting isLoading state and abortController during summarization.
-        if (summarizeHistory && !getToken) {
+        if (summarizeHistory && !getTokenRef.current) {
           getLogger().warn(
             "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
           );
         }
-        const summaryToken = summarizeHistory && getToken ? await getToken() : null;
+        const summaryToken =
+          summarizeHistory && getTokenRef.current ? await getTokenRef.current() : null;
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
           conversationId: convId,
@@ -1985,12 +1986,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const isServerToolsFunction = typeof serverToolsFilter === "function";
 
       // Skip server tools fetch if serverTools is explicitly empty array
-      if (getToken && !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)) {
+      if (
+        getTokenRef.current &&
+        !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
+      ) {
         try {
           const allServerTools = await getServerTools({
             baseUrl,
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
-            getToken,
+            getToken: getTokenRef.current,
           });
 
           if (isServerToolsFunction) {
