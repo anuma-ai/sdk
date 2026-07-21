@@ -141,13 +141,22 @@ describe("chat read ops — use unsafeFetchRaw, never fetch (no Model retained)"
     expect(out[0].role).toBe("user");
   });
 
-  it("maps a NULL timestamp to null, not epoch/Invalid Date (matches the @date getter)", async () => {
-    // A legacy / partially-migrated row can carry a null created_at/updated_at. The old @date
-    // getter returns null; the raw path must too — never new Date(null)=epoch or new Date(undefined).
+  it("coerces a NULL non-optional @text column to '' (matches the sanitizedRaw Model path)", async () => {
+    // An assistant tool-call / image-only turn stores content: NULL (applyMessageFields writes it
+    // unconditionally). The Model path sanitizes non-optional text NULL → ""; the raw path must too,
+    // or a content.startsWith(...)/.length consumer (e.g. the skeleton artifact classifier) breaks.
+    const { ctx } = spyCtx([{ ...rawMsg(), content: null }]);
+    const [msg] = await getMessagesOp(ctx, "conv_1");
+    expect(msg.content).toBe("");
+  });
+
+  it("coerces a NULL non-optional timestamp to epoch, never Invalid Date (sanitizedRaw→0)", async () => {
+    // created_at/updated_at are non-optional number columns: sanitizedRaw coerces NULL → 0, so the
+    // Model path yields new Date(0). Match that — assert epoch, not null and not Invalid Date.
     const { ctx } = spyCtx([{ ...rawMsg(), created_at: null, updated_at: null }]);
     const [msg] = await getMessagesOp(ctx, "conv_1");
-    expect(msg.createdAt).toBeNull();
-    expect(msg.updatedAt).toBeNull();
+    expect(msg.createdAt.getTime()).toBe(0);
+    expect(Number.isNaN(msg.updatedAt.getTime())).toBe(false);
   });
 });
 

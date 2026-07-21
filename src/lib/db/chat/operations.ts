@@ -127,14 +127,14 @@ async function messageToStored(
 }
 
 /**
- * Mirror the WatermelonDB `@date` getter for a raw column: a numeric timestamp → `Date`, anything
- * else — null (a legacy/partially-migrated row with no timestamp) or a non-number — → null (NOT
- * `new Date(null)` = epoch, nor `new Date(undefined)` = Invalid Date). The `@date` decorator returns
- * null for a non-number raw value, so this keeps the raw read path byte-identical. Typed `Date` to
- * match the decorator's declared type (which likewise returns null at runtime for an unset column).
+ * Mirror the Model path for a NON-OPTIONAL `@date` column (`created_at`/`updated_at`). At Model
+ * construction `sanitizedRaw` coerces a missing/null value on a non-optional `number` column to `0`,
+ * so the `@date` getter yields `new Date(0)` (epoch) — NOT null. `unsafeFetchRaw` returns the raw
+ * value, so coerce a non-number to `0` to stay byte-identical (never `new Date(undefined)` = Invalid
+ * Date). (Optional date columns like `pinned_at` are handled inline: non-number → null.)
  */
 function rawDate(value: unknown): Date {
-  return (typeof value === "number" ? new Date(value) : null) as unknown as Date;
+  return new Date(typeof value === "number" ? value : 0);
 }
 
 /**
@@ -168,17 +168,19 @@ function messageRawToStoredRaw(
   const vectorRaw = skipEmbeddings ? null : raw.vector;
   const chunksRaw = skipEmbeddings ? null : raw.chunks;
 
-  // WatermelonDB @text/@field GETTERS return `_getRaw` verbatim (the trim/null coercion happens
-  // only on SET), so reading a raw column directly matches the Model path exactly — including a
-  // stored NULL for an unset column. Do NOT `?? undefined`/`?? ""` those: it would diverge from the
-  // Model path (null → "" / undefined) on unset fields. Only @date (number → Date) and booleans
-  // (SQLite stores 0/1, unsafeFetchRaw returns them unsanitized) need transforming.
+  // The Model path reads the Model's `_raw`, which `sanitizedRaw()` builds at construction:
+  //   - NON-OPTIONAL column NULL → coerced to the type default (`string`→"", `number`→0, `boolean`→false)
+  //   - OPTIONAL column NULL → stays null
+  // `unsafeFetchRaw` skips Model construction and returns the raw DB value, so to stay byte-identical:
+  //   - NON-OPTIONAL text (`content`, `conversation_id`, `role`) → guard with `?? ""`
+  //   - OPTIONAL text (`model`, `image_model`, …) → read verbatim (null flows through, matching the getter)
+  //   - `@date` via rawDate (non-optional → epoch); booleans coerced (unsafeFetchRaw is unsanitized: SQLite 0/1)
   return {
     uniqueId: raw.id as string,
     messageId: raw.message_id as number,
-    conversationId: String(raw.conversation_id),
-    role: raw.role as StoredMessage["role"],
-    content: raw.content as string,
+    conversationId: (raw.conversation_id as string) ?? "",
+    role: (raw.role ?? "") as StoredMessage["role"],
+    content: (raw.content as string) ?? "",
     model: raw.model as string | undefined,
     imageModel: raw.image_model as string | undefined,
     files: parseJsonField<StoredMessage["files"]>(raw.files),
@@ -276,14 +278,14 @@ async function conversationToStored(
  * there). Return shape is identical, so callers are unaffected.
  */
 function conversationRawToStoredRaw(raw: Record<string, unknown>): StoredConversation {
-  // @text/@field getters return `_getRaw` verbatim (see messageRawToStoredRaw) — read raw columns
-  // as-is so an unset `project_id`/`title` maps to the same value the Model path yields. Only @date
-  // and the @field boolean need transforming.
+  // Match the sanitizedRaw-then-getter Model path (see messageRawToStoredRaw): non-optional text
+  // (`conversation_id`, `title`) NULL → "" ; optional text (`project_id`) NULL → null verbatim;
+  // non-optional @date → epoch via rawDate; optional @date (`pinned_at`) → null; boolean coerced.
   const pinnedAt = raw.pinned_at as number | null | undefined;
   return {
     uniqueId: raw.id as string,
-    conversationId: raw.conversation_id as string,
-    title: raw.title as string,
+    conversationId: (raw.conversation_id as string) ?? "",
+    title: (raw.title as string) ?? "",
     projectId: raw.project_id as string | undefined,
     createdAt: rawDate(raw.created_at),
     updatedAt: rawDate(raw.updated_at),
@@ -414,8 +416,8 @@ function conversationRawToLazyStored(raw: Record<string, unknown>): LazyStoredCo
   const pinnedAt = raw.pinned_at as number | null | undefined;
   return {
     uniqueId: raw.id as string,
-    conversationId: raw.conversation_id as string,
-    encryptedTitle: raw.title as string,
+    conversationId: (raw.conversation_id as string) ?? "",
+    encryptedTitle: (raw.title as string) ?? "",
     projectId: raw.project_id as string | undefined,
     createdAt: rawDate(raw.created_at),
     updatedAt: rawDate(raw.updated_at),
@@ -715,8 +717,8 @@ export async function getMessageSkeletonsOp(
   const skeletons: MessageSkeleton[] = results.map((raw) => ({
     uniqueId: raw.id as string,
     messageId: raw.message_id as number,
-    conversationId: String(raw.conversation_id),
-    role: raw.role as MessageSkeleton["role"],
+    conversationId: (raw.conversation_id as string) ?? "",
+    role: (raw.role ?? "") as MessageSkeleton["role"],
     createdAt: rawDate(raw.created_at),
     // WatermelonDB surfaces unset text columns as null at runtime — normalize
     // to undefined so `parentMessageId ?? undefined` keying works everywhere.
