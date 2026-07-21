@@ -155,6 +155,7 @@ import {
   MIN_CONTENT_LENGTH_FOR_TOOLS,
   type ServerTool,
   shouldRefreshTools,
+  type ToolsCacheBackend,
   type ToolSet,
 } from "../lib/tools";
 import { useChat } from "./useChat";
@@ -202,7 +203,11 @@ export async function previewToolSelection(options: {
   prompt: string;
   clientTools?: LlmapiChatCompletionTool[];
   serverToolsFilter?: string[] | ServerToolsFilterFn;
-  serverToolsConfig?: { cacheExpirationMs?: number; deferLoading?: DeferLoadingConfig };
+  serverToolsConfig?: {
+    cacheExpirationMs?: number;
+    deferLoading?: DeferLoadingConfig;
+    cache?: ToolsCacheBackend;
+  };
   /** Bearer-token auth (browser sessions). Provide this or `apiKey`. */
   getToken?: () => Promise<string | null>;
   /** X-API-Key auth (server-side / test harnesses). Provide this or `getToken`. */
@@ -266,6 +271,7 @@ export async function previewToolSelection(options: {
           cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
           getToken,
           apiKey,
+          cache: serverToolsConfig?.cache,
         });
         const allow = new Set(serverToolsFilter);
         gatedServerNames = allServerTools.filter((t) => allow.has(t.name)).map((t) => t.name);
@@ -327,6 +333,7 @@ export async function previewToolSelection(options: {
         cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
         getToken,
         apiKey,
+        cache: serverToolsConfig?.cache,
       });
       if (serverToolsConfig?.deferLoading?.enabled) {
         // Defer-loading: the real responses send emits the full catalog, so the preview must too.
@@ -2270,6 +2277,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               baseUrl,
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
               getToken,
+              cache: serverToolsConfig?.cache,
             });
 
             if (serverToolsConfig?.deferLoading?.enabled) {
@@ -2382,7 +2390,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Auto-refresh server tools cache if checksum changed
         if (getToken && shouldRefreshTools(getToolsChecksum(result.data))) {
-          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
+          getServerTools({
+            baseUrl,
+            getToken,
+            forceRefresh: true,
+            cache: serverToolsConfig?.cache,
+          }).catch((err) => {
             getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
           });
         }
@@ -2754,6 +2767,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             baseUrl,
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,
+            cache: serverToolsConfig?.cache,
           });
 
           if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
@@ -3214,7 +3228,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Auto-refresh server tools cache if checksum changed
       if (getToken && shouldRefreshTools(getToolsChecksum(responseData))) {
-        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
+        getServerTools({
+          baseUrl,
+          getToken,
+          forceRefresh: true,
+          cache: serverToolsConfig?.cache,
+        }).catch((err) => {
           getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
         });
       }
