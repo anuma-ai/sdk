@@ -140,6 +140,7 @@ export {
   type MemoriesNeedingTopicExtraction,
   stampTopicsExtractedAtOp,
   type StoredVaultMemory,
+  supersedeVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,

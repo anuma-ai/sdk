@@ -26,6 +26,9 @@ export class VaultMemory extends Model {
   /** Unix ms of the last LLM topic-extraction pass. Null = never extracted
    *  standalone (linked legacy rows are grandfathered as extracted). */
   @field("topics_extracted_at") topicsExtractedAt!: number | null;
+  /** A2 supersession: newer memory id that replaced this one, or null if live. */
+  @field("superseded_by") supersededBy!: string | null;
+  @field("superseded_at") supersededAt!: number | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

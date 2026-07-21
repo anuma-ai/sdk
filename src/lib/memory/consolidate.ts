@@ -68,10 +68,11 @@ const SYSTEM_PROMPT = `You consolidate a new memory against existing memories fr
 
 A "memory" is a self-contained natural-language fact about the user. Multiple memories about the same EXACT FACET (the same dimension of the same subject) should never coexist — they should be merged into one. Different facets on the same subject (e.g. user's dog's name vs user's dog's age) are SEPARATE memories.
 
-Decide one of three actions:
+Decide one of four actions:
 
 - "create": the new memory describes a distinct fact not covered by any existing memory. Write it as new.
-- "update": the new memory describes the SAME FACET as exactly one existing memory. Either it adds detail, corrects a value, or rephrases the same fact. Return targetId of that existing memory + the consolidated content (richest version of the two).
+- "update": the new memory describes the SAME FACET as exactly one existing memory and is COMPATIBLE with it — it adds detail, fixes an incomplete value, or rephrases the same still-true fact. Return targetId of that existing memory + the consolidated content (richest version of the two).
+- "supersede": the new memory REPLACES a standing fact whose value has CHANGED and is now INCOMPATIBLE with an existing memory — the old fact was true before but is false now (a state change). Return targetId of the STALE existing memory to retire + content = the NEW fact. The old memory is kept as history, not overwritten or deleted; do not re-state it.
 - "noop": the new memory is already fully captured by an existing memory — same facet, no new information. Skip the write.
 
 RULES (carry these strictly):
@@ -79,18 +80,21 @@ RULES (carry these strictly):
 1. ONE OBSERVATION PER DISTINCT FACET. If the new memory is about "user's aunt's twins" and an existing memory is also about "user's aunt's twins", they are the same facet → update, never create.
 2. MATCH BY FACET, NOT TOPIC. Two memories both mentioning "Zara" is not enough to merge — only merge if they describe the same property (e.g. both about "user's pending Zara boot exchange"). Two memories about Zara on different topics (e.g. "user shops at Zara" + "user returned a sweater to Zara last week") are separate facets.
 3. NO COMPUTATION. Do not sum counts, decrement quantities, or derive new facts from existing ones. If the new memory says "user spent $200 today" and an existing memory says "user spent $150 yesterday", these are TWO SEPARATE EVENTS — create.
-4. Events with different occurredAt dates are different memories even if the same activity ("user went to gym Monday" vs "user went to gym Friday" — separate events).
-5. When in doubt between create and update, choose create. Over-merging loses information; under-merging is recoverable.
+4. EVENTS vs STANDING STATE.
+   - Distinct EVENTS (episodic — something that happened on a date) are separate memories, even if the same activity: "user went to gym Monday" vs "user went to gym Friday" → create; keep both.
+   - A STANDING ATTRIBUTE (an ongoing state: where the user lives/works, relationship status, current role) has ONE current value. When the new memory changes that value ("Lives in Portland" → "Lives in San Francisco"; "Works at Google" → "Works at Riverbend"; "Engaged" → "Broke up"), the old value is no longer true → supersede (retire the old, record the new). Do NOT create (that leaves a stale contradiction) and do NOT update (that erases the history that the old value was once true).
+5. When in doubt between create and update, choose create — EXCEPT when the new memory directly contradicts the current value of a standing attribute in an existing memory; then choose supersede. Over-merging loses information; a live contradiction is worse than either.
 
 OUTPUT — strict JSON, no prose:
 {
-  "action": "create" | "update" | "noop",
-  "targetId": "<existing memory id, required for update/noop, omit for create>",
-  "content": "<consolidated content, required for create/update, omit for noop>"
+  "action": "create" | "update" | "supersede" | "noop",
+  "targetId": "<existing memory id — required for update/supersede/noop, omit for create>",
+  "content": "<content — required for create/update/supersede, omit for noop>"
 }
 
 For "create": content is the new memory verbatim (or a slight refinement).
 For "update": content is the merged richest-version, ≤80 words.
+For "supersede": content is the NEW fact only (≤80 words); targetId is the stale memory being retired.
 For "noop": no content (existing memory is already correct).`;
 
 interface ConsolidationCandidate {
@@ -101,10 +105,12 @@ interface ConsolidationCandidate {
 }
 
 interface ConsolidationResult {
-  action: "create" | "update" | "noop";
-  /** Defined for update/noop. */
+  action: "create" | "update" | "noop" | "supersede";
+  /** Defined for update/noop/supersede. For supersede it is the STALE memory
+   * being retired (not the merge target). */
   targetId?: string;
-  /** Defined for create/update. The final content to persist. */
+  /** Defined for create/update/supersede. For supersede it is the NEW fact to
+   * persist (the old one is retired, not overwritten). */
   content?: string;
   /**
    * Set when this "create" is a degraded fallback rather than a real
@@ -281,14 +287,16 @@ function validate(
   const obj = parsed as Record<string, unknown>;
 
   const action = obj.action;
-  if (action !== "create" && action !== "update" && action !== "noop") return null;
+  if (action !== "create" && action !== "update" && action !== "noop" && action !== "supersede") {
+    return null;
+  }
 
   if (action === "create") {
     const c = typeof obj.content === "string" ? obj.content.trim() : "";
     return { action: "create", content: c.length > 0 ? c : newContent };
   }
 
-  // update / noop both require a valid targetId
+  // update / noop / supersede all require a valid targetId
   const targetId = typeof obj.targetId === "string" ? obj.targetId : null;
   if (!targetId || !validIds.has(targetId)) return null;
 
@@ -296,8 +304,9 @@ function validate(
     return { action: "noop", targetId };
   }
 
-  // update — content is the consolidated form
+  // update — content is the consolidated form; supersede — content is the NEW
+  // fact (targetId is the stale one to retire). Both require non-empty content.
   const c = typeof obj.content === "string" ? obj.content.trim() : "";
   if (c.length === 0) return null;
-  return { action: "update", targetId, content: c };
+  return { action, targetId, content: c };
 }

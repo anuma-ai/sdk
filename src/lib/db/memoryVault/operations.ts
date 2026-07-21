@@ -41,13 +41,16 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
 /** Builds the base WHERE conditions shared by all vault memory queries.
  * `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
  * opts into it (to surface "forgotten" memories); every other caller omits it
- * and keeps the default non-deleted-only behavior. */
+ * and keeps the default non-deleted-only behavior. `includeSuperseded` likewise
+ * drops the A2 supersession filter (default excludes superseded rows from recall
+ * + dedup, same as deleted); a "memory history" view can opt in. */
 function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
-  options?: { since?: Date; includeDeleted?: boolean }
+  options?: { since?: Date; includeDeleted?: boolean; includeSuperseded?: boolean }
 ) {
   return [
     ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
+    ...(options?.includeSuperseded ? [] : [Q.where("superseded_by", null)]),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
@@ -91,6 +94,8 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeKind: memory.eventTimeKind ?? null,
     topicsUserManaged: memory.topicsUserManaged ?? false,
     topicsExtractedAt: memory.topicsExtractedAt ?? null,
+    supersededBy: memory.supersededBy ?? null,
+    supersededAt: memory.supersededAt ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -150,6 +155,83 @@ export async function createVaultMemoryOp(
   });
 
   return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * Atomically create a new memory AND retire the stale one it supersedes (A2),
+ * in a single `database.write` — closing the create-then-retire race.
+ *
+ * Inside the write, the target's live state is re-checked: if it was
+ * concurrently deleted or already superseded (a competing supersession won the
+ * race), NOTHING is created and `{ created: null, retired: false }` is returned
+ * so the caller falls back to a plain create. This means the loser of a
+ * concurrent supersession never leaves an orphaned successor pointing at a
+ * target someone else already retired — the whole create+retire is one atomic
+ * unit, so no other writer can interleave between them.
+ */
+export async function createSupersedingMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  opts: CreateVaultMemoryOptions,
+  targetId: string
+): Promise<{ created: StoredVaultMemory | null; retired: boolean }> {
+  if (!targetId) return { created: null, retired: false };
+  const scope = opts.scope ?? "private";
+  const encryptedContent =
+    ctx.walletAddress && ctx.signMessage
+      ? await encryptVaultMemoryContent(
+          opts.content,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : opts.content;
+
+  let createdRecord: VaultMemory | null = null;
+  await ctx.database.write(async () => {
+    let target: VaultMemory;
+    try {
+      target = await ctx.vaultMemoryCollection.find(targetId);
+    } catch {
+      return; // target gone → don't create; caller does a plain create
+    }
+    // Concurrent win / delete / cross-user → don't orphan a successor.
+    if (target.isDeleted || target.supersededBy || !isOwnedByCtxUser(ctx, target)) return;
+
+    createdRecord = await ctx.vaultMemoryCollection.create((record) => {
+      record._setRaw("content", encryptedContent);
+      record._setRaw("scope", scope);
+      record._setRaw("folder_id", opts.folderId ?? null);
+      record._setRaw("user_id", ctx.userId ?? null);
+      record._setRaw("is_deleted", false);
+      if (opts.embedding !== undefined) {
+        record._setRaw("embedding", opts.embedding);
+        record._setRaw("embedding_model", opts.embeddingModel ?? null);
+      }
+      if (opts.sourceChunkIds !== undefined) {
+        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+      }
+      record._setRaw("proof_count", opts.proofCount ?? 1);
+      record._setRaw("source", opts.source ?? "manual");
+      if (opts.eventTime) {
+        record._setRaw("event_time_start", opts.eventTime.start ?? null);
+        record._setRaw("event_time_end", opts.eventTime.end ?? null);
+        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
+    });
+    await target.update((r) => {
+      r._setRaw("superseded_by", createdRecord!.id);
+      r._setRaw("superseded_at", Date.now());
+    });
+  });
+
+  if (!createdRecord) return { created: null, retired: false };
+  const created = await vaultMemoryToStored(
+    createdRecord,
+    ctx.walletAddress,
+    ctx.signMessage,
+    ctx.embeddedWalletSigner
+  );
+  return { created, retired: true };
 }
 
 /**
@@ -357,6 +439,8 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
     topicsExtractedAt: (raw.topics_extracted_at as number | null) ?? null,
+    supersededBy: (raw.superseded_by as string | null) ?? null,
+    supersededAt: (raw.superseded_at as number | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -391,6 +475,12 @@ export async function getAllVaultMemoriesOp(
      * render "forgotten" nodes; ordinary consumers should leave this off.
      */
     includeDeleted?: boolean;
+    /**
+     * Include A2-superseded memories (each carries `supersededBy`). Default
+     * `false` — superseded rows are excluded, as they are from recall/dedup.
+     * Used by a "memory history" view to render retired facts.
+     */
+    includeSuperseded?: boolean;
   }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
@@ -443,7 +533,7 @@ export async function updateVaultMemoryOp(
     // inside the write block below (a concurrent delete could land
     // between this read and the write).
     const probe = await ctx.vaultMemoryCollection.find(id);
-    if (probe.isDeleted || !isOwnedByCtxUser(ctx, probe)) return null;
+    if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
 
     const encryptedContent =
       ctx.walletAddress && ctx.signMessage
@@ -462,7 +552,7 @@ export async function updateVaultMemoryOp(
       // Re-check inside the serialized writer: a delete that committed
       // after the probe must win — updating a soft-deleted row would
       // silently resurrect content on an invisible record.
-      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+      if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
       }
@@ -653,6 +743,68 @@ export async function deleteVaultMemoryOp(
     }
 
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mark a memory as superseded by a newer one (A2 write-time supersession).
+ * The row stays in the table (history + read-time fallback) but is excluded
+ * from recall/dedup by default via `superseded_by`. Idempotent-ish: no-op if
+ * the row is missing, not owned, deleted, or already superseded. Does NOT
+ * preserve `updated_at` — superseded rows are hidden from recall, so their
+ * recency is irrelevant.
+ *
+ * @param id - the memory being retired (e.g. "Lives in Portland")
+ * @param supersededById - the newer memory that replaced it (e.g. "Lives in SF")
+ */
+export async function supersedeVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  supersededById: string
+): Promise<boolean> {
+  // A memory can't supersede itself.
+  if (id === supersededById) return false;
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) return false;
+
+    // Validate the successor before pointing at it: it must exist, be live (not
+    // deleted, not itself superseded), and belong to the same user — otherwise
+    // we'd hide `record` behind a dangling or cross-user pointer that history
+    // consumers can't resolve.
+    let successor;
+    try {
+      successor = await ctx.vaultMemoryCollection.find(supersededById);
+    } catch {
+      return false; // successor id doesn't exist
+    }
+    if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
+      return false;
+    }
+
+    let stale = false;
+    await ctx.database.write(async () => {
+      // Re-check BOTH rows inside the serialized writer. The live models
+      // reflect the latest committed state, so a concurrent delete/supersede of
+      // the target OR the successor between the validation above and this write
+      // is caught here — otherwise we'd stamp a pointer to a now-dead successor
+      // (the TOCTOU this guard closes).
+      if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
+      if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("superseded_by", supersededById);
+        r._setRaw("superseded_at", Date.now());
+      });
+    });
+    return !stale;
   } catch {
     return false;
   }
