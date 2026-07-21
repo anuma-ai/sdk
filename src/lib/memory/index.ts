@@ -21,7 +21,6 @@ export {
 } from "./autoExtractWorker.js";
 export { createChunkVectorCache, DEFAULT_CHUNK_CACHE_SIZE } from "./chunkVectorCache.js";
 export { recall } from "./recall.js";
-export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export {
   createRecallTool,
   RECALL_MAX_LIMIT,
@@ -31,6 +30,7 @@ export {
 } from "./recallTool.js";
 export type { RecencyOptions } from "./recency.js";
 export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
+export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
 export {
   extractAndLinkEntitiesForMemoriesOp,
