@@ -332,6 +332,7 @@ export type {
   MemoryExtractedEvent,
   MemoryKind,
   PortalLlmAuth,
+  ProfileConfigFingerprint,
   ProfileDoc,
   ProfileFacet,
   ProfileFacetKey,

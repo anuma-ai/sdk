@@ -142,6 +142,21 @@ export interface ProfileSection {
   stale?: boolean;
 }
 
+/** Fingerprint of the config that produced a {@link ProfileDoc}. Delta reuse
+ * (both the wholesale fast path and per-section reuse) is only valid when the
+ * current call's config matches — otherwise reused sections could carry the
+ * wrong scope's evidence, un-redacted text under a now-present redactor, or an
+ * old section shape. */
+export interface ProfileConfigFingerprint {
+  /** Facet keys present in the doc, sorted. */
+  facetKeys: ProfileFacetKey[];
+  /** Scopes the facts were drawn from, sorted. */
+  scopes: string[];
+  /** Whether a PII redactor gated the section text. Reusing un-gated text under
+   * a now-present redactor would leak PII, so this flips the fingerprint. */
+  redacted: boolean;
+}
+
 /** A synthesized profile. Server-authoritative once published; the client
  * caches it and passes it back as {@link SynthesizeProfileOptions.previous}. */
 export interface ProfileDoc {
@@ -153,6 +168,8 @@ export interface ProfileDoc {
    * synthesis time. Delta refresh regenerates only sections whose source facts
    * changed since a previous doc's watermark. */
   vaultWatermark: number;
+  /** The config that produced this doc — see {@link ProfileConfigFingerprint}. */
+  config: ProfileConfigFingerprint;
   /** Unix ms this doc was produced. */
   generatedAt: number;
 }
@@ -196,57 +213,102 @@ export async function synthesizeProfile(
     throw new Error("synthesizeProfile requires ctx.vaultCtx (vault-backed facts).");
   }
   const facets = options.facets ?? DEFAULT_PROFILE_FACETS;
-  const watermark = await computeVaultWatermark(ctx);
-  const previous = options.previous;
+  const scopes = options.scopes ?? DEFAULT_SCOPES;
+  const config: ProfileConfigFingerprint = {
+    facetKeys: facets.map((f) => f.key).sort(),
+    scopes: [...scopes].sort(),
+    redacted: options.redactor !== undefined,
+  };
 
-  // Fast path: nothing in the vault changed since the previous doc → reuse it
-  // wholesale. Watermark covers create/edit/re-observe/supersede/delete.
-  if (
-    previous &&
-    previous.version === PROFILE_DOC_VERSION &&
-    previous.vaultWatermark >= watermark
-  ) {
+  // A prior doc is only reusable when its SHAPE (version) AND the config that
+  // produced it match. A config change (added redactor, different scopes/facets)
+  // must invalidate BOTH the fast path and per-section reuse — otherwise a
+  // caller that newly adds PII redaction would get back the old un-gated text,
+  // or a scope change would reuse the wrong evidence. This handles findings
+  // #1 (PII fast-path leak) and #4 (version bump reusing old-shape sections).
+  const previous =
+    options.previous &&
+    options.previous.version === PROFILE_DOC_VERSION &&
+    configMatches(options.previous.config, config)
+      ? options.previous
+      : undefined;
+
+  // Single fetch: the watermark and the changed-set are derived from the same
+  // snapshot, both using changeTime() (which includes last_observed_at), so a
+  // re-observation both advances the watermark AND lands in the changed-set.
+  const memories = await getAllVaultMemoriesOp(ctx.vaultCtx, {
+    includeDeleted: true,
+    includeSuperseded: true,
+  });
+  const watermark = computeVaultWatermark(memories);
+
+  // Fast path: reusable prior doc AND nothing in the vault changed since it.
+  if (previous && previous.vaultWatermark >= watermark) {
     return previous;
   }
 
-  // Decide, per facet, whether to regenerate or reuse the prior section.
-  const staleKeys = await computeStaleFacetKeys(ctx, facets, previous, watermark);
+  const staleKeys = computeStaleFacetKeys(memories, facets, previous);
 
-  const sections = await Promise.all(
+  const settled = await Promise.allSettled(
     facets.map(async (facet) => {
       const prior = previous?.sections.find((s) => s.key === facet.key);
       if (prior && !staleKeys.has(facet.key)) {
         return prior; // reuse verbatim — its source facts are unchanged
       }
-      return synthesizeFacet(facet, ctx, options);
+      return synthesizeFacet(facet, ctx, options, prior);
     })
   );
 
-  // Apply the PII gate to freshly-synthesized section text (reused sections
-  // were already gated when first produced).
-  const gated = options.redactor
-    ? await Promise.all(sections.map((s) => gateSection(s, options.redactor!, previous)))
-    : sections;
+  // One rejected facet must not fail the whole profile: fall back to the prior
+  // section (marked stale) or an empty one. Finding #3.
+  const sections = settled.map((r, i) => {
+    if (r.status === "fulfilled") return r.value;
+    const facet = facets[i];
+    return fallbackSection(
+      facet,
+      previous?.sections.find((s) => s.key === facet.key)
+    );
+  });
 
   return {
     version: PROFILE_DOC_VERSION,
-    sections: gated,
+    sections,
     vaultWatermark: watermark,
+    config,
     generatedAt: Date.now(),
   };
 }
 
-/** Max change-time across ALL vault facts (including deleted + superseded, so a
- * deletion/supersession advances the watermark). Uses `updated_at`,
- * `superseded_at`, and the C3 `last_observed_at` re-observation stamp. */
-async function computeVaultWatermark(ctx: RecallContext): Promise<number> {
-  const all = await getAllVaultMemoriesOp(ctx.vaultCtx!, {
-    includeDeleted: true,
-    includeSuperseded: true,
-  });
+/** Whether two config fingerprints are equivalent for reuse purposes. A prior
+ * doc with no `config` (never possible for docs this version produces) is
+ * treated as non-matching. */
+function configMatches(
+  a: ProfileConfigFingerprint | undefined,
+  b: ProfileConfigFingerprint
+): boolean {
+  if (!a) return false;
+  return (
+    a.redacted === b.redacted &&
+    a.facetKeys.length === b.facetKeys.length &&
+    a.facetKeys.every((k, i) => k === b.facetKeys[i]) &&
+    a.scopes.length === b.scopes.length &&
+    a.scopes.every((s, i) => s === b.scopes[i])
+  );
+}
+
+/** A memory's effective change-time — the newest of last edit, supersession,
+ * and C3 re-observation. Used for BOTH the watermark and the changed-set so a
+ * re-observation (which preserves updated_at) still counts as a change. */
+function changeTime(m: StoredVaultMemory): number {
+  return Math.max(m.updatedAt.getTime(), m.supersededAt ?? 0, m.lastObservedAt ?? 0);
+}
+
+/** Max change-time across ALL vault facts (incl. deleted + superseded, so a
+ * deletion/supersession advances the watermark). */
+function computeVaultWatermark(memories: StoredVaultMemory[]): number {
   let max = 0;
-  for (const m of all) {
-    const t = Math.max(m.updatedAt.getTime(), m.supersededAt ?? 0, m.lastObservedAt ?? 0);
+  for (const m of memories) {
+    const t = changeTime(m);
     if (t > max) max = t;
   }
   return max;
@@ -254,33 +316,28 @@ async function computeVaultWatermark(ctx: RecallContext): Promise<number> {
 
 /**
  * Which facets must be regenerated. Rules:
- * - No previous doc → all facets are stale (first synthesis).
+ * - No (usable) previous doc → all facets are stale (first synthesis / config
+ *   or version change).
  * - Any brand-new fact since the previous watermark → regenerate ALL facets: a
  *   new fact could match any facet and we can't attribute it without recall.
  *   (Follow-up: attribute new facts to facets via a cheap recall pass so an
  *   unrelated new fact doesn't force a full re-synthesis.)
  * - Otherwise (only edits/re-observations/supersessions/deletions of existing
  *   facts) → regenerate only the facets whose prior section cited a changed id.
+ *   Uses changeTime() so a re-observation reaches its citing section (#2).
  */
-async function computeStaleFacetKeys(
-  ctx: RecallContext,
+function computeStaleFacetKeys(
+  memories: StoredVaultMemory[],
   facets: ProfileFacet[],
-  previous: ProfileDoc | undefined,
-  watermark: number
-): Promise<Set<ProfileFacetKey>> {
+  previous: ProfileDoc | undefined
+): Set<ProfileFacetKey> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (!previous) return allKeys;
 
-  const changed = await getAllVaultMemoriesOp(ctx.vaultCtx!, {
-    since: new Date(previous.vaultWatermark),
-    includeDeleted: true,
-    includeSuperseded: true,
-  });
+  const changed = memories.filter((m) => changeTime(m) > previous.vaultWatermark);
   if (changed.length === 0) return new Set();
 
-  const hasNewFact = changed.some(
-    (m: StoredVaultMemory) => m.createdAt.getTime() > previous.vaultWatermark
-  );
+  const hasNewFact = changed.some((m) => m.createdAt.getTime() > previous.vaultWatermark);
   if (hasNewFact) return allKeys;
 
   const changedIds = new Set(changed.map((m) => m.uniqueId));
@@ -294,15 +351,20 @@ async function computeStaleFacetKeys(
   for (const facet of facets) {
     if (!previous.sections.some((s) => s.key === facet.key)) stale.add(facet.key);
   }
-  void watermark;
   return stale;
 }
 
-/** One grounded synthesis pass for a single facet. */
+/** One grounded synthesis pass for a single facet. Gates its own fresh text
+ * through the PII redactor when supplied, so the returned section is
+ * publish-safe. On a DEGRADED-empty result (LLM failure, empty text despite
+ * evidence) it falls back to the prior section (marked stale) rather than
+ * wiping a previously-good section (#3). A legitimate "no evidence" verdict
+ * (hasEvidence=false) clears the section as intended. */
 async function synthesizeFacet(
   facet: ProfileFacet,
   ctx: RecallContext,
-  options: SynthesizeProfileOptions
+  options: SynthesizeProfileOptions,
+  prior: ProfileSection | undefined
 ): Promise<ProfileSection> {
   const result = await reflect(facet.query, ctx, {
     apiKey: options.apiKey,
@@ -318,11 +380,40 @@ async function synthesizeFacet(
     responseSchema: FACET_RESPONSE_SCHEMA,
   });
 
+  const { text, legitimateEmpty } = extractFacetText(result.structuredOutput, result.text);
+
+  if (!text && !legitimateEmpty) {
+    // Degraded empty (LLM produced nothing but not an explicit no-evidence
+    // verdict) — keep the prior section, marked stale.
+    return fallbackSection(facet, prior);
+  }
+
+  const section: ProfileSection = {
+    key: facet.key,
+    label: facet.label,
+    text,
+    sourceMemoryIds: result.basedOn.memoryIds,
+    generatedAt: Date.now(),
+  };
+  if (options.redactor && text) {
+    const redacted = await options.redactor.redactTextAsync(text);
+    section.text = redacted.text;
+  }
+  return section;
+}
+
+/** Fallback when a facet's synthesis failed (rejected or degraded-empty): keep
+ * the prior section (marked stale) so a previously-good section survives; only
+ * emit an empty section when there was no prior. */
+function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined): ProfileSection {
+  if (prior && prior.text) {
+    return { ...prior, stale: true };
+  }
   return {
     key: facet.key,
     label: facet.label,
-    text: extractFacetText(result.structuredOutput, result.text),
-    sourceMemoryIds: result.basedOn.memoryIds,
+    text: "",
+    sourceMemoryIds: [],
     generatedAt: Date.now(),
   };
 }
@@ -341,28 +432,19 @@ Rules:
 - Be concise. No preamble, no meta-commentary.`;
 }
 
-/** Pull the section text from the structured output, falling back to raw text.
- * An explicit hasEvidence=false collapses to an empty section. */
-function extractFacetText(structured: unknown, rawText: string): string {
+/** Pull section text from the structured output, falling back to raw text.
+ * Returns `legitimateEmpty` when the LLM explicitly reported no evidence
+ * (hasEvidence=false) — the caller clears the section in that case, but treats
+ * any OTHER empty result as a degradation and keeps the prior section. */
+function extractFacetText(
+  structured: unknown,
+  rawText: string
+): { text: string; legitimateEmpty: boolean } {
   if (structured && typeof structured === "object") {
     const obj = structured as { summary?: unknown; hasEvidence?: unknown };
-    if (obj.hasEvidence === false) return "";
-    if (typeof obj.summary === "string") return obj.summary.trim();
+    if (obj.hasEvidence === false) return { text: "", legitimateEmpty: true };
+    if (typeof obj.summary === "string")
+      return { text: obj.summary.trim(), legitimateEmpty: false };
   }
-  return rawText.trim();
-}
-
-/** Run a freshly-synthesized section's text through the PII gate. On a section
- * that came back empty, keep it empty (nothing to redact). */
-async function gateSection(
-  section: ProfileSection,
-  redactor: PiiRedactor,
-  previous: ProfileDoc | undefined
-): Promise<ProfileSection> {
-  // Reused (unchanged) sections keep the prior object identity — skip re-gating.
-  const prior = previous?.sections.find((s) => s.key === section.key);
-  if (prior === section) return section;
-  if (!section.text) return section;
-  const { text } = await redactor.redactTextAsync(section.text);
-  return { ...section, text };
+  return { text: rawText.trim(), legitimateEmpty: false };
 }

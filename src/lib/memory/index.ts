@@ -35,6 +35,7 @@ export { retain, type RetainContext } from "./retain.js";
 export {
   DEFAULT_PROFILE_FACETS,
   PROFILE_DOC_VERSION,
+  type ProfileConfigFingerprint,
   type ProfileDoc,
   type ProfileFacet,
   type ProfileFacetKey,

@@ -1,6 +1,6 @@
 # SynthesizeProfileOptions
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#162)
+Defined in: [src/lib/memory/synthesizeProfile.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#179)
 
 Options for [synthesizeProfile](../functions/synthesizeProfile.md). Auth is the dual [PortalLlmAuth](PortalLlmAuth.md)
 pattern — one of `apiKey` / `getToken` is required at runtime.
@@ -29,7 +29,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#170)
+Defined in: [src/lib/memory/synthesizeProfile.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#187)
 
 LLM endpoint override.
 
@@ -39,7 +39,7 @@ LLM endpoint override.
 
 > `optional` **facets**: [`ProfileFacet`](ProfileFacet.md)\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#164)
+Defined in: [src/lib/memory/synthesizeProfile.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#181)
 
 Facets to synthesize. Defaults to [DEFAULT\_PROFILE\_FACETS](../variables/DEFAULT_PROFILE_FACETS.md).
 
@@ -49,7 +49,7 @@ Facets to synthesize. Defaults to [DEFAULT\_PROFILE\_FACETS](../variables/DEFAUL
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#176)
+Defined in: [src/lib/memory/synthesizeProfile.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#193)
 
 Override fetch (tests).
 
@@ -171,7 +171,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#174)
+Defined in: [src/lib/memory/synthesizeProfile.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#191)
 
 Facts recalled per facet before synthesis. Default: 20.
 
@@ -181,7 +181,7 @@ Facts recalled per facet before synthesis. Default: 20.
 
 > `optional` **llmModel**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#168)
+Defined in: [src/lib/memory/synthesizeProfile.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#185)
 
 Synthesis model. Default: open-weights ling-2.6-flash.
 
@@ -191,7 +191,7 @@ Synthesis model. Default: open-weights ling-2.6-flash.
 
 > `optional` **previous**: [`ProfileDoc`](ProfileDoc.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#166)
+Defined in: [src/lib/memory/synthesizeProfile.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#183)
 
 Prior doc for delta refresh. Unchanged sections are reused verbatim.
 
@@ -201,7 +201,7 @@ Prior doc for delta refresh. Unchanged sections are reused verbatim.
 
 > `optional` **redactor**: [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#181)
+Defined in: [src/lib/memory/synthesizeProfile.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#198)
 
 Pre-publish PII gate. When supplied, each section's text is run through
 [PiiRedactor.redactTextAsync](../../../expo/Internal/classes/PiiRedactor.md#redacttextasync) (regex + NER) before it's returned.
@@ -214,6 +214,6 @@ server-side, but the client should never publish un-gated text.
 
 > `optional` **scopes**: `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#172)
+Defined in: [src/lib/memory/synthesizeProfile.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#189)
 
 Scopes to draw facts from. Default: \["private"].
