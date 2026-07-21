@@ -23,6 +23,7 @@ import {
   extractAssistantText,
   getImageModel,
   getToolCallEvents,
+  getToolsChecksum,
 } from "../lib/chat/useChat/strategies";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
@@ -113,12 +114,14 @@ import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import {
   autoFilterClientTools,
+  computeToolGuidance,
   filterServerTools,
   getServerTools,
   getToolName,
   mergeTools,
   MIN_CONTENT_LENGTH_FOR_TOOLS,
   type ServerTool,
+  shouldRefreshTools,
   type ToolSet,
 } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
@@ -451,6 +454,16 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
     model?: string;
     round?: number;
   }) => void;
+  /**
+   * Observability hook fired once per send with the tools actually selected for
+   * the turn (after server + client filtering). Never throws into the send path.
+   * Mirrors react's onToolSelection.
+   */
+  onToolSelection?: (info: {
+    prompt: string;
+    clientToolNames: string[];
+    serverToolNames: string[];
+  }) => void;
 }
 
 /**
@@ -731,6 +744,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     resumable = false,
     onCancelResult,
     onStreamMeta,
+    onToolSelection,
     piiRedaction,
     onPiiRedacted,
     nerDetector,
@@ -1705,16 +1719,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               baseUrl,
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
               getToken: getTokenRef.current,
+              cache: serverToolsConfig?.cache,
             });
 
-            if (isServerToolsFunction) {
-              // Function-based filtering: generate embedding and call the function.
-              // Mirror the normal path so tool selection keys off the same text
-              // regardless of skipStorage.
-              if (messageContent.length >= minContentLength) {
-                // Current token getter (see the persisted path): this embedding
-                // is reused by the client-tool filter below, so it must use the
-                // same post-auth/account-change getter, not the stale closure.
+            if (serverToolsConfig?.deferLoading?.enabled) {
+              // Defer-loading: emit the FULL catalog (mergeTools orders + flags it
+              // and prepends tool-search); do NOT semantically filter here.
+              filteredServerTools = allServerTools;
+            } else if (isServerToolsFunction) {
+              // Function-based filtering: embed with the CURRENT token getter (the
+              // embedding is reused by the client filter below) and call the filter.
+              // Tool-selection floor MIN_CONTENT_LENGTH_FOR_TOOLS (5), NOT the storage
+              // floor. Too short to embed → send NO server tools (leave []); an
+              // explicit filter must never degrade to the full catalog. Parity with react.
+              if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
                 skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
                   getToken: getTokenRef.current,
                   baseUrl,
@@ -1722,9 +1740,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 });
                 const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
-              } else {
-                // Message too short - use all tools
-                filteredServerTools = allServerTools;
               }
             } else {
               // Static filtering
@@ -1741,6 +1756,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // The tool-selection floor is MIN_CONTENT_LENGTH_FOR_TOOLS (5), not the
         // storage floor. Fully defensive: any failure leaves the full toolkit.
         let narrowedClientTools = clientTools;
+        let clientActivatedSetNames: ReadonlySet<string> | undefined;
         if (clientTools?.length) {
           try {
             // Ensure a prompt embedding exists before EITHER filter runs (matches
@@ -1766,7 +1782,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               const keep = new Set(clientToolsFilter(skipUserEmbedding ?? null, clientTools));
               narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
             } else if (getTokenRef.current) {
-              const { tools: autoTools } = await autoFilterClientTools(
+              const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
                 clientTools,
                 skipUserEmbedding ?? null,
                 clientToolFilterCache,
@@ -1776,6 +1792,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 skipEmbeddingFailed ? "error" : "short-prompt"
               );
               narrowedClientTools = autoTools;
+              clientActivatedSetNames = activatedSetNames;
             }
           } catch (error) {
             getLogger().warn("[useChatStorage] client tool filtering failed (skipStorage):", error);
@@ -1786,7 +1803,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           filteredServerTools.length > 0 ||
           (narrowedClientTools && narrowedClientTools.length > 0)
         ) {
-          mergedTools = mergeTools(filteredServerTools, narrowedClientTools, effectiveApiType);
+          mergedTools = mergeTools(
+            filteredServerTools,
+            narrowedClientTools,
+            effectiveApiType,
+            serverToolsConfig?.deferLoading
+          );
+        }
+
+        if (onToolSelection) {
+          try {
+            onToolSelection({
+              prompt: messageContent,
+              clientToolNames: (narrowedClientTools ?? []).map(getToolName).filter(Boolean),
+              serverToolNames: filteredServerTools.map((t) => t.name),
+            });
+          } catch {
+            // Observability must never break the send path.
+          }
         }
 
         const result = await baseSendMessage({
@@ -1797,6 +1831,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           memoryContext,
           searchContext,
           fileContext,
+          toolGuidance: computeToolGuidance(
+            filteredServerTools,
+            narrowedClientTools,
+            extraToolSets ?? [],
+            clientActivatedSetNames
+          ),
           temperature,
           maxOutputTokens,
           tools: mergedTools,
@@ -1831,6 +1871,39 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             data: null,
             error: result.error || "Unknown error",
           };
+        }
+
+        // Refresh the cached server-tools catalog when the response's checksum
+        // differs from the cached one (react parity). The cache backend may be
+        // async, so resolve the (possibly-promise) shouldRefreshTools — a bare
+        // `if (shouldRefreshTools(...))` would be truthy on a Promise. Forward
+        // the same backend. Fire-and-forget; never block the send return.
+        const skipRefreshGetToken = getTokenRef.current;
+        // Capture the (here non-null) response now: inside the deferred .then
+        // below TS no longer narrows result.data past the early-return guard.
+        const skipRefreshData = result.data;
+        if (skipRefreshGetToken) {
+          // Run shouldRefreshTools INSIDE the chain: it synchronously reads the
+          // cache backend (cache.get()), and a custom RN backend can throw — a
+          // sync throw in the Promise.resolve() argument would escape .catch()
+          // and reject an already-successful send.
+          Promise.resolve()
+            .then(() =>
+              shouldRefreshTools(getToolsChecksum(skipRefreshData), serverToolsConfig?.cache)
+            )
+            .then((refresh) => {
+              if (refresh) {
+                return getServerTools({
+                  baseUrl,
+                  getToken: skipRefreshGetToken,
+                  forceRefresh: true,
+                  cache: serverToolsConfig?.cache,
+                });
+              }
+            })
+            .catch((err) => {
+              getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+            });
         }
 
         return {
@@ -1995,16 +2068,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             baseUrl,
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken: getTokenRef.current,
+            cache: serverToolsConfig?.cache,
           });
 
-          if (isServerToolsFunction) {
-            // Function-based filtering: generate embedding and call the function
-            if (contentForStorage.length >= minContentLength) {
-              // Use the CURRENT token getter (getTokenRef), not the closed-over
-              // `getToken`. This embedding is reused by the client-tool filter
-              // below, so it must honor the same post-auth/account-change getter
-              // the filter uses — otherwise the stale-token fix is bypassed on
-              // this (common) path.
+          if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
+            // Defer-loading (responses only): emit the FULL catalog — mergeTools
+            // orders + flags it and prepends tool-search — so do NOT filter here.
+            filteredServerTools = allServerTools;
+          } else if (isServerToolsFunction) {
+            // Function-based filtering: embed with the CURRENT token getter (the
+            // embedding is reused by the client filter + message storage below)
+            // and call the filter. Tool-selection floor MIN_CONTENT_LENGTH_FOR_TOOLS
+            // (5), NOT the storage floor `minContentLength` (10). Too short to
+            // embed → send NO server tools (leave []); an explicit semantic filter
+            // must never degrade to the full catalog. Parity with react.
+            if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
               userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
                 getToken: getTokenRef.current,
                 baseUrl,
@@ -2012,9 +2090,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               });
               const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
-            } else {
-              // Message too short - use all tools
-              filteredServerTools = allServerTools;
             }
           } else {
             // Static filtering
@@ -2022,7 +2097,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
 
           if (filteredServerTools.length > 0) {
-            mergedTools = mergeTools(filteredServerTools, clientTools, effectiveApiType);
+            mergedTools = mergeTools(
+              filteredServerTools,
+              clientTools,
+              effectiveApiType,
+              serverToolsConfig?.deferLoading
+            );
           }
         } catch (error) {
           // Log but don't block - server tools are optional
@@ -2037,9 +2117,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // prompt-relevant client tools instead of the whole toolkit. Fully defensive:
       // any failure leaves `mergedTools` as-is (the full toolkit — today's behavior),
       // so this can never strip a tool the turn needs.
+      // Hoisted out of the block below so the toolGuidance + onToolSelection
+      // computation at the send can see the narrowed set and which sets activated.
+      let narrowedClientTools = clientTools;
+      let clientActivatedSetNames: ReadonlySet<string> | undefined;
       if (clientTools?.length) {
         try {
-          let narrowedClientTools = clientTools;
           // Ensure a prompt embedding exists before EITHER filter runs — react
           // generates it up front whenever a client filter is in play (explicit
           // function OR auto), so a semantic custom filter never sees null on a
@@ -2066,7 +2149,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
             narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
           } else if (getTokenRef.current) {
-            const { tools: autoTools } = await autoFilterClientTools(
+            const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
               clientTools,
               userMessageEmbedding ?? null,
               clientToolFilterCache,
@@ -2076,6 +2159,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               userMessageEmbeddingFailed ? "error" : "short-prompt"
             );
             narrowedClientTools = autoTools;
+            clientActivatedSetNames = activatedSetNames;
           }
           // Merge only when something survived — mirrors the skipStorage branch
           // and react. An empty `narrowedClientTools` (short prompt / a filter
@@ -2083,8 +2167,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // send `tools: []`: an empty array is truthy, so the strategies would
           // serialize it and break a turn with a required `toolChoice`.
           mergedTools =
-            filteredServerTools.length > 0 || narrowedClientTools.length > 0
-              ? mergeTools(filteredServerTools, narrowedClientTools, effectiveApiType)
+            filteredServerTools.length > 0 || (narrowedClientTools?.length ?? 0) > 0
+              ? mergeTools(
+                  filteredServerTools,
+                  narrowedClientTools,
+                  effectiveApiType,
+                  serverToolsConfig?.deferLoading
+                )
               : undefined;
         } catch (error) {
           getLogger().warn("[useChatStorage] client tool filtering failed:", error);
@@ -2110,6 +2199,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      if (onToolSelection) {
+        try {
+          onToolSelection({
+            prompt: contentForStorage,
+            clientToolNames: (narrowedClientTools ?? []).map(getToolName).filter(Boolean),
+            serverToolNames: filteredServerTools.map((t) => t.name),
+          });
+        } catch {
+          // Observability must never break the send path.
+        }
+      }
+
       // Send the message using the underlying useChat
       const result = await baseSendMessage({
         messages: messagesToSend,
@@ -2119,6 +2220,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryContext,
         searchContext,
         fileContext,
+        toolGuidance: computeToolGuidance(
+          filteredServerTools,
+          narrowedClientTools,
+          extraToolSets ?? [],
+          clientActivatedSetNames
+        ),
         apiType: requestApiType,
         // Responses API options
         temperature,
@@ -2408,6 +2515,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: err instanceof Error ? err.message : "Failed to store assistant message",
           userMessage: storedUserMessage,
         };
+      }
+
+      // Refresh the cached server-tools catalog when the response checksum
+      // differs from the cached one (react parity). Async-safe (resolve the
+      // possibly-promise shouldRefreshTools) and forwards the same backend.
+      const refreshGetToken = getTokenRef.current;
+      if (refreshGetToken) {
+        // Run shouldRefreshTools INSIDE the chain: it synchronously reads the
+        // cache backend (cache.get()), and a custom RN backend can throw — a sync
+        // throw in the Promise.resolve() argument would escape .catch() and reject
+        // an already-successful (and already-persisted) send.
+        Promise.resolve()
+          .then(() => shouldRefreshTools(getToolsChecksum(responseData), serverToolsConfig?.cache))
+          .then((refresh) => {
+            if (refresh) {
+              return getServerTools({
+                baseUrl,
+                getToken: refreshGetToken,
+                forceRefresh: true,
+                cache: serverToolsConfig?.cache,
+              });
+            }
+          })
+          .catch((err) => {
+            getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+          });
       }
 
       return {
