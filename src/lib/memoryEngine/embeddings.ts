@@ -132,10 +132,14 @@ export async function generateEmbedding(
 ): Promise<number[]> {
   const { baseUrl = BASE_URL, getToken, apiKey, model, cache } = options;
 
-  // Check cache first
+  // Check cache first. The cache holds Float32Array (native embedding
+  // precision, half the resident RAM of a float64 number[]); the public
+  // contract still returns number[], so re-materialize a plain array at this
+  // boundary. This is not the RAM-critical resident structure (the Map stays
+  // f32) and the array handed back equals what a cache miss would return.
   if (cache) {
     const cached = cache.get(text);
-    if (cached) return cached;
+    if (cached) return Array.from(cached);
   }
 
   // Build auth headers - prefer apiKey if provided
@@ -183,12 +187,14 @@ export async function generateEmbedding(
     });
   }
 
-  // Store in cache
+  // Convert to f32 precision before returning so cache miss and hit return
+  // identical values (cache hits materialize from Float32Array).
+  const f32Embedding = Float32Array.from(embedding);
   if (cache) {
-    cache.set(text, embedding);
+    cache.set(text, f32Embedding);
   }
 
-  return embedding;
+  return Array.from(f32Embedding);
 }
 
 const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
@@ -262,7 +268,9 @@ export async function generateEmbeddings(
     if (cache) {
       const cached = cache.get(texts[i]);
       if (cached) {
-        results[i] = cached;
+        // Cache holds Float32Array; the batch contract returns number[][], so
+        // re-materialize at this boundary (the resident f32 Map is untouched).
+        results[i] = Array.from(cached);
         continue;
       }
     }
@@ -336,11 +344,14 @@ export async function generateEmbeddings(
     newEmbeddings = allEmbeddings.flat();
   }
 
-  // Merge new embeddings into results and populate cache
+  // Merge new embeddings into results and populate cache. Convert to f32
+  // precision so cache miss and hit return identical values (hits materialize
+  // from Float32Array).
   for (let i = 0; i < uncachedIndices.length; i++) {
-    results[uncachedIndices[i]] = newEmbeddings[i];
+    const f32Embedding = Float32Array.from(newEmbeddings[i]);
+    results[uncachedIndices[i]] = Array.from(f32Embedding);
     if (cache) {
-      cache.set(uncachedTexts[i], newEmbeddings[i]);
+      cache.set(uncachedTexts[i], f32Embedding);
     }
   }
 
