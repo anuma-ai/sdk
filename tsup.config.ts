@@ -70,7 +70,14 @@ export default defineConfig([
       {
         name: "rewrite-client-import",
         setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
             return { path: "@anuma/sdk", external: true };
           });
         },
@@ -103,7 +110,14 @@ export default defineConfig([
       {
         name: "rewrite-client-import",
         setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
             return { path: "@anuma/sdk", external: true };
           });
         },
@@ -176,7 +190,14 @@ export default defineConfig([
       {
         name: "rewrite-client-import",
         setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
             return { path: "@anuma/sdk", external: true };
           });
         },
@@ -253,7 +274,14 @@ export default defineConfig([
       {
         name: "rewrite-client-import",
         setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
             return { path: "@anuma/sdk", external: true };
           });
         },
