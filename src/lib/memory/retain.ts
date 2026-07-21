@@ -122,7 +122,7 @@ export async function retain(
       if (matches.length > 0) {
         const targetId = matches[0].uniqueId;
         const existing = await getVaultMemoryOp(ctx.vaultCtx, targetId);
-        if (existing) {
+        if (existing && !existing.supersededBy) {
           const mergedSourceIds = unionStrings(
             existing.sourceChunkIds ?? [],
             options.sourceChunkIds ?? []
@@ -394,7 +394,7 @@ async function tryConsolidate(
 
   if (decision.action === "noop" && decision.targetId) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
-    if (!existing) return null; // race: target gone, fall through to create
+    if (!existing || existing.supersededBy) return null; // race: target gone or superseded, fall through to create
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
@@ -425,7 +425,7 @@ async function tryConsolidate(
 
   if (decision.action === "update" && decision.targetId && decision.content) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
-    if (!existing) return null;
+    if (!existing || existing.supersededBy) return null;
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
