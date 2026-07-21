@@ -481,7 +481,7 @@ async function tryConsolidate(
  */
 async function assertMergeTargetGoneOrThrow(ctx: RetainContext, targetId: string): Promise<void> {
   const stillExists = await getVaultMemoryOp(ctx.vaultCtx, targetId);
-  if (stillExists) {
+  if (stillExists && !stillExists.supersededBy) {
     throw new Error(`retain: merge into memory ${targetId} failed to persist`);
   }
 }
