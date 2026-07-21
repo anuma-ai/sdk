@@ -309,4 +309,54 @@ describe("synthesizeProfile", () => {
     expect(doc.sections[0].text).toBe("good old bio");
     expect(doc.sections[0].stale).toBe(true);
   });
+
+  // A section left stale by a prior failed regeneration must be retried on the
+  // next call even when the vault hasn't advanced (the failure was transient) —
+  // the fast path is skipped and the stale facet regenerates.
+  it("retries a stale section even when the vault is unchanged", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    mockReflect.mockResolvedValueOnce(reflectResult("retried bio", ["a"]));
+
+    const previous = priorDoc(
+      [
+        { ...section("bio", "old bio", ["a"]), stale: true },
+        section("interests", "old interests", ["b"]),
+      ],
+      2000 // same as computed watermark → vault unchanged
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(doc).not.toBe(previous); // fast path skipped despite unchanged watermark
+    expect(mockReflect).toHaveBeenCalledTimes(1); // only the stale facet retried
+    const bio = doc.sections.find((s) => s.key === "bio")!;
+    expect(bio.text).toBe("retried bio");
+    expect(bio.stale).toBeFalsy();
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+  });
+
+  // When recall returns no evidence (cited facts were deleted/superseded), the
+  // section is cleared rather than kept as a degraded prior.
+  it("clears a section when recall finds no evidence", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+    ]);
+    // Empty text AND empty memoryIds → recall found nothing → legitimate clear.
+    mockReflect.mockResolvedValueOnce({
+      text: "",
+      basedOn: { memoryIds: [] },
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    } as never);
+
+    const previous = priorDoc([section("bio", "old bio", ["a"])], 2000, {
+      facetKeys: ["bio"],
+      scopes: ["private"],
+      redacted: false,
+    });
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]], previous });
+
+    expect(doc.sections[0].text).toBe("");
+    expect(doc.sections[0].stale).toBeFalsy();
+  });
 });

@@ -337,7 +337,9 @@ function computeStaleFacetKeys(
   if (!previous) return allKeys;
 
   const changed = memories.filter((m) => changeTime(m) > previous.vaultWatermark);
-  if (changed.length === 0) return new Set();
+  // NB: no early-return on an empty `changed` set — sections marked stale by a
+  // prior failed regeneration must still be retried below even when the vault
+  // itself is unchanged (the failure was transient, e.g. the LLM was down).
 
   const hasNewFact = changed.some((m) => m.createdAt.getTime() > previous.vaultWatermark);
   if (hasNewFact) return allKeys;
