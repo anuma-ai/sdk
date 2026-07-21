@@ -117,6 +117,7 @@ import {
   getServerTools,
   getToolName,
   mergeTools,
+  MIN_CONTENT_LENGTH_FOR_TOOLS,
   type ServerTool,
   type ToolSet,
 } from "../lib/tools";
@@ -1975,7 +1976,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
             narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
           } else if (getTokenRef.current) {
-            if (!userMessageEmbedding && contentForStorage.length >= minContentLength) {
+            // Tool-selection floor is MIN_CONTENT_LENGTH_FOR_TOOLS (5) — the value
+            // react + autoFilterClientTools use — NOT the storage-embedding floor
+            // `minContentLength` (default 10). Gating on the storage floor here
+            // treated 5–9 char prompts as short-prompt and dropped their tools.
+            if (!userMessageEmbedding && contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
               try {
                 userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
                   getToken: getTokenRef.current,
