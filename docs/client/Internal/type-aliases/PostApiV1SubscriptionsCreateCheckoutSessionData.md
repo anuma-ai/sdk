@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCreateCheckoutSessionData** = `object`
 
-Defined in: [src/client/types.gen.ts:9193](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9193)
+Defined in: [src/client/types.gen.ts:9257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9257)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9193](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersCreateCheckoutSessionRequest`](HandlersCreateCheckoutSessionRequest.md)
 
-Defined in: [src/client/types.gen.ts:9197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9197)
+Defined in: [src/client/types.gen.ts:9261](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9261)
 
 Checkout session request with redirect URLs
 
@@ -20,7 +20,7 @@ Checkout session request with redirect URLs
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:9198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9198)
+Defined in: [src/client/types.gen.ts:9262](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9262)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:9198](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9199](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9199)
+Defined in: [src/client/types.gen.ts:9263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9263)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:9199](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/subscriptions/create-checkout-session"`
 
-Defined in: [src/client/types.gen.ts:9200](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9200)
+Defined in: [src/client/types.gen.ts:9264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9264)

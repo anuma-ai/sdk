@@ -98,6 +98,8 @@ import {
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
 import {
+  type ChunkVectorCache,
+  createChunkVectorCache,
   createRecallTool as createRecallToolBase,
   recall as recallBase,
   RECALL_TOOL_NAME,
@@ -1900,6 +1902,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
 
   /**
+   * Decrypted chunk-vector cache for the recall chunk lane. Skips the
+   * per-query decrypt + JSON.parse of every message's chunk vectors on warm
+   * entries; stale entries self-invalidate on updated_at mismatch.
+   */
+  const chunkVectorCacheRef = useRef<ChunkVectorCache>(createChunkVectorCache());
+
+  /**
    * Cache for client tool description embeddings.
    * Maps tool name → embedding vector. Populated lazily on first message
    * and reused across messages (tool descriptions don't change).
@@ -1930,7 +1939,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    * identity. Mirrors lazyDecrypt's title-cache clear on the same signal.
    */
   useEffect(() => {
-    return onClearAllEncryptionState(() => vaultEmbeddingCacheRef.current.clear());
+    return onClearAllEncryptionState(() => {
+      vaultEmbeddingCacheRef.current.clear();
+      chunkVectorCacheRef.current.clear();
+    });
   }, []);
 
   /**
@@ -1976,6 +1988,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           storageCtx,
           embeddingOptions: vaultEmbeddingOptions,
           vaultCache: vaultEmbeddingCacheRef.current,
+          chunkCache: chunkVectorCacheRef.current,
           // Graph lane fires when entityCtx is present and the query
           // contains extractable entities. Empty memory_entity (e.g.
           // before any auto-extraction linked entities) is a graceful
@@ -2047,6 +2060,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // would embed the raw query (often containing the user's PII).
           embeddingOptions: vaultEmbeddingOptions,
           vaultCache: vaultEmbeddingCacheRef.current,
+          chunkCache: chunkVectorCacheRef.current,
           // Graph lane fires only when entityCtx is present and the query
           // has extractable entities; empty memory_entity is a graceful
           // no-op (falls through to fact + chunk lanes). Mirrors createRecallTool.

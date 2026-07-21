@@ -225,9 +225,15 @@ export const EXTRACTION_CASES: ExtractionCase[] = [
   {
     id: "u-status",
     category: "update",
+    // Forbidden is only the transient mood. Dropped the "User is getting
+    // married." template: it was an embedding-adjacency trap — cosine can't
+    // separate the *correct* supersession facts the model emits here ("wedding
+    // is cancelled", "is single") from "getting married", so it flagged valid
+    // extractions as junk. Those extras already show up in precision; they
+    // shouldn't also be counted as forbidden hits.
     messages: turn("u3", "Update: the wedding is off, we broke up. Rough few weeks."),
     expected: ["User went through a breakup."],
-    forbidden: ["User is getting married.", "User had a rough few weeks."],
+    forbidden: ["User had a rough few weeks."],
   },
 
   // ---- entity-kind stress: org / product / event vs the old "thing" bucket ----

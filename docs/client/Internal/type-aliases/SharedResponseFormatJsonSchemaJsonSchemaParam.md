@@ -2,7 +2,7 @@
 
 > **SharedResponseFormatJsonSchemaJsonSchemaParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4232](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4232)
+Defined in: [src/client/types.gen.ts:4245](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4245)
 
 Structured Outputs configuration options, including a JSON Schema.
 
@@ -12,7 +12,7 @@ Structured Outputs configuration options, including a JSON Schema.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4233](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4233)
+Defined in: [src/client/types.gen.ts:4246](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4246)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:4233](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **description**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:4234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4234)
+Defined in: [src/client/types.gen.ts:4247](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4247)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:4234](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:4239](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4239)
+Defined in: [src/client/types.gen.ts:4252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4252)
 
 The name of the response format. Must be a-z, A-Z, 0-9, or contain underscores
 and dashes, with a maximum length of 64.
@@ -39,7 +39,7 @@ and dashes, with a maximum length of 64.
 
 > `optional` **schema**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4244](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4244)
+Defined in: [src/client/types.gen.ts:4257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4257)
 
 The schema for the response format, described as a JSON Schema object. Learn how
 to build JSON schemas [here](https://json-schema.org/).
@@ -50,4 +50,4 @@ to build JSON schemas [here](https://json-schema.org/).
 
 > `optional` **strict**: [`ParamOptBool`](ParamOptBool.md)
 
-Defined in: [src/client/types.gen.ts:4245](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4245)
+Defined in: [src/client/types.gen.ts:4258](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4258)

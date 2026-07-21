@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminUsersLookupResponse** = [`GetApiV1AdminUsersLookupResponses`](GetApiV1AdminUsersLookupResponses.md)\[keyof [`GetApiV1AdminUsersLookupResponses`](GetApiV1AdminUsersLookupResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6041](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6041)
+Defined in: [src/client/types.gen.ts:6105](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6105)

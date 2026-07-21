@@ -73,7 +73,9 @@ async function isMemoryTopicsUserManaged(
 // NOTE: gpt-oss rejects `response_format: json_object` (see portalLlm.ts) and
 // is a reasoning model, so callers must NOT impose a small `max_tokens` cap —
 // reasoning tokens count against it and would starve the JSON output.
-const DEFAULT_MODEL = "gpt-oss/gpt-oss-120b";
+// Exported so the standalone topic-extraction pass (topicExtract.ts) uses the
+// same sanctioned model — do NOT introduce a second extraction model constant.
+export const DEFAULT_EXTRACTION_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 // Floor to drop empty-ish fragments that survive the non-empty check but carry
@@ -92,6 +94,23 @@ const FACT_TYPES = [
 ] as const;
 
 export type FactType = (typeof FACT_TYPES)[number];
+
+/**
+ * Entity-kind taxonomy shared by the conversation fact-extraction prompt
+ * (below) and the standalone topic-extraction prompt (topicExtract.ts) — one
+ * source of truth so the two prompts can't drift on kind definitions (the
+ * kind-accuracy eval in SDK #704 exercises exactly this block).
+ */
+export const ENTITY_KIND_GUIDELINES = `Choose the MOST SPECIFIC kind:
+    - person: a named individual ("Sara", "Dr. Lee")
+    - organization: a company, team, school, or group ("Google", "the Warriors", "Stanford")
+    - place: a geographic location or venue ("San Francisco", "Blue Bottle on Valencia")
+    - event: a dated or nameable occurrence ("Chicago Marathon", "the Japan trip", "their wedding")
+    - product: a named app, tool, brand, device, book, film, or other media title ("Linear", "iPhone", "Dune", "Ableton")
+    - thing: a concrete physical object that isn't a branded product ("road bike", "sourdough starter")
+    - concept: a topic, skill, field, language, or idea ("machine learning", "Spanish", "async communication")
+    - other: a named entity that genuinely fits none of the above — use sparingly
+  Prefer organization / product / event / place over the generic "thing"; fall back to "thing" or "other" only when no specific kind fits.`;
 
 const SYSTEM_PROMPT = `You extract durable user facts from conversations for a personal memory system.
 
@@ -121,16 +140,7 @@ For each durable fact, output:
 - type: one of identity | preference | relationship | plan | ongoing_context | constraint | other
 - confidence: 0.0-1.0; how sure you are this is durable AND true. Only include facts >= 0.7.
 - sourceMessageIds: which message IDs from the conversation contained the evidence
-- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "organization" | "place" | "event" | "product" | "thing" | "concept" | "other" }. Optional — include only NAMED entities, skip generic/common nouns. Choose the MOST SPECIFIC kind:
-    - person: a named individual ("Sara", "Dr. Lee")
-    - organization: a company, team, school, or group ("Google", "the Warriors", "Stanford")
-    - place: a geographic location or venue ("San Francisco", "Blue Bottle on Valencia")
-    - event: a dated or nameable occurrence ("Chicago Marathon", "the Japan trip", "their wedding")
-    - product: a named app, tool, brand, device, book, film, or other media title ("Linear", "iPhone", "Dune", "Ableton")
-    - thing: a concrete physical object that isn't a branded product ("road bike", "sourdough starter")
-    - concept: a topic, skill, field, language, or idea ("machine learning", "Spanish", "async communication")
-    - other: a named entity that genuinely fits none of the above — use sparingly
-  Prefer organization / product / event / place over the generic "thing"; fall back to "thing" or "other" only when no specific kind fits. Examples:
+- entities: named entities mentioned, each as an object { "name": string, "kind": one of "person" | "organization" | "place" | "event" | "product" | "thing" | "concept" | "other" }. Optional — include only NAMED entities, skip generic/common nouns. ${ENTITY_KIND_GUIDELINES} Examples:
     - "started a new job at Hollowpoint Labs and I'm learning Haskell for it" → entities: [{ "name": "Hollowpoint Labs", "kind": "organization" }, { "name": "Haskell", "kind": "concept" }]
     - "running the Berlin Half in May and I track workouts in Whoop" → entities: [{ "name": "Berlin Half", "kind": "event" }, { "name": "Whoop", "kind": "product" }]
 - eventTime: when the event in this fact occurs/occurred. Resolve relative phrases ("yesterday", "next week") against the current date given in the user message. Output one of:
@@ -327,7 +337,7 @@ export async function extractFacts(
     ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
     ...(options.getToken !== undefined && { getToken: options.getToken }),
     ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
-    model: options.model ?? DEFAULT_MODEL,
+    model: options.model ?? DEFAULT_EXTRACTION_MODEL,
     systemPrompt: SYSTEM_PROMPT,
     userMessage: `Today's date is ${today}. Resolve any relative dates ("yesterday", "next week") against it.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,
     tag: "memory/extract",
@@ -447,9 +457,12 @@ export type ExtractOutcome =
 
 /**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
- * enabled. The resolver path (decide create/merge/update via a second LLM
- * call against the existing vault) is deferred — the auto-merge inside
- * retain() handles dedup at the cosine-similarity level for hackathon.
+ * enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
+ * is the "resolver": a second LLM call against the top-K existing vault
+ * memories that decides create/update/noop/supersede — including retiring a
+ * stale value on a state change (the supersession the extraction prompt above
+ * promises). Without consolidation, retain() still dedups at the cosine-merge
+ * level, and the read-time supersession heuristic remains the fallback.
  *
  * Returns the candidates that survived validation along with the retain
  * result for each (which captures whether the fact was created, merged,
@@ -637,6 +650,8 @@ export async function extractAndRetain(
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
         sourceChunkIds: candidate.sourceMessageIds,
+        // Don't let extraction silently resurrect a fact the user deleted.
+        respectTombstones: true,
         ...(options.scope !== undefined && { scope: options.scope }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(consolidateOptions !== undefined && { consolidateOptions }),
@@ -688,15 +703,23 @@ export async function extractAndRetain(
       results.push(result);
 
       // W5 — link entities to the freshly persisted memory. Best-effort:
-      // a failure here doesn't roll back the retain.
-      if (options.entityCtx && candidate.entities.length > 0) {
+      // a failure here doesn't roll back the retain. Skip when the write was
+      // suppressed by a tombstone — `result.memoryId` is the soft-deleted row,
+      // not a live memory to graft entities onto.
+      if (result.action !== "suppressed" && options.entityCtx && candidate.entities.length > 0) {
         try {
           // Respect user-managed topics: if this candidate auto-merged into an
           // existing memory whose topics the user has taken manual control of,
           // don't graft extracted entities onto it. (A freshly created memory
-          // is never user-managed, so this only skips the merge case.)
+          // is never user-managed, so this only skips the merge case.) The
+          // pre-check here is a cheap skip of the entity upserts; the
+          // authoritative check is `unlessTopicsUserManaged`, which re-reads
+          // the flag inside the link writer so a manual topic edit landing
+          // mid-call can't be overwritten.
           if (!(await isMemoryTopicsUserManaged(options.entityCtx, result.memoryId))) {
-            await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities);
+            await linkMemoryEntitiesOp(options.entityCtx, result.memoryId, candidate.entities, {
+              unlessTopicsUserManaged: true,
+            });
           }
         } catch (err) {
           // Entity linking is auxiliary — don't kill the rest of the batch.
@@ -829,8 +852,12 @@ function validateCandidates(
  * occasionally revert to the pre-kind format — keep the name rather than
  * drop the entity). An unrecognized / missing `kind` is dropped so only
  * valid {@link EntityKind}s reach the store; the name is always kept.
+ *
+ * Exported for topicExtract.ts (the standalone topic-extraction pass shares
+ * this validator so both pipelines admit identical entity shapes) — not part
+ * of the public SDK surface.
  */
-function parseEntities(raw: unknown[]): ExtractedEntity[] {
+export function parseEntities(raw: unknown[]): ExtractedEntity[] {
   const out: ExtractedEntity[] = [];
   for (const e of raw) {
     if (typeof e === "string") {

@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsPurchaseResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7328)
+Defined in: [src/client/types.gen.ts:7392](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7392)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7328](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCheckoutSessionResponse`](HandlersCheckoutSessionResponse.md)
 
-Defined in: [src/client/types.gen.ts:7332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7332)
+Defined in: [src/client/types.gen.ts:7396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7396)
 
 OK

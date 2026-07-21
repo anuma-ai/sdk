@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:460](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#460)
+Defined in: [src/lib/db/memoryVault/operations.ts:552](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#552)
 
 ## Parameters
 
@@ -134,6 +134,25 @@ render "forgotten" nodes; ordinary consumers should leave this off.
 <td>
 
 Include quarantined memories. Default `false` (PR1 choke point).
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeSuperseded?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include A2-superseded memories (each carries `supersededBy`). Default
+`false` — superseded rows are excluded, as they are from recall/dedup.
+Used by a "memory history" view to render retired facts.
 
 </td>
 </tr>

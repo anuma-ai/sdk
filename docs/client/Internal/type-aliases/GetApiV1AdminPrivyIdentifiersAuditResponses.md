@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminPrivyIdentifiersAuditResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5737](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5737)
+Defined in: [src/client/types.gen.ts:5750](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5750)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5737](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersPrivyIdentifierAuditResponse`](HandlersPrivyIdentifierAuditResponse.md)
 
-Defined in: [src/client/types.gen.ts:5741](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5741)
+Defined in: [src/client/types.gen.ts:5754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5754)
 
 OK

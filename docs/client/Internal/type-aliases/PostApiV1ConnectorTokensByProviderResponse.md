@@ -2,4 +2,4 @@
 
 > **PostApiV1ConnectorTokensByProviderResponse** = [`PostApiV1ConnectorTokensByProviderResponses`](PostApiV1ConnectorTokensByProviderResponses.md)\[keyof [`PostApiV1ConnectorTokensByProviderResponses`](PostApiV1ConnectorTokensByProviderResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6903](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6903)
+Defined in: [src/client/types.gen.ts:6967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6967)

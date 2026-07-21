@@ -2,7 +2,7 @@
 
 > **postApiV1PreprocessorsCryptoPrices**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1PreprocessorsCryptoPricesData`](../type-aliases/PostApiV1PreprocessorsCryptoPricesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1PreprocessorsCryptoPricesResponses`](../type-aliases/PostApiV1PreprocessorsCryptoPricesResponses.md), [`PostApiV1PreprocessorsCryptoPricesErrors`](../type-aliases/PostApiV1PreprocessorsCryptoPricesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1499](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1499)
+Defined in: [src/client/sdk.gen.ts:1509](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1509)
 
 Get crypto prices
 

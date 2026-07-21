@@ -2,7 +2,7 @@
 
 > **getApiV1ZetaMarket**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaMarketData`](../type-aliases/GetApiV1ZetaMarketData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ZetaMarketResponses`](../type-aliases/GetApiV1ZetaMarketResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2025](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2025)
+Defined in: [src/client/sdk.gen.ts:2035](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2035)
 
 ZETA market stats
 

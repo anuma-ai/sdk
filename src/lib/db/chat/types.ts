@@ -151,6 +151,33 @@ export interface GetMessagesPageOptions {
   limit: number;
 }
 
+/** Options for keyset-paginated conversation-list reads ({@link getConversationsPageOp}). */
+export interface GetConversationsPageOptions {
+  /**
+   * Upper-bound `created_at` cursor (epoch ms). Without
+   * `boundaryExcludeUniqueIds` it is EXCLUSIVE: only conversations with
+   * `createdAt < before` are returned. Omit to fetch the newest page.
+   */
+  before?: number;
+  /**
+   * uniqueIds of the rows the caller already holds AT the `before` boundary.
+   * `created_at` is NOT unique (a bulk restore/import writes many rows with the
+   * same timestamp) — with an exclusive cursor, an unseen row sharing the
+   * boundary timestamp would be silently skipped by every page. When provided,
+   * the boundary timestamp is fetched INCLUSIVELY and these known rows are
+   * filtered out, so a boundary-timestamp row is returned exactly once. Mirrors
+   * {@link GetMessagesPageOptions.boundaryExcludeUniqueIds}.
+   */
+  boundaryExcludeUniqueIds?: string[];
+  /**
+   * Maximum rows to return — the NEWEST `limit` rows of the matching range.
+   * Defaults to 200. A non-positive or non-finite value yields an EMPTY page
+   * (never an unbounded read — SQLite treats `LIMIT -1` as "no limit");
+   * fractional values are floored.
+   */
+  limit?: number;
+}
+
 /**
  * Lightweight, mostly-undecrypted projection of a message row. Contains just
  * enough for consumers to build the conversation's branch tree (parent/child

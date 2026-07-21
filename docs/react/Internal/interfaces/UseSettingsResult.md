@@ -1,6 +1,6 @@
 # UseSettingsResult
 
-Defined in: [src/react/useSettings.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#45)
+Defined in: [src/react/useSettings.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#48)
 
 Extended result returned by useSettings hook (React version)
 Includes both legacy modelPreference API and new userPreference API
@@ -15,7 +15,7 @@ Includes both legacy modelPreference API and new userPreference API
 
 > **deleteModelPreference**: (`walletAddress`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/settings/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#38)
+Defined in: [src/lib/db/settings/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#45)
 
 **Parameters**
 
@@ -56,7 +56,7 @@ Defined in: [src/lib/db/settings/types.ts:38](https://github.com/anuma-ai/sdk/bl
 
 > **deleteUserPreference**: (`walletAddress`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useSettings.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#62)
+Defined in: [src/react/useSettings.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#65)
 
 **Parameters**
 
@@ -93,7 +93,7 @@ Defined in: [src/react/useSettings.ts:62](https://github.com/anuma-ai/sdk/blob/m
 
 > **getModelPreference**: (`walletAddress`: `string`) => `Promise`<[`StoredModelPreference`](StoredModelPreference.md) | `null`>
 
-Defined in: [src/lib/db/settings/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#33)
+Defined in: [src/lib/db/settings/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#40)
 
 **Parameters**
 
@@ -134,7 +134,7 @@ Defined in: [src/lib/db/settings/types.ts:33](https://github.com/anuma-ai/sdk/bl
 
 > **getUserPreference**: (`walletAddress`: `string`) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#48)
+Defined in: [src/react/useSettings.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#51)
 
 **Parameters**
 
@@ -171,7 +171,7 @@ Defined in: [src/react/useSettings.ts:48](https://github.com/anuma-ai/sdk/blob/m
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/settings/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#32)
+Defined in: [src/lib/db/settings/types.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#39)
 
 **Inherited from**
 
@@ -183,7 +183,7 @@ Defined in: [src/lib/db/settings/types.ts:32](https://github.com/anuma-ai/sdk/bl
 
 > **modelPreference**: [`StoredModelPreference`](StoredModelPreference.md) | `null`
 
-Defined in: [src/lib/db/settings/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#31)
+Defined in: [src/lib/db/settings/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#38)
 
 **Inherited from**
 
@@ -195,7 +195,7 @@ Defined in: [src/lib/db/settings/types.ts:31](https://github.com/anuma-ai/sdk/bl
 
 > **setModelPreference**: (`walletAddress`: `string`, `models?`: `string`) => `Promise`<[`StoredModelPreference`](StoredModelPreference.md) | `null`>
 
-Defined in: [src/lib/db/settings/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#34)
+Defined in: [src/lib/db/settings/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#41)
 
 **Parameters**
 
@@ -248,7 +248,7 @@ Defined in: [src/lib/db/settings/types.ts:34](https://github.com/anuma-ai/sdk/bl
 
 > **setUserPreference**: (`walletAddress`: `string`, `options`: [`UpdateUserPreferenceOptions`](UpdateUserPreferenceOptions.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md)>
 
-Defined in: [src/react/useSettings.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#49)
+Defined in: [src/react/useSettings.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#52)
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Defined in: [src/react/useSettings.ts:49](https://github.com/anuma-ai/sdk/blob/m
 
 > **updateModels**: (`walletAddress`: `string`, `models`: `string`) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#61)
+Defined in: [src/react/useSettings.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#64)
 
 **Parameters**
 
@@ -346,7 +346,7 @@ Defined in: [src/react/useSettings.ts:61](https://github.com/anuma-ai/sdk/blob/m
 
 > **updatePersonality**: (`walletAddress`: `string`, `personality`: [`PersonalitySettings`](PersonalitySettings.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#57)
+Defined in: [src/react/useSettings.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#60)
 
 **Parameters**
 
@@ -395,7 +395,7 @@ Defined in: [src/react/useSettings.ts:57](https://github.com/anuma-ai/sdk/blob/m
 
 > **updateProfile**: (`walletAddress`: `string`, `profile`: [`ProfileUpdate`](ProfileUpdate.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: [src/react/useSettings.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#53)
+Defined in: [src/react/useSettings.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#56)
 
 **Parameters**
 
@@ -444,4 +444,4 @@ Defined in: [src/react/useSettings.ts:53](https://github.com/anuma-ai/sdk/blob/m
 
 > **userPreference**: [`StoredUserPreference`](StoredUserPreference.md) | `null`
 
-Defined in: [src/react/useSettings.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#47)
+Defined in: [src/react/useSettings.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#50)

@@ -52,8 +52,9 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
 
 /** Builds the base WHERE conditions shared by all vault memory queries. This is
  * the single choke point every read lane (cosine/BM25/temporal/graph) inherits,
- * so the archived + quarantined exclusions applied here cover all of recall at
- * once.
+ * so the archived + quarantined + superseded exclusions applied here cover all
+ * of recall at once. Default hides every non-visible state (deleted, archived,
+ * quarantined, superseded); each has its own opt-in include flag.
  * - `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
  *   opts into it (to surface "forgotten" memories); every other caller omits it
  *   and keeps the default non-deleted-only behavior.
@@ -65,7 +66,11 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
  *   LokiJS string fast-path, to `{ trust_tier: { $ne: "quarantined" } }` — both
  *   KEEP null rows, so untyped/legacy rows are never excluded. (A non-string
  *   value would take LokiJS's `$not:$aeq` path instead; keep this comparison
- *   string-valued.) */
+ *   string-valued.)
+ * - `includeSuperseded` (A2, main) drops the supersession filter. Default
+ *   excludes rows with a non-null `superseded_by` (retired by a newer,
+ *   incompatible-value fact) from recall + dedup; a "memory history" view can
+ *   opt in. */
 function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
   options?: {
@@ -73,12 +78,14 @@ function baseVaultConditions(
     includeDeleted?: boolean;
     includeArchived?: boolean;
     includeQuarantined?: boolean;
+    includeSuperseded?: boolean;
   }
 ) {
   return [
     ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
     ...(options?.includeArchived ? [] : [Q.where("archived_at", Q.eq(null))]),
     ...(options?.includeQuarantined ? [] : [Q.where("trust_tier", Q.notEq("quarantined"))]),
+    ...(options?.includeSuperseded ? [] : [Q.where("superseded_by", null)]),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
@@ -148,6 +155,10 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeEnd: memory.eventTimeEnd ?? null,
     eventTimeKind: memory.eventTimeKind ?? null,
     topicsUserManaged: memory.topicsUserManaged ?? false,
+    topicsExtractedAt: memory.topicsExtractedAt ?? null,
+    topicsExtractedVersion: memory.topicsExtractedVersion ?? null,
+    supersededBy: memory.supersededBy ?? null,
+    supersededAt: memory.supersededAt ?? null,
     factType: memory.factType ?? null,
     archivedAt: memory.archivedAt ?? null,
     trustTier: memory.trustTier ?? null,
@@ -220,6 +231,83 @@ export async function createVaultMemoryOp(
   });
 
   return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * Atomically create a new memory AND retire the stale one it supersedes (A2),
+ * in a single `database.write` — closing the create-then-retire race.
+ *
+ * Inside the write, the target's live state is re-checked: if it was
+ * concurrently deleted or already superseded (a competing supersession won the
+ * race), NOTHING is created and `{ created: null, retired: false }` is returned
+ * so the caller falls back to a plain create. This means the loser of a
+ * concurrent supersession never leaves an orphaned successor pointing at a
+ * target someone else already retired — the whole create+retire is one atomic
+ * unit, so no other writer can interleave between them.
+ */
+export async function createSupersedingMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  opts: CreateVaultMemoryOptions,
+  targetId: string
+): Promise<{ created: StoredVaultMemory | null; retired: boolean }> {
+  if (!targetId) return { created: null, retired: false };
+  const scope = opts.scope ?? "private";
+  const encryptedContent =
+    ctx.walletAddress && ctx.signMessage
+      ? await encryptVaultMemoryContent(
+          opts.content,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : opts.content;
+
+  let createdRecord: VaultMemory | null = null;
+  await ctx.database.write(async () => {
+    let target: VaultMemory;
+    try {
+      target = await ctx.vaultMemoryCollection.find(targetId);
+    } catch {
+      return; // target gone → don't create; caller does a plain create
+    }
+    // Concurrent win / delete / cross-user → don't orphan a successor.
+    if (target.isDeleted || target.supersededBy || !isOwnedByCtxUser(ctx, target)) return;
+
+    createdRecord = await ctx.vaultMemoryCollection.create((record) => {
+      record._setRaw("content", encryptedContent);
+      record._setRaw("scope", scope);
+      record._setRaw("folder_id", opts.folderId ?? null);
+      record._setRaw("user_id", ctx.userId ?? null);
+      record._setRaw("is_deleted", false);
+      if (opts.embedding !== undefined) {
+        record._setRaw("embedding", opts.embedding);
+        record._setRaw("embedding_model", opts.embeddingModel ?? null);
+      }
+      if (opts.sourceChunkIds !== undefined) {
+        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+      }
+      record._setRaw("proof_count", opts.proofCount ?? 1);
+      record._setRaw("source", opts.source ?? "manual");
+      if (opts.eventTime) {
+        record._setRaw("event_time_start", opts.eventTime.start ?? null);
+        record._setRaw("event_time_end", opts.eventTime.end ?? null);
+        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
+    });
+    await target.update((r) => {
+      r._setRaw("superseded_by", createdRecord!.id);
+      r._setRaw("superseded_at", Date.now());
+    });
+  });
+
+  if (!createdRecord) return { created: null, retired: false };
+  const created = await vaultMemoryToStored(
+    createdRecord,
+    ctx.walletAddress,
+    ctx.signMessage,
+    ctx.embeddedWalletSigner
+  );
+  return { created, retired: true };
 }
 
 /**
@@ -434,6 +522,10 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     eventTimeKind: (raw.event_time_kind as string | null) ?? null,
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
+    topicsExtractedAt: (raw.topics_extracted_at as number | null) ?? null,
+    topicsExtractedVersion: (raw.topics_extracted_version as number | null) ?? null,
+    supersededBy: (raw.superseded_by as string | null) ?? null,
+    supersededAt: (raw.superseded_at as number | null) ?? null,
     factType: (raw.fact_type as string | null) ?? null,
     archivedAt: (raw.archived_at as number | null) ?? null,
     trustTier: (raw.trust_tier as string | null) ?? null,
@@ -477,6 +569,12 @@ export async function getAllVaultMemoriesOp(
     includeQuarantined?: boolean;
     /** Typed memory (PR1) — restrict to these fact types. Omit for no filter. */
     factTypes?: string[];
+    /**
+     * Include A2-superseded memories (each carries `supersededBy`). Default
+     * `false` — superseded rows are excluded, as they are from recall/dedup.
+     * Used by a "memory history" view to render retired facts.
+     */
+    includeSuperseded?: boolean;
   }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
@@ -574,7 +672,7 @@ export async function updateVaultMemoryOp(
     // inside the write block below (a concurrent delete could land
     // between this read and the write).
     const probe = await ctx.vaultMemoryCollection.find(id);
-    if (probe.isDeleted || !isOwnedByCtxUser(ctx, probe)) return null;
+    if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
 
     const encryptedContent =
       ctx.walletAddress && ctx.signMessage
@@ -593,7 +691,7 @@ export async function updateVaultMemoryOp(
       // Re-check inside the serialized writer: a delete that committed
       // after the probe must win — updating a soft-deleted row would
       // silently resurrect content on an invisible record.
-      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+      if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
         stale = true;
         return;
       }
@@ -743,8 +841,14 @@ export async function setMemoryEntitiesOp(
 
 /**
  * Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
- * auto-extraction resumes owning its links. Existing links are left in place
- * (the next extraction pass may add to them). Preserves `updated_at`.
+ * auto-extraction resumes owning its links. Invalidates `topics_extracted_version`
+ * (→ null) and ensures a NON-NULL `topics_extracted_at`, so the next sweep routes
+ * the row through the stale-version pending path and actually RE-EXTRACTS it via
+ * the LLM. A never-stamped user-curated row (`setMemoryEntitiesOp` marks
+ * user-managed without stamping, so stamp can be null) would otherwise fall
+ * through the sweep's unstamped→`linkedUnstamped` grandfather path (stamped
+ * current, no LLM pass); forcing a stamp when absent avoids that. Existing links
+ * are left in place until the re-extraction replaces them. Preserves `updated_at`.
  */
 export async function clearMemoryTopicsOverrideOp(
   ctx: VaultMemoryOperationsContext,
@@ -761,6 +865,13 @@ export async function clearMemoryTopicsOverrideOp(
   await ctx.database.write(async () => {
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
+      // Stale version + a non-null stamp routes the row through the pending path
+      // (LLM re-extraction). A row user-curated before any LLM pass has a null
+      // stamp — force one so it doesn't fall through to grandfathering.
+      r._setRaw("topics_extracted_version", null);
+      if (record.topicsExtractedAt === null) {
+        r._setRaw("topics_extracted_at", originalUpdatedAt);
+      }
       r._setRaw("updated_at", originalUpdatedAt);
     });
   });
@@ -806,6 +917,68 @@ export async function deleteVaultMemoryOp(
 }
 
 /**
+ * Mark a memory as superseded by a newer one (A2 write-time supersession).
+ * The row stays in the table (history + read-time fallback) but is excluded
+ * from recall/dedup by default via `superseded_by`. Idempotent-ish: no-op if
+ * the row is missing, not owned, deleted, or already superseded. Does NOT
+ * preserve `updated_at` — superseded rows are hidden from recall, so their
+ * recency is irrelevant.
+ *
+ * @param id - the memory being retired (e.g. "Lives in Portland")
+ * @param supersededById - the newer memory that replaced it (e.g. "Lives in SF")
+ */
+export async function supersedeVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  supersededById: string
+): Promise<boolean> {
+  // A memory can't supersede itself.
+  if (id === supersededById) return false;
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) return false;
+
+    // Validate the successor before pointing at it: it must exist, be live (not
+    // deleted, not itself superseded), and belong to the same user — otherwise
+    // we'd hide `record` behind a dangling or cross-user pointer that history
+    // consumers can't resolve.
+    let successor;
+    try {
+      successor = await ctx.vaultMemoryCollection.find(supersededById);
+    } catch {
+      return false; // successor id doesn't exist
+    }
+    if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
+      return false;
+    }
+
+    let stale = false;
+    await ctx.database.write(async () => {
+      // Re-check BOTH rows inside the serialized writer. The live models
+      // reflect the latest committed state, so a concurrent delete/supersede of
+      // the target OR the successor between the validation above and this write
+      // is caught here — otherwise we'd stamp a pointer to a now-dead successor
+      // (the TOCTOU this guard closes).
+      if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
+      if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("superseded_by", supersededById);
+        r._setRaw("superseded_at", Date.now());
+      });
+    });
+    return !stale;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get all non-deleted, unfiled vault memories (folder_id is null).
  */
 export async function getUnfiledVaultMemoriesOp(
@@ -820,6 +993,203 @@ export async function getUnfiledVaultMemoriesOp(
   return mapInBatches(results, (record) =>
     vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
   );
+}
+
+/**
+ * The current topic-extraction logic version. Bump this whenever the extraction
+ * prompt or model in `topicExtract.ts` changes: every memory stamped under an
+ * older version (including pre-v37 rows, read as version 0) is then re-extracted
+ * by the next sweep, so topic-quality improvements propagate across the existing
+ * vault. The worker's `limit` drains that re-extraction across sweeps.
+ */
+export const TOPICS_EXTRACTION_VERSION = 1;
+
+/**
+ * Result of {@link getMemoriesNeedingTopicExtractionOp}: which memories the
+ * background topic worker should run LLM entity extraction on, and which it
+ * should merely stamp as already-extracted.
+ */
+export interface MemoriesNeedingTopicExtraction {
+  /**
+   * Memories to run LLM topic extraction on (decrypted): never-extracted rows
+   * with no entity links, plus stamped rows edited since their last pass
+   * (`updated_at` > `topics_extracted_at`) or extracted under an older
+   * `topics_extracted_version` than {@link TOPICS_EXTRACTION_VERSION}. Edited /
+   * stale-version rows come first (they get priority under `limit`), each group
+   * newest-created first.
+   */
+  pending: StoredVaultMemory[];
+  /**
+   * IDs of rows that already have entity links but no watermark — legacy rows
+   * extracted by the conversation pipeline before v36. Grandfather these with
+   * {@link stampTopicsExtractedAtOp} (no LLM call) so a later content edit
+   * makes them re-extractable instead of invisible forever. Bounded by the
+   * same `limit` as {@link pending} — stamping loads a Model per row, so the
+   * grandfather backlog is drained across sweeps rather than in one spike.
+   */
+  linkedUnstamped: string[];
+}
+
+/**
+ * Sweep query for the background topic-extraction worker: partition the
+ * user's non-deleted, non-user-managed memories by what the worker should do
+ * with them (see {@link MemoriesNeedingTopicExtraction}). User-managed rows
+ * are never returned — the user owns their topics, including an intentionally
+ * empty set. Requires `ctx.entityCtx` for the entity-links check.
+ */
+export async function getMemoriesNeedingTopicExtractionOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: { limit?: number }
+): Promise<MemoriesNeedingTopicExtraction> {
+  const entityCtx = ctx.entityCtx;
+  if (!entityCtx) {
+    throw new Error("getMemoriesNeedingTopicExtractionOp requires ctx.entityCtx");
+  }
+  const conditions = [
+    // Boolean optional column: null (legacy) and false both mean auto-managed.
+    // Q.notEq(true) is a NULL trap on SQLite (NULL <> TRUE is NULL) — enumerate.
+    Q.or(Q.where("topics_user_managed", null), Q.where("topics_user_managed", false)),
+    ...baseVaultConditions(ctx),
+    Q.sortBy("created_at", Q.desc),
+  ];
+  // unsafeFetchRaw (NOT fetch): whole-vault sweep must not pin a Model per row
+  // into the never-evicted RecordCache (web Pile-2) — see getAllVaultMemoriesOp.
+  const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+
+  // Stamped rows re-extract when edited since the last pass OR when they were
+  // extracted under an older logic version (pre-v37 rows read as version 0, so a
+  // TOPICS_EXTRACTION_VERSION bump re-processes them). Unstamped rows split on
+  // whether they already have links (grandfather) or not (backfill).
+  const stampedPending: Record<string, unknown>[] = [];
+  const unstamped: Record<string, unknown>[] = [];
+  for (const raw of rows) {
+    const stamp = (raw.topics_extracted_at as number | null) ?? null;
+    if (stamp !== null) {
+      const version = (raw.topics_extracted_version as number | null) ?? 0;
+      if ((raw.updated_at as number) > stamp || version < TOPICS_EXTRACTION_VERSION) {
+        stampedPending.push(raw);
+      }
+    } else {
+      unstamped.push(raw);
+    }
+  }
+
+  // Which unstamped rows already have entity links? Chunk the id list — SQLite
+  // caps bound variables (999), and huge Q.oneOf arrays hurt LokiJS too.
+  // unsafeFetchRaw (NOT fetch) here too: the first post-migration sweep over a
+  // legacy vault can touch thousands of link rows, and .fetch() would pin a
+  // Model per row into the never-evicted RecordCache (web Pile-2).
+  const linkedIds = new Set<string>();
+  const CHUNK = 500;
+  for (let i = 0; i < unstamped.length; i += CHUNK) {
+    const ids = unstamped.slice(i, i + CHUNK).map((r) => r.id as string);
+    const links = (await entityCtx.memoryEntityCollection
+      .query(Q.where("memory_id", Q.oneOf(ids)))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    for (const link of links) linkedIds.add(String(link.memory_id));
+  }
+
+  const linkedUnstampedAll: string[] = [];
+  const pendingRaw: Record<string, unknown>[] = [...stampedPending];
+  for (const raw of unstamped) {
+    if (linkedIds.has(raw.id as string)) {
+      linkedUnstampedAll.push(raw.id as string);
+    } else {
+      pendingRaw.push(raw);
+    }
+  }
+
+  // Cap BOTH lists under `limit`. The worker stamps every `linkedUnstamped` id
+  // (via stampTopicsExtractedAtOp, which must load a Model per row to update) —
+  // uncapped, the first post-migration sweep of a legacy vault would grandfather
+  // thousands at once and pin that many Models in the never-evicted RecordCache
+  // (web Pile-2). Bounding it here drains the grandfather backlog across sweeps.
+  const cap = options?.limit !== undefined && options.limit > 0 ? options.limit : undefined;
+  const limitedPendingRaw = cap !== undefined ? pendingRaw.slice(0, cap) : pendingRaw;
+  const linkedUnstamped = cap !== undefined ? linkedUnstampedAll.slice(0, cap) : linkedUnstampedAll;
+  const pending = await mapInBatches(limitedPendingRaw, (raw) =>
+    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
+  return { pending, linkedUnstamped };
+}
+
+/**
+ * Stamp `topics_extracted_at` (and `topics_extracted_version`) on the given
+ * memories — the topic worker calls this after a successful extraction pass
+ * (including zero-entity results, so quiet memories aren't re-asked every sweep)
+ * and to grandfather `linkedUnstamped` rows without an LLM call. `version`
+ * defaults to {@link TOPICS_EXTRACTION_VERSION}: stamping at the current version
+ * (for both fresh extractions and grandfathered legacy rows) means they aren't
+ * re-extracted until a future version bump. Preserves `updated_at` so a stamp
+ * never inflates the recency multiplier — and never masks a concurrent content
+ * edit from the next sweep. Skips deleted, foreign-user, and user-managed rows.
+ * Returns the IDs actually stamped.
+ *
+ * ALL eligibility AND `updated_at` are read from the LIVE Model inside the
+ * serialized writer — never a pre-writer snapshot. Writers are serialized, so
+ * a content edit or topic-override that commits before this writer runs is
+ * observed here: its fresh `updated_at` is preserved (so the next sweep's
+ * `updated_at > stamp` check still fires) and a mid-pass user-managed flip
+ * skips the row. Reading `updated_at` from a raw pre-fetch instead would write
+ * a stale value back, pushing `updated_at < topics_extracted_at` and hiding
+ * the edited memory from every future sweep.
+ *
+ * Callers bound the input via `getMemoriesNeedingTopicExtractionOp`'s `limit`
+ * (both `pending` and `linkedUnstamped` are capped), so the per-row Model load
+ * needed to `prepareUpdate` stays bounded and never spikes the RecordCache.
+ */
+export async function stampTopicsExtractedAtOp(
+  ctx: VaultMemoryOperationsContext,
+  memoryIds: readonly string[],
+  extractedAt: number,
+  version: number = TOPICS_EXTRACTION_VERSION
+): Promise<string[]> {
+  if (memoryIds.length === 0) return [];
+
+  // Dedupe to avoid prepareUpdate conflicts on shared Model instances.
+  const uniqueIds = Array.from(new Set(memoryIds));
+
+  // Chunk the writer batches to keep any single batch reasonable.
+  const CHUNK = 500;
+  const stamped: string[] = [];
+
+  for (let i = 0; i < uniqueIds.length; i += CHUNK) {
+    const chunkIds = uniqueIds.slice(i, i + CHUNK);
+
+    await ctx.database.write(async () => {
+      const prepared = [];
+      for (const id of chunkIds) {
+        let record: VaultMemory;
+        try {
+          record = await ctx.vaultMemoryCollection.find(id);
+        } catch {
+          // Missing row — skip.
+          continue;
+        }
+        // Read eligibility + updated_at from the LIVE Model, in-writer — never a
+        // pre-fetch snapshot (see the doc comment). Truthiness (not `!== true`)
+        // on the flag so an unsanitized SQLite `1` can't fail open.
+        if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.topicsUserManaged) {
+          continue;
+        }
+        const originalUpdatedAt = record.updatedAt.getTime();
+        prepared.push(
+          record.prepareUpdate((r) => {
+            r._setRaw("topics_extracted_at", extractedAt);
+            r._setRaw("topics_extracted_version", version);
+            r._setRaw("updated_at", originalUpdatedAt);
+          })
+        );
+        stamped.push(id);
+      }
+      if (prepared.length > 0) await ctx.database.batch(...prepared);
+    });
+  }
+
+  return stamped;
 }
 
 export async function deleteAllVaultMemoriesForUserOp(

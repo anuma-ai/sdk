@@ -31,6 +31,20 @@ export interface StoredVaultMemory {
   /** When true, the user has manually set this memory's topics (entity links);
    * auto-extraction leaves them alone. False on legacy/auto rows. */
   topicsUserManaged: boolean;
+  /** Unix ms of the last LLM topic-extraction pass over this memory's content.
+   * Null = never extracted standalone; rows that already carry entity links
+   * are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp). */
+  topicsExtractedAt: number | null;
+  /** Write-time supersession (A2): id of the newer memory that replaced this
+   * one (incompatible-value update, e.g. "Lives in Portland" → "Lives in SF").
+   * Null = live. Superseded rows are excluded from recall/dedup by default but
+   * kept for history + the read-time fallback. */
+  supersededBy: string | null;
+  /** Unix ms when this memory was superseded. Null when live. */
+  supersededAt: number | null;
+  /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
+   * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+  topicsExtractedVersion: number | null;
   /** Typed memory (PR1) — the extractor's FactType for this fact, or null on
    * legacy/manual/untyped rows. Plaintext string (not narrowed to FactType
    * here since the DB can hold any stored value). */

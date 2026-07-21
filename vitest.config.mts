@@ -18,6 +18,9 @@ export default defineConfig({
       "test/memory/src/vault/embeddingCache.test.ts",
       // --compare pairing core (the skip branches) — pure, no PORTAL_API_KEY.
       "test/memory/src/vault/comparison.test.ts",
+      // Extraction regression-gate math (baseline build + compare) — pure,
+      // no PORTAL_API_KEY; the live eval that feeds it runs only in CI.
+      "test/memory/src/extraction/baseline.unit.test.ts",
     ],
     // Browser tests need Playwright's Chromium binary and ~3-5s per case.
     // Skipped by default so `vitest run` stays fast; run via

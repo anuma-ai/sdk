@@ -2,7 +2,7 @@
 
 > **postApiV1AdminSubscriptionTier**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminSubscriptionTierData`](../type-aliases/PostApiV1AdminSubscriptionTierData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminSubscriptionTierResponses`](../type-aliases/PostApiV1AdminSubscriptionTierResponses.md), [`PostApiV1AdminSubscriptionTierErrors`](../type-aliases/PostApiV1AdminSubscriptionTierErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:520](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#520)
+Defined in: [src/client/sdk.gen.ts:530](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#530)
 
 Set user subscription tier
 

@@ -42,6 +42,11 @@
 | [DeleteApiV1AdminPersonasByIdErrors](Internal/type-aliases/DeleteApiV1AdminPersonasByIdErrors.md) | - |
 | [DeleteApiV1AdminPersonasByIdResponse](Internal/type-aliases/DeleteApiV1AdminPersonasByIdResponse.md) | - |
 | [DeleteApiV1AdminPersonasByIdResponses](Internal/type-aliases/DeleteApiV1AdminPersonasByIdResponses.md) | - |
+| [DeleteApiV1AdminSharesBySlugData](Internal/type-aliases/DeleteApiV1AdminSharesBySlugData.md) | - |
+| [DeleteApiV1AdminSharesBySlugError](Internal/type-aliases/DeleteApiV1AdminSharesBySlugError.md) | - |
+| [DeleteApiV1AdminSharesBySlugErrors](Internal/type-aliases/DeleteApiV1AdminSharesBySlugErrors.md) | - |
+| [DeleteApiV1AdminSharesBySlugResponse](Internal/type-aliases/DeleteApiV1AdminSharesBySlugResponse.md) | - |
+| [DeleteApiV1AdminSharesBySlugResponses](Internal/type-aliases/DeleteApiV1AdminSharesBySlugResponses.md) | - |
 | [DeleteApiV1AdminTextResetData](Internal/type-aliases/DeleteApiV1AdminTextResetData.md) | - |
 | [DeleteApiV1AdminTextResetError](Internal/type-aliases/DeleteApiV1AdminTextResetError.md) | - |
 | [DeleteApiV1AdminTextResetErrors](Internal/type-aliases/DeleteApiV1AdminTextResetErrors.md) | - |
@@ -365,6 +370,11 @@
 | [GetHealthErrors](Internal/type-aliases/GetHealthErrors.md) | - |
 | [GetHealthResponse](Internal/type-aliases/GetHealthResponse.md) | - |
 | [GetHealthResponses](Internal/type-aliases/GetHealthResponses.md) | - |
+| [GetInternalAccountsByDidByDidData](Internal/type-aliases/GetInternalAccountsByDidByDidData.md) | - |
+| [GetInternalAccountsByDidByDidError](Internal/type-aliases/GetInternalAccountsByDidByDidError.md) | - |
+| [GetInternalAccountsByDidByDidErrors](Internal/type-aliases/GetInternalAccountsByDidByDidErrors.md) | - |
+| [GetInternalAccountsByDidByDidResponse](Internal/type-aliases/GetInternalAccountsByDidByDidResponse.md) | - |
+| [GetInternalAccountsByDidByDidResponses](Internal/type-aliases/GetInternalAccountsByDidByDidResponses.md) | - |
 | [GetOauthAuthorizeData](Internal/type-aliases/GetOauthAuthorizeData.md) | - |
 | [GetOauthAuthorizeError](Internal/type-aliases/GetOauthAuthorizeError.md) | - |
 | [GetOauthAuthorizeErrors](Internal/type-aliases/GetOauthAuthorizeErrors.md) | - |
@@ -376,6 +386,7 @@
 | [GetWellKnownJwksJsonData](Internal/type-aliases/GetWellKnownJwksJsonData.md) | - |
 | [GetWellKnownJwksJsonResponse](Internal/type-aliases/GetWellKnownJwksJsonResponse.md) | - |
 | [GetWellKnownJwksJsonResponses](Internal/type-aliases/GetWellKnownJwksJsonResponses.md) | - |
+| [HandlersAccountByDidResponse](Internal/type-aliases/HandlersAccountByDidResponse.md) | - |
 | [HandlersAddCreditsRequest](Internal/type-aliases/HandlersAddCreditsRequest.md) | - |
 | [HandlersAddCreditsResponse](Internal/type-aliases/HandlersAddCreditsResponse.md) | - |
 | [HandlersAgentListItem](Internal/type-aliases/HandlersAgentListItem.md) | - |
@@ -1123,6 +1134,7 @@
 | [deleteApiV1AdminAppsById](Internal/functions/deleteApiV1AdminAppsById.md) | Delete app |
 | [deleteApiV1AdminOauthClientsByClientId](Internal/functions/deleteApiV1AdminOauthClientsByClientId.md) | Revoke an OAuth client (soft delete) |
 | [deleteApiV1AdminPersonasById](Internal/functions/deleteApiV1AdminPersonasById.md) | Delete persona |
+| [deleteApiV1AdminSharesBySlug](Internal/functions/deleteApiV1AdminSharesBySlug.md) | Take down a shared artifact (admin) |
 | [deleteApiV1AdminTextReset](Internal/functions/deleteApiV1AdminTextReset.md) | Reset text registrations |
 | [deleteApiV1AdminUsersDelete](Internal/functions/deleteApiV1AdminUsersDelete.md) | Delete user account (admin) |
 | [deleteApiV1AuthMfaPasskeyCredentialsByCredentialId](Internal/functions/deleteApiV1AuthMfaPasskeyCredentialsByCredentialId.md) | Delete a passkey |
@@ -1191,6 +1203,7 @@
 | [getConnectorsByProviderCallback](Internal/functions/getConnectorsByProviderCallback.md) | Upstream OAuth callback |
 | [getConnectorsByProviderConnect](Internal/functions/getConnectorsByProviderConnect.md) | Begin upstream OAuth connect flow |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
+| [getInternalAccountsByDidByDid](Internal/functions/getInternalAccountsByDidByDid.md) | Resolve a Privy DID to an account ID |
 | [getOauthAuthorize](Internal/functions/getOauthAuthorize.md) | OAuth 2.0 authorization endpoint |
 | [getOauthConsent](Internal/functions/getOauthConsent.md) | OAuth consent screen |
 | [getWellKnownJwksJson](Internal/functions/getWellKnownJwksJson.md) | OAuth 2.0 JSON Web Key Set |

@@ -2,7 +2,7 @@
 
 > **postApiV1AuthMfaPasskeyVerifyBegin**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaPasskeyVerifyBeginData`](../type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AuthMfaPasskeyVerifyBeginResponses`](../type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginResponses.md), [`PostApiV1AuthMfaPasskeyVerifyBeginErrors`](../type-aliases/PostApiV1AuthMfaPasskeyVerifyBeginErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:702](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#702)
+Defined in: [src/client/sdk.gen.ts:712](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#712)
 
 Begin passkey login verification
 

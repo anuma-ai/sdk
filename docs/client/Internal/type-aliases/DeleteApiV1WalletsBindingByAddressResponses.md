@@ -2,7 +2,7 @@
 
 > **DeleteApiV1WalletsBindingByAddressResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10134)
+Defined in: [src/client/types.gen.ts:10198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10198)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10134](https://github.com/anuma-ai/sdk/blob
 
 > **204**: `void`
 
-Defined in: [src/client/types.gen.ts:10138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10138)
+Defined in: [src/client/types.gen.ts:10202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10202)
 
 unbound

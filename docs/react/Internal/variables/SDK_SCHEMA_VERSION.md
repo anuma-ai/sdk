@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `36` = `36`
+> `const` **SDK\_SCHEMA\_VERSION**: `39` = `39`
 
-Defined in: [src/lib/db/schema.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#72)
+Defined in: [src/lib/db/schema.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#84)
 
 Current combined schema version for all SDK storage modules.
 
@@ -47,7 +47,19 @@ Version history:
   auto-extraction (null/false = auto-derived, the default)
 * v35: Added conversation\_memory table recording which vault memories a
   conversation drew on, so the conversation-level Memories panel survives reload
-* v36: Added fact\_type, archived\_at, trust\_tier columns to memory\_vault for
+* v36: Added topics\_extracted\_at column to memory\_vault — watermark of the last
+  LLM topic-extraction pass, so the background topic worker re-extracts only
+  memories edited since (updated\_at > topics\_extracted\_at) instead of
+  re-running the whole vault
+* v37: Added superseded\_by + superseded\_at columns to memory\_vault for
+  write-time supersession — a changed fact retires the stale one (points at
+  the newer memory) instead of both surviving; superseded rows are excluded
+  from recall/dedup by default
+* v38: Added topics\_extracted\_version column to memory\_vault — the extraction
+  logic version a memory was last stamped under. Bumping TOPICS\_EXTRACTION\_VERSION
+  (new prompt/model) makes the worker re-extract every row whose stored version
+  is behind, so topic-quality improvements propagate across the existing vault
+* v39: Added fact\_type, archived\_at, trust\_tier columns to memory\_vault for
   typed memory + decay + Tier-0 security. All nullable + plaintext, no
   backfill (null = legacy/untyped, active, un-screened — content is
   encrypted so in-migration classification is impossible; NULL = zero-risk,

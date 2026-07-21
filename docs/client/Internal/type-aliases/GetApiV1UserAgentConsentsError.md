@@ -2,4 +2,4 @@
 
 > **GetApiV1UserAgentConsentsError** = [`GetApiV1UserAgentConsentsErrors`](GetApiV1UserAgentConsentsErrors.md)\[keyof [`GetApiV1UserAgentConsentsErrors`](GetApiV1UserAgentConsentsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9652)
+Defined in: [src/client/types.gen.ts:9716](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9716)

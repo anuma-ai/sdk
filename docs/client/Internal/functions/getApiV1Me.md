@@ -2,7 +2,7 @@
 
 > **getApiV1Me**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1MeData`](../type-aliases/GetApiV1MeData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1MeResponses`](../type-aliases/GetApiV1MeResponses.md), [`GetApiV1MeErrors`](../type-aliases/GetApiV1MeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1364](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1364)
+Defined in: [src/client/sdk.gen.ts:1374](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1374)
 
 Return the caller's identity and granted scopes
 

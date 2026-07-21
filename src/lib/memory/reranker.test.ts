@@ -92,7 +92,7 @@ describe("rerankPairs", () => {
   });
 
   it("clears the cached promise on load failure so a retry re-attempts the load", async () => {
-    const { rerankPairs } = await freshReranker();
+    const { rerankPairs, isRerankerAvailable } = await freshReranker();
     h.failTokenizerLoads = 1;
     h.logitsDims = [1, 1];
     h.logitsData = [2];
@@ -100,6 +100,10 @@ describe("rerankPairs", () => {
     await expect(rerankPairs("q", [{ id: "a", content: "doc" }])).rejects.toThrow(
       "model download failed"
     );
+    // A transient load failure (dep present, download hiccup) must NOT mark
+    // the reranker permanently unavailable — availability stays unknown so
+    // the next call retries.
+    expect(isRerankerAvailable()).toBeUndefined();
 
     // Second call must re-attempt the load (not return the rejected
     // cached promise) and succeed.
@@ -107,6 +111,7 @@ describe("rerankPairs", () => {
     expect(result).toHaveLength(1);
     expect(result[0].score).toBeCloseTo(sigmoid(2), 6);
     expect(h.tokenizerLoads).toBe(2);
+    expect(isRerankerAvailable()).toBe(true);
   });
 
   it("maps logits through sigmoid into [0, 1] even for extreme values", async () => {
@@ -216,5 +221,44 @@ describe("preloadReranker", () => {
     await rerankPairs("q", [{ id: "a", content: "x" }]);
     expect(h.tokenizerLoads).toBe(1);
     expect(h.modelLoads).toBe(1);
+  });
+});
+
+describe("reranker availability", () => {
+  it("is undefined before any attempt and true after a successful load", async () => {
+    const { rerankPairs, isRerankerAvailable } = await freshReranker();
+    expect(isRerankerAvailable()).toBeUndefined();
+
+    h.logitsDims = [1, 1];
+    h.logitsData = [0];
+    await rerankPairs("q", [{ id: "a", content: "x" }]);
+    expect(isRerankerAvailable()).toBe(true);
+  });
+
+  it("marks the reranker permanently unavailable when the transformers dep is missing", async () => {
+    // Simulate React Native, where @huggingface/transformers isn't installed:
+    // the dynamic import rejects with a module-not-found error.
+    vi.resetModules();
+    vi.doMock("@huggingface/transformers", () => {
+      throw new Error("Cannot find module '@huggingface/transformers'");
+    });
+    try {
+      const { rerankPairs, isRerankerAvailable, RerankerUnavailableError } =
+        await import("./reranker");
+      expect(isRerankerAvailable()).toBeUndefined();
+
+      await expect(rerankPairs("q", [{ id: "a", content: "doc" }])).rejects.toBeInstanceOf(
+        RerankerUnavailableError
+      );
+      expect(isRerankerAvailable()).toBe(false);
+
+      // A second call short-circuits: it still rejects with the same error and
+      // never re-attempts the import (no per-recall retry / warn spam on RN).
+      await expect(rerankPairs("q", [{ id: "b", content: "doc" }])).rejects.toBeInstanceOf(
+        RerankerUnavailableError
+      );
+    } finally {
+      vi.doUnmock("@huggingface/transformers");
+    }
   });
 });

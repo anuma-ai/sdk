@@ -2,7 +2,7 @@
 
 > **getApiV1MediaSharedBySlug**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1MediaSharedBySlugData`](../type-aliases/GetApiV1MediaSharedBySlugData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1MediaSharedBySlugResponses`](../type-aliases/GetApiV1MediaSharedBySlugResponses.md), [`GetApiV1MediaSharedBySlugErrors`](../type-aliases/GetApiV1MediaSharedBySlugErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1374](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1374)
+Defined in: [src/client/sdk.gen.ts:1384](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1384)
 
 Resolve a public shared artifact's media
 

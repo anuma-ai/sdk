@@ -2,4 +2,4 @@
 
 > **DeleteApiV1UserOauthGrantsByIdError** = [`DeleteApiV1UserOauthGrantsByIdErrors`](DeleteApiV1UserOauthGrantsByIdErrors.md)\[keyof [`DeleteApiV1UserOauthGrantsByIdErrors`](DeleteApiV1UserOauthGrantsByIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9963)
+Defined in: [src/client/types.gen.ts:10027](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10027)

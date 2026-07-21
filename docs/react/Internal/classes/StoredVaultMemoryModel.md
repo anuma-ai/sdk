@@ -125,7 +125,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **archivedAt**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#29)
+Defined in: [src/lib/db/memoryVault/models.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#38)
 
 Decay archive state (PR2) — Unix ms when archived, null when active.
 
@@ -155,7 +155,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#32)
+Defined in: [src/lib/db/memoryVault/models.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#41)
 
 ***
 
@@ -211,7 +211,7 @@ W6 temporal lane — Unix ms timestamp of when the event occurred.
 
 > **factType**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#27)
+Defined in: [src/lib/db/memoryVault/models.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#36)
 
 Typed memory (PR1) — the extractor's FactType. Null on legacy/manual rows.
 
@@ -229,7 +229,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#34)
+Defined in: [src/lib/db/memoryVault/models.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#43)
 
 ***
 
@@ -265,6 +265,46 @@ Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sd
 
 ***
 
+### supersededAt
+
+> **supersededAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
+
+***
+
+### supersededBy
+
+> **supersededBy**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#30)
+
+A2 supersession: newer memory id that replaced this one, or null if live.
+
+***
+
+### topicsExtractedAt
+
+> **topicsExtractedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#28)
+
+Unix ms of the last LLM topic-extraction pass. Null = never extracted
+standalone (linked legacy rows are grandfathered as extracted).
+
+***
+
+### topicsExtractedVersion
+
+> **topicsExtractedVersion**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#34)
+
+Extraction-logic version this memory was last stamped under. Null (pre-v38)
+reads as 0, so a TOPICS\_EXTRACTION\_VERSION bump re-extracts stale rows.
+
+***
+
 ### topicsUserManaged
 
 > **topicsUserManaged**: `boolean` | `null`
@@ -280,7 +320,7 @@ leaves its entity links alone. Null on legacy rows (treated as false).
 
 > **trustTier**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
+Defined in: [src/lib/db/memoryVault/models.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#40)
 
 Tier-0 security (PR3) — "quarantined" | "trusted" | null.
 
@@ -290,7 +330,7 @@ Tier-0 security (PR3) — "quarantined" | "trusted" | null.
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#33)
+Defined in: [src/lib/db/memoryVault/models.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#42)
 
 ***
 

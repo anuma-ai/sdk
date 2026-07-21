@@ -2,7 +2,7 @@
 
 > **postApiV1GuestChatCompletions**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1GuestChatCompletionsData`](../type-aliases/PostApiV1GuestChatCompletionsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1GuestChatCompletionsResponses`](../type-aliases/PostApiV1GuestChatCompletionsResponses.md), [`PostApiV1GuestChatCompletionsErrors`](../type-aliases/PostApiV1GuestChatCompletionsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1348](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1348)
+Defined in: [src/client/sdk.gen.ts:1358](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1358)
 
 Guest chat completion (free trial)
 
