@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `36` = `36`
+> `const` **SDK\_SCHEMA\_VERSION**: `37` = `37`
 
-Defined in: [src/lib/db/schema.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#68)
+Defined in: [src/lib/db/schema.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#72)
 
 Current combined schema version for all SDK storage modules.
 
@@ -48,3 +48,7 @@ Version history:
   LLM topic-extraction pass, so the background topic worker re-extracts only
   memories edited since (updated\_at > topics\_extracted\_at) instead of
   re-running the whole vault
+* v37: Added topics\_extracted\_version column to memory\_vault — the extraction
+  logic version a memory was last stamped under. Bumping TOPICS\_EXTRACTION\_VERSION
+  (new prompt/model) makes the worker re-extract every row whose stored version
+  is behind, so topic-quality improvements propagate across the existing vault

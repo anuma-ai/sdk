@@ -33,6 +33,9 @@ export interface StoredVaultMemory {
    * Null = never extracted standalone; rows that already carry entity links
    * are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp). */
   topicsExtractedAt: number | null;
+  /** Extraction-logic version this memory was last stamped under. Null (pre-v37)
+   * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+  topicsExtractedVersion: number | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;

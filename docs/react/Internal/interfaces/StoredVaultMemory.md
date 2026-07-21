@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#36)
+Defined in: [src/lib/db/memoryVault/types.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#39)
 
 ***
 
@@ -87,7 +87,7 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#38)
+Defined in: [src/lib/db/memoryVault/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#41)
 
 ***
 
@@ -143,6 +143,17 @@ are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp).
 
 ***
 
+### topicsExtractedVersion
+
+> **topicsExtractedVersion**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#38)
+
+Extraction-logic version this memory was last stamped under. Null (pre-v37)
+reads as 0, so a TOPICS\_EXTRACTION\_VERSION bump re-extracts stale rows.
+
+***
+
 ### topicsUserManaged
 
 > **topicsUserManaged**: `boolean`
@@ -168,7 +179,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#37)
+Defined in: [src/lib/db/memoryVault/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#40)
 
 ***
 

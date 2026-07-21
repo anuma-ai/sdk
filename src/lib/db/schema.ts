@@ -64,8 +64,12 @@ import { VaultFolder } from "./vaultFolders/models";
  *   LLM topic-extraction pass, so the background topic worker re-extracts only
  *   memories edited since (updated_at > topics_extracted_at) instead of
  *   re-running the whole vault
+ * - v37: Added topics_extracted_version column to memory_vault — the extraction
+ *   logic version a memory was last stamped under. Bumping TOPICS_EXTRACTION_VERSION
+ *   (new prompt/model) makes the worker re-extract every row whose stored version
+ *   is behind, so topic-quality improvements propagate across the existing vault
  */
-export const SDK_SCHEMA_VERSION = 36;
+export const SDK_SCHEMA_VERSION = 37;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -213,6 +217,10 @@ export const sdkSchema = appSchema({
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
         { name: "topics_extracted_at", type: "number", isOptional: true },
+        // The extraction-logic version this memory was last stamped under. Null
+        // (pre-v37) is treated as version 0, so a bump of TOPICS_EXTRACTION_VERSION
+        // re-extracts stale rows. See getMemoriesNeedingTopicExtractionOp.
+        { name: "topics_extracted_version", type: "number", isOptional: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -859,6 +867,19 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "topics_extracted_at", type: "number", isOptional: true }],
+        }),
+      ],
+    },
+    // v36 -> v37: topics_extracted_version on memory_vault. Existing rows keep it
+    // NULL, read as version 0 by getMemoriesNeedingTopicExtractionOp — so the
+    // first sweep after a TOPICS_EXTRACTION_VERSION bump re-extracts them (drained
+    // across sweeps by the worker's limit). See topicExtract.ts.
+    {
+      toVersion: 37,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "topics_extracted_version", type: "number", isOptional: true }],
         }),
       ],
     },

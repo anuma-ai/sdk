@@ -26,6 +26,9 @@ export class VaultMemory extends Model {
   /** Unix ms of the last LLM topic-extraction pass. Null = never extracted
    *  standalone (linked legacy rows are grandfathered as extracted). */
   @field("topics_extracted_at") topicsExtractedAt!: number | null;
+  /** Extraction-logic version this memory was last stamped under. Null (pre-v37)
+   *  reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+  @field("topics_extracted_version") topicsExtractedVersion!: number | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

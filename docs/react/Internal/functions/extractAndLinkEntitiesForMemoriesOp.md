@@ -2,7 +2,7 @@
 
 > **extractAndLinkEntitiesForMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[], `options`: [`TopicExtractOptions`](../interfaces/TopicExtractOptions.md) & `object`): `Promise`<[`TopicExtractionRunResult`](../interfaces/TopicExtractionRunResult.md)>
 
-Defined in: [src/lib/memory/topicExtract.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#255)
+Defined in: [src/lib/memory/topicExtract.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#258)
 
 Run LLM topic extraction over existing vault memories and persist the
 results: REPLACE each memory's auto-managed entity links with the extracted

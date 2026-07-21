@@ -1,6 +1,6 @@
 # TopicExtractionRunResult
 
-Defined in: [src/lib/memory/topicExtract.ts:223](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#223)
+Defined in: [src/lib/memory/topicExtract.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#226)
 
 Outcome of one [extractAndLinkEntitiesForMemoriesOp](../functions/extractAndLinkEntitiesForMemoriesOp.md) run.
 
@@ -10,7 +10,7 @@ Outcome of one [extractAndLinkEntitiesForMemoriesOp](../functions/extractAndLink
 
 > **entitiesByMemory**: `Map`<`string`, [`ExtractedEntity`](ExtractedEntity.md)\[]>
 
-Defined in: [src/lib/memory/topicExtract.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#225)
+Defined in: [src/lib/memory/topicExtract.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#228)
 
 memoryId → entities the LLM returned (post-validation, post-linking).
 
@@ -20,7 +20,7 @@ memoryId → entities the LLM returned (post-validation, post-linking).
 
 > **skippedIds**: `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:233](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#233)
+Defined in: [src/lib/memory/topicExtract.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#236)
 
 Memories NOT processed: missing/deleted/foreign rows, user-managed rows
 (including ones that became user-managed mid-run), and members of failed
@@ -33,7 +33,7 @@ by a later sweep — callers should apply their own attempt caps.
 
 > **stampedIds**: `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#228)
+Defined in: [src/lib/memory/topicExtract.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#231)
 
 Memories stamped `topics_extracted_at` this run — includes zero-entity
 results so quiet memories aren't re-asked every sweep.

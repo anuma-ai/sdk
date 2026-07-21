@@ -13,6 +13,7 @@ export {
   type MemoriesNeedingTopicExtraction,
   setMemoryEntitiesOp,
   stampTopicsExtractedAtOp,
+  TOPICS_EXTRACTION_VERSION,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,

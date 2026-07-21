@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#29)
+Defined in: [src/lib/db/memoryVault/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#32)
 
 ***
 
@@ -209,7 +209,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
+Defined in: [src/lib/db/memoryVault/models.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#34)
 
 ***
 
@@ -256,6 +256,17 @@ standalone (linked legacy rows are grandfathered as extracted).
 
 ***
 
+### topicsExtractedVersion
+
+> **topicsExtractedVersion**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
+
+Extraction-logic version this memory was last stamped under. Null (pre-v37)
+reads as 0, so a TOPICS\_EXTRACTION\_VERSION bump re-extracts stale rows.
+
+***
+
 ### topicsUserManaged
 
 > **topicsUserManaged**: `boolean` | `null`
@@ -271,7 +282,7 @@ leaves its entity links alone. Null on legacy rows (treated as false).
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#30)
+Defined in: [src/lib/db/memoryVault/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#33)
 
 ***
 
