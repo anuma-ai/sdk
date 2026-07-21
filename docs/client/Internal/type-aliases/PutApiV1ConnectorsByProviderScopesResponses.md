@@ -2,7 +2,7 @@
 
 > **PutApiV1ConnectorsByProviderScopesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7196](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7196)
+Defined in: [src/client/types.gen.ts:7201](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7201)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7196](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersConnectorScopesResponse`](HandlersConnectorScopesResponse.md)
 
-Defined in: [src/client/types.gen.ts:7200](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7200)
+Defined in: [src/client/types.gen.ts:7205](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7205)
 
 OK

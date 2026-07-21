@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#29)
+Defined in: [src/lib/db/memoryVault/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#32)
 
 ***
 
@@ -209,7 +209,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
+Defined in: [src/lib/db/memoryVault/models.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#34)
 
 ***
 
@@ -245,6 +245,24 @@ Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sd
 
 ***
 
+### supersededAt
+
+> **supersededAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
+
+***
+
+### supersededBy
+
+> **supersededBy**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#30)
+
+A2 supersession: newer memory id that replaced this one, or null if live.
+
+***
+
 ### topicsExtractedAt
 
 > **topicsExtractedAt**: `number` | `null`
@@ -271,7 +289,7 @@ leaves its entity links alone. Null on legacy rows (treated as false).
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#30)
+Defined in: [src/lib/db/memoryVault/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#33)
 
 ***
 

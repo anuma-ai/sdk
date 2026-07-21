@@ -243,7 +243,7 @@ export interface RecallDiagnostics {
 // Retain API — for completeness / future-proofing. Implemented Wed 5/6 (W2).
 // ---------------------------------------------------------------------------
 
-export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed";
+export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /** Why the consolidator fell back to "create" instead of a real decision. */
@@ -312,7 +312,8 @@ export interface RetainOptions {
 export interface RetainResult {
   action: RetainAction;
   memoryId: string;
-  /** When action is 'merge' or 'update', the prior memory's id. */
+  /** When action is 'merge' or 'update', the prior memory's id. When action is
+   * 'supersede', the stale memory that was retired (`memoryId` is the new one). */
   targetId?: string;
   /**
    * When action is 'suppressed', the id of the soft-deleted memory that blocked

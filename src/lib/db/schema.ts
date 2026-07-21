@@ -64,8 +64,12 @@ import { VaultFolder } from "./vaultFolders/models";
  *   LLM topic-extraction pass, so the background topic worker re-extracts only
  *   memories edited since (updated_at > topics_extracted_at) instead of
  *   re-running the whole vault
+ * - v37: Added superseded_by + superseded_at columns to memory_vault for
+ *   write-time supersession — a changed fact retires the stale one (points at
+ *   the newer memory) instead of both surviving; superseded rows are excluded
+ *   from recall/dedup by default
  */
-export const SDK_SCHEMA_VERSION = 36;
+export const SDK_SCHEMA_VERSION = 37;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -213,6 +217,15 @@ export const sdkSchema = appSchema({
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
         { name: "topics_extracted_at", type: "number", isOptional: true },
+        // Write-time supersession (A2). When set, this fact was replaced by a
+        // newer, incompatible-value fact (e.g. "Lives in Portland" superseded by
+        // "Lives in SF"); `superseded_by` points at the newer memory's id and
+        // `superseded_at` is the Unix ms it happened. Superseded rows stay in
+        // the table (history / read-time fallback) but are excluded from recall
+        // and dedup by default. Null = live (not superseded). Indexed so the
+        // recall filter stays cheap.
+        { name: "superseded_by", type: "string", isOptional: true, isIndexed: true },
+        { name: "superseded_at", type: "number", isOptional: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -373,6 +386,7 @@ export const sdkSchema = appSchema({
  * - v32 → v33: Added `embedding_model` column to memory_vault (null grandfathered as current-model-compatible)
  * - v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
  * - v35 → v36: Added `topics_extracted_at` column to memory_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)
+ * - v36 → v37: Added `superseded_by` + `superseded_at` columns to memory_vault (write-time supersession; null = live, excluded from recall/dedup when set)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -859,6 +873,21 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "topics_extracted_at", type: "number", isOptional: true }],
+        }),
+      ],
+    },
+    // v36 -> v37: write-time supersession columns on memory_vault. Existing rows
+    // keep both NULL (= live / not superseded), so no backfill — legacy
+    // contradictory rows are handled by the read-time supersession fallback.
+    {
+      toVersion: 37,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "superseded_by", type: "string", isOptional: true, isIndexed: true },
+            { name: "superseded_at", type: "number", isOptional: true },
+          ],
         }),
       ],
     },
