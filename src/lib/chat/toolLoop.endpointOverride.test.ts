@@ -43,10 +43,21 @@ const userMessages = [{ role: "user" as const, content: [{ type: "text" as const
  * Runs the loop with a capturing transport and returns the path + body the
  * transport received for the single request.
  */
+const testBaseUrl = "https://portal.test";
+
 async function captureRequest(endpointOverride?: string) {
-  const captured: { endpoint?: string; body?: Record<string, unknown> } = {};
+  const captured: {
+    endpoint?: string;
+    baseUrl?: string;
+    body?: Record<string, unknown>;
+    called: boolean;
+  } = {
+    called: false,
+  };
   const transport: StreamingTransport = (options) => {
+    captured.called = true;
     captured.endpoint = options.endpoint;
+    captured.baseUrl = options.baseUrl;
     captured.body = options.body;
     return { stream: makeTextStream("ok") };
   };
@@ -56,6 +67,7 @@ async function captureRequest(endpointOverride?: string) {
     // A model with no entry in the support map resolves to the Responses API.
     model: "test-model",
     token: "token",
+    baseUrl: testBaseUrl,
     endpointOverride,
     transport,
   });
@@ -88,5 +100,54 @@ describe("runToolLoop endpointOverride", () => {
     expect(withOverride.body).toEqual(withoutOverride.body);
     // ...and byte-for-byte identical once serialized.
     expect(JSON.stringify(withOverride.body)).toBe(JSON.stringify(withoutOverride.body));
+  });
+
+  // Greptile P1: a malformed override must not silently corrupt the request URL.
+  describe("override validation (Greptile P1)", () => {
+    it("a valid root-relative override resolves to baseUrl + path", async () => {
+      const c = await captureRequest("/api/v1/utility/responses");
+      expect(c.endpoint).toBe("/api/v1/utility/responses");
+      expect(`${c.baseUrl}${c.endpoint}`).toBe("https://portal.test/api/v1/utility/responses");
+    });
+
+    it("normalizes a missing leading slash onto the path", async () => {
+      const c = await captureRequest("api/v1/utility/responses");
+      expect(c.endpoint).toBe("/api/v1/utility/responses");
+      // Without normalization this would concatenate into the broken
+      // "https://portal.testapi/v1/utility/responses".
+      expect(`${c.baseUrl}${c.endpoint}`).toBe("https://portal.test/api/v1/utility/responses");
+    });
+
+    it("throws on an empty string and never dispatches the request", async () => {
+      let called = false;
+      const transport: StreamingTransport = () => {
+        called = true;
+        return { stream: makeTextStream("ok") };
+      };
+      await expect(
+        runToolLoop({
+          messages: userMessages,
+          model: "test-model",
+          token: "token",
+          baseUrl: testBaseUrl,
+          endpointOverride: "",
+          transport,
+        })
+      ).rejects.toThrow(/endpointOverride must be a non-empty, root-relative path/);
+      expect(called).toBe(false);
+    });
+
+    it("throws on a whitespace-only override", async () => {
+      await expect(
+        runToolLoop({
+          messages: userMessages,
+          model: "test-model",
+          token: "token",
+          baseUrl: testBaseUrl,
+          endpointOverride: "   ",
+          transport: () => ({ stream: makeTextStream("ok") }),
+        })
+      ).rejects.toThrow(/non-empty, root-relative path/);
+    });
   });
 });

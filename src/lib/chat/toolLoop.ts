@@ -419,6 +419,11 @@ export type RunToolLoopOptions = {
    * request targets this path instead of the endpoint the strategy resolves from
    * the model. Only the URL path changes — the request body and response parsing
    * follow the resolved strategy exactly as they would without the override.
+   *
+   * Must be a non-empty, root-relative path (e.g. `"/api/v1/utility/responses"`);
+   * a missing leading slash is normalized on, and an empty/whitespace-only value
+   * throws at call time (the transport builds the URL as `baseUrl + endpoint`, so
+   * a bad value would silently hit the portal root or form a broken URL).
    * @default undefined (path resolved from the model / `apiType`)
    */
   endpointOverride?: string;
@@ -834,6 +839,22 @@ function linkAbortSignals(
  * });
  * ```
  */
+// normalizeEndpointOverride validates a caller-supplied `endpointOverride` and
+// returns a root-relative request path. The built-in transports build the URL as
+// `baseUrl + endpoint`, so an empty/whitespace override would target the portal
+// root and a slash-less value ("api/v1/…") would concatenate into a broken URL —
+// both silent bugs. We throw on empty/whitespace (fail fast at call time) and
+// normalize a missing leading slash onto the path.
+function normalizeEndpointOverride(override: string): string {
+  const trimmed = override.trim();
+  if (trimmed === "") {
+    throw new Error(
+      'endpointOverride must be a non-empty, root-relative path (e.g. "/api/v1/utility/responses"); received an empty or whitespace-only string'
+    );
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
 export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolLoopResult> {
   const {
     model,
@@ -887,8 +908,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   const resolved = resolveApiType(apiType, model);
   const strategy = getStrategy(resolved);
   // The strategy still drives the request body and response parsing; only the
-  // path can be redirected via `endpointOverride`.
-  const effectiveEndpoint = endpointOverride ?? strategy.endpoint;
+  // path can be redirected via `endpointOverride`. The built-in transports form
+  // the URL as `baseUrl + endpoint`, so the override MUST be a non-empty,
+  // root-relative path — otherwise it silently targets the portal root or forms
+  // a broken URL. Validate/normalize here and fail fast on a bad value.
+  const effectiveEndpoint =
+    endpointOverride === undefined
+      ? strategy.endpoint
+      : normalizeEndpointOverride(endpointOverride);
 
   // `onRunEnd` and `onRunError` are mutually exclusive and fire at most once
   // per run. Every terminal path (validation failure, pre-start abort, clean
