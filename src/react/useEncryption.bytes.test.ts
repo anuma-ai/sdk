@@ -78,4 +78,12 @@ describe("bytes-in crypto variants", () => {
       )
     ).rejects.toThrow();
   });
+
+  it("rejects a tampered ciphertext (GCM auth failure, not a wrong plaintext)", async () => {
+    const encrypted = await encryptDataBytes(PLAIN, ADDRESS);
+    // Flip one bit past the 12-byte IV, inside the ciphertext+tag region.
+    const tampered = new Uint8Array(encrypted);
+    tampered[tampered.length - 1] ^= 0x01;
+    await expect(decryptDataBytesFromBytes(tampered, ADDRESS)).rejects.toThrow();
+  });
 });
