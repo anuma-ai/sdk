@@ -90,6 +90,12 @@ export function resolvePlan(
   const isBuilder = BUILDER_INTENTS.has(creation);
   const editorSlideOverlay = descriptor.editorPinned === "slides" && !isBuilder;
 
+  // A prompt that reads as an image edit suppresses slide-deck escalation: the
+  // user is editing an image, not requesting a deck, so we must not re-route the
+  // turn into the slide builder. Mirrors web's live path, which gates slide-deck
+  // intent on `!imageEditActive`.
+  const slideDeckIntent = descriptor.slideDeckIntent === true && descriptor.imageEditIntent !== true;
+
   let serverTools: ServerToolsFilter = resolveServerTools(descriptor, catalog);
   const clientFactories: ClientFactoryKey[] = [...CREATION_INTENT_CLIENT_FACTORIES[creation]];
   let clientToolsFilter: ClientToolsFilterMode | ClientToolsFilterFn =
@@ -111,20 +117,20 @@ export function resolvePlan(
   const activeToolSets = new Set(descriptor.activeToolSets ?? []);
   const builderSet = CREATION_INTENT_TOOL_SET[creation];
   if (builderSet) activeToolSets.add(builderSet);
-  if (descriptor.slideDeckIntent) activeToolSets.add("slides");
+  if (slideDeckIntent) activeToolSets.add("slides");
   if (editorSlideOverlay) activeToolSets.add("slides");
 
   // Tool-choice: builder modes and a detected slide-deck intent force `auto`
   // (let the model decide when to call plan_deck / create_file); everything
   // else is shape-derived from the server-tools filter.
-  const forceAuto = isBuilder || descriptor.slideDeckIntent || editorSlideOverlay;
+  const forceAuto = isBuilder || slideDeckIntent || editorSlideOverlay;
   const toolChoice = forceAuto ? "auto" : resolveToolChoice(serverTools, entry?.toolChoice);
 
   // System-prompt riders: the intent's authoritative prompt, plus the slide
   // prompt when a slide-deck intent is detected in plain chat.
   const systemPromptRiders: string[] = [];
   if (entry?.systemPrompt) systemPromptRiders.push(entry.systemPrompt);
-  if (descriptor.slideDeckIntent && slideEntry?.systemPrompt && creation !== "slides") {
+  if (slideDeckIntent && slideEntry?.systemPrompt && creation !== "slides") {
     systemPromptRiders.push(slideEntry.systemPrompt);
   }
 

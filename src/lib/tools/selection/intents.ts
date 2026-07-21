@@ -130,7 +130,12 @@ export interface ToolIntentDescriptor {
   editorPinned?: "slides" | null;
   /** Message-aware escalation: the prompt reads as "make me a deck". */
   slideDeckIntent?: boolean;
-  /** Message-aware escalation: the prompt reads as an image edit. */
+  /**
+   * Message-aware signal that the prompt reads as an image edit. When true it
+   * SUPPRESSES slide-deck escalation (`slideDeckIntent`) in `resolvePlan` — an
+   * image-edit turn must not be re-routed into the slide builder. Mirrors web's
+   * `!imageEditActive` guard on slide-deck intent.
+   */
   imageEditIntent?: boolean;
 }
 

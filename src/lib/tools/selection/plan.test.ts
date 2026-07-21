@@ -106,6 +106,15 @@ describe("resolvePlan — chat lane golden table", () => {
     expect(plan.systemPromptRiders).toContain(SLIDE_PROMPT);
   });
 
+  it("imageEditIntent suppresses slide-deck escalation (no slide re-route on an image edit)", () => {
+    const plan = resolvePlan(
+      { lane: "chat", creation: "plain", slideDeckIntent: true, imageEditIntent: true },
+      ctx
+    );
+    expect(plan.activeToolSets).not.toContain("slides");
+    expect(plan.systemPromptRiders).not.toContain(SLIDE_PROMPT);
+  });
+
   it("fullscreen slide-editor overlay: slide-editor filter, slide server tools, auto", () => {
     const plan = resolvePlan({ lane: "chat", creation: "plain", editorPinned: "slides" }, ctx);
     expect(plan.clientToolsFilter).toBe("slide-editor");
