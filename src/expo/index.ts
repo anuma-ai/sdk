@@ -221,6 +221,8 @@ export {
   generateConversationId,
   getConversationsByProjectLazyOp,
   getConversationsLazyOp,
+  getConversationsPageOp,
+  type GetConversationsPageOptions,
   type GetMessagesPageOptions,
   type LazyStoredConversation,
   type MessageSkeleton,

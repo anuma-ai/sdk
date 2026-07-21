@@ -7,7 +7,11 @@ import {
 } from "../../../react/useEncryption";
 import { encryptField } from "../encryption-utils";
 import { decryptConversationTitle } from "./lazyDecrypt";
-import { getConversationsByProjectLazyOp, getConversationsLazyOp } from "./operations";
+import {
+  getConversationsByProjectLazyOp,
+  getConversationsLazyOp,
+  getConversationsPageOp,
+} from "./operations";
 import type { StorageOperationsContext } from "./operations";
 
 declare const global: typeof globalThis;
@@ -157,6 +161,45 @@ describe("getConversationsLazyOp", () => {
     // even without a key loaded — no eager decrypt happened anywhere.
     const result = await decryptConversationTitle(row.encryptedTitle, testAddress);
     expect(result).toBe("Legacy");
+  });
+});
+
+describe("getConversationsPageOp lazy contract", () => {
+  const testAddress = "0x1234567890123456789012345678901234567890";
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    clearAllEncryptionKeys();
+
+    if (!global.crypto) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { webcrypto } = require("node:crypto");
+      Object.defineProperty(global, "crypto", {
+        value: webcrypto as Crypto,
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
+
+  it("preserves encryptedTitle and never decrypts on the paginated path", async () => {
+    await requestEncryptionKey(testAddress, mockSignMessage);
+    const enc = await encryptField("Secret title", testAddress, mockSignMessage);
+
+    const { ctx } = makeCtx([
+      fakeRawConversation({ id: "row_1", conversation_id: "conv_1", title: enc }),
+    ]);
+
+    const decryptSpy = vi.spyOn(crypto.subtle, "decrypt");
+
+    const result = await getConversationsPageOp(ctx, { limit: 200 });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].encryptedTitle).toBe(enc);
+    expect((result[0] as Record<string, unknown>).title).toBeUndefined();
+    expect(decryptSpy).not.toHaveBeenCalled();
+
+    decryptSpy.mockRestore();
   });
 });
 
