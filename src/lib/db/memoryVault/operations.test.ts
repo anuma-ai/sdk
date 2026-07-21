@@ -9,6 +9,7 @@ import {
   updateVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
   deleteVaultMemoryOp,
+  supersedeVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,
   setMemoryEntitiesOp,
   clearMemoryTopicsOverrideOp,
@@ -78,6 +79,12 @@ function mockRecord(overrides: Record<string, any> = {}) {
     },
     get topicsUserManaged() {
       return raw.topics_user_managed ?? null;
+    },
+    get topicsExtractedAt() {
+      return raw.topics_extracted_at ?? null;
+    },
+    get supersededBy() {
+      return raw.superseded_by ?? null;
     },
     _setRaw(key: string, value: any) {
       raw[key] = value;
@@ -269,7 +276,7 @@ describe("getAllVaultMemoriesOp", () => {
     // The query should have been called with conditions including Q.where for scope.
     // We check that more than 2 conditions were passed (is_deleted + scope + sortBy).
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3); // is_deleted, scope, sortBy
+    expect(callArgs.length).toBe(4); // is_deleted, superseded_by, scope, sortBy
   });
 
   it("drops the is_deleted filter and returns deleted rows when includeDeleted is true", async () => {
@@ -285,8 +292,8 @@ describe("getAllVaultMemoriesOp", () => {
 
     const results = await getAllVaultMemoriesOp(ctx, { includeDeleted: true });
 
-    // is_deleted clause omitted → only sortBy remains.
-    expect(queryFn.mock.calls[0].length).toBe(1);
+    // is_deleted clause omitted → superseded_by + sortBy remain.
+    expect(queryFn.mock.calls[0].length).toBe(2);
     expect(results).toHaveLength(2);
     expect(results.find((m) => m.uniqueId === "mem_gone")?.isDeleted).toBe(true);
     expect(results.find((m) => m.uniqueId === "mem_live")?.isDeleted).toBe(false);
@@ -302,8 +309,8 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { includeDeleted: false });
 
-    // is_deleted + sortBy — the filter is retained.
-    expect(queryFn.mock.calls[0].length).toBe(2);
+    // is_deleted + superseded_by + sortBy — the filter is retained.
+    expect(queryFn.mock.calls[0].length).toBe(3);
   });
 
   it("does NOT add scope condition when scopes is empty array", async () => {
@@ -318,9 +325,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { scopes: [] });
 
-    // Only is_deleted and sortBy — no scope condition
+    // is_deleted + superseded_by + sortBy — no scope condition
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(3);
   });
 
   it("does NOT add scope condition when options is undefined", async () => {
@@ -336,7 +343,7 @@ describe("getAllVaultMemoriesOp", () => {
     await getAllVaultMemoriesOp(ctx);
 
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(3);
   });
 
   it("adds since condition when options.since is provided", async () => {
@@ -351,9 +358,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01") });
 
-    // is_deleted + since + sortBy = 3 conditions
+    // is_deleted + superseded_by + since + sortBy = 4 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(4);
   });
 
   it("adds limit condition when options.limit is provided", async () => {
@@ -368,9 +375,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { limit: 5 });
 
-    // is_deleted + sortBy + take = 3 conditions
+    // is_deleted + superseded_by + sortBy + take = 4 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(4);
   });
 
   it("adds both since and limit conditions together", async () => {
@@ -385,9 +392,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01"), limit: 10 });
 
-    // is_deleted + since + sortBy + take = 4 conditions
+    // is_deleted + superseded_by + since + sortBy + take = 5 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(4);
+    expect(callArgs.length).toBe(5);
   });
 
   it("combines since with scopes and userId", async () => {
@@ -403,9 +410,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { scopes: ["shared"], since: new Date("2025-06-01") });
 
-    // is_deleted + scope + user_id + since + sortBy = 5 conditions
+    // is_deleted + superseded_by + scope + user_id + since + sortBy = 6 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(5);
+    expect(callArgs.length).toBe(6);
   });
 
   it("returns empty array when since is in the future", async () => {
@@ -451,9 +458,9 @@ describe("getAllVaultMemoryContentsOp", () => {
 
     await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
 
-    // is_deleted + since = 2 conditions
+    // is_deleted + superseded_by + since = 3 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(3);
   });
 
   it("adds both userId and since conditions together", async () => {
@@ -469,9 +476,9 @@ describe("getAllVaultMemoryContentsOp", () => {
 
     await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
 
-    // is_deleted + user_id + since = 3 conditions
+    // is_deleted + superseded_by + user_id + since = 4 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(4);
   });
 });
 
@@ -594,6 +601,92 @@ describe("deleteVaultMemoryOp", () => {
   });
 });
 
+describe("supersedeVaultMemoryOp (A2)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stamps superseded_by + superseded_at on the retired row", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await supersedeVaultMemoryOp(ctx, "old", "new");
+    expect(result).toBe(true);
+
+    const setRawSpy = vi.fn();
+    updateFn.mock.calls[0][0]({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("superseded_by", "new");
+    expect(setRawSpy).toHaveBeenCalledWith("superseded_at", expect.any(Number));
+  });
+
+  it("returns false (no-op) for an already-superseded row", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => mockRecord({ superseded_by: "someone-else" })),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+  });
+
+  it("returns false when the successor id does not exist (no dangling pointer)", async () => {
+    const target = mockRecord({ id: "old", update: vi.fn() });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async (id: string) => {
+          if (id === "old") return target;
+          throw new Error("not found");
+        }),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "missing")).toBe(false);
+    expect(target.update).not.toHaveBeenCalled();
+  });
+
+  it("returns false when the successor is deleted or already superseded", async () => {
+    const target = mockRecord({ id: "old", update: vi.fn() });
+    for (const bad of [{ isDeleted: true }, { superseded_by: "x" }]) {
+      const successor = mockRecord({ id: "new", ...bad });
+      const ctx = makeCtx({
+        vaultMemoryCollection: {
+          find: vi.fn(async (id: string) => (id === "old" ? target : successor)),
+        } as any,
+      });
+      expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+    }
+    expect(target.update).not.toHaveBeenCalled();
+  });
+
+  it("returns false for a soft-deleted row", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => mockRecord({ isDeleted: true })),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+  });
+
+  it("refuses to let a memory supersede itself", async () => {
+    const find = vi.fn(async () => mockRecord());
+    const ctx = makeCtx({ vaultMemoryCollection: { find } as any });
+    expect(await supersedeVaultMemoryOp(ctx, "same", "same")).toBe(false);
+    expect(find).not.toHaveBeenCalled();
+  });
+
+  it("returns false when find throws", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => {
+          throw new Error("nope");
+        }),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+  });
+});
+
 describe("vaultMemoryToStored", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -660,9 +753,9 @@ describe("userId scoping", () => {
 
     await getAllVaultMemoriesOp(ctx);
 
-    // is_deleted + user_id + sortBy = 3 conditions
+    // is_deleted + superseded_by + user_id + sortBy = 4 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(4);
   });
 
   it("does NOT filter by user_id in getAllVaultMemoriesOp when ctx.userId is undefined", async () => {
@@ -677,9 +770,9 @@ describe("userId scoping", () => {
 
     await getAllVaultMemoriesOp(ctx);
 
-    // is_deleted + sortBy = 2 conditions (no user_id filter)
+    // is_deleted + superseded_by + sortBy = 3 conditions (no user_id filter)
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(3);
   });
 });
 
@@ -935,9 +1028,9 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
     await getAllVaultMemoriesOp(ctx, { folderId: "folder_1" });
 
-    // is_deleted + folder_id + sortBy = 3 conditions
+    // is_deleted + superseded_by + folder_id + sortBy = 4 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(4);
   });
 
   it("adds folderId WHERE clause when folderId is null (unfiled)", async () => {
@@ -952,9 +1045,9 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
     await getAllVaultMemoriesOp(ctx, { folderId: null });
 
-    // is_deleted + folder_id + sortBy = 3 conditions
+    // is_deleted + superseded_by + folder_id + sortBy = 4 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(4);
   });
 
   it("does NOT add folderId clause when folderId is undefined", async () => {
@@ -969,9 +1062,9 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
     await getAllVaultMemoriesOp(ctx);
 
-    // is_deleted + sortBy = 2 conditions (no folder_id)
+    // is_deleted + superseded_by + sortBy = 3 conditions (no folder_id)
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(3);
   });
 });
 
@@ -1085,18 +1178,36 @@ describe("clearMemoryTopicsOverrideOp", () => {
     expect(record.topicsUserManaged).toBe(false);
   });
 
-  it("nulls only the version (keeps the stamp) so the row re-extracts via the stale-version path", async () => {
+  it("nulls the version and preserves an existing stamp (routes to stale-version path)", async () => {
     const setRawSpy = vi.fn();
     const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
-    const record = mockRecord({ id: "mem_1", update: updateFn });
+    const record = mockRecord({ id: "mem_1", topics_extracted_at: 3_000, update: updateFn });
     const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
 
     await clearMemoryTopicsOverrideOp(ctx, "mem_1");
 
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", null);
-    // The stamp is intentionally preserved — nulling it would grandfather a
-    // still-linked row (stampedPending needs a non-null stamp to route to LLM).
-    expect(setRawSpy).not.toHaveBeenCalledWith("topics_extracted_at", null);
+    // An existing stamp is left untouched (never overwritten, never nulled) — the
+    // stale version alone routes it to the pending/LLM path.
+    expect(setRawSpy.mock.calls.every((c) => c[0] !== "topics_extracted_at")).toBe(true);
+  });
+
+  it("forces a stamp when the row was never LLM-stamped (re-extract, not grandfather)", async () => {
+    const setRawSpy = vi.fn();
+    const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    // No topics_extracted_at → the getter returns null (user curated topics
+    // before any LLM pass). Clear must force a stamp so the sweep re-extracts it.
+    const record = mockRecord({
+      id: "mem_1",
+      updated_at: new Date("2025-06-01"),
+      update: updateFn,
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await clearMemoryTopicsOverrideOp(ctx, "mem_1");
+
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", null);
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", new Date("2025-06-01").getTime());
   });
 });
 
@@ -1220,8 +1331,8 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
       },
     });
     await getMemoriesNeedingTopicExtractionOp(ctx);
-    // user-managed OR-clause + is_deleted + sortBy = 3 conditions
-    expect(queryFn.mock.calls[0].length).toBe(3);
+    // user-managed OR-clause + is_deleted + superseded_by + sortBy = 4 conditions
+    expect(queryFn.mock.calls[0].length).toBe(4);
   });
 });
 

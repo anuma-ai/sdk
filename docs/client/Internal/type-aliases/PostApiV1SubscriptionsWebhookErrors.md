@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsWebhookErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9526](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9526)
+Defined in: [src/client/types.gen.ts:9531](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9531)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9526](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9530](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9530)
+Defined in: [src/client/types.gen.ts:9535](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9535)
 
 Bad Request

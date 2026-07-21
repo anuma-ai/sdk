@@ -1126,6 +1126,11 @@ export type HandlersApiKeyWithKeyResponse = {
     wallet_address: string;
 };
 
+export type HandlersAccountByDidResponse = {
+    account_id?: number;
+    privy_did?: string;
+};
+
 export type HandlersAddCreditsRequest = {
     /**
      * App ID to use
@@ -10473,6 +10478,44 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type GetInternalAccountsByDidByDidData = {
+    body?: never;
+    path: {
+        /**
+         * Privy DID (did:privy:<id>)
+         */
+        did: string;
+    };
+    query?: never;
+    url: '/internal/accounts/by-did/{did}';
+};
+
+export type GetInternalAccountsByDidByDidErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetInternalAccountsByDidByDidError = GetInternalAccountsByDidByDidErrors[keyof GetInternalAccountsByDidByDidErrors];
+
+export type GetInternalAccountsByDidByDidResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAccountByDidResponse;
+};
+
+export type GetInternalAccountsByDidByDidResponse = GetInternalAccountsByDidByDidResponses[keyof GetInternalAccountsByDidByDidResponses];
 
 export type GetOauthAuthorizeData = {
     body?: never;

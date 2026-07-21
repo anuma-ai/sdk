@@ -248,6 +248,7 @@ export {
   stampTopicsExtractedAtOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
+  supersedeVaultMemoryOp,
   TOPICS_EXTRACTION_VERSION,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
