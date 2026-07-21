@@ -112,6 +112,13 @@ export interface ToolsCacheBackend {
   get(): CachedServerTools | null | Promise<CachedServerTools | null>;
   /** Persist the payload. Implementations should swallow write failures. */
   set(value: CachedServerTools): void | Promise<void>;
+  /**
+   * Remove the cached payload. Optional — a read/write-only backend may omit it,
+   * in which case `clearServerToolsCache` (and the version-mismatch
+   * invalidation) is a no-op for that backend. The default
+   * {@link localStorageToolsCache} implements it.
+   */
+  clear?(): void | Promise<void>;
 }
 
 /**
@@ -299,7 +306,7 @@ export function getCachedServerTools(): CachedServerTools | null {
 
     // Validate cache version
     if (parsed.version !== CACHE_VERSION) {
-      clearServerToolsCache();
+      removeLocalStorageCache();
       return null;
     }
 
@@ -353,26 +360,50 @@ function writeLocalStorageCache(entry: CachedServerTools): void {
  * no-op where `localStorage` is undefined (Node, React Native). Used by
  * `getServerTools` when no `cache` option is supplied.
  */
-export const localStorageToolsCache: ToolsCacheBackend = {
-  get: getCachedServerTools,
-  set: writeLocalStorageCache,
-};
-
 /**
- * Clear the server tools cache
+ * Remove the cached payload from browser `localStorage` (the default backend's
+ * clear path). Silent no-op where `localStorage` is undefined.
  */
-export function clearServerToolsCache(): void {
+function removeLocalStorageCache(): void {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SERVER_TOOLS_CACHE_KEY);
 }
 
+export const localStorageToolsCache: ToolsCacheBackend = {
+  get: getCachedServerTools,
+  set: writeLocalStorageCache,
+  clear: removeLocalStorageCache,
+};
+
 /**
- * Get the checksum of currently cached tools.
- * Returns undefined if no cache or no checksum stored.
+ * Clear the cached server tools. Defaults to the browser-`localStorage` backend;
+ * pass the SAME {@link ToolsCacheBackend} you gave `getServerTools` to invalidate
+ * a custom backend (a no-op when that backend defines no `clear`). Returns the
+ * backend's clear result, which may be async.
  */
-export function getToolsChecksum(): string | undefined {
-  const cached = getCachedServerTools();
-  return cached?.checksum;
+export function clearServerToolsCache(): void;
+export function clearServerToolsCache(cache: ToolsCacheBackend): void | Promise<void>;
+export function clearServerToolsCache(
+  cache: ToolsCacheBackend = localStorageToolsCache
+): void | Promise<void> {
+  return cache.clear?.();
+}
+
+/**
+ * Get the checksum of the currently cached tools, or undefined when there is no
+ * cache / no stored checksum. Defaults to the browser-`localStorage` backend;
+ * pass the SAME backend you gave `getServerTools` to read a custom backend's
+ * checksum (an async backend yields a promise).
+ */
+export function getToolsChecksum(): string | undefined;
+export function getToolsChecksum(
+  cache: ToolsCacheBackend
+): string | undefined | Promise<string | undefined>;
+export function getToolsChecksum(
+  cache: ToolsCacheBackend = localStorageToolsCache
+): string | undefined | Promise<string | undefined> {
+  const cached = cache.get();
+  return cached instanceof Promise ? cached.then((c) => c?.checksum) : cached?.checksum;
 }
 
 /**
@@ -385,20 +416,27 @@ export function getToolsChecksum(): string | undefined {
  * - responseChecksum is not provided (legacy response)
  * - Checksums match
  */
-export function shouldRefreshTools(responseChecksum: string | undefined): boolean {
+export function shouldRefreshTools(responseChecksum: string | undefined): boolean;
+export function shouldRefreshTools(
+  responseChecksum: string | undefined,
+  cache: ToolsCacheBackend
+): boolean | Promise<boolean>;
+export function shouldRefreshTools(
+  responseChecksum: string | undefined,
+  cache: ToolsCacheBackend = localStorageToolsCache
+): boolean | Promise<boolean> {
   if (!responseChecksum) {
     // Legacy response without checksum - don't trigger refresh
     return false;
   }
 
-  const cachedChecksum = getToolsChecksum();
+  // Refresh when there is no cached checksum yet (first checksum-aware response)
+  // or when the server's checksum differs from the one we cached.
+  const decide = (cachedChecksum: string | undefined): boolean =>
+    !cachedChecksum || cachedChecksum !== responseChecksum;
 
-  if (!cachedChecksum) {
-    // No cached checksum - refresh to get tools with checksum
-    return true;
-  }
-
-  return cachedChecksum !== responseChecksum;
+  const cachedChecksum = getToolsChecksum(cache);
+  return cachedChecksum instanceof Promise ? cachedChecksum.then(decide) : decide(cachedChecksum);
 }
 
 /**

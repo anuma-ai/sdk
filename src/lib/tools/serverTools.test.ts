@@ -5,7 +5,12 @@ import { APP_BUILDER_PROMPT } from "../../tools/appBuilderPrompt";
 import {
   activatedToolSetNames,
   BUILT_IN_TOOL_SETS,
+  type CachedServerTools,
+  clearServerToolsCache,
+  getToolsChecksum,
   mergeTools,
+  shouldRefreshTools,
+  type ToolsCacheBackend,
   type ToolSet,
   toolSetSystemPrompts,
 } from "./serverTools";
@@ -310,5 +315,85 @@ describe("mergeTools — defer-loading: duplicate hot names", () => {
     const names = merged.map((t) => (t.function as { name?: string } | undefined)?.name ?? t.name);
     expect(names.filter((n) => n === "AnumaJinaMCP-read_url")).toHaveLength(1); // once, not twice
     expect(merged[0].type).toBe("tool_search_tool_regex_20251119");
+  });
+});
+
+describe("server-tools cache — pluggable backend (checksum + clear)", () => {
+  const payload = (checksum?: string): CachedServerTools => ({
+    tools: [],
+    timestamp: 0,
+    version: "test",
+    ...(checksum ? { checksum } : {}),
+  });
+  const backendWith = (
+    get: ToolsCacheBackend["get"],
+    clear?: ToolsCacheBackend["clear"]
+  ): ToolsCacheBackend => ({ get, set: () => {}, ...(clear ? { clear } : {}) });
+
+  it("getToolsChecksum reads the checksum from the given (sync) backend, not only localStorage", () => {
+    expect(getToolsChecksum(backendWith(() => payload("abc")))).toBe("abc");
+  });
+
+  it("getToolsChecksum is undefined when the backend has no entry / no checksum", () => {
+    expect(getToolsChecksum(backendWith(() => null))).toBeUndefined();
+    expect(getToolsChecksum(backendWith(() => payload()))).toBeUndefined();
+  });
+
+  it("getToolsChecksum awaits an async backend", async () => {
+    const result = getToolsChecksum(backendWith(async () => payload("async-sum")));
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).resolves.toBe("async-sum");
+  });
+
+  it("shouldRefreshTools compares against the custom backend's cached checksum (sync)", () => {
+    expect(
+      shouldRefreshTools(
+        "new",
+        backendWith(() => payload("old"))
+      )
+    ).toBe(true);
+    expect(
+      shouldRefreshTools(
+        "same",
+        backendWith(() => payload("same"))
+      )
+    ).toBe(false);
+    expect(
+      shouldRefreshTools(
+        "any",
+        backendWith(() => payload())
+      )
+    ).toBe(true); // no cached sum
+    expect(
+      shouldRefreshTools(
+        undefined,
+        backendWith(() => payload("old"))
+      )
+    ).toBe(false); // legacy
+  });
+
+  it("shouldRefreshTools resolves against an async backend", async () => {
+    const backend = backendWith(async () => payload("cached"));
+    const differs = shouldRefreshTools("fresh", backend);
+    expect(differs).toBeInstanceOf(Promise);
+    await expect(differs).resolves.toBe(true);
+    await expect(shouldRefreshTools("cached", backend)).resolves.toBe(false);
+  });
+
+  it("clearServerToolsCache invalidates the backend it is handed", () => {
+    let cleared = false;
+    clearServerToolsCache(
+      backendWith(
+        () => null,
+        () => {
+          cleared = true;
+        }
+      )
+    );
+    expect(cleared).toBe(true);
+  });
+
+  it("clearServerToolsCache is a silent no-op for a backend without clear", () => {
+    expect(() => clearServerToolsCache(backendWith(() => null))).not.toThrow();
   });
 });
