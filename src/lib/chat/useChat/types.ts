@@ -205,6 +205,12 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
   /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
   conversationId?: string;
   /**
+   * Per-request override for the API path. When set, this request is sent to the
+   * given path instead of the model-resolved endpoint. The request/response
+   * contract is unchanged — only the path differs. Omit to use the default path.
+   */
+  endpointOverride?: string;
+  /**
    * Per-request override for PII redaction. When set, takes precedence over the
    * hook-level `piiRedaction` for this call only — e.g. pass `false` to disable
    * redaction for a single request, or a specific `PiiRedactor` instance. When
