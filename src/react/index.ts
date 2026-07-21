@@ -409,10 +409,12 @@ export {
   extractAndRetain,
   extractEntitiesForMemories,
   extractFacts,
+  isRerankerAvailable,
   recall,
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
   reflect,
+  RerankerUnavailableError,
   retain,
   TOPIC_EXTRACTION_BATCH_SIZE,
 } from "../lib/memory";

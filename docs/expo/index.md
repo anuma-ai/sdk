@@ -748,6 +748,12 @@ Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEAD
 
 ***
 
+### isRerankerAvailable
+
+Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable.md)
+
+***
+
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
@@ -997,6 +1003,12 @@ Re-exports [ReflectResult](../react/Internal/interfaces/ReflectResult.md)
 ### requestEncryptionKey
 
 Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionKey.md)
+
+***
+
+### RerankerUnavailableError
+
+Re-exports [RerankerUnavailableError](../react/Internal/classes/RerankerUnavailableError.md)
 
 ***
 
