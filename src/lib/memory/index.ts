@@ -13,6 +13,8 @@ export {
   type AutoExtractor,
   createAutoExtractor,
   type CreateAutoExtractorOptions,
+  createPlatformCursorStore,
+  type ExtractionCursorStore,
   type MemoryExtractedEvent,
   type TurnCompleteEvent,
   type TurnSkippedEvent,

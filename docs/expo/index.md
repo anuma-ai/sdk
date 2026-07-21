@@ -370,6 +370,12 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 
 ***
 
+### createPlatformCursorStore
+
+Re-exports [createPlatformCursorStore](../react/Internal/functions/createPlatformCursorStore.md)
+
+***
+
 ### createRecallTool
 
 Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
@@ -595,6 +601,12 @@ Re-exports [extractFacts](../react/Internal/functions/extractFacts.md)
 ### ExtractFactsOptions
 
 Re-exports [ExtractFactsOptions](../react/Internal/interfaces/ExtractFactsOptions.md)
+
+***
+
+### ExtractionCursorStore
+
+Re-exports [ExtractionCursorStore](../react/Internal/interfaces/ExtractionCursorStore.md)
 
 ***
 

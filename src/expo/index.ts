@@ -356,6 +356,7 @@ export type {
   ExtractedCandidate,
   ExtractedEntity,
   ExtractFactsOptions,
+  ExtractionCursorStore,
   ExtractOutcome,
   FactType,
   MemoryExtractedEvent,
@@ -387,6 +388,7 @@ export type {
 export {
   createAutoExtractor,
   createChunkVectorCache,
+  createPlatformCursorStore,
   createRecallTool,
   DEFAULT_CHUNK_CACHE_SIZE,
   extractAndLinkEntitiesForMemoriesOp,
