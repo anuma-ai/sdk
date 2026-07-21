@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminSubscriptionTierError** = [`PostApiV1AdminSubscriptionTierErrors`](PostApiV1AdminSubscriptionTierErrors.md)\[keyof [`PostApiV1AdminSubscriptionTierErrors`](PostApiV1AdminSubscriptionTierErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5917)
+Defined in: [src/client/types.gen.ts:5922](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5922)

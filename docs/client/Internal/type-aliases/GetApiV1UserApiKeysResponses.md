@@ -2,7 +2,7 @@
 
 > **GetApiV1UserApiKeysResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9877](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9877)
+Defined in: [src/client/types.gen.ts:9882](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9882)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9877](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersListUserApiKeysResponse`](HandlersListUserApiKeysResponse.md)
 
-Defined in: [src/client/types.gen.ts:9881](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9881)
+Defined in: [src/client/types.gen.ts:9886](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9886)
 
 OK

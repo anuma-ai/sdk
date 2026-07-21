@@ -33,6 +33,16 @@ export interface StoredVaultMemory {
    * Null = never extracted standalone; rows that already carry entity links
    * are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp). */
   topicsExtractedAt: number | null;
+  /** Write-time supersession (A2): id of the newer memory that replaced this
+   * one (incompatible-value update, e.g. "Lives in Portland" → "Lives in SF").
+   * Null = live. Superseded rows are excluded from recall/dedup by default but
+   * kept for history + the read-time fallback. */
+  supersededBy: string | null;
+  /** Unix ms when this memory was superseded. Null when live. */
+  supersededAt: number | null;
+  /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
+   * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+  topicsExtractedVersion: number | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;

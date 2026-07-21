@@ -2,4 +2,4 @@
 
 > **GetApiV1ZetaMarketResponse** = [`GetApiV1ZetaMarketResponses`](GetApiV1ZetaMarketResponses.md)\[keyof [`GetApiV1ZetaMarketResponses`](GetApiV1ZetaMarketResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10265](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10265)
+Defined in: [src/client/types.gen.ts:10270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10270)

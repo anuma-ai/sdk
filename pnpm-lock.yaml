@@ -47,8 +47,8 @@ importers:
   .:
     dependencies:
       '@anuma/portal':
-        specifier: 1.0.0-next.20260717201251
-        version: 1.0.0-next.20260717201251
+        specifier: 1.0.0-next.20260721055054
+        version: 1.0.0-next.20260721055054
       '@babel/parser':
         specifier: ^7.29.2
         version: 7.29.2
@@ -307,8 +307,8 @@ packages:
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
 
-  '@anuma/portal@1.0.0-next.20260717201251':
-    resolution: {integrity: sha512-1rmtipvJrRs+ewGgOZ8CDExJK6pc5K2xORryUveYbwAIwuVTZVtmrL0mIzL4XYUSmwQ96Kv7NNyf2atYQPvOAQ==}
+  '@anuma/portal@1.0.0-next.20260721055054':
+    resolution: {integrity: sha512-vx7Ms04Olj047tedvK9Y86Fd4DjLK0DL745vLIAxTahWeNWD6c3Uvtgyi9oiKq8zQV1Tc2i6SRKdAvsro284sQ==}
 
   '@arethetypeswrong/cli@0.18.2':
     resolution: {integrity: sha512-PcFM20JNlevEDKBg4Re29Rtv2xvjvQZzg7ENnrWFSS0PHgdP2njibVFw+dRUhNkPgNfac9iUqO0ohAXqQL4hbw==}
@@ -7513,7 +7513,7 @@ snapshots:
 
   '@andrewbranch/untar.js@1.0.3': {}
 
-  '@anuma/portal@1.0.0-next.20260717201251': {}
+  '@anuma/portal@1.0.0-next.20260721055054': {}
 
   '@arethetypeswrong/cli@0.18.2':
     dependencies:
@@ -11046,7 +11046,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.6(@types/node@25.9.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.0.3)(@vitest/coverage-v8@4.1.8)(happy-dom@20.8.9(bufferutil@4.0.9)(utf-8-validate@5.0.10))(vite@7.3.6(@types/node@25.0.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/expect@4.1.8':
     dependencies:

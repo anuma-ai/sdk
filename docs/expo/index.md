@@ -118,6 +118,12 @@ Re-exports [Budget](../react/Internal/type-aliases/Budget.md)
 
 ***
 
+### CachedChunkVectors
+
+Re-exports [CachedChunkVectors](../react/Internal/interfaces/CachedChunkVectors.md)
+
+***
+
 ### CachedServerTools
 
 Re-exports [CachedServerTools](../react/Internal/interfaces/CachedServerTools.md)
@@ -175,6 +181,12 @@ Re-exports [ChunkingOptions](../react/Internal/interfaces/ChunkingOptions.md)
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)
+
+***
+
+### ChunkVectorCache
+
+Re-exports [ChunkVectorCache](../react/Internal/type-aliases/ChunkVectorCache.md)
 
 ***
 
@@ -316,6 +328,12 @@ Re-exports [CreateAutoExtractorOptions](../react/Internal/interfaces/CreateAutoE
 
 ***
 
+### createChunkVectorCache
+
+Re-exports [createChunkVectorCache](../react/Internal/functions/createChunkVectorCache.md)
+
+***
+
 ### CreateConversationOptions
 
 Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConversationOptions.md)
@@ -349,6 +367,12 @@ Re-exports [createMemoryVaultTool](../react/Internal/functions/createMemoryVault
 ### CreateMessageOptions
 
 Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
+
+***
+
+### createPlatformCursorStore
+
+Re-exports [createPlatformCursorStore](../react/Internal/functions/createPlatformCursorStore.md)
 
 ***
 
@@ -451,6 +475,12 @@ Re-exports [decryptConversationTitle](../react/Internal/functions/decryptConvers
 ### DEFAULT\_CACHE\_EXPIRATION\_MS
 
 Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
+
+***
+
+### DEFAULT\_CHUNK\_CACHE\_SIZE
+
+Re-exports [DEFAULT\_CHUNK\_CACHE\_SIZE](../react/Internal/variables/DEFAULT_CHUNK_CACHE_SIZE.md)
 
 ***
 
@@ -571,6 +601,12 @@ Re-exports [extractFacts](../react/Internal/functions/extractFacts.md)
 ### ExtractFactsOptions
 
 Re-exports [ExtractFactsOptions](../react/Internal/interfaces/ExtractFactsOptions.md)
+
+***
+
+### ExtractionCursorStore
+
+Re-exports [ExtractionCursorStore](../react/Internal/interfaces/ExtractionCursorStore.md)
 
 ***
 
@@ -709,6 +745,12 @@ Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
 ### INFERENCE\_ID\_HEADER
 
 Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEADER.md)
+
+***
+
+### isRerankerAvailable
+
+Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable.md)
 
 ***
 
@@ -898,6 +940,18 @@ Re-exports [RecallContext](../react/Internal/interfaces/RecallContext.md)
 
 ***
 
+### RecallDegradation
+
+Re-exports [RecallDegradation](../react/Internal/type-aliases/RecallDegradation.md)
+
+***
+
+### RecallDiagnostics
+
+Re-exports [RecallDiagnostics](../react/Internal/interfaces/RecallDiagnostics.md)
+
+***
+
 ### RecallOptions
 
 Re-exports [RecallOptions](../react/Internal/interfaces/RecallOptions.md)
@@ -949,6 +1003,12 @@ Re-exports [ReflectResult](../react/Internal/interfaces/ReflectResult.md)
 ### requestEncryptionKey
 
 Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionKey.md)
+
+***
+
+### RerankerUnavailableError
+
+Re-exports [RerankerUnavailableError](../react/Internal/classes/RerankerUnavailableError.md)
 
 ***
 
@@ -1186,6 +1246,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 
 ***
 
+### supersedeVaultMemoryOp
+
+Re-exports [supersedeVaultMemoryOp](../react/Internal/functions/supersedeVaultMemoryOp.md)
+
+***
+
 ### TextChunk
 
 Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
@@ -1213,6 +1279,12 @@ Re-exports [TopicExtractionRunResult](../react/Internal/interfaces/TopicExtracti
 ### TopicExtractOptions
 
 Re-exports [TopicExtractOptions](../react/Internal/interfaces/TopicExtractOptions.md)
+
+***
+
+### TOPICS\_EXTRACTION\_VERSION
+
+Re-exports [TOPICS\_EXTRACTION\_VERSION](../react/Internal/variables/TOPICS_EXTRACTION_VERSION.md)
 
 ***
 

@@ -13,7 +13,7 @@ import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
-import { rerankPairs } from "../memory/reranker";
+import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
@@ -644,6 +644,19 @@ export async function rankFusedVaultMemoriesAsync(
      * score. Same lane semantics as `entityRanking`.
      */
     temporalRanking?: string[];
+    /**
+     * Optional out-param. Set `{ applied: true }` iff the cross-encoder rerank
+     * actually ran over a non-empty head (not merely requested-then-degraded,
+     * and not skipped on an empty V2 head). Lets callers report an honest
+     * `reranked` diagnostic per call.
+     */
+    rerankStats?: { applied: boolean };
+    /**
+     * Optional out-param. Set `{ hadResults: true }` iff the V2 head (cosine/BM25
+     * fusion before side lanes) was non-empty. Lets callers distinguish "CE skipped
+     * because V2 head was empty (lane-only hits)" from "CE failed on a non-empty head".
+     */
+    v2HeadStats?: { hadResults: boolean };
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -658,6 +671,12 @@ export async function rankFusedVaultMemoriesAsync(
     bm25AdmissionDivisor: options?.bm25AdmissionDivisor,
     rrfK: options?.rrfK,
   });
+
+  // Track whether the V2 head was non-empty (before side-lane fusion).
+  // Used by recall() to distinguish "CE skipped on empty head" from "CE failed".
+  if (options?.v2HeadStats) {
+    options.v2HeadStats.hadResults = v2Ranked.length > 0;
+  }
 
   // Don't short-circuit on empty V2: queries that only match the W5
   // (entityRanking) or W6 (temporalRanking) lanes still need to surface
@@ -676,12 +695,14 @@ export async function rankFusedVaultMemoriesAsync(
     const ceWeight = options.ceWeight ?? 0.1;
     const headSlice = v2Ranked.slice(0, rerankTopN);
 
-    // The cross-encoder is a network call (portal). A transient rerank failure
-    // degrades to the V2 ordering we already computed rather than erroring the
-    // whole recall — the executor's outer catch would otherwise turn a CE
-    // hiccup into "Error searching vault" and surface zero memories to the
-    // answer model. The downgrade is logged (warn) as the observability signal;
-    // threading it up to RecallResult.reranked is a follow-up.
+    // The cross-encoder runs on-device (transformers.js), not over the
+    // network. Either way a rerank failure degrades to the V2 ordering we
+    // already computed rather than erroring the whole recall — the executor's
+    // outer catch would otherwise turn a CE hiccup into "Error searching vault"
+    // and surface zero memories to the answer model. A missing optional dep
+    // (RN) is the expected-unavailable case and logs at debug; genuine
+    // transient failures warn. recall() reports the honest `reranked` flag via
+    // isRerankerAvailable().
     try {
       const reranked = await rerankPairs(
         query,
@@ -702,8 +723,15 @@ export async function rankFusedVaultMemoriesAsync(
         return { ...r, similarity: v2 * (1 + ceWeight * ce) };
       });
       combined.sort((a, b) => b.similarity - a.similarity);
+      // CE ran over a real head — record it so recall() reports reranked
+      // honestly. An empty head (lane-only hits) leaves applied=false.
+      if (headSlice.length > 0 && options.rerankStats) options.rerankStats.applied = true;
     } catch (err) {
-      getLogger().warn("[memory/search] cross-encoder rerank failed; using V2 ranking", err);
+      if (err instanceof RerankerUnavailableError) {
+        getLogger().debug("[memory/search] cross-encoder unavailable; using V2 ranking");
+      } else {
+        getLogger().warn("[memory/search] cross-encoder rerank failed; using V2 ranking", err);
+      }
       combined = v2Ranked;
     }
   } else {
@@ -886,6 +914,18 @@ export async function rankComposite(
      * the eval harness.
      */
     includeUnrankedTail?: boolean;
+    /**
+     * Optional out-param. Set `{ applied: true }` iff the cross-encoder rerank
+     * actually ran over a non-empty head. Same semantics as
+     * {@link rankFusedVaultMemoriesAsync}'s `rerankStats`.
+     */
+    rerankStats?: { applied: boolean };
+    /**
+     * Optional out-param. Set `{ hadResults: true }` iff there were facet fusion
+     * results before rerank. Lets callers distinguish "CE skipped on empty head"
+     * from "CE failed on a non-empty head".
+     */
+    v2HeadStats?: { hadResults: boolean };
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -970,6 +1010,12 @@ export async function rankComposite(
   );
   combined.sort((a, b) => b.similarity - a.similarity);
 
+  // Track whether there were facet fusion results (before rerank).
+  // Used by recall() to distinguish "CE skipped on empty head" from "CE failed".
+  if (options?.v2HeadStats) {
+    options.v2HeadStats.hadResults = combined.length > 0;
+  }
+
   // Bench parity (opt-in ONLY): append items absent from any facet's top-N at
   // similarity 0 so eval margin-analysis can locate any id. Never in
   // production — this tail bypasses the caller's minSimilarity floor and would
@@ -1015,11 +1061,16 @@ export async function rankComposite(
       }));
       head.sort((a, b) => b.similarity - a.similarity);
       combined = [...head, ...tailSlice];
+      if (headSlice.length > 0 && options.rerankStats) options.rerankStats.applied = true;
     } catch (err) {
-      getLogger().warn(
-        "[memory/search] composite cross-encoder rerank failed; using fused ranking",
-        err
-      );
+      if (err instanceof RerankerUnavailableError) {
+        getLogger().debug("[memory/search] cross-encoder unavailable; using fused ranking");
+      } else {
+        getLogger().warn(
+          "[memory/search] composite cross-encoder rerank failed; using fused ranking",
+          err
+        );
+      }
     }
   }
 
@@ -1180,13 +1231,18 @@ export async function searchVaultMemoriesWithSize(
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
-): Promise<{ results: VaultSearchResult[]; vaultSize: number }> {
+): Promise<{
+  results: VaultSearchResult[];
+  vaultSize: number;
+  reranked: boolean;
+  hadV2Head: boolean;
+}> {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
   const scopes = searchOptions?.scopes;
 
   if (!query || typeof query !== "string") {
-    return { results: [], vaultSize: 0 };
+    return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
   }
 
   const folderId = searchOptions?.folderId;
@@ -1216,7 +1272,7 @@ export async function searchVaultMemoriesWithSize(
   // nothing saved yet" and say so to the LLM, which would invite
   // duplicate saves while decryption is temporarily unavailable.
   if (memories.length === 0) {
-    return { results: [], vaultSize: loaded.length };
+    return { results: [], vaultSize: loaded.length, reranked: false, hadV2Head: false };
   }
 
   // Embed the query
@@ -1330,13 +1386,30 @@ export async function searchVaultMemoriesWithSize(
   const stampTimestamps = (out: {
     results: VaultSearchResult[];
     vaultSize: number;
-  }): { results: VaultSearchResult[]; vaultSize: number } => {
-    out.results = out.results.map((r) => {
+    reranked?: boolean;
+    hadV2Head?: boolean;
+  }): {
+    results: VaultSearchResult[];
+    vaultSize: number;
+    reranked: boolean;
+    hadV2Head: boolean;
+  } => {
+    const results = out.results.map((r) => {
       const ts = timestampById.get(r.uniqueId);
       return ts ? { ...r, createdAt: ts.createdAt, updatedAt: ts.updatedAt } : r;
     });
-    return out;
+    return {
+      results,
+      vaultSize: out.vaultSize,
+      reranked: out.reranked ?? false,
+      hadV2Head: out.hadV2Head ?? false,
+    };
   };
+
+  // Records whether the cross-encoder actually ran (set by the async rankers
+  // on a real, non-empty head). Threaded up so recall() reports reranked
+  // per-call — not "requested" (which lied on RN) and not "ever loaded".
+  const rerankStats = { applied: false };
 
   const useFusion = searchOptions?.useFusion ?? true;
 
@@ -1371,6 +1444,7 @@ export async function searchVaultMemoriesWithSize(
         query: sq,
         embedding: subEmbeddings[i],
       }));
+      const v2HeadStats = { hadResults: false };
       const composite = await rankComposite(query, queryEmbedding, subQueries, embeddedItems, {
         limit,
         minSimilarity,
@@ -1383,13 +1457,21 @@ export async function searchVaultMemoriesWithSize(
         ...tuning,
         ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
         ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+        rerankStats,
+        v2HeadStats,
       });
-      return stampTimestamps({ results: composite, vaultSize: loaded.length });
+      return stampTimestamps({
+        results: composite,
+        vaultSize: loaded.length,
+        reranked: rerankStats.applied,
+        hadV2Head: v2HeadStats.hadResults,
+      });
     }
     // mode === "specific" — fall through to V2/V2+CE below.
   }
 
   if (useFusion && searchOptions?.rerank) {
+    const v2HeadStats = { hadResults: false };
     const results = await rankFusedVaultMemoriesAsync(query, queryEmbedding, embeddedItems, {
       limit,
       minSimilarity,
@@ -1402,8 +1484,15 @@ export async function searchVaultMemoriesWithSize(
       ...tuning,
       ...(searchOptions.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
+      rerankStats,
+      v2HeadStats,
     });
-    return stampTimestamps({ results, vaultSize: loaded.length });
+    return stampTimestamps({
+      results,
+      vaultSize: loaded.length,
+      reranked: rerankStats.applied,
+      hadV2Head: v2HeadStats.hadResults,
+    });
   }
 
   if (useFusion) {
@@ -1414,7 +1503,8 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions?.entityRanking && { entityRanking: searchOptions.entityRanking }),
       ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
-    return stampTimestamps({ results, vaultSize: loaded.length });
+    // Sync fusion path doesn't rerank, so hadV2Head is true if any results exist.
+    return stampTimestamps({ results, vaultSize: loaded.length, hadV2Head: results.length > 0 });
   }
 
   const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
@@ -1428,7 +1518,8 @@ export async function searchVaultMemoriesWithSize(
     }),
   });
 
-  return stampTimestamps({ results, vaultSize: loaded.length });
+  // Cosine-only path doesn't rerank, so hadV2Head is true if any results exist.
+  return stampTimestamps({ results, vaultSize: loaded.length, hadV2Head: results.length > 0 });
 }
 
 /**

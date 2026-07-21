@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v36**
+Current version: **v38**
 
 ```mermaid
 graph LR
@@ -119,6 +119,9 @@ graph LR
 | `event_time_kind` | string |  | ✓ |
 | `topics_user_managed` | boolean |  | ✓ |
 | `topics_extracted_at` | number |  | ✓ |
+| `superseded_by` | string | ✓ | ✓ |
+| `superseded_at` | number |  | ✓ |
+| `topics_extracted_version` | number |  | ✓ |
 
 ## entity
 
@@ -220,6 +223,8 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v38 | Added `topics_extracted_version` to `memory_vault` |
+| v37 | Added `superseded_by`, `superseded_at` to `memory_vault` |
 | v36 | Added `topics_extracted_at` to `memory_vault` |
 | v35 | Added `conversation_memory` table |
 | v34 | Added `topics_user_managed` to `memory_vault` |

@@ -8,7 +8,7 @@
  * may converge later, the API will not.
  */
 
-import type { StorageOperationsContext } from "../db/chat/operations.js";
+import type { ChunkVectorCache, StorageOperationsContext } from "../db/chat/operations.js";
 import type { EntityOperationsContext } from "../db/entities/operations.js";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
@@ -124,6 +124,14 @@ export interface RecallOptions {
    * resolves windows in 2026 and never overlaps stored event_time.
    */
   now?: number;
+  /**
+   * Best-effort observability hook. Called once per `recall()` with per-lane
+   * timings, lane counts, and soft-degradation signals — the raw material for
+   * tuning latency/quality and for wiring recall telemetry to PostHog. Invoked
+   * synchronously just before `recall()` returns; a throwing callback is
+   * swallowed (diagnostics must never break retrieval). Off unless provided.
+   */
+  onDiagnostics?: (diagnostics: RecallDiagnostics) => void;
   // -------------------------------------------------------------------------
   // Ranking tuning knobs — forwarded verbatim to the vault search pipeline.
   // All optional; defaults below match the pipeline's hardcoded behavior, so
@@ -161,6 +169,12 @@ export interface RecallContext {
   /** Vault embedding LRU cache. */
   vaultCache?: VaultEmbeddingCache;
   /**
+   * Optional chunk-vector LRU cache. When provided, the chunk lane skips the
+   * per-query decrypt + JSON.parse of every message's chunk vectors on warm
+   * entries. Build via `createChunkVectorCache`. Omit for legacy behavior.
+   */
+  chunkCache?: ChunkVectorCache;
+  /**
    * Optional — when provided, recall extracts entities from the query
    * and adds a graph lane to the RRF fusion (memories sharing entities
    * with the query rank higher). Build via `entityCollection` +
@@ -181,11 +195,55 @@ export interface RecallResult {
   vaultSize?: number;
 }
 
+/** Soft-degradation signals surfaced via {@link RecallDiagnostics.degraded}. */
+export type RecallDegradation =
+  /** Rerank was requested (budget mid/high) but the cross-encoder didn't run
+   *  this call — unavailable (e.g. React Native) or a transient failure. */
+  | "rerank-unavailable"
+  /** `budget: 'high'` requested but no `decomposeOptions`, so query
+   *  decomposition was skipped and the budget downgraded to mid. */
+  | "decompose-unavailable";
+
+/**
+ * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
+ * All timings are wall-clock milliseconds. Lane counts are post-dedupe,
+ * pre-fusion. Intended to be forwarded to a metrics sink (e.g. PostHog).
+ */
+export interface RecallDiagnostics {
+  /** Budget actually executed (may have downgraded from the requested one). */
+  usedBudget: Budget;
+  /** Whether the cross-encoder actually reranked the fact lane this call. */
+  reranked: boolean;
+  /** Total candidates considered before truncation. */
+  candidateCount: number;
+  /** Total vault size when the fact lane ran (absent if it didn't). */
+  vaultSize?: number;
+  /** Facts the fact lane returned (post-dedupe, pre-fusion). */
+  factCount: number;
+  /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
+  chunkCount: number;
+  /** Wall-clock phase timings (ms). */
+  timings: {
+    /** Whole `recall()` call. */
+    total: number;
+    /** Parallel query-embed + graph/temporal side-lane build. */
+    prep: number;
+    /** Vault fact-lane search (`searchVaultMemoriesWithSize`). */
+    factLane: number;
+    /** Chunk-lane search (`searchChunksOp`). */
+    chunkLane: number;
+    /** Cross-lane RRF fusion + provenance dedup after both lanes. */
+    fuse: number;
+  };
+  /** Soft-degradation signals that fired this call (empty when clean). */
+  degraded: RecallDegradation[];
+}
+
 // ---------------------------------------------------------------------------
 // Retain API — for completeness / future-proofing. Implemented Wed 5/6 (W2).
 // ---------------------------------------------------------------------------
 
-export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed";
+export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
 export type RetainSource = "manual" | "auto-extracted" | "capsule";
 
 /** Why the consolidator fell back to "create" instead of a real decision. */
@@ -254,7 +312,8 @@ export interface RetainOptions {
 export interface RetainResult {
   action: RetainAction;
   memoryId: string;
-  /** When action is 'merge' or 'update', the prior memory's id. */
+  /** When action is 'merge' or 'update', the prior memory's id. When action is
+   * 'supersede', the stale memory that was retired (`memoryId` is the new one). */
   targetId?: string;
   /**
    * When action is 'suppressed', the id of the soft-deleted memory that blocked

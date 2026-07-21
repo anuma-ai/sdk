@@ -39,7 +39,7 @@
     "@anuma/agent-sentinel": "workspace:*"
   },
   "peerDependencies": {
-    "@anuma/sdk": "workspace:*"
+    "@anuma/sdk": ">=1 <3"
   },
   "devDependencies": {
     "@anuma/sdk": "workspace:*",

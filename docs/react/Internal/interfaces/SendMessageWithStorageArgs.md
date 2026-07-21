@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:908](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#908)
+Defined in: [src/react/useChatStorage.ts:910](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#910)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:922](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#922)
+Defined in: [src/react/useChatStorage.ts:924](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#924)
 
 Override the API type for this specific request.
 
@@ -90,7 +90,7 @@ clientToolsFilter: (embeddings, tools) => {
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:930](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#930)
+Defined in: [src/react/useChatStorage.ts:932](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#932)
 
 Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
@@ -157,7 +157,7 @@ If both `thoughtProcess` and `getThoughtProcess` are provided, `getThoughtProces
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:913](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#913)
+Defined in: [src/react/useChatStorage.ts:915](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#915)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.
@@ -446,7 +446,7 @@ Parent message ID for branching (edit/regenerate). Sets on the user message.
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/react/useChatStorage.ts:943](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#943)
+Defined in: [src/react/useChatStorage.ts:945](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#945)
 
 Per-request override for PII redaction. When set, takes precedence over the
 hook-level `piiRedaction` for this call only — e.g. pass `false` to disable
