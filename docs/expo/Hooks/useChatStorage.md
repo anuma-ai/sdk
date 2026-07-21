@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:656](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#656)
+Defined in: [src/expo/useChatStorage.ts:697](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#697)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -34,6 +34,34 @@ API-based chat completions. Local chat and client-side tools are not available.
 <td>
 
 Configuration options
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.activeToolSets?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+Tool set names that should expand unconditionally for this request,
+bypassing the anchor-similarity check. Use when conversation state
+implies a set should be present regardless of how the prompt is phrased
+— e.g., pass `["documents"]` when the conversation already contains a
+generated document, so short follow-up prompts ("make the background red")
+still get the full document toolkit.
+
+Read via a ref so updates are visible to in-flight `sendMessage` calls
+without rebuilding the callback.
+
+Names must match a set's `name` from `BUILT_IN_TOOL_SETS` or
+`extraToolSets`. Unknown names are ignored.
 
 </td>
 </tr>
@@ -249,6 +277,29 @@ Enable the in-memory write queue.
 ```ts
 true
 ```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.extraToolSets?`
+
+</td>
+<td>
+
+[`ToolSet`](../../react/Internal/interfaces/ToolSet.md)\[]
+
+</td>
+<td>
+
+Additional tool sets to apply on top of the built-in ones (app-generation,
+slides, github). When any anchor tool in a custom set is selected by
+semantic matching, all members of that set are included automatically.
+
+Treated as static config — set once at hook setup. Changing it across
+renders does not affect in-flight `sendMessage` calls; use
+`activeToolSets` for dynamic, conversation-state-driven overrides.
 
 </td>
 </tr>

@@ -1,6 +1,6 @@
 # ServerToolsOptions
 
-Defined in: [src/lib/tools/serverTools.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#95)
+Defined in: [src/lib/tools/serverTools.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#120)
 
 Options for fetching server tools
 
@@ -10,7 +10,7 @@ Options for fetching server tools
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#105)
+Defined in: [src/lib/tools/serverTools.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#130)
 
 Direct API key for server-side usage (uses X-API-Key header)
 
@@ -20,9 +20,21 @@ Direct API key for server-side usage (uses X-API-Key header)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#97)
+Defined in: [src/lib/tools/serverTools.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#122)
 
 Base URL for the API (defaults to BASE\_URL from clientConfig)
+
+***
+
+### cache?
+
+> `optional` **cache**: `ToolsCacheBackend`
+
+Defined in: [src/lib/tools/serverTools.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#136)
+
+Where to read/write the cached tools list. Defaults to
+localStorageToolsCache (browser `localStorage`; no-op elsewhere).
+Provide a backend to enable caching on Node / React Native.
 
 ***
 
@@ -30,7 +42,7 @@ Base URL for the API (defaults to BASE\_URL from clientConfig)
 
 > `optional` **cacheExpirationMs**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#99)
+Defined in: [src/lib/tools/serverTools.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#124)
 
 Cache expiration time in milliseconds (default: 5 minutes)
 
@@ -40,7 +52,7 @@ Cache expiration time in milliseconds (default: 5 minutes)
 
 > `optional` **forceRefresh**: `boolean`
 
-Defined in: [src/lib/tools/serverTools.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#101)
+Defined in: [src/lib/tools/serverTools.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#126)
 
 Force refresh even if cache is valid
 
@@ -50,7 +62,7 @@ Force refresh even if cache is valid
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/tools/serverTools.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#103)
+Defined in: [src/lib/tools/serverTools.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#128)
 
 Authentication token getter (uses Authorization: Bearer header)
 
