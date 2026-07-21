@@ -2,7 +2,7 @@
 
 > **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<`number`\[]\[]>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#247)
+Defined in: [src/lib/memoryEngine/embeddings.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#252)
 
 Generate embeddings for multiple texts, automatically chunking large inputs.
 
