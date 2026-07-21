@@ -1740,21 +1740,29 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let narrowedClientTools = clientTools;
         if (clientTools?.length) {
           try {
+            // Ensure a prompt embedding exists before EITHER filter runs (matches
+            // react + the persisted branch): an explicit function filter must not
+            // be handed null on a real prompt. Tool-selection floor (5), reused by
+            // the auto-filter below; a failure degrades to the full catalog.
+            if (
+              !skipUserEmbedding &&
+              getTokenRef.current &&
+              messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS
+            ) {
+              try {
+                skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
+                  getToken: getTokenRef.current,
+                  baseUrl,
+                  model: embeddingModel,
+                });
+              } catch {
+                skipEmbeddingFailed = true;
+              }
+            }
             if (typeof clientToolsFilter === "function") {
               const keep = new Set(clientToolsFilter(skipUserEmbedding ?? null, clientTools));
               narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
             } else if (getTokenRef.current) {
-              if (!skipUserEmbedding && messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-                try {
-                  skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
-                    getToken: getTokenRef.current,
-                    baseUrl,
-                    model: embeddingModel,
-                  });
-                } catch {
-                  skipEmbeddingFailed = true;
-                }
-              }
               const { tools: autoTools } = await autoFilterClientTools(
                 clientTools,
                 skipUserEmbedding ?? null,
@@ -2020,25 +2028,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (clientTools?.length) {
         try {
           let narrowedClientTools = clientTools;
+          // Ensure a prompt embedding exists before EITHER filter runs — react
+          // generates it up front whenever a client filter is in play (explicit
+          // function OR auto), so a semantic custom filter never sees null on a
+          // real prompt. Gated on MIN_CONTENT_LENGTH_FOR_TOOLS (5) — react's
+          // tool-selection floor — NOT the storage floor `minContentLength` (10);
+          // reused for the message embedding below just as react reuses it. A
+          // failed embedding degrades to the full catalog via the "error" reason.
+          if (
+            !userMessageEmbedding &&
+            getTokenRef.current &&
+            contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS
+          ) {
+            try {
+              userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
+                getToken: getTokenRef.current,
+                baseUrl,
+                model: embeddingModel,
+              });
+            } catch {
+              userMessageEmbeddingFailed = true;
+            }
+          }
           if (typeof clientToolsFilter === "function") {
             const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
             narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
           } else if (getTokenRef.current) {
-            // Tool-selection floor is MIN_CONTENT_LENGTH_FOR_TOOLS (5) — the value
-            // react + autoFilterClientTools use — NOT the storage-embedding floor
-            // `minContentLength` (default 10). Gating on the storage floor here
-            // treated 5–9 char prompts as short-prompt and dropped their tools.
-            if (!userMessageEmbedding && contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-              try {
-                userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
-                  getToken: getTokenRef.current,
-                  baseUrl,
-                  model: embeddingModel,
-                });
-              } catch {
-                userMessageEmbeddingFailed = true;
-              }
-            }
             const { tools: autoTools } = await autoFilterClientTools(
               clientTools,
               userMessageEmbedding ?? null,
