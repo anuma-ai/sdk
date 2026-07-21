@@ -509,7 +509,7 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     }
 
     const { tools, checksum } = await fetchServerToolsFromApi(effectiveBaseUrl, token);
-    await cache.set(buildCacheEntry(tools, checksum));
+    await persistCache(buildCacheEntry(tools, checksum));
     return tools;
   } catch (error) {
     getLogger().error("[serverTools] Failed to fetch server tools:", error);
