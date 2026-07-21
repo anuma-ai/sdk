@@ -242,8 +242,10 @@ export async function synthesizeProfile(
   });
   const watermark = computeVaultWatermark(memories);
 
-  // Fast path: reusable prior doc AND nothing in the vault changed since it.
-  if (previous && previous.vaultWatermark >= watermark) {
+  // Fast path: reusable prior doc AND nothing in the vault changed since it
+  // AND no sections are stale (which would block documented retry).
+  const hasStaleSections = previous?.sections.some((s) => s.stale);
+  if (previous && previous.vaultWatermark >= watermark && !hasStaleSections) {
     return previous;
   }
 
@@ -346,6 +348,10 @@ function computeStaleFacetKeys(
     if (section.sourceMemoryIds.some((id) => changedIds.has(id))) {
       stale.add(section.key);
     }
+    // Sections marked stale from a prior failed regeneration must be retried.
+    if (section.stale) {
+      stale.add(section.key);
+    }
   }
   // Any facet without a prior section (newly-requested facet) is also stale.
   for (const facet of facets) {
@@ -380,9 +386,12 @@ async function synthesizeFacet(
     responseSchema: FACET_RESPONSE_SCHEMA,
   });
 
+  // Empty memoryIds means recall found no evidence — treat as legitimate empty
+  // to properly clear sections whose cited facts were deleted/superseded.
+  const noEvidence = result.basedOn.memoryIds.length === 0;
   const { text, legitimateEmpty } = extractFacetText(result.structuredOutput, result.text);
 
-  if (!text && !legitimateEmpty) {
+  if (!text && !legitimateEmpty && !noEvidence) {
     // Degraded empty (LLM produced nothing but not an explicit no-evidence
     // verdict) — keep the prior section, marked stale.
     return fallbackSection(facet, prior);
