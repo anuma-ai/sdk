@@ -2,7 +2,7 @@
 
 > **supersedeVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`, `supersededById`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:685](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#685)
+Defined in: [src/lib/db/memoryVault/operations.ts:762](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#762)
 
 Mark a memory as superseded by a newer one (A2 write-time supersession).
 The row stays in the table (history + read-time fallback) but is excluded
