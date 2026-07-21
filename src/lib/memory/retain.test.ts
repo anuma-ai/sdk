@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/memoryVault/operations", () => ({
   createVaultMemoryOp: vi.fn(),
-  deleteVaultMemoryOp: vi.fn(),
+  createSupersedingMemoryOp: vi.fn(),
   getVaultMemoryOp: vi.fn(),
   updateVaultMemoryOp: vi.fn(),
   getAllVaultMemoriesOp: vi.fn(),
-  supersedeVaultMemoryOp: vi.fn(),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -23,11 +22,10 @@ vi.mock("./consolidate", () => ({
 }));
 
 import {
+  createSupersedingMemoryOp,
   createVaultMemoryOp,
-  deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
-  supersedeVaultMemoryOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
@@ -507,8 +505,10 @@ describe("retain — write-time supersession (A2)", () => {
       content: "Lives in Portland",
     } as never);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
-    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new-sf" } as never);
-    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(true);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "new-sf" } as never,
+      retired: true,
+    });
 
     const result = await retain("Lives in San Francisco", ctx, { consolidateOptions });
 
@@ -517,15 +517,16 @@ describe("retain — write-time supersession (A2)", () => {
       memoryId: "new-sf",
       targetId: "old-portland",
     });
-    // New fact created fresh, old fact retired pointing at the new id.
-    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(supersedeVaultMemoryOp)).toHaveBeenCalledWith(
+    // Create + retire happen atomically in one op; the successor's content is
+    // the consolidator's refined value, and the target is the stale id.
+    expect(vi.mocked(createSupersedingMemoryOp)).toHaveBeenCalledWith(
       mockVaultCtx,
-      "old-portland",
-      "new-sf"
+      expect.objectContaining({ content: "Lives in San Francisco" }),
+      "old-portland"
     );
-    // Strict cosine merge (Stage 2) must be skipped — only the one consolidate
-    // search ran, so a changed value can't merge into some other row.
+    // Not a plain create, and strict cosine merge (Stage 2) is skipped — only
+    // the one consolidate search ran.
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
     expect(vi.mocked(searchVaultMemories)).toHaveBeenCalledTimes(1);
   });
 
@@ -545,7 +546,7 @@ describe("retain — write-time supersession (A2)", () => {
     const result = await retain("new", ctx, { consolidateOptions });
 
     expect(result.action).toBe("create");
-    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
   });
 
   it("does not retire the old fact when the new one is tombstone-suppressed", async () => {
@@ -577,14 +578,18 @@ describe("retain — write-time supersession (A2)", () => {
     expect(result.action).toBe("suppressed");
     // Nothing was created, so the old fact must NOT be retired.
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
-    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
   });
 
-  it("reports create (not supersede) when the retirement no-ops", async () => {
-    // The new fact is created, but supersedeVaultMemoryOp returns false (target
-    // concurrently deleted/retired or write failed). We must NOT claim a
-    // retirement that didn't happen — the honest outcome is a plain create.
-    vi.mocked(searchVaultMemories).mockResolvedValue([
+  it("falls back to a plain create when the atomic supersede loses the race", async () => {
+    // createSupersedingMemoryOp returns { created: null, retired: false } when a
+    // concurrent supersession already retired the target inside the write — no
+    // orphan successor was created. retain then does a plain create so the fact
+    // is still stored (the rare duplicate self-reconciles later).
+    // Only the consolidate search runs — Stage 2 is skipped on the supersede
+    // path, and the create fall-through goes straight to createVaultMemoryOp
+    // (no further search). Queue exactly one value so nothing leaks to the next test.
+    vi.mocked(searchVaultMemories).mockResolvedValueOnce([
       { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
     ]);
     vi.mocked(consolidateMemory).mockResolvedValue({
@@ -594,17 +599,15 @@ describe("retain — write-time supersession (A2)", () => {
     });
     vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "old" } as never);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({ created: null, retired: false });
     vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new-sf" } as never);
-    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(false); // retirement failed
 
     const result = await retain("Lives in San Francisco", ctx, { consolidateOptions });
 
     expect(result).toMatchObject({ action: "create", memoryId: "new-sf" });
-    expect(vi.mocked(supersedeVaultMemoryOp)).toHaveBeenCalled();
-    // The just-created successor is NOT deleted on a retirement no-op: `false`
-    // also covers a transient write failure (target still live), where deleting
-    // would lose the new fact and leave the stale one. Keep it and report create.
-    expect(vi.mocked(deleteVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createSupersedingMemoryOp)).toHaveBeenCalled();
+    // Fell back to a plain create — the fact is persisted, no orphan.
+    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalledTimes(1);
   });
 
   it("falls through to plain create when the target is already superseded", async () => {
@@ -629,6 +632,6 @@ describe("retain — write-time supersession (A2)", () => {
     const result = await retain("Lives in San Francisco", ctx, { consolidateOptions });
 
     expect(result.action).toBe("create");
-    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
   });
 });

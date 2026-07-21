@@ -14,10 +14,10 @@
  */
 
 import {
+  createSupersedingMemoryOp,
   createVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
-  supersedeVaultMemoryOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
@@ -181,7 +181,7 @@ export async function retain(
     }
   }
 
-  const created = await createVaultMemoryOp(ctx.vaultCtx, {
+  const createOpts = {
     content: contentToWrite,
     scope: resolvedScope,
     ...(options.folderId !== undefined && { folderId: options.folderId }),
@@ -201,24 +201,24 @@ export async function retain(
           kind: options.eventTime.kind,
         },
       }),
-  });
+  };
 
-  // Cache is keyed by memory id (not content) — set after the create returns
-  // the uniqueId. Float32Array = model-native precision, half the RAM of a
-  // float64 number[].
-  ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
-
-  // A2 supersession: the new fact exists, so retire the stale one it replaced.
-  // Done AFTER the create so a create failure never orphans the old fact, and
-  // only reached on the create path (a tombstone-suppressed new fact returned
-  // above, leaving the old fact untouched — an ambiguous case we don't retire).
+  // A2 supersession: create the new fact AND retire the stale one it replaces
+  // ATOMICALLY, in one write (createSupersedingMemoryOp) — so a concurrent
+  // supersession of the same standing attribute can't interleave between our
+  // create and retire and leave an orphaned successor. The op re-checks the
+  // target inside the write: if a competing supersession already retired it
+  // (or it was deleted), NOTHING is created and we fall through to a plain
+  // create below — the fact is still stored, and the rare duplicate self-
+  // reconciles at the next consolidation / strict cosine merge.
   if (supersedeTargetId) {
-    // Report supersede ONLY if the stale row was actually retired. The op
-    // no-ops (returns false) when the target was concurrently deleted/retired
-    // or the write failed — in that case the new fact still exists but the old
-    // one is (or stays) live, so this is honestly a "create", not a supersede.
-    const retired = await supersedeVaultMemoryOp(ctx.vaultCtx, supersedeTargetId, created.uniqueId);
-    if (retired) {
+    const { created, retired } = await createSupersedingMemoryOp(
+      ctx.vaultCtx,
+      createOpts,
+      supersedeTargetId
+    );
+    if (created && retired) {
+      ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
       return {
         action: "supersede",
         memoryId: created.uniqueId,
@@ -226,14 +226,15 @@ export async function retain(
         proofCount: 1,
       };
     }
-    // Retirement failed. We deliberately DO NOT delete the just-created
-    // successor: `false` also covers a transient write failure (target still
-    // live), where deleting would lose the new fact AND leave the stale one —
-    // data loss. The only downside of keeping it is a rare, transient duplicate
-    // when a concurrent supersession won the race (two copies of the SAME new
-    // value), which self-reconciles at the next consolidation / strict cosine
-    // merge. Fall through to an honest "create" of the live row.
+    // Concurrent loss (target already retired/gone) → fall through to a plain
+    // create so the fact is still persisted; no orphan was created.
   }
+
+  const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
+  // Cache is keyed by memory id (not content) — set after the create returns
+  // the uniqueId. Float32Array = model-native precision, half the RAM of a
+  // float64 number[].
+  ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
 
   return {
     action: "create",

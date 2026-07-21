@@ -1,6 +1,7 @@
 export { VaultMemory } from "./models";
 export {
   clearMemoryTopicsOverrideOp,
+  createSupersedingMemoryOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,

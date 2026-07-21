@@ -158,6 +158,83 @@ export async function createVaultMemoryOp(
 }
 
 /**
+ * Atomically create a new memory AND retire the stale one it supersedes (A2),
+ * in a single `database.write` — closing the create-then-retire race.
+ *
+ * Inside the write, the target's live state is re-checked: if it was
+ * concurrently deleted or already superseded (a competing supersession won the
+ * race), NOTHING is created and `{ created: null, retired: false }` is returned
+ * so the caller falls back to a plain create. This means the loser of a
+ * concurrent supersession never leaves an orphaned successor pointing at a
+ * target someone else already retired — the whole create+retire is one atomic
+ * unit, so no other writer can interleave between them.
+ */
+export async function createSupersedingMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  opts: CreateVaultMemoryOptions,
+  targetId: string
+): Promise<{ created: StoredVaultMemory | null; retired: boolean }> {
+  if (!targetId) return { created: null, retired: false };
+  const scope = opts.scope ?? "private";
+  const encryptedContent =
+    ctx.walletAddress && ctx.signMessage
+      ? await encryptVaultMemoryContent(
+          opts.content,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : opts.content;
+
+  let createdRecord: VaultMemory | null = null;
+  await ctx.database.write(async () => {
+    let target: VaultMemory;
+    try {
+      target = await ctx.vaultMemoryCollection.find(targetId);
+    } catch {
+      return; // target gone → don't create; caller does a plain create
+    }
+    // Concurrent win / delete / cross-user → don't orphan a successor.
+    if (target.isDeleted || target.supersededBy || !isOwnedByCtxUser(ctx, target)) return;
+
+    createdRecord = await ctx.vaultMemoryCollection.create((record) => {
+      record._setRaw("content", encryptedContent);
+      record._setRaw("scope", scope);
+      record._setRaw("folder_id", opts.folderId ?? null);
+      record._setRaw("user_id", ctx.userId ?? null);
+      record._setRaw("is_deleted", false);
+      if (opts.embedding !== undefined) {
+        record._setRaw("embedding", opts.embedding);
+        record._setRaw("embedding_model", opts.embeddingModel ?? null);
+      }
+      if (opts.sourceChunkIds !== undefined) {
+        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+      }
+      record._setRaw("proof_count", opts.proofCount ?? 1);
+      record._setRaw("source", opts.source ?? "manual");
+      if (opts.eventTime) {
+        record._setRaw("event_time_start", opts.eventTime.start ?? null);
+        record._setRaw("event_time_end", opts.eventTime.end ?? null);
+        record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
+    });
+    await target.update((r) => {
+      r._setRaw("superseded_by", createdRecord!.id);
+      r._setRaw("superseded_at", Date.now());
+    });
+  });
+
+  if (!createdRecord) return { created: null, retired: false };
+  const created = await vaultMemoryToStored(
+    createdRecord,
+    ctx.walletAddress,
+    ctx.signMessage,
+    ctx.embeddedWalletSigner
+  );
+  return { created, retired: true };
+}
+
+/**
  * W6 temporal lane read — fetch memories whose event-time overlaps the
  * given window. "Overlap" means:
  *   - point/ongoing: event_time_start ∈ [windowStart, windowEnd)
@@ -709,8 +786,16 @@ export async function supersedeVaultMemoryOp(
 
     let stale = false;
     await ctx.database.write(async () => {
-      // Re-check inside the serialized writer (see updateVaultMemoryOp).
+      // Re-check BOTH rows inside the serialized writer. The live models
+      // reflect the latest committed state, so a concurrent delete/supersede of
+      // the target OR the successor between the validation above and this write
+      // is caught here — otherwise we'd stamp a pointer to a now-dead successor
+      // (the TOCTOU this guard closes).
       if (record.isDeleted || record.supersededBy || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
+      if (successor.isDeleted || successor.supersededBy || !isOwnedByCtxUser(ctx, successor)) {
         stale = true;
         return;
       }
