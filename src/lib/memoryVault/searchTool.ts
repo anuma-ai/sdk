@@ -1231,7 +1231,12 @@ export async function searchVaultMemoriesWithSize(
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
-): Promise<{ results: VaultSearchResult[]; vaultSize: number; reranked: boolean; hadV2Head: boolean }> {
+): Promise<{
+  results: VaultSearchResult[];
+  vaultSize: number;
+  reranked: boolean;
+  hadV2Head: boolean;
+}> {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
   const scopes = searchOptions?.scopes;
@@ -1383,12 +1388,22 @@ export async function searchVaultMemoriesWithSize(
     vaultSize: number;
     reranked?: boolean;
     hadV2Head?: boolean;
-  }): { results: VaultSearchResult[]; vaultSize: number; reranked: boolean; hadV2Head: boolean } => {
+  }): {
+    results: VaultSearchResult[];
+    vaultSize: number;
+    reranked: boolean;
+    hadV2Head: boolean;
+  } => {
     const results = out.results.map((r) => {
       const ts = timestampById.get(r.uniqueId);
       return ts ? { ...r, createdAt: ts.createdAt, updatedAt: ts.updatedAt } : r;
     });
-    return { results, vaultSize: out.vaultSize, reranked: out.reranked ?? false, hadV2Head: out.hadV2Head ?? false };
+    return {
+      results,
+      vaultSize: out.vaultSize,
+      reranked: out.reranked ?? false,
+      hadV2Head: out.hadV2Head ?? false,
+    };
   };
 
   // Records whether the cross-encoder actually ran (set by the async rankers
@@ -1472,7 +1487,12 @@ export async function searchVaultMemoriesWithSize(
       rerankStats,
       v2HeadStats,
     });
-    return stampTimestamps({ results, vaultSize: loaded.length, reranked: rerankStats.applied, hadV2Head: v2HeadStats.hadResults });
+    return stampTimestamps({
+      results,
+      vaultSize: loaded.length,
+      reranked: rerankStats.applied,
+      hadV2Head: v2HeadStats.hadResults,
+    });
   }
 
   if (useFusion) {
