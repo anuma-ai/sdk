@@ -89,7 +89,10 @@ export function assembleClientTools<TTool = ToolConfig>(
  * Apply the plan's static client-tools filter to the assembled candidates.
  *
  * - `include-all` → every tool (builder modes).
- * - `slide-editor` → only tools whose name is in `slideEditorToolNames`.
+ * - `slide-editor` → only tools whose name is in `slideEditorToolNames`; when
+ *   that set is absent it fails CLOSED (returns `[]`) so a missing name set can
+ *   never leave the overlay silently unrestricted. Callers that want the full
+ *   toolkit use `include-all`, not slide-editor-without-names.
  * - `auto` → returned unchanged; the caller runs the semantic
  *   `autoFilterClientTools` (which needs prompt embeddings) instead.
  * - a function → applied directly.
@@ -106,9 +109,10 @@ export function filterAssembledClientTools<TTool = ToolConfig>(
 ): TTool[] | Promise<TTool[]> {
   if (typeof mode === "function") return mode(tools);
   if (mode === "include-all" || mode === "auto") return tools;
-  // slide-editor
+  // slide-editor — fail CLOSED: no resolved name set means no slide-editor
+  // tools, so restrict to nothing rather than leaking the full candidate list.
   const names = opts?.slideEditorToolNames;
-  if (!names) return tools;
+  if (!names) return [];
   const getName = opts?.getName ?? ((t: TTool) => getToolName(t as never));
   return tools.filter((t) => names.has(getName(t)));
 }

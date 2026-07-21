@@ -90,6 +90,12 @@ describe("filterAssembledClientTools", () => {
     expect((out as T[]).map(getName)).toEqual(["plan_deck", "add_slide"]);
   });
 
+  it("slide-editor with NO name set fails closed (returns []), never the full list", () => {
+    // A missing slideEditorToolNames must not leak the whole toolkit into the
+    // overlay; consumers wanting everything use "include-all".
+    expect(filterAssembledClientTools(tools, "slide-editor", { getName })).toEqual([]);
+  });
+
   it("a custom filter function is applied directly", () => {
     const out = filterAssembledClientTools(
       tools,
