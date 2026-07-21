@@ -481,3 +481,132 @@ describe("createAutoExtractor", () => {
     expect(vi.mocked(extractAndRetain).mock.calls[0][1].embeddingOptions.maskInput).toBeUndefined();
   });
 });
+
+describe("createAutoExtractor — durable cursor store (A3)", () => {
+  /** In-memory ExtractionCursorStore with spies, mimicking a process-shared KV. */
+  const makeCursorStore = () => {
+    const backing = new Map<string, string>();
+    const get = vi.fn((id: string) => backing.get(id));
+    const set = vi.fn((id: string, msgId: string) => {
+      backing.set(id, msgId);
+    });
+    return { store: { get, set }, get, set, backing };
+  };
+
+  const windowIds = (call: number): string[] =>
+    vi.mocked(extractAndRetain).mock.calls[call][0].map((m) => m.id);
+
+  it("persists the advanced watermark through the cursor store on success", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store, set } = makeCursorStore();
+    const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
+
+    extractor.processTurn(mk(6), "conv1");
+    await flush();
+
+    // Fresh conversation → trailing window of all 6 → watermark advances to m5.
+    expect(set).toHaveBeenCalledWith("conv1", "m5");
+  });
+
+  it("hydrates the watermark from the cursor so only post-cursor messages are sent", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store, get } = makeCursorStore();
+    get.mockReturnValue("m3"); // persisted from a prior session
+
+    const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
+    extractor.processTurn(mk(6), "conv1");
+    await flush();
+
+    expect(get).toHaveBeenCalledWith("conv1");
+    // watermark m3 → window starts at m3+1-CONTEXT_OVERLAP(2)=m2: [m2,m3,m4,m5].
+    // Without hydration a fresh worker would send the full trailing slice.
+    expect(windowIds(0)).toEqual(["m2", "m3", "m4", "m5"]);
+  });
+
+  it("resumes across a simulated restart via a shared store (no tail loss)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store } = makeCursorStore();
+
+    // Session A extracts mk(4) through m3, then dies.
+    const a = createAutoExtractor({ ...baseOptions, cursorStore: store });
+    a.processTurn(mk(4), "conv1");
+    await flush();
+    a.dispose();
+
+    // Session B (fresh in-memory state, same durable store) sees a longer
+    // history. It must resume after m3 — not re-slice a trailing window that
+    // could skip m4 if history had grown past the window.
+    const b = createAutoExtractor({ ...baseOptions, cursorStore: store });
+    b.processTurn(mk(6), "conv1");
+    await flush();
+
+    expect(windowIds(1)).toEqual(["m2", "m3", "m4", "m5"]);
+  });
+
+  it("does not persist the ephemeral undefined-conversation bucket", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store, set, get } = makeCursorStore();
+    const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
+
+    extractor.processTurn(mk(3)); // no conversationId
+    await flush();
+
+    expect(set).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it("degrades to in-memory when the cursor store throws (best-effort)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const store = {
+      get: vi.fn(() => {
+        throw new Error("kv boom");
+      }),
+      set: vi.fn(() => {
+        throw new Error("kv boom");
+      }),
+    };
+    const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
+
+    extractor.processTurn(mk(6), "conv1");
+    await flush();
+
+    // Extraction still ran despite the throwing store.
+    expect(extractAndRetain).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT advance the durable cursor on a trailing-slice guess (gap-clobber)", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store, set, get } = makeCursorStore();
+    // Cursor points at a message NOT in the provided history (scrolled out),
+    // and history is longer than the window → the fallback trailing slice skips
+    // the un-extracted gap. Persisting its end would strand that gap durably.
+    get.mockReturnValue("m-scrolled-out");
+
+    const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
+    extractor.processTurn(mk(10), "conv1"); // windowSize 6 < 10 → trailing slice
+    await flush();
+
+    expect(set).not.toHaveBeenCalled(); // durable cursor left intact for a fuller-history session
+  });
+
+  it("does not regress the durable cursor when a concurrent writer is ahead", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const { store, set, get } = makeCursorStore();
+    // Hydrate at m0; a concurrent session advanced the shared store to m5 by the
+    // time we persist. Our window (truncated by maxWindowSize) ends earlier, so
+    // the write must NOT move the cursor backwards.
+    get.mockReturnValueOnce("m0").mockReturnValueOnce("m5");
+
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      cursorStore: store,
+      windowSize: 1,
+      maxWindowSize: 2, // window truncates to [m0, m1] → advancedTo = m1 (index 1)
+    });
+    extractor.processTurn(mk(10), "conv1");
+    await flush();
+
+    // m5 (index 5) is ahead of m1 (index 1) within this turn's messages → skip.
+    expect(set).not.toHaveBeenCalled();
+  });
+});
