@@ -94,7 +94,8 @@ export function resolvePlan(
   // user is editing an image, not requesting a deck, so we must not re-route the
   // turn into the slide builder. Mirrors web's live path, which gates slide-deck
   // intent on `!imageEditActive`.
-  const slideDeckIntent = descriptor.slideDeckIntent === true && descriptor.imageEditIntent !== true;
+  const slideDeckIntent =
+    descriptor.slideDeckIntent === true && descriptor.imageEditIntent !== true;
 
   let serverTools: ServerToolsFilter = resolveServerTools(descriptor, catalog);
   const clientFactories: ClientFactoryKey[] = [...CREATION_INTENT_CLIENT_FACTORIES[creation]];
