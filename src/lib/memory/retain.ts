@@ -15,6 +15,7 @@
 
 import {
   createVaultMemoryOp,
+  deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
   supersedeVaultMemoryOp,
@@ -80,8 +81,10 @@ export async function retain(
   // When set (by the consolidator's `supersede` decision), the new fact is a
   // changed value that retires this existing memory. We skip the strict cosine
   // merge (the new value must be created fresh, never merged) and stamp
-  // `superseded_by` on this id after the create succeeds.
+  // `superseded_by` on this id after the create succeeds. The content is the
+  // consolidator's refined version of the new fact.
   let supersedeTargetId: string | undefined;
+  let supersedeContent: string | undefined;
 
   if (enableAutoMerge) {
     // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
@@ -94,6 +97,7 @@ export async function retain(
       if (outcome) {
         if ("done" in outcome) return outcome.done;
         supersedeTargetId = outcome.supersede;
+        supersedeContent = outcome.content;
       }
     }
 
@@ -155,8 +159,10 @@ export async function retain(
   }
 
   // No merge candidate (or auto-merge disabled, or the merge target was
-  // deleted between search and write): create a new memory.
-  const embedding = await generateEmbedding(trimmed, ctx.embeddingOptions);
+  // deleted between search and write): create a new memory. For supersession,
+  // use the consolidator's refined content; otherwise use the original input.
+  const contentToWrite = supersedeContent ?? trimmed;
+  const embedding = await generateEmbedding(contentToWrite, ctx.embeddingOptions);
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   // Tombstone gate: if this create matches a soft-deleted memory, the user (or
@@ -177,7 +183,7 @@ export async function retain(
   }
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, {
-    content: trimmed,
+    content: contentToWrite,
     scope: resolvedScope,
     ...(options.folderId !== undefined && { folderId: options.folderId }),
     embedding: JSON.stringify(embedding),
@@ -210,9 +216,9 @@ export async function retain(
   if (supersedeTargetId) {
     // Report supersede ONLY if the stale row was actually retired. The op
     // no-ops (returns false) when the target was concurrently deleted/retired
-    // or the write failed — in that case the new fact still exists, but the
-    // old one is (or stays) live, so this is honestly a "create", not a
-    // supersede. Don't claim a retirement that didn't happen.
+    // or the write failed. If retirement fails, another concurrent supersession
+    // likely created a different successor and retired the target first — we must
+    // delete this orphaned successor to prevent duplicate live facts (Bug #82decd3a).
     const retired = await supersedeVaultMemoryOp(ctx.vaultCtx, supersedeTargetId, created.uniqueId);
     if (retired) {
       return {
@@ -222,6 +228,12 @@ export async function retain(
         proofCount: 1,
       };
     }
+    // Retirement failed — another concurrent operation likely superseded the target.
+    // Delete this orphaned successor to avoid leaving duplicate live facts for the
+    // same standing attribute. Then fall through to report "create" (the new fact
+    // still exists, but not as a successor — it's an independent duplicate that
+    // should be surfaced so the caller/user can reconcile it).
+    await deleteVaultMemoryOp(ctx.vaultCtx, created.uniqueId);
   }
 
   return {
@@ -322,10 +334,10 @@ function pickEventTimeUpdate(
  * - `{ done }` — a terminal decision (merge/update/noop); retain() returns it.
  * - `{ supersede }` — the new fact retires an existing one whose value changed;
  *   retain() creates the new fact fresh, then stamps `superseded_by` on the
- *   stale `supersede` id.
+ *   stale `supersede` id. `content` is the refined new fact from the consolidator.
  * - `null` — no consolidation decision; fall through to strict merge / create.
  */
-type ConsolidateOutcome = { done: RetainResult } | { supersede: string } | null;
+type ConsolidateOutcome = { done: RetainResult } | { supersede: string; content: string } | null;
 
 async function tryConsolidate(
   trimmed: string,
@@ -368,15 +380,16 @@ async function tryConsolidate(
 
   // supersede — the new fact replaces a standing value that changed. Validate
   // the stale target still exists AND isn't already retired (a concurrent
-  // supersession may have beaten us to it); then hand back its id. retain()
-  // creates the new fact fresh (never merges) and stamps superseded_by on the
-  // old one. `getVaultMemoryOp` already excludes deleted rows.
-  if (decision.action === "supersede" && decision.targetId) {
+  // supersession may have beaten us to it); then hand back its id and the
+  // refined content. retain() creates the new fact fresh (never merges) using
+  // the consolidator's content and stamps superseded_by on the old one.
+  // `getVaultMemoryOp` already excludes deleted rows.
+  if (decision.action === "supersede" && decision.targetId && decision.content) {
     const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
     // Target gone or already superseded → fall through to plain create rather
     // than re-retiring an already-retired row.
     if (!existing || existing.supersededBy) return null;
-    return { supersede: decision.targetId };
+    return { supersede: decision.targetId, content: decision.content };
   }
 
   if (decision.action === "noop" && decision.targetId) {
