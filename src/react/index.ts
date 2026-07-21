@@ -252,6 +252,8 @@ export {
   getConversationsByProjectLazyOp,
   getConversationsByProjectOp,
   getConversationsLazyOp,
+  getConversationsPageOp,
+  type GetConversationsPageOptions,
   type GetMessagesPageOptions,
   type LazyStoredConversation,
   type MessageChunk,
