@@ -118,36 +118,68 @@ describe("runToolLoop endpointOverride", () => {
       expect(`${c.baseUrl}${c.endpoint}`).toBe("https://portal.test/api/v1/utility/responses");
     });
 
-    it("throws on an empty string and never dispatches the request", async () => {
+    /**
+     * An invalid override is a pre-flight validation failure, not a crash: it
+     * must fire onRunStart THEN onRunError (the "onRunStart fires for every
+     * invocation" invariant, I-1), resolve to `{data:null,error}`, and never
+     * dispatch the request. A raw throw would crash an un-wrapped direct caller
+     * and skip the terminal hook.
+     */
+    async function runWithBadOverride(endpointOverride: string) {
       let called = false;
-      const transport: StreamingTransport = () => {
-        called = true;
-        return { stream: makeTextStream("ok") };
-      };
-      await expect(
-        runToolLoop({
-          messages: userMessages,
-          model: "test-model",
-          token: "token",
-          baseUrl: testBaseUrl,
-          endpointOverride: "",
-          transport,
-        })
-      ).rejects.toThrow(/endpointOverride must be a non-empty, root-relative path/);
+      const events: string[] = [];
+      let errorEvent: { error: string } | undefined;
+      const result = await runToolLoop({
+        messages: userMessages,
+        model: "test-model",
+        token: "token",
+        baseUrl: testBaseUrl,
+        endpointOverride,
+        transport: () => {
+          called = true;
+          return { stream: makeTextStream("ok") };
+        },
+        hooks: {
+          onRunStart: () => {
+            events.push("start");
+          },
+          onRunError: (e) => {
+            events.push("error");
+            errorEvent = e;
+          },
+        },
+      });
+      return { result, called, events, errorEvent };
+    }
+
+    it("empty override: onRunStart+onRunError fire, resolves to error, no dispatch, no throw", async () => {
+      const { result, called, events, errorEvent } = await runWithBadOverride("");
+      expect(events).toEqual(["start", "error"]);
       expect(called).toBe(false);
+      expect(result.data).toBeNull();
+      expect(result.error).toMatch(/endpointOverride must be a non-empty, root-relative path/);
+      expect(errorEvent?.error).toMatch(/non-empty, root-relative path/);
     });
 
-    it("throws on a whitespace-only override", async () => {
-      await expect(
-        runToolLoop({
-          messages: userMessages,
-          model: "test-model",
-          token: "token",
-          baseUrl: testBaseUrl,
-          endpointOverride: "   ",
-          transport: () => ({ stream: makeTextStream("ok") }),
-        })
-      ).rejects.toThrow(/non-empty, root-relative path/);
+    it("whitespace-only override is rejected the same way", async () => {
+      const { result, called, events } = await runWithBadOverride("   ");
+      expect(events).toEqual(["start", "error"]);
+      expect(called).toBe(false);
+      expect(result.error).toMatch(/non-empty, root-relative path/);
+    });
+
+    // I-2: off-origin targets would send the Bearer token to another host.
+    it("rejects a protocol-relative override (//evil.com)", async () => {
+      const { result, called } = await runWithBadOverride("//evil.com/api/v1/responses");
+      expect(called).toBe(false);
+      expect(result.data).toBeNull();
+      expect(result.error).toMatch(/not a protocol-relative or absolute URL/);
+    });
+
+    it("rejects an absolute-URL override (https://evil.com)", async () => {
+      const { result, called } = await runWithBadOverride("https://evil.com/api/v1/responses");
+      expect(called).toBe(false);
+      expect(result.error).toMatch(/not a protocol-relative or absolute URL/);
     });
   });
 });
