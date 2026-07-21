@@ -601,6 +601,10 @@ describe("retain — write-time supersession (A2)", () => {
 
     expect(result).toMatchObject({ action: "create", memoryId: "new-sf" });
     expect(vi.mocked(supersedeVaultMemoryOp)).toHaveBeenCalled();
+    // The just-created successor is NOT deleted on a retirement no-op: `false`
+    // also covers a transient write failure (target still live), where deleting
+    // would lose the new fact and leave the stale one. Keep it and report create.
+    expect(vi.mocked(deleteVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
   it("falls through to plain create when the target is already superseded", async () => {

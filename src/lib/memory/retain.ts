@@ -15,7 +15,6 @@
 
 import {
   createVaultMemoryOp,
-  deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
   supersedeVaultMemoryOp,
@@ -216,9 +215,8 @@ export async function retain(
   if (supersedeTargetId) {
     // Report supersede ONLY if the stale row was actually retired. The op
     // no-ops (returns false) when the target was concurrently deleted/retired
-    // or the write failed. If retirement fails, another concurrent supersession
-    // likely created a different successor and retired the target first — we must
-    // delete this orphaned successor to prevent duplicate live facts (Bug #82decd3a).
+    // or the write failed — in that case the new fact still exists but the old
+    // one is (or stays) live, so this is honestly a "create", not a supersede.
     const retired = await supersedeVaultMemoryOp(ctx.vaultCtx, supersedeTargetId, created.uniqueId);
     if (retired) {
       return {
@@ -228,12 +226,13 @@ export async function retain(
         proofCount: 1,
       };
     }
-    // Retirement failed — another concurrent operation likely superseded the target.
-    // Delete this orphaned successor to avoid leaving duplicate live facts for the
-    // same standing attribute. Then fall through to report "create" (the new fact
-    // still exists, but not as a successor — it's an independent duplicate that
-    // should be surfaced so the caller/user can reconcile it).
-    await deleteVaultMemoryOp(ctx.vaultCtx, created.uniqueId);
+    // Retirement failed. We deliberately DO NOT delete the just-created
+    // successor: `false` also covers a transient write failure (target still
+    // live), where deleting would lose the new fact AND leave the stale one —
+    // data loss. The only downside of keeping it is a rare, transient duplicate
+    // when a concurrent supersession won the race (two copies of the SAME new
+    // value), which self-reconciles at the next consolidation / strict cosine
+    // merge. Fall through to an honest "create" of the live row.
   }
 
   return {
