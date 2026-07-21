@@ -21,6 +21,7 @@ export {
 } from "./autoExtractWorker.js";
 export { createChunkVectorCache, DEFAULT_CHUNK_CACHE_SIZE } from "./chunkVectorCache.js";
 export { recall } from "./recall.js";
+export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export {
   createRecallTool,
   RECALL_MAX_LIMIT,
