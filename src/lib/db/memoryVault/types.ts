@@ -43,6 +43,11 @@ export interface StoredVaultMemory {
   /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
    * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
   topicsExtractedVersion: number | null;
+  /** C3 re-observation watermark: Unix ms of the last retain() merge into this
+   * fact. Distinct from `updatedAt` (which merges preserve). Null = never
+   * re-observed since the column was added; synthesis falls back to
+   * `updatedAt` in that case. */
+  lastObservedAt: number | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -118,6 +123,11 @@ export interface UpdateVaultMemoryOptions {
    * without inflating recency on top.
    */
   preserveUpdatedAt?: boolean;
+  /** C3: Unix ms to stamp as the re-observation watermark (`last_observed_at`).
+   * Set by retain() merge/consolidate paths so a re-observation records "seen
+   * again now" without touching `updated_at` (which `preserveUpdatedAt` keeps
+   * pinned). Omit to leave the existing value untouched. */
+  lastObservedAt?: number;
   /** If provided, sets whether the user has taken manual control of this
    * memory's topics. Set by {@link setMemoryEntitiesOp}. */
   topicsUserManaged?: boolean;

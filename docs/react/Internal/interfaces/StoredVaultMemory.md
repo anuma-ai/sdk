@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#46)
+Defined in: [src/lib/db/memoryVault/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#51)
 
 ***
 
@@ -87,7 +87,20 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#48)
+Defined in: [src/lib/db/memoryVault/types.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#53)
+
+***
+
+### lastObservedAt
+
+> **lastObservedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#50)
+
+C3 re-observation watermark: Unix ms of the last retain() merge into this
+fact. Distinct from `updatedAt` (which merges preserve). Null = never
+re-observed since the column was added; synthesis falls back to
+`updatedAt` in that case.
 
 ***
 
@@ -202,7 +215,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#47)
+Defined in: [src/lib/db/memoryVault/types.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#52)
 
 ***
 

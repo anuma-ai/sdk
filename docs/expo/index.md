@@ -502,6 +502,12 @@ Re-exports [DEFAULT\_MIN\_CHUNK\_SIZE](../react/Internal/variables/DEFAULT_MIN_C
 
 ***
 
+### DEFAULT\_PROFILE\_FACETS
+
+Re-exports [DEFAULT\_PROFILE\_FACETS](../react/Internal/variables/DEFAULT_PROFILE_FACETS.md)
+
+***
+
 ### DEFAULT\_VAULT\_CACHE\_SIZE
 
 Re-exports [DEFAULT\_VAULT\_CACHE\_SIZE](../react/Internal/variables/DEFAULT_VAULT_CACHE_SIZE.md)
@@ -877,6 +883,36 @@ Re-exports [PortalLlmAuth](../react/Internal/interfaces/PortalLlmAuth.md)
 ### preEmbedVaultMemories
 
 Re-exports [preEmbedVaultMemories](../react/Internal/functions/preEmbedVaultMemories.md)
+
+***
+
+### PROFILE\_DOC\_VERSION
+
+Re-exports [PROFILE\_DOC\_VERSION](../react/Internal/variables/PROFILE_DOC_VERSION.md)
+
+***
+
+### ProfileDoc
+
+Re-exports [ProfileDoc](../react/Internal/interfaces/ProfileDoc.md)
+
+***
+
+### ProfileFacet
+
+Re-exports [ProfileFacet](../react/Internal/interfaces/ProfileFacet.md)
+
+***
+
+### ProfileFacetKey
+
+Re-exports [ProfileFacetKey](../react/Internal/type-aliases/ProfileFacetKey.md)
+
+***
+
+### ProfileSection
+
+Re-exports [ProfileSection](../react/Internal/interfaces/ProfileSection.md)
 
 ***
 
@@ -1261,6 +1297,18 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 ### supersedeVaultMemoryOp
 
 Re-exports [supersedeVaultMemoryOp](../react/Internal/functions/supersedeVaultMemoryOp.md)
+
+***
+
+### synthesizeProfile
+
+Re-exports [synthesizeProfile](../react/Internal/functions/synthesizeProfile.md)
+
+***
+
+### SynthesizeProfileOptions
+
+Re-exports [SynthesizeProfileOptions](../react/Internal/interfaces/SynthesizeProfileOptions.md)
 
 ***
 
