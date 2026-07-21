@@ -419,7 +419,7 @@ export function getToolsChecksum(
 export function shouldRefreshTools(responseChecksum: string | undefined): boolean;
 export function shouldRefreshTools(
   responseChecksum: string | undefined,
-  cache: ToolsCacheBackend
+  cache: ToolsCacheBackend | undefined
 ): boolean | Promise<boolean>;
 export function shouldRefreshTools(
   responseChecksum: string | undefined,
@@ -1642,6 +1642,11 @@ export interface SelectServerToolsForPromptOptions {
   /** Cache expiration in ms for the server-tools catalog fetch. */
   cacheExpirationMs?: number;
   /**
+   * Where to read/write the cached catalog. Defaults to browser `localStorage`
+   * (a no-op on Node/RN); pass a backend to persist on those platforms.
+   */
+  cache?: ToolsCacheBackend;
+  /**
    * Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
    * static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
    * for mergeTools + tool-search. Omit/disabled → today's filtered selection.
@@ -1685,6 +1690,7 @@ export async function selectServerToolsForPrompt(
     baseUrl,
     embeddingModel,
     cacheExpirationMs,
+    cache,
     deferLoading,
   } = options;
 
@@ -1693,7 +1699,7 @@ export async function selectServerToolsForPrompt(
 
   let allServerTools: ServerTool[];
   try {
-    allServerTools = await getServerTools({ baseUrl, cacheExpirationMs, getToken });
+    allServerTools = await getServerTools({ baseUrl, cacheExpirationMs, getToken, cache });
   } catch {
     return [];
   }
