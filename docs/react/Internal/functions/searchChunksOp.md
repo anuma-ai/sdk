@@ -2,7 +2,7 @@
 
 > **searchChunksOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:1182](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1182)
+Defined in: [src/lib/db/chat/operations.ts:1215](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1215)
 
 Search through message chunks for fine-grained semantic search.
 Returns the matching chunk text along with the parent message.
@@ -66,6 +66,26 @@ Returns the matching chunk text along with the parent message.
 <td>
 
 ‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.chunkCache?`
+
+</td>
+<td>
+
+[`ChunkVectorCache`](../type-aliases/ChunkVectorCache.md)
+
+</td>
+<td>
+
+Optional decrypted-vector cache. When provided, the per-query decrypt +
+JSON.parse of every message's chunk vectors is skipped on warm entries
+(validated by `updated_at`), which is the dominant cost of the chunk
+lane. Omit for the legacy always-decrypt behavior.
 
 </td>
 </tr>

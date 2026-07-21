@@ -31,7 +31,8 @@ vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbeddings: vi.fn(),
 }));
 
-vi.mock("./reranker", () => ({
+vi.mock("./reranker", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./reranker")>()),
   rerankPairs: vi.fn(),
 }));
 
@@ -57,8 +58,8 @@ import { decomposeQuery } from "../memoryVault/decomposeQuery";
 
 import { recall } from "./recall";
 import { createRecallTool, RECALL_MAX_LIMIT } from "./recallTool";
-import { rerankPairs } from "./reranker";
-import type { RecallContext } from "./types";
+import { RerankerUnavailableError, rerankPairs } from "./reranker";
+import type { RecallContext, RecallDiagnostics } from "./types";
 
 // ── Deterministic embedding fixture ─────────────────────────────────────
 // Contents/queries share no tokens across items so BM25 stays out of the
@@ -275,15 +276,30 @@ describe("recall — budget tiers", () => {
     expect(result.reranked).toBe(true);
   });
 
-  it("degrades to the V2 ranking when the cross-encoder fails (soft-degrade)", async () => {
-    // A transient CE/portal failure must not error the whole recall — the
-    // search layer catches it and returns the already-computed V2 ordering.
-    // (Threading the downgrade up to RecallResult.reranked is a follow-up;
-    // the warn log is the current observability signal.)
+  it("degrades to the V2 ranking and reports reranked:false when the CE fails", async () => {
+    // A transient CE failure must not error the whole recall — the search
+    // layer catches it and returns the already-computed V2 ordering. The
+    // reranked flag is threaded from the actual per-call outcome, so a degrade
+    // (transient OR permanent) reports false — it did not rerank this call.
     vi.mocked(rerankPairs).mockRejectedValue(new Error("CE model download failed"));
 
     const result = await recall(QUERY, makeCtx(), { budget: "mid" });
 
+    expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
+    expect(result.reranked).toBe(false);
+  });
+
+  it("reports reranked:false when the cross-encoder is unavailable (e.g. React Native)", async () => {
+    // On RN the optional @huggingface/transformers dep is absent, so rerankPairs
+    // throws RerankerUnavailableError; recall must report the honest flag rather
+    // than echoing the budget's rerank intent.
+    vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
+
+    const result = await recall(QUERY, makeCtx(), { budget: "high" });
+
+    expect(result.usedBudget).toBe("mid"); // high downgrades w/o decomposeOptions
+    expect(result.reranked).toBe(false);
+    // Recall still returns the fused ranking — degradation is graceful.
     expect(result.memories.map((m) => m.id)).toEqual(["m1", "m2"]);
   });
 });
@@ -758,5 +774,86 @@ describe("createRecallTool executor", () => {
 
     const rankedIds = (onFactsRanked.mock.calls[0][0] as { id: string }[]).map((f) => f.id);
     expect(onFactsRetrieved).toHaveBeenCalledWith(rankedIds);
+  });
+});
+
+describe("recall — diagnostics (onDiagnostics)", () => {
+  it("emits once with timings, lane counts, and no degradation on a clean rerank", async () => {
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "mid",
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen).toHaveLength(1);
+    const d = seen[0];
+    expect(d.usedBudget).toBe("mid");
+    expect(d.reranked).toBe(true);
+    expect(d.degraded).toEqual([]);
+    // Fact-only recall: lane count matches the returned candidate count.
+    expect(d.factCount).toBe(result.candidateCount);
+    expect(d.chunkCount).toBe(0);
+    expect(d.timings.total).toBeGreaterThanOrEqual(0);
+    expect(d.timings.factLane).toBeGreaterThanOrEqual(0);
+    expect(typeof d.vaultSize).toBe("number");
+  });
+
+  it("flags rerank-unavailable when the cross-encoder fails", async () => {
+    vi.mocked(rerankPairs).mockRejectedValue(new RerankerUnavailableError(undefined));
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), { budget: "mid", onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen[0].reranked).toBe(false);
+    expect(seen[0].degraded).toContain("rerank-unavailable");
+  });
+
+  it("does NOT flag rerank-unavailable on a chunk-only recall (rerank never attempted)", async () => {
+    // Chunk-only: no fact lane → no rerank candidates. A mid/high budget sets
+    // flags.rerank, but there was nothing to rerank, so this must not be
+    // reported as a degradation (it would inflate the outage metric).
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv-1", 0.9)]);
+    const seen: RecallDiagnostics[] = [];
+
+    await recall(QUERY, makeCtx(), {
+      types: ["chunk"],
+      budget: "mid",
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(seen[0].factCount).toBe(0);
+    expect(seen[0].degraded).not.toContain("rerank-unavailable");
+  });
+
+  it("flags decompose-unavailable when budget:high lacks decomposeOptions", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    const result = await recall(QUERY, makeCtx(), {
+      budget: "high",
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.usedBudget).toBe("mid");
+    expect(seen[0].degraded).toContain("decompose-unavailable");
+  });
+
+  it("never lets a throwing diagnostics sink break recall", async () => {
+    const result = await recall(QUERY, makeCtx(), {
+      onDiagnostics: () => {
+        throw new Error("sink boom");
+      },
+    });
+
+    expect(result.memories.length).toBeGreaterThan(0);
+  });
+
+  it("emits diagnostics even for an empty query", async () => {
+    const seen: RecallDiagnostics[] = [];
+
+    await recall("", makeCtx(), { onDiagnostics: (d) => seen.push(d) });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].candidateCount).toBe(0);
+    expect(seen[0].factCount).toBe(0);
   });
 });

@@ -1176,6 +1176,39 @@ export async function searchMessagesOp(
 }
 
 /**
+ * Decrypted, model-native chunk vectors for one message, cached across recall
+ * calls so the chunk lane doesn't re-decrypt + re-JSON.parse every message's
+ * embeddings on every query. Keyed by message id; `version` is the message's
+ * `updated_at` at cache time, so a re-embed (which bumps `updated_at`) misses
+ * and repopulates. Vectors are stored Float32 — model-native precision, half
+ * the RAM of float64 `number[]` — mirroring the vault embedding cache (#705).
+ * Content text is deliberately NOT cached (see searchChunksOp): it isn't
+ * needed for scoring, and keeping decrypted content out of the cache preserves
+ * the SDK's data-at-rest posture.
+ */
+export interface CachedChunkVectors {
+  /** Message `updated_at` (ms) at cache time — the invalidation token. */
+  version: number;
+  /**
+   * Per-chunk embedding vectors, index-aligned with the message's decrypted
+   * `chunks` array (empty-vector chunks kept as zero-length placeholders so
+   * indices stay aligned). Empty when the message has only a whole-message
+   * `fallback` vector.
+   */
+  chunks: Float32Array[];
+  /** Whole-message vector when the message was embedded without chunking. */
+  fallback?: Float32Array;
+}
+
+/**
+ * Cache consumed by {@link searchChunksOp}, keyed by message id. A plain `Map`
+ * (satisfied by the LRU from `createChunkVectorCache`) — mirrors
+ * `VaultEmbeddingCache` so consumers get the same `clear()`/`delete()`
+ * ergonomics on an encryption-key reset.
+ */
+export type ChunkVectorCache = Map<string, CachedChunkVectors>;
+
+/**
  * Search through message chunks for fine-grained semantic search.
  * Returns the matching chunk text along with the parent message.
  */
@@ -1195,9 +1228,22 @@ export async function searchChunksOp(
      * messages are re-embedded out-of-band by `chunkAndEmbedAllMessages`.
      */
     embeddingModel?: string;
+    /**
+     * Optional decrypted-vector cache. When provided, the per-query decrypt +
+     * JSON.parse of every message's chunk vectors is skipped on warm entries
+     * (validated by `updated_at`), which is the dominant cost of the chunk
+     * lane. Omit for the legacy always-decrypt behavior.
+     */
+    chunkCache?: ChunkVectorCache;
   }
 ): Promise<ChunkSearchResult[]> {
-  const { limit = 10, minSimilarity = 0.5, conversationId, embeddingModel } = options || {};
+  const {
+    limit = 10,
+    minSimilarity = 0.5,
+    conversationId,
+    embeddingModel,
+    chunkCache,
+  } = options || {};
 
   const activeConversations = await ctx.conversationsCollection
     .query(Q.where("is_deleted", false))
@@ -1216,15 +1262,18 @@ export async function searchChunksOp(
   //
   // Each candidate keeps a `chunkTextSource` describing how to compute
   // the final `chunkText`:
-  //   - "chunk": text comes straight from the chunk record (already
-  //     plaintext on this code path because `readJsonField` decrypted
-  //     the whole `chunks` payload above).
-  //   - "message": fallback path uses the decrypted message content,
-  //     so we delay reading it until after the top-K slice.
+  //   - "chunk": text was decrypted inline on the cache-miss path.
+  //   - "chunk-cached": scored from cached vectors (no decrypt); the text
+  //     is resolved by chunk index from the survivor's decrypted `chunks`
+  //     in pass 2, so cache hits never decrypt below-top-K messages.
+  //   - "message": whole-message fallback; uses the decrypted message content.
   type Candidate = {
     message: Message;
     similarity: number;
-    chunkTextSource: { kind: "chunk"; text: string } | { kind: "message" };
+    chunkTextSource:
+      | { kind: "chunk"; text: string }
+      | { kind: "chunk-cached"; chunkIndex: number; version: number }
+      | { kind: "message" };
   };
   const candidates: Candidate[] = [];
   let staleSkipped = 0;
@@ -1245,20 +1294,62 @@ export async function searchChunksOp(
       }
     }
 
-    // Use _getRaw to read JSON fields that may be encrypted - the @json decorator fails on encrypted strings
+    // Cache hit: score from cached vectors, no decrypt / JSON.parse. Validated
+    // by updated_at so a re-embed (which bumps it) falls through to the miss
+    // path below and repopulates.
+    const version = Number(message._getRaw("updated_at")) || 0;
+    const cached = chunkCache?.get(message.id);
+    if (cached && cached.version === version) {
+      if (cached.chunks.length > 0) {
+        for (let ci = 0; ci < cached.chunks.length; ci++) {
+          const vec = cached.chunks[ci];
+          if (vec.length === 0) continue;
+          const similarity = cosineSimilarity(queryVector, vec);
+          if (similarity >= minSimilarity) {
+            candidates.push({
+              message,
+              similarity,
+              chunkTextSource: { kind: "chunk-cached", chunkIndex: ci, version },
+            });
+          }
+        }
+      } else if (cached.fallback) {
+        const similarity = cosineSimilarity(queryVector, cached.fallback);
+        if (similarity >= minSimilarity) {
+          candidates.push({ message, similarity, chunkTextSource: { kind: "message" } });
+        }
+      }
+      continue;
+    }
+
+    // Cache miss. Use _getRaw to read JSON fields that may be encrypted — the
+    // @json decorator fails on encrypted strings.
     const chunks = await readJsonField<MessageChunk[]>(message, "chunks", ctx.walletAddress);
 
     // If message has chunks, search through them
     if (chunks && chunks.length > 0) {
-      for (const chunk of chunks) {
-        if (!chunk.vector || chunk.vector.length === 0) continue;
+      // Build index-aligned Float32 vectors once, then both score and cache
+      // them so a warm query pays neither the decrypt nor the parse. Empty
+      // vectors are kept as zero-length placeholders to keep indices aligned
+      // with the decrypted `chunks` array for pass-2 text resolution.
+      const vectors: Float32Array[] = chunks.map((chunk) =>
+        chunk.vector && chunk.vector.length > 0
+          ? Float32Array.from(chunk.vector)
+          : new Float32Array(0)
+      );
+      chunkCache?.set(message.id, { version, chunks: vectors });
 
-        const similarity = cosineSimilarity(queryVector, chunk.vector);
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const vec = vectors[ci];
+        if (vec.length === 0) continue;
+        // Score the Float32 vector (not the raw number[]) so a cache hit and a
+        // cache miss produce identical similarities — ranking is warmth-invariant.
+        const similarity = cosineSimilarity(queryVector, vec);
         if (similarity >= minSimilarity) {
           candidates.push({
             message,
             similarity,
-            chunkTextSource: { kind: "chunk", text: chunk.text },
+            chunkTextSource: { kind: "chunk", text: chunks[ci].text },
           });
         }
       }
@@ -1267,7 +1358,10 @@ export async function searchChunksOp(
       const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
       if (!messageVector || messageVector.length === 0) continue;
 
-      const similarity = cosineSimilarity(queryVector, messageVector);
+      const fallback = Float32Array.from(messageVector);
+      chunkCache?.set(message.id, { version, chunks: [], fallback });
+
+      const similarity = cosineSimilarity(queryVector, fallback);
       if (similarity >= minSimilarity) {
         candidates.push({ message, similarity, chunkTextSource: { kind: "message" } });
       }
@@ -1304,6 +1398,31 @@ export async function searchChunksOp(
     )
   );
 
+  // Resolve chunk text for cache-hit survivors: decrypt the `chunks` payload
+  // once per unique survivor message that was scored from cached vectors.
+  // Bounded by top-K, so a warm chunk lane decrypts at most `limit` messages
+  // instead of the whole table.
+  //
+  // Also capture the message's `updated_at` *after* the decrypt so a re-embed
+  // that lands between scoring (pass 1) and here is detected: the cached
+  // vector's chunkIndex only maps to the freshly-decrypted `chunks` array when
+  // the row hasn't changed. Reading the version post-decrypt means any write
+  // during the decrypt bumps it away from the scored version → we fall back to
+  // message content instead of applying a stale index to a reordered array.
+  const chunkStateByMsgId = new Map<string, { version: number; chunks: MessageChunk[] }>();
+  const needsChunkText = new Set<string>();
+  for (const c of topK) {
+    if (c.chunkTextSource.kind === "chunk-cached") needsChunkText.add(c.message.id);
+  }
+  await Promise.all(
+    Array.from(needsChunkText, async (id) => {
+      const m = uniqueMessages.get(id)!;
+      const parsed = await readJsonField<MessageChunk[]>(m, "chunks", ctx.walletAddress);
+      const version = Number(m._getRaw("updated_at")) || 0;
+      if (parsed) chunkStateByMsgId.set(id, { version, chunks: parsed });
+    })
+  );
+
   // Shallow-clone the StoredMessage per result so two chunks from the
   // same parent message don't share a top-level object reference.
   // Without this clone, a caller mutating `result.message.foo` on one
@@ -1312,7 +1431,23 @@ export async function searchChunksOp(
   // and returned distinct objects, so we preserve that contract.
   return topK.map(({ message, similarity, chunkTextSource }) => {
     const stored = { ...storedById.get(message.id)! };
-    const chunkText = chunkTextSource.kind === "chunk" ? chunkTextSource.text : stored.content;
+    let chunkText: string;
+    if (chunkTextSource.kind === "chunk") {
+      chunkText = chunkTextSource.text;
+    } else if (chunkTextSource.kind === "chunk-cached") {
+      // Trust the scored index only if the row is unchanged since scoring
+      // (version match) and the index is still in range; otherwise a concurrent
+      // re-embed may have reordered/resized the array, so fall back to message
+      // content rather than returning unrelated chunk text.
+      const state = chunkStateByMsgId.get(message.id);
+      const chunk =
+        state && state.version === chunkTextSource.version
+          ? state.chunks[chunkTextSource.chunkIndex]
+          : undefined;
+      chunkText = chunk?.text ?? stored.content;
+    } else {
+      chunkText = stored.content;
+    }
     return { chunkText, message: stored, similarity };
   });
 }
