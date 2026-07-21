@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1090](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1090)
+Defined in: [src/react/useChatStorage.ts:1097](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1097)
 
 ## Parameters
 
@@ -709,13 +709,33 @@ a custom one matching `PromptPreProcessor`.
 </td>
 <td>
 
-{ `cacheExpirationMs?`: `number`; `deferLoading?`: `DeferLoadingConfig`; }
+{ `cache?`: `ToolsCacheBackend`; `cacheExpirationMs?`: `number`; `deferLoading?`: `DeferLoadingConfig`; }
 
 </td>
 <td>
 
 Configuration for server-side tools fetching and caching.
 Server tools are fetched from /api/v1/tools and cached in localStorage.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.serverTools.cache?`
+
+</td>
+<td>
+
+`ToolsCacheBackend`
+
+</td>
+<td>
+
+Where to read/write the cached server-tools catalog. Defaults to browser
+`localStorage`, which is a silent no-op on React Native — so on RN pass an
+AsyncStorage/MMKV-backed ToolsCacheBackend here or every send
+refetches the whole catalog. Forwarded to `getServerTools`.
 
 </td>
 </tr>

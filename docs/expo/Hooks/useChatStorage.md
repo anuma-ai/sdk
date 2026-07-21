@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:705](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#705)
+Defined in: [src/expo/useChatStorage.ts:718](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#718)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -676,6 +676,25 @@ Use for live preview of artifacts (HTML, slides) being generated.
 <tr>
 <td>
 
+`options.onToolSelection?`
+
+</td>
+<td>
+
+(`info`: `object`) => `void`
+
+</td>
+<td>
+
+Observability hook fired once per send with the tools actually selected for
+the turn (after server + client filtering). Never throws into the send path.
+Mirrors react's onToolSelection.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.piiRedaction?`
 
 </td>
@@ -755,13 +774,33 @@ false
 </td>
 <td>
 
-{ `cacheExpirationMs?`: `number`; `deferLoading?`: `DeferLoadingConfig`; }
+{ `cache?`: `ToolsCacheBackend`; `cacheExpirationMs?`: `number`; `deferLoading?`: `DeferLoadingConfig`; }
 
 </td>
 <td>
 
 Configuration for server-side tools fetching and caching.
 Server tools are fetched from /api/v1/tools and cached in localStorage.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.serverTools.cache?`
+
+</td>
+<td>
+
+`ToolsCacheBackend`
+
+</td>
+<td>
+
+Where to read/write the cached server-tools catalog. Defaults to browser
+`localStorage`, which is a silent no-op on React Native — so on RN pass an
+AsyncStorage/MMKV-backed ToolsCacheBackend here or every send
+refetches the whole catalog. Forwarded to `getServerTools`.
 
 </td>
 </tr>

@@ -48,7 +48,7 @@ Returns false if:
 
 ## Call Signature
 
-> **shouldRefreshTools**(`responseChecksum`: `string` | `undefined`, `cache`: `ToolsCacheBackend`): `boolean` | `Promise`<`boolean`>
+> **shouldRefreshTools**(`responseChecksum`: `string` | `undefined`, `cache`: `ToolsCacheBackend` | `undefined`): `boolean` | `Promise`<`boolean`>
 
 Defined in: [src/lib/tools/serverTools.ts:420](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#420)
 
@@ -93,7 +93,7 @@ Returns false if:
 </td>
 <td>
 
-`ToolsCacheBackend`
+`ToolsCacheBackend` | `undefined`
 
 </td>
 </tr>

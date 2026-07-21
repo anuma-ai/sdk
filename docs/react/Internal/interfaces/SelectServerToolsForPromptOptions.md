@@ -16,6 +16,17 @@ Base URL for the API.
 
 ***
 
+### cache?
+
+> `optional` **cache**: `ToolsCacheBackend`
+
+Defined in: [src/lib/tools/serverTools.ts:1648](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1648)
+
+Where to read/write the cached catalog. Defaults to browser `localStorage`
+(a no-op on Node/RN); pass a backend to persist on those platforms.
+
+***
+
 ### cacheExpirationMs?
 
 > `optional` **cacheExpirationMs**: `number`
@@ -30,7 +41,7 @@ Cache expiration in ms for the server-tools catalog fetch.
 
 > `optional` **deferLoading**: `DeferLoadingConfig`
 
-Defined in: [src/lib/tools/serverTools.ts:1649](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1649)
+Defined in: [src/lib/tools/serverTools.ts:1654](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1654)
 
 Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
 static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
