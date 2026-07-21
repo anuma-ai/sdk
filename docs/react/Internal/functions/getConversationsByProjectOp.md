@@ -2,7 +2,7 @@
 
 > **getConversationsByProjectOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `projectId`: `string` | `null`): `Promise`<[`StoredConversation`](../interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:591](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#591)
+Defined in: [src/lib/db/chat/operations.ts:645](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#645)
 
 Get conversations filtered by project ID.
 Pass null to get conversations that don't belong to any project.

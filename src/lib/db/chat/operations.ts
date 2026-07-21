@@ -20,6 +20,7 @@ import {
   type CreateConversationOptions,
   type CreateMessageOptions,
   generateConversationId,
+  type GetConversationsPageOptions,
   type GetMessagesPageOptions,
   type LazyStoredConversation,
   type MessageChunk,
@@ -450,6 +451,59 @@ export async function getConversationsLazyOp(
     .unsafeFetchRaw()) as Record<string, unknown>[];
 
   return results.map(conversationRawToLazyStored);
+}
+
+/**
+ * Keyset-paginated, lazy (no-decrypt) variant of {@link getConversationsLazyOp}.
+ *
+ * Returns at most `limit` conversations (newest first by `created_at`), each
+ * with its raw stored title under `encryptedTitle` — pair with
+ * {@link decryptConversationTitle} to decrypt on render. Page through older
+ * threads by passing the oldest loaded `createdAt` as `before` plus the
+ * uniqueIds held at that boundary as `boundaryExcludeUniqueIds`.
+ *
+ * Decrypts nothing and builds no WatermelonDB Model (the never-evicted
+ * RecordCache stays empty — web Pile-2). Sort order, soft-delete filtering,
+ * and the encrypted-title projection all match `getConversationsLazyOp`.
+ */
+export async function getConversationsPageOp(
+  ctx: StorageOperationsContext,
+  options?: GetConversationsPageOptions
+): Promise<LazyStoredConversation[]> {
+  // Guard the limit before it reaches Q.take: SQLite treats `LIMIT -1` as "no
+  // limit", so an unvalidated non-positive value would silently fetch and
+  // return the ENTIRE list while the caller believes the read was bounded.
+  // Mirrors getMessagesPageOp. A non-positive page is an empty page; fractions
+  // are floored.
+  const limit = Math.floor(options?.limit ?? 200);
+  if (!Number.isFinite(limit) || limit < 1) return [];
+
+  // created_at is NOT unique (bulk restore/import writes many rows with the
+  // same timestamp) — see GetConversationsPageOptions.boundaryExcludeUniqueIds.
+  const exclude = new Set(options?.boundaryExcludeUniqueIds ?? []);
+
+  const clauses = [Q.where("is_deleted", false)];
+  if (options?.before !== undefined) {
+    clauses.push(
+      exclude.size > 0
+        ? Q.where("created_at", Q.lte(options.before))
+        : Q.where("created_at", Q.lt(options.before))
+    );
+  }
+
+  // unsafeFetchRaw (NOT fetch): never pin a Model per row (web Pile-2). This op
+  // decrypts nothing — the raw title maps straight to `encryptedTitle`. Take
+  // `limit + exclude.size` so that after dropping the held boundary rows we
+  // still have a full `limit` page.
+  const fetched = (await ctx.conversationsCollection
+    .query(...clauses, Q.sortBy("created_at", Q.desc), Q.take(limit + exclude.size))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+
+  // Drop the caller's already-held boundary rows, keep the newest `limit`.
+  const results =
+    exclude.size > 0 ? fetched.filter((raw) => !exclude.has(raw.id as string)) : fetched;
+
+  return results.slice(0, limit).map(conversationRawToLazyStored);
 }
 
 /**
