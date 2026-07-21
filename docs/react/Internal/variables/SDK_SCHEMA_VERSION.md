@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `35` = `35`
+> `const` **SDK\_SCHEMA\_VERSION**: `36` = `36`
 
-Defined in: [src/lib/db/schema.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#64)
+Defined in: [src/lib/db/schema.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#68)
 
 Current combined schema version for all SDK storage modules.
 
@@ -44,3 +44,7 @@ Version history:
   rows, grandfathered as compatible with the current model)
 * v35: Added conversation\_memory table recording which vault memories a
   conversation drew on, so the conversation-level Memories panel survives reload
+* v36: Added topics\_extracted\_at column to memory\_vault — watermark of the last
+  LLM topic-extraction pass, so the background topic worker re-extracts only
+  memories edited since (updated\_at > topics\_extracted\_at) instead of
+  re-running the whole vault

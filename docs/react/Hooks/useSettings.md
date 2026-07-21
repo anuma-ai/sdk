@@ -2,7 +2,7 @@
 
 > **useSettings**(`options`: `object`): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 
-Defined in: [src/react/useSettings.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#116)
+Defined in: [src/react/useSettings.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#119)
 
 A React hook for managing user settings with automatic persistence using WatermelonDB.
 
@@ -52,12 +52,16 @@ Configuration options
 </td>
 <td>
 
-`Database`
+`Database` | `null`
 
 </td>
 <td>
 
-‐
+The WatermelonDB instance. May be `null` while the database is not yet
+bound (e.g. during cold start / logged-out renders on mobile, where the
+wrapper holds `null` until the wallet resolves). When `null`, the hook is
+inert: `userPreference`/`modelPreference` are `null`, `isLoading` is
+`false`, and mutation callbacks reject with a clear error.
 
 </td>
 </tr>

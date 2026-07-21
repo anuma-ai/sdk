@@ -86,6 +86,8 @@ import {
 } from "../lib/db/queue";
 import { getLogger } from "../lib/logger";
 import {
+  type ChunkVectorCache,
+  createChunkVectorCache,
   createRecallTool as createRecallToolBase,
   recall as recallBase,
   type RecallOptions,
@@ -119,7 +121,12 @@ import {
   type ToolSet,
 } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
-import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
+import {
+  hasEncryptionKey,
+  onClearAllEncryptionState,
+  onKeyAvailable,
+  requestEncryptionKey,
+} from "../react/useEncryption";
 import { useChat } from "./useChat";
 
 /**
@@ -1076,6 +1083,26 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
 
   /**
+   * Decrypted chunk-vector cache for the recall chunk lane. Skips the
+   * per-query decrypt + JSON.parse of every message's chunk vectors on warm
+   * entries; stale entries self-invalidate on updated_at mismatch.
+   */
+  const chunkVectorCacheRef = useRef<ChunkVectorCache>(createChunkVectorCache());
+
+  /**
+   * Drop both recall caches when all encryption state is cleared (logout /
+   * wallet switch). Vectors are derived from decrypted content, so leaving
+   * them populated would keep the previous identity's data resident and could
+   * serve stale vectors to the next identity. Mirrors the React hook.
+   */
+  useEffect(() => {
+    return onClearAllEncryptionState(() => {
+      vaultEmbeddingCacheRef.current.clear();
+      chunkVectorCacheRef.current.clear();
+    });
+  }, []);
+
+  /**
    * Create the unified recall tool — fact + chunk fused via RRF in one
    * tool. Replaces createMemoryEngineTool / createMemoryVaultSearchTool.
    */
@@ -1102,6 +1129,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             maskInput: maskEmbeddingInput,
           },
           vaultCache: vaultEmbeddingCacheRef.current,
+          chunkCache: chunkVectorCacheRef.current,
           // entityCtx is intentionally omitted on Expo for now — the
           // W5 graph lane is a no-op without it (recall falls through
           // to fact + chunk lanes). Wire it up when the Expo client
@@ -1159,6 +1187,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             maskInput: maskEmbeddingInput,
           },
           vaultCache: vaultEmbeddingCacheRef.current,
+          chunkCache: chunkVectorCacheRef.current,
         },
         resolvedOptions
       );

@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCancelResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9151](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9151)
+Defined in: [src/client/types.gen.ts:9210](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9210)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9151](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCancelSubscriptionResponse`](HandlersCancelSubscriptionResponse.md)
 
-Defined in: [src/client/types.gen.ts:9155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9155)
+Defined in: [src/client/types.gen.ts:9214](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9214)
 
 OK

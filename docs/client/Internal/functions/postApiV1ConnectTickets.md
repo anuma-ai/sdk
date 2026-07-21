@@ -2,7 +2,7 @@
 
 > **postApiV1ConnectTickets**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ConnectTicketsData`](../type-aliases/PostApiV1ConnectTicketsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ConnectTicketsResponses`](../type-aliases/PostApiV1ConnectTicketsResponses.md), [`PostApiV1ConnectTicketsErrors`](../type-aliases/PostApiV1ConnectTicketsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:852](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#852)
+Defined in: [src/client/sdk.gen.ts:862](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#862)
 
 Mint a connect-flow ticket
 

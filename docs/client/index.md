@@ -42,6 +42,11 @@
 | [DeleteApiV1AdminPersonasByIdErrors](Internal/type-aliases/DeleteApiV1AdminPersonasByIdErrors.md) | - |
 | [DeleteApiV1AdminPersonasByIdResponse](Internal/type-aliases/DeleteApiV1AdminPersonasByIdResponse.md) | - |
 | [DeleteApiV1AdminPersonasByIdResponses](Internal/type-aliases/DeleteApiV1AdminPersonasByIdResponses.md) | - |
+| [DeleteApiV1AdminSharesBySlugData](Internal/type-aliases/DeleteApiV1AdminSharesBySlugData.md) | - |
+| [DeleteApiV1AdminSharesBySlugError](Internal/type-aliases/DeleteApiV1AdminSharesBySlugError.md) | - |
+| [DeleteApiV1AdminSharesBySlugErrors](Internal/type-aliases/DeleteApiV1AdminSharesBySlugErrors.md) | - |
+| [DeleteApiV1AdminSharesBySlugResponse](Internal/type-aliases/DeleteApiV1AdminSharesBySlugResponse.md) | - |
+| [DeleteApiV1AdminSharesBySlugResponses](Internal/type-aliases/DeleteApiV1AdminSharesBySlugResponses.md) | - |
 | [DeleteApiV1AdminTextResetData](Internal/type-aliases/DeleteApiV1AdminTextResetData.md) | - |
 | [DeleteApiV1AdminTextResetError](Internal/type-aliases/DeleteApiV1AdminTextResetError.md) | - |
 | [DeleteApiV1AdminTextResetErrors](Internal/type-aliases/DeleteApiV1AdminTextResetErrors.md) | - |
@@ -1123,6 +1128,7 @@
 | [deleteApiV1AdminAppsById](Internal/functions/deleteApiV1AdminAppsById.md) | Delete app |
 | [deleteApiV1AdminOauthClientsByClientId](Internal/functions/deleteApiV1AdminOauthClientsByClientId.md) | Revoke an OAuth client (soft delete) |
 | [deleteApiV1AdminPersonasById](Internal/functions/deleteApiV1AdminPersonasById.md) | Delete persona |
+| [deleteApiV1AdminSharesBySlug](Internal/functions/deleteApiV1AdminSharesBySlug.md) | Take down a shared artifact (admin) |
 | [deleteApiV1AdminTextReset](Internal/functions/deleteApiV1AdminTextReset.md) | Reset text registrations |
 | [deleteApiV1AdminUsersDelete](Internal/functions/deleteApiV1AdminUsersDelete.md) | Delete user account (admin) |
 | [deleteApiV1AuthMfaPasskeyCredentialsByCredentialId](Internal/functions/deleteApiV1AuthMfaPasskeyCredentialsByCredentialId.md) | Delete a passkey |

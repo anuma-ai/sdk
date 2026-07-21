@@ -23,7 +23,14 @@ export interface UpdateModelPreferenceOptions {
  * @inline
  */
 export interface BaseUseSettingsOptions {
-  database: Database;
+  /**
+   * The WatermelonDB instance. May be `null` while the database is not yet
+   * bound (e.g. during cold start / logged-out renders on mobile, where the
+   * wrapper holds `null` until the wallet resolves). When `null`, the hook is
+   * inert: `userPreference`/`modelPreference` are `null`, `isLoading` is
+   * `false`, and mutation callbacks reject with a clear error.
+   */
+  database: Database | null;
   walletAddress?: string;
 }
 

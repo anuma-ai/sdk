@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPrivyIdentifiersMigrateData** = `object`
 
-Defined in: [src/client/types.gen.ts:5746](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5746)
+Defined in: [src/client/types.gen.ts:5754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5754)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5746](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:5747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5747)
+Defined in: [src/client/types.gen.ts:5755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5755)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:5747](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5748)
+Defined in: [src/client/types.gen.ts:5756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5756)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:5754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5754)
+Defined in: [src/client/types.gen.ts:5762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5762)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:5754](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5755)
+Defined in: [src/client/types.gen.ts:5763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5763)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:5755](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/privy-identifiers/migrate"`
 
-Defined in: [src/client/types.gen.ts:5756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5756)
+Defined in: [src/client/types.gen.ts:5764](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5764)

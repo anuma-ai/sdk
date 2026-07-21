@@ -1,6 +1,6 @@
 # EntityOperationsContext
 
-Defined in: [src/lib/db/entities/operations.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#15)
+Defined in: [src/lib/db/entities/operations.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#18)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/entities/operations.ts:15](https://github.com/anuma-ai/s
 
 > `optional` **allowUnscopedRows**: `boolean`
 
-Defined in: [src/lib/db/entities/operations.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#33)
+Defined in: [src/lib/db/entities/operations.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#36)
 
 When `true`, `getMemoriesByEntityNamesOp` admits rows with
 `user_id = null` alongside the strict `userId` match. Set this on
@@ -23,7 +23,7 @@ lane until `backfillMemoryEntityUserIdsOp` runs. Default `false`
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/entities/operations.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#16)
+Defined in: [src/lib/db/entities/operations.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#19)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [src/lib/db/entities/operations.ts:16](https://github.com/anuma-ai/s
 
 > **entityCollection**: `Collection`<[`EntityModel`](../classes/EntityModel.md)>
 
-Defined in: [src/lib/db/entities/operations.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#17)
+Defined in: [src/lib/db/entities/operations.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#20)
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: [src/lib/db/entities/operations.ts:17](https://github.com/anuma-ai/s
 
 > **memoryEntityCollection**: `Collection`<[`MemoryEntityModel`](../classes/MemoryEntityModel.md)>
 
-Defined in: [src/lib/db/entities/operations.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#18)
+Defined in: [src/lib/db/entities/operations.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#21)
 
 ***
 
@@ -47,7 +47,7 @@ Defined in: [src/lib/db/entities/operations.ts:18](https://github.com/anuma-ai/s
 
 > `optional` **userId**: `string`
 
-Defined in: [src/lib/db/entities/operations.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#24)
+Defined in: [src/lib/db/entities/operations.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#27)
 
 Optional user-scope. When provided, `linkMemoryEntitiesOp` stamps
 `user_id` on new memory\_entity rows and `getMemoriesByEntityNamesOp`

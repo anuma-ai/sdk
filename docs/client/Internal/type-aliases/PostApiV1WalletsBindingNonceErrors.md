@@ -2,7 +2,7 @@
 
 > **PostApiV1WalletsBindingNonceErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10091)
+Defined in: [src/client/types.gen.ts:10150](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10150)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10091](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10095](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10095)
+Defined in: [src/client/types.gen.ts:10154](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10154)
 
 Unauthorized

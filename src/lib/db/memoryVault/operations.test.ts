@@ -12,6 +12,8 @@ import {
   deleteAllVaultMemoriesForUserOp,
   setMemoryEntitiesOp,
   clearMemoryTopicsOverrideOp,
+  getMemoriesNeedingTopicExtractionOp,
+  stampTopicsExtractedAtOp,
   vaultMemoryToStored,
 } from "./operations";
 import { linkMemoryEntitiesOp } from "../entities/operations";
@@ -45,6 +47,7 @@ function mockRecord(overrides: Record<string, any> = {}) {
     is_deleted: false,
     created_at: new Date("2025-01-01"),
     updated_at: new Date("2025-01-01"),
+    ...overrides,
   };
   return {
     id: overrides.id ?? "mem_1",
@@ -1079,5 +1082,209 @@ describe("clearMemoryTopicsOverrideOp", () => {
     const ok = await clearMemoryTopicsOverrideOp(ctx, "mem_1");
     expect(ok).toBe(true);
     expect(record.topicsUserManaged).toBe(false);
+  });
+});
+
+describe("getMemoriesNeedingTopicExtractionOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /** Raw row as unsafeFetchRaw returns it (snake_case, numeric timestamps). */
+  function rawRow(id: string, overrides: Record<string, any> = {}) {
+    return {
+      id,
+      content: `content of ${id}`,
+      scope: "private",
+      folder_id: null,
+      user_id: null,
+      is_deleted: false,
+      created_at: 1_000,
+      updated_at: 2_000,
+      topics_extracted_at: null,
+      ...overrides,
+    };
+  }
+
+  function sweepCtx(rows: any[], linkRows: Array<{ memory_id: string }>) {
+    // Raw link rows (snake_case) — the op uses unsafeFetchRaw to avoid pinning
+    // link Models into the RecordCache.
+    const memoryEntityQuery = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => linkRows) }));
+    return {
+      ctx: makeCtx({
+        vaultMemoryCollection: {
+          query: vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => rows) })),
+        } as any,
+        entityCtx: {
+          database: {} as any,
+          entityCollection: {} as any,
+          memoryEntityCollection: { query: memoryEntityQuery } as any,
+        },
+      }),
+      memoryEntityQuery,
+    };
+  }
+
+  it("throws without ctx.entityCtx", async () => {
+    const ctx = makeCtx();
+    await expect(getMemoriesNeedingTopicExtractionOp(ctx)).rejects.toThrow(/entityCtx/);
+  });
+
+  it("partitions rows: unlinked-unstamped pending, linked-unstamped grandfathered, edited-since-stamp pending, up-to-date excluded", async () => {
+    const rows = [
+      rawRow("mem_backfill"), // no stamp, no links → pending
+      rawRow("mem_legacy"), // no stamp, HAS links → linkedUnstamped
+      rawRow("mem_edited", { topics_extracted_at: 1_500, updated_at: 2_000 }), // edited after stamp → pending
+      rawRow("mem_current", { topics_extracted_at: 3_000, updated_at: 2_000 }), // stamp is fresh → excluded
+    ];
+    const { ctx } = sweepCtx(rows, [{ memory_id: "mem_legacy" }]);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(result.pending.map((m) => m.uniqueId).sort()).toEqual(["mem_backfill", "mem_edited"]);
+    expect(result.linkedUnstamped).toEqual(["mem_legacy"]);
+  });
+
+  it("applies limit to pending", async () => {
+    const rows = [rawRow("mem_a"), rawRow("mem_b"), rawRow("mem_c")];
+    const { ctx } = sweepCtx(rows, []);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 2 });
+    expect(result.pending.length).toBe(2);
+  });
+
+  it("also caps linkedUnstamped under limit (grandfather backlog drains across sweeps)", async () => {
+    // All linked + unstamped → all grandfathered. Stamping loads a Model per
+    // row, so an uncapped list would spike the RecordCache on a legacy vault.
+    const rows = [rawRow("mem_1"), rawRow("mem_2"), rawRow("mem_3")];
+    const { ctx } = sweepCtx(rows, [
+      { memory_id: "mem_1" },
+      { memory_id: "mem_2" },
+      { memory_id: "mem_3" },
+    ]);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 2 });
+    expect(result.pending).toEqual([]);
+    expect(result.linkedUnstamped.length).toBe(2);
+  });
+
+  it("excludes user-managed rows via the query conditions", async () => {
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+      entityCtx: {
+        database: {} as any,
+        entityCollection: {} as any,
+        memoryEntityCollection: { query: vi.fn() } as any,
+      },
+    });
+    await getMemoriesNeedingTopicExtractionOp(ctx);
+    // user-managed OR-clause + is_deleted + sortBy = 3 conditions
+    expect(queryFn.mock.calls[0].length).toBe(3);
+  });
+});
+
+describe("stampTopicsExtractedAtOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stamps eligible rows, preserves updated_at, and returns stamped ids", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const batchFn = vi.fn(async () => {});
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(async () => [record._raw]),
+    }));
+    const ctx = makeCtx({
+      database: { write: vi.fn(async (cb: () => any) => cb()), batch: batchFn } as any,
+      vaultMemoryCollection: { find: vi.fn(async () => record), query: queryFn } as any,
+    });
+
+    const stamped = await stampTopicsExtractedAtOp(ctx, ["mem_1"], 5_000);
+
+    expect(stamped).toEqual(["mem_1"]);
+    expect(batchFn).toHaveBeenCalledTimes(1);
+    // Run the prepared updater against a spy to verify the raw writes.
+    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    prepared({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", 5_000);
+    expect(setRawSpy).toHaveBeenCalledWith("updated_at", new Date("2025-01-01").getTime());
+  });
+
+  it("reads updated_at from the LIVE model in-writer, not a stale pre-fetch", async () => {
+    // Concurrent-edit guard: the value written back must be the live Model's
+    // updated_at (an edit that committed before the writer), never a snapshot
+    // taken earlier — otherwise updated_at could fall behind topics_extracted_at
+    // and the edited memory would never re-enter the sweep.
+    const liveUpdatedAt = new Date("2026-03-03").getTime();
+    const record = mockRecord({ id: "mem_1", updated_at: new Date("2026-03-03") });
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => {}),
+      } as any,
+      // A raw snapshot with a DIFFERENT (older) updated_at — the op must ignore it.
+      vaultMemoryCollection: {
+        find: vi.fn(async () => record),
+        query: vi.fn(() => ({
+          unsafeFetchRaw: vi.fn(async () => [{ ...record._raw, updated_at: 1 }]),
+        })),
+      } as any,
+    });
+
+    await stampTopicsExtractedAtOp(ctx, ["mem_1"], 9_999);
+
+    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    prepared({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("updated_at", liveUpdatedAt);
+    expect(setRawSpy).not.toHaveBeenCalledWith("updated_at", 1);
+  });
+
+  it("skips deleted and user-managed rows (re-checked in the writer)", async () => {
+    const managed = mockRecord({ id: "mem_managed", topics_user_managed: true });
+    const deleted = mockRecord({ id: "mem_deleted", is_deleted: true });
+    const ok = mockRecord({ id: "mem_ok" });
+    const records: Record<string, any> = {
+      mem_managed: managed,
+      mem_deleted: deleted,
+      mem_ok: ok,
+    };
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(async () => [managed._raw, deleted._raw, ok._raw]),
+    }));
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => {}),
+      } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(async (id: string) => records[id]),
+        query: queryFn,
+      } as any,
+    });
+
+    const stamped = await stampTopicsExtractedAtOp(
+      ctx,
+      ["mem_managed", "mem_deleted", "mem_ok"],
+      5_000
+    );
+
+    expect(stamped).toEqual(["mem_ok"]);
+    expect(managed.prepareUpdate).not.toHaveBeenCalled();
+    expect(deleted.prepareUpdate).not.toHaveBeenCalled();
+  });
+
+  it("returns [] for missing rows and empty input", async () => {
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(async () => []),
+    }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => {
+          throw new Error("not found");
+        }),
+        query: queryFn,
+      } as any,
+    });
+    expect(await stampTopicsExtractedAtOp(ctx, [], 1)).toEqual([]);
+    expect(await stampTopicsExtractedAtOp(ctx, ["mem_gone"], 1)).toEqual([]);
   });
 });

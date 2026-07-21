@@ -1,3 +1,4 @@
+export type { CachedChunkVectors, ChunkVectorCache } from "../db/chat/operations.js";
 export {
   type AutoExtractMessage,
   extractAndRetain,
@@ -12,10 +13,13 @@ export {
   type AutoExtractor,
   createAutoExtractor,
   type CreateAutoExtractorOptions,
+  createPlatformCursorStore,
+  type ExtractionCursorStore,
   type MemoryExtractedEvent,
   type TurnCompleteEvent,
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";
+export { createChunkVectorCache, DEFAULT_CHUNK_CACHE_SIZE } from "./chunkVectorCache.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,
@@ -26,7 +30,16 @@ export {
 } from "./recallTool.js";
 export type { RecencyOptions } from "./recency.js";
 export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
+export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
+export {
+  extractAndLinkEntitiesForMemoriesOp,
+  extractEntitiesForMemories,
+  TOPIC_EXTRACTION_BATCH_SIZE,
+  type TopicExtractionInput,
+  type TopicExtractionRunResult,
+  type TopicExtractOptions,
+} from "./topicExtract.js";
 export type {
   Budget,
   ConsolidationFallbackReason,
@@ -34,6 +47,8 @@ export type {
   PortalLlmAuth,
   RankedMemory,
   RecallContext,
+  RecallDegradation,
+  RecallDiagnostics,
   RecallOptions,
   RecallResult,
   RetainAction,

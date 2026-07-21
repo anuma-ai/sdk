@@ -2,7 +2,7 @@
 
 > **PostApiV1EmbeddingsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8310)
+Defined in: [src/client/types.gen.ts:8369](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8369)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8310](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`LlmapiEmbeddingResponse`](LlmapiEmbeddingResponse.md)
 
-Defined in: [src/client/types.gen.ts:8314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8314)
+Defined in: [src/client/types.gen.ts:8373](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8373)
 
 OK

@@ -304,9 +304,12 @@ export {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  type MemoriesNeedingTopicExtraction,
   setMemoryEntitiesOp,
+  stampTopicsExtractedAtOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
   updateVaultMemoryEmbeddingOp,
@@ -358,11 +361,14 @@ export type {
   AutoExtractMessage,
   AutoExtractor,
   Budget,
+  CachedChunkVectors,
+  ChunkVectorCache,
   ConsolidationFallbackReason,
   CreateAutoExtractorOptions,
   ExtractedCandidate,
   ExtractedEntity,
   ExtractFactsOptions,
+  ExtractionCursorStore,
   ExtractOutcome,
   FactType,
   MemoryExtractedEvent,
@@ -370,6 +376,8 @@ export type {
   PortalLlmAuth,
   RankedMemory,
   RecallContext,
+  RecallDegradation,
+  RecallDiagnostics,
   RecallOptions,
   RecallResult,
   RecallToolCallbacks,
@@ -386,16 +394,29 @@ export type {
   TurnCompleteEvent,
   TurnSkippedEvent,
 } from "../lib/memory";
+export type {
+  TopicExtractionInput,
+  TopicExtractionRunResult,
+  TopicExtractOptions,
+} from "../lib/memory";
 export {
   createAutoExtractor,
+  createChunkVectorCache,
+  createPlatformCursorStore,
   createRecallTool,
+  DEFAULT_CHUNK_CACHE_SIZE,
+  extractAndLinkEntitiesForMemoriesOp,
   extractAndRetain,
+  extractEntitiesForMemories,
   extractFacts,
+  isRerankerAvailable,
   recall,
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
   reflect,
+  RerankerUnavailableError,
   retain,
+  TOPIC_EXTRACTION_BATCH_SIZE,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that
@@ -410,6 +431,7 @@ export {
   type EntityOperationsContext,
   getMemoriesByEntityNamesOp,
   linkMemoryEntitiesOp,
+  replaceMemoryEntitiesGuardedOp,
 } from "../lib/db/entities/operations";
 export type { CreateEntityOptions, EntityKind, StoredEntity } from "../lib/db/entities/types";
 export { ENTITY_KINDS } from "../lib/db/entities/types";

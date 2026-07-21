@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#26)
+Defined in: [src/lib/db/memoryVault/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#29)
 
 ***
 
@@ -209,7 +209,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#28)
+Defined in: [src/lib/db/memoryVault/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#31)
 
 ***
 
@@ -245,6 +245,17 @@ Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sd
 
 ***
 
+### topicsExtractedAt
+
+> **topicsExtractedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#28)
+
+Unix ms of the last LLM topic-extraction pass. Null = never extracted
+standalone (linked legacy rows are grandfathered as extracted).
+
+***
+
 ### topicsUserManaged
 
 > **topicsUserManaged**: `boolean` | `null`
@@ -260,7 +271,7 @@ leaves its entity links alone. Null on legacy rows (treated as false).
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#27)
+Defined in: [src/lib/db/memoryVault/models.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#30)
 
 ***
 

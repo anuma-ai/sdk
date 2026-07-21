@@ -188,11 +188,13 @@ function startObserve(entry: PoolEntry, walletAddress: string): void {
  * `walletAddress === undefined` returns an empty unsubscribe — no-op.
  */
 export function subscribeUserSettings(
-  database: Database,
+  database: Database | null,
   walletAddress: string | undefined,
   listener: () => void
 ): () => void {
-  if (!walletAddress) return () => undefined;
+  // No database (not yet bound) or no wallet → nothing to subscribe to. A null
+  // database can't key the WeakMap pool, so bail before touching it.
+  if (!database || !walletAddress) return () => undefined;
   const perDb = getOrCreatePerDb(database);
   let entry = perDb.get(walletAddress);
   if (!entry) {
@@ -231,10 +233,10 @@ export function subscribeUserSettings(
 }
 
 export function getUserSettingsSnapshot(
-  database: Database,
+  database: Database | null,
   walletAddress: string | undefined
 ): SettingsSnapshot {
-  if (!walletAddress) return EMPTY_SNAPSHOT;
+  if (!database || !walletAddress) return EMPTY_SNAPSHOT;
   return pool.get(database)?.get(walletAddress)?.snapshot ?? EMPTY_SNAPSHOT;
 }
 
@@ -245,11 +247,11 @@ export function getUserSettingsSnapshot(
  * preserves the inline-state-update behavior of the original hook.
  */
 export function patchUserSettingsSnapshot(
-  database: Database,
+  database: Database | null,
   walletAddress: string | undefined,
   patch: Partial<SettingsSnapshot>
 ): void {
-  if (!walletAddress) return;
+  if (!database || !walletAddress) return;
   const entry = pool.get(database)?.get(walletAddress);
   if (!entry) return;
   patchSnapshot(entry, patch);

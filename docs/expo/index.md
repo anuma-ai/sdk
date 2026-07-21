@@ -118,6 +118,12 @@ Re-exports [Budget](../react/Internal/type-aliases/Budget.md)
 
 ***
 
+### CachedChunkVectors
+
+Re-exports [CachedChunkVectors](../react/Internal/interfaces/CachedChunkVectors.md)
+
+***
+
 ### CachedServerTools
 
 Re-exports [CachedServerTools](../react/Internal/interfaces/CachedServerTools.md)
@@ -175,6 +181,12 @@ Re-exports [ChunkingOptions](../react/Internal/interfaces/ChunkingOptions.md)
 ### chunkText
 
 Re-exports [chunkText](../react/Internal/functions/chunkText.md)
+
+***
+
+### ChunkVectorCache
+
+Re-exports [ChunkVectorCache](../react/Internal/type-aliases/ChunkVectorCache.md)
 
 ***
 
@@ -316,6 +328,12 @@ Re-exports [CreateAutoExtractorOptions](../react/Internal/interfaces/CreateAutoE
 
 ***
 
+### createChunkVectorCache
+
+Re-exports [createChunkVectorCache](../react/Internal/functions/createChunkVectorCache.md)
+
+***
+
 ### CreateConversationOptions
 
 Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConversationOptions.md)
@@ -349,6 +367,12 @@ Re-exports [createMemoryVaultTool](../react/Internal/functions/createMemoryVault
 ### CreateMessageOptions
 
 Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
+
+***
+
+### createPlatformCursorStore
+
+Re-exports [createPlatformCursorStore](../react/Internal/functions/createPlatformCursorStore.md)
 
 ***
 
@@ -454,6 +478,12 @@ Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_
 
 ***
 
+### DEFAULT\_CHUNK\_CACHE\_SIZE
+
+Re-exports [DEFAULT\_CHUNK\_CACHE\_SIZE](../react/Internal/variables/DEFAULT_CHUNK_CACHE_SIZE.md)
+
+***
+
 ### DEFAULT\_CHUNK\_OVERLAP
 
 Re-exports [DEFAULT\_CHUNK\_OVERLAP](../react/Internal/variables/DEFAULT_CHUNK_OVERLAP.md)
@@ -532,6 +562,12 @@ Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFol
 
 ***
 
+### extractAndLinkEntitiesForMemoriesOp
+
+Re-exports [extractAndLinkEntitiesForMemoriesOp](../react/Internal/functions/extractAndLinkEntitiesForMemoriesOp.md)
+
+***
+
 ### extractAndRetain
 
 Re-exports [extractAndRetain](../react/Internal/functions/extractAndRetain.md)
@@ -550,6 +586,12 @@ Re-exports [ExtractedEntity](../react/Internal/interfaces/ExtractedEntity.md)
 
 ***
 
+### extractEntitiesForMemories
+
+Re-exports [extractEntitiesForMemories](../react/Internal/functions/extractEntitiesForMemories.md)
+
+***
+
 ### extractFacts
 
 Re-exports [extractFacts](../react/Internal/functions/extractFacts.md)
@@ -559,6 +601,12 @@ Re-exports [extractFacts](../react/Internal/functions/extractFacts.md)
 ### ExtractFactsOptions
 
 Re-exports [ExtractFactsOptions](../react/Internal/interfaces/ExtractFactsOptions.md)
+
+***
+
+### ExtractionCursorStore
+
+Re-exports [ExtractionCursorStore](../react/Internal/interfaces/ExtractionCursorStore.md)
 
 ***
 
@@ -652,6 +700,12 @@ Re-exports [getLogger](../react/Internal/functions/getLogger.md)
 
 ***
 
+### getMemoriesNeedingTopicExtractionOp
+
+Re-exports [getMemoriesNeedingTopicExtractionOp](../react/Internal/functions/getMemoriesNeedingTopicExtractionOp.md)
+
+***
+
 ### GetMessagesPageOptions
 
 Re-exports [GetMessagesPageOptions](../react/Internal/interfaces/GetMessagesPageOptions.md)
@@ -694,6 +748,12 @@ Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEAD
 
 ***
 
+### isRerankerAvailable
+
+Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable.md)
+
+***
+
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
@@ -715,6 +775,12 @@ Re-exports [LoggerProvider](../react/Internal/functions/LoggerProvider.md)
 ### LoggerProviderProps
 
 Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProps.md)
+
+***
+
+### MemoriesNeedingTopicExtraction
+
+Re-exports [MemoriesNeedingTopicExtraction](../react/Internal/interfaces/MemoriesNeedingTopicExtraction.md)
 
 ***
 
@@ -874,6 +940,18 @@ Re-exports [RecallContext](../react/Internal/interfaces/RecallContext.md)
 
 ***
 
+### RecallDegradation
+
+Re-exports [RecallDegradation](../react/Internal/type-aliases/RecallDegradation.md)
+
+***
+
+### RecallDiagnostics
+
+Re-exports [RecallDiagnostics](../react/Internal/interfaces/RecallDiagnostics.md)
+
+***
+
 ### RecallOptions
 
 Re-exports [RecallOptions](../react/Internal/interfaces/RecallOptions.md)
@@ -925,6 +1003,12 @@ Re-exports [ReflectResult](../react/Internal/interfaces/ReflectResult.md)
 ### requestEncryptionKey
 
 Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionKey.md)
+
+***
+
+### RerankerUnavailableError
+
+Re-exports [RerankerUnavailableError](../react/Internal/classes/RerankerUnavailableError.md)
 
 ***
 
@@ -1054,6 +1138,12 @@ Re-exports [SignMessageFn](../react/Internal/type-aliases/SignMessageFn.md)
 
 ***
 
+### stampTopicsExtractedAtOp
+
+Re-exports [stampTopicsExtractedAtOp](../react/Internal/functions/stampTopicsExtractedAtOp.md)
+
+***
+
 ### StockPriceClassification
 
 Re-exports [StockPriceClassification](../react/Internal/interfaces/StockPriceClassification.md)
@@ -1159,6 +1249,30 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 ### TextChunk
 
 Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
+
+***
+
+### TOPIC\_EXTRACTION\_BATCH\_SIZE
+
+Re-exports [TOPIC\_EXTRACTION\_BATCH\_SIZE](../react/Internal/variables/TOPIC_EXTRACTION_BATCH_SIZE.md)
+
+***
+
+### TopicExtractionInput
+
+Re-exports [TopicExtractionInput](../react/Internal/interfaces/TopicExtractionInput.md)
+
+***
+
+### TopicExtractionRunResult
+
+Re-exports [TopicExtractionRunResult](../react/Internal/interfaces/TopicExtractionRunResult.md)
+
+***
+
+### TopicExtractOptions
+
+Re-exports [TopicExtractOptions](../react/Internal/interfaces/TopicExtractOptions.md)
 
 ***
 

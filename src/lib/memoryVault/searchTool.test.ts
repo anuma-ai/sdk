@@ -21,7 +21,8 @@ vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbeddings: vi.fn(),
 }));
 
-vi.mock("../memory/reranker", () => ({
+vi.mock("../memory/reranker", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../memory/reranker")>()),
   rerankPairs: vi.fn(),
 }));
 

@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminUsersDeleteData** = `object`
 
-Defined in: [src/client/types.gen.ts:5919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5919)
+Defined in: [src/client/types.gen.ts:5978](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5978)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5919](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:5920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5920)
+Defined in: [src/client/types.gen.ts:5979](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5979)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:5920](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5921](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5921)
+Defined in: [src/client/types.gen.ts:5980](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5980)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:5927](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5927)
+Defined in: [src/client/types.gen.ts:5986](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5986)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:5927](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:5928](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5928)
+Defined in: [src/client/types.gen.ts:5987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5987)
 
 **email?**
 
@@ -72,4 +72,4 @@ User wallet address (0x...)
 
 > **url**: `"/api/v1/admin/users/delete"`
 
-Defined in: [src/client/types.gen.ts:5946](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5946)
+Defined in: [src/client/types.gen.ts:6005](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6005)

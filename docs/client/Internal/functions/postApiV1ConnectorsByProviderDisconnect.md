@@ -2,7 +2,7 @@
 
 > **postApiV1ConnectorsByProviderDisconnect**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ConnectorsByProviderDisconnectData`](../type-aliases/PostApiV1ConnectorsByProviderDisconnectData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ConnectorsByProviderDisconnectResponses`](../type-aliases/PostApiV1ConnectorsByProviderDisconnectResponses.md), [`PostApiV1ConnectorsByProviderDisconnectErrors`](../type-aliases/PostApiV1ConnectorsByProviderDisconnectErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:912](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#912)
+Defined in: [src/client/sdk.gen.ts:922](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#922)
 
 Disconnect a connector
 

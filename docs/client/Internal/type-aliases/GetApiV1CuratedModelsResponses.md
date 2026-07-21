@@ -2,7 +2,7 @@
 
 > **GetApiV1CuratedModelsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:7384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7384)
+Defined in: [src/client/types.gen.ts:7443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7443)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:7384](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`ConfigCuratedModelsResponse`](ConfigCuratedModelsResponse.md)
 
-Defined in: [src/client/types.gen.ts:7388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7388)
+Defined in: [src/client/types.gen.ts:7447](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7447)
 
 OK

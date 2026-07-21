@@ -2,13 +2,21 @@ name: Extraction Eval
 
 # Runs the extraction-quality benchmark (recall / precision / junk +
 # entity-kind accuracy) against the portal LLM. Two ways in:
-#   - workflow_dispatch: on-demand, pick repeats/model/threshold.
-#   - push (this feature branch only): auto-run the before/after A/B so the
-#     PR gets kind-accuracy numbers without a local PORTAL_API_KEY. The branch
-#     filter means it stops firing once merged to main.
+#   - workflow_dispatch: on-demand, pick mode/repeats/model/threshold.
+#   - pull_request touching the extraction path: auto-run the regression gate
+#     against the committed baseline so a prompt/taxonomy/corpus change can't
+#     merge with a silent quality drop. Paths-scoped so ordinary PRs skip it.
+#     (Same-repo branches get PORTAL_API_KEY; fork PRs don't and will fail —
+#     acceptable for a private SDK where contributors push branches, not forks.)
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "ab = before/after A/B; save-baseline = write golden baseline artifact; gate = fail on regression vs committed baseline"
+        required: false
+        type: choice
+        default: "ab"
+        options: ["ab", "save-baseline", "gate"]
       repeat:
         description: "Runs per config (extraction is non-deterministic; ≥3 recommended)"
         required: false
@@ -24,14 +32,27 @@ on:
         required: false
         type: string
         default: ""
+      verbose:
+        description: "Print per-case detail (extracted vs gold, forbidden hits) to the log"
+        required: false
+        type: choice
+        default: "false"
+        options: ["true", "false"]
       baseline:
-        description: "Also run the main-branch prompt/taxonomy as an A/B baseline"
+        description: "ab mode only: also run the main-branch prompt/taxonomy as an A/B baseline"
         required: false
         type: choice
         default: "true"
         options: ["true", "false"]
-  push:
-    branches: [feat/entity-kind-classification]
+  # Default activity types (opened / synchronize / reopened) — enough for the
+  # normal flow (PR opened against main, then every push). Caveat: GitHub has no
+  # `retargeted` pull_request activity, and changing the base only fires
+  # `edited` — which we deliberately DON'T subscribe to, since it also fires on
+  # every title/description edit and would re-run this ~5-min LLM gate needlessly.
+  # So a STACKED PR retargeted to `main` must get one more push (or reopen) to
+  # run the gate; that's the standard stacked-PR flow and normally happens anyway.
+  pull_request:
+    branches: [main]
     paths:
       - ".github/workflows/extraction-eval.yml"
       - "src/lib/memory/autoExtract.ts"
@@ -46,10 +67,14 @@ jobs:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       # Free-form inputs via env (not ${{ }} inline) so the shell tokenizes
       # after substitution — blocks command injection from the dispatch UI.
-      INPUT_REPEAT: ${{ inputs.repeat || '3' }}
+      # pull_request (no inputs) runs the regression gate at repeat 5 (matches
+      # how baseline.json was generated); dispatch defaults to the A/B mode.
+      INPUT_MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'gate') || 'ab' }}
+      INPUT_REPEAT: ${{ inputs.repeat || (github.event_name == 'pull_request' && '5') || '3' }}
       INPUT_MODEL: ${{ inputs.model }}
       INPUT_MATCH_THRESHOLD: ${{ inputs.match_threshold }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
+      INPUT_VERBOSE: ${{ inputs.verbose || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,31 +96,88 @@ jobs:
           args=(--json --repeat "$INPUT_REPEAT")
           [ -n "$INPUT_MODEL" ] && args+=(--model "$INPUT_MODEL")
           [ -n "$INPUT_MATCH_THRESHOLD" ] && args+=(--match-threshold "$INPUT_MATCH_THRESHOLD")
+          [ "$INPUT_VERBOSE" = "true" ] && args+=(--verbose)
           # Persist as a newline-safe single string for later steps.
           printf 'EVAL_ARGS=%s\n' "${args[*]}" >> "$GITHUB_ENV"
 
       - name: Run eval (this branch = AFTER)
+        if: env.INPUT_MODE == 'ab'
         run: |
+          # pipefail so a failed eval isn't masked by tee's exit code.
+          set -o pipefail
           echo "::group::after (branch prompt + 8-kind taxonomy)"
           pnpm eval:extraction $EVAL_ARGS | tee after.json
           echo "::endgroup::"
 
       - name: Run eval (main = BEFORE baseline)
-        if: env.INPUT_BASELINE == 'true'
+        if: env.INPUT_MODE == 'ab' && env.INPUT_BASELINE == 'true'
         run: |
           # Swap ONLY the prompt + taxonomy back to main; keep the branch's
           # eval corpus + scorer (they live in test/, identical on both sides)
           # so the comparison is apples-to-apples. tsx runs without a typecheck,
           # so main's 5-kind EntityKind vs the corpus's org/product/event labels
           # is fine at runtime (kind is a string).
+          set -o pipefail
           git checkout origin/main -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
           echo "::group::before (main prompt + 5-kind taxonomy)"
           pnpm eval:extraction $EVAL_ARGS | tee before.json
           echo "::endgroup::"
           git checkout HEAD -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
 
+      - name: Run eval (save golden baseline)
+        if: env.INPUT_MODE == 'save-baseline'
+        run: |
+          # Writes test/memory/src/extraction/baseline.json. CI can't commit it
+          # back, so it's uploaded as an artifact for a human to download+commit.
+          set -o pipefail
+          echo "::group::save-baseline"
+          pnpm eval:extraction $EVAL_ARGS --save-baseline | tee after.json
+          echo "::endgroup::"
+          echo "### Generated baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat test/memory/src/extraction/baseline.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated baseline
+        if: env.INPUT_MODE == 'save-baseline'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extraction-baseline
+          path: test/memory/src/extraction/baseline.json
+          if-no-files-found: error
+
+      - name: Run eval (regression gate)
+        if: env.INPUT_MODE == 'gate'
+        run: |
+          # Exits non-zero if any metric drops below its committed baseline mean
+          # by more than the baseline's own tolerance. Requires baseline.json to
+          # already be committed (generate it once via mode=save-baseline).
+          # pipefail so the gate's non-zero exit isn't swallowed by tee.
+          set -o pipefail
+          pnpm eval:extraction $EVAL_ARGS --baseline test/memory/src/extraction/baseline.json | tee after.json
+
+      - name: Summarize gate result
+        if: always() && env.INPUT_MODE == 'gate'
+        run: |
+          {
+            echo "## Extraction eval — regression gate (vs committed baseline)"
+            if [ -f after.json ]; then
+              echo '```'
+              jq -r '
+                .overall as $o |
+                "  entity coverage : \(($o.entityCoverage*1000|round/10))%  (\($o.coveredEntities)/\($o.expectedEntities))",
+                "  kind accuracy   : \(($o.kindAccuracy*1000|round/10))%  (\($o.kindCorrect)/\($o.coveredEntities))",
+                "  recall/precision: \(($o.recall*1000|round/10))% / \(($o.precision*1000|round/10))%",
+                (.variance // {} | to_entries[]? | "  ~\(.key): mean \((.value.mean*1000|round/10)) [\((.value.min*1000|round/10))–\((.value.max*1000|round/10))]")
+              ' after.json 2>/dev/null || echo "  (could not parse after.json)"
+              echo '```'
+            else
+              echo "_Gate did not produce a result (eval step failed before writing after.json)._"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Summarize kind accuracy (before vs after)
-        if: always()
+        if: always() && env.INPUT_MODE == 'ab'
         run: |
           summarize() {
             local f="$1" label="$2"
