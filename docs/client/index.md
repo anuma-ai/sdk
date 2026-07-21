@@ -370,6 +370,11 @@
 | [GetHealthErrors](Internal/type-aliases/GetHealthErrors.md) | - |
 | [GetHealthResponse](Internal/type-aliases/GetHealthResponse.md) | - |
 | [GetHealthResponses](Internal/type-aliases/GetHealthResponses.md) | - |
+| [GetInternalAccountsByDidByDidData](Internal/type-aliases/GetInternalAccountsByDidByDidData.md) | - |
+| [GetInternalAccountsByDidByDidError](Internal/type-aliases/GetInternalAccountsByDidByDidError.md) | - |
+| [GetInternalAccountsByDidByDidErrors](Internal/type-aliases/GetInternalAccountsByDidByDidErrors.md) | - |
+| [GetInternalAccountsByDidByDidResponse](Internal/type-aliases/GetInternalAccountsByDidByDidResponse.md) | - |
+| [GetInternalAccountsByDidByDidResponses](Internal/type-aliases/GetInternalAccountsByDidByDidResponses.md) | - |
 | [GetOauthAuthorizeData](Internal/type-aliases/GetOauthAuthorizeData.md) | - |
 | [GetOauthAuthorizeError](Internal/type-aliases/GetOauthAuthorizeError.md) | - |
 | [GetOauthAuthorizeErrors](Internal/type-aliases/GetOauthAuthorizeErrors.md) | - |
@@ -381,6 +386,7 @@
 | [GetWellKnownJwksJsonData](Internal/type-aliases/GetWellKnownJwksJsonData.md) | - |
 | [GetWellKnownJwksJsonResponse](Internal/type-aliases/GetWellKnownJwksJsonResponse.md) | - |
 | [GetWellKnownJwksJsonResponses](Internal/type-aliases/GetWellKnownJwksJsonResponses.md) | - |
+| [HandlersAccountByDidResponse](Internal/type-aliases/HandlersAccountByDidResponse.md) | - |
 | [HandlersAddCreditsRequest](Internal/type-aliases/HandlersAddCreditsRequest.md) | - |
 | [HandlersAddCreditsResponse](Internal/type-aliases/HandlersAddCreditsResponse.md) | - |
 | [HandlersAgentListItem](Internal/type-aliases/HandlersAgentListItem.md) | - |
@@ -1197,6 +1203,7 @@
 | [getConnectorsByProviderCallback](Internal/functions/getConnectorsByProviderCallback.md) | Upstream OAuth callback |
 | [getConnectorsByProviderConnect](Internal/functions/getConnectorsByProviderConnect.md) | Begin upstream OAuth connect flow |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
+| [getInternalAccountsByDidByDid](Internal/functions/getInternalAccountsByDidByDid.md) | Resolve a Privy DID to an account ID |
 | [getOauthAuthorize](Internal/functions/getOauthAuthorize.md) | OAuth 2.0 authorization endpoint |
 | [getOauthConsent](Internal/functions/getOauthConsent.md) | OAuth consent screen |
 | [getWellKnownJwksJson](Internal/functions/getWellKnownJwksJson.md) | OAuth 2.0 JSON Web Key Set |

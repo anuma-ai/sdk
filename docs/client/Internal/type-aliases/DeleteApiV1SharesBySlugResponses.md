@@ -2,7 +2,7 @@
 
 > **DeleteApiV1SharesBySlugResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9125](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9125)
+Defined in: [src/client/types.gen.ts:9130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9130)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9125](https://github.com/anuma-ai/sdk/blob/
 
 > **204**: `void`
 
-Defined in: [src/client/types.gen.ts:9129](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9129)
+Defined in: [src/client/types.gen.ts:9134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9134)
 
 No Content
