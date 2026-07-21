@@ -9,7 +9,9 @@ export {
   getAllVaultMemoryContentsOp,
   getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
+  getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
+  getVaultRankingProjectionsOp,
   type MemoriesNeedingTopicExtraction,
   setMemoryEntitiesOp,
   stampTopicsExtractedAtOp,
@@ -21,6 +23,7 @@ export {
 } from "./operations";
 export {
   type CreateVaultMemoryOptions,
+  type RankableVaultMemory,
   type StoredVaultMemory,
   type UpdateVaultMemoryOptions,
 } from "./types";

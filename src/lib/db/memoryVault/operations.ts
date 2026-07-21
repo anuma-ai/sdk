@@ -13,6 +13,7 @@ import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryptio
 import type { VaultMemory } from "./models";
 import type {
   CreateVaultMemoryOptions,
+  RankableVaultMemory,
   StoredVaultMemory,
   UpdateVaultMemoryOptions,
 } from "./types";
@@ -496,6 +497,89 @@ export async function getAllVaultMemoriesOp(
   ];
   // unsafeFetchRaw (NOT fetch): a whole-vault load must not build a Model per row into the
   // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy/take); raws decrypted directly.
+  const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+  return mapInBatches(results, (raw) =>
+    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
+}
+
+/**
+ * Map a raw `memory_vault` row (snake_case `_raw`) to the content-free
+ * {@link RankableVaultMemory} projection. No decrypt, no `content` — see the
+ * type doc for why ciphertext must never ride along as plaintext content.
+ */
+function vaultMemoryRawToRankable(raw: Record<string, unknown>): RankableVaultMemory {
+  return {
+    uniqueId: raw.id as string,
+    // @text coerces NULL→"" on the Model path; unsafeFetchRaw returns raw NULL, so guard.
+    scope: (raw.scope as string) ?? "",
+    folderId: (raw.folder_id as string | null) ?? null,
+    embedding: (raw.embedding as string | null) ?? null,
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
+    createdAt: new Date(raw.created_at as number),
+    updatedAt: new Date(raw.updated_at as number),
+  };
+}
+
+/**
+ * Return content-free {@link RankableVaultMemory} projections for recall
+ * ranking — the "rank first, decrypt last" half of on-demand recall (#5017).
+ *
+ * Mirrors {@link getAllVaultMemoriesOp}'s query EXACTLY (same
+ * `baseVaultConditions` — `is_deleted=false` + `user_id` scoping — plus the
+ * same scope/folder filters and ordering) so the candidate SET is identical to
+ * the whole-vault read; the ONLY difference is that `content` is never
+ * decrypted (and never returned). Callers rank on `embedding`, then decrypt the
+ * top-N winners on demand via {@link getVaultMemoryOp}.
+ *
+ * Because it reuses `baseVaultConditions`, deleted and cross-user rows are
+ * excluded here just as they are from every other read path — a no-decrypt op
+ * that skipped these would leak embeddings for rows the caller can't see.
+ */
+export async function getVaultRankingProjectionsOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
+): Promise<RankableVaultMemory[]> {
+  const conditions = [
+    ...baseVaultConditions(ctx, options),
+    ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+    ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+    Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
+    ...(options?.limit !== null && options?.limit !== undefined && options.limit > 0
+      ? [Q.take(options.limit)]
+      : []),
+  ];
+  // unsafeFetchRaw (NOT fetch): mirror getAllVaultMemoriesOp — a whole-vault scan must not pin a
+  // Model per row into the never-evicted RecordCache (web Pile-2). No decrypt: content stays sealed.
+  const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+  return results.map(vaultMemoryRawToRankable);
+}
+
+/**
+ * Bulk-decrypt a KNOWN set of memories by ID — the "decrypt last" half of
+ * on-demand recall (#5017) for lanes whose size is NOT bounded to the top-N
+ * (e.g. the keyword lane over un-embedded rows). Uses `unsafeFetchRaw` + a
+ * single `id oneOf` query so it does NOT pin a WatermelonDB Model per row into
+ * the never-evicted RecordCache — unlike calling {@link getVaultMemoryOp} N
+ * times, which `.find()`s each row and is only appropriate for the bounded
+ * top-N winners (web Pile-2 tab-memory).
+ *
+ * Reuses `baseVaultConditions`, so deleted / superseded / cross-user rows are
+ * excluded exactly as they are from recall — a caller can pass any id list and
+ * only its own live rows come back.
+ */
+export async function getVaultMemoriesByIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  ids: string[]
+): Promise<StoredVaultMemory[]> {
+  if (ids.length === 0) return [];
+  const conditions = [...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids))];
   const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
     string,
     unknown

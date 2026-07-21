@@ -4,7 +4,9 @@ import {
   createVaultMemoryOp,
   createVaultMemoriesBatchOp,
   getVaultMemoryOp,
+  getVaultMemoriesByIdsOp,
   getAllVaultMemoriesOp,
+  getVaultRankingProjectionsOp,
   getAllVaultMemoryContentsOp,
   updateVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
@@ -1464,5 +1466,112 @@ describe("stampTopicsExtractedAtOp", () => {
     });
     expect(await stampTopicsExtractedAtOp(ctx, [], 1)).toEqual([]);
     expect(await stampTopicsExtractedAtOp(ctx, ["mem_gone"], 1)).toEqual([]);
+  });
+});
+
+describe("getVaultRankingProjectionsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns content-free projections (no decrypted content field)", async () => {
+    const ctx = makeCtx();
+    const results = await getVaultRankingProjectionsOp(ctx);
+
+    expect(results).toHaveLength(2);
+    // The whole point of #5017: the ranking projection must never carry content.
+    expect(results[0]).not.toHaveProperty("content");
+    expect(results[0]).toHaveProperty("uniqueId");
+    expect(results[0]).toHaveProperty("embedding");
+    expect(results[0]).toHaveProperty("folderId");
+    // Never decrypt on this path.
+    const { decryptVaultMemoryFields } = await import("./encryption");
+    expect(decryptVaultMemoryFields).not.toHaveBeenCalled();
+  });
+
+  it("carries the plaintext embedding through untouched", async () => {
+    const embedded = mockRecord({ id: "mem_vec" });
+    embedded._raw.embedding = "[0.1,0.2,0.3]";
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: vi.fn(async () => [embedded]),
+      unsafeFetchRaw: vi.fn(async () => [embedded._raw]),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const results = await getVaultRankingProjectionsOp(ctx, { scopes: ["private"] });
+
+    expect(results[0].embedding).toBe("[0.1,0.2,0.3]");
+    expect(results[0].uniqueId).toBe("mem_vec");
+  });
+
+  it("reuses baseVaultConditions — excludes deleted + superseded like the recall read", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultRankingProjectionsOp(ctx, { scopes: ["private"] });
+
+    // is_deleted + superseded_by + scope + sortBy — identical shape to
+    // getAllVaultMemoriesOp so the candidate set matches, minus the decrypt.
+    expect(queryFn.mock.calls[0].length).toBe(4);
+  });
+
+  it("does NOT add a scope condition when scopes is empty", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultRankingProjectionsOp(ctx, { scopes: [] });
+
+    // is_deleted + superseded_by + sortBy — no scope clause.
+    expect(queryFn.mock.calls[0].length).toBe(3);
+  });
+});
+
+describe("getVaultMemoriesByIdsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns [] without querying for an empty id list", async () => {
+    const ctx = makeCtx();
+    const results = await getVaultMemoriesByIdsOp(ctx, []);
+
+    expect(results).toEqual([]);
+    expect(ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("bulk-decrypts the requested rows via unsafeFetchRaw (no per-row find)", async () => {
+    const rows = [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })];
+    const unsafeFetchRaw = vi.fn(async () => rows.map((r) => r._raw));
+    const findFn = vi.fn();
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: vi.fn(), unsafeFetchRaw }));
+    const ctx = makeCtx({
+      walletAddress: "0xabc",
+      signMessage: vi.fn(async () => "0xsig") as any,
+      vaultMemoryCollection: { query: queryFn, find: findFn } as any,
+    });
+
+    const results = await getVaultMemoriesByIdsOp(ctx, ["mem_1", "mem_2"]);
+
+    expect(results.map((r) => r.uniqueId)).toEqual(["mem_1", "mem_2"]);
+    expect(unsafeFetchRaw).toHaveBeenCalledTimes(1);
+    // Must NOT use the Model-pinning .find() path.
+    expect(findFn).not.toHaveBeenCalled();
+  });
+
+  it("reuses baseVaultConditions (is_deleted + superseded) plus the id oneOf", async () => {
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: vi.fn(),
+      unsafeFetchRaw: vi.fn(async () => []),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultMemoriesByIdsOp(ctx, ["mem_1"]);
+
+    // is_deleted + superseded_by + id oneOf (no user_id — makeCtx sets none).
+    expect(queryFn.mock.calls[0].length).toBe(3);
   });
 });

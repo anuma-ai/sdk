@@ -48,6 +48,30 @@ export interface StoredVaultMemory {
   isDeleted: boolean;
 }
 
+/**
+ * Content-free projection of a vault memory, used to RANK candidates for recall
+ * WITHOUT decrypting the (encrypted) `content` column. Everything here is a
+ * plaintext-at-rest column — `embedding` is stored plaintext (schema v21), and
+ * `folderId`/`updatedAt` drive source-filtering + tie-breaks. There is
+ * deliberately NO `content` field: a ranking pass must never carry ciphertext
+ * masquerading as the plaintext `StoredVaultMemory.content`. Decrypt the top-N
+ * winners on demand via {@link getVaultMemoryOp}.
+ */
+export interface RankableVaultMemory {
+  /** WatermelonDB internal ID — pass to `getVaultMemoryOp` to decrypt on demand. */
+  uniqueId: string;
+  /** Scope for partitioning memories (e.g., "private", "shared"). */
+  scope: string;
+  /** Folder ID for organization, null if unfiled. */
+  folderId: string | null;
+  /** JSON-stringified embedding vector, null if not yet computed. */
+  embedding: string | null;
+  /** Model that produced `embedding`. Null on legacy rows. */
+  embeddingModel: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface CreateVaultMemoryOptions {
   content: string;
   /** Scope for the memory. Defaults to "private" if omitted. */
