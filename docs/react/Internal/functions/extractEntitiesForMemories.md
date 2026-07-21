@@ -2,7 +2,7 @@
 
 > **extractEntitiesForMemories**(`memories`: readonly [`TopicExtractionInput`](../interfaces/TopicExtractionInput.md)\[], `options`: [`TopicExtractOptions`](../interfaces/TopicExtractOptions.md)): `Promise`<`Map`<`string`, [`ExtractedEntity`](../interfaces/ExtractedEntity.md)\[]>>
 
-Defined in: [src/lib/memory/topicExtract.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#103)
+Defined in: [src/lib/memory/topicExtract.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#106)
 
 Ask the extraction LLM for the named entities of each memory, in batches of
 [TOPIC\_EXTRACTION\_BATCH\_SIZE](../variables/TOPIC_EXTRACTION_BATCH_SIZE.md). Pure LLM step — no persistence.

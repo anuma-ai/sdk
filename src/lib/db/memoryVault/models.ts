@@ -29,6 +29,9 @@ export class VaultMemory extends Model {
   /** A2 supersession: newer memory id that replaced this one, or null if live. */
   @field("superseded_by") supersededBy!: string | null;
   @field("superseded_at") supersededAt!: number | null;
+  /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
+   *  reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+  @field("topics_extracted_version") topicsExtractedVersion!: number | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

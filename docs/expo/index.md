@@ -1282,6 +1282,12 @@ Re-exports [TopicExtractOptions](../react/Internal/interfaces/TopicExtractOption
 
 ***
 
+### TOPICS\_EXTRACTION\_VERSION
+
+Re-exports [TOPICS\_EXTRACTION\_VERSION](../react/Internal/variables/TOPICS_EXTRACTION_VERSION.md)
+
+***
+
 ### TurnCompleteEvent
 
 Re-exports [TurnCompleteEvent](../react/Internal/interfaces/TurnCompleteEvent.md)

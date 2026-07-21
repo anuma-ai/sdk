@@ -15,6 +15,7 @@ import {
   clearMemoryTopicsOverrideOp,
   getMemoriesNeedingTopicExtractionOp,
   stampTopicsExtractedAtOp,
+  TOPICS_EXTRACTION_VERSION,
   vaultMemoryToStored,
 } from "./operations";
 import { linkMemoryEntitiesOp } from "../entities/operations";
@@ -78,6 +79,9 @@ function mockRecord(overrides: Record<string, any> = {}) {
     },
     get topicsUserManaged() {
       return raw.topics_user_managed ?? null;
+    },
+    get topicsExtractedAt() {
+      return raw.topics_extracted_at ?? null;
     },
     get supersededBy() {
       return raw.superseded_by ?? null;
@@ -1173,6 +1177,38 @@ describe("clearMemoryTopicsOverrideOp", () => {
     expect(ok).toBe(true);
     expect(record.topicsUserManaged).toBe(false);
   });
+
+  it("nulls the version and preserves an existing stamp (routes to stale-version path)", async () => {
+    const setRawSpy = vi.fn();
+    const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    const record = mockRecord({ id: "mem_1", topics_extracted_at: 3_000, update: updateFn });
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await clearMemoryTopicsOverrideOp(ctx, "mem_1");
+
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", null);
+    // An existing stamp is left untouched (never overwritten, never nulled) — the
+    // stale version alone routes it to the pending/LLM path.
+    expect(setRawSpy.mock.calls.every((c) => c[0] !== "topics_extracted_at")).toBe(true);
+  });
+
+  it("forces a stamp when the row was never LLM-stamped (re-extract, not grandfather)", async () => {
+    const setRawSpy = vi.fn();
+    const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    // No topics_extracted_at → the getter returns null (user curated topics
+    // before any LLM pass). Clear must force a stamp so the sweep re-extracts it.
+    const record = mockRecord({
+      id: "mem_1",
+      updated_at: new Date("2025-06-01"),
+      update: updateFn,
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await clearMemoryTopicsOverrideOp(ctx, "mem_1");
+
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", null);
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", new Date("2025-06-01").getTime());
+  });
 });
 
 describe("getMemoriesNeedingTopicExtractionOp", () => {
@@ -1223,7 +1259,11 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
       rawRow("mem_backfill"), // no stamp, no links → pending
       rawRow("mem_legacy"), // no stamp, HAS links → linkedUnstamped
       rawRow("mem_edited", { topics_extracted_at: 1_500, updated_at: 2_000 }), // edited after stamp → pending
-      rawRow("mem_current", { topics_extracted_at: 3_000, updated_at: 2_000 }), // stamp is fresh → excluded
+      rawRow("mem_current", {
+        topics_extracted_at: 3_000,
+        updated_at: 2_000,
+        topics_extracted_version: TOPICS_EXTRACTION_VERSION, // fresh stamp AT current version → excluded
+      }),
     ];
     const { ctx } = sweepCtx(rows, [{ memory_id: "mem_legacy" }]);
 
@@ -1231,6 +1271,30 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
 
     expect(result.pending.map((m) => m.uniqueId).sort()).toEqual(["mem_backfill", "mem_edited"]);
     expect(result.linkedUnstamped).toEqual(["mem_legacy"]);
+  });
+
+  it("re-extracts stamped rows behind the current extraction version (incl. legacy null-version rows)", async () => {
+    // A TOPICS_EXTRACTION_VERSION bump (or a pre-v37 null-version row, read as 0)
+    // makes an already-stamped, unedited memory pending again so prompt/model
+    // improvements propagate across the vault.
+    const rows = [
+      rawRow("mem_nullver", { topics_extracted_at: 3_000, updated_at: 2_000 }), // null version → 0 < current → pending
+      rawRow("mem_stalever", {
+        topics_extracted_at: 3_000,
+        updated_at: 2_000,
+        topics_extracted_version: TOPICS_EXTRACTION_VERSION - 1, // behind → pending
+      }),
+      rawRow("mem_curver", {
+        topics_extracted_at: 3_000,
+        updated_at: 2_000,
+        topics_extracted_version: TOPICS_EXTRACTION_VERSION, // current → excluded
+      }),
+    ];
+    const { ctx } = sweepCtx(rows, []);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(result.pending.map((m) => m.uniqueId).sort()).toEqual(["mem_nullver", "mem_stalever"]);
   });
 
   it("applies limit to pending", async () => {
@@ -1295,7 +1359,31 @@ describe("stampTopicsExtractedAtOp", () => {
     const setRawSpy = vi.fn();
     prepared({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", 5_000);
+    // Defaults to the current extraction version so the row isn't re-extracted
+    // until a future version bump.
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", TOPICS_EXTRACTION_VERSION);
     expect(setRawSpy).toHaveBeenCalledWith("updated_at", new Date("2025-01-01").getTime());
+  });
+
+  it("writes an explicit version when provided", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => {}),
+      } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(async () => record),
+        query: vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => [record._raw]) })),
+      } as any,
+    });
+
+    await stampTopicsExtractedAtOp(ctx, ["mem_1"], 5_000, 42);
+
+    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    prepared({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", 42);
   });
 
   it("reads updated_at from the LIVE model in-writer, not a stale pre-fetch", async () => {

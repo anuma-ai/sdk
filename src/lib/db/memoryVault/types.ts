@@ -40,6 +40,9 @@ export interface StoredVaultMemory {
   supersededBy: string | null;
   /** Unix ms when this memory was superseded. Null when live. */
   supersededAt: number | null;
+  /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
+   * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+  topicsExtractedVersion: number | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;

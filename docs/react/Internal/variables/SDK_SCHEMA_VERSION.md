@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `37` = `37`
+> `const` **SDK\_SCHEMA\_VERSION**: `38` = `38`
 
-Defined in: [src/lib/db/schema.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#72)
+Defined in: [src/lib/db/schema.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#76)
 
 Current combined schema version for all SDK storage modules.
 
@@ -52,3 +52,7 @@ Version history:
   write-time supersession — a changed fact retires the stale one (points at
   the newer memory) instead of both surviving; superseded rows are excluded
   from recall/dedup by default
+* v38: Added topics\_extracted\_version column to memory\_vault — the extraction
+  logic version a memory was last stamped under. Bumping TOPICS\_EXTRACTION\_VERSION
+  (new prompt/model) makes the worker re-extract every row whose stored version
+  is behind, so topic-quality improvements propagate across the existing vault

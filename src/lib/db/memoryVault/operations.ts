@@ -94,6 +94,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     eventTimeKind: memory.eventTimeKind ?? null,
     topicsUserManaged: memory.topicsUserManaged ?? false,
     topicsExtractedAt: memory.topicsExtractedAt ?? null,
+    topicsExtractedVersion: memory.topicsExtractedVersion ?? null,
     supersededBy: memory.supersededBy ?? null,
     supersededAt: memory.supersededAt ?? null,
     createdAt: memory.createdAt,
@@ -439,6 +440,7 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     // SQLite stores booleans as 0/1, LokiJS as true/false — coerce both.
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
     topicsExtractedAt: (raw.topics_extracted_at as number | null) ?? null,
+    topicsExtractedVersion: (raw.topics_extracted_version as number | null) ?? null,
     supersededBy: (raw.superseded_by as string | null) ?? null,
     supersededAt: (raw.superseded_at as number | null) ?? null,
     createdAt: new Date(raw.created_at as number),
@@ -684,9 +686,14 @@ export async function setMemoryEntitiesOp(
 
 /**
  * Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
- * auto-extraction resumes owning its links. Invalidates `topics_extracted_at`
- * so the next sweep will re-extract topics. Existing links are left in place
- * (the next extraction pass may add to them). Preserves `updated_at`.
+ * auto-extraction resumes owning its links. Invalidates `topics_extracted_version`
+ * (→ null) and ensures a NON-NULL `topics_extracted_at`, so the next sweep routes
+ * the row through the stale-version pending path and actually RE-EXTRACTS it via
+ * the LLM. A never-stamped user-curated row (`setMemoryEntitiesOp` marks
+ * user-managed without stamping, so stamp can be null) would otherwise fall
+ * through the sweep's unstamped→`linkedUnstamped` grandfather path (stamped
+ * current, no LLM pass); forcing a stamp when absent avoids that. Existing links
+ * are left in place until the re-extraction replaces them. Preserves `updated_at`.
  */
 export async function clearMemoryTopicsOverrideOp(
   ctx: VaultMemoryOperationsContext,
@@ -703,7 +710,13 @@ export async function clearMemoryTopicsOverrideOp(
   await ctx.database.write(async () => {
     await record.update((r) => {
       r._setRaw("topics_user_managed", false);
-      r._setRaw("topics_extracted_at", null);
+      // Stale version + a non-null stamp routes the row through the pending path
+      // (LLM re-extraction). A row user-curated before any LLM pass has a null
+      // stamp — force one so it doesn't fall through to grandfathering.
+      r._setRaw("topics_extracted_version", null);
+      if (record.topicsExtractedAt === null) {
+        r._setRaw("topics_extracted_at", originalUpdatedAt);
+      }
       r._setRaw("updated_at", originalUpdatedAt);
     });
   });
@@ -828,6 +841,15 @@ export async function getUnfiledVaultMemoriesOp(
 }
 
 /**
+ * The current topic-extraction logic version. Bump this whenever the extraction
+ * prompt or model in `topicExtract.ts` changes: every memory stamped under an
+ * older version (including pre-v37 rows, read as version 0) is then re-extracted
+ * by the next sweep, so topic-quality improvements propagate across the existing
+ * vault. The worker's `limit` drains that re-extraction across sweeps.
+ */
+export const TOPICS_EXTRACTION_VERSION = 1;
+
+/**
  * Result of {@link getMemoriesNeedingTopicExtractionOp}: which memories the
  * background topic worker should run LLM entity extraction on, and which it
  * should merely stamp as already-extracted.
@@ -836,8 +858,10 @@ export interface MemoriesNeedingTopicExtraction {
   /**
    * Memories to run LLM topic extraction on (decrypted): never-extracted rows
    * with no entity links, plus stamped rows edited since their last pass
-   * (`updated_at` > `topics_extracted_at`). Edited rows come first (they get
-   * priority under `limit`), each group newest-created first.
+   * (`updated_at` > `topics_extracted_at`) or extracted under an older
+   * `topics_extracted_version` than {@link TOPICS_EXTRACTION_VERSION}. Edited /
+   * stale-version rows come first (they get priority under `limit`), each group
+   * newest-created first.
    */
   pending: StoredVaultMemory[];
   /**
@@ -880,14 +904,19 @@ export async function getMemoriesNeedingTopicExtractionOp(
     unknown
   >[];
 
-  // Stamped rows re-extract only when edited since the last pass. Unstamped
-  // rows split on whether they already have links (grandfather) or not (backfill).
+  // Stamped rows re-extract when edited since the last pass OR when they were
+  // extracted under an older logic version (pre-v37 rows read as version 0, so a
+  // TOPICS_EXTRACTION_VERSION bump re-processes them). Unstamped rows split on
+  // whether they already have links (grandfather) or not (backfill).
   const stampedPending: Record<string, unknown>[] = [];
   const unstamped: Record<string, unknown>[] = [];
   for (const raw of rows) {
     const stamp = (raw.topics_extracted_at as number | null) ?? null;
     if (stamp !== null) {
-      if ((raw.updated_at as number) > stamp) stampedPending.push(raw);
+      const version = (raw.topics_extracted_version as number | null) ?? 0;
+      if ((raw.updated_at as number) > stamp || version < TOPICS_EXTRACTION_VERSION) {
+        stampedPending.push(raw);
+      }
     } else {
       unstamped.push(raw);
     }
@@ -933,13 +962,16 @@ export async function getMemoriesNeedingTopicExtractionOp(
 }
 
 /**
- * Stamp `topics_extracted_at` on the given memories — the topic worker calls
- * this after a successful extraction pass (including zero-entity results, so
- * quiet memories aren't re-asked every sweep) and to grandfather
- * `linkedUnstamped` rows without an LLM call. Preserves `updated_at` so a
- * stamp never inflates the recency multiplier — and never masks a concurrent
- * content edit from the next sweep. Skips deleted, foreign-user, and
- * user-managed rows. Returns the IDs actually stamped.
+ * Stamp `topics_extracted_at` (and `topics_extracted_version`) on the given
+ * memories — the topic worker calls this after a successful extraction pass
+ * (including zero-entity results, so quiet memories aren't re-asked every sweep)
+ * and to grandfather `linkedUnstamped` rows without an LLM call. `version`
+ * defaults to {@link TOPICS_EXTRACTION_VERSION}: stamping at the current version
+ * (for both fresh extractions and grandfathered legacy rows) means they aren't
+ * re-extracted until a future version bump. Preserves `updated_at` so a stamp
+ * never inflates the recency multiplier — and never masks a concurrent content
+ * edit from the next sweep. Skips deleted, foreign-user, and user-managed rows.
+ * Returns the IDs actually stamped.
  *
  * ALL eligibility AND `updated_at` are read from the LIVE Model inside the
  * serialized writer — never a pre-writer snapshot. Writers are serialized, so
@@ -957,7 +989,8 @@ export async function getMemoriesNeedingTopicExtractionOp(
 export async function stampTopicsExtractedAtOp(
   ctx: VaultMemoryOperationsContext,
   memoryIds: readonly string[],
-  extractedAt: number
+  extractedAt: number,
+  version: number = TOPICS_EXTRACTION_VERSION
 ): Promise<string[]> {
   if (memoryIds.length === 0) return [];
 
@@ -991,6 +1024,7 @@ export async function stampTopicsExtractedAtOp(
         prepared.push(
           record.prepareUpdate((r) => {
             r._setRaw("topics_extracted_at", extractedAt);
+            r._setRaw("topics_extracted_version", version);
             r._setRaw("updated_at", originalUpdatedAt);
           })
         );
