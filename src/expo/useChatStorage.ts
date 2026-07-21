@@ -1578,6 +1578,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // without rebuilding the callback. Mirrors the react entry.
   const activeToolSetsRef = useRef<string[] | undefined>(activeToolSets);
   activeToolSetsRef.current = activeToolSets;
+  // Read `getToken` via a ref so the client-tool filter always uses the CURRENT
+  // auth getter. The sendMessage callback captures options by closure (minimal
+  // deps for reference stability), so a raw `getToken` would go stale across an
+  // auth/account change — skipping filtering after a login that started logged
+  // out, or calling an expired getter. (#greptile: stale token getter)
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
 
   /**
    * Send a message with automatic storage
@@ -1967,11 +1974,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (typeof clientToolsFilter === "function") {
             const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
             narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
-          } else if (getToken) {
+          } else if (getTokenRef.current) {
             if (!userMessageEmbedding && contentForStorage.length >= minContentLength) {
               try {
                 userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
-                  getToken,
+                  getToken: getTokenRef.current,
                   baseUrl,
                   model: embeddingModel,
                 });
@@ -1983,7 +1990,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               clientTools,
               userMessageEmbedding ?? null,
               clientToolFilterCache,
-              { getToken, baseUrl, model: embeddingModel },
+              { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
               extraToolSets ?? [],
               activeToolSetsRef.current ?? [],
               userMessageEmbeddingFailed ? "error" : "short-prompt"

@@ -443,10 +443,27 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     cache = localStorageToolsCache,
   } = options;
 
-  // Check cache first (unless forcing refresh). Drop any entry whose version
-  // does not match the current cache format — the default localStorage backend
-  // already does this, but a custom backend might return a stale shape.
-  const rawCached = await cache.get();
+  // Cache persistence is best-effort: a custom backend that rejects on write must
+  // not discard tools the server already returned, nor surface as a fetch failure.
+  const persistCache = async (entry: ReturnType<typeof buildCacheEntry>): Promise<void> => {
+    try {
+      await cache.set(entry);
+    } catch (error) {
+      getLogger().warn("[serverTools] Cache write failed (non-fatal):", error);
+    }
+  };
+
+  // Check cache first (unless forcing refresh). Drop any entry whose version does
+  // not match the current cache format — the default localStorage backend already
+  // does this, but a custom backend might return a stale shape. A backend that
+  // rejects on read (unavailable/corrupt storage) must NOT block discovery: treat
+  // a read failure as "no cache" and fall through to the server fetch.
+  let rawCached: Awaited<ReturnType<typeof cache.get>> = null;
+  try {
+    rawCached = await cache.get();
+  } catch (error) {
+    getLogger().warn("[serverTools] Cache read failed; falling through to server fetch:", error);
+  }
   const cached = rawCached && rawCached.version === CACHE_VERSION ? rawCached : null;
   const cacheValid = !isCacheExpired(cached, cacheExpirationMs);
 
@@ -474,7 +491,7 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
       }
       const data = (await response.json()) as ServerToolsResponse;
       const { tools, checksum } = convertServerToolsResponse(data);
-      await cache.set(buildCacheEntry(tools, checksum));
+      await persistCache(buildCacheEntry(tools, checksum));
       return tools;
     }
 
