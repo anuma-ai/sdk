@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminUsersSuspendError** = [`PostApiV1AdminUsersSuspendErrors`](PostApiV1AdminUsersSuspendErrors.md)\[keyof [`PostApiV1AdminUsersSuspendErrors`](PostApiV1AdminUsersSuspendErrors.md)]
 
-Defined in: [src/client/types.gen.ts:6137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6137)
+Defined in: [src/client/types.gen.ts:6142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6142)

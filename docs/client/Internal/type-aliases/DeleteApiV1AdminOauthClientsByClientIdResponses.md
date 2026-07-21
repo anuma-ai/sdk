@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminOauthClientsByClientIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5446)
+Defined in: [src/client/types.gen.ts:5451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5451)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5446](https://github.com/anuma-ai/sdk/blob/
 
 > **204**: `void`
 
-Defined in: [src/client/types.gen.ts:5450](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5450)
+Defined in: [src/client/types.gen.ts:5455](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5455)
 
 No Content

@@ -2,7 +2,7 @@
 
 > **HandlersConnectTicketRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1553)
+Defined in: [src/client/types.gen.ts:1558](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1558)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1553](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **oauth\_app**: `string`
 
-Defined in: [src/client/types.gen.ts:1554](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1554)
+Defined in: [src/client/types.gen.ts:1559](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1559)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1554](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:1562](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1562)
+Defined in: [src/client/types.gen.ts:1567](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1567)
 
 Provider is the optional logical connector (gmail, gdrive, gcalendar,
 github, notion, dropbox). One oauth\_app (e.g. google) can back several
@@ -32,7 +32,7 @@ check (backward compatible).
 
 > `optional` **requested\_scopes**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1563](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1563)
+Defined in: [src/client/types.gen.ts:1568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1568)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:1563](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **return\_to**: `string`
 
-Defined in: [src/client/types.gen.ts:1564](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1564)
+Defined in: [src/client/types.gen.ts:1569](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1569)
