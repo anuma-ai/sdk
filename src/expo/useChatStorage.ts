@@ -1683,6 +1683,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Check if serverTools is a function (dynamic filtering)
         const isServerToolsFunction = typeof serverToolsFilter === "function";
 
+        // Resolve the tool-selection text once, up front: server- and client-tool
+        // filtering below both key off it, and the embedding it produces is shared
+        // across the two (parity with the persisted branch, which reuses a single
+        // `userMessageEmbedding`).
+        const extracted = extractUserMessageFromMessages(messages);
+        const messageContent = resolveStoredUserContent(
+          storedUserContent,
+          extracted?.content ?? ""
+        );
+        let skipUserEmbedding: number[] | undefined;
+        let skipEmbeddingFailed = false;
+
         if (
           getToken &&
           effectiveApiType === "responses" &&
@@ -1699,19 +1711,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               // Function-based filtering: generate embedding and call the function.
               // Mirror the normal path so tool selection keys off the same text
               // regardless of skipStorage.
-              const extracted = extractUserMessageFromMessages(messages);
-              const messageContent = resolveStoredUserContent(
-                storedUserContent,
-                extracted?.content ?? ""
-              );
-
               if (messageContent.length >= minContentLength) {
-                const embedding = await generateEmbedding(maskForCall(messageContent), {
+                skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
                   getToken,
                   baseUrl,
                   model: embeddingModel,
                 });
-                const toolNames = serverToolsFilter(embedding, allServerTools);
+                const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               } else {
                 // Message too short - use all tools
@@ -1726,8 +1732,50 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
 
-        if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
-          mergedTools = mergeTools(filteredServerTools, clientTools, effectiveApiType);
+        // Semantic client-tool narrowing — parity with the persisted branch and
+        // react's skipStorage path, both of which filter client tools here.
+        // Without it an ephemeral/incognito send ships the full unfiltered toolkit.
+        // The tool-selection floor is MIN_CONTENT_LENGTH_FOR_TOOLS (5), not the
+        // storage floor. Fully defensive: any failure leaves the full toolkit.
+        let narrowedClientTools = clientTools;
+        if (clientTools?.length) {
+          try {
+            if (typeof clientToolsFilter === "function") {
+              const keep = new Set(clientToolsFilter(skipUserEmbedding ?? null, clientTools));
+              narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+            } else if (getTokenRef.current) {
+              if (!skipUserEmbedding && messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+                try {
+                  skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
+                    getToken: getTokenRef.current,
+                    baseUrl,
+                    model: embeddingModel,
+                  });
+                } catch {
+                  skipEmbeddingFailed = true;
+                }
+              }
+              const { tools: autoTools } = await autoFilterClientTools(
+                clientTools,
+                skipUserEmbedding ?? null,
+                clientToolFilterCache,
+                { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
+                extraToolSets ?? [],
+                activeToolSetsRef.current ?? [],
+                skipEmbeddingFailed ? "error" : "short-prompt"
+              );
+              narrowedClientTools = autoTools;
+            }
+          } catch (error) {
+            getLogger().warn("[useChatStorage] client tool filtering failed (skipStorage):", error);
+          }
+        }
+
+        if (
+          filteredServerTools.length > 0 ||
+          (narrowedClientTools && narrowedClientTools.length > 0)
+        ) {
+          mergedTools = mergeTools(filteredServerTools, narrowedClientTools, effectiveApiType);
         }
 
         const result = await baseSendMessage({
