@@ -2,7 +2,7 @@
 
 > `const` **defaultServerToolsFilter**: (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]) => `string`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:1569](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1569)
+Defined in: [src/lib/tools/serverTools.ts:1607](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#1607)
 
 Pre-configured server-tools filter ready to drop into `useChatStorage`'s
 `serverTools` option. Semantic matching against the user prompt with the
