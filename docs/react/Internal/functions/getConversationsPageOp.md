@@ -2,7 +2,7 @@
 
 > **getConversationsPageOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options?`: [`GetConversationsPageOptions`](../interfaces/GetConversationsPageOptions.md)): `Promise`<[`LazyStoredConversation`](../interfaces/LazyStoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:469](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#469)
+Defined in: [src/lib/db/chat/operations.ts:471](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#471)
 
 Keyset-paginated, lazy (no-decrypt) variant of [getConversationsLazyOp](getConversationsLazyOp.md).
 

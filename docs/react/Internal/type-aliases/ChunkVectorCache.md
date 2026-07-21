@@ -2,7 +2,7 @@
 
 > **ChunkVectorCache** = `Map`<`string`, [`CachedChunkVectors`](../interfaces/CachedChunkVectors.md)>
 
-Defined in: [src/lib/db/chat/operations.ts:1190](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1190)
+Defined in: [src/lib/db/chat/operations.ts:1412](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1412)
 
 Cache consumed by [searchChunksOp](../functions/searchChunksOp.md), keyed by message id. A plain `Map`
 (satisfied by the LRU from `createChunkVectorCache`) — mirrors
