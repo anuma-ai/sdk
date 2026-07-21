@@ -1712,8 +1712,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               // Mirror the normal path so tool selection keys off the same text
               // regardless of skipStorage.
               if (messageContent.length >= minContentLength) {
+                // Current token getter (see the persisted path): this embedding
+                // is reused by the client-tool filter below, so it must use the
+                // same post-auth/account-change getter, not the stale closure.
                 skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
-                  getToken,
+                  getToken: getTokenRef.current,
                   baseUrl,
                   model: embeddingModel,
                 });
@@ -1993,8 +1996,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (isServerToolsFunction) {
             // Function-based filtering: generate embedding and call the function
             if (contentForStorage.length >= minContentLength) {
+              // Use the CURRENT token getter (getTokenRef), not the closed-over
+              // `getToken`. This embedding is reused by the client-tool filter
+              // below, so it must honor the same post-auth/account-change getter
+              // the filter uses — otherwise the stale-token fix is bypassed on
+              // this (common) path.
               userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
-                getToken,
+                getToken: getTokenRef.current,
                 baseUrl,
                 model: embeddingModel,
               });
