@@ -202,6 +202,12 @@ Re-exports [classifyCryptoPriceBatch](../react/Internal/functions/classifyCrypto
 
 ***
 
+### classifyObservationTrend
+
+Re-exports [classifyObservationTrend](../react/Internal/functions/classifyObservationTrend.md)
+
+***
+
 ### classifyStockPrice
 
 Re-exports [classifyStockPrice](../react/Internal/functions/classifyStockPrice.md)
@@ -862,6 +868,18 @@ Re-exports [noopLogger](../react/Internal/variables/noopLogger.md)
 
 ***
 
+### ObservationTrend
+
+Re-exports [ObservationTrend](../react/Internal/type-aliases/ObservationTrend.md)
+
+***
+
+### ObservationTrendInput
+
+Re-exports [ObservationTrendInput](../react/Internal/interfaces/ObservationTrendInput.md)
+
+***
+
 ### onKeyAvailable
 
 Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
@@ -1300,6 +1318,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 
 ***
 
+### summarizeObservationTrends
+
+Re-exports [summarizeObservationTrends](../react/Internal/functions/summarizeObservationTrends.md)
+
+***
+
 ### supersedeVaultMemoryOp
 
 Re-exports [supersedeVaultMemoryOp](../react/Internal/functions/supersedeVaultMemoryOp.md)
@@ -1351,6 +1375,18 @@ Re-exports [TopicExtractOptions](../react/Internal/interfaces/TopicExtractOption
 ### TOPICS\_EXTRACTION\_VERSION
 
 Re-exports [TOPICS\_EXTRACTION\_VERSION](../react/Internal/variables/TOPICS_EXTRACTION_VERSION.md)
+
+***
+
+### TREND\_RECENT\_WINDOW\_DAYS
+
+Re-exports [TREND\_RECENT\_WINDOW\_DAYS](../react/Internal/variables/TREND_RECENT_WINDOW_DAYS.md)
+
+***
+
+### TREND\_STALE\_WINDOW\_DAYS
+
+Re-exports [TREND\_STALE\_WINDOW\_DAYS](../react/Internal/variables/TREND_STALE_WINDOW_DAYS.md)
 
 ***
 
