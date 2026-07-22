@@ -5,6 +5,12 @@
  */
 
 export {
+  autoFilterClientTools,
+  computeToolGuidance,
+  getToolDescription,
+  getToolName,
+} from "./clientToolSelection";
+export {
   activatedToolSetNames,
   applyToolSets,
   BUILT_IN_TOOL_SETS,
@@ -27,6 +33,7 @@ export {
   getCachedServerTools,
   getServerTools,
   getToolsChecksum,
+  localStorageToolsCache,
   MAX_CLIENT_TOOLS_AFTER_FILTER,
   mergeTools,
   MIN_CONTENT_LENGTH_FOR_TOOLS,
@@ -45,6 +52,7 @@ export {
   shouldRefreshTools,
   type ToolMatchOptions,
   type ToolMatchResult,
+  type ToolsCacheBackend,
   type ToolSet,
   toolSetSystemPrompts,
 } from "./serverTools";

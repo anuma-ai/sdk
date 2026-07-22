@@ -23,6 +23,7 @@
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
+import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
@@ -228,6 +229,14 @@ export async function synthesizeProfile(
   if (!ctx.vaultCtx) {
     throw new Error("synthesizeProfile requires ctx.vaultCtx (vault-backed facts).");
   }
+  // recall's semantic fact lane is gated on ctx.vaultCache too (recall.ts:
+  // `types.includes("fact") && ctx.vaultCtx && ctx.vaultCache`). Without it the
+  // only surviving fact source is the temporal lane, which returns nothing for
+  // the non-temporal facet queries — so every section would come back empty and
+  // publish a silently-empty profile. Fail loudly instead.
+  if (!ctx.vaultCache) {
+    throw new Error("synthesizeProfile requires ctx.vaultCache (semantic fact recall).");
+  }
   const facets = options.facets ?? DEFAULT_PROFILE_FACETS;
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const config: ProfileConfigFingerprint = {
@@ -312,6 +321,13 @@ export async function synthesizeProfile(
   const sections = settled.map((r, i) => {
     if (r.status === "fulfilled") return r.value;
     const facet = facets[i];
+    getLogger().warn(
+      "[memory/synthesizeProfile] facet synthesis rejected; using fallback section",
+      {
+        facet: facet.key,
+        error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+      }
+    );
     return fallbackSection(
       facet,
       previous?.sections.find((s) => s.key === facet.key)
@@ -454,16 +470,20 @@ async function computeStaleFacetKeys(
 }
 
 /**
- * Attribute each candidate fact to the facets it's relevant to, by comparing
- * the fact's stored embedding against each facet query's embedding — the same
- * vector comparison recall's fact lane uses. A fact is attributed to a facet
- * when their cosine clears {@link NEW_FACT_ATTRIBUTION_MIN_SCORE}. A fact below
- * the floor for every facet influences none (recall wouldn't surface it
- * anywhere either). Returns `null` — signalling "regenerate all facets" — when
- * attribution can't be computed safely: a fact lacking a usable embedding or
- * embedded under a different model (cosine would be meaningless), or a thrown
- * embedding request (transient failure must not abort the whole synthesis when
- * the documented unsafe-attribution fallback is a full regenerate).
+ * Attribute each candidate fact to the facets it's relevant to, comparing the
+ * fact's stored embedding against each facet query's embedding — the SEMANTIC
+ * (vector) signal. This is a lower bound on what recall would surface: recall's
+ * fact lane also fuses BM25, entity-graph, and temporal lanes, so a fact can be
+ * surfaced for a facet without clearing the cosine floor. Attribution therefore
+ * only *narrows* regeneration when it is SOUND to do so:
+ * - Candidate matches ≥1 facet by cosine → attribute to those facets.
+ * - Candidate matches NO facet by cosine → we cannot conclude it's irrelevant
+ *   (a non-vector lane may still surface it) → return `null` (regenerate all).
+ * Returns `null` (→ "regenerate all facets") whenever attribution can't be
+ * computed soundly: a candidate matching no facet semantically, a fact lacking
+ * a usable embedding or embedded under a different model (cosine meaningless),
+ * or a thrown embedding request (a transient failure must not abort synthesis
+ * when the documented fallback is a full regenerate). Each such bail is logged.
  */
 async function attributeFacts(
   ctx: RecallContext,
@@ -473,12 +493,21 @@ async function attributeFacts(
   const model = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const factVectors: number[][] = [];
   for (const f of candidates) {
-    if (!f.embedding) return null;
-    if (f.embeddingModel && f.embeddingModel !== model) return null;
+    if (!f.embedding || (f.embeddingModel && f.embeddingModel !== model)) {
+      getLogger().warn(
+        "[memory/synthesizeProfile] fact lacks a usable current-model embedding; regenerating all facets",
+        { memoryId: f.uniqueId, hasEmbedding: !!f.embedding, embeddingModel: f.embeddingModel }
+      );
+      return null;
+    }
     let vec: unknown;
     try {
       vec = JSON.parse(f.embedding);
     } catch {
+      getLogger().warn(
+        "[memory/synthesizeProfile] fact embedding failed to parse; regenerating all facets",
+        { memoryId: f.uniqueId }
+      );
       return null;
     }
     if (!Array.isArray(vec) || vec.length === 0) return null;
@@ -494,17 +523,27 @@ async function attributeFacts(
       facets.map((f) => f.query),
       ctx.embeddingOptions
     );
-  } catch {
+  } catch (err) {
+    getLogger().warn(
+      "[memory/synthesizeProfile] facet-query embedding failed; regenerating all facets",
+      { error: err instanceof Error ? err.message : String(err) }
+    );
     return null;
   }
 
   const keys = new Set<ProfileFacetKey>();
   for (const fv of factVectors) {
+    let matchedAny = false;
     for (let i = 0; i < facets.length; i++) {
       if (cosineSimilarity(fv, queryVectors[i]) >= NEW_FACT_ATTRIBUTION_MIN_SCORE) {
         keys.add(facets[i].key);
+        matchedAny = true;
       }
     }
+    // No semantic match — but recall's non-vector lanes (BM25/entity/temporal)
+    // could still surface this fact for some facet, so we cannot soundly drop
+    // it. Fall back to a full regenerate rather than risk a missed section.
+    if (!matchedAny) return null;
   }
   return keys;
 }
@@ -542,7 +581,11 @@ async function synthesizeFacet(
 
   if (!text && !legitimateEmpty && !noEvidence) {
     // Degraded empty (LLM produced nothing but not an explicit no-evidence
-    // verdict) — keep the prior section, marked stale.
+    // verdict, and recall did return evidence) — keep the prior section, stale.
+    getLogger().warn(
+      "[memory/synthesizeProfile] facet synthesis returned degraded-empty; keeping prior section",
+      { facet: facet.key, recalledCount: result.basedOn.memoryIds.length }
+    );
     return fallbackSection(facet, prior);
   }
 

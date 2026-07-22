@@ -1,6 +1,6 @@
 # RecallToolCallbacks
 
-Defined in: [src/lib/memory/recallTool.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#62)
+Defined in: [src/lib/memory/recallTool.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#60)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/recallTool.ts:62](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **onChunksRetrieved**: (`conversationIds`: `string`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#64)
+Defined in: [src/lib/memory/recallTool.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#62)
 
 Called with the conversation IDs returned via the chunk lane.
 
@@ -47,7 +47,7 @@ Called with the conversation IDs returned via the chunk lane.
 
 > `optional` **onFactsRanked**: (`facts`: `object`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#74)
+Defined in: [src/lib/memory/recallTool.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#72)
 
 Called with the ranked facts and their relevance scores, in rank
 order (highest first). A superset of [onFactsRetrieved](#onfactsretrieved) that
@@ -90,7 +90,7 @@ relevance (e.g. the Memory Graph's recall pulses) use this.
 
 > `optional` **onFactsRetrieved**: (`factIds`: `string`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#66)
+Defined in: [src/lib/memory/recallTool.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#64)
 
 Called with the fact IDs returned via the fact lane.
 

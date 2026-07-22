@@ -22,10 +22,11 @@ const mockReflect = vi.mocked(reflect);
 const mockGetAll = vi.mocked(getAllVaultMemoriesOp);
 const mockEmbed = vi.mocked(generateEmbeddings);
 
-// vaultCtx just needs to be a truthy object — the ops are mocked.
+// vaultCtx/vaultCache just need to be truthy — the ops + reflect are mocked.
 const ctx = {
   embeddingOptions: { apiKey: "k" },
   vaultCtx: {},
+  vaultCache: new Map(),
 } as unknown as RecallContext;
 
 const FACETS: ProfileFacet[] = [
@@ -122,6 +123,12 @@ describe("synthesizeProfile", () => {
     await expect(
       synthesizeProfile({ embeddingOptions: { apiKey: "k" } } as RecallContext)
     ).rejects.toThrow(/vaultCtx/);
+  });
+
+  it("throws without a vault cache (semantic fact lane would be dead)", async () => {
+    await expect(
+      synthesizeProfile({ embeddingOptions: { apiKey: "k" }, vaultCtx: {} } as RecallContext)
+    ).rejects.toThrow(/vaultCache/);
   });
 
   it("synthesizes one section per facet, carrying source ids + watermark + config", async () => {
@@ -266,7 +273,10 @@ describe("synthesizeProfile", () => {
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
-  it("attributes nothing when a new fact matches no facet query", async () => {
+  // A candidate matching NO facet semantically can't be ruled out — recall's
+  // non-vector lanes (BM25/entity/temporal) might still surface it — so we
+  // conservatively regenerate ALL facets rather than risk a missed section.
+  it("regenerates all facets when a new fact matches no facet query semantically", async () => {
     mockGetAll.mockResolvedValue([
       mem("a", { updatedAt: new Date(1000) }),
       mem("b", { updatedAt: new Date(1000) }), // cited by interests; present + unchanged
@@ -281,6 +291,9 @@ describe("synthesizeProfile", () => {
       [1, 0, 0],
       [0, 1, 0],
     ]);
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("re interests", ["b"]));
 
     const previous = priorDoc(
       [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
@@ -289,9 +302,8 @@ describe("synthesizeProfile", () => {
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
-    expect(mockReflect).not.toHaveBeenCalled(); // unrelated new fact → no regeneration
-    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("old bio");
-    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+    expect(mockReflect).toHaveBeenCalledTimes(2); // conservative full regen
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("re bio");
   });
 
   // Finding #1: a caller that newly adds a redactor must NOT get back the prior

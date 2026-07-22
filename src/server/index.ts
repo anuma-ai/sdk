@@ -74,6 +74,7 @@ export {
   getConversationsOp,
   getConversationsPageOp,
   getConversationSummaryOp,
+  getMessageOp,
   getMessagesOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,

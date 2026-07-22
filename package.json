@@ -75,6 +75,13 @@
       "require": "./dist/tools/index.cjs",
       "default": "./dist/tools/index.cjs"
     },
+    "./tools/selection": {
+      "types": "./dist/tools/selection/index.d.ts",
+      "react-server": "./dist/tools/selection/index.mjs",
+      "import": "./dist/tools/selection/index.mjs",
+      "require": "./dist/tools/selection/index.cjs",
+      "default": "./dist/tools/selection/index.cjs"
+    },
     "./server": {
       "types": "./dist/server/index.d.ts",
       "import": "./dist/server/index.mjs",

@@ -1,6 +1,6 @@
 # ProfileSection
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#140)
+Defined in: [src/lib/memory/synthesizeProfile.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#141)
 
 A synthesized profile section, grounded in specific vault facts.
 
@@ -10,7 +10,7 @@ A synthesized profile section, grounded in specific vault facts.
 
 > **generatedAt**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#149)
+Defined in: [src/lib/memory/synthesizeProfile.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#150)
 
 Unix ms this section was generated.
 
@@ -20,7 +20,7 @@ Unix ms this section was generated.
 
 > **key**: [`ProfileFacetKey`](../type-aliases/ProfileFacetKey.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#141)
+Defined in: [src/lib/memory/synthesizeProfile.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#142)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/memory/synthesizeProfile.ts:141](https://github.com/anuma-a
 
 > **label**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#142)
+Defined in: [src/lib/memory/synthesizeProfile.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#143)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/memory/synthesizeProfile.ts:142](https://github.com/anuma-a
 
 > **sourceMemoryIds**: `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#147)
+Defined in: [src/lib/memory/synthesizeProfile.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#148)
 
 Vault memory ids this section was grounded on — provenance + delta refresh.
 
@@ -46,7 +46,7 @@ Vault memory ids this section was grounded on — provenance + delta refresh.
 
 > `optional` **stale**: `boolean`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#152)
+Defined in: [src/lib/memory/synthesizeProfile.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#153)
 
 True when regeneration failed and a prior section value was carried
 forward (e.g. LLM returned empty) — the caller may choose to retry.
@@ -57,7 +57,7 @@ forward (e.g. LLM returned empty) — the caller may choose to retry.
 
 > **text**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#145)
+Defined in: [src/lib/memory/synthesizeProfile.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#146)
 
 Synthesized prose (PII-redacted when a redactor is supplied). Empty when
 the vault has no evidence for this facet.

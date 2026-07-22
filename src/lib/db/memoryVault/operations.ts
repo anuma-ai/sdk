@@ -1013,31 +1013,46 @@ export async function stampTopicsExtractedAtOp(
     const chunkIds = uniqueIds.slice(i, i + CHUNK);
 
     await ctx.database.write(async () => {
-      const prepared = [];
+      // Load every Model BEFORE preparing any update. `find` is an async native
+      // hop, and WatermelonDB requires prepareUpdate → batch within the same
+      // tick — an `await` between a prepareUpdate and the batch lets the dev
+      // "wasn't sent to batch() synchronously" diagnostic fire (an uncaught
+      // throw that RedBoxes Debug builds mid-sweep).
+      const records: VaultMemory[] = [];
       for (const id of chunkIds) {
-        let record: VaultMemory;
         try {
-          record = await ctx.vaultMemoryCollection.find(id);
+          records.push(await ctx.vaultMemoryCollection.find(id));
         } catch {
           // Missing row — skip.
-          continue;
         }
-        // Read eligibility + updated_at from the LIVE Model, in-writer — never a
-        // pre-fetch snapshot (see the doc comment). Truthiness (not `!== true`)
-        // on the flag so an unsanitized SQLite `1` can't fail open.
-        if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.topicsUserManaged) {
-          continue;
-        }
-        const originalUpdatedAt = record.updatedAt.getTime();
-        prepared.push(
-          record.prepareUpdate((r) => {
-            r._setRaw("topics_extracted_at", extractedAt);
-            r._setRaw("topics_extracted_version", version);
-            r._setRaw("updated_at", originalUpdatedAt);
-          })
-        );
-        stamped.push(id);
       }
+      // Synchronous pass: eligibility + updated_at read from the LIVE Model,
+      // in-writer — never a pre-writer snapshot (see the doc comment).
+      // Truthiness (not `!== true`) on the flag so an unsanitized SQLite `1`
+      // can't fail open.
+      //
+      // TRANSPILATION HAZARD — keep this a `.filter().map()`, NOT a `for…of`
+      // whose updater closure captures a per-iteration `const`: Metro/Babel's
+      // block-scoping transform hoists such a loop body into an `async
+      // _loop()` and AWAITS it per iteration in the shipped Hermes bundle,
+      // re-inserting an event-loop yield between prepareUpdate and batch even
+      // though this source is same-tick (observed in CI run 29861891347's
+      // bundle). `.map()` callbacks are real function scopes and survive the
+      // transform unchanged.
+      const eligible = records.filter(
+        (record) => !record.isDeleted && isOwnedByCtxUser(ctx, record) && !record.topicsUserManaged
+      );
+      const prepared = eligible.map((record) => {
+        // Capture BEFORE prepareUpdate: prepareUpdate touches `updated_at`
+        // to now() before the updater callback runs.
+        const originalUpdatedAt = record.updatedAt.getTime();
+        return record.prepareUpdate((r) => {
+          r._setRaw("topics_extracted_at", extractedAt);
+          r._setRaw("topics_extracted_version", version);
+          r._setRaw("updated_at", originalUpdatedAt);
+        });
+      });
+      for (const record of eligible) stamped.push(record.id);
       if (prepared.length > 0) await ctx.database.batch(...prepared);
     });
   }
