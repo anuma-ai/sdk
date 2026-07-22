@@ -1272,6 +1272,10 @@ export interface DecayCandidateRaw {
   updatedAt: number;
   archivedAt: number | null;
   source: string | null;
+  /** `trusted` | `quarantined` | null. Quarantined rows still decay by RULE, but
+   * are never handed to the optional content-reading decay classifier (they must
+   * not egress poison content — see the decay sweeper's `isBorderline`). */
+  trustTier: string | null;
 }
 
 /**
@@ -1341,6 +1345,7 @@ export async function getDecayCandidatesRawOp(
     updatedAt: raw.updated_at as number,
     archivedAt: (raw.archived_at as number | null) ?? null,
     source: (raw.source as string | null) ?? null,
+    trustTier: (raw.trust_tier as string | null) ?? null,
   }));
 }
 

@@ -84,6 +84,8 @@ interface SeedOptions {
   content: string;
   factType?: FactType;
   source?: string;
+  /** Pre-set trust_tier (e.g. "quarantined") to seed an injection-screened row. */
+  trustTier?: string;
   eventTime?: {
     start: number | null;
     end: number | null;
@@ -101,6 +103,7 @@ async function seed(opts: SeedOptions): Promise<string> {
     content: opts.content,
     source: opts.source ?? "auto-extracted",
     ...(opts.factType !== undefined && { factType: opts.factType }),
+    ...(opts.trustTier !== undefined && { trustTier: opts.trustTier }),
     ...(opts.eventTime !== undefined && { eventTime: opts.eventTime }),
   });
   const id = created.uniqueId;
@@ -450,6 +453,7 @@ describe("getDecayCandidatesRawOp — scan shape and inclusion", () => {
         "eventTimeKind",
         "factType",
         "source",
+        "trustTier",
         "uniqueId",
         "updatedAt",
       ].sort()
@@ -581,6 +585,40 @@ describe("createDecaySweeper — PR5 classifier seam", () => {
     expect(result.archived).toBe(0);
     expect(await archivedAtOf(manualOther)).toBeNull();
     expect(await archivedAtOf(manualUntyped)).toBeNull();
+  });
+
+  it("MED regression: a QUARANTINED borderline row is NEVER borderline — classifier not called, but rule-based decay still applies", async () => {
+    // A quarantined `other` row that is FRESH (rule would keep) — `other` is
+    // borderline, so WITHOUT the quarantine guard in isBorderline it would reach
+    // the classifier and egress its DECRYPTED poison content to the portal. It
+    // must NOT be consulted at all.
+    const quarantinedFresh = await seed({
+      content: "poison / prompt-injection fact",
+      factType: "other",
+      trustTier: "quarantined",
+      updatedAt: NOW,
+    });
+    // A quarantined `other` row aged past the medium TTL — rule-based decay MUST
+    // still archive it (quarantine skips only the LLM classifier, not the rules).
+    const quarantinedAged = await seed({
+      content: "old poison fact",
+      factType: "other",
+      trustTier: "quarantined",
+      updatedAt: NOW - (MEDIUM_TTL_MS + 20 * DAY),
+    });
+
+    const classify = vi.fn((): DecayVerdict => "archive"); // hostile: always archive
+    const sweeper = createDecaySweeper({ vaultCtx, now: NOW, classifier: { classify } });
+
+    const result = await sweeper.runSweep();
+
+    // The classifier was never invoked (no quarantined content egressed) …
+    expect(classify).not.toHaveBeenCalled();
+    // … yet rule-based decay still archived exactly the aged quarantined row,
+    // while the fresh one stays active (rule keep) — NOT via the classifier.
+    expect(result.archived).toBe(1);
+    expect(await archivedAtOf(quarantinedFresh)).toBeNull();
+    expect(await archivedAtOf(quarantinedAged)).toBe(NOW);
   });
 
   it("PR5: updateVaultMemoryOp { restore: true } clears archived_at (un-archive primitive)", async () => {

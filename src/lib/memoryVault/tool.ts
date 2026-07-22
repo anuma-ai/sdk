@@ -147,8 +147,8 @@ export function createMemoryVaultTool(
             description:
               "Optional classification of the memory: identity, preference, relationship, " +
               "plan, ongoing_context, constraint, or other. Omit if unsure — it defaults to " +
-              "untyped. Durable types (identity/preference/relationship/constraint) are kept " +
-              "indefinitely; plan/ongoing_context and untyped memories may be archived as they age.",
+              "untyped. The type is used only for organization and retrieval; memories saved " +
+              "with this tool are never auto-archived by decay regardless of type.",
           },
           ...(folderNames.length > 0 && {
             folderName: {

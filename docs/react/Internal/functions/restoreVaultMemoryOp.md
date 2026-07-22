@@ -2,7 +2,7 @@
 
 > **restoreVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1415](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1415)
+Defined in: [src/lib/db/memoryVault/operations.ts:1421](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1421)
 
 Restore an archived memory (PR2) — clear `archived_at` so it re-enters recall.
 Re-checks `is_deleted` / ownership inside the writer. Idempotent on an

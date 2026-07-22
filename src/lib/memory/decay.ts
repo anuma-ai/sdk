@@ -114,6 +114,15 @@ export interface DecayInput {
   archivedAt: number | null;
   /** `manual` | `auto-extracted` | `capsule` | null. Manual is never decayed. */
   source: string | null;
+  /**
+   * `trusted` | `quarantined` | null. Not read by the rule engine
+   * ({@link classifyDecay} ignores it — quarantined rows still age/archive/delete
+   * by RULE). It exists only so the sweeper's `isBorderline` can keep a
+   * quarantined (injection-screened) row away from the optional content-reading
+   * classifier, so poison content never egresses. Optional so pure rule-based
+   * callers/tests can omit it (treated as not quarantined).
+   */
+  trustTier?: string | null;
 }
 
 /** Merge a partial policy over the default. */

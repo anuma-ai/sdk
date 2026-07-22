@@ -48,6 +48,19 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1274](https://github.com/anuma
 
 ***
 
+### trustTier
+
+> **trustTier**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/operations.ts:1279](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1279)
+
+`trusted` | `quarantined` | null. Quarantined rows still decay by RULE, but
+are never handed to the optional content-reading decay classifier (they must
+not egress poison content — see ../../memory/decayWorker's
+`isBorderline`).
+
+***
+
 ### uniqueId
 
 > **uniqueId**: `string`

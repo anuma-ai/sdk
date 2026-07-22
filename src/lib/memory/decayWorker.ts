@@ -157,6 +157,7 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
     updatedAt: c.updatedAt,
     archivedAt: c.archivedAt,
     source: c.source,
+    trustTier: c.trustTier,
   };
 }
 
@@ -182,9 +183,19 @@ function toDecayInput(c: DecayCandidateRaw): DecayInput {
  * hard-delete clock, silently breaking the "manual is never auto-archived"
  * guarantee via the classifier path. Manual rows are excluded here so they
  * never reach (nor egress content to) the classifier at all.
+ *
+ * A `trust_tier === "quarantined"` row is NEVER borderline either: it was
+ * injection-screened out of recall (flagged poison), so handing its DECRYPTED
+ * content to the classifier would egress that poison to the portal — both
+ * unwanted (poison content leaving the device) and pointless (the row is already
+ * quarantined). Quarantined rows are excluded here so they never reach (nor
+ * egress content to) the classifier. Rule-based decay STILL applies to them
+ * (they can age/archive/hard-delete via {@link classifyDecay}); only the
+ * optional LLM classifier is skipped.
  */
 function isBorderline(input: DecayInput): boolean {
   if (input.source === "manual") return false;
+  if (input.trustTier === "quarantined") return false;
   if (input.archivedAt !== null) return false;
   if (input.factType === null || input.factType === "other") return true;
   if (
