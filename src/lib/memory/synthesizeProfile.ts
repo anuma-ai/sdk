@@ -247,6 +247,11 @@ export async function synthesizeProfile(
   // snapshot, both using changeTime() (which includes last_observed_at), so a
   // re-observation both advances the watermark AND lands in the changed-set.
   const memories = await getAllVaultMemoriesOp(ctx.vaultCtx, {
+    // Scope the snapshot to the same scopes synthesis recalls from, so the
+    // watermark, delta, and new-fact attribution all track only facts that can
+    // actually appear in the profile — an out-of-scope change/new-fact must not
+    // trigger a regeneration that scoped recall would never reflect.
+    scopes,
     includeDeleted: true,
     includeSuperseded: true,
   });
@@ -485,6 +490,11 @@ async function synthesizeFacet(
  * the prior section (marked stale) so a previously-good section survives; only
  * emit an empty section when there was no prior. */
 function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined): ProfileSection {
+  // fallbackSection is only reached on a FAILURE (rejected or degraded-empty),
+  // never on a legitimate no-evidence verdict — so always mark the result stale
+  // so computeStaleFacetKeys retries it next call, even when there's no prior
+  // text to preserve. (A genuine no-evidence result clears the section via the
+  // non-fallback path and is not marked stale.)
   if (prior && prior.text) {
     return { ...prior, stale: true };
   }
@@ -494,6 +504,7 @@ function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined)
     text: "",
     sourceMemoryIds: [],
     generatedAt: Date.now(),
+    stale: true,
   };
 }
 

@@ -121,6 +121,8 @@ describe("synthesizeProfile", () => {
     expect(doc.vaultWatermark).toBe(3000);
     expect(doc.config).toEqual(cfg(false));
     expect(mockReflect).toHaveBeenCalledTimes(2);
+    // The snapshot is scoped to the same scopes synthesis recalls from.
+    expect(mockGetAll.mock.calls[0][1]).toMatchObject({ scopes: ["private"] });
   });
 
   it("collapses a section to empty when the facet reports no evidence", async () => {
@@ -397,6 +399,22 @@ describe("synthesizeProfile", () => {
     expect(bio.text).toBe("retried bio");
     expect(bio.stale).toBeFalsy();
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+  });
+
+  // A first-synthesis facet failure (no prior to preserve) still marks the empty
+  // section stale, so it's retried on the next call rather than stuck empty.
+  it("marks an empty section stale when a facet fails with no prior", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect
+      .mockRejectedValueOnce(new Error("LLM down")) // bio fails, no prior
+      .mockResolvedValueOnce(reflectResult("interests", ["a"]));
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS });
+
+    const bio = doc.sections.find((s) => s.key === "bio")!;
+    expect(bio.text).toBe("");
+    expect(bio.stale).toBe(true);
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("interests");
   });
 
   // When recall returns no evidence (cited facts were deleted/superseded), the
