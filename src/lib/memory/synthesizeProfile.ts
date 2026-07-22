@@ -18,7 +18,7 @@
  * Facet decomposition, per-facet synthesis, delta refresh, and the PII gate are
  * wired end-to-end. New facts are attributed to the facets they're relevant to
  * (by embedding similarity to each facet query) so an unrelated new fact doesn't
- * force a full re-synthesis — see {@link attributeNewFacts}.
+ * force a full re-synthesis — see {@link attributeFacts}.
  */
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
@@ -264,10 +264,19 @@ export async function synthesizeProfile(
   });
   const watermark = computeVaultWatermark(memories);
 
-  // Fast path: reusable prior doc AND nothing in the vault changed since it
-  // AND no sections are stale (which would block documented retry).
+  // Fast path: reusable prior doc AND nothing in the vault changed since it AND
+  // no sections are stale (which would block documented retry) AND every cited
+  // fact is still present in the scoped snapshot. The last guard catches a fact
+  // that left the synthesis scopes (or was hard-deleted): it vanishes from the
+  // scoped snapshot without advancing the watermark, so the plain watermark
+  // check alone would wrongly reuse a section citing evidence recall no longer
+  // returns.
+  const presentIds = new Set(memories.map((m) => m.uniqueId));
   const hasStaleSections = previous?.sections.some((s) => s.stale);
-  if (previous && previous.vaultWatermark >= watermark && !hasStaleSections) {
+  const citesMissingFact = previous?.sections.some((s) =>
+    s.sourceMemoryIds.some((id) => !presentIds.has(id))
+  );
+  if (previous && previous.vaultWatermark >= watermark && !hasStaleSections && !citesMissingFact) {
     return previous;
   }
 
@@ -378,10 +387,20 @@ async function computeStaleFacetKeys(
 
   const changed = memories.filter((m) => changeTime(m) > previous.vaultWatermark);
   const changedIds = new Set(changed.map((m) => m.uniqueId));
+  // Ids visible in the scoped snapshot (soft-deleted/superseded rows are present
+  // via includeDeleted/includeSuperseded). A cited id ABSENT here left the
+  // synthesis scopes or was hard-deleted — recall would no longer surface it, so
+  // its citing section must refresh even though it never appears in `changed`.
+  const presentIds = new Set(memories.map((m) => m.uniqueId));
   const stale = new Set<ProfileFacetKey>();
 
   for (const section of previous.sections) {
     if (section.sourceMemoryIds.some((id) => changedIds.has(id))) {
+      stale.add(section.key);
+    }
+    // A cited fact that vanished from the scoped snapshot (scope exit / hard
+    // delete) means the section's evidence changed — refresh it.
+    if (section.sourceMemoryIds.some((id) => !presentIds.has(id))) {
       stale.add(section.key);
     }
     // Sections marked stale from a prior failed regeneration must be retried.

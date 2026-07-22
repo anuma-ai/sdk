@@ -239,6 +239,7 @@ describe("synthesizeProfile", () => {
   it("attributes a new fact only to the facet it matches", async () => {
     mockGetAll.mockResolvedValue([
       mem("a", { updatedAt: new Date(1000) }),
+      mem("b", { updatedAt: new Date(1000) }), // cited by interests; present + unchanged
       // New fact, embedding aligned with the FIRST facet query (bio).
       mem("c", {
         updatedAt: new Date(6000),
@@ -268,6 +269,7 @@ describe("synthesizeProfile", () => {
   it("attributes nothing when a new fact matches no facet query", async () => {
     mockGetAll.mockResolvedValue([
       mem("a", { updatedAt: new Date(1000) }),
+      mem("b", { updatedAt: new Date(1000) }), // cited by interests; present + unchanged
       // Orthogonal to both facet queries → below the cosine floor for each.
       mem("c", {
         updatedAt: new Date(6000),
@@ -398,7 +400,10 @@ describe("synthesizeProfile", () => {
   // next call even when the vault hasn't advanced (the failure was transient) —
   // the fast path is skipped and the stale facet regenerates.
   it("retries a stale section even when the vault is unchanged", async () => {
-    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(2000) }),
+      mem("b", { updatedAt: new Date(2000) }), // cited by interests; present + unchanged
+    ]);
     mockReflect.mockResolvedValueOnce(reflectResult("retried bio", ["a"]));
 
     const previous = priorDoc(
@@ -512,6 +517,7 @@ describe("synthesizeProfile", () => {
   it("attributes a fact that newly entered scope (old createdAt, uncited)", async () => {
     mockGetAll.mockResolvedValue([
       mem("a", { updatedAt: new Date(1000) }), // cited by bio, unchanged
+      mem("b", { updatedAt: new Date(1000) }), // cited by interests; present + unchanged
       mem("d", {
         createdAt: new Date(100), // old — predates the watermark
         updatedAt: new Date(6000), // scope edit bumped this
@@ -533,6 +539,32 @@ describe("synthesizeProfile", () => {
 
     expect(mockReflect).toHaveBeenCalledTimes(1); // only bio (d attributed to bio)
     expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("bio with newly in-scope fact");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+  });
+
+  // A cited fact that LEFT scope (or was hard-deleted) vanishes from the scoped
+  // snapshot without advancing the watermark — the citing section must still
+  // refresh rather than reuse evidence recall no longer returns.
+  it("refreshes a section when a cited fact left scope (watermark unchanged)", async () => {
+    // "a" (cited by bio) is gone from the scoped snapshot; "b" unchanged.
+    mockGetAll.mockResolvedValue([mem("b", { updatedAt: new Date(1000) })]);
+    // bio's only evidence left scope → recall returns nothing → section clears.
+    mockReflect.mockResolvedValueOnce({
+      text: "",
+      basedOn: { memoryIds: [] },
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    } as never);
+
+    const previous = priorDoc(
+      [section("bio", "old bio citing a", ["a"]), section("interests", "old interests", ["b"])],
+      2000
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(doc).not.toBe(previous); // fast path skipped despite unchanged watermark
+    expect(mockReflect).toHaveBeenCalledTimes(1); // only bio refreshed
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe(""); // cleared
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 });
