@@ -222,8 +222,9 @@ describe("generateEmbedding", () => {
   });
 
   it("re-throws after exhausting retries when fetch keeps throwing", async () => {
-    // A network fault (fetch rejects) must NOT bypass the retry — the
-    // generated client propagates the throw rather than returning { error }.
+    // A network fault (fetch rejects) must NOT bypass the retry. openapi-ts
+    // >=0.97 may surface that as `{ error }` instead of a thrown rejection;
+    // withEmbeddingRetry still retries and rethrows the underlying Error.
     const fetchMock = vi.fn(async () => {
       throw new Error("ECONNRESET");
     });

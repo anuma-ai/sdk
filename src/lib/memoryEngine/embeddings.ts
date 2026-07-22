@@ -78,6 +78,17 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
     }
   }
   if (threw) throw lastThrown;
+  // openapi-ts >=0.97 wraps fetch rejections in `{ error }` (often with no
+  // Response) instead of letting them propagate. After retries are exhausted,
+  // rethrow the underlying Error so callers keep the historical throw
+  // contract (and a useful message like ECONNRESET) rather than a generic
+  // "API embedding failed" wrapper.
+  if (
+    last?.error instanceof Error &&
+    (last.response == null || last.response.status == null)
+  ) {
+    throw last.error;
+  }
   return last as T;
 }
 
