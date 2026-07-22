@@ -1,6 +1,6 @@
 # MemoriesNeedingTopicExtraction
 
-Defined in: [src/lib/db/memoryVault/operations.ts:857](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#857)
+Defined in: [src/lib/db/memoryVault/operations.ts:865](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#865)
 
 Result of [getMemoriesNeedingTopicExtractionOp](../functions/getMemoriesNeedingTopicExtractionOp.md): which memories the
 background topic worker should run LLM entity extraction on, and which it
@@ -12,7 +12,7 @@ should merely stamp as already-extracted.
 
 > **linkedUnstamped**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/operations.ts:875](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#875)
+Defined in: [src/lib/db/memoryVault/operations.ts:883](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#883)
 
 IDs of rows that already have entity links but no watermark — legacy rows
 extracted by the conversation pipeline before v36. Grandfather these with
@@ -27,7 +27,7 @@ grandfather backlog is drained across sweeps rather than in one spike.
 
 > **pending**: [`StoredVaultMemory`](StoredVaultMemory.md)\[]
 
-Defined in: [src/lib/db/memoryVault/operations.ts:866](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#866)
+Defined in: [src/lib/db/memoryVault/operations.ts:874](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#874)
 
 Memories to run LLM topic extraction on (decrypted): never-extracted rows
 with no entity links, plus stamped rows edited since their last pass

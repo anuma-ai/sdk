@@ -135,6 +135,8 @@ export async function retain(
             proofCountIncrement: 1,
             sourceChunkIds: mergedSourceIds,
             preserveUpdatedAt: true,
+            // C3: record the re-observation without touching updated_at.
+            lastObservedAt: Date.now(),
             ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
           });
           if (updated) {
@@ -405,6 +407,8 @@ async function tryConsolidate(
       proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
       preserveUpdatedAt: true,
+      // C3: record the re-observation without touching updated_at.
+      lastObservedAt: Date.now(),
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
     if (!updated) {
@@ -445,6 +449,8 @@ async function tryConsolidate(
       // one. Preserving updated_at keeps the recency multiplier honest
       // and matches the merge/noop paths above.
       preserveUpdatedAt: true,
+      // C3: record the re-observation without touching updated_at.
+      lastObservedAt: Date.now(),
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
     });
     if (!updated) {

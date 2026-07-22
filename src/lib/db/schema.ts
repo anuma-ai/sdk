@@ -72,8 +72,12 @@ import { VaultFolder } from "./vaultFolders/models";
  *   logic version a memory was last stamped under. Bumping TOPICS_EXTRACTION_VERSION
  *   (new prompt/model) makes the worker re-extract every row whose stored version
  *   is behind, so topic-quality improvements propagate across the existing vault
+ * - v39: Added last_observed_at column to memory_vault (C3) — a re-observation
+ *   watermark stamped each time retain() merges into an existing fact, kept
+ *   distinct from updated_at (which merges preserve). Lets profile synthesis
+ *   weight facts by recency of reinforcement rather than last edit.
  */
-export const SDK_SCHEMA_VERSION = 38;
+export const SDK_SCHEMA_VERSION = 39;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -234,6 +238,13 @@ export const sdkSchema = appSchema({
         // (pre-v38) is treated as version 0, so a bump of TOPICS_EXTRACTION_VERSION
         // re-extracts stale rows. See getMemoriesNeedingTopicExtractionOp.
         { name: "topics_extracted_version", type: "number", isOptional: true },
+        // Re-observation watermark (C3). Unix ms of the last time retain() merged
+        // a duplicate observation into this fact (proof_count++). Distinct from
+        // updated_at, which merges deliberately preserve (preserveUpdatedAt) so a
+        // re-observation doesn't reorder the vault by edit time. Null = never
+        // re-observed since the column was added. Indexed so recency-weighted
+        // synthesis can filter/sort on it cheaply.
+        { name: "last_observed_at", type: "number", isOptional: true, isIndexed: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -395,6 +406,8 @@ export const sdkSchema = appSchema({
  * - v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
  * - v35 → v36: Added `topics_extracted_at` column to memory_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)
  * - v36 → v37: Added `superseded_by` + `superseded_at` columns to memory_vault (write-time supersession; null = live, excluded from recall/dedup when set)
+ * - v37 → v38: Added `topics_extracted_version` column to memory_vault (extraction-logic version; null read as 0 so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows)
+ * - v38 → v39: Added `last_observed_at` column to memory_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated_at)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -909,6 +922,20 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "topics_extracted_version", type: "number", isOptional: true }],
+        }),
+      ],
+    },
+    // v38 -> v39: re-observation watermark on memory_vault (C3). Existing rows
+    // keep NULL (= never re-observed since the column was added); synthesis
+    // treats NULL as "fall back to updated_at" so no backfill is needed.
+    {
+      toVersion: 39,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "last_observed_at", type: "number", isOptional: true, isIndexed: true },
+          ],
         }),
       ],
     },

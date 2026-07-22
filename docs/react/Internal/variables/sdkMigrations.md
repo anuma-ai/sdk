@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:399](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#399)
+Defined in: [src/lib/db/schema.ts:412](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#412)
 
 Combined migrations for all SDK storage modules.
 
@@ -49,3 +49,5 @@ Migration history:
 * v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
 * v35 → v36: Added `topics_extracted_at` column to memory\_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)
 * v36 → v37: Added `superseded_by` + `superseded_at` columns to memory\_vault (write-time supersession; null = live, excluded from recall/dedup when set)
+* v37 → v38: Added `topics_extracted_version` column to memory\_vault (extraction-logic version; null read as 0 so a TOPICS\_EXTRACTION\_VERSION bump re-extracts stale rows)
+* v38 → v39: Added `last_observed_at` column to memory\_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated\_at)

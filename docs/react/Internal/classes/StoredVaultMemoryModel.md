@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#35)
+Defined in: [src/lib/db/memoryVault/models.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#37)
 
 ***
 
@@ -209,7 +209,17 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#37)
+Defined in: [src/lib/db/memoryVault/models.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#39)
+
+***
+
+### lastObservedAt
+
+> **lastObservedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#36)
+
+C3 re-observation watermark: Unix ms of the last retain() merge, or null.
 
 ***
 
@@ -300,7 +310,7 @@ leaves its entity links alone. Null on legacy rows (treated as false).
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#36)
+Defined in: [src/lib/db/memoryVault/models.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#38)
 
 ***
 

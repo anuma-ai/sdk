@@ -33,6 +33,17 @@ export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { isRerankerAvailable, RerankerUnavailableError } from "./reranker.js";
 export { retain, type RetainContext } from "./retain.js";
 export {
+  DEFAULT_PROFILE_FACETS,
+  PROFILE_DOC_VERSION,
+  type ProfileConfigFingerprint,
+  type ProfileDoc,
+  type ProfileFacet,
+  type ProfileFacetKey,
+  type ProfileSection,
+  synthesizeProfile,
+  type SynthesizeProfileOptions,
+} from "./synthesizeProfile.js";
+export {
   extractAndLinkEntitiesForMemoriesOp,
   extractEntitiesForMemories,
   TOPIC_EXTRACTION_BATCH_SIZE,

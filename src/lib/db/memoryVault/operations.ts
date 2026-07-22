@@ -97,6 +97,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     topicsExtractedVersion: memory.topicsExtractedVersion ?? null,
     supersededBy: memory.supersededBy ?? null,
     supersededAt: memory.supersededAt ?? null,
+    lastObservedAt: memory.lastObservedAt ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -443,6 +444,7 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     topicsExtractedVersion: (raw.topics_extracted_version as number | null) ?? null,
     supersededBy: (raw.superseded_by as string | null) ?? null,
     supersededAt: (raw.superseded_at as number | null) ?? null,
+    lastObservedAt: (raw.last_observed_at as number | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -598,6 +600,12 @@ export async function updateVaultMemoryOp(
         }
         if (opts.topicsUserManaged !== undefined) {
           r._setRaw("topics_user_managed", opts.topicsUserManaged);
+        }
+        if (opts.lastObservedAt !== undefined) {
+          // C3 re-observation watermark. Set independently of updated_at so a
+          // merge records "seen again now" while preserveUpdatedAt keeps the
+          // edit-time recency signal pinned.
+          r._setRaw("last_observed_at", opts.lastObservedAt);
         }
         if (opts.preserveUpdatedAt) {
           // WatermelonDB's record.update() bumps updated_at automatically.

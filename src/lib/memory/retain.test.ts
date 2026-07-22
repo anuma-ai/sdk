@@ -158,6 +158,10 @@ describe("retain", () => {
         // proofCountIncrement docstring on UpdateVaultMemoryOptions.
         proofCountIncrement: 1,
         sourceChunkIds: ["msg-old", "msg-new"],
+        // C3: a merge is a re-observation — stamps last_observed_at without
+        // touching updated_at (preserveUpdatedAt keeps recency pinned).
+        preserveUpdatedAt: true,
+        lastObservedAt: expect.any(Number),
       })
     );
   });
