@@ -178,16 +178,16 @@ function rerankDateMs(item: {
   updatedAt?: Date;
   createdAt?: Date;
 }): number | undefined {
-  if (item.eventTimeStart != null && Number.isFinite(item.eventTimeStart)) {
+  if (item.eventTimeStart !== null && item.eventTimeStart !== undefined && Number.isFinite(item.eventTimeStart)) {
     return item.eventTimeStart;
   }
-  if (item.lastObservedAt != null && Number.isFinite(item.lastObservedAt)) {
+  if (item.lastObservedAt !== null && item.lastObservedAt !== undefined && Number.isFinite(item.lastObservedAt)) {
     return item.lastObservedAt;
   }
   const updatedMs = item.updatedAt?.getTime();
-  if (updatedMs != null && Number.isFinite(updatedMs)) return updatedMs;
+  if (updatedMs !== null && updatedMs !== undefined && Number.isFinite(updatedMs)) return updatedMs;
   const createdMs = item.createdAt?.getTime();
-  if (createdMs != null && Number.isFinite(createdMs)) return createdMs;
+  if (createdMs !== null && createdMs !== undefined && Number.isFinite(createdMs)) return createdMs;
   return undefined;
 }
 

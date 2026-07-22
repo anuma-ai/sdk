@@ -19,7 +19,7 @@ Defined in: [src/lib/memory/types.ts:60](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/types.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#89)
+Defined in: [src/lib/memory/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#94)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [src/lib/memory/types.ts:89](https://github.com/anuma-ai/sdk/blob/ma
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/memory/types.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#93)
+Defined in: [src/lib/memory/types.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#98)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [src/lib/memory/types.ts:93](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/memory/types.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#77)
+Defined in: [src/lib/memory/types.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#82)
 
 ***
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/memory/types.ts:77](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **eventTimeKind**: `"point"` | `"range"` | `"ongoing"` | `null`
 
-Defined in: [src/lib/memory/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#78)
+Defined in: [src/lib/memory/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#83)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [src/lib/memory/types.ts:78](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **eventTimeStart**: `number` | `null`
 
-Defined in: [src/lib/memory/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#76)
+Defined in: [src/lib/memory/types.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#81)
 
 Anchored event-time for the fact (the date the underlying event
 occurred, not the write time). When present, the recall executor
@@ -65,7 +65,7 @@ undefined means the fact has no anchored date.
 
 > `optional` **factType**: `string` | `null`
 
-Defined in: [src/lib/memory/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#86)
+Defined in: [src/lib/memory/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#91)
 
 Typed memory (PR1) — the extractor's FactType classification for this
 fact, threaded through the same channel as the event-time anchors so
@@ -99,11 +99,22 @@ Defined in: [src/lib/memory/types.ts:59](https://github.com/anuma-ai/sdk/blob/ma
 
 ***
 
+### lastObservedAt?
+
+> `optional` **lastObservedAt**: `number` | `null`
+
+Defined in: [src/lib/memory/types.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#73)
+
+C3 re-observation watermark (Unix ms). Null/undefined when the fact
+has never been merge-reinforced since the column landed.
+
+***
+
 ### messageId?
 
 > `optional` **messageId**: `string`
 
-Defined in: [src/lib/memory/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#90)
+Defined in: [src/lib/memory/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#95)
 
 ***
 
@@ -119,7 +130,7 @@ Defined in: [src/lib/memory/types.ts:66](https://github.com/anuma-ai/sdk/blob/ma
 
 > `optional` **role**: `"user"` | `"assistant"`
 
-Defined in: [src/lib/memory/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#91)
+Defined in: [src/lib/memory/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#96)
 
 ***
 
@@ -159,4 +170,4 @@ Defined in: [src/lib/memory/types.ts:65](https://github.com/anuma-ai/sdk/blob/ma
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/memory/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#94)
+Defined in: [src/lib/memory/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#99)

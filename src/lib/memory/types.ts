@@ -67,6 +67,11 @@ export interface RankedMemory {
   source?: string;
   folderId?: string | null;
   /**
+   * C3 re-observation watermark (Unix ms). Null/undefined when the fact
+   * has never been merge-reinforced since the column landed.
+   */
+  lastObservedAt?: number | null;
+  /**
    * Anchored event-time for the fact (the date the underlying event
    * occurred, not the write time). When present, the recall executor
    * surfaces it to the LLM as `(event: YYYY-MM-DD)` so the answer model

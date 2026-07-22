@@ -1,6 +1,6 @@
 # RetainResult
 
-Defined in: [src/lib/memory/types.ts:369](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#369)
+Defined in: [src/lib/memory/types.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#374)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:369](https://github.com/anuma-ai/sdk/blob/m
 
 > **action**: [`RetainAction`](../type-aliases/RetainAction.md)
 
-Defined in: [src/lib/memory/types.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#370)
+Defined in: [src/lib/memory/types.ts:375](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#375)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/types.ts:370](https://github.com/anuma-ai/sdk/blob/m
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/types.ts:371](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#371)
+Defined in: [src/lib/memory/types.ts:376](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#376)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/types.ts:371](https://github.com/anuma-ai/sdk/blob/m
 
 > **proofCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:381](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#381)
+Defined in: [src/lib/memory/types.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#386)
 
 Updated proof\_count after this write. 0 when nothing was written (suppressed).
 
@@ -34,7 +34,7 @@ Updated proof\_count after this write. 0 when nothing was written (suppressed).
 
 > `optional` **targetId**: `string`
 
-Defined in: [src/lib/memory/types.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#374)
+Defined in: [src/lib/memory/types.ts:379](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#379)
 
 When action is 'merge' or 'update', the prior memory's id. When action is
 'supersede', the stale memory that was retired (`memoryId` is the new one).
@@ -45,7 +45,7 @@ When action is 'merge' or 'update', the prior memory's id. When action is
 
 > `optional` **tombstoneId**: `string`
 
-Defined in: [src/lib/memory/types.ts:379](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#379)
+Defined in: [src/lib/memory/types.ts:384](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#384)
 
 When action is 'suppressed', the id of the soft-deleted memory that blocked
 re-creation. `memoryId` is set to the same id (no new memory was written).

@@ -157,15 +157,19 @@ function sigmoid(x: number): number {
  * cross-encoding. Returns `content` unchanged when `dateMs` is missing
  * or non-finite.
  *
+ * Uses **local** calendar getters so the prefix matches how `eventTimeStart`
+ * is stored/queried elsewhere in the memory stack (local midnight), avoiding
+ * UTC off-by-one east of UTC.
+ *
  * @internal Exported for unit tests + call-site reuse.
  */
 export function formatRerankDoc(content: string, dateMs?: number | null): string {
-  if (dateMs == null || !Number.isFinite(dateMs)) return content;
+  if (dateMs === null || dateMs === undefined || !Number.isFinite(dateMs)) return content;
   const d = new Date(dateMs);
   if (!Number.isFinite(d.getTime())) return content;
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
   return `[Date: ${yyyy}-${mm}-${dd}] ${content}`;
 }
 
