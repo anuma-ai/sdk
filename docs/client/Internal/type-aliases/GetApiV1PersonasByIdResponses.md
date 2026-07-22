@@ -2,7 +2,7 @@
 
 > **GetApiV1PersonasByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8730](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8730)
+Defined in: [src/client/types.gen.ts:8735](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8735)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8730](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersPersonaResponse`](HandlersPersonaResponse.md)
 
-Defined in: [src/client/types.gen.ts:8734](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8734)
+Defined in: [src/client/types.gen.ts:8739](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8739)
 
 OK

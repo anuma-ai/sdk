@@ -436,9 +436,12 @@ export type ExtractOutcome =
 
 /**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
- * enabled. The resolver path (decide create/merge/update via a second LLM
- * call against the existing vault) is deferred — the auto-merge inside
- * retain() handles dedup at the cosine-similarity level for hackathon.
+ * enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
+ * is the "resolver": a second LLM call against the top-K existing vault
+ * memories that decides create/update/noop/supersede — including retiring a
+ * stale value on a state change (the supersession the extraction prompt above
+ * promises). Without consolidation, retain() still dedups at the cosine-merge
+ * level, and the read-time supersession heuristic remains the fallback.
  *
  * Returns the candidates that survived validation along with the retain
  * result for each (which captures whether the fact was created, merged,

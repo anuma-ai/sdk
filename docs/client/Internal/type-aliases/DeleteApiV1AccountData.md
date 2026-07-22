@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AccountData** = `object`
 
-Defined in: [src/client/types.gen.ts:4291](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4291)
+Defined in: [src/client/types.gen.ts:4296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4296)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4291](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4292](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4292)
+Defined in: [src/client/types.gen.ts:4297](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4297)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4292](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:4293](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4293)
+Defined in: [src/client/types.gen.ts:4298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4298)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:4293](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4294)
+Defined in: [src/client/types.gen.ts:4299](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4299)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:4294](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/account"`
 
-Defined in: [src/client/types.gen.ts:4295](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4295)
+Defined in: [src/client/types.gen.ts:4300](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4300)

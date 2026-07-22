@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCancelScheduledDowngradeErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:9226](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9226)
+Defined in: [src/client/types.gen.ts:9231](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9231)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9226](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9230](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9230)
+Defined in: [src/client/types.gen.ts:9235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9235)
 
 Unauthorized
 
@@ -20,7 +20,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9234)
+Defined in: [src/client/types.gen.ts:9239](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9239)
 
 Not Found
 
@@ -30,6 +30,6 @@ Not Found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:9238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9238)
+Defined in: [src/client/types.gen.ts:9243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9243)
 
 Internal Server Error

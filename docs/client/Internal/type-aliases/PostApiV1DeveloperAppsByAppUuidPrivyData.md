@@ -2,7 +2,7 @@
 
 > **PostApiV1DeveloperAppsByAppUuidPrivyData** = `object`
 
-Defined in: [src/client/types.gen.ts:7908](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7908)
+Defined in: [src/client/types.gen.ts:7913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7913)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7908](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersConfigurePrivyRequest`](HandlersConfigurePrivyRequest.md)
 
-Defined in: [src/client/types.gen.ts:7912](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7912)
+Defined in: [src/client/types.gen.ts:7917](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7917)
 
 Privy configuration
 
@@ -20,7 +20,7 @@ Privy configuration
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:7913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7913)
+Defined in: [src/client/types.gen.ts:7918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7918)
 
 **app\_uuid**
 
@@ -34,7 +34,7 @@ App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:7919](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7919)
+Defined in: [src/client/types.gen.ts:7924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7924)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:7919](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/privy"`
 
-Defined in: [src/client/types.gen.ts:7920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7920)
+Defined in: [src/client/types.gen.ts:7925](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7925)

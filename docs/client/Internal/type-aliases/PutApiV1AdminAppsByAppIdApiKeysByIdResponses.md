@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminAppsByAppIdApiKeysByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4861](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4861)
+Defined in: [src/client/types.gen.ts:4866](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4866)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4861](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersApiKeyResponse`](HandlersApiKeyResponse.md)
 
-Defined in: [src/client/types.gen.ts:4865](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4865)
+Defined in: [src/client/types.gen.ts:4870](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4870)
 
 OK

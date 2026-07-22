@@ -100,7 +100,9 @@ afterEach(() => {
 describe("generateEmbedding", () => {
   it("returns the cached vector without hitting the API on cache hit", async () => {
     const fetchMock = stubFetchOk();
-    const cache = new Map<string, number[]>([["hello there world", [9, 9, 9]]]);
+    const cache = new Map<string, Float32Array>([
+      ["hello there world", Float32Array.from([9, 9, 9])],
+    ]);
 
     const result = await generateEmbedding("hello there world", {
       apiKey: "k",
@@ -114,7 +116,7 @@ describe("generateEmbedding", () => {
 
   it("calls the API on cache miss and stores the result in the cache", async () => {
     const fetchMock = stubFetchOk();
-    const cache = new Map<string, number[]>();
+    const cache = new Map<string, Float32Array>();
 
     const first = await generateEmbedding("brand new text", { apiKey: "k", baseUrl: BASE, cache });
 
@@ -122,7 +124,8 @@ describe("generateEmbedding", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(recorded[0].url).toBe(`${BASE}/api/v1/embeddings`);
     expect(recorded[0].input).toBe("brand new text");
-    expect(cache.get("brand new text")).toEqual(embeddingFor("brand new text"));
+    // Cache stores the native f32 view, not the float64 number[].
+    expect(cache.get("brand new text")).toEqual(Float32Array.from(embeddingFor("brand new text")));
 
     // Second call for the same text must be served from cache.
     const second = await generateEmbedding("brand new text", { apiKey: "k", baseUrl: BASE, cache });
@@ -159,7 +162,7 @@ describe("generateEmbedding", () => {
 
   it("throws the API error message on a non-OK response and does not cache", async () => {
     stubFetchError(500, { error: "gateway exploded" });
-    const cache = new Map<string, number[]>();
+    const cache = new Map<string, Float32Array>();
     await expect(generateEmbedding("text", { apiKey: "k", baseUrl: BASE, cache })).rejects.toThrow(
       "gateway exploded"
     );
@@ -251,7 +254,7 @@ describe("generateEmbedding", () => {
 
   it("applies maskInput to the request body but keeps the cache keyed by original", async () => {
     const fetchMock = stubFetchOk();
-    const cache = new Map<string, number[]>();
+    const cache = new Map<string, Float32Array>();
     const maskInput = (t: string) => t.replace("bob@acme.com", "[EMAIL]");
 
     await generateEmbedding("email bob@acme.com", { apiKey: "k", baseUrl: BASE, cache, maskInput });
@@ -275,7 +278,7 @@ describe("generateEmbeddings (batch)", () => {
 
   it("sends only uncached texts and preserves input order in the result", async () => {
     const fetchMock = stubFetchOk();
-    const cache = new Map<string, number[]>([["beta", [42, 42, 42]]]);
+    const cache = new Map<string, Float32Array>([["beta", Float32Array.from([42, 42, 42])]]);
 
     const result = await generateEmbeddings(["alpha", "beta", "gamma"], {
       apiKey: "k",
@@ -288,9 +291,9 @@ describe("generateEmbeddings (batch)", () => {
     expect(recorded[0].input).toEqual(["alpha", "gamma"]);
     // Output order matches input order, with the cached vector spliced in.
     expect(result).toEqual([embeddingFor("alpha"), [42, 42, 42], embeddingFor("gamma")]);
-    // New embeddings were written back to the cache.
-    expect(cache.get("alpha")).toEqual(embeddingFor("alpha"));
-    expect(cache.get("gamma")).toEqual(embeddingFor("gamma"));
+    // New embeddings were written back to the cache as native f32 views.
+    expect(cache.get("alpha")).toEqual(Float32Array.from(embeddingFor("alpha")));
+    expect(cache.get("gamma")).toEqual(Float32Array.from(embeddingFor("gamma")));
   });
 
   it("masks repeated PII to the same stateless token across batched chunks", async () => {
@@ -315,9 +318,9 @@ describe("generateEmbeddings (batch)", () => {
 
   it("returns entirely from cache without an API call when all texts are cached", async () => {
     const fetchMock = stubFetchOk();
-    const cache = new Map<string, number[]>([
-      ["a", [1]],
-      ["b", [2]],
+    const cache = new Map<string, Float32Array>([
+      ["a", Float32Array.from([1])],
+      ["b", Float32Array.from([2])],
     ]);
     const result = await generateEmbeddings(["a", "b"], { apiKey: "k", baseUrl: BASE, cache });
     expect(result).toEqual([[1], [2]]);

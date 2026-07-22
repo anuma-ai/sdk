@@ -2,4 +2,4 @@
 
 > **PostApiV1ModerateError** = [`PostApiV1ModerateErrors`](PostApiV1ModerateErrors.md)\[keyof [`PostApiV1ModerateErrors`](PostApiV1ModerateErrors.md)]
 
-Defined in: [src/client/types.gen.ts:8575](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8575)
+Defined in: [src/client/types.gen.ts:8580](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8580)

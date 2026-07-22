@@ -57,6 +57,38 @@ describe("consolidateMemory", () => {
     expect(result).toEqual({ action: "noop", targetId: "m1" });
   });
 
+  it("returns supersede with the stale targetId + new content when LLM says supersede (A2)", async () => {
+    const fetchFn = mockFetch(
+      choices({ action: "supersede", targetId: "m1", content: "User has a cat named Mochi." })
+    );
+    const result = await consolidateMemory("User has a cat named Mochi.", candidates, {
+      apiKey: "k",
+      fetchFn,
+    });
+    // targetId = the stale fact to retire; content = the NEW fact to persist.
+    expect(result).toEqual({
+      action: "supersede",
+      targetId: "m1",
+      content: "User has a cat named Mochi.",
+    });
+  });
+
+  it("degrades to create when supersede omits a valid targetId", async () => {
+    // Missing/invalid targetId is a schema violation → terminal degrade to
+    // create (never silently retire an unknown row).
+    const fetchFn = mockFetch(choices({ action: "supersede", content: "new value" }));
+    const result = await consolidateMemory("new value", candidates, { apiKey: "k", fetchFn });
+    expect(result.action).toBe("create");
+    expect(result.fallbackReason).toBe("invalid_response");
+  });
+
+  it("degrades to create when supersede omits content", async () => {
+    const fetchFn = mockFetch(choices({ action: "supersede", targetId: "m1" }));
+    const result = await consolidateMemory("x", candidates, { apiKey: "k", fetchFn });
+    expect(result.action).toBe("create");
+    expect(result.fallbackReason).toBe("invalid_response");
+  });
+
   it("falls back to create when targetId references a memory not in candidates", async () => {
     const fetchFn = mockFetch(choices({ action: "update", targetId: "m99", content: "x" }));
     const result = await consolidateMemory("new fact", candidates, { apiKey: "k", fetchFn });

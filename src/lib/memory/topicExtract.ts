@@ -40,6 +40,9 @@ const MAX_CHARS_PER_MEMORY = 300;
 /** Cap on existing-vocabulary names included in the prompt. */
 const MAX_VOCABULARY_NAMES = 100;
 
+// NOTE: bump TOPICS_EXTRACTION_VERSION (db/memoryVault/operations.ts) whenever
+// this prompt or DEFAULT_EXTRACTION_MODEL changes, so the sweep re-extracts the
+// existing vault under the improved logic instead of keeping stale topics.
 const SYSTEM_PROMPT = `You assign topics to saved memories for a personal memory system.
 
 Each memory is a short statement about the user. For each memory, list the NAMED entities it mentions — these become the memory's topics, used to connect related memories in a knowledge graph.
