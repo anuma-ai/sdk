@@ -20,6 +20,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { classifyObservationTrend } from "./observationTrend.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
 import { rrfFuse } from "./rrf.js";
@@ -392,6 +393,9 @@ export async function recall(
 }
 
 function toFactMemory(r: VaultSearchResult): RankedMemory {
+  const createdAt = r.createdAt ?? new Date(0);
+  const proofCount = r.proofCount ?? undefined;
+  const lastObservedAt = r.lastObservedAt ?? null;
   return {
     id: r.uniqueId,
     kind: "fact",
@@ -405,6 +409,14 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
     ...(r.sourceChunkIds !== undefined &&
       r.sourceChunkIds !== null && { sourceChunkIds: r.sourceChunkIds }),
+    ...(proofCount !== undefined && proofCount !== null && { proofCount }),
+    ...(lastObservedAt != null && { lastObservedAt }),
+    // C2 — algorithmic trend from evidence timestamps (no LLM).
+    observationTrend: classifyObservationTrend({
+      createdAt,
+      lastObservedAt,
+      proofCount,
+    }),
     // r.similarity from searchVaultMemoriesWithSize is the fused score
     // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
     // default) and pure cosine when useFusion=false. The breakdown
@@ -413,7 +425,7 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     content: r.content,
     score: r.similarity,
     scoreBreakdown: { fused: r.similarity },
-    createdAt: r.createdAt ?? new Date(0),
+    createdAt,
     updatedAt: r.updatedAt ?? new Date(0),
   };
 }

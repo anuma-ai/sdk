@@ -14,6 +14,7 @@ import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations.
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { PiiRedactor } from "../pii/redactor.js";
+import type { ObservationTrend } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import type { RecencyOptions } from "./recency.js";
 
@@ -65,6 +66,16 @@ export interface RankedMemory {
   proofCount?: number;
   source?: string;
   folderId?: string | null;
+  /**
+   * C3 re-observation watermark (Unix ms). Null/undefined when the fact
+   * has never been merge-reinforced since the column landed.
+   */
+  lastObservedAt?: number | null;
+  /**
+   * C2 observation-trend label derived from createdAt / lastObservedAt /
+   * proofCount over 30/90-day windows. Fact-only; omitted for chunks.
+   */
+  observationTrend?: ObservationTrend;
   /**
    * Anchored event-time for the fact (the date the underlying event
    * occurred, not the write time). When present, the recall executor

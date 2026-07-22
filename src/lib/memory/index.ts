@@ -20,6 +20,14 @@ export {
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";
 export { createChunkVectorCache, DEFAULT_CHUNK_CACHE_SIZE } from "./chunkVectorCache.js";
+export {
+  classifyObservationTrend,
+  type ObservationTrend,
+  type ObservationTrendInput,
+  summarizeObservationTrends,
+  TREND_RECENT_WINDOW_DAYS,
+  TREND_STALE_WINDOW_DAYS,
+} from "./observationTrend.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,

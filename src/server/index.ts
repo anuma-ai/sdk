@@ -332,6 +332,8 @@ export type {
   FactType,
   MemoryExtractedEvent,
   MemoryKind,
+  ObservationTrend,
+  ObservationTrendInput,
   PortalLlmAuth,
   ProfileConfigFingerprint,
   ProfileDoc,
@@ -363,6 +365,7 @@ export type {
   TurnSkippedEvent,
 } from "../lib/memory";
 export {
+  classifyObservationTrend,
   createAutoExtractor,
   createChunkVectorCache,
   createPlatformCursorStore,
@@ -381,8 +384,11 @@ export {
   reflect,
   RerankerUnavailableError,
   retain,
+  summarizeObservationTrends,
   synthesizeProfile,
   TOPIC_EXTRACTION_BATCH_SIZE,
+  TREND_RECENT_WINDOW_DAYS,
+  TREND_STALE_WINDOW_DAYS,
 } from "../lib/memory";
 
 // ── Server Tools ──

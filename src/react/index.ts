@@ -377,6 +377,8 @@ export type {
   FactType,
   MemoryExtractedEvent,
   MemoryKind,
+  ObservationTrend,
+  ObservationTrendInput,
   PortalLlmAuth,
   ProfileConfigFingerprint,
   ProfileDoc,
@@ -410,6 +412,7 @@ export type {
   TopicExtractOptions,
 } from "../lib/memory";
 export {
+  classifyObservationTrend,
   createAutoExtractor,
   createChunkVectorCache,
   createPlatformCursorStore,
@@ -428,8 +431,11 @@ export {
   reflect,
   RerankerUnavailableError,
   retain,
+  summarizeObservationTrends,
   synthesizeProfile,
   TOPIC_EXTRACTION_BATCH_SIZE,
+  TREND_RECENT_WINDOW_DAYS,
+  TREND_STALE_WINDOW_DAYS,
 } from "../lib/memory";
 
 // Entity / memory_entity tables — the W5 graph-lane storage that
