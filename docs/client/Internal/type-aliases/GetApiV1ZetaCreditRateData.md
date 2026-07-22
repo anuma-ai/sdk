@@ -2,7 +2,7 @@
 
 > **GetApiV1ZetaCreditRateData** = `object`
 
-Defined in: [src/client/types.gen.ts:10235](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10235)
+Defined in: [src/client/types.gen.ts:10240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10240)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10235](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:10236](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10236)
+Defined in: [src/client/types.gen.ts:10241](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10241)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:10236](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10237)
+Defined in: [src/client/types.gen.ts:10242](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10242)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:10237](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10238](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10238)
+Defined in: [src/client/types.gen.ts:10243](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10243)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:10238](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/api/v1/zeta/credit-rate"`
 
-Defined in: [src/client/types.gen.ts:10239](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10239)
+Defined in: [src/client/types.gen.ts:10244](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10244)

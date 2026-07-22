@@ -9,6 +9,7 @@
 
 import type { ToolConfig } from "../chat/useChat/types.js";
 import { recall } from "./recall.js";
+import { RECALL_MAX_LIMIT, RECALL_TOOL_NAME } from "./recallConstants.js";
 import type {
   Budget,
   MemoryKind,
@@ -18,13 +19,10 @@ import type {
   RecallOptions,
 } from "./types.js";
 
-/** Tool name surfaced to the LLM. Exported so bench harnesses and chat
- * clients reference the same string — drift between prod and bench would
- * mask tool-routing bugs in eval. */
-export const RECALL_TOOL_NAME = "recall_memory";
-/** Maximum results the executor will return to the LLM, regardless of
- * the LLM-supplied `limit`. */
-export const RECALL_MAX_LIMIT = 50;
+// RECALL_TOOL_NAME / RECALL_MAX_LIMIT live in ./recallConstants (dependency-free
+// so node/RN-safe modules can import the tool name) and are re-exported here to
+// preserve their public identity.
+export { RECALL_MAX_LIMIT, RECALL_TOOL_NAME };
 
 const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";

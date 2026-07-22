@@ -23,6 +23,7 @@ import {
   extractAssistantText,
   getImageModel,
   getToolCallEvents,
+  getToolsChecksum,
 } from "../lib/chat/useChat/strategies";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
@@ -51,6 +52,7 @@ import {
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
+  type MessageChunk,
   type MessageSkeleton,
   resolveStoredUserContent,
   type SearchSource,
@@ -59,6 +61,7 @@ import {
   type StoredMessage,
   updateConversationPinnedOp,
   updateConversationTitleOp,
+  updateMessageChunksOp,
   updateMessageErrorOp,
   upsertMessageOp,
 } from "../lib/db/chat";
@@ -96,10 +99,14 @@ import {
   type RecallToolOptions,
 } from "../lib/memory";
 import {
+  chunkText,
   createMemoryEngineTool as createMemoryEngineToolBase,
+  DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
+  generateEmbeddings,
   type MemoryEngineSearchOptions,
+  shouldChunkMessage,
 } from "../lib/memoryEngine";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
@@ -111,7 +118,18 @@ import {
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
 import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
-import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
+import {
+  autoFilterClientTools,
+  computeToolGuidance,
+  filterServerTools,
+  getServerTools,
+  getToolName,
+  mergeTools,
+  MIN_CONTENT_LENGTH_FOR_TOOLS,
+  type ServerTool,
+  shouldRefreshTools,
+  type ToolSet,
+} from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import {
   hasEncryptionKey,
@@ -137,6 +155,12 @@ const NO_CONVERSATION_KEY = "__no_conversation__";
 // (enabled→disabled, or one instance swapped for another) rebuilds rather than
 // silently reusing a redactor wired to the old detector. Mirrors the react entry.
 const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
+
+// Tool-description embedding cache for the semantic client-tool filter
+// (`autoFilterClientTools`). Content-keyed and stable across sends, so it is
+// module-scoped (shared by all hook instances) — mirrors the react entry's
+// `clientToolEmbeddingsCache`.
+const clientToolFilterCache = new Map<string, number[]>();
 
 function getConversationRedactor(
   conversationId: string | null,
@@ -373,6 +397,33 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   autoFlushOnKeyAvailable?: boolean;
 
   /**
+   * Additional tool sets to apply on top of the built-in ones (app-generation,
+   * slides, github). When any anchor tool in a custom set is selected by
+   * semantic matching, all members of that set are included automatically.
+   *
+   * Treated as static config — set once at hook setup. Changing it across
+   * renders does not affect in-flight `sendMessage` calls; use
+   * `activeToolSets` for dynamic, conversation-state-driven overrides.
+   */
+  extraToolSets?: ToolSet[];
+
+  /**
+   * Tool set names that should expand unconditionally for this request,
+   * bypassing the anchor-similarity check. Use when conversation state
+   * implies a set should be present regardless of how the prompt is phrased
+   * — e.g., pass `["documents"]` when the conversation already contains a
+   * generated document, so short follow-up prompts ("make the background red")
+   * still get the full document toolkit.
+   *
+   * Read via a ref so updates are visible to in-flight `sendMessage` calls
+   * without rebuilding the callback.
+   *
+   * Names must match a set's `name` from `BUILT_IN_TOOL_SETS` or
+   * `extraToolSets`. Unknown names are ignored.
+   */
+  activeToolSets?: string[];
+
+  /**
    * Opt into resumable streaming. When `true`, `sendMessage` sends the
    * resumable capability header, a stable `assistantUniqueId` is allocated for
    * every turn (so the partial and the resumed completion reconcile onto ONE
@@ -408,6 +459,16 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
     apiType: "responses" | "completions";
     model?: string;
     round?: number;
+  }) => void;
+  /**
+   * Observability hook fired once per send with the tools actually selected for
+   * the turn (after server + client filtering). Never throws into the send path.
+   * Mirrors react's onToolSelection.
+   */
+  onToolSelection?: (info: {
+    prompt: string;
+    clientToolNames: string[];
+    serverToolNames: string[];
   }) => void;
 }
 
@@ -679,6 +740,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getWalletAddress,
     enableQueue = true,
     autoFlushOnKeyAvailable = true,
+    extraToolSets,
+    activeToolSets,
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
@@ -687,6 +750,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     resumable = false,
     onCancelResult,
     onStreamMeta,
+    onToolSelection,
     piiRedaction,
     onPiiRedacted,
     nerDetector,
@@ -986,13 +1050,26 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       try {
         // `mask` defaults to the hook-level masker but a per-request override can
         // pass its own (the per-call `maskForCall`) so redaction toggled on/off
-        // for this send reaches the stored-message embedding too.
-        const embedding = await generateEmbedding(mask(message.content), {
-          getToken,
-          baseUrl,
-          model: embeddingModel,
-        });
-        await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
+        // for this send reaches the stored-message embedding too. Long messages
+        // are chunked (parity with react) so recall scores per chunk.
+        const opts = { getToken, baseUrl, model: embeddingModel };
+        if (shouldChunkMessage(message.content, DEFAULT_CHUNK_SIZE)) {
+          const textChunks = chunkText(message.content);
+          const embeddings = await generateEmbeddings(
+            textChunks.map((c) => mask(c.text)),
+            opts
+          );
+          const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+            text: chunk.text,
+            vector: embeddings[i],
+            startOffset: chunk.startOffset,
+            endOffset: chunk.endOffset,
+          }));
+          await updateMessageChunksOp(storageCtx, message.uniqueId, messageChunks, embeddingModel);
+        } else {
+          const embedding = await generateEmbedding(mask(message.content), opts);
+          await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
+        }
       } catch (err) {
         // Log but don't block - embedding is optional
         getLogger().warn("[useChatStorage] Failed to embed message:", err);
@@ -1530,6 +1607,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     throw new Error("No conversation ID provided and autoCreateConversation is disabled");
   }, [currentConversationId, getConversation, autoCreateConversation, createConversation]);
 
+  // `activeToolSets` is dynamic per-conversation state; read it via a ref so an
+  // update (e.g. "a document now exists") reaches an in-flight `sendMessage`
+  // without rebuilding the callback. Mirrors the react entry.
+  const activeToolSetsRef = useRef<string[] | undefined>(activeToolSets);
+  activeToolSetsRef.current = activeToolSets;
+  // Read `getToken` via a ref so the client-tool filter always uses the CURRENT
+  // auth getter. The sendMessage callback captures options by closure (minimal
+  // deps for reference stability), so a raw `getToken` would go stale across an
+  // auth/account change — skipping filtering after a login that started logged
+  // out, or calling an expired getter. (#greptile: stale token getter)
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   /**
    * Send a message with automatic storage
    */
@@ -1559,6 +1649,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         maxOutputTokens,
         clientTools,
         serverTools: serverToolsFilter,
+        clientToolsFilter,
         toolChoice,
         reasoning,
         thinking,
@@ -1601,6 +1692,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const effectiveAssistantUniqueId =
         assistantUniqueId ?? (resumable ? `msg_${uuidv7()}` : undefined);
 
+      // Embed the tool-selection text, chunking long prompts (parity with react):
+      // a single vector for short prompts, one vector per chunk for long ones so
+      // tool scoring uses max similarity across chunks. Both shapes are accepted
+      // by the server/client tool filters and by chunked message-embedding storage.
+      const embedToolText = (
+        text: string,
+        mask: (t: string) => string,
+        token: (() => Promise<string | null>) | undefined
+      ): Promise<number[] | number[][]> => {
+        const opts = { getToken: token, baseUrl, model: embeddingModel };
+        return shouldChunkMessage(text, DEFAULT_CHUNK_SIZE)
+          ? generateEmbeddings(
+              chunkText(text).map((c) => mask(c.text)),
+              opts
+            )
+          : generateEmbedding(mask(text), opts);
+      };
+
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
       if (walletAddress && signMessage && !hasEncryptionKey(walletAddress)) {
         try {
@@ -1625,8 +1734,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Check if serverTools is a function (dynamic filtering)
         const isServerToolsFunction = typeof serverToolsFilter === "function";
 
+        // Resolve the tool-selection text once, up front: server- and client-tool
+        // filtering below both key off it, and the embedding it produces is shared
+        // across the two (parity with the persisted branch, which reuses a single
+        // `userMessageEmbedding`).
+        const extracted = extractUserMessageFromMessages(messages);
+        const messageContent = resolveStoredUserContent(
+          storedUserContent,
+          extracted?.content ?? ""
+        );
+        let skipUserEmbedding: number[] | number[][] | undefined;
+        let skipEmbeddingFailed = false;
+
         if (
-          getToken &&
+          getTokenRef.current &&
           effectiveApiType === "responses" &&
           !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
         ) {
@@ -1634,30 +1755,28 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             const allServerTools = await getServerTools({
               baseUrl,
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
-              getToken,
+              getToken: getTokenRef.current,
+              cache: serverToolsConfig?.cache,
             });
 
-            if (isServerToolsFunction) {
-              // Function-based filtering: generate embedding and call the function.
-              // Mirror the normal path so tool selection keys off the same text
-              // regardless of skipStorage.
-              const extracted = extractUserMessageFromMessages(messages);
-              const messageContent = resolveStoredUserContent(
-                storedUserContent,
-                extracted?.content ?? ""
-              );
-
-              if (messageContent.length >= minContentLength) {
-                const embedding = await generateEmbedding(maskForCall(messageContent), {
-                  getToken,
-                  baseUrl,
-                  model: embeddingModel,
-                });
-                const toolNames = serverToolsFilter(embedding, allServerTools);
+            if (serverToolsConfig?.deferLoading?.enabled) {
+              // Defer-loading: emit the FULL catalog (mergeTools orders + flags it
+              // and prepends tool-search); do NOT semantically filter here.
+              filteredServerTools = allServerTools;
+            } else if (isServerToolsFunction) {
+              // Function-based filtering: embed with the CURRENT token getter (the
+              // embedding is reused by the client filter below) and call the filter.
+              // Tool-selection floor MIN_CONTENT_LENGTH_FOR_TOOLS (5), NOT the storage
+              // floor. Too short to embed → send NO server tools (leave []); an
+              // explicit filter must never degrade to the full catalog. Parity with react.
+              if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+                skipUserEmbedding = await embedToolText(
+                  messageContent,
+                  maskForCall,
+                  getTokenRef.current
+                );
+                const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
-              } else {
-                // Message too short - use all tools
-                filteredServerTools = allServerTools;
               }
             } else {
               // Static filtering
@@ -1668,8 +1787,84 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
 
-        if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
-          mergedTools = mergeTools(filteredServerTools, clientTools, effectiveApiType);
+        // Semantic client-tool narrowing — parity with the persisted branch and
+        // react's skipStorage path, both of which filter client tools here.
+        // Without it an ephemeral/incognito send ships the full unfiltered toolkit.
+        // The tool-selection floor is MIN_CONTENT_LENGTH_FOR_TOOLS (5), not the
+        // storage floor. Fully defensive: any failure leaves the full toolkit.
+        let narrowedClientTools = clientTools;
+        let clientActivatedSetNames: ReadonlySet<string> | undefined;
+        if (clientTools?.length) {
+          try {
+            // Ensure a prompt embedding exists before EITHER filter runs (matches
+            // react + the persisted branch): an explicit function filter must not
+            // be handed null on a real prompt. Tool-selection floor (5), reused by
+            // the auto-filter below; a failure degrades to the full catalog.
+            if (
+              !skipUserEmbedding &&
+              getTokenRef.current &&
+              messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS
+            ) {
+              try {
+                skipUserEmbedding = await embedToolText(
+                  messageContent,
+                  maskForCall,
+                  getTokenRef.current
+                );
+              } catch {
+                skipEmbeddingFailed = true;
+              }
+            }
+            if (typeof clientToolsFilter === "function") {
+              // Skip the filter on a genuine embedding FAILURE (not the short-prompt
+              // gate): an embeddings outage must degrade to the full toolkit — the
+              // same graceful path the auto-filter takes via its "error" reason —
+              // rather than hand a semantic custom filter null and risk it dropping
+              // every tool the turn needs.
+              if (!skipEmbeddingFailed) {
+                const keep = new Set(clientToolsFilter(skipUserEmbedding ?? null, clientTools));
+                narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+              }
+            } else if (getTokenRef.current) {
+              const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
+                clientTools,
+                skipUserEmbedding ?? null,
+                clientToolFilterCache,
+                { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
+                extraToolSets ?? [],
+                activeToolSetsRef.current ?? [],
+                skipEmbeddingFailed ? "error" : "short-prompt"
+              );
+              narrowedClientTools = autoTools;
+              clientActivatedSetNames = activatedSetNames;
+            }
+          } catch (error) {
+            getLogger().warn("[useChatStorage] client tool filtering failed (skipStorage):", error);
+          }
+        }
+
+        if (
+          filteredServerTools.length > 0 ||
+          (narrowedClientTools && narrowedClientTools.length > 0)
+        ) {
+          mergedTools = mergeTools(
+            filteredServerTools,
+            narrowedClientTools,
+            effectiveApiType,
+            serverToolsConfig?.deferLoading
+          );
+        }
+
+        if (onToolSelection) {
+          try {
+            onToolSelection({
+              prompt: messageContent,
+              clientToolNames: (narrowedClientTools ?? []).map(getToolName).filter(Boolean),
+              serverToolNames: filteredServerTools.map((t) => t.name),
+            });
+          } catch {
+            // Observability must never break the send path.
+          }
         }
 
         const result = await baseSendMessage({
@@ -1680,6 +1875,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           memoryContext,
           searchContext,
           fileContext,
+          toolGuidance: computeToolGuidance(
+            filteredServerTools,
+            narrowedClientTools,
+            extraToolSets ?? [],
+            clientActivatedSetNames
+          ),
           temperature,
           maxOutputTokens,
           tools: mergedTools,
@@ -1714,6 +1915,39 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             data: null,
             error: result.error || "Unknown error",
           };
+        }
+
+        // Refresh the cached server-tools catalog when the response's checksum
+        // differs from the cached one (react parity). The cache backend may be
+        // async, so resolve the (possibly-promise) shouldRefreshTools — a bare
+        // `if (shouldRefreshTools(...))` would be truthy on a Promise. Forward
+        // the same backend. Fire-and-forget; never block the send return.
+        const skipRefreshGetToken = getTokenRef.current;
+        // Capture the (here non-null) response now: inside the deferred .then
+        // below TS no longer narrows result.data past the early-return guard.
+        const skipRefreshData = result.data;
+        if (skipRefreshGetToken) {
+          // Run shouldRefreshTools INSIDE the chain: it synchronously reads the
+          // cache backend (cache.get()), and a custom RN backend can throw — a
+          // sync throw in the Promise.resolve() argument would escape .catch()
+          // and reject an already-successful send.
+          Promise.resolve()
+            .then(() =>
+              shouldRefreshTools(getToolsChecksum(skipRefreshData), serverToolsConfig?.cache)
+            )
+            .then((refresh) => {
+              if (refresh) {
+                return getServerTools({
+                  baseUrl,
+                  getToken: skipRefreshGetToken,
+                  forceRefresh: true,
+                  cache: serverToolsConfig?.cache,
+                });
+              }
+            })
+            .catch((err) => {
+              getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+            });
         }
 
         return {
@@ -1780,12 +2014,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Determine which messages to send: summarized + window or all verbatim.
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
         // corrupting isLoading state and abortController during summarization.
-        if (summarizeHistory && !getToken) {
+        if (summarizeHistory && !getTokenRef.current) {
           getLogger().warn(
             "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
           );
         }
-        const summaryToken = summarizeHistory && getToken ? await getToken() : null;
+        const summaryToken =
+          summarizeHistory && getTokenRef.current ? await getTokenRef.current() : null;
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
           conversationId: convId,
@@ -1858,35 +2093,47 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let mergedTools = clientTools;
 
       // Track embeddings for function-based tool filtering (to reuse for message storage)
-      let userMessageEmbedding: number[] | undefined;
+      let userMessageEmbedding: number[] | number[][] | undefined;
+      let userMessageEmbeddingFailed = false;
+      // Server tools resolved for this send — hoisted so the client-tool filter
+      // below can re-merge them after semantic narrowing.
+      let filteredServerTools: ServerTool[] = [];
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
 
       // Skip server tools fetch if serverTools is explicitly empty array
-      if (getToken && !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)) {
+      if (
+        getTokenRef.current &&
+        !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
+      ) {
         try {
           const allServerTools = await getServerTools({
             baseUrl,
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
-            getToken,
+            getToken: getTokenRef.current,
+            cache: serverToolsConfig?.cache,
           });
 
-          let filteredServerTools: ServerTool[];
-
-          if (isServerToolsFunction) {
-            // Function-based filtering: generate embedding and call the function
-            if (contentForStorage.length >= minContentLength) {
-              userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
-                getToken,
-                baseUrl,
-                model: embeddingModel,
-              });
+          if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
+            // Defer-loading (responses only): emit the FULL catalog — mergeTools
+            // orders + flags it and prepends tool-search — so do NOT filter here.
+            filteredServerTools = allServerTools;
+          } else if (isServerToolsFunction) {
+            // Function-based filtering: embed with the CURRENT token getter (the
+            // embedding is reused by the client filter + message storage below)
+            // and call the filter. Tool-selection floor MIN_CONTENT_LENGTH_FOR_TOOLS
+            // (5), NOT the storage floor `minContentLength` (10). Too short to
+            // embed → send NO server tools (leave []); an explicit semantic filter
+            // must never degrade to the full catalog. Parity with react.
+            if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+              userMessageEmbedding = await embedToolText(
+                contentForStorage,
+                maskForCall,
+                getTokenRef.current
+              );
               const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
-            } else {
-              // Message too short - use all tools
-              filteredServerTools = allServerTools;
             }
           } else {
             // Static filtering
@@ -1894,7 +2141,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
 
           if (filteredServerTools.length > 0) {
-            mergedTools = mergeTools(filteredServerTools, clientTools, effectiveApiType);
+            mergedTools = mergeTools(
+              filteredServerTools,
+              clientTools,
+              effectiveApiType,
+              serverToolsConfig?.deferLoading
+            );
           }
         } catch (error) {
           // Log but don't block - server tools are optional
@@ -1903,22 +2155,134 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      // Semantic client-tool narrowing (parity with the react useChatStorage entry).
+      // An explicit `clientToolsFilter` (include-all for slide/app modes) is applied
+      // as-is; otherwise auto-filter by the prompt embedding so plain chat ships only
+      // prompt-relevant client tools instead of the whole toolkit. Fully defensive:
+      // any failure leaves `mergedTools` as-is (the full toolkit — today's behavior),
+      // so this can never strip a tool the turn needs.
+      // Hoisted out of the block below so the toolGuidance + onToolSelection
+      // computation at the send can see the narrowed set and which sets activated.
+      let narrowedClientTools = clientTools;
+      let clientActivatedSetNames: ReadonlySet<string> | undefined;
+      if (clientTools?.length) {
+        try {
+          // Ensure a prompt embedding exists before EITHER filter runs — react
+          // generates it up front whenever a client filter is in play (explicit
+          // function OR auto), so a semantic custom filter never sees null on a
+          // real prompt. Gated on MIN_CONTENT_LENGTH_FOR_TOOLS (5) — react's
+          // tool-selection floor — NOT the storage floor `minContentLength` (10);
+          // reused for the message embedding below just as react reuses it. A
+          // failed embedding degrades to the full catalog via the "error" reason.
+          if (
+            !userMessageEmbedding &&
+            getTokenRef.current &&
+            contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS
+          ) {
+            try {
+              userMessageEmbedding = await embedToolText(
+                contentForStorage,
+                maskForCall,
+                getTokenRef.current
+              );
+            } catch {
+              userMessageEmbeddingFailed = true;
+            }
+          }
+          if (typeof clientToolsFilter === "function") {
+            // Skip the filter on a genuine embedding FAILURE (not the short-prompt
+            // gate): an embeddings outage must degrade to the full toolkit — the
+            // same graceful path the auto-filter takes via its "error" reason —
+            // rather than hand a semantic custom filter null and risk it dropping
+            // every tool the turn needs.
+            if (!userMessageEmbeddingFailed) {
+              const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
+              narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+            }
+          } else if (getTokenRef.current) {
+            const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
+              clientTools,
+              userMessageEmbedding ?? null,
+              clientToolFilterCache,
+              { getToken: getTokenRef.current, baseUrl, model: embeddingModel },
+              extraToolSets ?? [],
+              activeToolSetsRef.current ?? [],
+              userMessageEmbeddingFailed ? "error" : "short-prompt"
+            );
+            narrowedClientTools = autoTools;
+            clientActivatedSetNames = activatedSetNames;
+          }
+          // Merge only when something survived — mirrors the skipStorage branch
+          // and react. An empty `narrowedClientTools` (short prompt / a filter
+          // that dropped everything, with no server tools) must OMIT tools, not
+          // send `tools: []`: an empty array is truthy, so the strategies would
+          // serialize it and break a turn with a required `toolChoice`.
+          mergedTools =
+            filteredServerTools.length > 0 || (narrowedClientTools?.length ?? 0) > 0
+              ? mergeTools(
+                  filteredServerTools,
+                  narrowedClientTools,
+                  effectiveApiType,
+                  serverToolsConfig?.deferLoading
+                )
+              : undefined;
+        } catch (error) {
+          getLogger().warn("[useChatStorage] client tool filtering failed:", error);
+        }
+      }
+
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
       if (!userMsgQueueId) {
         if (userMessageEmbedding && autoEmbedMessages) {
-          // Reuse embedding from tool filtering
-          updateMessageEmbeddingOp(
-            storageCtx,
-            storedUserMessage.uniqueId,
-            userMessageEmbedding,
-            embeddingModel
-          ).catch(() => {
-            // Non-fatal
-          });
+          // Reuse the tool-filter embedding for storage. A chunked prompt yields
+          // number[][] → persist one row per chunk (chunkText here reproduces the
+          // same chunks embedToolText embedded); a short prompt yields number[] →
+          // a single embedding. Mirrors react's storage branch.
+          if (Array.isArray(userMessageEmbedding[0])) {
+            const textChunks = chunkText(contentForStorage);
+            const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+              text: chunk.text,
+              vector: (userMessageEmbedding as number[][])[i],
+              startOffset: chunk.startOffset,
+              endOffset: chunk.endOffset,
+            }));
+            updateMessageChunksOp(
+              storageCtx,
+              storedUserMessage.uniqueId,
+              messageChunks,
+              embeddingModel
+            ).catch((err) => {
+              getLogger().warn(
+                "[useChatStorage] Failed to persist chunked embeddings for user message:",
+                err
+              );
+            });
+          } else {
+            updateMessageEmbeddingOp(
+              storageCtx,
+              storedUserMessage.uniqueId,
+              userMessageEmbedding as number[],
+              embeddingModel
+            ).catch(() => {
+              // Non-fatal
+            });
+          }
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
           void embedMessageAsync(storedUserMessage, maskForCall);
+        }
+      }
+
+      if (onToolSelection) {
+        try {
+          onToolSelection({
+            prompt: contentForStorage,
+            clientToolNames: (narrowedClientTools ?? []).map(getToolName).filter(Boolean),
+            serverToolNames: filteredServerTools.map((t) => t.name),
+          });
+        } catch {
+          // Observability must never break the send path.
         }
       }
 
@@ -1931,6 +2295,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryContext,
         searchContext,
         fileContext,
+        toolGuidance: computeToolGuidance(
+          filteredServerTools,
+          narrowedClientTools,
+          extraToolSets ?? [],
+          clientActivatedSetNames
+        ),
         apiType: requestApiType,
         // Responses API options
         temperature,
@@ -2220,6 +2590,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: err instanceof Error ? err.message : "Failed to store assistant message",
           userMessage: storedUserMessage,
         };
+      }
+
+      // Refresh the cached server-tools catalog when the response checksum
+      // differs from the cached one (react parity). Async-safe (resolve the
+      // possibly-promise shouldRefreshTools) and forwards the same backend.
+      const refreshGetToken = getTokenRef.current;
+      if (refreshGetToken) {
+        // Run shouldRefreshTools INSIDE the chain: it synchronously reads the
+        // cache backend (cache.get()), and a custom RN backend can throw — a sync
+        // throw in the Promise.resolve() argument would escape .catch() and reject
+        // an already-successful (and already-persisted) send.
+        Promise.resolve()
+          .then(() => shouldRefreshTools(getToolsChecksum(responseData), serverToolsConfig?.cache))
+          .then((refresh) => {
+            if (refresh) {
+              return getServerTools({
+                baseUrl,
+                getToken: refreshGetToken,
+                forceRefresh: true,
+                cache: serverToolsConfig?.cache,
+              });
+            }
+          })
+          .catch((err) => {
+            getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+          });
       }
 
       return {

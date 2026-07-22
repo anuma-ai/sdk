@@ -124,19 +124,20 @@ async function persistExtractionCache(force = false): Promise<void> {
 
 // ── Embedding cache persistence ──
 
-async function loadEmbeddingCache(path: string): Promise<Map<string, number[]>> {
+async function loadEmbeddingCache(path: string): Promise<Map<string, Float32Array>> {
   try {
     await access(path);
     const data = await readFile(path, "utf-8");
     const entries: [string, number[]][] = JSON.parse(data);
     console.log(`Loaded ${entries.length} cached embeddings from disk`);
-    return new Map(entries);
+    // Convert number[] back to Float32Array to match the cache contract
+    return new Map(entries.map(([key, value]) => [key, Float32Array.from(value)]));
   } catch {
     return new Map();
   }
 }
 
-async function saveEmbeddingCache(path: string, cache: Map<string, number[]>): Promise<void> {
+async function saveEmbeddingCache(path: string, cache: Map<string, Float32Array>): Promise<void> {
   try {
     await mkdir(join(path, ".."), { recursive: true });
     // Stream entries one-by-one to avoid building a huge JSON string in memory.
@@ -146,7 +147,8 @@ async function saveEmbeddingCache(path: string, cache: Map<string, number[]>): P
     for (const [key, value] of cache) {
       if (!first) stream.write(",");
       first = false;
-      stream.write(JSON.stringify([key, value]));
+      // Convert Float32Array to number[] for JSON serialization
+      stream.write(JSON.stringify([key, Array.from(value)]));
     }
     stream.write("]");
     await new Promise<void>((resolve, reject) => {

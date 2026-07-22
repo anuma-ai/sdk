@@ -694,6 +694,18 @@ Re-exports [getConversationsLazyOp](../react/Internal/functions/getConversations
 
 ***
 
+### getConversationsPageOp
+
+Re-exports [getConversationsPageOp](../react/Internal/functions/getConversationsPageOp.md)
+
+***
+
+### GetConversationsPageOptions
+
+Re-exports [GetConversationsPageOptions](../react/Internal/interfaces/GetConversationsPageOptions.md)
+
+***
+
 ### getLogger
 
 Re-exports [getLogger](../react/Internal/functions/getLogger.md)
@@ -1246,6 +1258,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 
 ***
 
+### supersedeVaultMemoryOp
+
+Re-exports [supersedeVaultMemoryOp](../react/Internal/functions/supersedeVaultMemoryOp.md)
+
+***
+
 ### TextChunk
 
 Re-exports [TextChunk](../react/Internal/interfaces/TextChunk.md)
@@ -1273,6 +1291,12 @@ Re-exports [TopicExtractionRunResult](../react/Internal/interfaces/TopicExtracti
 ### TopicExtractOptions
 
 Re-exports [TopicExtractOptions](../react/Internal/interfaces/TopicExtractOptions.md)
+
+***
+
+### TOPICS\_EXTRACTION\_VERSION
+
+Re-exports [TOPICS\_EXTRACTION\_VERSION](../react/Internal/variables/TOPICS_EXTRACTION_VERSION.md)
 
 ***
 

@@ -2,4 +2,4 @@
 
 > **GetApiV1AuthMfaStatusResponse** = [`GetApiV1AuthMfaStatusResponses`](GetApiV1AuthMfaStatusResponses.md)\[keyof [`GetApiV1AuthMfaStatusResponses`](GetApiV1AuthMfaStatusResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6579](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6579)
+Defined in: [src/client/types.gen.ts:6584](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6584)

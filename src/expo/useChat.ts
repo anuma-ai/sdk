@@ -49,6 +49,13 @@ type SendMessageArgs = BaseSendMessageArgs & {
    */
   fileContext?: string;
   /**
+   * Tool-set guidance to inject as a system message — the persona/usage prompt
+   * for whichever tool sets activated this turn (e.g. the app-builder prompt).
+   * Additive: composes with the other context messages, never replaces them.
+   * Mirrors react's useChat toolGuidance channel.
+   */
+  toolGuidance?: string;
+  /**
    * Override the API type for this request only.
    * Useful when different models need different APIs.
    * @default Uses the hook-level apiType or "auto"
@@ -411,6 +418,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       memoryContext,
       searchContext,
       fileContext,
+      toolGuidance,
       // Responses API options
       temperature,
       maxOutputTokens,
@@ -422,6 +430,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       imageModel,
       apiType: requestApiType,
       conversationId,
+      endpointOverride,
       piiRedaction: requestPiiRedaction,
       headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
@@ -494,6 +503,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           messagesWithContext = [fileSystemMessage, ...messagesWithContext];
         }
 
+        // Tool-set guidance — injected last so it leads the system messages,
+        // matching react/useChat. Tells the model how to use the tool sets that
+        // activated this turn.
+        if (toolGuidance) {
+          const toolGuidanceMessage: LlmapiMessage = {
+            role: "system",
+            content: [{ type: "text", text: toolGuidance }],
+          };
+          messagesWithContext = [toolGuidanceMessage, ...messagesWithContext];
+        }
+
         // Delegate to the framework-agnostic tool loop with XHR transport
         const result: RunToolLoopResult = await runToolLoop({
           messages: messagesWithContext,
@@ -501,6 +521,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           token: token!,
           baseUrl,
           apiType: requestApiType ?? defaultApiType,
+          endpointOverride,
           temperature,
           maxOutputTokens,
           tools,
