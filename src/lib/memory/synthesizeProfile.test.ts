@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./reflect.js", () => ({ reflect: vi.fn() }));
 vi.mock("../db/memoryVault/operations.js", () => ({ getAllVaultMemoriesOp: vi.fn() }));
+vi.mock("../memoryEngine/embeddings.js", () => ({ generateEmbeddings: vi.fn() }));
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
+import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { reflect } from "./reflect.js";
 import {
   type ProfileConfigFingerprint,
@@ -18,6 +20,7 @@ import type { RecallContext } from "./types.js";
 
 const mockReflect = vi.mocked(reflect);
 const mockGetAll = vi.mocked(getAllVaultMemoriesOp);
+const mockEmbed = vi.mocked(generateEmbeddings);
 
 // vaultCtx just needs to be a truthy object — the ops are mocked.
 const ctx = {
@@ -188,10 +191,12 @@ describe("synthesizeProfile", () => {
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
-  it("regenerates all facets when a brand-new fact appeared", async () => {
+  // Fallback: a new fact with no usable embedding can't be attributed, so every
+  // facet regenerates (the pre-attribution conservative behavior).
+  it("regenerates all facets when a new fact has no embedding to attribute", async () => {
     mockGetAll.mockResolvedValue([
       mem("a", { updatedAt: new Date(1000) }),
-      mem("c", { updatedAt: new Date(6000), createdAt: new Date(6000) }), // new
+      mem("c", { updatedAt: new Date(6000), createdAt: new Date(6000), embedding: null }), // new, unembedded
     ]);
     mockReflect
       .mockResolvedValueOnce(reflectResult("new bio", ["a", "c"]))
@@ -204,8 +209,67 @@ describe("synthesizeProfile", () => {
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
+    expect(mockEmbed).not.toHaveBeenCalled(); // bailed before embedding facet queries
     expect(mockReflect).toHaveBeenCalledTimes(2);
     expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("new bio");
+  });
+
+  // Attribution: a new fact regenerates only the facet(s) whose query it clears
+  // the cosine floor against — not the whole profile.
+  it("attributes a new fact only to the facet it matches", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      // New fact, embedding aligned with the FIRST facet query (bio).
+      mem("c", {
+        updatedAt: new Date(6000),
+        createdAt: new Date(6000),
+        embedding: JSON.stringify([1, 0]),
+      }),
+    ]);
+    // Facet-query embeddings in facet order: bio=[1,0], interests=[0,1].
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockReflect.mockResolvedValueOnce(reflectResult("bio with new fact", ["a", "c"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(mockReflect).toHaveBeenCalledTimes(1); // only bio, not interests
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("bio with new fact");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+  });
+
+  it("attributes nothing when a new fact matches no facet query", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      // Orthogonal to both facet queries → below the cosine floor for each.
+      mem("c", {
+        updatedAt: new Date(6000),
+        createdAt: new Date(6000),
+        embedding: JSON.stringify([0, 0, 1]),
+      }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0, 0],
+      [0, 1, 0],
+    ]);
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(mockReflect).not.toHaveBeenCalled(); // unrelated new fact → no regeneration
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("old bio");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
   // Finding #1: a caller that newly adds a redactor must NOT get back the prior

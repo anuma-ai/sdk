@@ -15,14 +15,17 @@
  * provenance and cheap delta refresh (only regenerate sections whose source
  * facts changed since the previous doc's `vaultWatermark`).
  *
- * This is the C1 scaffold: the facet decomposition, per-facet synthesis, delta
- * refresh, and PII gate are wired end-to-end. Prompt tuning per facet and
- * attributing brand-new facts to specific facets without a full re-synthesis
- * are marked as follow-ups inline.
+ * Facet decomposition, per-facet synthesis, delta refresh, and the PII gate are
+ * wired end-to-end. New facts are attributed to the facets they're relevant to
+ * (by embedding similarity to each facet query) so an unrelated new fact doesn't
+ * force a full re-synthesis — see {@link attributeNewFacts}.
  */
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
+import { generateEmbeddings } from "../memoryEngine/embeddings.js";
+import { cosineSimilarity } from "../memoryEngine/vector.js";
 import type { PiiRedactor } from "../pii/redactor.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import { reflect } from "./reflect.js";
@@ -39,6 +42,13 @@ const DEFAULT_FACET_MAX_TOKENS = 512;
 /** Scopes a shareable profile draws from. Defaults to the user's private vault;
  * the caller narrows/widens per its publishing policy. */
 const DEFAULT_SCOPES = ["private"];
+/** Cosine floor for attributing a brand-new fact to a facet. Mirrors recall's
+ * DEFAULT_FACT_MIN_SCORE (0.1): a new fact is treated as relevant to a facet
+ * only when its embedding clears the same floor against that facet's query that
+ * recall would apply — i.e., recall for that facet would actually surface it.
+ * A fact below the floor for every facet influences none (recall wouldn't
+ * surface it anywhere), so it correctly triggers no regeneration. */
+const NEW_FACT_ATTRIBUTION_MIN_SCORE = 0.1;
 /** Bump when the ProfileDoc / section shape changes incompatibly. */
 export const PROFILE_DOC_VERSION = 1;
 
@@ -68,44 +78,44 @@ export const DEFAULT_PROFILE_FACETS: ProfileFacet[] = [
   {
     key: "bio",
     label: "Bio",
-    query: "Who is this person? Their background, personality, and what defines them.",
+    query: "Who is this person? Their background, personality, values, and what defines them.",
     guidance:
-      "Write a warm, first-person-neutral 1-2 sentence bio capturing who this person is. No filler.",
+      "Write a 1-2 sentence bio (max ~40 words) that captures what makes this person distinctive — their character, values, or a defining thread across the memories. Be specific and grounded; ban generic dating clichés ('loves to laugh', 'foodie', 'work hard play hard', 'living life to the fullest').",
   },
   {
     key: "interests",
     label: "Interests",
-    query: "What are this person's hobbies, passions, and interests?",
+    query: "What are this person's hobbies, passions, pastimes, and interests?",
     guidance:
-      "List the person's genuine interests and hobbies as a short, specific phrase list. Prefer concrete activities over vague categories.",
+      "Return 3-6 specific interests as a comma-separated list (e.g. 'trail running, film photography, Thai cooking'). Prefer concrete activities the memories actually show over broad categories ('music', 'travel'). No sentence, just the list.",
   },
   {
     key: "work_role",
     label: "Work & Role",
-    query: "What does this person do for work? Their profession, role, and field.",
+    query: "What does this person do for work — their profession, role, industry, or studies?",
     guidance:
-      "State the person's current work/role and field in one concise line. Omit if the memories don't cover it.",
+      "State the person's current role/profession and field in one short line (e.g. 'Backend engineer at a fintech startup'). Use only what the memories support; if unclear or absent, return hasEvidence=false rather than guessing a title.",
   },
   {
     key: "location_context",
     label: "Location",
     query: "Where does this person live, spend time, or come from?",
     guidance:
-      "Summarize where the person is based / spends time at a neighborhood-or-city granularity. Never emit a precise address.",
+      "Summarize where the person is based or spends time at neighborhood-or-city granularity in one short line (e.g. 'Based in the Mission, SF'). PRIVACY: never emit a precise address, building, or workplace location — coarse-grain to the city/neighborhood.",
   },
   {
     key: "communication_style",
     label: "Communication Style",
     query: "How does this person communicate, express themselves, and interact with others?",
     guidance:
-      "Describe the person's communication and social style in one line (e.g. direct, playful, thoughtful).",
+      "Describe the person's communication and social style in one line using 2-4 concrete adjectives grounded in the memories (e.g. 'Direct, dry-humored, and a careful listener'). Avoid empty praise.",
   },
   {
     key: "recent_activity",
     label: "Recently",
-    query: "What has this person been doing, thinking about, or working on recently?",
+    query: "What has this person been doing, focused on, or working on recently?",
     guidance:
-      "Summarize what the person has been up to lately in one line. Favor recently re-observed facts.",
+      "Summarize what the person has been up to lately in one line, favoring the most recently reinforced facts. Frame it as current/ongoing (e.g. 'Lately: training for a first half-marathon and learning Portuguese'). Omit if nothing recent stands out.",
   },
 ];
 
@@ -249,7 +259,7 @@ export async function synthesizeProfile(
     return previous;
   }
 
-  const staleKeys = computeStaleFacetKeys(memories, facets, previous);
+  const staleKeys = await computeStaleFacetKeys(ctx, memories, facets, previous);
 
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
@@ -320,32 +330,30 @@ function computeVaultWatermark(memories: StoredVaultMemory[]): number {
  * Which facets must be regenerated. Rules:
  * - No (usable) previous doc → all facets are stale (first synthesis / config
  *   or version change).
- * - Any brand-new fact since the previous watermark → regenerate ALL facets: a
- *   new fact could match any facet and we can't attribute it without recall.
- *   (Follow-up: attribute new facts to facets via a cheap recall pass so an
- *   unrelated new fact doesn't force a full re-synthesis.)
- * - Otherwise (only edits/re-observations/supersessions/deletions of existing
- *   facts) → regenerate only the facets whose prior section cited a changed id.
- *   Uses changeTime() so a re-observation reaches its citing section (#2).
+ * - Existing-fact changes (edit / re-observe / supersede / delete) → the facets
+ *   whose prior section cited a changed id. Uses changeTime() so a re-observation
+ *   reaches its citing section (#2).
+ * - Sections left stale by a prior failed regeneration → retried.
+ * - Newly-requested facets (no prior section) → stale.
+ * - Brand-new facts → attributed to the facets they're relevant to (see
+ *   {@link attributeNewFacts}) rather than forcing a full re-synthesis, falling
+ *   back to ALL facets only when attribution can't be computed safely.
+ * NB: no early-return on an empty `changed` set — stale-retry and new-facet
+ * checks must still run when the vault itself is unchanged.
  */
-function computeStaleFacetKeys(
+async function computeStaleFacetKeys(
+  ctx: RecallContext,
   memories: StoredVaultMemory[],
   facets: ProfileFacet[],
   previous: ProfileDoc | undefined
-): Set<ProfileFacetKey> {
+): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (!previous) return allKeys;
 
   const changed = memories.filter((m) => changeTime(m) > previous.vaultWatermark);
-  // NB: no early-return on an empty `changed` set — sections marked stale by a
-  // prior failed regeneration must still be retried below even when the vault
-  // itself is unchanged (the failure was transient, e.g. the LLM was down).
-
-  const hasNewFact = changed.some((m) => m.createdAt.getTime() > previous.vaultWatermark);
-  if (hasNewFact) return allKeys;
-
   const changedIds = new Set(changed.map((m) => m.uniqueId));
   const stale = new Set<ProfileFacetKey>();
+
   for (const section of previous.sections) {
     if (section.sourceMemoryIds.some((id) => changedIds.has(id))) {
       stale.add(section.key);
@@ -359,7 +367,67 @@ function computeStaleFacetKeys(
   for (const facet of facets) {
     if (!previous.sections.some((s) => s.key === facet.key)) stale.add(facet.key);
   }
+
+  // Brand-new, live facts: attribute to the facets they're relevant to instead
+  // of regenerating everything. A new-then-deleted/superseded fact is ignored.
+  const newFacts = changed.filter(
+    (m) => m.createdAt.getTime() > previous.vaultWatermark && !m.isDeleted && !m.supersededBy
+  );
+  if (newFacts.length > 0) {
+    const attributed = await attributeNewFacts(ctx, newFacts, facets);
+    if (attributed === null) return allKeys; // can't attribute safely → regen all
+    for (const k of attributed) stale.add(k);
+  }
+
   return stale;
+}
+
+/**
+ * Attribute each brand-new fact to the facets it's relevant to, by comparing
+ * the fact's stored embedding against each facet query's embedding — the same
+ * vector comparison recall's fact lane uses. A fact is attributed to a facet
+ * when their cosine clears {@link NEW_FACT_ATTRIBUTION_MIN_SCORE}. A fact below
+ * the floor for every facet influences none (recall wouldn't surface it
+ * anywhere either). Returns `null` — signalling "regenerate all facets" — when
+ * any new fact lacks a usable embedding or was embedded under a different model,
+ * since a cosine comparison would then be meaningless.
+ */
+async function attributeNewFacts(
+  ctx: RecallContext,
+  newFacts: StoredVaultMemory[],
+  facets: ProfileFacet[]
+): Promise<Set<ProfileFacetKey> | null> {
+  const model = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
+  const factVectors: number[][] = [];
+  for (const f of newFacts) {
+    if (!f.embedding) return null;
+    if (f.embeddingModel && f.embeddingModel !== model) return null;
+    let vec: unknown;
+    try {
+      vec = JSON.parse(f.embedding);
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(vec) || vec.length === 0) return null;
+    factVectors.push(vec as number[]);
+  }
+
+  // Embed the facet queries with the same options recall uses (cached across
+  // calls via EmbeddingOptions.cache — cheaper than the reflect() passes saved).
+  const queryVectors = await generateEmbeddings(
+    facets.map((f) => f.query),
+    ctx.embeddingOptions
+  );
+
+  const keys = new Set<ProfileFacetKey>();
+  for (const fv of factVectors) {
+    for (let i = 0; i < facets.length; i++) {
+      if (cosineSimilarity(fv, queryVectors[i]) >= NEW_FACT_ATTRIBUTION_MIN_SCORE) {
+        keys.add(facets[i].key);
+      }
+    }
+  }
+  return keys;
 }
 
 /** One grounded synthesis pass for a single facet. Gates its own fresh text
@@ -432,15 +500,17 @@ function fallbackSection(facet: ProfileFacet, prior: ProfileSection | undefined)
 /** Grounding system prompt for a facet — reuses reflect's evidence discipline
  * and layers the facet-specific guidance + structured-output contract. */
 function buildFacetSystemPrompt(facet: ProfileFacet): string {
-  return `You are building the "${facet.label}" section of a person's shareable profile from their private memories, which are supplied as evidence.
+  return `You are writing the "${facet.label}" section of a person's shareable profile, using their private memories (supplied as evidence) as the only source of truth.
 
+Task for this section:
 ${facet.guidance}
 
 Rules:
-- Ground every claim in the supplied memories — never invent facts they don't support.
-- If the memories don't cover this section, return an empty summary and hasEvidence=false.
-- Write about the person in a neutral third-person-free voice suitable for a public profile.
-- Be concise. No preamble, no meta-commentary.`;
+- Ground every claim in the supplied memories — never invent, infer beyond, or embellish what they support.
+- If the memories don't cover this section, return an empty summary with hasEvidence=false. Do not pad or guess.
+- Write in third person about the person, in a natural voice suitable for a public profile (no "I"/"you", no name repetition).
+- Be concise and specific; no preamble, hedging, or meta-commentary.
+- Respond as JSON: { "summary": <the section text, or "">, "hasEvidence": <true|false> }.`;
 }
 
 /** Pull section text from the structured output, falling back to raw text.
