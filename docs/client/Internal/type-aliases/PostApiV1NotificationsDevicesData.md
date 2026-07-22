@@ -2,7 +2,7 @@
 
 > **PostApiV1NotificationsDevicesData** = `object`
 
-Defined in: [src/client/types.gen.ts:8591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8591)
+Defined in: [src/client/types.gen.ts:8596](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8596)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8591](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersRegisterDeviceRequest`](HandlersRegisterDeviceRequest.md)
 
-Defined in: [src/client/types.gen.ts:8595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8595)
+Defined in: [src/client/types.gen.ts:8600](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8600)
 
 Device registration
 
@@ -20,7 +20,7 @@ Device registration
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:8596](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8596)
+Defined in: [src/client/types.gen.ts:8601](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8601)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:8596](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:8597](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8597)
+Defined in: [src/client/types.gen.ts:8602](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8602)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:8597](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/notifications/devices"`
 
-Defined in: [src/client/types.gen.ts:8598](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8598)
+Defined in: [src/client/types.gen.ts:8603](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8603)

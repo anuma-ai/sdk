@@ -2,7 +2,7 @@
 
 > **GetApiV1AuthMfaStatusErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:6568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6568)
+Defined in: [src/client/types.gen.ts:6573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6573)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6568](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:6572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6572)
+Defined in: [src/client/types.gen.ts:6577](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6577)
 
 Unauthorized

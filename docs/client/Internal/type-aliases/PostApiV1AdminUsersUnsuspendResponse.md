@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminUsersUnsuspendResponse** = [`PostApiV1AdminUsersUnsuspendResponses`](PostApiV1AdminUsersUnsuspendResponses.md)\[keyof [`PostApiV1AdminUsersUnsuspendResponses`](PostApiV1AdminUsersUnsuspendResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6197)
+Defined in: [src/client/types.gen.ts:6202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6202)

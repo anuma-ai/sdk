@@ -2,7 +2,7 @@
 
 > **GetApiV1AuthMfaStatusResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6577](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6577)
+Defined in: [src/client/types.gen.ts:6582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6582)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6577](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersMfaStatusResponse`](HandlersMfaStatusResponse.md)
 
-Defined in: [src/client/types.gen.ts:6581](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6581)
+Defined in: [src/client/types.gen.ts:6586](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6586)
 
 OK

@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminPrivyIdentifiersMigrateError** = [`PostApiV1AdminPrivyIdentifiersMigrateErrors`](PostApiV1AdminPrivyIdentifiersMigrateErrors.md)\[keyof [`PostApiV1AdminPrivyIdentifiersMigrateErrors`](PostApiV1AdminPrivyIdentifiersMigrateErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5783](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5783)
+Defined in: [src/client/types.gen.ts:5788](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5788)

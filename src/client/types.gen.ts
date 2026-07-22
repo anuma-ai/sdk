@@ -2237,6 +2237,11 @@ export type HandlersModerateResponse = {
     };
 };
 
+export type HandlersNearbyModerateRequest = {
+    image_urls?: Array<string>;
+    texts?: Array<string>;
+};
+
 export type HandlersNonceResponse = {
     expires_at?: string;
     message?: string;
@@ -10080,6 +10085,60 @@ export type PatchApiV1UserOauthGrantsByIdResponses = {
 
 export type PatchApiV1UserOauthGrantsByIdResponse = PatchApiV1UserOauthGrantsByIdResponses[keyof PatchApiV1UserOauthGrantsByIdResponses];
 
+export type PostApiV1UtilityResponsesData = {
+    /**
+     * Response request
+     */
+    body: LlmapiResponseRequest;
+    headers?: {
+        /**
+         * Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
+         */
+        'X-Stream-Resumable'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/utility/responses';
+};
+
+export type PostApiV1UtilityResponsesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Insufficient balance or spending cap exceeded
+     */
+    402: ResponseInsufficientBalanceResponse;
+    /**
+     * Model not available on current subscription tier
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Input exceeds model context window
+     */
+    413: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1UtilityResponsesError = PostApiV1UtilityResponsesErrors[keyof PostApiV1UtilityResponsesErrors];
+
+export type PostApiV1UtilityResponsesResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiResponseResponse | string;
+};
+
+export type PostApiV1UtilityResponsesResponse = PostApiV1UtilityResponsesResponses[keyof PostApiV1UtilityResponsesResponses];
+
 export type GetApiV1WalletsBindingData = {
     body?: never;
     path?: never;
@@ -10516,6 +10575,74 @@ export type GetInternalAccountsByDidByDidResponses = {
 };
 
 export type GetInternalAccountsByDidByDidResponse = GetInternalAccountsByDidByDidResponses[keyof GetInternalAccountsByDidByDidResponses];
+
+export type PostInternalEmbeddingsData = {
+    /**
+     * Embedding request
+     */
+    body: LlmapiEmbeddingRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/embeddings';
+};
+
+export type PostInternalEmbeddingsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostInternalEmbeddingsError = PostInternalEmbeddingsErrors[keyof PostInternalEmbeddingsErrors];
+
+export type PostInternalEmbeddingsResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiEmbeddingResponse;
+};
+
+export type PostInternalEmbeddingsResponse = PostInternalEmbeddingsResponses[keyof PostInternalEmbeddingsResponses];
+
+export type PostInternalModerateData = {
+    /**
+     * Texts and image URLs to moderate
+     */
+    body: HandlersNearbyModerateRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/moderate';
+};
+
+export type PostInternalModerateErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Moderation backend error
+     */
+    502: ResponseErrorResponse;
+};
+
+export type PostInternalModerateError = PostInternalModerateErrors[keyof PostInternalModerateErrors];
+
+export type PostInternalModerateResponses = {
+    /**
+     * OK
+     */
+    200: HandlersModerateResponse;
+};
+
+export type PostInternalModerateResponse = PostInternalModerateResponses[keyof PostInternalModerateResponses];
 
 export type GetOauthAuthorizeData = {
     body?: never;

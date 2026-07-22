@@ -2,7 +2,7 @@
 
 > **GetApiV1UserAgentConsentsData** = `object`
 
-Defined in: [src/client/types.gen.ts:9689](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9689)
+Defined in: [src/client/types.gen.ts:9694](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9694)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9689](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9690](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9690)
+Defined in: [src/client/types.gen.ts:9695](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9695)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9690](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:9691](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9691)
+Defined in: [src/client/types.gen.ts:9696](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9696)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:9691](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:9692](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9692)
+Defined in: [src/client/types.gen.ts:9697](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9697)
 
 **platform?**
 
@@ -40,4 +40,4 @@ Platform filter ('sms')
 
 > **url**: `"/api/v1/user/agent-consents"`
 
-Defined in: [src/client/types.gen.ts:9698](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9698)
+Defined in: [src/client/types.gen.ts:9703](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9703)

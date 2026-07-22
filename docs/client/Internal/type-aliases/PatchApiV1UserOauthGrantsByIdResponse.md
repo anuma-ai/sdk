@@ -2,4 +2,4 @@
 
 > **PatchApiV1UserOauthGrantsByIdResponse** = [`PatchApiV1UserOauthGrantsByIdResponses`](PatchApiV1UserOauthGrantsByIdResponses.md)\[keyof [`PatchApiV1UserOauthGrantsByIdResponses`](PatchApiV1UserOauthGrantsByIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10081](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10081)
+Defined in: [src/client/types.gen.ts:10086](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10086)

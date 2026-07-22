@@ -2,7 +2,7 @@
 
 > **HandlersWeatherResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:3108](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3108)
+Defined in: [src/client/types.gen.ts:3113](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3113)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:3108](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **forecasts**: [`OpenmeteoForecast`](OpenmeteoForecast.md)\[]
 
-Defined in: [src/client/types.gen.ts:3109](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3109)
+Defined in: [src/client/types.gen.ts:3114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3114)
