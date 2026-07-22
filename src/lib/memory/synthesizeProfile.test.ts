@@ -542,6 +542,31 @@ describe("synthesizeProfile", () => {
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
+  // If the scoped watermark DROPS below the prior doc's (an uncited high-changeTime
+  // fact left scope), the baseline is unreliable → full regen + reset the mark,
+  // rather than freezing on the inflated prior watermark.
+  it("regenerates and resets the watermark when the scoped max dropped", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(2000) }), // cited by bio, present
+      mem("b", { updatedAt: new Date(2000) }), // cited by interests, present
+    ]);
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("re bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("re interests", ["b"]));
+
+    // Prior watermark 9000 was set by an uncited fact that has since left scope.
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      9000
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(doc).not.toBe(previous);
+    expect(mockReflect).toHaveBeenCalledTimes(2); // full regen (baseline unreliable)
+    expect(doc.vaultWatermark).toBe(2000); // baseline reset to current scoped max
+  });
+
   // A partial/unparseable structured response must NOT publish the raw JSON
   // payload as section text — it degrades to the prior section (stale).
   it("does not publish a raw JSON payload when structured output is incomplete", async () => {
@@ -571,8 +596,10 @@ describe("synthesizeProfile", () => {
   // snapshot without advancing the watermark — the citing section must still
   // refresh rather than reuse evidence recall no longer returns.
   it("refreshes a section when a cited fact left scope (watermark unchanged)", async () => {
-    // "a" (cited by bio) is gone from the scoped snapshot; "b" unchanged.
-    mockGetAll.mockResolvedValue([mem("b", { updatedAt: new Date(1000) })]);
+    // "a" (cited by bio) is gone from the scoped snapshot; "b" holds the mark at
+    // 2000 so the watermark is UNCHANGED — isolating the missing-cited-fact path
+    // from the watermark-decrease path.
+    mockGetAll.mockResolvedValue([mem("b", { updatedAt: new Date(2000) })]);
     // bio's only evidence left scope → recall returns nothing → section clears.
     mockReflect.mockResolvedValueOnce({
       text: "",

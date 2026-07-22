@@ -266,21 +266,25 @@ export async function synthesizeProfile(
 
   // Fast path: reusable prior doc AND nothing in the vault changed since it AND
   // no sections are stale (which would block documented retry) AND every cited
-  // fact is still present in the scoped snapshot. The last guard catches a fact
-  // that left the synthesis scopes (or was hard-deleted): it vanishes from the
-  // scoped snapshot without advancing the watermark, so the plain watermark
-  // check alone would wrongly reuse a section citing evidence recall no longer
-  // returns.
+  // fact is still present in the scoped snapshot.
+  //
+  // The watermark check is EQUALITY, not `>=`: the scoped max-changeTime is not
+  // monotonic — when an uncited fact leaves scope (or is hard-deleted) the max
+  // can DROP below previous.vaultWatermark. A `>=` test would read that decrease
+  // as "unchanged" and freeze the doc, while delta kept comparing against the
+  // inflated old mark (missing all later sub-mark edits). Requiring equality
+  // treats any decrease as a change; computeStaleFacetKeys then full-regens and
+  // the returned doc resets the watermark to the current (lower) value.
   const presentIds = new Set(memories.map((m) => m.uniqueId));
   const hasStaleSections = previous?.sections.some((s) => s.stale);
   const citesMissingFact = previous?.sections.some((s) =>
     s.sourceMemoryIds.some((id) => !presentIds.has(id))
   );
-  if (previous && previous.vaultWatermark >= watermark && !hasStaleSections && !citesMissingFact) {
+  if (previous && previous.vaultWatermark === watermark && !hasStaleSections && !citesMissingFact) {
     return previous;
   }
 
-  const staleKeys = await computeStaleFacetKeys(ctx, memories, facets, previous);
+  const staleKeys = await computeStaleFacetKeys(ctx, memories, facets, previous, watermark);
 
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
@@ -373,6 +377,11 @@ function computeVaultWatermark(memories: StoredVaultMemory[]): number {
  *   a supersession successor) → attributed to the facets they're relevant to
  *   (see {@link attributeFacts}) rather than forcing a full re-synthesis,
  *   falling back to ALL facets only when attribution can't be computed safely.
+ * - Watermark DECREASE (current scoped max < previous) → the baseline is no
+ *   longer reliable (a high-changeTime fact left scope / was removed), so
+ *   per-fact delta against the inflated prior mark would miss real changes →
+ *   regenerate ALL facets. The returned doc stores the current (lower) mark,
+ *   restoring an accurate baseline.
  * NB: no early-return on an empty `changed` set — stale-retry and new-facet
  * checks must still run when the vault itself is unchanged.
  */
@@ -380,9 +389,11 @@ async function computeStaleFacetKeys(
   ctx: RecallContext,
   memories: StoredVaultMemory[],
   facets: ProfileFacet[],
-  previous: ProfileDoc | undefined
+  previous: ProfileDoc | undefined,
+  watermark: number
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
+  if (previous && watermark < previous.vaultWatermark) return allKeys;
   if (!previous) return allKeys;
 
   const changed = memories.filter((m) => changeTime(m) > previous.vaultWatermark);
