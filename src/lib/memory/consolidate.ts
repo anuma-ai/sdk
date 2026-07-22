@@ -23,6 +23,13 @@
  *   action="noop"    — the new fact is already adequately captured by an
  *                      existing memory; skip the write
  *
+ * Twin-lookup note (C5 / Hindsight parity): candidate retrieval for
+ * consolidation deliberately uses cosine-only search (`useFusion: false`) —
+ * RRF + cross-encoder bury near-identical paraphrases. Do not "upgrade" this
+ * path to the fused recall pipeline. Standing-vault cleanup of already-stored
+ * near-duplicates is tracked in anuma-ai/sdk#717 (auditVault), not a second
+ * write-time observations tier.
+ *
  * Rules carried verbatim from Hindsight:
  * - "ONE OBSERVATION PER DISTINCT FACET"
  * - "MATCH BY ENTITY/FACET, NOT TOPIC"
