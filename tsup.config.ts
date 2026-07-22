@@ -70,7 +70,14 @@ export default defineConfig([
       {
         name: "rewrite-client-import",
         setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
             return { path: "@anuma/sdk", external: true };
           });
         },
@@ -103,7 +110,14 @@ export default defineConfig([
       {
         name: "rewrite-client-import",
         setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
             return { path: "@anuma/sdk", external: true };
           });
         },
@@ -153,6 +167,42 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
+  },
+  // Tool-selection engine + resolver — the node/RN/RSC-safe orchestration layer
+  // exposed as "@anuma/sdk/tools/selection" (issue #702). Its own entry with
+  // isolated externals — the "tools/" prefix is a naming grouping, NOT part of
+  // the "@anuma/sdk/tools" factory bundle. Deliberately free of WatermelonDB and
+  // recharts (the embedding calls come from the db-free memoryEngine/generate
+  // core), so both externals are belt-and-suspenders. The ../client rewrite
+  // mirrors server/react/expo so the generated HTTP client is not re-bundled.
+  {
+    entry: ["src/tools/selection/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/tools/selection",
+    external: ["react", "recharts", "@nozbe/watermelondb"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+    esbuildPlugins: [
+      {
+        name: "rewrite-client-import",
+        setup(build) {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
+            return { path: "@anuma/sdk", external: true };
+          });
+        },
+      },
+    ],
   },
   // Design — pointer-driven gesture system for AnumaNode trees.
   // The foundation for any visual editor on the SDK runtime
@@ -224,7 +274,14 @@ export default defineConfig([
       {
         name: "rewrite-client-import",
         setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
+          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
+          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
+          // import that every tool-selection consumer pulls in). Anchored to a
+          // `client` segment so `../../clientConfig` (constants) still bundles. A
+          // depth-1-only regex silently re-bundled the whole client via
+          // generate.ts.
+          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
             return { path: "@anuma/sdk", external: true };
           });
         },

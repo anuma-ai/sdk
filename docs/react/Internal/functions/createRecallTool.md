@@ -2,7 +2,7 @@
 
 > **createRecallTool**(`ctx`: [`RecallContext`](../interfaces/RecallContext.md), `toolOptions?`: [`RecallToolOptions`](../interfaces/RecallToolOptions.md), `callbacks?`: [`RecallToolCallbacks`](../interfaces/RecallToolCallbacks.md)): `ToolConfig`
 
-Defined in: [src/lib/memory/recallTool.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#134)
+Defined in: [src/lib/memory/recallTool.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#132)
 
 Creates the unified recall tool. Routes through `recall()` so vault
 facts and conversation chunks are fused into a single ranked list via

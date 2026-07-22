@@ -2,7 +2,7 @@
 
 > **embedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:409](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#409)
+Defined in: [src/lib/memoryEngine/embeddings.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#95)
 
 Embed all messages without embeddings in the database
 
