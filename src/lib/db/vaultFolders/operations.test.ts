@@ -5,6 +5,7 @@ import {
   createVaultFolderOp,
   getAllVaultFoldersOp,
   updateVaultFolderContextOp,
+  updateVaultFolderOp,
 } from "./operations";
 
 // ---------------------------------------------------------------------------
@@ -163,6 +164,51 @@ describe("folderToStored — context field ?? semantics", () => {
 
     const folders = await getAllVaultFoldersOp(ctx);
     expect(folders[0].context).toBe("Work-related memories.");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateVaultFolderOp
+// ---------------------------------------------------------------------------
+
+describe("updateVaultFolderOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("never yields the event loop between prepareUpdate and batch on scope change", async () => {
+    // WatermelonDB's dev diagnostic throws (uncaught → RedBox on RN Debug
+    // builds) when a prepared update is still pending as the event loop turns.
+    // The scope-change cascade must therefore fetch the folder's memories
+    // BEFORE preparing the folder update — an interleaved fetch left the
+    // folder record prepared across an await.
+    const pending = new Set<string>();
+    const violations: string[] = [];
+    const folder = mockFolderRecord({ id: "folder_1", scope: "private" });
+    (folder.prepareUpdate as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      pending.add("folder_1");
+      return { __prepared: true };
+    });
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => unknown) => cb()),
+        batch: vi.fn(async () => pending.clear()),
+      } as unknown as VaultFolderOperationsContext["database"],
+      vaultFolderCollection: {
+        find: vi.fn(async () => folder),
+      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
+      vaultMemoryCollection: {
+        query: vi.fn(() => ({
+          fetch: vi.fn(async () => {
+            if (pending.size > 0) violations.push(...pending);
+            return [];
+          }),
+        })),
+      } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
+    });
+
+    await updateVaultFolderOp(ctx, "folder_1", { scope: "shared" });
+
+    expect(violations).toEqual([]);
+    expect(folder.prepareUpdate).toHaveBeenCalledTimes(1);
   });
 });
 
