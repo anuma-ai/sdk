@@ -165,6 +165,23 @@ describe("rerankPairs", () => {
     expect(h.lastTokenizeArgs?.pairs).toEqual(["doc a", "doc b"]);
   });
 
+  it("C4: date-prefixes CE docs when dateMs is set, without mutating returned content", async () => {
+    const { rerankPairs, formatRerankDoc } = await freshReranker();
+    expect(formatRerankDoc("Lives in SF", Date.UTC(2026, 0, 15))).toBe(
+      "[Date: 2026-01-15] Lives in SF"
+    );
+    expect(formatRerankDoc("no date")).toBe("no date");
+    expect(formatRerankDoc("no date", null)).toBe("no date");
+
+    h.logitsDims = [1, 1];
+    h.logitsData = [1];
+    const result = await rerankPairs("where", [
+      { id: "a", content: "Lives in SF", dateMs: Date.UTC(2026, 0, 15) },
+    ]);
+    expect(h.lastTokenizeArgs?.pairs).toEqual(["[Date: 2026-01-15] Lives in SF"]);
+    expect(result[0].content).toBe("Lives in SF");
+  });
+
   it("uses column 1 as the relevance logit for a 2-label head", async () => {
     const { rerankPairs } = await freshReranker();
     h.logitsDims = [2, 2];

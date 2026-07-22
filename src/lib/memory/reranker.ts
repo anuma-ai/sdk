@@ -132,6 +132,13 @@ async function getModel(): Promise<ModelHandle> {
 interface RerankerItem {
   id: string;
   content: string;
+  /**
+   * Optional Unix-ms date used for C4 date-prefixed CE pairs. When set,
+   * the doc side is sent as `[Date: YYYY-MM-DD] <content>` so the
+   * cross-encoder can prefer temporally-aligned evidence. Does not
+   * mutate the returned `content` (callers still see the original text).
+   */
+  dateMs?: number | null;
 }
 
 interface RerankedItem {
@@ -146,12 +153,32 @@ function sigmoid(x: number): number {
 }
 
 /**
+ * C4 — Prefix a doc with `[Date: YYYY-MM-DD]` for temporal-aware
+ * cross-encoding. Returns `content` unchanged when `dateMs` is missing
+ * or non-finite.
+ *
+ * @internal Exported for unit tests + call-site reuse.
+ */
+export function formatRerankDoc(content: string, dateMs?: number | null): string {
+  if (dateMs == null || !Number.isFinite(dateMs)) return content;
+  const d = new Date(dateMs);
+  if (!Number.isFinite(d.getTime())) return content;
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `[Date: ${yyyy}-${mm}-${dd}] ${content}`;
+}
+
+/**
  * Rerank a candidate set against a query using a cross-encoder.
  *
  * Returns items sorted by score descending. The first call lazy-loads the
  * model (~25MB download on first run, then cached by transformers.js).
  *
  * For empty inputs: returns []. For a single candidate: returns it scored.
+ *
+ * When an item carries {@link RerankerItem.dateMs}, the CE sees a
+ * date-prefixed doc (C4) while the returned `content` stays unprefixed.
  */
 export async function rerankPairs(query: string, items: RerankerItem[]): Promise<RerankedItem[]> {
   if (items.length === 0 || !query) return [];
@@ -161,7 +188,7 @@ export async function rerankPairs(query: string, items: RerankerItem[]): Promise
   // Tokenize each (query, doc) pair. transformers.js expects the pair
   // arm to come in via the `text_pair` option, not as a positional arg.
   const queries = items.map(() => query);
-  const docs = items.map((i) => i.content);
+  const docs = items.map((i) => formatRerankDoc(i.content, i.dateMs));
   const tokenize = tokenizer as (
     text: string[],
     options: { text_pair: string[]; padding: boolean; truncation: boolean }
