@@ -8,6 +8,7 @@ export {
   type ExtractFactsOptions,
   type ExtractOutcome,
   type FactType,
+  type QuarantinedMemoryInfo,
 } from "./autoExtract.js";
 export {
   type AutoExtractor,
@@ -16,10 +17,57 @@ export {
   createPlatformCursorStore,
   type ExtractionCursorStore,
   type MemoryExtractedEvent,
+  type MemoryQuarantinedEvent,
   type TurnCompleteEvent,
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";
 export { createChunkVectorCache, DEFAULT_CHUNK_CACHE_SIZE } from "./chunkVectorCache.js";
+export {
+  classifyDecay,
+  type DecayInput,
+  type DecayPolicy,
+  type DecayVerdict,
+  DEFAULT_DECAY_POLICY,
+  HARD_DELETE_WINDOW_MS,
+  MEDIUM_TTL_MS,
+  NEVER_TTL_MS,
+  PAST_EVENT_GRACE_MS,
+  SHORT_TTL_MS,
+  ttlForType,
+} from "./decay.js";
+export { createLlmDecayClassifier, type LlmDecayClassifierOptions } from "./decayClassifier.js";
+export {
+  createDecaySweeper,
+  type CreateDecaySweeperOptions,
+  type DecayClassifier,
+  type DecaySweeper,
+  type DecaySweepResult,
+  DEFAULT_MAX_CLASSIFIER_CALLS_PER_SWEEP,
+  type NowSource,
+} from "./decayWorker.js";
+export {
+  capHopsForDensity,
+  createLlmNeighborRefiner,
+  ENTITY_FANOUT,
+  type GraphTraversalOptions,
+  type LlmNeighborRefinerOptions,
+  MAX_HOPS,
+  type NeighborRefiner,
+  NODE_BUDGET,
+  traverseGraphLane,
+  VAULT_SIZE_HOP_CAP,
+} from "./graphTraversal.js";
+export {
+  classifyInjectionCandidates,
+  type InjectionClassifierOptions,
+} from "./injectionClassifier.js";
+export {
+  type InjectionReason,
+  injectionSignatureCatalog,
+  screenCandidatesForInjection,
+  type ScreenedCandidate,
+  type ScreenResult,
+} from "./injectionScreen.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,
@@ -69,7 +117,8 @@ export type {
   ScoreBreakdown,
 } from "./types.js";
 
-// W5 — entity-graph ops are consumed internally by extractAndRetain and
-// recall(); intentionally not re-exported here because none of the
-// SDK's public entry points (server/, react/, expo/) surface them yet.
-// Promote individual ops to those entry points when consumers need them.
+// W5 — the low-level entity-graph DB ops (getMemoriesByEntityNamesOp,
+// getEntitiesByMemoryIdsOp, link/unlink) live in db/entities/operations and
+// are surfaced from the react entry point directly, next to the Entity models.
+// The recall-time traversal built on them (traverseGraphLane, PR4) is a
+// memory-layer concern and IS re-exported above.

@@ -166,6 +166,195 @@ describe("retain", () => {
     );
   });
 
+  it("PR5: un-archives (restores) an archived row on re-observe instead of duplicating", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "archived-id", content: "Allergic to shellfish", similarity: 0.95 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "archived-id",
+      content: "Allergic to shellfish",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      embedding: null,
+      sourceChunkIds: ["msg-old"],
+      proofCount: 2,
+      source: "auto-extracted",
+      archivedAt: Date.now() - 1000, // decayed
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "archived-id",
+      proofCount: 3,
+    } as never);
+
+    const result = await retain("Allergic to shellfish", ctx, { sourceChunkIds: ["msg-new"] });
+
+    expect(result.action).toBe("merge");
+    // The dedup search must opt into archived candidates.
+    expect(vi.mocked(searchVaultMemories).mock.calls[0][4]).toMatchObject({
+      includeArchived: true,
+    });
+    // The merge write restores the row and lets updated_at bump (no preserve).
+    const updateArgs = vi.mocked(updateVaultMemoryOp).mock.calls[0][2];
+    expect(updateArgs).toMatchObject({ restore: true, proofCountIncrement: 1 });
+    expect(updateArgs).not.toHaveProperty("preserveUpdatedAt");
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("PR5: an ACTIVE merge target preserves updated_at and does not set restore", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "active-id", content: "Allergic to shellfish", similarity: 0.95 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "active-id",
+      content: "Allergic to shellfish",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      embedding: null,
+      sourceChunkIds: [],
+      proofCount: 1,
+      source: "auto-extracted",
+      archivedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "active-id",
+      proofCount: 2,
+    } as never);
+
+    await retain("Allergic to shellfish", ctx);
+
+    const updateArgs = vi.mocked(updateVaultMemoryOp).mock.calls[0][2];
+    expect(updateArgs).toMatchObject({ preserveUpdatedAt: true });
+    expect(updateArgs).not.toHaveProperty("restore");
+  });
+
+  it("PR5 + A2: does NOT resurrect an archived match that is ALSO superseded (main's suppression wins)", async () => {
+    // The dedup search surfaces the archived row (includeArchived: true), but the
+    // row was already retired by a newer, incompatible-value fact. Decay
+    // resurrection must respect main's supersession: no merge, no restore — the
+    // new observation falls through to a fresh create instead.
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "archived-superseded-id", content: "Lives in Portland", similarity: 0.95 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "archived-superseded-id",
+      content: "Lives in Portland",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      embedding: null,
+      sourceChunkIds: ["msg-old"],
+      proofCount: 2,
+      source: "auto-extracted",
+      archivedAt: Date.now() - 1000, // decayed…
+      supersededBy: "lives-in-sf-id", // …AND already retired
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "fresh-id" } as never);
+
+    const result = await retain("Lives in Portland", ctx, { sourceChunkIds: ["msg-new"] });
+
+    // No resurrection: the superseded row is never touched…
+    expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
+    // …and the fact is still stored via a fresh create.
+    expect(result.action).toBe("create");
+    expect(result.memoryId).toBe("fresh-id");
+    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalled();
+  });
+
+  it("PR5 + tombstone: does NOT resurrect a deleted match (search excludes it → tombstone create-gate suppresses)", async () => {
+    // A soft-deleted (tombstoned) memory never surfaces from the live dedup
+    // search (baseVaultConditions excludes is_deleted), so it can't be a merge/
+    // resurrection target. On the create path, respectTombstones then suppresses
+    // the re-creation so a user-deleted fact isn't silently resurrected.
+    vi.mocked(searchVaultMemories).mockResolvedValue([]); // deleted row not returned
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    // getAllVaultMemoriesOp(includeDeleted) backs the tombstone scan.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      {
+        uniqueId: "dead-id",
+        content: "Allergic to shellfish",
+        scope: "private",
+        folderId: null,
+        embedding: JSON.stringify([0.1, 0.2, 0.3]),
+        embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
+        isDeleted: true,
+      },
+    ] as never);
+
+    const result = await retain("Allergic to shellfish", ctx, { respectTombstones: true });
+
+    // No resurrection: neither a merge nor a create happened.
+    expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(result.action).toBe("suppressed");
+    expect(result.tombstoneId).toBe("dead-id");
+  });
+
+  it("persists factType on the create path (PR1)", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
+
+    await retain("Works in engineering", ctx, { factType: "identity" });
+
+    expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({
+      factType: "identity",
+    });
+  });
+
+  it("lazily backfills factType on merge when the target has none (PR1)", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "id1", content: "Foo", similarity: 0.92 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "id1",
+      content: "Foo",
+      factType: null,
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "id1", proofCount: 2 } as never);
+
+    await retain("Foo", ctx, { factType: "preference" });
+
+    expect(vi.mocked(updateVaultMemoryOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      "id1",
+      expect.objectContaining({ factType: "preference" })
+    );
+  });
+
+  it("never overwrites an existing non-null factType on merge (PR1)", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValue([
+      { uniqueId: "id1", content: "Foo", similarity: 0.92 },
+    ]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "id1",
+      content: "Foo",
+      factType: "identity",
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "id1", proofCount: 2 } as never);
+
+    await retain("Foo", ctx, { factType: "preference" });
+
+    // First observation is authoritative — the merge update carries no factType.
+    const updateArgs = vi.mocked(updateVaultMemoryOp).mock.calls[0][2];
+    expect(updateArgs).not.toHaveProperty("factType");
+  });
+
   it("dedupes source chunk ids on merge (no duplicates if already present)", async () => {
     vi.mocked(searchVaultMemories).mockResolvedValue([
       { uniqueId: "id1", content: "Foo", similarity: 0.9 },

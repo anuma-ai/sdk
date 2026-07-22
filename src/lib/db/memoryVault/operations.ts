@@ -26,6 +26,18 @@ export interface VaultMemoryOperationsContext {
   /** When set, operations scope to this user (server-side multi-user). */
   userId?: string;
   /**
+   * Asserts this context runs against a physically single-tenant database — one
+   * where every row belongs to the same owner (the per-wallet client DBs, which
+   * hold exactly one wallet's rows written with `user_id = null`). This is the
+   * ONLY thing that makes the decay sweep's unscoped scan/archive/delete safe
+   * without a `userId`: see {@link assertVaultScopeForSweep}. A shared /
+   * multi-tenant DB must NOT set this — it must scope by `userId` instead.
+   * `walletAddress` presence alone is NOT a substitute (the sweep query filters
+   * by `user_id` only, so a bare `walletAddress` on a shared DB would sweep
+   * every tenant).
+   */
+  singleTenant?: boolean;
+  /**
    * When set, vault delete ops cascade to memory_entity rows pointing at
    * the deleted memories. Without this the W5 graph lane keeps returning
    * IDs of soft-deleted memories and the join table grows unbounded.
@@ -38,22 +50,72 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
   return ctx.userId === undefined || record.userId === ctx.userId;
 }
 
-/** Builds the base WHERE conditions shared by all vault memory queries.
- * `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
- * opts into it (to surface "forgotten" memories); every other caller omits it
- * and keeps the default non-deleted-only behavior. `includeSuperseded` likewise
- * drops the A2 supersession filter (default excludes superseded rows from recall
- * + dedup, same as deleted); a "memory history" view can opt in. */
+/** Builds the base WHERE conditions shared by all vault memory queries. This is
+ * the single choke point every read lane (cosine/BM25/temporal/graph) inherits,
+ * so the archived + quarantined + superseded exclusions applied here cover all
+ * of recall at once. Default hides every non-visible state (deleted, archived,
+ * quarantined, superseded); each has its own opt-in include flag.
+ * - `includeDeleted` drops the soft-delete filter — only `getAllVaultMemoriesOp`
+ *   opts into it (to surface "forgotten" memories); every other caller omits it
+ *   and keeps the default non-deleted-only behavior.
+ * - `includeArchived` (PR1) drops the archived-row filter. Default excludes rows
+ *   with a non-null `archived_at` (decayed memories, PR2).
+ * - `includeQuarantined` (PR1) drops the quarantine filter. Default excludes
+ *   rows with `trust_tier === "quarantined"` (injection-screened memories, PR3).
+ *   For this string value `Q.notEq` compiles to `is not` (SQLite) and, via the
+ *   LokiJS string fast-path, to `{ trust_tier: { $ne: "quarantined" } }` — both
+ *   KEEP null rows, so untyped/legacy rows are never excluded. (A non-string
+ *   value would take LokiJS's `$not:$aeq` path instead; keep this comparison
+ *   string-valued.)
+ * - `includeSuperseded` (A2, main) drops the supersession filter. Default
+ *   excludes rows with a non-null `superseded_by` (retired by a newer,
+ *   incompatible-value fact) from recall + dedup; a "memory history" view can
+ *   opt in. */
 function baseVaultConditions(
   ctx: VaultMemoryOperationsContext,
-  options?: { since?: Date; includeDeleted?: boolean; includeSuperseded?: boolean }
+  options?: {
+    since?: Date;
+    includeDeleted?: boolean;
+    includeArchived?: boolean;
+    includeQuarantined?: boolean;
+    includeSuperseded?: boolean;
+  }
 ) {
   return [
     ...(options?.includeDeleted ? [] : [Q.where("is_deleted", false)]),
+    ...(options?.includeArchived ? [] : [Q.where("archived_at", Q.eq(null))]),
+    ...(options?.includeQuarantined ? [] : [Q.where("trust_tier", Q.notEq("quarantined"))]),
     ...(options?.includeSuperseded ? [] : [Q.where("superseded_by", null)]),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
+}
+
+/**
+ * Tier-0 security (PR3) — the allowed `trust_tier` values.
+ *
+ * `trust_tier` is a loose plaintext string column, so a future direct
+ * caller (not the injection screen) could pass an arbitrary value straight
+ * into `_setRaw`. Constrain every write to this known set here — the single
+ * place all writes funnel through — so the recall quarantine gate (which
+ * keys off the exact string `"quarantined"`) can't be bypassed by a typo'd
+ * or hostile tier, and so no unexpected value ever reaches the DB.
+ */
+const KNOWN_TRUST_TIERS = new Set(["quarantined", "trusted"]);
+
+/**
+ * Coerce a caller-supplied trust tier to the known set. `null`/`undefined`
+ * and any unrecognized value collapse to `null` (untyped/trusted default).
+ *
+ * Coerce (not throw) so a bad value degrades to the SAFE direction: `null`
+ * = visible, i.e. the pre-PR3 behavior for that row. This never HIDES a
+ * fact the caller didn't explicitly quarantine (fail-open on visibility is
+ * correct here — the screen sets the exact `"quarantined"` constant, which
+ * is in the set and survives), and it never lets garbage forge a state.
+ */
+function normalizeTrustTier(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  return KNOWN_TRUST_TIERS.has(value) ? value : null;
 }
 
 /** Processes items in batches of 50 to avoid blocking the event loop. */
@@ -98,6 +160,9 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     supersededBy: memory.supersededBy ?? null,
     supersededAt: memory.supersededAt ?? null,
     lastObservedAt: memory.lastObservedAt ?? null,
+    factType: memory.factType ?? null,
+    archivedAt: memory.archivedAt ?? null,
+    trustTier: memory.trustTier ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -152,6 +217,16 @@ export async function createVaultMemoryOp(
         record._setRaw("event_time_start", opts.eventTime.start ?? null);
         record._setRaw("event_time_end", opts.eventTime.end ?? null);
         record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
+      }
+      // Typed memory (PR1) — persist the classification when provided; leave
+      // null otherwise (legacy/manual/untyped). archived_at is never set on
+      // create — a fresh memory is always active.
+      if (opts.factType !== undefined) {
+        record._setRaw("fact_type", opts.factType);
+      }
+      if (opts.trustTier !== undefined) {
+        // Tier-0 (PR3): re-validate the loose string against the known set.
+        record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
       }
     });
   });
@@ -372,6 +447,14 @@ export async function createVaultMemoriesBatchOp(
           record._setRaw("event_time_end", opts.eventTime.end ?? null);
           record._setRaw("event_time_kind", opts.eventTime.kind ?? null);
         }
+        // Typed memory (PR1) — see createVaultMemoryOp.
+        if (opts.factType !== undefined) {
+          record._setRaw("fact_type", opts.factType);
+        }
+        if (opts.trustTier !== undefined) {
+          // Tier-0 (PR3): re-validate the loose string against the known set.
+          record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
+        }
       })
     );
     await ctx.database.batch(...prepared);
@@ -445,6 +528,9 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     supersededBy: (raw.superseded_by as string | null) ?? null,
     supersededAt: (raw.superseded_at as number | null) ?? null,
     lastObservedAt: (raw.last_observed_at as number | null) ?? null,
+    factType: (raw.fact_type as string | null) ?? null,
+    archivedAt: (raw.archived_at as number | null) ?? null,
+    trustTier: (raw.trust_tier as string | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -479,6 +565,12 @@ export async function getAllVaultMemoriesOp(
      * render "forgotten" nodes; ordinary consumers should leave this off.
      */
     includeDeleted?: boolean;
+    /** Include archived (decayed) memories. Default `false` (PR1 choke point). */
+    includeArchived?: boolean;
+    /** Include quarantined memories. Default `false` (PR1 choke point). */
+    includeQuarantined?: boolean;
+    /** Typed memory (PR1) — restrict to these fact types. Omit for no filter. */
+    factTypes?: string[];
     /**
      * Include A2-superseded memories (each carries `supersededBy`). Default
      * `false` — superseded rows are excluded, as they are from recall/dedup.
@@ -491,6 +583,7 @@ export async function getAllVaultMemoriesOp(
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
     ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+    ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
     ...(options?.limit !== null && options?.limit !== undefined && options.limit > 0
       ? [Q.take(options.limit)]
@@ -524,6 +617,50 @@ export async function getAllVaultMemoryContentsOp(
     );
     return stored.content;
   });
+}
+
+/**
+ * Cheap count of the active (recall-reachable) vault rows (PR5). Used as the
+ * graph-lane density hint that gates multi-hop traversal (see
+ * {@link ../../memory/graphTraversal}.capHopsForDensity): above the threshold
+ * the traversal degrades to seed-only rather than pay an unbounded expansion.
+ *
+ * Uses `fetchCount` over the same {@link baseVaultConditions} choke point every
+ * read lane inherits (excludes deleted / archived / quarantined), so it counts
+ * exactly the rows recall can reach. NO Model materialization and NO content
+ * decrypt — a pure indexed COUNT, safe to run on the recall hot path.
+ */
+export async function countActiveVaultMemoriesOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<number> {
+  return ctx.vaultMemoryCollection.query(...baseVaultConditions(ctx)).fetchCount();
+}
+
+/**
+ * Given a set of candidate memory ids, return the subset that is ACTIVE — i.e.
+ * passes the same {@link baseVaultConditions} choke point every recall lane
+ * inherits (not soft-deleted, not archived, not quarantined, and user-scoped).
+ *
+ * Used by the graph-traversal lane (see {@link ../../memory/graphTraversal})
+ * to drop "forgotten" (archived / quarantined) memories from the traversal
+ * FRONTIER before they can steer neighbor-entity ranking or egress their entity
+ * names to the optional path-refiner. The final recall result gate already
+ * hides archived/quarantined rows, but the traversal walks over ids directly —
+ * so it must resolve them against the active set itself, at each hop.
+ *
+ * Plaintext-only: selects just the `id` column via `unsafeFetchRaw` — NO Model
+ * per row (dodges the never-evicted RecordCache) and NO content decrypt — so it
+ * is cheap enough to call per traversal hop. Empty input → empty set (no query).
+ */
+export async function getActiveVaultMemoryIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  ids: string[]
+): Promise<Set<string>> {
+  if (ids.length === 0) return new Set<string>();
+  const rows = (await ctx.vaultMemoryCollection
+    .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids)))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return new Set(rows.map((r) => r.id as string));
 }
 
 export async function updateVaultMemoryOp(
@@ -606,6 +743,24 @@ export async function updateVaultMemoryOp(
           // merge records "seen again now" while preserveUpdatedAt keeps the
           // edit-time recency signal pinned.
           r._setRaw("last_observed_at", opts.lastObservedAt);
+        }
+        // Typed memory (PR1) — retain()'s lazy backfill sets this only when the
+        // existing row had no type (it decides that upstream), so a plain
+        // presence check is enough here.
+        if (opts.factType !== undefined) {
+          r._setRaw("fact_type", opts.factType);
+        }
+        if (opts.trustTier !== undefined) {
+          // Tier-0 (PR3): re-validate the loose string against the known set.
+          r._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
+        }
+        // PR5 — un-archive on re-observe: clear archived_at so a decayed row a
+        // new observation merged into re-enters recall. Ordering note: this runs
+        // BEFORE the preserveUpdatedAt restore below, but retain() sets restore
+        // WITHOUT preserveUpdatedAt (so updated_at bumps and the decay clock
+        // resets) — the two are not combined.
+        if (opts.restore) {
+          r._setRaw("archived_at", null);
         }
         if (opts.preserveUpdatedAt) {
           // WatermelonDB's record.update() bumps updated_at automatically.
@@ -1100,6 +1255,247 @@ export async function deleteAllVaultMemoriesForUserOp(
   }
 
   return records.length;
+}
+
+/**
+ * The minimal plaintext shape the decay sweep needs — mirrors the `DecayInput`
+ * shape in `memory/decay` plus the row id. Deliberately omits `content`
+ * (encrypted) so the sweep stays zero-knowledge.
+ */
+export interface DecayCandidateRaw {
+  uniqueId: string;
+  factType: string | null;
+  eventTimeEnd: number | null;
+  eventTimeKind: string | null;
+  /** Unix ms — the raw `updated_at`, used both for the age rule and as the
+   * optimistic-concurrency guard passed back to {@link archiveVaultMemoryOp}. */
+  updatedAt: number;
+  archivedAt: number | null;
+  source: string | null;
+  /** `trusted` | `quarantined` | null. Quarantined rows still decay by RULE, but
+   * are never handed to the optional content-reading decay classifier (they must
+   * not egress poison content — see the decay sweeper's `isBorderline`). */
+  trustTier: string | null;
+}
+
+/**
+ * Guard against a decay sweep amplifying across tenants. A sweep with no
+ * `userId` reaches EVERY row the query can see (`baseVaultConditions` scopes by
+ * `user_id` ONLY — there is no `wallet_address` column), so an unscoped sweep on
+ * a shared DB would scan/archive/hard-delete every tenant's rows.
+ *
+ * Enforced contract — a context is accepted ONLY when it is one of:
+ *  - MULTI-TENANT / server: `userId` is set. The query is then row-scoped to
+ *    that user, so the sweep can't reach other tenants.
+ *  - SINGLE-TENANT / per-wallet client DB: `singleTenant === true`. The DB
+ *    physically holds one owner's rows (written with `user_id = null`), so the
+ *    unscoped scan is safe BY the DB's isolation, and the caller says so
+ *    explicitly.
+ *
+ * `walletAddress` is NO LONGER accepted as a scope proxy. Previously a bare
+ * `walletAddress` passed this guard yet ran an UNSCOPED sweep — safe only if the
+ * DB happened to be per-wallet, an unstated assumption. It is now rejected: a
+ * per-wallet client MUST set `singleTenant: true` to make that isolation an
+ * explicit, honest assertion rather than an inferred one. This closes the latent
+ * multi-tenant risk (a future walletAddress-only context on a SHARED DB would
+ * otherwise have swept across all tenants).
+ *
+ * NOTE (SDK consumers): the SDK's own client `vaultCtx` (built in
+ * `useChatStorage`) now sets `singleTenant: true`. A client that constructs its
+ * OWN `vaultCtx` for the sweeper must likewise pass `singleTenant: true` (it is
+ * a per-wallet isolated DB) — otherwise this guard will throw after upgrading.
+ */
+export function assertVaultScopeForSweep(ctx: VaultMemoryOperationsContext): void {
+  if (ctx.userId === undefined && ctx.singleTenant !== true) {
+    throw new Error(
+      "Refusing to run a decay sweep on an unscoped vault context: it has no userId " +
+        "and is not marked singleTenant, so it would sweep across all tenants. Set " +
+        "ctx.userId on server/multi-tenant contexts, or ctx.singleTenant = true on a " +
+        "per-wallet, physically single-tenant client DB. (walletAddress alone is no " +
+        "longer accepted — it does not scope the sweep query.)"
+    );
+  }
+}
+
+/**
+ * Decay sweep candidate scan (PR2). Selects the plaintext columns
+ * `classifyDecay` (in `memory/decay`) needs via
+ * `unsafeFetchRaw` — NO Model per row (dodges the never-evicted RecordCache /
+ * web Pile-2 OOM history) and NO `content` read / decrypt (zero-knowledge).
+ *
+ * Includes archived AND quarantined rows (so archived→delete transitions and
+ * aged quarantined rows are seen) but excludes hard-deleted rows — the
+ * `baseVaultConditions` default keeps `is_deleted = false`.
+ *
+ * Refuses to run on an unscoped multi-tenant context (see
+ * {@link assertVaultScopeForSweep}).
+ */
+export async function getDecayCandidatesRawOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<DecayCandidateRaw[]> {
+  assertVaultScopeForSweep(ctx);
+  const results = (await ctx.vaultMemoryCollection
+    .query(...baseVaultConditions(ctx, { includeArchived: true, includeQuarantined: true }))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  return results.map((raw) => ({
+    uniqueId: raw.id as string,
+    factType: (raw.fact_type as string | null) ?? null,
+    eventTimeEnd: (raw.event_time_end as number | null) ?? null,
+    eventTimeKind: (raw.event_time_kind as string | null) ?? null,
+    updatedAt: raw.updated_at as number,
+    archivedAt: (raw.archived_at as number | null) ?? null,
+    source: (raw.source as string | null) ?? null,
+    trustTier: (raw.trust_tier as string | null) ?? null,
+  }));
+}
+
+/**
+ * Archive a memory (decay soft state, PR2) — set `archived_at`. An archived row
+ * drops out of every recall lane via the `baseVaultConditions` choke point but
+ * stays recoverable via {@link restoreVaultMemoryOp} until the hard-delete
+ * window elapses.
+ *
+ * Concurrency: re-checks `is_deleted` / ownership / `archived_at` INSIDE the
+ * serialized writer (mirrors {@link updateVaultMemoryOp}). Additionally, when
+ * `opts.expectedUpdatedAt` is given, the archive is skipped if the row's current
+ * `updated_at` no longer matches — i.e. a `retain()` merge (which bumps
+ * `updated_at`) landed between the sweep's candidate scan and this write, so the
+ * fact was just re-observed and must NOT be archived on stale data. Idempotent:
+ * a row another sweep already archived returns `false` (no double-write).
+ *
+ * @returns `true` if this call archived the row; `false` if it was stale
+ *   (deleted / not owned / already archived / refreshed under us).
+ */
+export async function archiveVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  opts?: {
+    /** Timestamp to stamp into `archived_at`. Default `Date.now()`. */
+    now?: number;
+    /** Optimistic-concurrency guard: skip if the row's `updated_at` changed
+     * since the sweep observed it (a concurrent re-observation). */
+    expectedUpdatedAt?: number;
+  }
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+
+    let stale = false;
+    const archivedAtValue = opts?.now ?? Date.now();
+    await ctx.database.write(async () => {
+      // Re-check inside the serialized writer: a delete/archive/merge that
+      // committed after the probe must win.
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record) || record.archivedAt !== null) {
+        stale = true;
+        return;
+      }
+      if (
+        opts?.expectedUpdatedAt !== undefined &&
+        record.updatedAt.getTime() !== opts.expectedUpdatedAt
+      ) {
+        // A retain() merge refreshed this row between scan and write — the fact
+        // was just re-observed, so leave it active.
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("archived_at", archivedAtValue);
+      });
+    });
+    return !stale;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Restore an archived memory (PR2) — clear `archived_at` so it re-enters recall.
+ * Re-checks `is_deleted` / ownership inside the writer. Idempotent on an
+ * already-active row (clearing null → null is harmless).
+ *
+ * @returns `true` if the row was restored (or already active); `false` if it was
+ *   deleted / not owned / missing.
+ */
+export async function restoreVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+
+    let stale = false;
+    await ctx.database.write(async () => {
+      if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("archived_at", null);
+      });
+    });
+    return !stale;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hard-delete a memory ONLY if it is still archived and still past the delete
+ * window (PR2 decay terminal transition). Unlike the generic
+ * {@link deleteVaultMemoryOp}, this re-reads `archived_at` INSIDE the writer and
+ * bails if the row was restored (`archived_at → null`) or re-archived more
+ * recently since the sweep's candidate scan. This is the restore-vs-delete
+ * mutual-exclusion guard: a user hitting Restore between the scan and this write
+ * must win, so their just-rescued memory is never permanently lost.
+ *
+ * @returns `true` if this call hard-deleted the row; `false` if it was stale
+ *   (deleted / not owned / no longer archived / no longer past the window).
+ */
+export async function hardDeleteDecayedOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  opts: { hardDeleteWindowMs: number; now?: number }
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+
+    const now = opts.now ?? Date.now();
+    let stale = false;
+    await ctx.database.write(async () => {
+      // Re-read inside the serialized writer: only delete if STILL archived and
+      // STILL past the window. A concurrent restore (archived_at → null) or a
+      // fresh re-archive must make this lose.
+      const archivedAt = record.archivedAt;
+      if (
+        record.isDeleted ||
+        !isOwnedByCtxUser(ctx, record) ||
+        archivedAt === null ||
+        now - archivedAt <= opts.hardDeleteWindowMs
+      ) {
+        stale = true;
+        return;
+      }
+      await record.update((r) => {
+        r._setRaw("is_deleted", true);
+      });
+    });
+    if (stale) return false;
+
+    // W5 cascade (best-effort), mirrors deleteVaultMemoryOp.
+    if (ctx.entityCtx) {
+      try {
+        await unlinkMemoryEntitiesOp(ctx.entityCtx, [id]);
+      } catch {
+        // Auxiliary cleanup — leave the cascade to the next sweep.
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function updateVaultMemoryEmbeddingOp(

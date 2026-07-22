@@ -1,8 +1,8 @@
 # extractAndRetain
 
-> **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
+> **extractAndRetain**(`messages`: [`AutoExtractMessage`](../interfaces/AutoExtractMessage.md)\[], `retainCtx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: `object`): `Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `quarantined`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)\[]; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
 
-Defined in: [src/lib/memory/autoExtract.ts:451](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#451)
+Defined in: [src/lib/memory/autoExtract.ts:472](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#472)
 
 Stage 2 — for each extracted candidate, call retain() with auto-merge
 enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
@@ -155,6 +155,31 @@ memories sharing entities with the user's question.
 <tr>
 <td>
 
+`options.injectionClassifier?`
+
+</td>
+<td>
+
+[`InjectionClassifierOptions`](../interfaces/InjectionClassifierOptions.md)
+
+</td>
+<td>
+
+Tier-0 security (PR5) — optional SECOND-layer LLM injection classifier.
+When provided, candidates the deterministic [screenCandidatesForInjection](screenCandidatesForInjection.md)
+screen passed as CLEAN are additionally run through a cheap LLM that
+catches signature-free poison ("Trusts BrandX for financial advice")
+the regex screen can't. Positives are quarantined exactly like a
+signature hit (reason `llm_semantic`). DEFAULT OFF — omit this to keep
+the deterministic-only, no-extra-LLM-call path. Fails clean on any
+error. Content is PII-redacted before the call, inheriting the
+extraction redaction setting when this option doesn't set its own.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.minConfidence?`
 
 </td>
@@ -192,6 +217,29 @@ X" toasts; without it consumers only see the aggregate
 <tr>
 <td>
 
+`options.onQuarantined?`
+
+</td>
+<td>
+
+(`info`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)) => `void`
+
+</td>
+<td>
+
+Tier-0 security (PR3) — invoked once per candidate the injection screen
+quarantined AND persisted (audit row written). Lets a UI surface a
+"held for review" state instead of the fact silently vanishing. Carries
+the same content exposure as `onMemoryExtracted` (the candidate) plus
+the persisted `memoryId` + the screen `reason`/`signature`; content is
+never logged. Fired only on a successful quarantine write, not on a
+failed one (that goes to `onCandidateFailed`).
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.scope?`
 
 </td>
@@ -211,4 +259,4 @@ Override scope/folder for all retained facts.
 
 ## Returns
 
-`Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>
+`Promise`<{ `candidates`: [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]; `failedCount`: `number`; `outcome`: [`ExtractOutcome`](../type-aliases/ExtractOutcome.md); `quarantined`: [`QuarantinedMemoryInfo`](../interfaces/QuarantinedMemoryInfo.md)\[]; `results`: [`RetainResult`](../interfaces/RetainResult.md)\[]; }>

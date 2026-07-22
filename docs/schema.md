@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v39**
+Current version: **v40**
 
 ```mermaid
 graph LR
@@ -123,6 +123,9 @@ graph LR
 | `superseded_at` | number |  | ✓ |
 | `topics_extracted_version` | number |  | ✓ |
 | `last_observed_at` | number | ✓ | ✓ |
+| `fact_type` | string | ✓ | ✓ |
+| `archived_at` | number | ✓ | ✓ |
+| `trust_tier` | string | ✓ | ✓ |
 
 ## entity
 
@@ -224,6 +227,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v40 | Added `fact_type`, `archived_at`, `trust_tier` to `memory_vault` |
 | v39 | Added `last_observed_at` to `memory_vault` |
 | v38 | Added `topics_extracted_version` to `memory_vault` |
 | v37 | Added `superseded_by`, `superseded_at` to `memory_vault` |
