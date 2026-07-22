@@ -542,6 +542,24 @@ describe("synthesizeProfile", () => {
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
+  // A pure facet reorder (vault unchanged) reuses content but returns sections
+  // in the NEW facet order — no regeneration.
+  it("reorders reused sections to the current facet order without regenerating", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
+      2000
+    );
+
+    // Same facets, reversed order.
+    const reversed: ProfileFacet[] = [FACETS[1], FACETS[0]];
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: reversed, previous });
+
+    expect(mockReflect).not.toHaveBeenCalled(); // reuse, no regeneration
+    expect(doc.sections.map((s) => s.key)).toEqual(["interests", "bio"]); // new order
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("old bio"); // content reused
+  });
+
   // If the scoped watermark DROPS below the prior doc's (an uncited high-changeTime
   // fact left scope), the baseline is unreliable → full regen + reset the mark,
   // rather than freezing on the inflated prior watermark.

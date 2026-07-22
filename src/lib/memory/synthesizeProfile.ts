@@ -281,7 +281,18 @@ export async function synthesizeProfile(
     s.sourceMemoryIds.some((id) => !presentIds.has(id))
   );
   if (previous && previous.vaultWatermark === watermark && !hasStaleSections && !citesMissingFact) {
-    return previous;
+    // Reuse all sections, but honor the current facet ORDER (ProfileDoc.sections
+    // is facet-ordered, and facetsSignature intentionally ignores order so a
+    // reorder reuses content). Preserve object identity when the order already
+    // matches — a pure reorder is free (no regeneration), just an array reorder.
+    const sameOrder =
+      previous.sections.length === facets.length &&
+      facets.every((f, i) => previous.sections[i]?.key === f.key);
+    if (sameOrder) return previous;
+    return {
+      ...previous,
+      sections: facets.map((f) => previous.sections.find((s) => s.key === f.key)!),
+    };
   }
 
   const staleKeys = await computeStaleFacetKeys(ctx, memories, facets, previous, watermark);
