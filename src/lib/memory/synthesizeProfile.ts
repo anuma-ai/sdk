@@ -160,6 +160,12 @@ export interface ProfileSection {
 export interface ProfileConfigFingerprint {
   /** Facet keys present in the doc, sorted. */
   facetKeys: ProfileFacetKey[];
+  /** Order-independent digest of each facet's full definition (key + label +
+   * query + guidance). Reuse must invalidate when a facet's PROMPT changes, not
+   * just its key set — otherwise reused sections carry text generated under the
+   * old definition. Facet display order does NOT invalidate (sections are
+   * rebuilt in facet order and reused by key). */
+  facetsSignature: string;
   /** Scopes the facts were drawn from, sorted. */
   scopes: string[];
   /** Whether a PII redactor gated the section text. Reusing un-gated text under
@@ -226,6 +232,7 @@ export async function synthesizeProfile(
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const config: ProfileConfigFingerprint = {
     facetKeys: facets.map((f) => f.key).sort(),
+    facetsSignature: facetsSignature(facets),
     scopes: [...scopes].sort(),
     redacted: options.redactor !== undefined,
   };
@@ -304,13 +311,26 @@ function configMatches(
   b: ProfileConfigFingerprint
 ): boolean {
   if (!a) return false;
+  // facetsSignature subsumes the facet key set AND each facet's prompt content,
+  // so a prompt-only change (same keys) still invalidates reuse.
   return (
     a.redacted === b.redacted &&
-    a.facetKeys.length === b.facetKeys.length &&
-    a.facetKeys.every((k, i) => k === b.facetKeys[i]) &&
+    a.facetsSignature === b.facetsSignature &&
     a.scopes.length === b.scopes.length &&
     a.scopes.every((s, i) => s === b.scopes[i])
   );
+}
+
+/** Order-independent digest of the facet definitions — key + label + query +
+ * guidance. Sorted so facet reordering (handled by the facet-order map) doesn't
+ * invalidate reuse, but any prompt/label change does. */
+function facetsSignature(facets: ProfileFacet[]): string {
+  // JSON-encode each facet's fields so no field boundary can collide, sort so
+  // display order doesn't matter (sections are rebuilt in facet order), join.
+  return facets
+    .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
+    .sort()
+    .join("\n");
 }
 
 /** A memory's effective change-time — the newest of last edit, supersession,
@@ -340,9 +360,10 @@ function computeVaultWatermark(memories: StoredVaultMemory[]): number {
  *   reaches its citing section (#2).
  * - Sections left stale by a prior failed regeneration → retried.
  * - Newly-requested facets (no prior section) → stale.
- * - Brand-new facts → attributed to the facets they're relevant to (see
- *   {@link attributeNewFacts}) rather than forcing a full re-synthesis, falling
- *   back to ALL facets only when attribution can't be computed safely.
+ * - Changed facts that no current section cites (brand-new, newly-in-scope, or
+ *   a supersession successor) → attributed to the facets they're relevant to
+ *   (see {@link attributeFacts}) rather than forcing a full re-synthesis,
+ *   falling back to ALL facets only when attribution can't be computed safely.
  * NB: no early-return on an empty `changed` set — stale-retry and new-facet
  * checks must still run when the vault itself is unchanged.
  */
@@ -373,13 +394,17 @@ async function computeStaleFacetKeys(
     if (!previous.sections.some((s) => s.key === facet.key)) stale.add(facet.key);
   }
 
-  // Brand-new, live facts: attribute to the facets they're relevant to instead
-  // of regenerating everything. A new-then-deleted/superseded fact is ignored.
-  const newFacts = changed.filter(
-    (m) => m.createdAt.getTime() > previous.vaultWatermark && !m.isDeleted && !m.supersededBy
+  // Changed, live facts that no current section cites are "new evidence" to the
+  // profile — whether brand-new (new createdAt), newly moved into scope (scope
+  // edit bumps updated_at but keeps an old createdAt), or a fresh supersession
+  // successor. Attribute them to relevant facets instead of regenerating
+  // everything. Cited changed facts already marked their section stale above.
+  const citedIds = new Set(previous.sections.flatMap((s) => s.sourceMemoryIds));
+  const toAttribute = changed.filter(
+    (m) => !m.isDeleted && !m.supersededBy && !citedIds.has(m.uniqueId)
   );
-  if (newFacts.length > 0) {
-    const attributed = await attributeNewFacts(ctx, newFacts, facets);
+  if (toAttribute.length > 0) {
+    const attributed = await attributeFacts(ctx, toAttribute, facets);
     if (attributed === null) return allKeys; // can't attribute safely → regen all
     for (const k of attributed) stale.add(k);
   }
@@ -388,23 +413,25 @@ async function computeStaleFacetKeys(
 }
 
 /**
- * Attribute each brand-new fact to the facets it's relevant to, by comparing
+ * Attribute each candidate fact to the facets it's relevant to, by comparing
  * the fact's stored embedding against each facet query's embedding — the same
  * vector comparison recall's fact lane uses. A fact is attributed to a facet
  * when their cosine clears {@link NEW_FACT_ATTRIBUTION_MIN_SCORE}. A fact below
  * the floor for every facet influences none (recall wouldn't surface it
  * anywhere either). Returns `null` — signalling "regenerate all facets" — when
- * any new fact lacks a usable embedding or was embedded under a different model,
- * since a cosine comparison would then be meaningless.
+ * attribution can't be computed safely: a fact lacking a usable embedding or
+ * embedded under a different model (cosine would be meaningless), or a thrown
+ * embedding request (transient failure must not abort the whole synthesis when
+ * the documented unsafe-attribution fallback is a full regenerate).
  */
-async function attributeNewFacts(
+async function attributeFacts(
   ctx: RecallContext,
-  newFacts: StoredVaultMemory[],
+  candidates: StoredVaultMemory[],
   facets: ProfileFacet[]
 ): Promise<Set<ProfileFacetKey> | null> {
   const model = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const factVectors: number[][] = [];
-  for (const f of newFacts) {
+  for (const f of candidates) {
     if (!f.embedding) return null;
     if (f.embeddingModel && f.embeddingModel !== model) return null;
     let vec: unknown;
@@ -419,10 +446,16 @@ async function attributeNewFacts(
 
   // Embed the facet queries with the same options recall uses (cached across
   // calls via EmbeddingOptions.cache — cheaper than the reflect() passes saved).
-  const queryVectors = await generateEmbeddings(
-    facets.map((f) => f.query),
-    ctx.embeddingOptions
-  );
+  // A thrown embedding request degrades to "regenerate all", never a hard fail.
+  let queryVectors: number[][];
+  try {
+    queryVectors = await generateEmbeddings(
+      facets.map((f) => f.query),
+      ctx.embeddingOptions
+    );
+  } catch {
+    return null;
+  }
 
   const keys = new Set<ProfileFacetKey>();
   for (const fv of factVectors) {

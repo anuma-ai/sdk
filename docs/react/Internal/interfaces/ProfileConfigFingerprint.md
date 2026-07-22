@@ -20,11 +20,25 @@ Facet keys present in the doc, sorted.
 
 ***
 
+### facetsSignature
+
+> **facetsSignature**: `string`
+
+Defined in: [src/lib/memory/synthesizeProfile.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#168)
+
+Order-independent digest of each facet's full definition (key + label +
+query + guidance). Reuse must invalidate when a facet's PROMPT changes, not
+just its key set — otherwise reused sections carry text generated under the
+old definition. Facet display order does NOT invalidate (sections are
+rebuilt in facet order and reused by key).
+
+***
+
 ### redacted
 
 > **redacted**: `boolean`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#167)
+Defined in: [src/lib/memory/synthesizeProfile.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#173)
 
 Whether a PII redactor gated the section text. Reusing un-gated text under
 a now-present redactor would leak PII, so this flips the fingerprint.
@@ -35,6 +49,6 @@ a now-present redactor would leak PII, so this flips the fingerprint.
 
 > **scopes**: `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#164)
+Defined in: [src/lib/memory/synthesizeProfile.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#170)
 
 Scopes the facts were drawn from, sorted.

@@ -33,9 +33,27 @@ const FACETS: ProfileFacet[] = [
   { key: "interests", label: "Interests", query: "what", guidance: "g" },
 ];
 
+/** Mirror of the source facetsSignature() — keep in sync. */
+function sig(facets: ProfileFacet[]): string {
+  return facets
+    .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
+    .sort()
+    .join("\n");
+}
+
+/** The config fingerprint a given facet set + default scopes produce. */
+function fingerprint(facets: ProfileFacet[], redacted = false): ProfileConfigFingerprint {
+  return {
+    facetKeys: facets.map((f) => f.key).sort(),
+    facetsSignature: sig(facets),
+    scopes: ["private"],
+    redacted,
+  };
+}
+
 /** The config fingerprint FACETS + default scopes produce (unredacted). */
 function cfg(redacted = false): ProfileConfigFingerprint {
-  return { facetKeys: ["bio", "interests"], scopes: ["private"], redacted };
+  return fingerprint(FACETS, redacted);
 }
 
 function mem(id: string, opts: Partial<StoredVaultMemory> = {}): StoredVaultMemory {
@@ -360,11 +378,11 @@ describe("synthesizeProfile", () => {
       usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     } as never);
 
-    const previous = priorDoc([section("bio", "good old bio", ["a"])], 2000, {
-      facetKeys: ["bio"],
-      scopes: ["private"],
-      redacted: false,
-    });
+    const previous = priorDoc(
+      [section("bio", "good old bio", ["a"])],
+      2000,
+      fingerprint([FACETS[0]])
+    );
 
     const doc = await synthesizeProfile(ctx, {
       apiKey: "k",
@@ -430,15 +448,91 @@ describe("synthesizeProfile", () => {
       usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     } as never);
 
-    const previous = priorDoc([section("bio", "old bio", ["a"])], 2000, {
-      facetKeys: ["bio"],
-      scopes: ["private"],
-      redacted: false,
-    });
+    const previous = priorDoc([section("bio", "old bio", ["a"])], 2000, fingerprint([FACETS[0]]));
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]], previous });
 
     expect(doc.sections[0].text).toBe("");
     expect(doc.sections[0].stale).toBeFalsy();
+  });
+
+  // A: a thrown facet-query embedding must degrade to "regenerate all", never
+  // reject the whole synthesizeProfile call.
+  it("falls back to regenerating all facets when facet-query embedding throws", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }),
+      mem("c", {
+        updatedAt: new Date(6000),
+        createdAt: new Date(6000),
+        embedding: JSON.stringify([1, 0]),
+      }),
+    ]);
+    mockEmbed.mockRejectedValue(new Error("embed service down"));
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("bio", ["a", "c"]))
+      .mockResolvedValueOnce(reflectResult("interests", ["c"]));
+
+    const previous = priorDoc(
+      [section("bio", "old", ["a"]), section("interests", "old", ["b"])],
+      2000
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(mockReflect).toHaveBeenCalledTimes(2); // regenerated all, didn't throw
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("bio");
+  });
+
+  // B: changing a facet's prompt (same keys) must invalidate reuse even when the
+  // vault is unchanged — reused sections were generated under the old definition.
+  it("does not reuse sections when a facet's prompt changed", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) })]);
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("re-bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("re-interests", ["a"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old", ["a"])],
+      2000
+    );
+    const tweaked: ProfileFacet[] = [
+      { ...FACETS[0], guidance: "a materially different instruction" },
+      FACETS[1],
+    ];
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: tweaked, previous });
+
+    expect(doc).not.toBe(previous);
+    expect(mockReflect).toHaveBeenCalledTimes(2); // full regen under the new prompts
+  });
+
+  // C: a fact that newly enters scope carries an OLD createdAt but a bumped
+  // updated_at; the old createdAt>watermark check would skip it, but it's now
+  // attributed as changed + uncited evidence.
+  it("attributes a fact that newly entered scope (old createdAt, uncited)", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(1000) }), // cited by bio, unchanged
+      mem("d", {
+        createdAt: new Date(100), // old — predates the watermark
+        updatedAt: new Date(6000), // scope edit bumped this
+        embedding: JSON.stringify([1, 0]),
+      }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
+    ]);
+    mockReflect.mockResolvedValueOnce(reflectResult("bio with newly in-scope fact", ["a", "d"]));
+
+    const previous = priorDoc(
+      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
+      2000
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+
+    expect(mockReflect).toHaveBeenCalledTimes(1); // only bio (d attributed to bio)
+    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("bio with newly in-scope fact");
+    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 });
