@@ -2,7 +2,7 @@
 
 > **HandlersPrivyIdentifierMigrateFailure** = `object`
 
-Defined in: [src/client/types.gen.ts:2374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2374)
+Defined in: [src/client/types.gen.ts:2379](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2379)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2374](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:2375](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2375)
+Defined in: [src/client/types.gen.ts:2380](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2380)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2375](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **privy\_did**: `string`
 
-Defined in: [src/client/types.gen.ts:2376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2376)
+Defined in: [src/client/types.gen.ts:2381](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2381)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2376](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **reason**: `string`
 
-Defined in: [src/client/types.gen.ts:2377](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2377)
+Defined in: [src/client/types.gen.ts:2382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2382)

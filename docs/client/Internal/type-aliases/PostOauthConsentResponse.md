@@ -2,4 +2,4 @@
 
 > **PostOauthConsentResponse** = [`PostOauthConsentResponses`](PostOauthConsentResponses.md)\[keyof [`PostOauthConsentResponses`](PostOauthConsentResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10657](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10657)
+Defined in: [src/client/types.gen.ts:10784](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10784)
