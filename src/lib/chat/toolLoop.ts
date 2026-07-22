@@ -24,6 +24,7 @@ import type {
   ToolUseEndEvent,
   ToolUseStartEvent,
 } from "./runHooks";
+import { validateEndpointOverride } from "./endpointOverride";
 import { composeHooks } from "./runHooks";
 
 /**
@@ -843,44 +844,6 @@ function linkAbortSignals(
  * });
  * ```
  */
-// normalizeEndpointOverride validates a caller-supplied `endpointOverride` and
-// returns a root-relative request path. The built-in transports build the URL as
-// `baseUrl + endpoint`, so an empty/whitespace override would target the portal
-// root and a slash-less value ("api/v1/…") would concatenate into a broken URL —
-// both silent bugs. We throw on empty/whitespace (fail fast at call time) and
-// normalize a missing leading slash onto the path.
-/**
- * Validates and normalizes a per-call `endpointOverride`. Returns the normalized
- * root-relative path on success, or a descriptive message the caller surfaces
- * via `onRunError` (never throws — a bad override is a validation failure, not a
- * crash, exactly like `validateMessages`/`validateModel`).
- *
- * Rejects:
- *  - empty / whitespace-only (would silently target the portal root);
- *  - protocol-relative (`"//host"`) or absolute (`"scheme://host"`) URLs — these
- *    would redirect the request, and its Bearer token, off-origin.
- * Normalizes a missing leading slash onto an otherwise-valid path.
- */
-function validateEndpointOverride(
-  override: string
-): { valid: true; endpoint: string } | { valid: false; message: string } {
-  const trimmed = override.trim();
-  if (trimmed === "") {
-    return {
-      valid: false,
-      message:
-        'endpointOverride must be a non-empty, root-relative path (e.g. "/api/v1/utility/responses"); received an empty or whitespace-only string',
-    };
-  }
-  if (trimmed.startsWith("//") || trimmed.includes("://")) {
-    return {
-      valid: false,
-      message: `endpointOverride must be a root-relative path (e.g. "/api/v1/utility/responses"), not a protocol-relative or absolute URL; received "${trimmed}"`,
-    };
-  }
-  return { valid: true, endpoint: trimmed.startsWith("/") ? trimmed : `/${trimmed}` };
-}
-
 export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolLoopResult> {
   const {
     model,
