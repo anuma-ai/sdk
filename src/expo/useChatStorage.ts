@@ -52,6 +52,7 @@ import {
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
+  type MessageChunk,
   type MessageSkeleton,
   resolveStoredUserContent,
   type SearchSource,
@@ -60,6 +61,7 @@ import {
   type StoredMessage,
   updateConversationPinnedOp,
   updateConversationTitleOp,
+  updateMessageChunksOp,
   updateMessageErrorOp,
   upsertMessageOp,
 } from "../lib/db/chat";
@@ -97,10 +99,14 @@ import {
   type RecallToolOptions,
 } from "../lib/memory";
 import {
+  chunkText,
   createMemoryEngineTool as createMemoryEngineToolBase,
+  DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
+  generateEmbeddings,
   type MemoryEngineSearchOptions,
+  shouldChunkMessage,
 } from "../lib/memoryEngine";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
@@ -1044,13 +1050,26 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       try {
         // `mask` defaults to the hook-level masker but a per-request override can
         // pass its own (the per-call `maskForCall`) so redaction toggled on/off
-        // for this send reaches the stored-message embedding too.
-        const embedding = await generateEmbedding(mask(message.content), {
-          getToken,
-          baseUrl,
-          model: embeddingModel,
-        });
-        await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
+        // for this send reaches the stored-message embedding too. Long messages
+        // are chunked (parity with react) so recall scores per chunk.
+        const opts = { getToken, baseUrl, model: embeddingModel };
+        if (shouldChunkMessage(message.content, DEFAULT_CHUNK_SIZE)) {
+          const textChunks = chunkText(message.content);
+          const embeddings = await generateEmbeddings(
+            textChunks.map((c) => mask(c.text)),
+            opts
+          );
+          const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+            text: chunk.text,
+            vector: embeddings[i],
+            startOffset: chunk.startOffset,
+            endOffset: chunk.endOffset,
+          }));
+          await updateMessageChunksOp(storageCtx, message.uniqueId, messageChunks, embeddingModel);
+        } else {
+          const embedding = await generateEmbedding(mask(message.content), opts);
+          await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
+        }
       } catch (err) {
         // Log but don't block - embedding is optional
         getLogger().warn("[useChatStorage] Failed to embed message:", err);
@@ -1673,6 +1692,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const effectiveAssistantUniqueId =
         assistantUniqueId ?? (resumable ? `msg_${uuidv7()}` : undefined);
 
+      // Embed the tool-selection text, chunking long prompts (parity with react):
+      // a single vector for short prompts, one vector per chunk for long ones so
+      // tool scoring uses max similarity across chunks. Both shapes are accepted
+      // by the server/client tool filters and by chunked message-embedding storage.
+      const embedToolText = (
+        text: string,
+        mask: (t: string) => string,
+        token: (() => Promise<string | null>) | undefined
+      ): Promise<number[] | number[][]> => {
+        const opts = { getToken: token, baseUrl, model: embeddingModel };
+        return shouldChunkMessage(text, DEFAULT_CHUNK_SIZE)
+          ? generateEmbeddings(
+              chunkText(text).map((c) => mask(c.text)),
+              opts
+            )
+          : generateEmbedding(mask(text), opts);
+      };
+
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
       if (walletAddress && signMessage && !hasEncryptionKey(walletAddress)) {
         try {
@@ -1706,7 +1743,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           storedUserContent,
           extracted?.content ?? ""
         );
-        let skipUserEmbedding: number[] | undefined;
+        let skipUserEmbedding: number[] | number[][] | undefined;
         let skipEmbeddingFailed = false;
 
         if (
@@ -1733,11 +1770,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               // floor. Too short to embed → send NO server tools (leave []); an
               // explicit filter must never degrade to the full catalog. Parity with react.
               if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-                skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
-                  getToken: getTokenRef.current,
-                  baseUrl,
-                  model: embeddingModel,
-                });
+                skipUserEmbedding = await embedToolText(
+                  messageContent,
+                  maskForCall,
+                  getTokenRef.current
+                );
                 const toolNames = serverToolsFilter(skipUserEmbedding, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
@@ -1769,11 +1806,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS
             ) {
               try {
-                skipUserEmbedding = await generateEmbedding(maskForCall(messageContent), {
-                  getToken: getTokenRef.current,
-                  baseUrl,
-                  model: embeddingModel,
-                });
+                skipUserEmbedding = await embedToolText(
+                  messageContent,
+                  maskForCall,
+                  getTokenRef.current
+                );
               } catch {
                 skipEmbeddingFailed = true;
               }
@@ -2049,7 +2086,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let mergedTools = clientTools;
 
       // Track embeddings for function-based tool filtering (to reuse for message storage)
-      let userMessageEmbedding: number[] | undefined;
+      let userMessageEmbedding: number[] | number[][] | undefined;
       let userMessageEmbeddingFailed = false;
       // Server tools resolved for this send — hoisted so the client-tool filter
       // below can re-merge them after semantic narrowing.
@@ -2083,11 +2120,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // embed → send NO server tools (leave []); an explicit semantic filter
             // must never degrade to the full catalog. Parity with react.
             if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-              userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
-                getToken: getTokenRef.current,
-                baseUrl,
-                model: embeddingModel,
-              });
+              userMessageEmbedding = await embedToolText(
+                contentForStorage,
+                maskForCall,
+                getTokenRef.current
+              );
               const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
             }
@@ -2136,11 +2173,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS
           ) {
             try {
-              userMessageEmbedding = await generateEmbedding(maskForCall(contentForStorage), {
-                getToken: getTokenRef.current,
-                baseUrl,
-                model: embeddingModel,
-              });
+              userMessageEmbedding = await embedToolText(
+                contentForStorage,
+                maskForCall,
+                getTokenRef.current
+              );
             } catch {
               userMessageEmbeddingFailed = true;
             }
@@ -2183,15 +2220,39 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
       if (!userMsgQueueId) {
         if (userMessageEmbedding && autoEmbedMessages) {
-          // Reuse embedding from tool filtering
-          updateMessageEmbeddingOp(
-            storageCtx,
-            storedUserMessage.uniqueId,
-            userMessageEmbedding,
-            embeddingModel
-          ).catch(() => {
-            // Non-fatal
-          });
+          // Reuse the tool-filter embedding for storage. A chunked prompt yields
+          // number[][] → persist one row per chunk (chunkText here reproduces the
+          // same chunks embedToolText embedded); a short prompt yields number[] →
+          // a single embedding. Mirrors react's storage branch.
+          if (Array.isArray(userMessageEmbedding[0])) {
+            const textChunks = chunkText(contentForStorage);
+            const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+              text: chunk.text,
+              vector: (userMessageEmbedding as number[][])[i],
+              startOffset: chunk.startOffset,
+              endOffset: chunk.endOffset,
+            }));
+            updateMessageChunksOp(
+              storageCtx,
+              storedUserMessage.uniqueId,
+              messageChunks,
+              embeddingModel
+            ).catch((err) => {
+              getLogger().warn(
+                "[useChatStorage] Failed to persist chunked embeddings for user message:",
+                err
+              );
+            });
+          } else {
+            updateMessageEmbeddingOp(
+              storageCtx,
+              storedUserMessage.uniqueId,
+              userMessageEmbedding as number[],
+              embeddingModel
+            ).catch(() => {
+              // Non-fatal
+            });
+          }
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
