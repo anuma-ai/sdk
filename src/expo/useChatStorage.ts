@@ -1816,8 +1816,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }
             }
             if (typeof clientToolsFilter === "function") {
-              const keep = new Set(clientToolsFilter(skipUserEmbedding ?? null, clientTools));
-              narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+              // Skip the filter on a genuine embedding FAILURE (not the short-prompt
+              // gate): an embeddings outage must degrade to the full toolkit — the
+              // same graceful path the auto-filter takes via its "error" reason —
+              // rather than hand a semantic custom filter null and risk it dropping
+              // every tool the turn needs.
+              if (!skipEmbeddingFailed) {
+                const keep = new Set(clientToolsFilter(skipUserEmbedding ?? null, clientTools));
+                narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+              }
             } else if (getTokenRef.current) {
               const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
                 clientTools,
@@ -2183,8 +2190,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             }
           }
           if (typeof clientToolsFilter === "function") {
-            const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
-            narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+            // Skip the filter on a genuine embedding FAILURE (not the short-prompt
+            // gate): an embeddings outage must degrade to the full toolkit — the
+            // same graceful path the auto-filter takes via its "error" reason —
+            // rather than hand a semantic custom filter null and risk it dropping
+            // every tool the turn needs.
+            if (!userMessageEmbeddingFailed) {
+              const keep = new Set(clientToolsFilter(userMessageEmbedding ?? null, clientTools));
+              narrowedClientTools = clientTools.filter((t) => keep.has(getToolName(t)));
+            }
           } else if (getTokenRef.current) {
             const { tools: autoTools, activatedSetNames } = await autoFilterClientTools(
               clientTools,

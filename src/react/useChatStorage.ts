@@ -2306,12 +2306,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let filteredClientTools = clientTools;
         let clientActivatedSetNames: ReadonlySet<string> | undefined;
         if (clientToolsFilter && clientTools?.length) {
-          const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
-          filteredClientTools = clientTools.filter((t) => {
-            const fn = t.function as Record<string, unknown> | undefined;
-            const name = (fn?.name as string) || (t.name as string);
-            return clientToolNames.includes(name);
-          });
+          // On a genuine embedding FAILURE (not the short-prompt gate), keep the
+          // full toolkit rather than handing the filter null — an embeddings outage
+          // must not strip tools (matches the auto-filter's "error" degradation).
+          if (!skipStorageEmbeddingsFailed) {
+            const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
+            filteredClientTools = clientTools.filter((t) => {
+              const fn = t.function as Record<string, unknown> | undefined;
+              const name = (fn?.name as string) || (t.name as string);
+              return clientToolNames.includes(name);
+            });
+          }
         } else if (clientTools?.length && getToken) {
           // Auto-filter client tools using semantic matching (no explicit filter provided)
           const clientFilterResult = await autoFilterClientTools(
@@ -2812,12 +2817,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let filteredClientTools = clientTools;
       let clientActivatedSetNames: ReadonlySet<string> | undefined;
       if (clientToolsFilter && clientTools?.length) {
-        const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
-        filteredClientTools = clientTools.filter((t) => {
-          const fn = t.function as Record<string, unknown> | undefined;
-          const name = (fn?.name as string) || (t.name as string);
-          return clientToolNames.includes(name);
-        });
+        // On a genuine embedding FAILURE (not the short-prompt gate), keep the full
+        // toolkit rather than handing the filter null — an embeddings outage must
+        // not strip tools (matches the auto-filter's "error" degradation).
+        if (!userMessageEmbeddingsFailed) {
+          const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
+          filteredClientTools = clientTools.filter((t) => {
+            const fn = t.function as Record<string, unknown> | undefined;
+            const name = (fn?.name as string) || (t.name as string);
+            return clientToolNames.includes(name);
+          });
+        }
       } else if (clientTools?.length && getToken) {
         // Auto-filter client tools using semantic matching (no explicit filter provided)
         const clientFilterResult = await autoFilterClientTools(
