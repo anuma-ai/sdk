@@ -2388,16 +2388,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           };
         }
 
-        // Auto-refresh server tools cache if checksum changed
-        if (getToken && shouldRefreshTools(getToolsChecksum(result.data))) {
-          getServerTools({
-            baseUrl,
-            getToken,
-            forceRefresh: true,
-            cache: serverToolsConfig?.cache,
-          }).catch((err) => {
-            getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
-          });
+        // Auto-refresh the server-tools cache if the checksum changed. Forward
+        // the configured backend to shouldRefreshTools so the checksum comparison
+        // reads the SAME store getServerTools writes to (not always localStorage),
+        // and run it inside the chain — a custom backend may resolve async or throw
+        // synchronously; either way the .catch() handles it and the send is never
+        // blocked.
+        const refreshResponse = result.data;
+        if (getToken) {
+          Promise.resolve()
+            .then(() =>
+              shouldRefreshTools(getToolsChecksum(refreshResponse), serverToolsConfig?.cache)
+            )
+            .then((refresh) => {
+              if (refresh) {
+                return getServerTools({
+                  baseUrl,
+                  getToken,
+                  forceRefresh: true,
+                  cache: serverToolsConfig?.cache,
+                });
+              }
+            })
+            .catch((err) => {
+              getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+            });
         }
 
         return {
@@ -3226,16 +3241,25 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
-      // Auto-refresh server tools cache if checksum changed
-      if (getToken && shouldRefreshTools(getToolsChecksum(responseData))) {
-        getServerTools({
-          baseUrl,
-          getToken,
-          forceRefresh: true,
-          cache: serverToolsConfig?.cache,
-        }).catch((err) => {
-          getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
-        });
+      // Auto-refresh the server-tools cache if the checksum changed — forward the
+      // configured backend (read the same store getServerTools writes) and run
+      // inside the chain so an async/throwing custom backend is handled by .catch.
+      if (getToken) {
+        Promise.resolve()
+          .then(() => shouldRefreshTools(getToolsChecksum(responseData), serverToolsConfig?.cache))
+          .then((refresh) => {
+            if (refresh) {
+              return getServerTools({
+                baseUrl,
+                getToken,
+                forceRefresh: true,
+                cache: serverToolsConfig?.cache,
+              });
+            }
+          })
+          .catch((err) => {
+            getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+          });
       }
 
       return {
