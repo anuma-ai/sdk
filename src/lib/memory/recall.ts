@@ -15,11 +15,21 @@
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
 import { getMemoriesByEntityNamesOp } from "../db/entities/operations.js";
-import { getMemoriesByEventTimeOp } from "../db/memoryVault/operations.js";
+import {
+  countActiveVaultMemoriesOp,
+  getActiveVaultMemoryIdsOp,
+  getMemoriesByEventTimeOp,
+} from "../db/memoryVault/operations.js";
+import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import {
+  createLlmNeighborRefiner,
+  type NeighborRefiner,
+  traverseGraphLane,
+} from "./graphTraversal.js";
 import { classifyObservationTrend } from "./observationTrend.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
@@ -50,17 +60,24 @@ const DEFAULT_CHUNK_MIN_SCORE = 0.5;
 interface BudgetFlags {
   rerank: boolean;
   decompose: boolean;
+  /**
+   * PR4 — enable multi-hop entity-graph traversal in the W5 lane. Gated to
+   * `high` only: multi-hop widens the candidate pool (more RRF entries + a
+   * larger rerank input), so low/mid keep the cheap single-hop lane. When
+   * false, `buildGraphLaneRanking` runs the exact pre-PR4 single-hop path.
+   */
+  traverse: boolean;
 }
 
 function flagsForBudget(budget: Budget): BudgetFlags {
   switch (budget) {
     case "high":
-      return { rerank: true, decompose: true };
+      return { rerank: true, decompose: true, traverse: true };
     case "mid":
-      return { rerank: true, decompose: false };
+      return { rerank: true, decompose: false, traverse: false };
     case "low":
     default:
-      return { rerank: false, decompose: false };
+      return { rerank: false, decompose: false, traverse: false };
   }
 }
 
@@ -190,14 +207,33 @@ export async function recall(
   // look up memories whose event_time overlaps.
   const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
   const wantsTemporal = types.includes("fact") && ctx.vaultCtx;
+  // PR5 — optional LLM graph path-refinement, opt-in (default off) and only on
+  // the high-budget traverse path. Reuses the query-decompose auth. Falls back
+  // to deterministic co-occurrence order inside traverseGraphLane on any error.
+  const graphRefiner: NeighborRefiner | undefined =
+    flags.traverse && options.graphRefine && options.decomposeOptions
+      ? createLlmNeighborRefiner(options.decomposeOptions)
+      : undefined;
   const prepStart = nowMs();
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
     needsChunkEmbedding
       ? generateEmbedding(query, ctx.embeddingOptions)
       : Promise.resolve(undefined),
-    buildGraphLaneRanking(query, ctx),
+    // The graph + temporal lanes are AUXILIARY (RRF side-signals). A transient
+    // WatermelonDB throw in either must NOT reject this Promise.all and take
+    // PRIMARY cosine/BM25 recall down with it — degrade the failing lane to an
+    // empty ranking instead (mirrors safeCountVault's fail-soft posture).
+    safeLane("graph", () =>
+      buildGraphLaneRanking(query, ctx, flags.traverse, {
+        ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+        ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+        ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+        ...(graphRefiner && { refineNeighbors: graphRefiner }),
+      })
+    ),
     wantsTemporal
-      ? buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now)
+      ? safeLane("temporal", () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now))
       : Promise.resolve([] as string[]),
   ]);
   prepMs = nowMs() - prepStart;
@@ -249,6 +285,8 @@ export async function recall(
         }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),
+        ...(options.factTypes?.length && { factTypes: options.factTypes }),
+        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),
       }
@@ -407,10 +445,13 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     ...(r.eventTimeStart !== undefined && { eventTimeStart: r.eventTimeStart }),
     ...(r.eventTimeEnd !== undefined && { eventTimeEnd: r.eventTimeEnd }),
     ...(r.eventTimeKind !== undefined && { eventTimeKind: r.eventTimeKind }),
+    // Typed memory (PR1) — surfaced from VaultSearchResult so recall results
+    // (and UI reading them) carry the fact's type. Undefined when untyped.
+    ...(r.factType !== undefined && { factType: r.factType }),
     ...(r.sourceChunkIds !== undefined &&
       r.sourceChunkIds !== null && { sourceChunkIds: r.sourceChunkIds }),
     ...(proofCount !== undefined && proofCount !== null && { proofCount }),
-    ...(lastObservedAt != null && { lastObservedAt }),
+    ...(lastObservedAt !== null && { lastObservedAt }),
     // C2 — algorithmic trend from evidence timestamps (no LLM).
     observationTrend: classifyObservationTrend({
       createdAt,
@@ -443,21 +484,116 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
  * The ranking is by raw shared-count, not the tanh score — we hand off
  * just the order to RRF fusion. The tanh shaping happens inside
  * `rankByEntityOverlap` for callers that want the score directly.
+ *
+ * PR4/PR5: when `traverse` is true (high budget only), the lane runs a bounded
+ * multi-hop BFS via {@link traverseGraphLane} instead of the single-hop lookup,
+ * threading a cheap vault-size count so the density guard can cap hops on large
+ * vaults. The PR5 default `MAX_HOPS = 2` performs one expansion beyond the seed
+ * (capped back to seed-only above the density threshold). When `traverse` is
+ * false the single-hop path below runs — low/mid budgets never pay the
+ * vault-size count and never expand past the seed.
+ *
+ * Active filter (both paths): archived / quarantined ("forgotten") memory ids
+ * are dropped before they enter the returned ranking — the multi-hop path
+ * filters per hop (so inactive rows can't steer traversal), the single-hop path
+ * filters the resolved seed ids. Both reuse the same decrypt-free indexed
+ * active-id read ({@link getActiveVaultMemoryIdsOp}) and only engage when a
+ * `vaultCtx` is present. Low/mid budgets thus pay one extra indexed id read
+ * (no decrypt, no Model) so inactive ids don't occupy RRF rank slots that would
+ * otherwise dilute active memories' graph-lane contribution.
  */
-async function buildGraphLaneRanking(query: string, ctx: RecallContext): Promise<string[]> {
+async function buildGraphLaneRanking(
+  query: string,
+  ctx: RecallContext,
+  traverse = false,
+  traversalOptions: {
+    maxHops?: number;
+    entityFanout?: number;
+    nodeBudget?: number;
+    rrfK?: number;
+    refineNeighbors?: NeighborRefiner;
+  } = {}
+): Promise<string[]> {
   // Fall back to vaultCtx.entityCtx so callers don't have to thread the
   // graph-lane context twice (it's also where cascade-delete wiring lives).
   const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
   if (!entityCtx) return [];
+  if (traverse) {
+    // Multi-hop path. PR5: with the default MAX_HOPS=2 the density guard matters,
+    // so thread a vault-size hint (a cheap indexed COUNT — no decrypt, no Model)
+    // so capHopsForDensity can cap back to seed-only on large vaults. A count
+    // failure just leaves the hint unset (guard dormant), never breaks recall.
+    const vaultSize = await safeCountVault(ctx);
+    // Resolve discovered ids to the ACTIVE set at each hop so archived /
+    // quarantined ("forgotten") memories can't steer traversal or egress their
+    // entity names to the path-refiner. Only wired when a vaultCtx is present
+    // (the same context the final recall gate filters against).
+    const vaultCtx = ctx.vaultCtx;
+    return traverseGraphLane(query, entityCtx, {
+      ...traversalOptions,
+      ...(vaultSize !== undefined && { vaultSize }),
+      ...(vaultCtx && {
+        filterActiveMemoryIds: (ids: string[]) => getActiveVaultMemoryIdsOp(vaultCtx, ids),
+      }),
+    });
+  }
   const queryEntities = extractQueryEntities(query);
   if (queryEntities.length === 0) return [];
   const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, queryEntities);
   if (memoryToEntities.size === 0) return [];
   // Sort by shared-entity count descending. Ties broken arbitrarily by
   // map insertion order — RRF rank-quantization makes fine ties moot.
-  return [...memoryToEntities.entries()]
+  const ranked = [...memoryToEntities.entries()]
     .sort((a, b) => b[1].size - a[1].size)
     .map(([memoryId]) => memoryId);
+  // Drop archived / quarantined ("forgotten") ids BEFORE they enter
+  // entityRanking — mirroring the multi-hop branch's per-hop active filter
+  // above. They never load for display (the downstream itemById gate drops
+  // them), but if left in the ranking they still occupy RRF rank slots and
+  // dilute active memories' graph-lane contribution. Decrypt-free: reuses the
+  // same indexed active-id read the high-budget path already pays. Only wired
+  // when a vaultCtx is present (the same context the final recall gate filters
+  // against); without it the lane keeps its pre-fix behavior.
+  const vaultCtx = ctx.vaultCtx;
+  if (!vaultCtx) return ranked;
+  const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, ranked);
+  return ranked.filter((id) => activeIds.has(id));
+}
+
+/**
+ * Cheap active-vault count for the graph-lane density hint (PR5), or `undefined`
+ * when unavailable. Returns undefined (rather than throwing) when there is no
+ * vaultCtx or the count fails — the traversal then runs without the density cap
+ * hint, which is safe (it just doesn't down-cap hops on a large vault this call).
+ */
+async function safeCountVault(ctx: RecallContext): Promise<number | undefined> {
+  if (!ctx.vaultCtx) return undefined;
+  try {
+    return await countActiveVaultMemoriesOp(ctx.vaultCtx);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Run an auxiliary recall lane (graph / temporal), degrading to an EMPTY ranking
+ * on any throw. These lanes are RRF side-signals fused with the primary
+ * cosine/BM25 head — a transient failure in one must never reject the shared
+ * `Promise.all` and zero out primary recall. Mirrors {@link safeCountVault}'s
+ * fail-soft posture, but logs a warning so a persistently-broken lane is
+ * observable rather than silently disabled.
+ */
+async function safeLane(label: string, run: () => Promise<string[]>): Promise<string[]> {
+  try {
+    return await run();
+  } catch (err) {
+    getLogger().warn(
+      `[memory/recall] ${label} lane failed; continuing without it: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
+    return [];
+  }
 }
 
 /**

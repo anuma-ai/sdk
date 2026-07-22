@@ -156,3 +156,7 @@ test/tools/.runs/
 
 .claude/
 test/memory/src/vault/embeddings-cache.json
+.impeccable/
+
+# gate-agent scratch (do not ship)
+*.qa.test.ts

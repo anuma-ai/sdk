@@ -1265,6 +1265,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       walletAddress,
       signMessage,
       embeddedWalletSigner,
+      // This is a per-wallet, physically single-tenant client DB (one wallet's
+      // rows, written with user_id = null). Declaring it explicitly lets the
+      // decay sweep's scope guard (assertVaultScopeForSweep) accept an unscoped
+      // scan here honestly, instead of inferring safety from walletAddress.
+      singleTenant: true,
     }),
     [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
