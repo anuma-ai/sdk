@@ -83,10 +83,7 @@ async function withEmbeddingRetry<T extends { error?: unknown; response?: Respon
   // rethrow the underlying Error so callers keep the historical throw
   // contract (and a useful message like ECONNRESET) rather than a generic
   // "API embedding failed" wrapper.
-  if (
-    last?.error instanceof Error &&
-    (last.response == null || last.response.status == null)
-  ) {
+  if (last?.error instanceof Error && (last.response == null || last.response.status == null)) {
     throw last.error;
   }
   return last as T;

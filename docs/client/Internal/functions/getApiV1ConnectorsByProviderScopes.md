@@ -2,7 +2,7 @@
 
 > **getApiV1ConnectorsByProviderScopes**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConnectorsByProviderScopesData`](../type-aliases/GetApiV1ConnectorsByProviderScopesData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ConnectorsByProviderScopesResponses`](../type-aliases/GetApiV1ConnectorsByProviderScopesResponses.md), [`GetApiV1ConnectorsByProviderScopesErrors`](../type-aliases/GetApiV1ConnectorsByProviderScopesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:950](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#950)
+Defined in: [src/client/sdk.gen.ts:698](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#698)
 
 Capability catalog + Allow/Disable state for a connector
 

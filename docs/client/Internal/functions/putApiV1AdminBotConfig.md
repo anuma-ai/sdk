@@ -2,7 +2,7 @@
 
 > **putApiV1AdminBotConfig**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AdminBotConfigData`](../type-aliases/PutApiV1AdminBotConfigData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AdminBotConfigResponses`](../type-aliases/PutApiV1AdminBotConfigResponses.md), [`PutApiV1AdminBotConfigErrors`](../type-aliases/PutApiV1AdminBotConfigErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#246)
+Defined in: [src/client/sdk.gen.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#187)
 
 Update X-bot config (admin)
 

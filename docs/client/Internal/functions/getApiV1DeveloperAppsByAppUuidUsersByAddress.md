@@ -2,7 +2,7 @@
 
 > **getApiV1DeveloperAppsByAppUuidUsersByAddress**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsByAppUuidUsersByAddressData`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses.md), [`GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1262](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1262)
+Defined in: [src/client/sdk.gen.ts:922](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#922)
 
 Get user
 

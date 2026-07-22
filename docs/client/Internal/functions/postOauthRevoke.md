@@ -1,8 +1,8 @@
 # postOauthRevoke
 
-> **postOauthRevoke**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostOauthRevokeData`](../type-aliases/PostOauthRevokeData.md), `ThrowOnError`>): `RequestResult`<[`PostOauthRevokeResponses`](../type-aliases/PostOauthRevokeResponses.md), [`PostOauthRevokeErrors`](../type-aliases/PostOauthRevokeErrors.md), `ThrowOnError`>
+> **postOauthRevoke**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostOauthRevokeData`](../type-aliases/PostOauthRevokeData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostOauthRevokeResponses`](../type-aliases/PostOauthRevokeResponses.md), [`PostOauthRevokeErrors`](../type-aliases/PostOauthRevokeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2184](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2184)
+Defined in: [src/client/sdk.gen.ts:1586](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1586)
 
 OAuth 2.0 token revocation (RFC 7009)
 
@@ -51,7 +51,7 @@ Revokes a refresh token, or (with token\_type\_hint=grant) the entire grant. Alw
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`PostOauthRevokeData`](../type-aliases/PostOauthRevokeData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`PostOauthRevokeData`](../type-aliases/PostOauthRevokeData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

@@ -1,8 +1,8 @@
 # getApiV1DeveloperApps
 
-> **getApiV1DeveloperApps**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsData`](../type-aliases/GetApiV1DeveloperAppsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DeveloperAppsResponses`](../type-aliases/GetApiV1DeveloperAppsResponses.md), [`GetApiV1DeveloperAppsErrors`](../type-aliases/GetApiV1DeveloperAppsErrors.md), `ThrowOnError`>
+> **getApiV1DeveloperApps**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsData`](../type-aliases/GetApiV1DeveloperAppsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1DeveloperAppsResponses`](../type-aliases/GetApiV1DeveloperAppsResponses.md), [`GetApiV1DeveloperAppsErrors`](../type-aliases/GetApiV1DeveloperAppsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1074](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1074)
+Defined in: [src/client/sdk.gen.ts:789](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#789)
 
 List apps
 
@@ -51,7 +51,7 @@ Lists all apps owned by the authenticated developer with pagination.
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsData`](../type-aliases/GetApiV1DeveloperAppsData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsData`](../type-aliases/GetApiV1DeveloperAppsData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>
