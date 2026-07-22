@@ -171,6 +171,10 @@ interface EmbeddedItem {
 /**
  * C4 date for cross-encoder pairs: prefer the fact's anchored event time,
  * then the C3 re-observation watermark, then write-time stamps.
+ *
+ * `eventTimeStart === 0` (and other non-positive values) is treated as a
+ * legacy sentinel — same as recall's temporal lane — and skipped so the CE
+ * falls through to lastObservedAt / write stamps instead of a 1970 prefix.
  */
 function rerankDateMs(item: {
   eventTimeStart?: number | null;
@@ -181,21 +185,27 @@ function rerankDateMs(item: {
   if (
     item.eventTimeStart !== null &&
     item.eventTimeStart !== undefined &&
-    Number.isFinite(item.eventTimeStart)
+    Number.isFinite(item.eventTimeStart) &&
+    item.eventTimeStart > 0
   ) {
     return item.eventTimeStart;
   }
   if (
     item.lastObservedAt !== null &&
     item.lastObservedAt !== undefined &&
-    Number.isFinite(item.lastObservedAt)
+    Number.isFinite(item.lastObservedAt) &&
+    item.lastObservedAt > 0
   ) {
     return item.lastObservedAt;
   }
   const updatedMs = item.updatedAt?.getTime();
-  if (updatedMs !== null && updatedMs !== undefined && Number.isFinite(updatedMs)) return updatedMs;
+  if (updatedMs !== null && updatedMs !== undefined && Number.isFinite(updatedMs) && updatedMs > 0) {
+    return updatedMs;
+  }
   const createdMs = item.createdAt?.getTime();
-  if (createdMs !== null && createdMs !== undefined && Number.isFinite(createdMs)) return createdMs;
+  if (createdMs !== null && createdMs !== undefined && Number.isFinite(createdMs) && createdMs > 0) {
+    return createdMs;
+  }
   return undefined;
 }
 
