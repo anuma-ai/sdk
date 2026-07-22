@@ -52,12 +52,11 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1274](https://github.com/anuma
 
 > **trustTier**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1279](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1279)
+Defined in: [src/lib/db/memoryVault/operations.ts:1278](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1278)
 
 `trusted` | `quarantined` | null. Quarantined rows still decay by RULE, but
 are never handed to the optional content-reading decay classifier (they must
-not egress poison content — see ../../memory/decayWorker's
-`isBorderline`).
+not egress poison content — see the decay sweeper's `isBorderline`).
 
 ***
 

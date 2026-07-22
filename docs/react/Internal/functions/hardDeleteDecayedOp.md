@@ -2,7 +2,7 @@
 
 > **hardDeleteDecayedOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`, `opts`: `object`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1457](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1457)
+Defined in: [src/lib/db/memoryVault/operations.ts:1456](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1456)
 
 Hard-delete a memory ONLY if it is still archived and still past the delete
 window (PR2 decay terminal transition). Unlike the generic
