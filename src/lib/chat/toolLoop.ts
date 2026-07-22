@@ -14,6 +14,7 @@ import {
   type PiiRedactor,
   resolvePiiRedactor,
 } from "../pii/redactor";
+import { validateEndpointOverride } from "./endpointOverride";
 import type { PromptPreProcessor } from "./preProcessor";
 import type {
   ModelCallEndEvent,
@@ -24,7 +25,6 @@ import type {
   ToolUseEndEvent,
   ToolUseStartEvent,
 } from "./runHooks";
-import { validateEndpointOverride } from "./endpointOverride";
 import { composeHooks } from "./runHooks";
 
 /**
