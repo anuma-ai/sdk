@@ -416,7 +416,7 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
       createdAt,
       lastObservedAt,
       proofCount,
-    }),
+    }, options.now),
     // r.similarity from searchVaultMemoriesWithSize is the fused score
     // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
     // default) and pure cosine when useFusion=false. The breakdown
