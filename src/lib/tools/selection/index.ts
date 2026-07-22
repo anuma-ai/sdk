@@ -28,8 +28,8 @@ export {
   selectCouncilClientTools,
 } from "./council";
 export {
+  type AssembledToolsFilterFn,
   type ClientFactoryKey,
-  type ClientToolsFilterFn,
   type ClientToolsFilterMode,
   CREATION_INTENT_CLIENT_FACTORIES,
   CREATION_INTENT_CLIENT_FILTER,

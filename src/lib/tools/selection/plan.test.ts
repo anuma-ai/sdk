@@ -123,6 +123,11 @@ describe("resolvePlan — chat lane golden table", () => {
     expect(plan.activeToolSets).toContain("slides");
     // full generative toolkit still registered — the filter does the narrowing
     expect(plan.clientFactories).toEqual([...FULL_GENERATIVE_CLIENT_FACTORIES]);
+    // The overlay is effectively a slides turn: its persona + send-policy knobs
+    // come from the slide entry, not the underlying "plain" chat intent.
+    expect(plan.systemPromptRiders).toContain(SLIDE_PROMPT);
+    expect(plan.maxToolRounds).toBe(36);
+    expect(plan.thinkingMode).toBe("fast");
   });
 
   it("passes conversation activeToolSets through", () => {

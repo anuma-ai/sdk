@@ -22,8 +22,8 @@
 import type { ToolConfig } from "../../chat/useChat/types";
 import { getToolName } from "../clientToolSelection";
 import type {
+  AssembledToolsFilterFn,
   ClientFactoryKey,
-  ClientToolsFilterFn,
   ClientToolsFilterMode,
   ToolPlanSpec,
 } from "./intents";
@@ -99,7 +99,7 @@ export function assembleClientTools<TTool = ToolConfig>(
  */
 export function filterAssembledClientTools<TTool = ToolConfig>(
   tools: TTool[],
-  mode: ClientToolsFilterMode | ClientToolsFilterFn<TTool>,
+  mode: ClientToolsFilterMode | AssembledToolsFilterFn<TTool>,
   opts?: {
     /** Tool names the slide-editor overlay keeps (the slide tool set members). */
     slideEditorToolNames?: ReadonlySet<string>;

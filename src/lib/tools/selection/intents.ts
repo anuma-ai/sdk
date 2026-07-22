@@ -87,7 +87,9 @@ export type ClientFactoryKey =
 export type ClientToolsFilterMode = "auto" | "include-all" | "slide-editor";
 
 /** A custom client-tools filter: given the assembled tools, return the subset to send. */
-export type ClientToolsFilterFn<TTool = unknown> = (tools: TTool[]) => TTool[] | Promise<TTool[]>;
+export type AssembledToolsFilterFn<TTool = unknown> = (
+  tools: TTool[]
+) => TTool[] | Promise<TTool[]>;
 
 /**
  * App-facing thinking hint. There is intentionally no `ThinkingMode` type in
@@ -168,7 +170,7 @@ export interface ServerToolCatalogEntry {
    */
   resolveServerTools?: (ctx: ServerToolsFilterContext) => ServerToolsFilter;
   /** Override the default client-tools filter for this intent. */
-  clientToolsFilter?: ClientToolsFilterMode | ClientToolsFilterFn;
+  clientToolsFilter?: ClientToolsFilterMode | AssembledToolsFilterFn;
   /** Explicit tool-choice; omit to let the shape of `serverTools` decide (see `resolveToolChoice`). */
   toolChoice?: ToolChoice;
   /** Per-intent max tool rounds (web uses a flat 35; mobile varies by mode). */
@@ -201,7 +203,7 @@ export interface ToolPlanSpec {
   /** Which client-tool factories to instantiate (capability-gated at assembly). */
   clientFactories: ClientFactoryKey[];
   /** How to trim the assembled client tools. */
-  clientToolsFilter: ClientToolsFilterMode | ClientToolsFilterFn;
+  clientToolsFilter: ClientToolsFilterMode | AssembledToolsFilterFn;
   /** The server-tools filter for the turn (resolved value, factory already applied). */
   serverTools: ServerToolsFilter;
   /** Server tools that must always be present. */

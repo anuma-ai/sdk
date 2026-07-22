@@ -11,8 +11,8 @@
  */
 
 import {
+  type AssembledToolsFilterFn,
   type ClientFactoryKey,
-  type ClientToolsFilterFn,
   type ClientToolsFilterMode,
   CREATION_INTENT_CLIENT_FACTORIES,
   CREATION_INTENT_CLIENT_FILTER,
@@ -99,7 +99,7 @@ export function resolvePlan(
 
   let serverTools: ServerToolsFilter = resolveServerTools(descriptor, catalog);
   const clientFactories: ClientFactoryKey[] = [...CREATION_INTENT_CLIENT_FACTORIES[creation]];
-  let clientToolsFilter: ClientToolsFilterMode | ClientToolsFilterFn =
+  let clientToolsFilter: ClientToolsFilterMode | AssembledToolsFilterFn =
     entry?.clientToolsFilter ?? CREATION_INTENT_CLIENT_FILTER[creation];
 
   // Fullscreen slide-editor overlay behind an ordinary chat turn: keep the full
@@ -111,6 +111,13 @@ export function resolvePlan(
     clientToolsFilter = "slide-editor";
     serverTools = resolveServerTools({ ...descriptor, creation: "slides" }, catalog);
   }
+
+  // A fullscreen slide-editor overlay is effectively a slides turn: its
+  // send-policy knobs (max rounds, thinking mode, forced server tools) and its
+  // persona come from the slide catalog entry, NOT the underlying chat intent —
+  // which carries neither the slide prompt nor the slide knobs. (We already
+  // swapped the server tools + client filter to slides above.)
+  const effectiveEntry = editorSlideOverlay && slideEntry ? slideEntry : entry;
 
   // Sticky sets: carry conversation history forward, and force-activate the
   // builder/slide-deck set so its persona and toolkit ride in (and follow-ups
@@ -125,13 +132,22 @@ export function resolvePlan(
   // (let the model decide when to call plan_deck / create_file); everything
   // else is shape-derived from the server-tools filter.
   const forceAuto = isBuilder || slideDeckIntent || editorSlideOverlay;
-  const toolChoice = forceAuto ? "auto" : resolveToolChoice(serverTools, entry?.toolChoice);
+  const toolChoice = forceAuto
+    ? "auto"
+    : resolveToolChoice(serverTools, effectiveEntry?.toolChoice);
 
-  // System-prompt riders: the intent's authoritative prompt, plus the slide
-  // prompt when a slide-deck intent is detected in plain chat.
+  // System-prompt riders: the effective intent's authoritative prompt (the slide
+  // entry's for a slide-editor overlay), plus the slide prompt when a slide-deck
+  // intent is detected in plain chat — de-duplicated so the overlay + deck-intent
+  // case doesn't inject the slide prompt twice.
   const systemPromptRiders: string[] = [];
-  if (entry?.systemPrompt) systemPromptRiders.push(entry.systemPrompt);
-  if (slideDeckIntent && slideEntry?.systemPrompt && creation !== "slides") {
+  if (effectiveEntry?.systemPrompt) systemPromptRiders.push(effectiveEntry.systemPrompt);
+  if (
+    slideDeckIntent &&
+    slideEntry?.systemPrompt &&
+    creation !== "slides" &&
+    !systemPromptRiders.includes(slideEntry.systemPrompt)
+  ) {
     systemPromptRiders.push(slideEntry.systemPrompt);
   }
 
@@ -146,11 +162,11 @@ export function resolvePlan(
     clientFactories,
     clientToolsFilter,
     serverTools,
-    forcedServerTools: entry?.forcedServerTools,
+    forcedServerTools: effectiveEntry?.forcedServerTools,
     activeToolSets: [...activeToolSets],
     toolChoice,
-    maxToolRounds: getMaxToolRounds(entry, ctx.defaultMaxToolRounds),
-    thinkingMode: getThinkingMode(entry, ctx.defaultThinkingMode),
+    maxToolRounds: getMaxToolRounds(effectiveEntry, ctx.defaultMaxToolRounds),
+    thinkingMode: getThinkingMode(effectiveEntry, ctx.defaultThinkingMode),
     systemPromptRiders,
     postFilters,
   };
