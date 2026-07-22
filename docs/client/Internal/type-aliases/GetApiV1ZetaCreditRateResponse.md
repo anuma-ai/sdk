@@ -2,4 +2,4 @@
 
 > **GetApiV1ZetaCreditRateResponse** = [`GetApiV1ZetaCreditRateResponses`](GetApiV1ZetaCreditRateResponses.md)\[keyof [`GetApiV1ZetaCreditRateResponses`](GetApiV1ZetaCreditRateResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10254](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10254)
+Defined in: [src/client/types.gen.ts:10313](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10313)

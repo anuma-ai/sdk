@@ -2,7 +2,7 @@
 
 > **getHealth**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1543](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1543)
+Defined in: [src/client/sdk.gen.ts:1557](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1557)
 
 Health check
 

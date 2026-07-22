@@ -2,4 +2,4 @@
 
 > **GetApiV1SharesBySlugError** = [`GetApiV1SharesBySlugErrors`](GetApiV1SharesBySlugErrors.md)\[keyof [`GetApiV1SharesBySlugErrors`](GetApiV1SharesBySlugErrors.md)]
 
-Defined in: [src/client/types.gen.ts:9158](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9158)
+Defined in: [src/client/types.gen.ts:9163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9163)
