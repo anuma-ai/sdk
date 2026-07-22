@@ -34,6 +34,12 @@ export class VaultMemory extends Model {
   @field("topics_extracted_version") topicsExtractedVersion!: number | null;
   /** C3 re-observation watermark: Unix ms of the last retain() merge, or null. */
   @field("last_observed_at") lastObservedAt!: number | null;
+  /** Typed memory (PR1) — the extractor's FactType. Null on legacy/manual rows. */
+  @field("fact_type") factType!: string | null;
+  /** Decay archive state (PR2) — Unix ms when archived, null when active. */
+  @field("archived_at") archivedAt!: number | null;
+  /** Tier-0 security (PR3) — "quarantined" | "trusted" | null. */
+  @field("trust_tier") trustTier!: string | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

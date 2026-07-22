@@ -42,6 +42,23 @@ export interface MemoryVaultSearchOptions {
   scopes?: string[];
   /** When provided, only search memories in this folder (null for unfiled) */
   folderId?: string | null;
+  /** Typed memory (PR1) — when provided, only search memories of these fact
+   * types. Applied at load time via `Q.oneOf` on the indexed `fact_type`
+   * column. Omit for no type filter. */
+  factTypes?: string[];
+  /**
+   * PR5 — optional per-FactType score multiplier applied in the boost stage
+   * (e.g. `{ identity: 1.2, ongoing_context: 0.8 }`). Empty/omitted = uniform
+   * (no behavior change). See {@link rankFusedVaultMemories}.
+   */
+  factTypeWeights?: Record<string, number>;
+  /**
+   * PR5 — include archived (decayed) rows in the candidate load. Default false
+   * (the baseVaultConditions choke point excludes them). retain()'s dedup
+   * search sets this so a re-observed fact can merge into — and un-archive — an
+   * archived row instead of creating a fresh duplicate.
+   */
+  includeArchived?: boolean;
   /**
    * Use the hybrid fusion ranker (cosine + BM25 + RRF + recency) instead of
    * cosine-only. Default true — new W1 pipeline. Pass false to fall back
@@ -139,6 +156,9 @@ interface EmbeddedItem {
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /** Typed memory (PR1) — carried through to VaultSearchResult alongside the
+   * event-time anchors so recall results can surface the fact's type. */
+  factType?: string | null;
   /** Message ids this fact was extracted from — carried through to
    * VaultSearchResult so recall() can suppress the originating chunk in the
    * chunk lane (a fact and the chunk it came from shouldn't both surface). */
@@ -288,6 +308,7 @@ export function rankVaultMemories(
     sourceChunkIds: item.sourceChunkIds,
     eventTimeEnd: item.eventTimeEnd,
     eventTimeKind: item.eventTimeKind,
+    factType: item.factType,
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
@@ -415,6 +436,14 @@ export function rankFusedVaultMemories(
      * entityRanking: tail-admission for items absent from the cosine head.
      */
     temporalRanking?: string[];
+    /**
+     * PR5 — optional per-FactType score multiplier applied in the boost stage
+     * (e.g. `{ identity: 1.2, ongoing_context: 0.8 }`). A type absent from the
+     * map (and untyped/null rows) uses 1.0, so an empty/omitted map is a no-op
+     * (uniform weighting = the pre-PR5 behavior). Non-finite / ≤0 entries are
+     * ignored (treated as 1.0) so a bad weight can't zero out a lane.
+     */
+    factTypeWeights?: Record<string, number>;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
@@ -422,6 +451,7 @@ export function rankFusedVaultMemories(
   const recencyAlpha = options?.recencyAlpha ?? 1.0;
   const proofCountAlpha = options?.proofCountAlpha ?? 0.1;
   const bm25AdmissionDivisor = options?.bm25AdmissionDivisor ?? 50;
+  const factTypeWeights = options?.factTypeWeights;
 
   if (items.length === 0) return [];
 
@@ -461,6 +491,7 @@ export function rankFusedVaultMemories(
       sourceChunkIds: item.sourceChunkIds,
       eventTimeEnd: item.eventTimeEnd,
       eventTimeKind: item.eventTimeKind,
+      factType: item.factType,
     });
   }
 
@@ -474,7 +505,13 @@ export function rankFusedVaultMemories(
     const proofCount = Math.max(1, item?.proofCount ?? 1);
     const proofBoost =
       1 + proofCountAlpha * Math.log(1 + proofCount) - proofCountAlpha * Math.log(2);
-    return recencyBoost * proofBoost;
+    // PR5 — optional per-type weight. Absent type / untyped row / bad weight → 1.0.
+    const rawTypeWeight = item?.factType ? factTypeWeights?.[item.factType] : undefined;
+    const typeWeight =
+      rawTypeWeight !== undefined && Number.isFinite(rawTypeWeight) && rawTypeWeight > 0
+        ? rawTypeWeight
+        : 1;
+    return recencyBoost * proofBoost * typeWeight;
   };
   let combined: VaultSearchResult[] = [...baseRanked, ...admitted].map((r) => ({
     ...r,
@@ -644,6 +681,9 @@ export async function rankFusedVaultMemoriesAsync(
      * score. Same lane semantics as `entityRanking`.
      */
     temporalRanking?: string[];
+    /** PR5 — optional per-FactType score multiplier. See
+     * {@link rankFusedVaultMemories}. Empty/omitted = uniform (no-op). */
+    factTypeWeights?: Record<string, number>;
     /**
      * Optional out-param. Set `{ applied: true }` iff the cross-encoder rerank
      * actually ran over a non-empty head (not merely requested-then-degraded,
@@ -670,6 +710,7 @@ export async function rankFusedVaultMemoriesAsync(
     proofCountAlpha: options?.proofCountAlpha,
     bm25AdmissionDivisor: options?.bm25AdmissionDivisor,
     rrfK: options?.rrfK,
+    ...(options?.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
   });
 
   // Track whether the V2 head was non-empty (before side-lane fusion).
@@ -811,6 +852,7 @@ export async function rankFusedVaultMemoriesAsync(
         sourceChunkIds: orig?.sourceChunkIds,
         eventTimeEnd: orig?.eventTimeEnd,
         eventTimeKind: orig?.eventTimeKind,
+        factType: orig?.factType,
       };
     });
     // For benchmark + temporal-margin analysis, callers that want the
@@ -905,6 +947,9 @@ export async function rankComposite(
      * top-N RRF facet so temporal hits survive composite decomposition.
      */
     temporalRanking?: string[];
+    /** PR5 — optional per-FactType score multiplier forwarded to every
+     * per-facet ranking. See {@link rankFusedVaultMemories}. Empty = no-op. */
+    factTypeWeights?: Record<string, number>;
     /**
      * Bench-only: append every vault item absent from facet fusion to the
      * result at `similarity: 0`, so eval margin-analysis can locate any id.
@@ -947,6 +992,7 @@ export async function rankComposite(
       bm25AdmissionDivisor: options.bm25AdmissionDivisor,
     }),
     ...(options?.rrfK !== undefined && { rrfK: options.rrfK }),
+    ...(options?.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
   };
 
   // Stage 1 — per-facet V2 ranking. Each sub-query contributes only its
@@ -1002,6 +1048,7 @@ export async function rankComposite(
         sourceChunkIds: item.sourceChunkIds,
         eventTimeEnd: item.eventTimeEnd,
         eventTimeKind: item.eventTimeKind,
+        factType: item.factType,
       };
     }
   );
@@ -1034,6 +1081,7 @@ export async function rankComposite(
           sourceChunkIds: item.sourceChunkIds,
           eventTimeEnd: item.eventTimeEnd,
           eventTimeKind: item.eventTimeKind,
+          factType: item.factType,
         });
       }
     }
@@ -1101,6 +1149,7 @@ export async function rankComposite(
         sourceChunkIds: orig?.sourceChunkIds,
         eventTimeEnd: orig?.eventTimeEnd,
         eventTimeKind: orig?.eventTimeKind,
+        factType: orig?.factType,
       };
     });
     const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
@@ -1217,6 +1266,10 @@ export interface VaultSearchResult {
   eventTimeStart?: number | null;
   eventTimeEnd?: number | null;
   eventTimeKind?: "point" | "range" | "ongoing" | null;
+  /** Typed memory (PR1) — the fact's FactType, threaded through from the
+   * storage row alongside the event-time anchors. Null/undefined when
+   * untyped. Loose string (originates from a stored column). */
+  factType?: string | null;
   /** Message ids this fact was extracted from (provenance). recall() uses
    * these to suppress the originating chunk in the chunk lane. */
   sourceChunkIds?: string[] | null;
@@ -1247,9 +1300,16 @@ export async function searchVaultMemoriesWithSize(
 
   const folderId = searchOptions?.folderId;
 
-  const queryOpts: { scopes?: string[]; folderId?: string | null } = {};
+  const queryOpts: {
+    scopes?: string[];
+    folderId?: string | null;
+    factTypes?: string[];
+    includeArchived?: boolean;
+  } = {};
   if (scopes?.length) queryOpts.scopes = scopes;
   if (folderId !== undefined) queryOpts.folderId = folderId;
+  if (searchOptions?.factTypes?.length) queryOpts.factTypes = searchOptions.factTypes;
+  if (searchOptions?.includeArchived) queryOpts.includeArchived = true;
 
   const loaded = await getAllVaultMemoriesOp(
     vaultCtx,
@@ -1357,6 +1417,7 @@ export async function searchVaultMemoriesWithSize(
     sourceChunkIds: m.sourceChunkIds,
     eventTimeEnd: m.eventTimeEnd,
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
+    factType: m.factType,
   }));
 
   // Dimension net. The load loop above re-embeds stale-model and wrong-dim
@@ -1431,6 +1492,7 @@ export async function searchVaultMemoriesWithSize(
       bm25AdmissionDivisor: searchOptions.bm25AdmissionDivisor,
     }),
     ...(searchOptions?.rrfK !== undefined && { rrfK: searchOptions.rrfK }),
+    ...(searchOptions?.factTypeWeights && { factTypeWeights: searchOptions.factTypeWeights }),
   };
 
   // Composite path — LLM decomposes the query into sub-queries, embeds them,
