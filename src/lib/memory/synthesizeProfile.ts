@@ -285,7 +285,7 @@ export async function synthesizeProfile(
   // equality still refreshes the badge counts when the caller re-runs.
   const observationTrends = summarizeObservationTrends(
     memories
-      .filter((m) => !m.isDeleted && m.supersededBy == null)
+      .filter((m) => !m.isDeleted && m.supersededBy === null)
       .map((m) => ({
         createdAt: m.createdAt,
         lastObservedAt: m.lastObservedAt,

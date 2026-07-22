@@ -58,9 +58,7 @@ export function classifyObservationTrend(
 
   const lastMsRaw = input.lastObservedAt;
   const lastMs =
-    lastMsRaw !== null &&
-    lastMsRaw !== undefined &&
-    Number.isFinite(lastMsRaw)
+    lastMsRaw !== null && lastMsRaw !== undefined && Number.isFinite(lastMsRaw)
       ? Math.max(createdMs, lastMsRaw)
       : createdMs;
   const proofs = Math.max(1, input.proofCount ?? 1);
