@@ -237,8 +237,21 @@ export function createRecallTool(
 
         return formatRecallResult(result.memories);
       } catch (error) {
+        // Throw (not return) — same rationale as the invalid-args guard above:
+        // returning an "Error searching memory: …" string makes it a SUCCESSFUL
+        // tool result that leaks into the model's visible context and gets
+        // paraphrased to the user. Re-throwing lets the tool-loop treat it as a
+        // failed call (retry / handle) instead.
         const message = error instanceof Error ? error.message : "Unknown error";
-        return `Error searching memory: ${message}`;
+        // Preserve the original as `cause` for debuggability. Assigned (not the
+        // `new Error(msg, { cause })` options bag) because the configured TS lib
+        // doesn't type the Error cause-options constructor; the field is set at
+        // runtime regardless.
+        const wrapped = new Error(`recall_memory: search failed — ${message}`) as Error & {
+          cause?: unknown;
+        };
+        wrapped.cause = error;
+        throw wrapped;
       }
     },
   };

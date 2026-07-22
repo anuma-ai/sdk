@@ -1075,6 +1075,31 @@ export async function upsertMessageOp(
   );
 }
 
+/**
+ * Fetch a single message by its uniqueId (the WatermelonDB record id),
+ * decrypted to a StoredMessage. Returns null if not found. O(1) indexed
+ * lookup — prefer this over scanning `getMessagesOp` across every conversation
+ * when you already hold a message id.
+ */
+export async function getMessageOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch (error) {
+    // WatermelonDB throws for both "not found" and storage failures. Only
+    // return null for "not found" — let storage errors (locked DB, adapter
+    // failures) propagate so they're visible rather than silently dropped.
+    if (error instanceof Error && /not found/i.test(error.message)) {
+      return null;
+    }
+    throw error;
+  }
+  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
 export async function updateMessageEmbeddingOp(
   ctx: StorageOperationsContext,
   uniqueId: string,

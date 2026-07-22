@@ -13,6 +13,7 @@ export {
   getConversationsOp,
   getConversationsPageOp,
   getMessageCountOp,
+  getMessageOp,
   getMessageSkeletonsOp,
   getMessagesOp,
   getMessagesPageOp,
