@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#377)
+Defined in: [src/lib/db/schema.ts:436](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#436)
 
 Combined migrations for all SDK storage modules.
 
@@ -46,5 +46,10 @@ Migration history:
 * v30 → v31: Added `user_id` column to memory\_entity for multi-user scoping of the W5 graph lane (with backfill from memory\_vault.user\_id)
 * v31 → v32: Added `pinned_at` column to conversations for pinning chats
 * v32 → v33: Added `embedding_model` column to memory\_vault (null grandfathered as current-model-compatible)
+* v33 → v34: Added `topics_user_managed` column to memory\_vault (null/false = auto-derived topics, the default)
 * v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
 * v35 → v36: Added `topics_extracted_at` column to memory\_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)
+* v36 → v37: Added `superseded_by` + `superseded_at` columns to memory\_vault (write-time supersession; null = live, excluded from recall/dedup when set)
+* v37 → v38: Added `topics_extracted_version` column to memory\_vault (extraction-logic version; null read as 0 so a TOPICS\_EXTRACTION\_VERSION bump re-extracts stale rows)
+* v38 → v39: Added `last_observed_at` column to memory\_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated\_at)
+* v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory\_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)

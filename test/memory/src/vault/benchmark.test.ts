@@ -204,7 +204,7 @@ if (!API_KEY) {
 const embeddingOptions: EmbeddingOptions = {
   apiKey: API_KEY,
   baseUrl: BASE_URL,
-  cache: new Map<string, number[]>(),
+  cache: new Map<string, Float32Array>(),
 };
 
 // ---------------------------------------------------------------------------

@@ -414,6 +414,23 @@ export type RunToolLoopOptions = {
   headers?: Record<string, string>;
   /** Which API backend to use. @default "auto" */
   apiType?: ApiType;
+  /**
+   * Optional per-call override for the request path. When set, every streaming
+   * request targets this path instead of the endpoint the strategy resolves from
+   * the model. Only the URL path changes — the request body and response parsing
+   * follow the resolved strategy exactly as they would without the override.
+   *
+   * Must be a non-empty, root-relative path (e.g. `"/api/v1/utility/responses"`);
+   * a missing leading slash is normalized on. Empty/whitespace-only values and
+   * protocol-relative (`"//host"`) or absolute (`"scheme://host"`) URLs are
+   * rejected — the transport builds the URL as `baseUrl + endpoint`, so a bad
+   * value would silently hit the portal root or send the request (and its Bearer
+   * token) off-origin. An invalid override is reported like any other pre-flight
+   * failure: `onRunError` fires and the run resolves to `{ data: null, error }`
+   * (no throw).
+   * @default undefined (path resolved from the model / `apiType`)
+   */
+  endpointOverride?: string;
   /** Controls randomness (0.0 to 2.0). */
   temperature?: number;
   /** Maximum tokens to generate. */
@@ -826,6 +843,44 @@ function linkAbortSignals(
  * });
  * ```
  */
+// normalizeEndpointOverride validates a caller-supplied `endpointOverride` and
+// returns a root-relative request path. The built-in transports build the URL as
+// `baseUrl + endpoint`, so an empty/whitespace override would target the portal
+// root and a slash-less value ("api/v1/…") would concatenate into a broken URL —
+// both silent bugs. We throw on empty/whitespace (fail fast at call time) and
+// normalize a missing leading slash onto the path.
+/**
+ * Validates and normalizes a per-call `endpointOverride`. Returns the normalized
+ * root-relative path on success, or a descriptive message the caller surfaces
+ * via `onRunError` (never throws — a bad override is a validation failure, not a
+ * crash, exactly like `validateMessages`/`validateModel`).
+ *
+ * Rejects:
+ *  - empty / whitespace-only (would silently target the portal root);
+ *  - protocol-relative (`"//host"`) or absolute (`"scheme://host"`) URLs — these
+ *    would redirect the request, and its Bearer token, off-origin.
+ * Normalizes a missing leading slash onto an otherwise-valid path.
+ */
+function validateEndpointOverride(
+  override: string
+): { valid: true; endpoint: string } | { valid: false; message: string } {
+  const trimmed = override.trim();
+  if (trimmed === "") {
+    return {
+      valid: false,
+      message:
+        'endpointOverride must be a non-empty, root-relative path (e.g. "/api/v1/utility/responses"); received an empty or whitespace-only string',
+    };
+  }
+  if (trimmed.startsWith("//") || trimmed.includes("://")) {
+    return {
+      valid: false,
+      message: `endpointOverride must be a root-relative path (e.g. "/api/v1/utility/responses"), not a protocol-relative or absolute URL; received "${trimmed}"`,
+    };
+  }
+  return { valid: true, endpoint: trimmed.startsWith("/") ? trimmed : `/${trimmed}` };
+}
+
 export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolLoopResult> {
   const {
     model,
@@ -833,6 +888,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     baseUrl = BASE_URL,
     headers,
     apiType = "auto",
+    endpointOverride,
     temperature,
     maxOutputTokens,
     tools,
@@ -936,6 +992,27 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     if (onError) onError(new Error(msg));
     await fireRunError({ error: msg, stage: "model", errorObject: new Error(msg) });
     return { data: null, error: msg };
+  }
+
+  // Resolve the request path. The strategy still drives the request body and
+  // response parsing; only the path can be redirected via `endpointOverride`.
+  // The built-in transports form the URL as `baseUrl + endpoint`, so an override
+  // must be a non-empty, root-relative path. Computed AFTER onRunStart so a bad
+  // override goes through the same validation-failure path as the checks above
+  // (onRunError + `{data:null,error}`), never a raw throw.
+  let effectiveEndpoint = strategy.endpoint;
+  if (endpointOverride !== undefined) {
+    const overrideValidation = validateEndpointOverride(endpointOverride);
+    if (!overrideValidation.valid) {
+      if (onError) onError(new Error(overrideValidation.message));
+      await fireRunError({
+        error: overrideValidation.message,
+        stage: "model",
+        errorObject: new Error(overrideValidation.message),
+      });
+      return { data: null, error: overrideValidation.message };
+    }
+    effectiveEndpoint = overrideValidation.endpoint;
   }
 
   // Combine the user abort signal with the detach signal. Linked after the
@@ -1232,7 +1309,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       const sseResult = makeStreamingRequest({
         baseUrl,
-        endpoint: strategy.endpoint,
+        endpoint: effectiveEndpoint,
         body: requestBody,
         token,
         headers: effectiveHeaders,
@@ -1890,7 +1967,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         const continuationRound = toolIteration;
         const continuationResult = makeStreamingRequest({
           baseUrl,
-          endpoint: strategy.endpoint,
+          endpoint: effectiveEndpoint,
           body: continuationRequestBody,
           token,
           headers: effectiveHeaders,

@@ -48,7 +48,7 @@ if (!API_KEY) {
 const embeddingOptions: EmbeddingOptions = {
   apiKey: API_KEY,
   baseUrl: process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai",
-  cache: new Map<string, number[]>(),
+  cache: new Map<string, Float32Array>(),
 };
 
 function quantile(sorted: number[], q: number): number {

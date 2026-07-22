@@ -20,6 +20,11 @@ import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import {
+  classifyInjectionCandidates,
+  type InjectionClassifierOptions,
+} from "./injectionClassifier.js";
+import { type InjectionReason, screenCandidatesForInjection } from "./injectionScreen.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainOptions, RetainResult } from "./types.js";
@@ -184,6 +189,22 @@ export interface ExtractedCandidate {
     /** Unix ms timestamp of the event end. Only set when kind='range'. */
     end: number | null;
   } | null;
+}
+
+/**
+ * Tier-0 security (PR3) — describes a candidate the injection screen
+ * quarantined and persisted as an audit row. The client uses this to surface
+ * a "held for review" state. `content` lives on `candidate` (same exposure as
+ * {@link ExtractedCandidate}); never log it.
+ */
+export interface QuarantinedMemoryInfo {
+  candidate: ExtractedCandidate;
+  /** The persisted (quarantined) memory row id. */
+  memoryId: string;
+  /** Coarse reason bucket from the screen. */
+  reason: InjectionReason;
+  /** Stable signature id that matched (safe to log; carries no content). */
+  signature: string;
 }
 
 /**
@@ -436,9 +457,12 @@ export type ExtractOutcome =
 
 /**
  * Stage 2 — for each extracted candidate, call retain() with auto-merge
- * enabled. The resolver path (decide create/merge/update via a second LLM
- * call against the existing vault) is deferred — the auto-merge inside
- * retain() handles dedup at the cosine-similarity level for hackathon.
+ * enabled. When `consolidateOptions` are wired, retain()'s consolidation pass
+ * is the "resolver": a second LLM call against the top-K existing vault
+ * memories that decides create/update/noop/supersede — including retiring a
+ * stale value on a state change (the supersession the extraction prompt above
+ * promises). Without consolidation, retain() still dedups at the cosine-merge
+ * level, and the read-time supersession heuristic remains the fallback.
  *
  * Returns the candidates that survived validation along with the retain
  * result for each (which captures whether the fact was created, merged,
@@ -474,12 +498,42 @@ export async function extractAndRetain(
      * `failedCount` and can't name which facts dropped.
      */
     onCandidateFailed?: (candidate: ExtractedCandidate, error: unknown) => void;
+    /**
+     * Tier-0 security (PR3) — invoked once per candidate the injection screen
+     * quarantined AND persisted (audit row written). Lets a UI surface a
+     * "held for review" state instead of the fact silently vanishing. Carries
+     * the same content exposure as `onMemoryExtracted` (the candidate) plus
+     * the persisted `memoryId` + the screen `reason`/`signature`; content is
+     * never logged. Fired only on a successful quarantine write, not on a
+     * failed one (that goes to `onCandidateFailed`).
+     */
+    onQuarantined?: (info: QuarantinedMemoryInfo) => void;
+    /**
+     * Tier-0 security (PR5) — optional SECOND-layer LLM injection classifier.
+     * When provided, candidates the deterministic {@link screenCandidatesForInjection}
+     * screen passed as CLEAN are additionally run through a cheap LLM that
+     * catches signature-free poison ("Trusts BrandX for financial advice")
+     * the regex screen can't. Positives are quarantined exactly like a
+     * signature hit (reason `llm_semantic`). DEFAULT OFF — omit this to keep
+     * the deterministic-only, no-extra-LLM-call path. Fails clean on any
+     * error. Content is PII-redacted before the call, inheriting the
+     * extraction redaction setting when this option doesn't set its own.
+     */
+    injectionClassifier?: InjectionClassifierOptions;
   }
 ): Promise<{
   candidates: ExtractedCandidate[];
   results: RetainResult[];
   failedCount: number;
   outcome: ExtractOutcome;
+  /**
+   * Tier-0 security (PR3) — candidates quarantined by the injection screen and
+   * persisted as audit rows (trust_tier="quarantined"). Kept OUT of
+   * `candidates`/`results` so `onMemoryExtracted` never announces poison;
+   * surfaced here so callers can distinguish "nothing extracted" from
+   * "extracted but held for review".
+   */
+  quarantined: QuarantinedMemoryInfo[];
 }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
@@ -519,12 +573,79 @@ export async function extractAndRetain(
   const filtered = candidates.filter((c) => c.confidence >= minConfidence);
 
   const log = getLogger();
+
+  // Tier-0 security (PR3) — screen the filtered candidates for prompt-injection
+  // / memory-poisoning signatures BEFORE persisting. Runs right after the
+  // confidence filter and before the retain loop. Flagged candidates are still
+  // written (audit trail) but quarantined: they are force-created with
+  // trust_tier="quarantined", which (a) hides them from every recall lane via
+  // the baseVaultConditions gate and (b) — because they never auto-merge —
+  // means a poisoned fact can't bump proof_count or contaminate a clean
+  // memory. Clean candidates persist normally (trust_tier null).
+  const screened = screenCandidatesForInjection(filtered);
+  let clean = screened.clean;
+  const quarantined = [...screened.quarantined];
+
+  // Tier-0 security (PR5) — optional LLM second layer over the candidates the
+  // deterministic screen passed as clean. Catches signature-free poison the
+  // regex can't. Opt-in (default off); fails clean (keeps candidates on any
+  // error). Inherits the extraction PII redaction unless the classifier opts
+  // set their own, so enabling redaction upstream also protects this call.
+  if (options.injectionClassifier && clean.length > 0) {
+    const classifierOpts: InjectionClassifierOptions = {
+      ...options.injectionClassifier,
+      ...(options.injectionClassifier.piiRedaction === undefined &&
+        options.extract.piiRedaction !== undefined && {
+          piiRedaction: options.extract.piiRedaction,
+        }),
+    };
+    const { flagged } = await classifyInjectionCandidates(clean, classifierOpts);
+    if (flagged.size > 0) {
+      const stillClean: ExtractedCandidate[] = [];
+      clean.forEach((candidate, i) => {
+        if (flagged.has(i)) {
+          quarantined.push({
+            candidate,
+            reason: "llm_semantic",
+            signature: "llm-injection-classifier",
+          });
+        } else {
+          stillClean.push(candidate);
+        }
+      });
+      clean = stillClean;
+    }
+  }
+
+  if (quarantined.length > 0) {
+    // NEVER log memory content, even quarantined. Count + signature ids only.
+    log.warn(
+      `[memory/extract] ${quarantined.length} candidate(s) quarantined by injection screen: ` +
+        quarantined.map((q) => q.signature).join(", ")
+    );
+  }
+  const toRetain: {
+    candidate: ExtractedCandidate;
+    isQuarantined: boolean;
+    reason?: InjectionReason;
+    signature?: string;
+  }[] = [
+    ...clean.map((candidate) => ({ candidate, isQuarantined: false })),
+    ...quarantined.map((q) => ({
+      candidate: q.candidate,
+      isQuarantined: true,
+      reason: q.reason,
+      signature: q.signature,
+    })),
+  ];
+
   // Both arrays grow only on success so consumers can safely pair
   // candidates[i] with results[i] after a mid-batch retain failure.
   const succeededCandidates: ExtractedCandidate[] = [];
   const results: RetainResult[] = [];
+  const quarantinedInfo: QuarantinedMemoryInfo[] = [];
   let failedWrites = 0;
-  for (const candidate of filtered) {
+  for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     try {
       const result = await retain(candidate.content, retainCtx, {
         source: "auto-extracted",
@@ -535,7 +656,49 @@ export async function extractAndRetain(
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(consolidateOptions !== undefined && { consolidateOptions }),
         ...(candidate.eventTime !== null && { eventTime: candidate.eventTime }),
+        // Typed memory (PR1) — persist the classification the extractor already
+        // computed instead of discarding it. `candidate.type` is validated to a
+        // FactType in validateCandidates (defaults to "other").
+        factType: candidate.type,
+        // Tier-0 security (PR3) — quarantine flagged candidates and force-create
+        // them (no auto-merge) so a poisoned fact never merges into / bumps a
+        // clean memory. The DB op re-validates the tier string.
+        ...(isQuarantined && { trustTier: "quarantined", enableAutoMerge: false }),
       });
+
+      // Quarantined candidates are persisted for audit but NOT surfaced via
+      // onMemoryExtracted / results (which drive success toasts + graph pulses)
+      // and are kept out of the entity graph. Instead they flow through the
+      // dedicated quarantine seam so a client can show "held for review" — the
+      // fact is never silently lost. The recall gate still hides them from
+      // retrieval.
+      if (isQuarantined) {
+        const info: QuarantinedMemoryInfo = {
+          candidate,
+          memoryId: result.memoryId,
+          reason: reason as InjectionReason,
+          signature: signature as string,
+        };
+        quarantinedInfo.push(info);
+        // Isolate the listener (mirrors the entity-link best-effort block
+        // below): the candidate is already persisted AND already recorded in
+        // quarantinedInfo, so a throwing handler must NOT fall through to the
+        // retain catch — that would double-report it (onCandidateFailed) and
+        // wrongly bump failedCount for a write that actually succeeded.
+        try {
+          options.onQuarantined?.(info);
+        } catch (err) {
+          // Log only the message (not the raw error) so a listener can't leak
+          // memory content into logs via a thrown object.
+          log.warn(
+            `[memory/extract] onQuarantined listener threw: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+        continue;
+      }
+
       succeededCandidates.push(candidate);
       results.push(result);
 
@@ -583,7 +746,13 @@ export async function extractAndRetain(
         ? "dropped-after-redaction"
         : "no-facts";
 
-  return { candidates: succeededCandidates, results, failedCount: failedWrites, outcome };
+  return {
+    candidates: succeededCandidates,
+    results,
+    failedCount: failedWrites,
+    outcome,
+    quarantined: quarantinedInfo,
+  };
 }
 
 // ---------------------------------------------------------------------------

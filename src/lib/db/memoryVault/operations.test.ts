@@ -1,6 +1,9 @@
+import { Database } from "@nozbe/watermelondb";
+import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
 import {
+  archiveVaultMemoryOp,
   createVaultMemoryOp,
   createVaultMemoriesBatchOp,
   getVaultMemoryOp,
@@ -9,14 +12,18 @@ import {
   updateVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
   deleteVaultMemoryOp,
+  supersedeVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,
   setMemoryEntitiesOp,
   clearMemoryTopicsOverrideOp,
   getMemoriesNeedingTopicExtractionOp,
   stampTopicsExtractedAtOp,
+  TOPICS_EXTRACTION_VERSION,
   vaultMemoryToStored,
 } from "./operations";
 import { linkMemoryEntitiesOp } from "../entities/operations";
+import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
+import type { VaultMemory } from "./models";
 
 // Mock encryption so tests don't need real crypto
 vi.mock("./encryption", () => ({
@@ -77,6 +84,12 @@ function mockRecord(overrides: Record<string, any> = {}) {
     },
     get topicsUserManaged() {
       return raw.topics_user_managed ?? null;
+    },
+    get topicsExtractedAt() {
+      return raw.topics_extracted_at ?? null;
+    },
+    get supersededBy() {
+      return raw.superseded_by ?? null;
     },
     _setRaw(key: string, value: any) {
       raw[key] = value;
@@ -266,9 +279,10 @@ describe("getAllVaultMemoriesOp", () => {
 
     expect(results).toHaveLength(1);
     // The query should have been called with conditions including Q.where for scope.
-    // We check that more than 2 conditions were passed (is_deleted + scope + sortBy).
+    // is_deleted + archived_at + trust_tier (choke point) + scope + sortBy.
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3); // is_deleted, scope, sortBy
+    // is_deleted, archived_at, trust_tier, superseded_by, scope, sortBy
+    expect(callArgs.length).toBe(6);
   });
 
   it("drops the is_deleted filter and returns deleted rows when includeDeleted is true", async () => {
@@ -284,8 +298,8 @@ describe("getAllVaultMemoriesOp", () => {
 
     const results = await getAllVaultMemoriesOp(ctx, { includeDeleted: true });
 
-    // is_deleted clause omitted → only sortBy remains.
-    expect(queryFn.mock.calls[0].length).toBe(1);
+    // is_deleted clause omitted → archived_at + trust_tier + superseded_by + sortBy remain.
+    expect(queryFn.mock.calls[0].length).toBe(4);
     expect(results).toHaveLength(2);
     expect(results.find((m) => m.uniqueId === "mem_gone")?.isDeleted).toBe(true);
     expect(results.find((m) => m.uniqueId === "mem_live")?.isDeleted).toBe(false);
@@ -301,8 +315,8 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { includeDeleted: false });
 
-    // is_deleted + sortBy — the filter is retained.
-    expect(queryFn.mock.calls[0].length).toBe(2);
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy — the filter is retained.
+    expect(queryFn.mock.calls[0].length).toBe(5);
   });
 
   it("does NOT add scope condition when scopes is empty array", async () => {
@@ -317,9 +331,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { scopes: [] });
 
-    // Only is_deleted and sortBy — no scope condition
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy — no scope condition
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(5);
   });
 
   it("does NOT add scope condition when options is undefined", async () => {
@@ -334,8 +348,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx);
 
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy — no scope condition
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(5);
   });
 
   it("adds since condition when options.since is provided", async () => {
@@ -350,9 +365,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01") });
 
-    // is_deleted + since + sortBy = 3 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + since + sortBy = 6 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(6);
   });
 
   it("adds limit condition when options.limit is provided", async () => {
@@ -367,9 +382,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { limit: 5 });
 
-    // is_deleted + sortBy + take = 3 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy + take = 6 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(6);
   });
 
   it("adds both since and limit conditions together", async () => {
@@ -384,9 +399,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01"), limit: 10 });
 
-    // is_deleted + since + sortBy + take = 4 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + since + sortBy + take = 7 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(4);
+    expect(callArgs.length).toBe(7);
   });
 
   it("combines since with scopes and userId", async () => {
@@ -402,9 +417,9 @@ describe("getAllVaultMemoriesOp", () => {
 
     await getAllVaultMemoriesOp(ctx, { scopes: ["shared"], since: new Date("2025-06-01") });
 
-    // is_deleted + scope + user_id + since + sortBy = 5 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + scope + user_id + since + sortBy = 8 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(5);
+    expect(callArgs.length).toBe(8);
   });
 
   it("returns empty array when since is in the future", async () => {
@@ -450,9 +465,9 @@ describe("getAllVaultMemoryContentsOp", () => {
 
     await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
 
-    // is_deleted + since = 2 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + since = 5 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(5);
   });
 
   it("adds both userId and since conditions together", async () => {
@@ -468,9 +483,9 @@ describe("getAllVaultMemoryContentsOp", () => {
 
     await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
 
-    // is_deleted + user_id + since = 3 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + user_id + since = 6 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(6);
   });
 });
 
@@ -593,6 +608,92 @@ describe("deleteVaultMemoryOp", () => {
   });
 });
 
+describe("supersedeVaultMemoryOp (A2)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stamps superseded_by + superseded_at on the retired row", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await supersedeVaultMemoryOp(ctx, "old", "new");
+    expect(result).toBe(true);
+
+    const setRawSpy = vi.fn();
+    updateFn.mock.calls[0][0]({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("superseded_by", "new");
+    expect(setRawSpy).toHaveBeenCalledWith("superseded_at", expect.any(Number));
+  });
+
+  it("returns false (no-op) for an already-superseded row", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => mockRecord({ superseded_by: "someone-else" })),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+  });
+
+  it("returns false when the successor id does not exist (no dangling pointer)", async () => {
+    const target = mockRecord({ id: "old", update: vi.fn() });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async (id: string) => {
+          if (id === "old") return target;
+          throw new Error("not found");
+        }),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "missing")).toBe(false);
+    expect(target.update).not.toHaveBeenCalled();
+  });
+
+  it("returns false when the successor is deleted or already superseded", async () => {
+    const target = mockRecord({ id: "old", update: vi.fn() });
+    for (const bad of [{ isDeleted: true }, { superseded_by: "x" }]) {
+      const successor = mockRecord({ id: "new", ...bad });
+      const ctx = makeCtx({
+        vaultMemoryCollection: {
+          find: vi.fn(async (id: string) => (id === "old" ? target : successor)),
+        } as any,
+      });
+      expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+    }
+    expect(target.update).not.toHaveBeenCalled();
+  });
+
+  it("returns false for a soft-deleted row", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => mockRecord({ isDeleted: true })),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+  });
+
+  it("refuses to let a memory supersede itself", async () => {
+    const find = vi.fn(async () => mockRecord());
+    const ctx = makeCtx({ vaultMemoryCollection: { find } as any });
+    expect(await supersedeVaultMemoryOp(ctx, "same", "same")).toBe(false);
+    expect(find).not.toHaveBeenCalled();
+  });
+
+  it("returns false when find throws", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => {
+          throw new Error("nope");
+        }),
+      } as any,
+    });
+    expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
+  });
+});
+
 describe("vaultMemoryToStored", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -659,9 +760,9 @@ describe("userId scoping", () => {
 
     await getAllVaultMemoriesOp(ctx);
 
-    // is_deleted + user_id + sortBy = 3 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + user_id + sortBy = 6 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(6);
   });
 
   it("does NOT filter by user_id in getAllVaultMemoriesOp when ctx.userId is undefined", async () => {
@@ -676,9 +777,9 @@ describe("userId scoping", () => {
 
     await getAllVaultMemoriesOp(ctx);
 
-    // is_deleted + sortBy = 2 conditions (no user_id filter)
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy = 5 conditions (no user_id filter)
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(5);
   });
 });
 
@@ -934,9 +1035,9 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
     await getAllVaultMemoriesOp(ctx, { folderId: "folder_1" });
 
-    // is_deleted + folder_id + sortBy = 3 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + folder_id + sortBy = 6 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(6);
   });
 
   it("adds folderId WHERE clause when folderId is null (unfiled)", async () => {
@@ -951,9 +1052,9 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
     await getAllVaultMemoriesOp(ctx, { folderId: null });
 
-    // is_deleted + folder_id + sortBy = 3 conditions
+    // is_deleted + archived_at + trust_tier + superseded_by + folder_id + sortBy = 6 conditions
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(3);
+    expect(callArgs.length).toBe(6);
   });
 
   it("does NOT add folderId clause when folderId is undefined", async () => {
@@ -968,9 +1069,9 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
 
     await getAllVaultMemoriesOp(ctx);
 
-    // is_deleted + sortBy = 2 conditions (no folder_id)
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy = 5 conditions (no folder_id)
     const callArgs = queryFn.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(5);
   });
 });
 
@@ -1083,6 +1184,38 @@ describe("clearMemoryTopicsOverrideOp", () => {
     expect(ok).toBe(true);
     expect(record.topicsUserManaged).toBe(false);
   });
+
+  it("nulls the version and preserves an existing stamp (routes to stale-version path)", async () => {
+    const setRawSpy = vi.fn();
+    const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    const record = mockRecord({ id: "mem_1", topics_extracted_at: 3_000, update: updateFn });
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await clearMemoryTopicsOverrideOp(ctx, "mem_1");
+
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", null);
+    // An existing stamp is left untouched (never overwritten, never nulled) — the
+    // stale version alone routes it to the pending/LLM path.
+    expect(setRawSpy.mock.calls.every((c) => c[0] !== "topics_extracted_at")).toBe(true);
+  });
+
+  it("forces a stamp when the row was never LLM-stamped (re-extract, not grandfather)", async () => {
+    const setRawSpy = vi.fn();
+    const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    // No topics_extracted_at → the getter returns null (user curated topics
+    // before any LLM pass). Clear must force a stamp so the sweep re-extracts it.
+    const record = mockRecord({
+      id: "mem_1",
+      updated_at: new Date("2025-06-01"),
+      update: updateFn,
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await clearMemoryTopicsOverrideOp(ctx, "mem_1");
+
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", null);
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", new Date("2025-06-01").getTime());
+  });
 });
 
 describe("getMemoriesNeedingTopicExtractionOp", () => {
@@ -1133,7 +1266,11 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
       rawRow("mem_backfill"), // no stamp, no links → pending
       rawRow("mem_legacy"), // no stamp, HAS links → linkedUnstamped
       rawRow("mem_edited", { topics_extracted_at: 1_500, updated_at: 2_000 }), // edited after stamp → pending
-      rawRow("mem_current", { topics_extracted_at: 3_000, updated_at: 2_000 }), // stamp is fresh → excluded
+      rawRow("mem_current", {
+        topics_extracted_at: 3_000,
+        updated_at: 2_000,
+        topics_extracted_version: TOPICS_EXTRACTION_VERSION, // fresh stamp AT current version → excluded
+      }),
     ];
     const { ctx } = sweepCtx(rows, [{ memory_id: "mem_legacy" }]);
 
@@ -1141,6 +1278,30 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
 
     expect(result.pending.map((m) => m.uniqueId).sort()).toEqual(["mem_backfill", "mem_edited"]);
     expect(result.linkedUnstamped).toEqual(["mem_legacy"]);
+  });
+
+  it("re-extracts stamped rows behind the current extraction version (incl. legacy null-version rows)", async () => {
+    // A TOPICS_EXTRACTION_VERSION bump (or a pre-v37 null-version row, read as 0)
+    // makes an already-stamped, unedited memory pending again so prompt/model
+    // improvements propagate across the vault.
+    const rows = [
+      rawRow("mem_nullver", { topics_extracted_at: 3_000, updated_at: 2_000 }), // null version → 0 < current → pending
+      rawRow("mem_stalever", {
+        topics_extracted_at: 3_000,
+        updated_at: 2_000,
+        topics_extracted_version: TOPICS_EXTRACTION_VERSION - 1, // behind → pending
+      }),
+      rawRow("mem_curver", {
+        topics_extracted_at: 3_000,
+        updated_at: 2_000,
+        topics_extracted_version: TOPICS_EXTRACTION_VERSION, // current → excluded
+      }),
+    ];
+    const { ctx } = sweepCtx(rows, []);
+
+    const result = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    expect(result.pending.map((m) => m.uniqueId).sort()).toEqual(["mem_nullver", "mem_stalever"]);
   });
 
   it("applies limit to pending", async () => {
@@ -1177,8 +1338,8 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
       },
     });
     await getMemoriesNeedingTopicExtractionOp(ctx);
-    // user-managed OR-clause + is_deleted + sortBy = 3 conditions
-    expect(queryFn.mock.calls[0].length).toBe(3);
+    // user-managed OR-clause + is_deleted + archived_at + trust_tier + superseded_by + sortBy = 6 conditions
+    expect(queryFn.mock.calls[0].length).toBe(6);
   });
 });
 
@@ -1205,7 +1366,31 @@ describe("stampTopicsExtractedAtOp", () => {
     const setRawSpy = vi.fn();
     prepared({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", 5_000);
+    // Defaults to the current extraction version so the row isn't re-extracted
+    // until a future version bump.
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", TOPICS_EXTRACTION_VERSION);
     expect(setRawSpy).toHaveBeenCalledWith("updated_at", new Date("2025-01-01").getTime());
+  });
+
+  it("writes an explicit version when provided", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => {}),
+      } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(async () => record),
+        query: vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => [record._raw]) })),
+      } as any,
+    });
+
+    await stampTopicsExtractedAtOp(ctx, ["mem_1"], 5_000, 42);
+
+    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    prepared({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", 42);
   });
 
   it("reads updated_at from the LIVE model in-writer, not a stale pre-fetch", async () => {
@@ -1236,6 +1421,47 @@ describe("stampTopicsExtractedAtOp", () => {
     prepared({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("updated_at", liveUpdatedAt);
     expect(setRawSpy).not.toHaveBeenCalledWith("updated_at", 1);
+  });
+
+  it("never yields the event loop between prepareUpdate and batch (same-tick contract)", async () => {
+    // WatermelonDB's dev diagnostic throws (uncaught → RedBox on RN Debug
+    // builds) when a prepared update is still pending as the event loop turns
+    // — i.e. when any `await` sits between prepareUpdate() and batch().
+    // Simulate the diagnostic: each awaited find() is an event-loop yield, so
+    // any record prepared before it must already have been batched.
+    // Regression: the topic sweep emitted one "wasn't sent to batch()
+    // synchronously" error per stamped memory (interleaved find/prepare loop).
+    const pending = new Set<string>();
+    const violations: string[] = [];
+    const makeTracked = (id: string) => {
+      const record = mockRecord({ id });
+      (record.prepareUpdate as ReturnType<typeof vi.fn>).mockImplementation((updater: any) => {
+        pending.add(id);
+        return { updater };
+      });
+      return record;
+    };
+    const records: Record<string, any> = {
+      mem_a: makeTracked("mem_a"),
+      mem_b: makeTracked("mem_b"),
+    };
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => pending.clear()),
+      } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(async (id: string) => {
+          if (pending.size > 0) violations.push(...pending);
+          return records[id];
+        }),
+      } as any,
+    });
+
+    const stamped = await stampTopicsExtractedAtOp(ctx, ["mem_a", "mem_b"], 5_000);
+
+    expect(stamped).toEqual(["mem_a", "mem_b"]);
+    expect(violations).toEqual([]);
   });
 
   it("skips deleted and user-managed rows (re-checked in the writer)", async () => {
@@ -1286,5 +1512,205 @@ describe("stampTopicsExtractedAtOp", () => {
     });
     expect(await stampTopicsExtractedAtOp(ctx, [], 1)).toEqual([]);
     expect(await stampTopicsExtractedAtOp(ctx, ["mem_gone"], 1)).toEqual([]);
+  });
+});
+
+describe("typed memory (PR1)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("persists fact_type and trust_tier on create when provided", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, {
+      content: "prefers tea",
+      factType: "preference",
+      trustTier: "quarantined",
+    });
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("fact_type", "preference");
+    expect(setRawSpy).toHaveBeenCalledWith("trust_tier", "quarantined");
+  });
+
+  it("does NOT set fact_type / trust_tier / archived_at on a plain create", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "plain" });
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    const keys = setRawSpy.mock.calls.map((c) => c[0]);
+    expect(keys).not.toContain("fact_type");
+    expect(keys).not.toContain("trust_tier");
+    // A fresh memory is always active — archived_at is never set on create.
+    expect(keys).not.toContain("archived_at");
+  });
+
+  it("persists fact_type on update when provided (retain lazy backfill)", async () => {
+    const record = mockRecord({ id: "mem_bf" });
+    const setRawSpy = vi.fn();
+    record.update = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    await updateVaultMemoryOp(ctx, "mem_bf", { content: "x", factType: "identity" });
+    expect(setRawSpy).toHaveBeenCalledWith("fact_type", "identity");
+  });
+
+  it("round-trips fact_type / archived_at / trust_tier through the Model mapper", async () => {
+    const record = mockRecord({ id: "mem_typed" });
+    (record as any).factType = "identity";
+    (record as any).archivedAt = 123;
+    (record as any).trustTier = "trusted";
+    const stored = await vaultMemoryToStored(record as any);
+    expect(stored.factType).toBe("identity");
+    expect(stored.archivedAt).toBe(123);
+    expect(stored.trustTier).toBe("trusted");
+  });
+
+  it("maps absent typed columns to null (legacy row)", async () => {
+    const stored = await vaultMemoryToStored(mockRecord({ id: "mem_legacy" }) as any);
+    expect(stored.factType).toBeNull();
+    expect(stored.archivedAt).toBeNull();
+    expect(stored.trustTier).toBeNull();
+  });
+
+  it("drops both choke-point conditions when include flags are set", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._c: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getAllVaultMemoriesOp(ctx, { includeArchived: true, includeQuarantined: true });
+    // is_deleted + superseded_by + sortBy — archived_at + trust_tier conditions dropped
+    // (includeSuperseded not set, so the supersession filter stays).
+    expect(queryFn.mock.calls[0].length).toBe(3);
+  });
+
+  it("adds a fact_type condition when factTypes is provided", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._c: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getAllVaultMemoriesOp(ctx, { factTypes: ["plan", "identity"] });
+    // is_deleted + archived_at + trust_tier + superseded_by + fact_type + sortBy = 6 conditions.
+    expect(queryFn.mock.calls[0].length).toBe(6);
+  });
+
+  // getAllVaultMemoriesOp reads via unsafeFetchRaw, so the raw snake_case
+  // mapper (vaultMemoryRawToStoredRaw) — NOT the Model mapper — is the code
+  // path in production. These exercise it with real raw rows so a snake_case
+  // typo (raw.fact_type -> raw.facttype) fails CI instead of passing.
+  function ctxReturningRaw(raws: Record<string, unknown>[]) {
+    const queryFn = vi.fn(() => ({
+      fetch: vi.fn(async () => []),
+      unsafeFetchRaw: vi.fn(async () => raws),
+    }));
+    return makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+  }
+
+  it("raw unsafeFetchRaw mapper round-trips fact_type / trust_tier / archived_at with real values", async () => {
+    const ctx = ctxReturningRaw([
+      {
+        id: "mem_typed",
+        content: "prefers dark roast",
+        scope: "private",
+        is_deleted: false,
+        created_at: 1_700_000_000_000,
+        updated_at: 1_700_000_000_000,
+        fact_type: "preference",
+        trust_tier: "trusted",
+        archived_at: 1_234_567_890,
+      },
+    ]);
+    const [stored] = await getAllVaultMemoriesOp(ctx);
+    expect(stored.factType).toBe("preference");
+    expect(stored.trustTier).toBe("trusted");
+    expect(stored.archivedAt).toBe(1_234_567_890);
+  });
+
+  it("raw unsafeFetchRaw mapper maps a legacy row (typed columns absent) to null", async () => {
+    const ctx = ctxReturningRaw([
+      {
+        id: "mem_legacy",
+        content: "plain legacy row",
+        scope: "private",
+        is_deleted: false,
+        created_at: 1_700_000_000_000,
+        updated_at: 1_700_000_000_000,
+      },
+    ]);
+    const [stored] = await getAllVaultMemoriesOp(ctx);
+    expect(stored.factType).toBeNull();
+    expect(stored.trustTier).toBeNull();
+    expect(stored.archivedAt).toBeNull();
+  });
+});
+
+// Behavioral choke-point test against a REAL in-memory WatermelonDB (LokiJS) —
+// asserts the INVARIANT the condition-count tests above only approximate: what
+// the default read actually keeps vs drops. This is the guard that would catch a
+// `Q.notEq("quarantined")` regression that silently excludes NULL trust_tier
+// rows (the exact hazard the choke-point comment warns about).
+describe("baseVaultConditions — real read semantics (in-memory LokiJS)", () => {
+  function makeRealDatabase(): Database {
+    const adapter = new LokiJSAdapter({
+      schema: sdkSchema,
+      migrations: sdkMigrations,
+      useWebWorker: false,
+      useIncrementalIndexedDB: false,
+      dbName: `ops-choke-test-${Math.random().toString(36).slice(2)}`,
+    });
+    return new Database({ adapter, modelClasses: sdkModelClasses });
+  }
+
+  let db: Database;
+  let ctx: VaultMemoryOperationsContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db = makeRealDatabase();
+    // No wallet → content stored/read as plaintext (encryption never invoked).
+    ctx = { database: db, vaultMemoryCollection: db.get<VaultMemory>("memory_vault") };
+  });
+
+  it("keeps NULL trust_tier, drops quarantined, hides archived by default; include flags surface them", async () => {
+    // Active, untyped: trust_tier is NULL (the legacy / normal row).
+    const active = await createVaultMemoryOp(ctx, { content: "active null-tier fact" });
+    // Quarantined: trust_tier === "quarantined" — must be dropped by default.
+    const quarantined = await createVaultMemoryOp(ctx, {
+      content: "quarantined fact",
+      trustTier: "quarantined",
+    });
+    // Archived: archived_at set — dropped by default, returned with includeArchived.
+    const archived = await createVaultMemoryOp(ctx, { content: "archived fact" });
+    await archiveVaultMemoryOp(ctx, archived.uniqueId, { now: Date.now() });
+
+    const defaultIds = (await getAllVaultMemoriesOp(ctx)).map((m) => m.uniqueId);
+    // The NULL-tier row SURVIVES `Q.notEq("quarantined")` and the active read.
+    expect(defaultIds).toContain(active.uniqueId);
+    // Quarantined + archived are dropped by the shared choke point.
+    expect(defaultIds).not.toContain(quarantined.uniqueId);
+    expect(defaultIds).not.toContain(archived.uniqueId);
+
+    // Sanity: the surviving row genuinely has a NULL tier (not coerced to a string).
+    const activeRow = await getVaultMemoryOp(ctx, active.uniqueId);
+    expect(activeRow?.trustTier).toBeNull();
+
+    // includeArchived surfaces the archived row (still excludes quarantined).
+    const withArchived = (await getAllVaultMemoriesOp(ctx, { includeArchived: true })).map(
+      (m) => m.uniqueId
+    );
+    expect(withArchived).toContain(archived.uniqueId);
+    expect(withArchived).toContain(active.uniqueId);
+    expect(withArchived).not.toContain(quarantined.uniqueId);
+
+    // includeQuarantined surfaces the quarantined row.
+    const withQuarantined = (await getAllVaultMemoriesOp(ctx, { includeQuarantined: true })).map(
+      (m) => m.uniqueId
+    );
+    expect(withQuarantined).toContain(quarantined.uniqueId);
   });
 });

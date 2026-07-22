@@ -11,7 +11,11 @@ import { DOCUMENT_BUILDER_PROMPT } from "../../tools/document/documentBuilderPro
 import type { ToolConfig } from "../chat/useChat/types";
 import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
-import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+// Import from the db-free ./generate core (not ./embeddings, which pulls in the
+// WatermelonDB-backed db/chat operations) so the tool-selection engine — and the
+// node/RN-safe @anuma/sdk/tools/selection subpath that re-exports it — stay free
+// of the database layer.
+import { generateEmbedding, generateEmbeddings } from "../memoryEngine/generate";
 import { cosineSimilarity } from "../memoryEngine/vector";
 
 /** Tool parameters schema */
@@ -90,6 +94,34 @@ export interface CachedServerTools {
 }
 
 /**
+ * Pluggable persistence for the fetched server-tools list.
+ *
+ * The default backend ({@link localStorageToolsCache}) writes to browser
+ * `localStorage` and is a silent no-op where `localStorage` is undefined
+ * (Node, React Native). Pass a custom backend to `getServerTools` to cache
+ * somewhere that survives on those platforms — e.g. an AsyncStorage/MMKV
+ * adapter on RN, or an in-memory `Map` on a server. Methods may be sync or
+ * async; `getServerTools` awaits them either way.
+ *
+ * The stored payload carries a `version`; `getServerTools` discards any entry
+ * whose version does not match the current cache format, so a stale custom
+ * backend can never feed an incompatible shape back into selection.
+ */
+export interface ToolsCacheBackend {
+  /** Return the cached payload, or null when absent/unreadable. */
+  get(): CachedServerTools | null | Promise<CachedServerTools | null>;
+  /** Persist the payload. Implementations should swallow write failures. */
+  set(value: CachedServerTools): void | Promise<void>;
+  /**
+   * Remove the cached payload. Optional — a read/write-only backend may omit it,
+   * in which case `clearServerToolsCache` (and the version-mismatch
+   * invalidation) is a no-op for that backend. The default
+   * {@link localStorageToolsCache} implements it.
+   */
+  clear?(): void | Promise<void>;
+}
+
+/**
  * Options for fetching server tools
  */
 export interface ServerToolsOptions {
@@ -103,6 +135,12 @@ export interface ServerToolsOptions {
   getToken?: () => Promise<string | null>;
   /** Direct API key for server-side usage (uses X-API-Key header) */
   apiKey?: string;
+  /**
+   * Where to read/write the cached tools list. Defaults to
+   * {@link localStorageToolsCache} (browser `localStorage`; no-op elsewhere).
+   * Provide a backend to enable caching on Node / React Native.
+   */
+  cache?: ToolsCacheBackend;
 }
 
 /** Default cache expiration: 1 day */
@@ -268,7 +306,7 @@ export function getCachedServerTools(): CachedServerTools | null {
 
     // Validate cache version
     if (parsed.version !== CACHE_VERSION) {
-      clearServerToolsCache();
+      removeLocalStorageCache();
       return null;
     }
 
@@ -290,20 +328,26 @@ function isCacheExpired(
 }
 
 /**
- * Store tools in localStorage cache
+ * Build a cache payload from a freshly fetched tools list, stamping it with the
+ * current timestamp and cache-format version.
  */
-function cacheServerTools(tools: ServerTool[], checksum?: string): void {
-  if (typeof localStorage === "undefined") return;
-
-  const cacheData: CachedServerTools = {
+function buildCacheEntry(tools: ServerTool[], checksum?: string): CachedServerTools {
+  return {
     tools,
     timestamp: Date.now(),
     version: CACHE_VERSION,
     ...(checksum && { checksum }),
   };
+}
+
+/**
+ * Store a cache payload in localStorage (the default backend's write path).
+ */
+function writeLocalStorageCache(entry: CachedServerTools): void {
+  if (typeof localStorage === "undefined") return;
 
   try {
-    localStorage.setItem(SERVER_TOOLS_CACHE_KEY, JSON.stringify(cacheData));
+    localStorage.setItem(SERVER_TOOLS_CACHE_KEY, JSON.stringify(entry));
   } catch (error) {
     // localStorage might be full or disabled - log but don't throw
 
@@ -312,20 +356,54 @@ function cacheServerTools(tools: ServerTool[], checksum?: string): void {
 }
 
 /**
- * Clear the server tools cache
+ * The default {@link ToolsCacheBackend}: browser `localStorage`, and a silent
+ * no-op where `localStorage` is undefined (Node, React Native). Used by
+ * `getServerTools` when no `cache` option is supplied.
  */
-export function clearServerToolsCache(): void {
+/**
+ * Remove the cached payload from browser `localStorage` (the default backend's
+ * clear path). Silent no-op where `localStorage` is undefined.
+ */
+function removeLocalStorageCache(): void {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SERVER_TOOLS_CACHE_KEY);
 }
 
+export const localStorageToolsCache: ToolsCacheBackend = {
+  get: getCachedServerTools,
+  set: writeLocalStorageCache,
+  clear: removeLocalStorageCache,
+};
+
 /**
- * Get the checksum of currently cached tools.
- * Returns undefined if no cache or no checksum stored.
+ * Clear the cached server tools. Defaults to the browser-`localStorage` backend;
+ * pass the SAME {@link ToolsCacheBackend} you gave `getServerTools` to invalidate
+ * a custom backend (a no-op when that backend defines no `clear`). Returns the
+ * backend's clear result, which may be async.
  */
-export function getToolsChecksum(): string | undefined {
-  const cached = getCachedServerTools();
-  return cached?.checksum;
+export function clearServerToolsCache(): void;
+export function clearServerToolsCache(cache: ToolsCacheBackend): void | Promise<void>;
+export function clearServerToolsCache(
+  cache: ToolsCacheBackend = localStorageToolsCache
+): void | Promise<void> {
+  return cache.clear?.();
+}
+
+/**
+ * Get the checksum of the currently cached tools, or undefined when there is no
+ * cache / no stored checksum. Defaults to the browser-`localStorage` backend;
+ * pass the SAME backend you gave `getServerTools` to read a custom backend's
+ * checksum (an async backend yields a promise).
+ */
+export function getToolsChecksum(): string | undefined;
+export function getToolsChecksum(
+  cache: ToolsCacheBackend
+): string | undefined | Promise<string | undefined>;
+export function getToolsChecksum(
+  cache: ToolsCacheBackend = localStorageToolsCache
+): string | undefined | Promise<string | undefined> {
+  const cached = cache.get();
+  return cached instanceof Promise ? cached.then((c) => c?.checksum) : cached?.checksum;
 }
 
 /**
@@ -338,20 +416,27 @@ export function getToolsChecksum(): string | undefined {
  * - responseChecksum is not provided (legacy response)
  * - Checksums match
  */
-export function shouldRefreshTools(responseChecksum: string | undefined): boolean {
+export function shouldRefreshTools(responseChecksum: string | undefined): boolean;
+export function shouldRefreshTools(
+  responseChecksum: string | undefined,
+  cache: ToolsCacheBackend | undefined
+): boolean | Promise<boolean>;
+export function shouldRefreshTools(
+  responseChecksum: string | undefined,
+  cache: ToolsCacheBackend = localStorageToolsCache
+): boolean | Promise<boolean> {
   if (!responseChecksum) {
     // Legacy response without checksum - don't trigger refresh
     return false;
   }
 
-  const cachedChecksum = getToolsChecksum();
+  // Refresh when there is no cached checksum yet (first checksum-aware response)
+  // or when the server's checksum differs from the one we cached.
+  const decide = (cachedChecksum: string | undefined): boolean =>
+    !cachedChecksum || cachedChecksum !== responseChecksum;
 
-  if (!cachedChecksum) {
-    // No cached checksum - refresh to get tools with checksum
-    return true;
-  }
-
-  return cachedChecksum !== responseChecksum;
+  const cachedChecksum = getToolsChecksum(cache);
+  return cachedChecksum instanceof Promise ? cachedChecksum.then(decide) : decide(cachedChecksum);
 }
 
 /**
@@ -381,7 +466,7 @@ async function fetchServerToolsFromApi(
  * Get server tools with caching support.
  *
  * Flow:
- * 1. Check localStorage cache
+ * 1. Check the cache backend (localStorage by default; override via `cache`)
  * 2. If cache valid and not force refresh, return cached tools
  * 3. Otherwise, fetch from API, cache, and return
  * 4. On fetch failure, return cached tools if available (stale-while-error)
@@ -393,10 +478,31 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     forceRefresh = false,
     getToken,
     apiKey,
+    cache = localStorageToolsCache,
   } = options;
 
-  // Check cache first (unless forcing refresh)
-  const cached = getCachedServerTools();
+  // Cache persistence is best-effort: a custom backend that rejects on write must
+  // not discard tools the server already returned, nor surface as a fetch failure.
+  const persistCache = async (entry: ReturnType<typeof buildCacheEntry>): Promise<void> => {
+    try {
+      await cache.set(entry);
+    } catch (error) {
+      getLogger().warn("[serverTools] Cache write failed (non-fatal):", error);
+    }
+  };
+
+  // Check cache first (unless forcing refresh). Drop any entry whose version does
+  // not match the current cache format — the default localStorage backend already
+  // does this, but a custom backend might return a stale shape. A backend that
+  // rejects on read (unavailable/corrupt storage) must NOT block discovery: treat
+  // a read failure as "no cache" and fall through to the server fetch.
+  let rawCached: Awaited<ReturnType<typeof cache.get>> = null;
+  try {
+    rawCached = await cache.get();
+  } catch (error) {
+    getLogger().warn("[serverTools] Cache read failed; falling through to server fetch:", error);
+  }
+  const cached = rawCached && rawCached.version === CACHE_VERSION ? rawCached : null;
   const cacheValid = !isCacheExpired(cached, cacheExpirationMs);
 
   if (cached && cacheValid && !forceRefresh) {
@@ -423,7 +529,7 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
       }
       const data = (await response.json()) as ServerToolsResponse;
       const { tools, checksum } = convertServerToolsResponse(data);
-      cacheServerTools(tools, checksum);
+      await persistCache(buildCacheEntry(tools, checksum));
       return tools;
     }
 
@@ -441,7 +547,7 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     }
 
     const { tools, checksum } = await fetchServerToolsFromApi(effectiveBaseUrl, token);
-    cacheServerTools(tools, checksum);
+    await persistCache(buildCacheEntry(tools, checksum));
     return tools;
   } catch (error) {
     getLogger().error("[serverTools] Failed to fetch server tools:", error);
@@ -1536,6 +1642,11 @@ export interface SelectServerToolsForPromptOptions {
   /** Cache expiration in ms for the server-tools catalog fetch. */
   cacheExpirationMs?: number;
   /**
+   * Where to read/write the cached catalog. Defaults to browser `localStorage`
+   * (a no-op on Node/RN); pass a backend to persist on those platforms.
+   */
+  cache?: ToolsCacheBackend;
+  /**
    * Phase 3 defer-loading. When `enabled`, this helper returns the FULL catalog (skipping semantic/
    * static filtering) to mirror useChatStorage's responses send path, which swaps in the full catalog
    * for mergeTools + tool-search. Omit/disabled → today's filtered selection.
@@ -1579,6 +1690,7 @@ export async function selectServerToolsForPrompt(
     baseUrl,
     embeddingModel,
     cacheExpirationMs,
+    cache,
     deferLoading,
   } = options;
 
@@ -1587,7 +1699,7 @@ export async function selectServerToolsForPrompt(
 
   let allServerTools: ServerTool[];
   try {
-    allServerTools = await getServerTools({ baseUrl, cacheExpirationMs, getToken });
+    allServerTools = await getServerTools({ baseUrl, cacheExpirationMs, getToken, cache });
   } catch {
     return [];
   }

@@ -7,8 +7,11 @@ import {
 } from "../../../react/useEncryption";
 import { encryptField } from "../encryption-utils";
 import { decryptConversationTitle } from "./lazyDecrypt";
-import type { Conversation } from "./models";
-import { getConversationsByProjectLazyOp, getConversationsLazyOp } from "./operations";
+import {
+  getConversationsByProjectLazyOp,
+  getConversationsLazyOp,
+  getConversationsPageOp,
+} from "./operations";
 import type { StorageOperationsContext } from "./operations";
 
 declare const global: typeof globalThis;
@@ -22,29 +25,32 @@ const mockSignMessage = vi.fn(async (message: string) => {
 }) as unknown as SignMessageFn;
 
 /**
- * Build a minimal Conversation-shaped record. The lazy op only reads
- * id, conversationId, title, projectId, createdAt, updatedAt, isDeleted —
- * everything else (relations, _raw, _getRaw) is unused on this path.
+ * Build a raw `conversations` row in the snake_case `_raw` shape that
+ * `unsafeFetchRaw` returns (the lazy ops now read raw columns, not Models).
+ * Booleans are stored as WatermelonDB does at rest; timestamps as ms numbers.
  */
-function fakeConversation(overrides: Partial<Conversation>): Conversation {
-  const defaults = {
+function fakeRawConversation(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const now = 1_700_000_000_000;
+  return {
     id: "row_xxx",
-    conversationId: "conv_xxx",
+    conversation_id: "conv_xxx",
     title: "Title",
-    projectId: undefined as string | undefined,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isDeleted: false,
+    project_id: null,
+    created_at: now,
+    updated_at: now,
+    is_deleted: false,
+    pinned_at: null,
+    ...overrides,
   };
-  return { ...defaults, ...overrides } as unknown as Conversation;
 }
 
 /**
  * Build a fake context with a stub conversationsCollection. The stub
- * captures the query call and returns the rows we hand it. Lets us
- * test the lazy op end-to-end without instantiating WatermelonDB.
+ * captures the query call and serves the raw rows via `unsafeFetchRaw`
+ * (matching the memoryVault op test pattern). Lets us test the lazy op
+ * end-to-end without instantiating WatermelonDB.
  */
-function makeCtx(rows: Conversation[]): {
+function makeCtx(rows: Record<string, unknown>[]): {
   ctx: StorageOperationsContext;
   queryCalls: unknown[][];
 } {
@@ -57,7 +63,7 @@ function makeCtx(rows: Conversation[]): {
       query: (...args: unknown[]) => {
         queryCalls.push(args);
         return {
-          fetch: async () => rows,
+          unsafeFetchRaw: async () => rows,
         };
       },
     } as never,
@@ -91,8 +97,8 @@ describe("getConversationsLazyOp", () => {
     const enc2 = await encryptField("Second", testAddress, mockSignMessage);
 
     const { ctx } = makeCtx([
-      fakeConversation({ id: "row_1", conversationId: "conv_1", title: enc1 }),
-      fakeConversation({ id: "row_2", conversationId: "conv_2", title: enc2 }),
+      fakeRawConversation({ id: "row_1", conversation_id: "conv_1", title: enc1 }),
+      fakeRawConversation({ id: "row_2", conversation_id: "conv_2", title: enc2 }),
     ]);
 
     const result = await getConversationsLazyOp(ctx);
@@ -114,7 +120,7 @@ describe("getConversationsLazyOp", () => {
     const enc = await encryptField("Secret title", testAddress, mockSignMessage);
 
     const { ctx } = makeCtx([
-      fakeConversation({ id: "row_1", conversationId: "conv_1", title: enc }),
+      fakeRawConversation({ id: "row_1", conversation_id: "conv_1", title: enc }),
     ]);
 
     const decryptSpy = vi.spyOn(crypto.subtle, "decrypt");
@@ -135,7 +141,7 @@ describe("getConversationsLazyOp", () => {
     const enc = await encryptField(plaintext, testAddress, mockSignMessage);
 
     const { ctx } = makeCtx([
-      fakeConversation({ id: "row_1", conversationId: "conv_1", title: enc }),
+      fakeRawConversation({ id: "row_1", conversation_id: "conv_1", title: enc }),
     ]);
 
     const [row] = await getConversationsLazyOp(ctx);
@@ -146,7 +152,7 @@ describe("getConversationsLazyOp", () => {
 
   it("preserves plaintext titles for legacy/unencrypted conversations", async () => {
     const { ctx } = makeCtx([
-      fakeConversation({ id: "row_1", conversationId: "conv_1", title: "Legacy" }),
+      fakeRawConversation({ id: "row_1", conversation_id: "conv_1", title: "Legacy" }),
     ]);
 
     const [row] = await getConversationsLazyOp(ctx);
@@ -155,6 +161,45 @@ describe("getConversationsLazyOp", () => {
     // even without a key loaded — no eager decrypt happened anywhere.
     const result = await decryptConversationTitle(row.encryptedTitle, testAddress);
     expect(result).toBe("Legacy");
+  });
+});
+
+describe("getConversationsPageOp lazy contract", () => {
+  const testAddress = "0x1234567890123456789012345678901234567890";
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    clearAllEncryptionKeys();
+
+    if (!global.crypto) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { webcrypto } = require("node:crypto");
+      Object.defineProperty(global, "crypto", {
+        value: webcrypto as Crypto,
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
+
+  it("preserves encryptedTitle and never decrypts on the paginated path", async () => {
+    await requestEncryptionKey(testAddress, mockSignMessage);
+    const enc = await encryptField("Secret title", testAddress, mockSignMessage);
+
+    const { ctx } = makeCtx([
+      fakeRawConversation({ id: "row_1", conversation_id: "conv_1", title: enc }),
+    ]);
+
+    const decryptSpy = vi.spyOn(crypto.subtle, "decrypt");
+
+    const result = await getConversationsPageOp(ctx, { limit: 200 });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].encryptedTitle).toBe(enc);
+    expect((result[0] as Record<string, unknown>).title).toBeUndefined();
+    expect(decryptSpy).not.toHaveBeenCalled();
+
+    decryptSpy.mockRestore();
   });
 });
 
@@ -171,11 +216,11 @@ describe("getConversationsByProjectLazyOp", () => {
     const enc = await encryptField("Project title", testAddress, mockSignMessage);
 
     const { ctx } = makeCtx([
-      fakeConversation({
+      fakeRawConversation({
         id: "row_p1",
-        conversationId: "conv_p1",
+        conversation_id: "conv_p1",
         title: enc,
-        projectId: "proj_1",
+        project_id: "proj_1",
       }),
     ]);
 

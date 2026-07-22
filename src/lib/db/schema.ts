@@ -58,14 +58,34 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v33: Added embedding_model column to memory_vault so stale-model vectors are
  *   detectable and re-embeddable after an embedding-model change (null = legacy
  *   rows, grandfathered as compatible with the current model)
+ * - v34: Added topics_user_managed column to memory_vault so a memory whose
+ *   entity links the user has taken manual control of is left alone by
+ *   auto-extraction (null/false = auto-derived, the default)
  * - v35: Added conversation_memory table recording which vault memories a
  *   conversation drew on, so the conversation-level Memories panel survives reload
  * - v36: Added topics_extracted_at column to memory_vault — watermark of the last
  *   LLM topic-extraction pass, so the background topic worker re-extracts only
  *   memories edited since (updated_at > topics_extracted_at) instead of
  *   re-running the whole vault
+ * - v37: Added superseded_by + superseded_at columns to memory_vault for
+ *   write-time supersession — a changed fact retires the stale one (points at
+ *   the newer memory) instead of both surviving; superseded rows are excluded
+ *   from recall/dedup by default
+ * - v38: Added topics_extracted_version column to memory_vault — the extraction
+ *   logic version a memory was last stamped under. Bumping TOPICS_EXTRACTION_VERSION
+ *   (new prompt/model) makes the worker re-extract every row whose stored version
+ *   is behind, so topic-quality improvements propagate across the existing vault
+ * - v39: Added last_observed_at column to memory_vault (C3) — a re-observation
+ *   watermark stamped each time retain() merges into an existing fact, kept
+ *   distinct from updated_at (which merges preserve). Lets profile synthesis
+ *   weight facts by recency of reinforcement rather than last edit.
+ * - v40: Added fact_type, archived_at, trust_tier columns to memory_vault for
+ *   typed memory + decay + Tier-0 security. All nullable + plaintext, no
+ *   backfill (null = legacy/untyped, active, un-screened — content is
+ *   encrypted so in-migration classification is impossible; NULL = zero-risk,
+ *   exact embedding_model precedent)
  */
-export const SDK_SCHEMA_VERSION = 36;
+export const SDK_SCHEMA_VERSION = 40;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -213,6 +233,40 @@ export const sdkSchema = appSchema({
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
         { name: "topics_extracted_at", type: "number", isOptional: true },
+        // Write-time supersession (A2). When set, this fact was replaced by a
+        // newer, incompatible-value fact (e.g. "Lives in Portland" superseded by
+        // "Lives in SF"); `superseded_by` points at the newer memory's id and
+        // `superseded_at` is the Unix ms it happened. Superseded rows stay in
+        // the table (history / read-time fallback) but are excluded from recall
+        // and dedup by default. Null = live (not superseded). Indexed so the
+        // recall filter stays cheap.
+        { name: "superseded_by", type: "string", isOptional: true, isIndexed: true },
+        { name: "superseded_at", type: "number", isOptional: true },
+        // The extraction-logic version this memory was last stamped under. Null
+        // (pre-v38) is treated as version 0, so a bump of TOPICS_EXTRACTION_VERSION
+        // re-extracts stale rows. See getMemoriesNeedingTopicExtractionOp.
+        { name: "topics_extracted_version", type: "number", isOptional: true },
+        // Re-observation watermark (C3). Unix ms of the last time retain() merged
+        // a duplicate observation into this fact (proof_count++). Distinct from
+        // updated_at, which merges deliberately preserve (preserveUpdatedAt) so a
+        // re-observation doesn't reorder the vault by edit time. Null = never
+        // re-observed since the column was added. Indexed so recency-weighted
+        // synthesis can filter/sort on it cheaply.
+        { name: "last_observed_at", type: "number", isOptional: true, isIndexed: true },
+        // Typed memory (PR1) — the extractor's FactType classification for
+        // this fact (identity | preference | relationship | plan |
+        // ongoing_context | constraint | other). Null on legacy/manual/untyped
+        // rows. Plaintext + indexed so recall can filter by type without a
+        // signature prompt.
+        { name: "fact_type", type: "string", isOptional: true, isIndexed: true },
+        // Decay archive state (PR2) — Unix ms when this memory was archived by
+        // the decay sweep. Null = active. Indexed so the recall choke point can
+        // exclude archived rows cheaply.
+        { name: "archived_at", type: "number", isOptional: true, isIndexed: true },
+        // Tier-0 security (PR3) — "quarantined" when the write-time injection
+        // screen flagged this fact, else null/"trusted". Indexed so the recall
+        // choke point can default-exclude quarantined rows.
+        { name: "trust_tier", type: "string", isOptional: true, isIndexed: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -371,8 +425,13 @@ export const sdkSchema = appSchema({
  * - v30 → v31: Added `user_id` column to memory_entity for multi-user scoping of the W5 graph lane (with backfill from memory_vault.user_id)
  * - v31 → v32: Added `pinned_at` column to conversations for pinning chats
  * - v32 → v33: Added `embedding_model` column to memory_vault (null grandfathered as current-model-compatible)
+ * - v33 → v34: Added `topics_user_managed` column to memory_vault (null/false = auto-derived topics, the default)
  * - v34 → v35: Added `conversation_memory` table (conversation ↔ recalled memory ids)
  * - v35 → v36: Added `topics_extracted_at` column to memory_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)
+ * - v36 → v37: Added `superseded_by` + `superseded_at` columns to memory_vault (write-time supersession; null = live, excluded from recall/dedup when set)
+ * - v37 → v38: Added `topics_extracted_version` column to memory_vault (extraction-logic version; null read as 0 so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows)
+ * - v38 → v39: Added `last_observed_at` column to memory_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated_at)
+ * - v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -859,6 +918,70 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "topics_extracted_at", type: "number", isOptional: true }],
+        }),
+      ],
+    },
+    // v36 -> v37: write-time supersession columns on memory_vault. Existing rows
+    // keep both NULL (= live / not superseded), so no backfill — legacy
+    // contradictory rows are handled by the read-time supersession fallback.
+    {
+      toVersion: 37,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "superseded_by", type: "string", isOptional: true, isIndexed: true },
+            { name: "superseded_at", type: "number", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v37 -> v38: topics_extracted_version on memory_vault. Existing rows keep it
+    // NULL, read as version 0 by getMemoriesNeedingTopicExtractionOp — so the
+    // first sweep after a TOPICS_EXTRACTION_VERSION bump re-extracts them (drained
+    // across sweeps by the worker's limit). See topicExtract.ts.
+    {
+      toVersion: 38,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "topics_extracted_version", type: "number", isOptional: true }],
+        }),
+      ],
+    },
+    // v38 -> v39: re-observation watermark on memory_vault (C3). Existing rows
+    // keep NULL (= never re-observed since the column was added); synthesis
+    // treats NULL as "fall back to updated_at" so no backfill is needed.
+    {
+      toVersion: 39,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "last_observed_at", type: "number", isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
+    // v39 -> v40: typed memory + decay + Tier-0 security foundation.
+    //   - fact_type: the extractor's FactType classification (was computed
+    //     then discarded; now persisted).
+    //   - archived_at: decay archive state (set by the PR2 sweep).
+    //   - trust_tier: injection-screen verdict (set by the PR3 write screen).
+    // All nullable + plaintext, no backfill — existing rows keep NULL
+    // (legacy/untyped, active, un-screened). Content is encrypted, so
+    // in-migration classification is impossible; NULL = zero data rewrite =
+    // zero risk on LokiJS + SQLite (exact embedding_model precedent).
+    {
+      toVersion: 40,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "fact_type", type: "string", isOptional: true, isIndexed: true },
+            { name: "archived_at", type: "number", isOptional: true, isIndexed: true },
+            { name: "trust_tier", type: "string", isOptional: true, isIndexed: true },
+          ],
         }),
       ],
     },

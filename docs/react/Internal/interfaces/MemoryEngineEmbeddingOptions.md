@@ -45,14 +45,19 @@ Max texts per API call for batch embeddings (default: 100). Larger arrays are sp
 
 ### cache?
 
-> `optional` **cache**: `Map`<`string`, `number`\[]>
+> `optional` **cache**: `Map`<`string`, `Float32Array`<`ArrayBufferLike`>>
 
-Defined in: [src/lib/memoryEngine/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#76)
+Defined in: [src/lib/memoryEngine/types.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#81)
 
 Optional in-memory cache for embedding vectors. When provided, texts
 are looked up in this map before calling the API, and new embeddings
 are stored after generation. Useful when the same texts are embedded
 repeatedly (e.g., across eval iterations or re-indexing runs).
+
+Values are stored as `Float32Array` (the embedding model's native
+precision) rather than a float64 `number[]`, halving the resident RAM of
+the cache with no precision loss. `generateEmbedding(s)` still return
+`number[]` at the API boundary, so callers are unaffected.
 
 ***
 
@@ -74,7 +79,7 @@ Function to get auth token (e.g., Privy's getIdentityToken). Uses Authorization:
 
 > `optional` **maskInput**: (`text`: `string`) => `string`
 
-Defined in: [src/lib/memoryEngine/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#86)
+Defined in: [src/lib/memoryEngine/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#91)
 
 Optional transform applied to each text immediately before it is sent to
 the embeddings endpoint (e.g. `PiiRedactor.maskText`). The cache and result
@@ -127,7 +132,7 @@ Embedding model to use
 
 > `optional` **onUsage**: (`usage`: `object`) => `void`
 
-Defined in: [src/lib/memoryEngine/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#78)
+Defined in: [src/lib/memoryEngine/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#83)
 
 Called after each embedding API call with the token usage from the response.
 
