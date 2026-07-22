@@ -1,8 +1,8 @@
 # getApiV1ZetaMarket
 
-> **getApiV1ZetaMarket**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaMarketData`](../type-aliases/GetApiV1ZetaMarketData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ZetaMarketResponses`](../type-aliases/GetApiV1ZetaMarketResponses.md), `unknown`, `ThrowOnError`>
+> **getApiV1ZetaMarket**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaMarketData`](../type-aliases/GetApiV1ZetaMarketData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1ZetaMarketResponses`](../type-aliases/GetApiV1ZetaMarketResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2051](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2051)
+Defined in: [src/client/sdk.gen.ts:1494](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1494)
 
 ZETA market stats
 
@@ -49,7 +49,7 @@ ZETA market stats
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaMarketData`](../type-aliases/GetApiV1ZetaMarketData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaMarketData`](../type-aliases/GetApiV1ZetaMarketData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

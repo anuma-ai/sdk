@@ -2,7 +2,7 @@
 
 > **putApiV1AdminAgentsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AdminAgentsByIdData`](../type-aliases/PutApiV1AdminAgentsByIdData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AdminAgentsByIdResponses`](../type-aliases/PutApiV1AdminAgentsByIdResponses.md), [`PutApiV1AdminAgentsByIdErrors`](../type-aliases/PutApiV1AdminAgentsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#94)
+Defined in: [src/client/sdk.gen.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#75)
 
 Update agent
 

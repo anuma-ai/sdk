@@ -1,8 +1,8 @@
 # postApiV1SubscriptionsCancel
 
-> **postApiV1SubscriptionsCancel**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelData`](../type-aliases/PostApiV1SubscriptionsCancelData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsCancelResponses`](../type-aliases/PostApiV1SubscriptionsCancelResponses.md), [`PostApiV1SubscriptionsCancelErrors`](../type-aliases/PostApiV1SubscriptionsCancelErrors.md), `ThrowOnError`>
+> **postApiV1SubscriptionsCancel**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelData`](../type-aliases/PostApiV1SubscriptionsCancelData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1SubscriptionsCancelResponses`](../type-aliases/PostApiV1SubscriptionsCancelResponses.md), [`PostApiV1SubscriptionsCancelErrors`](../type-aliases/PostApiV1SubscriptionsCancelErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1645](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1645)
+Defined in: [src/client/sdk.gen.ts:1207](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1207)
 
 Cancel subscription
 
@@ -51,7 +51,7 @@ Cancels the user's subscription at the end of the current billing period (cancel
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelData`](../type-aliases/PostApiV1SubscriptionsCancelData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelData`](../type-aliases/PostApiV1SubscriptionsCancelData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

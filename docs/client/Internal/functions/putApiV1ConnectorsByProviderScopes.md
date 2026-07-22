@@ -2,7 +2,7 @@
 
 > **putApiV1ConnectorsByProviderScopes**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1ConnectorsByProviderScopesData`](../type-aliases/PutApiV1ConnectorsByProviderScopesData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1ConnectorsByProviderScopesResponses`](../type-aliases/PutApiV1ConnectorsByProviderScopesResponses.md), [`PutApiV1ConnectorsByProviderScopesErrors`](../type-aliases/PutApiV1ConnectorsByProviderScopesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:962](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#962)
+Defined in: [src/client/sdk.gen.ts:705](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#705)
 
 Batch Allow/Disable connector capabilities
 

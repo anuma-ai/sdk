@@ -1,8 +1,8 @@
 # postApiV1WebhooksRevenuecat
 
-> **postApiV1WebhooksRevenuecat**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1WebhooksRevenuecatData`](../type-aliases/PostApiV1WebhooksRevenuecatData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1WebhooksRevenuecatResponses`](../type-aliases/PostApiV1WebhooksRevenuecatResponses.md), [`PostApiV1WebhooksRevenuecatErrors`](../type-aliases/PostApiV1WebhooksRevenuecatErrors.md), `ThrowOnError`>
+> **postApiV1WebhooksRevenuecat**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1WebhooksRevenuecatData`](../type-aliases/PostApiV1WebhooksRevenuecatData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1WebhooksRevenuecatResponses`](../type-aliases/PostApiV1WebhooksRevenuecatResponses.md), [`PostApiV1WebhooksRevenuecatErrors`](../type-aliases/PostApiV1WebhooksRevenuecatErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2027](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2027)
+Defined in: [src/client/sdk.gen.ts:1477](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1477)
 
 Handle RevenueCat webhook
 
@@ -51,7 +51,7 @@ Processes RevenueCat webhook events for in-app purchases
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`PostApiV1WebhooksRevenuecatData`](../type-aliases/PostApiV1WebhooksRevenuecatData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`PostApiV1WebhooksRevenuecatData`](../type-aliases/PostApiV1WebhooksRevenuecatData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>
