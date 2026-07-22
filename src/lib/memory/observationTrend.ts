@@ -23,8 +23,8 @@ export const TREND_STALE_WINDOW_DAYS = 90;
  * - `new` — first seen inside the recent window, few proofs yet.
  * - `strengthening` — established fact re-observed recently (rising density).
  * - `stable` — known for a while, still observed inside the stale window.
- * - `weakening` — quiet for 30–90 days after having been observed.
- * - `stale` — no observation in 90+ days.
+ * - `weakening` — quiet for ≥30 and <90 days after having been observed.
+ * - `stale` — no observation in ≥90 days.
  */
 export type ObservationTrend = "new" | "strengthening" | "stable" | "weakening" | "stale";
 
@@ -58,7 +58,11 @@ export function classifyObservationTrend(
 
   const lastMsRaw = input.lastObservedAt;
   const lastMs =
-    lastMsRaw != null && Number.isFinite(lastMsRaw) ? Math.max(createdMs, lastMsRaw) : createdMs;
+    lastMsRaw !== null &&
+    lastMsRaw !== undefined &&
+    Number.isFinite(lastMsRaw)
+      ? Math.max(createdMs, lastMsRaw)
+      : createdMs;
   const proofs = Math.max(1, input.proofCount ?? 1);
 
   const ageDays = Math.max(0, (now - createdMs) / DAY_MS);
@@ -67,8 +71,10 @@ export function classifyObservationTrend(
   // Priority: terminal quiet states first, then "brand new", then rising
   // density, else stable. Ordering matters — a 100-day-old fact with one
   // recent re-observation is strengthening, not new.
-  if (daysSinceLast > TREND_STALE_WINDOW_DAYS) return "stale";
-  if (daysSinceLast > TREND_RECENT_WINDOW_DAYS) return "weakening";
+  // Inclusive lower bound: exactly N days out is already in that bucket
+  // (`stale` = 90+ days, `weakening` = 30–89 days).
+  if (daysSinceLast >= TREND_STALE_WINDOW_DAYS) return "stale";
+  if (daysSinceLast >= TREND_RECENT_WINDOW_DAYS) return "weakening";
 
   // Inside the recent window from here.
   if (ageDays <= TREND_RECENT_WINDOW_DAYS && proofs <= 2) return "new";
@@ -88,7 +94,7 @@ export function classifyObservationTrend(
  * ("N interests strengthening") without another LLM pass.
  */
 export function summarizeObservationTrends(
-  inputs: ObservationTrendInput[],
+  inputs: readonly ObservationTrendInput[],
   now: number = Date.now()
 ): Record<ObservationTrend, number> {
   const counts: Record<ObservationTrend, number> = {

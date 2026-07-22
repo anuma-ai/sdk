@@ -2,7 +2,7 @@
 
 > **classifyObservationTrend**(`input`: [`ObservationTrendInput`](../interfaces/ObservationTrendInput.md), `now`: `number`): [`ObservationTrend`](../type-aliases/ObservationTrend.md)
 
-Defined in: src/lib/memory/observationTrend.ts:52
+Defined in: [src/lib/memory/observationTrend.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#52)
 
 Classify a vault fact's observation trend from its evidence timestamps.
 

@@ -57,12 +57,38 @@ describe("classifyObservationTrend", () => {
     ).toBe("weakening");
   });
 
+  it("treats the exact recent-window boundary as weakening", () => {
+    expect(
+      classifyObservationTrend(
+        {
+          createdAt: daysAgo(100),
+          lastObservedAt: daysAgo(TREND_RECENT_WINDOW_DAYS),
+          proofCount: 4,
+        },
+        NOW
+      )
+    ).toBe("weakening");
+  });
+
   it("labels a long-quiet fact as stale", () => {
     expect(
       classifyObservationTrend(
         {
           createdAt: daysAgo(200),
           lastObservedAt: daysAgo(TREND_STALE_WINDOW_DAYS + 1),
+          proofCount: 3,
+        },
+        NOW
+      )
+    ).toBe("stale");
+  });
+
+  it("treats the exact stale-window boundary as stale (not weakening)", () => {
+    expect(
+      classifyObservationTrend(
+        {
+          createdAt: daysAgo(200),
+          lastObservedAt: daysAgo(TREND_STALE_WINDOW_DAYS),
           proofCount: 3,
         },
         NOW

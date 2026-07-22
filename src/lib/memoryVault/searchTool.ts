@@ -134,6 +134,8 @@ interface EmbeddedItem {
   updatedAt?: Date;
   /** Number of times this fact has been re-observed (W4 — auto-merge). */
   proofCount?: number | null;
+  /** C3 re-observation watermark (Unix ms). Surfaced for C2 trend labels. */
+  lastObservedAt?: number | null;
   /** W6 temporal-lane anchors — carried through to VaultSearchResult so the
    * recall executor can surface event dates without a second DB+decrypt. */
   eventTimeStart?: number | null;
@@ -1210,6 +1212,10 @@ export interface VaultSearchResult {
    * real timestamps. Omitted when an item lacks the field upstream. */
   createdAt?: Date;
   updatedAt?: Date;
+  /** Times this fact has been re-observed — for C2 trend labels. */
+  proofCount?: number | null;
+  /** C3 re-observation watermark (Unix ms) — for C2 trend labels. */
+  lastObservedAt?: number | null;
   /** W6 temporal-lane anchors carried through to downstream `RankedMemory`
    * so the recall executor can surface dates to the answer model without
    * a second per-fact DB lookup + decrypt. Unix ms; null when the fact
@@ -1353,6 +1359,7 @@ export async function searchVaultMemoriesWithSize(
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
     proofCount: m.proofCount,
+    lastObservedAt: m.lastObservedAt,
     eventTimeStart: m.eventTimeStart,
     sourceChunkIds: m.sourceChunkIds,
     eventTimeEnd: m.eventTimeEnd,
@@ -1377,11 +1384,19 @@ export async function searchVaultMemoriesWithSize(
   }
 
   // The rankers below all return bare {uniqueId, content, similarity}
-  // — they're pure functions over EmbeddedItem and don't carry the
-  // memory's timestamps. Stamp createdAt/updatedAt on the way out so
-  // downstream RankedMemory metadata is correct.
-  const timestampById = new Map(
-    memories.map((m) => [m.uniqueId, { createdAt: m.createdAt, updatedAt: m.updatedAt }])
+  // — they're pure functions over EmbeddedItem and don't always carry the
+  // memory's timestamps / C2 metadata. Stamp on the way out so downstream
+  // RankedMemory (and observationTrend) is complete.
+  const metaById = new Map(
+    memories.map((m) => [
+      m.uniqueId,
+      {
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+        proofCount: m.proofCount,
+        lastObservedAt: m.lastObservedAt,
+      },
+    ])
   );
   const stampTimestamps = (out: {
     results: VaultSearchResult[];
@@ -1395,8 +1410,16 @@ export async function searchVaultMemoriesWithSize(
     hadV2Head: boolean;
   } => {
     const results = out.results.map((r) => {
-      const ts = timestampById.get(r.uniqueId);
-      return ts ? { ...r, createdAt: ts.createdAt, updatedAt: ts.updatedAt } : r;
+      const meta = metaById.get(r.uniqueId);
+      return meta
+        ? {
+            ...r,
+            createdAt: meta.createdAt,
+            updatedAt: meta.updatedAt,
+            proofCount: meta.proofCount,
+            lastObservedAt: meta.lastObservedAt,
+          }
+        : r;
     });
     return {
       results,
