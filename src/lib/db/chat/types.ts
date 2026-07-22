@@ -23,7 +23,7 @@ import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../cha
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
-import type { DeferLoadingConfig, ServerTool } from "../../tools";
+import type { DeferLoadingConfig, ServerTool, ToolsCacheBackend } from "../../tools";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -486,6 +486,13 @@ export interface BaseUseChatStorageOptions {
      * {@link DeferLoadingConfig}.
      */
     deferLoading?: DeferLoadingConfig;
+    /**
+     * Where to read/write the cached server-tools catalog. Defaults to browser
+     * `localStorage`, which is a silent no-op on React Native — so on RN pass an
+     * AsyncStorage/MMKV-backed {@link ToolsCacheBackend} here or every send
+     * refetches the whole catalog. Forwarded to `getServerTools`.
+     */
+    cache?: ToolsCacheBackend;
   };
   /**
    * Automatically generate embeddings for messages after saving.

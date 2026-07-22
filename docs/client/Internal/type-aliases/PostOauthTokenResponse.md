@@ -2,4 +2,4 @@
 
 > **PostOauthTokenResponse** = [`PostOauthTokenResponses`](PostOauthTokenResponses.md)\[keyof [`PostOauthTokenResponses`](PostOauthTokenResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10719](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10719)
+Defined in: [src/client/types.gen.ts:10846](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10846)

@@ -153,7 +153,19 @@ export async function retain(
             content: existing.content,
             proofCountIncrement: 1,
             sourceChunkIds: mergedSourceIds,
+            // resurrect encodes the decay gate: ACTIVE target → { preserveUpdatedAt:
+            // true } (main's normal re-observation path — bump proof_count without
+            // inflating recency); ARCHIVED (non-superseded, non-deleted) target →
+            // { restore: true } and NO preserveUpdatedAt, so archived_at clears and
+            // updated_at bumps (decay clock restarts). The resurrection refresh wins
+            // on the resurrect path only; main's watermark logic below is untouched
+            // on the normal path.
             ...resurrect,
+            // C3: record the re-observation. On the normal path preserveUpdatedAt
+            // keeps updated_at pinned, so this stamps "seen again now" without
+            // reordering the vault by edit time; on the resurrect path the restore
+            // already bumped updated_at.
+            lastObservedAt: Date.now(),
             ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
             ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
           });
@@ -480,7 +492,14 @@ async function tryConsolidate(
       content: existing.content,
       proofCountIncrement: 1,
       sourceChunkIds: mergedSourceIds,
+      // ACTIVE target → { preserveUpdatedAt: true } (main's normal re-observation
+      // path); ARCHIVED (non-superseded, non-deleted) → { restore: true } and no
+      // preserveUpdatedAt so the decay clock restarts (PR5). Resurrection refresh
+      // wins on the resurrect path; watermark below is untouched on the normal path.
       ...resurrect,
+      // C3: record the re-observation. preserveUpdatedAt (normal path) keeps
+      // updated_at pinned; the resurrect path already bumped it via restore.
+      lastObservedAt: Date.now(),
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
       ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });
@@ -520,11 +539,15 @@ async function tryConsolidate(
       embedding: JSON.stringify(newEmbedding),
       embeddingModel: consolidatedModel,
       // Even when the LLM rewrites content into a richer paraphrase, this is
-      // still a re-observation of an existing fact — not a new one. Preserving
-      // updated_at keeps the recency multiplier honest (active target). For an
-      // ARCHIVED target, resurrectFields instead restores it and lets
-      // updated_at bump so the decay clock resets (PR5).
+      // still a re-observation of an existing fact — not a new one. For an ACTIVE
+      // target resurrectFields returns { preserveUpdatedAt: true } (recency
+      // multiplier stays honest, matching the merge/noop paths). For an ARCHIVED
+      // target it returns { restore: true } and lets updated_at bump so the decay
+      // clock resets (PR5). Resurrection refresh wins on the resurrect path.
       ...resurrect,
+      // C3: record the re-observation. preserveUpdatedAt (normal path) keeps
+      // updated_at pinned; the resurrect path already bumped it via restore.
+      lastObservedAt: Date.now(),
       ...(eventTimeUpdate && { eventTime: eventTimeUpdate }),
       ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });

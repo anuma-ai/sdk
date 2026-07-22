@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminNotificationsAnnounceModelData** = `object`
 
-Defined in: [src/client/types.gen.ts:5251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5251)
+Defined in: [src/client/types.gen.ts:5256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5256)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5251](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersAnnounceModelRequest`](HandlersAnnounceModelRequest.md)
 
-Defined in: [src/client/types.gen.ts:5255](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5255)
+Defined in: [src/client/types.gen.ts:5260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5260)
 
 Announcement payload
 
@@ -20,7 +20,7 @@ Announcement payload
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5256)
+Defined in: [src/client/types.gen.ts:5261](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5261)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:5262](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5262)
+Defined in: [src/client/types.gen.ts:5267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5267)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:5262](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5263)
+Defined in: [src/client/types.gen.ts:5268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5268)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:5263](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/notifications/announce-model"`
 
-Defined in: [src/client/types.gen.ts:5264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5264)
+Defined in: [src/client/types.gen.ts:5269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5269)

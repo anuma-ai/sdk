@@ -75,6 +75,13 @@
       "require": "./dist/tools/index.cjs",
       "default": "./dist/tools/index.cjs"
     },
+    "./tools/selection": {
+      "types": "./dist/tools/selection/index.d.ts",
+      "react-server": "./dist/tools/selection/index.mjs",
+      "import": "./dist/tools/selection/index.mjs",
+      "require": "./dist/tools/selection/index.cjs",
+      "default": "./dist/tools/selection/index.cjs"
+    },
     "./server": {
       "types": "./dist/server/index.d.ts",
       "import": "./dist/server/index.mjs",
@@ -145,7 +152,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260721055054",
+    "@anuma/portal": "1.0.0-next.20260721230408",
     "@babel/parser": "^7.29.2",
     "@babel/types": "^7.29.0",
     "ai": "6.0.202",

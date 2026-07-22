@@ -8,7 +8,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:3](https://github.com/anuma-ai/sdk/
 
 > **archivedAt**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#53)
+Defined in: [src/lib/db/memoryVault/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#58)
 
 Decay archive state (PR2) — Unix ms when archived, or null when active.
 
@@ -28,7 +28,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#56)
+Defined in: [src/lib/db/memoryVault/types.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#61)
 
 ***
 
@@ -87,7 +87,7 @@ W6 temporal lane — Unix ms when the event occurred (point/start of range).
 
 > **factType**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#51)
+Defined in: [src/lib/db/memoryVault/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#56)
 
 Typed memory (PR1) — the extractor's FactType for this fact, or null on
 legacy/manual/untyped rows. Plaintext string (not narrowed to FactType
@@ -109,7 +109,20 @@ Folder ID for organization, null if unfiled
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#58)
+Defined in: [src/lib/db/memoryVault/types.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#63)
+
+***
+
+### lastObservedAt
+
+> **lastObservedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#52)
+
+C3 re-observation watermark: Unix ms of the last retain() merge into this
+fact. Distinct from `updatedAt` (which merges preserve). Null = never
+re-observed since the column was added; synthesis falls back to
+`updatedAt` in that case.
 
 ***
 
@@ -214,7 +227,7 @@ auto-extraction leaves them alone. False on legacy/auto rows.
 
 > **trustTier**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#55)
+Defined in: [src/lib/db/memoryVault/types.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#60)
 
 Tier-0 security (PR3) — "quarantined" | "trusted" | null.
 
@@ -234,7 +247,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#57)
+Defined in: [src/lib/db/memoryVault/types.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#62)
 
 ***
 

@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:424](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#424)
+Defined in: [src/lib/db/schema.ts:436](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#436)
 
 Combined migrations for all SDK storage modules.
 
@@ -51,4 +51,5 @@ Migration history:
 * v35 → v36: Added `topics_extracted_at` column to memory\_vault (watermark for the background topic-extraction worker; null + existing links grandfathered as extracted)
 * v36 → v37: Added `superseded_by` + `superseded_at` columns to memory\_vault (write-time supersession; null = live, excluded from recall/dedup when set)
 * v37 → v38: Added `topics_extracted_version` column to memory\_vault (extraction-logic version; null read as 0 so a TOPICS\_EXTRACTION\_VERSION bump re-extracts stale rows)
-* v38 → v39: Added `fact_type`, `archived_at`, `trust_tier` columns to memory\_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
+* v38 → v39: Added `last_observed_at` column to memory\_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated\_at)
+* v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory\_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)

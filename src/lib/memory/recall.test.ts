@@ -818,15 +818,18 @@ describe("createRecallTool executor", () => {
     expect(output).toContain("Found 14 relevant memories");
   });
 
-  it("returns an error string (does not throw) when recall fails downstream", async () => {
+  it("throws (does not leak an error string) when recall fails downstream", async () => {
     // Use the query-embedding call as the failure injection point — it's
     // unguarded, unlike the cross-encoder rerank which now soft-degrades.
+    // The executor re-throws so the tool-loop treats it as a failed call,
+    // rather than returning "Error searching memory: …" as a successful result
+    // that leaks into the model's visible context (same rule as invalid args).
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("boom"));
     const tool = createRecallTool(makeCtx(), { types: ["fact"], budget: "mid" });
 
-    const output = await tool.executor!({ query: QUERY });
-
-    expect(output).toBe("Error searching memory: boom");
+    await expect(tool.executor!({ query: QUERY })).rejects.toThrow(
+      /recall_memory: search failed — boom/
+    );
   });
 
   it("reports retrieved fact ids via onFactsRetrieved", async () => {

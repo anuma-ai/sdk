@@ -2,7 +2,7 @@
 
 > **GetApiV1ModelsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8550](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8550)
+Defined in: [src/client/types.gen.ts:8555](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8555)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8550](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`LlmapiModelsListResponse`](LlmapiModelsListResponse.md)
 
-Defined in: [src/client/types.gen.ts:8554](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8554)
+Defined in: [src/client/types.gen.ts:8559](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8559)
 
 OK

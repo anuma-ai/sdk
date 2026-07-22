@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `39` = `39`
+> `const` **SDK\_SCHEMA\_VERSION**: `40` = `40`
 
-Defined in: [src/lib/db/schema.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#84)
+Defined in: [src/lib/db/schema.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#88)
 
 Current combined schema version for all SDK storage modules.
 
@@ -59,7 +59,11 @@ Version history:
   logic version a memory was last stamped under. Bumping TOPICS\_EXTRACTION\_VERSION
   (new prompt/model) makes the worker re-extract every row whose stored version
   is behind, so topic-quality improvements propagate across the existing vault
-* v39: Added fact\_type, archived\_at, trust\_tier columns to memory\_vault for
+* v39: Added last\_observed\_at column to memory\_vault (C3) — a re-observation
+  watermark stamped each time retain() merges into an existing fact, kept
+  distinct from updated\_at (which merges preserve). Lets profile synthesis
+  weight facts by recency of reinforcement rather than last edit.
+* v40: Added fact\_type, archived\_at, trust\_tier columns to memory\_vault for
   typed memory + decay + Tier-0 security. All nullable + plaintext, no
   backfill (null = legacy/untyped, active, un-screened — content is
   encrypted so in-migration classification is impossible; NULL = zero-risk,

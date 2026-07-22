@@ -1423,6 +1423,47 @@ describe("stampTopicsExtractedAtOp", () => {
     expect(setRawSpy).not.toHaveBeenCalledWith("updated_at", 1);
   });
 
+  it("never yields the event loop between prepareUpdate and batch (same-tick contract)", async () => {
+    // WatermelonDB's dev diagnostic throws (uncaught → RedBox on RN Debug
+    // builds) when a prepared update is still pending as the event loop turns
+    // — i.e. when any `await` sits between prepareUpdate() and batch().
+    // Simulate the diagnostic: each awaited find() is an event-loop yield, so
+    // any record prepared before it must already have been batched.
+    // Regression: the topic sweep emitted one "wasn't sent to batch()
+    // synchronously" error per stamped memory (interleaved find/prepare loop).
+    const pending = new Set<string>();
+    const violations: string[] = [];
+    const makeTracked = (id: string) => {
+      const record = mockRecord({ id });
+      (record.prepareUpdate as ReturnType<typeof vi.fn>).mockImplementation((updater: any) => {
+        pending.add(id);
+        return { updater };
+      });
+      return record;
+    };
+    const records: Record<string, any> = {
+      mem_a: makeTracked("mem_a"),
+      mem_b: makeTracked("mem_b"),
+    };
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => pending.clear()),
+      } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(async (id: string) => {
+          if (pending.size > 0) violations.push(...pending);
+          return records[id];
+        }),
+      } as any,
+    });
+
+    const stamped = await stampTopicsExtractedAtOp(ctx, ["mem_a", "mem_b"], 5_000);
+
+    expect(stamped).toEqual(["mem_a", "mem_b"]);
+    expect(violations).toEqual([]);
+  });
+
   it("skips deleted and user-managed rows (re-checked in the writer)", async () => {
     const managed = mockRecord({ id: "mem_managed", topics_user_managed: true });
     const deleted = mockRecord({ id: "mem_deleted", is_deleted: true });

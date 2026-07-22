@@ -2,7 +2,7 @@
 
 > **ParamOptFloat64** = `object`
 
-Defined in: [src/client/types.gen.ts:4155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4155)
+Defined in: [src/client/types.gen.ts:4160](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4160)
 
 An alternative to sampling with temperature, called nucleus sampling, where the
 model considers the results of the tokens with top\_p probability mass. So 0.1
@@ -16,4 +16,4 @@ We generally recommend altering this or `temperature` but not both.
 
 > `optional` **value**: `number`
 
-Defined in: [src/client/types.gen.ts:4156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4156)
+Defined in: [src/client/types.gen.ts:4161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4161)

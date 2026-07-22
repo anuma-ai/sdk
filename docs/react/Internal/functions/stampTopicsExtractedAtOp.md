@@ -2,7 +2,7 @@
 
 > **stampTopicsExtractedAtOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[], `extractedAt`: `number`, `version`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1144](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1144)
+Defined in: [src/lib/db/memoryVault/operations.ts:1152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1152)
 
 Stamp `topics_extracted_at` (and `topics_extracted_version`) on the given
 memories — the topic worker calls this after a successful extraction pass

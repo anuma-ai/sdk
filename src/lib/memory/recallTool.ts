@@ -10,6 +10,7 @@
 import type { ToolConfig } from "../chat/useChat/types.js";
 import { normalizeForScreen } from "./injectionScreen.js";
 import { recall } from "./recall.js";
+import { RECALL_MAX_LIMIT, RECALL_TOOL_NAME } from "./recallConstants.js";
 import type {
   Budget,
   MemoryKind,
@@ -19,13 +20,10 @@ import type {
   RecallOptions,
 } from "./types.js";
 
-/** Tool name surfaced to the LLM. Exported so bench harnesses and chat
- * clients reference the same string — drift between prod and bench would
- * mask tool-routing bugs in eval. */
-export const RECALL_TOOL_NAME = "recall_memory";
-/** Maximum results the executor will return to the LLM, regardless of
- * the LLM-supplied `limit`. */
-export const RECALL_MAX_LIMIT = 50;
+// RECALL_TOOL_NAME / RECALL_MAX_LIMIT live in ./recallConstants (dependency-free
+// so node/RN-safe modules can import the tool name) and are re-exported here to
+// preserve their public identity.
+export { RECALL_MAX_LIMIT, RECALL_TOOL_NAME };
 
 const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
@@ -486,11 +484,27 @@ export function createRecallTool(
           ? `${formatted}\n\n${TRUNCATION_NOTICE}`
           : formatted;
       } catch (error) {
+        // Throw (not return) — same rationale as the invalid-args guard above:
+        // returning an "Error searching memory: …" string makes it a SUCCESSFUL
+        // tool result that leaks into the model's visible context and gets
+        // paraphrased to the user. Re-throwing lets the tool-loop treat it as a
+        // failed call (retry / handle) instead.
         const message = error instanceof Error ? error.message : "Unknown error";
-        return `Error searching memory: ${message}`;
+        // D4: throw (not return a string). Preserve the original as `cause` for
+        // debuggability. Assigned (not the `new Error(msg, { cause })` options
+        // bag) because the configured TS lib doesn't type the Error cause-options
+        // constructor; the field is set at runtime regardless. The `finally` below
+        // still runs on this throw, releasing the volume-cap reservation.
+        const wrapped = new Error(`recall_memory: search failed — ${message}`) as Error & {
+          cause?: unknown;
+        };
+        wrapped.cause = error;
+        throw wrapped;
       } finally {
         // Reconcile: give back (reserved − surfaced). On an error, surfaced is
-        // 0, so the whole reservation is released.
+        // 0, so the whole reservation is released. Runs on both the success
+        // return and the D4 throw above, so the per-turn/conversation caps never
+        // leak a reservation on a failed recall.
         const unused = effectiveLimit - surfaced;
         turnMemories -= unused;
         conversationMemories -= unused;

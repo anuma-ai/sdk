@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsRenewResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9390](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9390)
+Defined in: [src/client/types.gen.ts:9395](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9395)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9390](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersRenewSubscriptionResponse`](HandlersRenewSubscriptionResponse.md)
 
-Defined in: [src/client/types.gen.ts:9394](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9394)
+Defined in: [src/client/types.gen.ts:9399](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9399)
 
 OK
