@@ -4,7 +4,7 @@ import { type Client, type Options as Options2, type TDataShape, urlSearchParams
 import { client } from './client.gen';
 import type { DeleteApiV1AccountData, DeleteApiV1AccountErrors, DeleteApiV1AccountResponses, DeleteApiV1AdminAgentsByIdData, DeleteApiV1AdminAgentsByIdErrors, DeleteApiV1AdminAgentsByIdResponses, DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, DeleteApiV1AdminOauthClientsByClientIdData, DeleteApiV1AdminOauthClientsByClientIdErrors, DeleteApiV1AdminOauthClientsByClientIdResponses, DeleteApiV1AdminPersonasByIdData, DeleteApiV1AdminPersonasByIdErrors, DeleteApiV1AdminPersonasByIdResponses, DeleteApiV1AdminSharesBySlugData, DeleteApiV1AdminSharesBySlugErrors, DeleteApiV1AdminSharesBySlugResponses, DeleteApiV1AdminTextResetData, DeleteApiV1AdminTextResetErrors, DeleteApiV1AdminTextResetResponses, DeleteApiV1AdminUsersDeleteData, DeleteApiV1AdminUsersDeleteErrors, DeleteApiV1AdminUsersDeleteResponses, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidData, DeleteApiV1DeveloperAppsByAppUuidErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyData, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1SharesBySlugData, DeleteApiV1SharesBySlugErrors, DeleteApiV1SharesBySlugResponses, DeleteApiV1UserAgentConsentsByAgentIdData, DeleteApiV1UserAgentConsentsByAgentIdErrors, DeleteApiV1UserAgentConsentsByAgentIdResponses, DeleteApiV1UserApiKeysByKeyIdData, DeleteApiV1UserApiKeysByKeyIdErrors, DeleteApiV1UserApiKeysByKeyIdResponses, DeleteApiV1UserOauthGrantsByIdData, DeleteApiV1UserOauthGrantsByIdErrors, DeleteApiV1UserOauthGrantsByIdResponses, DeleteApiV1WalletsBindingByAddressData, DeleteApiV1WalletsBindingByAddressErrors, DeleteApiV1WalletsBindingByAddressResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1AdminBotStatusData, GetApiV1AdminBotStatusErrors, GetApiV1AdminBotStatusResponses, GetApiV1AdminConnectorsData, GetApiV1AdminConnectorsErrors, GetApiV1AdminConnectorsResponses, GetApiV1AdminOauthClientsByClientIdData, GetApiV1AdminOauthClientsByClientIdErrors, GetApiV1AdminOauthClientsByClientIdResponses, GetApiV1AdminOauthClientsData, GetApiV1AdminOauthClientsResponses, GetApiV1AdminPrivyIdentifiersAuditData, GetApiV1AdminPrivyIdentifiersAuditErrors, GetApiV1AdminPrivyIdentifiersAuditResponses, GetApiV1AdminUsersLookupData, GetApiV1AdminUsersLookupErrors, GetApiV1AdminUsersLookupResponses, GetApiV1AgentPreferencesData, GetApiV1AgentPreferencesErrors, GetApiV1AgentPreferencesResponses, GetApiV1AgentsByIdData, GetApiV1AgentsByIdErrors, GetApiV1AgentsByIdResponses, GetApiV1AgentsData, GetApiV1AgentsErrors, GetApiV1AgentsResponses, GetApiV1AuthMfaStatusData, GetApiV1AuthMfaStatusErrors, GetApiV1AuthMfaStatusResponses, GetApiV1BootstrapData, GetApiV1BootstrapErrors, GetApiV1BootstrapResponses, GetApiV1ChatStreamsByInferenceIdData, GetApiV1ChatStreamsByInferenceIdErrors, GetApiV1ChatStreamsByInferenceIdResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1ConnectorsByProviderScopesData, GetApiV1ConnectorsByProviderScopesErrors, GetApiV1ConnectorsByProviderScopesResponses, GetApiV1ConnectorsByProviderToolsData, GetApiV1ConnectorsByProviderToolsErrors, GetApiV1ConnectorsByProviderToolsResponses, GetApiV1ConnectorsData, GetApiV1ConnectorsErrors, GetApiV1ConnectorsResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1CuratedModelsData, GetApiV1CuratedModelsResponses, GetApiV1DeveloperAppsByAppUuidApiKeysData, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidData, GetApiV1DeveloperAppsByAppUuidErrors, GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidUsageData, GetApiV1DeveloperAppsByAppUuidUsageErrors, GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersData, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressData, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersData, GetApiV1DeveloperAppsByAppUuidUsersErrors, GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsData, GetApiV1DeveloperAppsErrors, GetApiV1DeveloperAppsResponses, GetApiV1DeveloperBillingData, GetApiV1DeveloperBillingErrors, GetApiV1DeveloperBillingResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1GuestBootstrapData, GetApiV1GuestBootstrapErrors, GetApiV1GuestBootstrapResponses, GetApiV1MeData, GetApiV1MediaSharedBySlugData, GetApiV1MediaSharedBySlugErrors, GetApiV1MediaSharedBySlugResponses, GetApiV1MeErrors, GetApiV1MeResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1PersonasByIdData, GetApiV1PersonasByIdErrors, GetApiV1PersonasByIdResponses, GetApiV1PersonasData, GetApiV1PersonasErrors, GetApiV1PersonasResponses, GetApiV1PhoneCallsByCallIdData, GetApiV1PhoneCallsByCallIdErrors, GetApiV1PhoneCallsByCallIdResponses, GetApiV1SharesBySlugData, GetApiV1SharesBySlugErrors, GetApiV1SharesBySlugResponses, GetApiV1SharesData, GetApiV1SharesErrors, GetApiV1SharesResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetApiV1UsageByModalityData, GetApiV1UsageByModalityErrors, GetApiV1UsageByModalityResponses, GetApiV1UsageInferenceWeeklyData, GetApiV1UsageInferenceWeeklyResponses, GetApiV1UsageModelsData, GetApiV1UsageModelsErrors, GetApiV1UsageModelsResponses, GetApiV1UserAgentConsentsData, GetApiV1UserAgentConsentsErrors, GetApiV1UserAgentConsentsResponses, GetApiV1UserAgentGrantsData, GetApiV1UserAgentGrantsErrors, GetApiV1UserAgentGrantsResponses, GetApiV1UserApiKeysData, GetApiV1UserApiKeysErrors, GetApiV1UserApiKeysResponses, GetApiV1UserOauthGrantsData, GetApiV1UserOauthGrantsErrors, GetApiV1UserOauthGrantsResponses, GetApiV1WalletsBindingData, GetApiV1WalletsBindingErrors, GetApiV1WalletsBindingResponses, GetApiV1ZetaCreditRateData, GetApiV1ZetaCreditRateResponses, GetApiV1ZetaMarketData, GetApiV1ZetaMarketResponses, GetConnectorsByProviderCallbackData, GetConnectorsByProviderCallbackErrors, GetConnectorsByProviderConnectData, GetConnectorsByProviderConnectErrors, GetHealthData, GetHealthErrors, GetHealthResponses, GetInternalAccountsByDidByDidData, GetInternalAccountsByDidByDidErrors, GetInternalAccountsByDidByDidResponses, GetOauthAuthorizeData, GetOauthAuthorizeErrors, GetOauthConsentData, GetOauthConsentErrors, GetOauthConsentResponses, GetWellKnownJwksJsonData, GetWellKnownJwksJsonResponses, PatchApiV1AdminOauthClientsByClientIdData, PatchApiV1AdminOauthClientsByClientIdErrors, PatchApiV1AdminOauthClientsByClientIdResponses, PatchApiV1DeveloperAppsByAppUuidData, PatchApiV1DeveloperAppsByAppUuidErrors, PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PatchApiV1UserOauthGrantsByIdData, PatchApiV1UserOauthGrantsByIdErrors, PatchApiV1UserOauthGrantsByIdResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAgentsData, PostApiV1AdminAgentsErrors, PostApiV1AdminAgentsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminBotPollerStartData, PostApiV1AdminBotPollerStartErrors, PostApiV1AdminBotPollerStartResponses, PostApiV1AdminBotPollerStopData, PostApiV1AdminBotPollerStopErrors, PostApiV1AdminBotPollerStopResponses, PostApiV1AdminNotificationsAnnounceModelData, PostApiV1AdminNotificationsAnnounceModelErrors, PostApiV1AdminNotificationsAnnounceModelResponses, PostApiV1AdminNotificationsSendData, PostApiV1AdminNotificationsSendErrors, PostApiV1AdminNotificationsSendResponses, PostApiV1AdminOauthClientsData, PostApiV1AdminOauthClientsErrors, PostApiV1AdminOauthClientsResponses, PostApiV1AdminPersonasData, PostApiV1AdminPersonasErrors, PostApiV1AdminPersonasResponses, PostApiV1AdminPrivyDevWipeData, PostApiV1AdminPrivyDevWipeErrors, PostApiV1AdminPrivyDevWipeResponses, PostApiV1AdminPrivyIdentifiersMigrateData, PostApiV1AdminPrivyIdentifiersMigrateErrors, PostApiV1AdminPrivyIdentifiersMigrateResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1AdminUsersSuspendData, PostApiV1AdminUsersSuspendErrors, PostApiV1AdminUsersSuspendResponses, PostApiV1AdminUsersUnsuspendData, PostApiV1AdminUsersUnsuspendErrors, PostApiV1AdminUsersUnsuspendResponses, PostApiV1AuthMfaDisableData, PostApiV1AuthMfaDisableErrors, PostApiV1AuthMfaDisableResponses, PostApiV1AuthMfaPasskeyEnrollBeginData, PostApiV1AuthMfaPasskeyEnrollBeginErrors, PostApiV1AuthMfaPasskeyEnrollBeginResponses, PostApiV1AuthMfaPasskeyEnrollFinishData, PostApiV1AuthMfaPasskeyEnrollFinishErrors, PostApiV1AuthMfaPasskeyEnrollFinishResponses, PostApiV1AuthMfaPasskeyVerifyBeginData, PostApiV1AuthMfaPasskeyVerifyBeginErrors, PostApiV1AuthMfaPasskeyVerifyBeginResponses, PostApiV1AuthMfaPasskeyVerifyFinishData, PostApiV1AuthMfaPasskeyVerifyFinishErrors, PostApiV1AuthMfaPasskeyVerifyFinishResponses, PostApiV1AuthMfaRecoveryCodesRegenerateData, PostApiV1AuthMfaRecoveryCodesRegenerateErrors, PostApiV1AuthMfaRecoveryCodesRegenerateResponses, PostApiV1AuthMfaTotpEnrollInitData, PostApiV1AuthMfaTotpEnrollInitErrors, PostApiV1AuthMfaTotpEnrollInitResponses, PostApiV1AuthMfaTotpEnrollVerifyData, PostApiV1AuthMfaTotpEnrollVerifyErrors, PostApiV1AuthMfaTotpEnrollVerifyResponses, PostApiV1AuthMfaVerifyData, PostApiV1AuthMfaVerifyErrors, PostApiV1AuthMfaVerifyResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1ChatStreamsByInferenceIdCancelData, PostApiV1ChatStreamsByInferenceIdCancelErrors, PostApiV1ChatStreamsByInferenceIdCancelResponses, PostApiV1ConnectorsByProviderDisconnectData, PostApiV1ConnectorsByProviderDisconnectErrors, PostApiV1ConnectorsByProviderDisconnectResponses, PostApiV1ConnectorsByProviderProxyData, PostApiV1ConnectorsByProviderProxyErrors, PostApiV1ConnectorsByProviderProxyResponses, PostApiV1ConnectorsImportData, PostApiV1ConnectorsImportErrors, PostApiV1ConnectorsImportResponses, PostApiV1ConnectorTokensByProviderData, PostApiV1ConnectorTokensByProviderErrors, PostApiV1ConnectorTokensByProviderResponses, PostApiV1ConnectTicketsData, PostApiV1ConnectTicketsErrors, PostApiV1ConnectTicketsResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsRedeemTokensData, PostApiV1CreditsRedeemTokensErrors, PostApiV1CreditsRedeemTokensResponses, PostApiV1DeveloperAppsByAppUuidApiKeysData, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidFundData, PostApiV1DeveloperAppsByAppUuidFundErrors, PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidPrivyData, PostApiV1DeveloperAppsByAppUuidPrivyErrors, PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsData, PostApiV1DeveloperAppsErrors, PostApiV1DeveloperAppsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1GuestChatCompletionsData, PostApiV1GuestChatCompletionsErrors, PostApiV1GuestChatCompletionsResponses, PostApiV1ModerateData, PostApiV1ModerateErrors, PostApiV1ModerateResponses, PostApiV1NotificationsDevicesData, PostApiV1NotificationsDevicesErrors, PostApiV1NotificationsDevicesResponses, PostApiV1NotificationsDevicesUnregisterData, PostApiV1NotificationsDevicesUnregisterErrors, PostApiV1NotificationsDevicesUnregisterResponses, PostApiV1PhoneCallsData, PostApiV1PhoneCallsErrors, PostApiV1PhoneCallsResponses, PostApiV1PreprocessorsCryptoPricesData, PostApiV1PreprocessorsCryptoPricesErrors, PostApiV1PreprocessorsCryptoPricesResponses, PostApiV1PreprocessorsSearchData, PostApiV1PreprocessorsSearchErrors, PostApiV1PreprocessorsSearchResponses, PostApiV1PreprocessorsStockPricesData, PostApiV1PreprocessorsStockPricesErrors, PostApiV1PreprocessorsStockPricesResponses, PostApiV1PreprocessorsWeatherData, PostApiV1PreprocessorsWeatherErrors, PostApiV1PreprocessorsWeatherResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SharesBySlugReportData, PostApiV1SharesBySlugReportResponses, PostApiV1SharesData, PostApiV1SharesErrors, PostApiV1SharesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelScheduledDowngradeData, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsScheduleDowngradeData, PostApiV1SubscriptionsScheduleDowngradeErrors, PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsUpgradeData, PostApiV1SubscriptionsUpgradeErrors, PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostApiV1UserAgentConsentsData, PostApiV1UserAgentConsentsErrors, PostApiV1UserAgentConsentsResponses, PostApiV1UserApiKeysData, PostApiV1UserApiKeysErrors, PostApiV1UserApiKeysResponses, PostApiV1WalletsBindingData, PostApiV1WalletsBindingErrors, PostApiV1WalletsBindingNonceData, PostApiV1WalletsBindingNonceErrors, PostApiV1WalletsBindingNonceResponses, PostApiV1WalletsBindingResponses, PostApiV1WebhooksRevenuecatData, PostApiV1WebhooksRevenuecatErrors, PostApiV1WebhooksRevenuecatResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PostOauthConsentData, PostOauthConsentErrors, PostOauthConsentResponses, PostOauthRevokeData, PostOauthRevokeErrors, PostOauthRevokeResponses, PostOauthTokenData, PostOauthTokenErrors, PostOauthTokenResponses, PutApiV1AdminAgentsByIdData, PutApiV1AdminAgentsByIdErrors, PutApiV1AdminAgentsByIdResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses, PutApiV1AdminBotConfigData, PutApiV1AdminBotConfigErrors, PutApiV1AdminBotConfigResponses, PutApiV1AdminConnectorsByProviderData, PutApiV1AdminConnectorsByProviderErrors, PutApiV1AdminConnectorsByProviderResponses, PutApiV1AdminPersonasByIdData, PutApiV1AdminPersonasByIdErrors, PutApiV1AdminPersonasByIdResponses, PutApiV1AgentsByIdPreferenceData, PutApiV1AgentsByIdPreferenceErrors, PutApiV1AgentsByIdPreferenceResponses, PutApiV1ConnectorsByProviderScopesData, PutApiV1ConnectorsByProviderScopesErrors, PutApiV1ConnectorsByProviderScopesResponses, PutApiV1ConnectorsByProviderToolsData, PutApiV1ConnectorsByProviderToolsErrors, PutApiV1ConnectorsByProviderToolsResponses } from './types.gen';
 
-export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
+export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
      * You can provide a client instance returned by `createClient()` instead of
      * individual options. This might be also useful if you want to implement a
@@ -23,1454 +23,1055 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  *
  * Returns the portal's OAuth signing public keys for verifying portal-issued access tokens.
  */
-export const getWellKnownJwksJson = <ThrowOnError extends boolean = false>(options?: Options<GetWellKnownJwksJsonData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetWellKnownJwksJsonResponses, unknown, ThrowOnError>({
-        url: '/.well-known/jwks.json',
-        ...options
-    });
-};
+export const getWellKnownJwksJson = <ThrowOnError extends boolean = false>(options?: Options<GetWellKnownJwksJsonData, ThrowOnError>) => (options?.client ?? client).get<GetWellKnownJwksJsonResponses, unknown, ThrowOnError>({ url: '/.well-known/jwks.json', ...options });
 
 /**
  * Delete the authenticated user's account
  *
  * Permanently deletes the user's account and all associated data. Cancels any active Stripe subscription.
  */
-export const deleteApiV1Account = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiV1AccountData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeleteApiV1AccountResponses, DeleteApiV1AccountErrors, ThrowOnError>({
-        url: '/api/v1/account',
-        ...options
-    });
-};
+export const deleteApiV1Account = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiV1AccountData, ThrowOnError>) => (options?.client ?? client).delete<DeleteApiV1AccountResponses, DeleteApiV1AccountErrors, ThrowOnError>({ url: '/api/v1/account', ...options });
 
 /**
  * Add credits to user
  *
  * Adds credits to a user's account.
  */
-export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAddCreditsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminAddCreditsResponses, PostApiV1AdminAddCreditsErrors, ThrowOnError>({
-        url: '/api/v1/admin/add-credits',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAddCreditsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminAddCreditsResponses, PostApiV1AdminAddCreditsErrors, ThrowOnError>({
+    url: '/api/v1/admin/add-credits',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Create agent
  *
  * Creates a new agent. Requires admin API key.
  */
-export const postApiV1AdminAgents = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAgentsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminAgentsResponses, PostApiV1AdminAgentsErrors, ThrowOnError>({
-        url: '/api/v1/admin/agents',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminAgents = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAgentsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminAgentsResponses, PostApiV1AdminAgentsErrors, ThrowOnError>({
+    url: '/api/v1/admin/agents',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete agent
  *
  * Deletes an agent by ID. Requires admin API key.
  */
-export const deleteApiV1AdminAgentsById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAgentsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminAgentsByIdResponses, DeleteApiV1AdminAgentsByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/agents/{id}',
-        ...options
-    });
-};
+export const deleteApiV1AdminAgentsById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAgentsByIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminAgentsByIdResponses, DeleteApiV1AdminAgentsByIdErrors, ThrowOnError>({ url: '/api/v1/admin/agents/{id}', ...options });
 
 /**
  * Update agent
  *
  * Updates an existing agent. Requires admin API key. Only provided fields are updated.
  */
-export const putApiV1AdminAgentsById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAgentsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1AdminAgentsByIdResponses, PutApiV1AdminAgentsByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/agents/{id}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1AdminAgentsById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAgentsByIdData, ThrowOnError>) => (options.client ?? client).put<PutApiV1AdminAgentsByIdResponses, PutApiV1AdminAgentsByIdErrors, ThrowOnError>({
+    url: '/api/v1/admin/agents/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List all apps
  *
  * Returns all registered apps with pagination. Requires admin API key.
  */
-export const getApiV1AdminApps = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminAppsResponses, GetApiV1AdminAppsErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps',
-        ...options
-    });
-};
+export const getApiV1AdminApps = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminAppsResponses, GetApiV1AdminAppsErrors, ThrowOnError>({ url: '/api/v1/admin/apps', ...options });
 
 /**
  * Create app
  *
  * Creates a new app. Requires admin API key.
  */
-export const postApiV1AdminApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAppsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminAppsResponses, PostApiV1AdminAppsErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAppsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminAppsResponses, PostApiV1AdminAppsErrors, ThrowOnError>({
+    url: '/api/v1/admin/apps',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List API keys for an app
  *
  * Returns API keys for the specified app with pagination. Requires admin API key.
  */
-export const getApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByAppIdApiKeysErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{app_id}/api-keys',
-        ...options
-    });
-};
+export const getApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByAppIdApiKeysErrors, ThrowOnError>({ url: '/api/v1/admin/apps/{app_id}/api-keys', ...options });
 
 /**
  * Create API key
  *
  * Creates a new API key for an app. Requires admin API key.
  */
-export const postApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAppsByAppIdApiKeysData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsByAppIdApiKeysErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{app_id}/api-keys',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAppsByAppIdApiKeysData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsByAppIdApiKeysErrors, ThrowOnError>({
+    url: '/api/v1/admin/apps/{app_id}/api-keys',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete API key
  *
  * Deletes an API key by ID. Requires admin API key.
  */
-export const deleteApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{app_id}/api-keys/{id}',
-        ...options
-    });
-};
+export const deleteApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({ url: '/api/v1/admin/apps/{app_id}/api-keys/{id}', ...options });
 
 /**
  * Get API key by ID
  *
  * Returns a single API key by its ID with wallet balance details. Requires admin API key.
  */
-export const getApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{app_id}/api-keys/{id}',
-        ...options
-    });
-};
+export const getApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({ url: '/api/v1/admin/apps/{app_id}/api-keys/{id}', ...options });
 
 /**
  * Update API key
  *
  * Updates an existing API key. Only provided fields are updated. Requires admin API key.
  */
-export const putApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{app_id}/api-keys/{id}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => (options.client ?? client).put<PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
+    url: '/api/v1/admin/apps/{app_id}/api-keys/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete app
  *
  * Deletes an app by ID. Requires admin API key.
  */
-export const deleteApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAppsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminAppsByIdResponses, DeleteApiV1AdminAppsByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{id}',
-        ...options
-    });
-};
+export const deleteApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAppsByIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminAppsByIdResponses, DeleteApiV1AdminAppsByIdErrors, ThrowOnError>({ url: '/api/v1/admin/apps/{id}', ...options });
 
 /**
  * Get app by ID
  *
  * Returns a single app by its ID. Requires admin API key.
  */
-export const getApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{id}',
-        ...options
-    });
-};
+export const getApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByIdErrors, ThrowOnError>({ url: '/api/v1/admin/apps/{id}', ...options });
 
 /**
  * Update app
  *
  * Updates an existing app. Only provided fields are updated. Requires admin API key.
  */
-export const putApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAppsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1AdminAppsByIdResponses, PutApiV1AdminAppsByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/apps/{id}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAppsByIdData, ThrowOnError>) => (options.client ?? client).put<PutApiV1AdminAppsByIdResponses, PutApiV1AdminAppsByIdErrors, ThrowOnError>({
+    url: '/api/v1/admin/apps/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Update X-bot config (admin)
  *
  * Proxies a partial BotConfig patch to the bot worker, which merges it. Requires admin API key.
  */
-export const putApiV1AdminBotConfig = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminBotConfigData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1AdminBotConfigResponses, PutApiV1AdminBotConfigErrors, ThrowOnError>({
-        url: '/api/v1/admin/bot/config',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1AdminBotConfig = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminBotConfigData, ThrowOnError>) => (options.client ?? client).put<PutApiV1AdminBotConfigResponses, PutApiV1AdminBotConfigErrors, ThrowOnError>({
+    url: '/api/v1/admin/bot/config',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Start the X-bot poller (admin)
  *
  * Proxies a poller-start request to the bot worker. Requires admin API key.
  */
-export const postApiV1AdminBotPollerStart = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminBotPollerStartData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminBotPollerStartResponses, PostApiV1AdminBotPollerStartErrors, ThrowOnError>({
-        url: '/api/v1/admin/bot/poller/start',
-        ...options
-    });
-};
+export const postApiV1AdminBotPollerStart = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminBotPollerStartData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminBotPollerStartResponses, PostApiV1AdminBotPollerStartErrors, ThrowOnError>({ url: '/api/v1/admin/bot/poller/start', ...options });
 
 /**
  * Stop the X-bot poller (admin)
  *
  * Proxies a poller-stop request to the bot worker. Requires admin API key.
  */
-export const postApiV1AdminBotPollerStop = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminBotPollerStopData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminBotPollerStopResponses, PostApiV1AdminBotPollerStopErrors, ThrowOnError>({
-        url: '/api/v1/admin/bot/poller/stop',
-        ...options
-    });
-};
+export const postApiV1AdminBotPollerStop = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminBotPollerStopData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminBotPollerStopResponses, PostApiV1AdminBotPollerStopErrors, ThrowOnError>({ url: '/api/v1/admin/bot/poller/stop', ...options });
 
 /**
  * Get X-bot status (admin)
  *
  * Proxies to the bot worker for current config, poller state, and today's spend. Requires admin API key.
  */
-export const getApiV1AdminBotStatus = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminBotStatusData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminBotStatusResponses, GetApiV1AdminBotStatusErrors, ThrowOnError>({
-        url: '/api/v1/admin/bot/status',
-        ...options
-    });
-};
+export const getApiV1AdminBotStatus = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminBotStatusData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminBotStatusResponses, GetApiV1AdminBotStatusErrors, ThrowOnError>({ url: '/api/v1/admin/bot/status', ...options });
 
 /**
  * List connector enable/disable state (admin)
  *
  * Returns the kill-switch state for every logical connector. Connectors with no stored setting default to enabled. Requires admin API key.
  */
-export const getApiV1AdminConnectors = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminConnectorsData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminConnectorsResponses, GetApiV1AdminConnectorsErrors, ThrowOnError>({
-        url: '/api/v1/admin/connectors',
-        ...options
-    });
-};
+export const getApiV1AdminConnectors = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminConnectorsData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminConnectorsResponses, GetApiV1AdminConnectorsErrors, ThrowOnError>({ url: '/api/v1/admin/connectors', ...options });
 
 /**
  * Enable or disable a connector (admin)
  *
  * Sets the kill-switch state for one logical connector. Disabling blocks new connects and stops the vault from minting new tokens; already-issued ~5min tokens expire on their own and the upstream refresh token is untouched, so re-enabling needs no reconnect. Requires admin API key.
  */
-export const putApiV1AdminConnectorsByProvider = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminConnectorsByProviderData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1AdminConnectorsByProviderResponses, PutApiV1AdminConnectorsByProviderErrors, ThrowOnError>({
-        url: '/api/v1/admin/connectors/{provider}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1AdminConnectorsByProvider = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminConnectorsByProviderData, ThrowOnError>) => (options.client ?? client).put<PutApiV1AdminConnectorsByProviderResponses, PutApiV1AdminConnectorsByProviderErrors, ThrowOnError>({
+    url: '/api/v1/admin/connectors/{provider}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Announce a new model via push notification (admin)
  *
  * Broadcasts an Expo push to every registered device announcing a curated model. Title and body default from the catalog entry; the tap deep-links to the in-app models screen. Idempotent per model_id — repeat calls return 409 unless force=true is set, which also re-announces after a partial delivery.
  */
-export const postApiV1AdminNotificationsAnnounceModel = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminNotificationsAnnounceModelData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminNotificationsAnnounceModelResponses, PostApiV1AdminNotificationsAnnounceModelErrors, ThrowOnError>({
-        url: '/api/v1/admin/notifications/announce-model',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminNotificationsAnnounceModel = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminNotificationsAnnounceModelData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminNotificationsAnnounceModelResponses, PostApiV1AdminNotificationsAnnounceModelErrors, ThrowOnError>({
+    url: '/api/v1/admin/notifications/announce-model',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Send test push notification (admin)
  *
  * Sends an Expo push to every device registered under the resolved account. Exactly one of account_id or user_address must be provided. Returns the per-device delivery breakdown including any rows pruned because Expo reported DeviceNotRegistered.
  */
-export const postApiV1AdminNotificationsSend = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminNotificationsSendData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminNotificationsSendResponses, PostApiV1AdminNotificationsSendErrors, ThrowOnError>({
-        url: '/api/v1/admin/notifications/send',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminNotificationsSend = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminNotificationsSendData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminNotificationsSendResponses, PostApiV1AdminNotificationsSendErrors, ThrowOnError>({
+    url: '/api/v1/admin/notifications/send',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List OAuth clients
  *
  * Returns OAuth clients with pagination. Requires admin API key.
  */
-export const getApiV1AdminOauthClients = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminOauthClientsData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminOauthClientsResponses, unknown, ThrowOnError>({
-        url: '/api/v1/admin/oauth/clients',
-        ...options
-    });
-};
+export const getApiV1AdminOauthClients = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminOauthClientsData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminOauthClientsResponses, unknown, ThrowOnError>({ url: '/api/v1/admin/oauth/clients', ...options });
 
 /**
  * Create an OAuth client (agent registration)
  *
  * Registers a new OAuth 2.0 client. Public clients (default) authenticate via PKCE and have no secret. Confidential clients receive a plaintext secret in the response (returned exactly once).
  */
-export const postApiV1AdminOauthClients = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminOauthClientsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminOauthClientsResponses, PostApiV1AdminOauthClientsErrors, ThrowOnError>({
-        url: '/api/v1/admin/oauth/clients',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminOauthClients = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminOauthClientsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminOauthClientsResponses, PostApiV1AdminOauthClientsErrors, ThrowOnError>({
+    url: '/api/v1/admin/oauth/clients',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Revoke an OAuth client (soft delete)
  */
-export const deleteApiV1AdminOauthClientsByClientId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminOauthClientsByClientIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminOauthClientsByClientIdResponses, DeleteApiV1AdminOauthClientsByClientIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/oauth/clients/{client_id}',
-        ...options
-    });
-};
+export const deleteApiV1AdminOauthClientsByClientId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminOauthClientsByClientIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminOauthClientsByClientIdResponses, DeleteApiV1AdminOauthClientsByClientIdErrors, ThrowOnError>({ url: '/api/v1/admin/oauth/clients/{client_id}', ...options });
 
 /**
  * Get an OAuth client
  */
-export const getApiV1AdminOauthClientsByClientId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminOauthClientsByClientIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminOauthClientsByClientIdResponses, GetApiV1AdminOauthClientsByClientIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/oauth/clients/{client_id}',
-        ...options
-    });
-};
+export const getApiV1AdminOauthClientsByClientId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminOauthClientsByClientIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminOauthClientsByClientIdResponses, GetApiV1AdminOauthClientsByClientIdErrors, ThrowOnError>({ url: '/api/v1/admin/oauth/clients/{client_id}', ...options });
 
 /**
  * Update an OAuth client
  */
-export const patchApiV1AdminOauthClientsByClientId = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1AdminOauthClientsByClientIdData, ThrowOnError>) => {
-    return (options.client ?? client).patch<PatchApiV1AdminOauthClientsByClientIdResponses, PatchApiV1AdminOauthClientsByClientIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/oauth/clients/{client_id}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const patchApiV1AdminOauthClientsByClientId = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1AdminOauthClientsByClientIdData, ThrowOnError>) => (options.client ?? client).patch<PatchApiV1AdminOauthClientsByClientIdResponses, PatchApiV1AdminOauthClientsByClientIdErrors, ThrowOnError>({
+    url: '/api/v1/admin/oauth/clients/{client_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Create persona
  *
  * Creates a new persona. Requires admin API key.
  */
-export const postApiV1AdminPersonas = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminPersonasData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminPersonasResponses, PostApiV1AdminPersonasErrors, ThrowOnError>({
-        url: '/api/v1/admin/personas',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminPersonas = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminPersonasData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminPersonasResponses, PostApiV1AdminPersonasErrors, ThrowOnError>({
+    url: '/api/v1/admin/personas',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete persona
  *
  * Deletes a persona by its ID. Requires admin API key.
  */
-export const deleteApiV1AdminPersonasById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminPersonasByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminPersonasByIdResponses, DeleteApiV1AdminPersonasByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/personas/{id}',
-        ...options
-    });
-};
+export const deleteApiV1AdminPersonasById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminPersonasByIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminPersonasByIdResponses, DeleteApiV1AdminPersonasByIdErrors, ThrowOnError>({ url: '/api/v1/admin/personas/{id}', ...options });
 
 /**
  * Update persona
  *
  * Updates an existing persona. Requires admin API key.
  */
-export const putApiV1AdminPersonasById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminPersonasByIdData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1AdminPersonasByIdResponses, PutApiV1AdminPersonasByIdErrors, ThrowOnError>({
-        url: '/api/v1/admin/personas/{id}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1AdminPersonasById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminPersonasByIdData, ThrowOnError>) => (options.client ?? client).put<PutApiV1AdminPersonasByIdResponses, PutApiV1AdminPersonasByIdErrors, ThrowOnError>({
+    url: '/api/v1/admin/personas/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Bulk-delete test users from the Privy dev app
  *
  * Lists Privy users, drops anyone in the in-code KEEP set, sorts by created_at ascending, and deletes the oldest N (default 50, max 200). For each matched portal account also runs the cascading DB delete + Stripe cancellation. Requires admin API key. Refuses to run from any deployment whose PORTAL_ENVIRONMENT is not "dev".
  */
-export const postApiV1AdminPrivyDevWipe = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminPrivyDevWipeData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminPrivyDevWipeResponses, PostApiV1AdminPrivyDevWipeErrors, ThrowOnError>({
-        url: '/api/v1/admin/privy-dev/wipe',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminPrivyDevWipe = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminPrivyDevWipeData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminPrivyDevWipeResponses, PostApiV1AdminPrivyDevWipeErrors, ThrowOnError>({
+    url: '/api/v1/admin/privy-dev/wipe',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Audit Privy wallet identifiers
  *
  * Lists accounts whose stored wallet identifier differs from the embedded wallet the Privy admin API returns for the same user. Read-only — no changes are written.
  */
-export const getApiV1AdminPrivyIdentifiersAudit = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminPrivyIdentifiersAuditData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminPrivyIdentifiersAuditResponses, GetApiV1AdminPrivyIdentifiersAuditErrors, ThrowOnError>({
-        url: '/api/v1/admin/privy-identifiers/audit',
-        ...options
-    });
-};
+export const getApiV1AdminPrivyIdentifiersAudit = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminPrivyIdentifiersAuditData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminPrivyIdentifiersAuditResponses, GetApiV1AdminPrivyIdentifiersAuditErrors, ThrowOnError>({ url: '/api/v1/admin/privy-identifiers/audit', ...options });
 
 /**
  * Migrate Privy wallet identifiers
  *
  * Rewrites each account's stored wallet identifier to the embedded wallet returned by the Privy admin API. Idempotent — accounts already pointing at the embedded wallet are skipped.
  */
-export const postApiV1AdminPrivyIdentifiersMigrate = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminPrivyIdentifiersMigrateData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminPrivyIdentifiersMigrateResponses, PostApiV1AdminPrivyIdentifiersMigrateErrors, ThrowOnError>({
-        url: '/api/v1/admin/privy-identifiers/migrate',
-        ...options
-    });
-};
+export const postApiV1AdminPrivyIdentifiersMigrate = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminPrivyIdentifiersMigrateData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminPrivyIdentifiersMigrateResponses, PostApiV1AdminPrivyIdentifiersMigrateErrors, ThrowOnError>({ url: '/api/v1/admin/privy-identifiers/migrate', ...options });
 
 /**
  * Seed apps and API keys
  *
  * Seeds apps and their API keys into the database. Uses upsert - existing apps are updated. Requires admin API key.
  */
-export const postApiV1AdminSeedApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSeedAppsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminSeedAppsResponses, PostApiV1AdminSeedAppsErrors, ThrowOnError>({
-        url: '/api/v1/admin/seed-apps',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminSeedApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSeedAppsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminSeedAppsResponses, PostApiV1AdminSeedAppsErrors, ThrowOnError>({
+    url: '/api/v1/admin/seed-apps',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Take down a shared artifact (admin)
  */
-export const deleteApiV1AdminSharesBySlug = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminSharesBySlugData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminSharesBySlugResponses, DeleteApiV1AdminSharesBySlugErrors, ThrowOnError>({
-        url: '/api/v1/admin/shares/{slug}',
-        ...options
-    });
-};
+export const deleteApiV1AdminSharesBySlug = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminSharesBySlugData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminSharesBySlugResponses, DeleteApiV1AdminSharesBySlugErrors, ThrowOnError>({ url: '/api/v1/admin/shares/{slug}', ...options });
 
 /**
  * Set user subscription tier
  *
  * Sets a user's subscription tier (basic, starter, or pro). Requires admin API key.
  */
-export const postApiV1AdminSubscriptionTier = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSubscriptionTierData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminSubscriptionTierResponses, PostApiV1AdminSubscriptionTierErrors, ThrowOnError>({
-        url: '/api/v1/admin/subscription-tier',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminSubscriptionTier = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSubscriptionTierData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminSubscriptionTierResponses, PostApiV1AdminSubscriptionTierErrors, ThrowOnError>({
+    url: '/api/v1/admin/subscription-tier',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Reset text registrations
  *
  * Deactivates all active text registrations for a given wallet address.
  */
-export const deleteApiV1AdminTextReset = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminTextResetData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminTextResetResponses, DeleteApiV1AdminTextResetErrors, ThrowOnError>({
-        url: '/api/v1/admin/text/reset',
-        ...options
-    });
-};
+export const deleteApiV1AdminTextReset = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminTextResetData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminTextResetResponses, DeleteApiV1AdminTextResetErrors, ThrowOnError>({ url: '/api/v1/admin/text/reset', ...options });
 
 /**
  * Delete user account (admin)
  *
  * Permanently deletes a user's data for a support or compliance request. Deletes the portal account and all associated cascading data (enrollments, requests, credit claims, etc.), best-effort cancels any Stripe subscription, AND deletes the Privy user. Accepts wallet_address, phone, telegram, or email (exactly one required). Works even when there is no portal account (Privy-only user) — in that case only the Privy user is deleted. Returns portal_account_deleted / privy_user_deleted flags indicating what was removed, and stripe_cleanup_succeeded=false when the account was deleted but the Stripe customer cleanup failed (operator must clean up Stripe manually). Returns 502 if the Privy user deletion fails.
  */
-export const deleteApiV1AdminUsersDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminUsersDeleteData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AdminUsersDeleteResponses, DeleteApiV1AdminUsersDeleteErrors, ThrowOnError>({
-        url: '/api/v1/admin/users/delete',
-        ...options
-    });
-};
+export const deleteApiV1AdminUsersDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminUsersDeleteData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AdminUsersDeleteResponses, DeleteApiV1AdminUsersDeleteErrors, ThrowOnError>({ url: '/api/v1/admin/users/delete', ...options });
 
 /**
  * Lookup user by identifier
  *
  * Retrieves account details, all app enrollments with balances, and text registrations. Accepts wallet_address, phone, telegram, or email (exactly one required). When the identifier resolves to a Privy user that has no portal account (e.g. a Privy signup that never onboarded), returns 200 with account=null, portal_account_exists=false, and a privy block describing the Privy identity, instead of 404 — so an operator can still see (and delete) the Privy user.
  */
-export const getApiV1AdminUsersLookup = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminUsersLookupData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AdminUsersLookupResponses, GetApiV1AdminUsersLookupErrors, ThrowOnError>({
-        url: '/api/v1/admin/users/lookup',
-        ...options
-    });
-};
+export const getApiV1AdminUsersLookup = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminUsersLookupData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AdminUsersLookupResponses, GetApiV1AdminUsersLookupErrors, ThrowOnError>({ url: '/api/v1/admin/users/lookup', ...options });
 
 /**
  * Suspend a user account
  *
  * Suspends (bans) a user account by setting its fraud flag to "suspended" and deactivating all of the user's API keys so programmatic access stops immediately. Requires admin API key.
  */
-export const postApiV1AdminUsersSuspend = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminUsersSuspendData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminUsersSuspendResponses, PostApiV1AdminUsersSuspendErrors, ThrowOnError>({
-        url: '/api/v1/admin/users/suspend',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminUsersSuspend = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminUsersSuspendData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminUsersSuspendResponses, PostApiV1AdminUsersSuspendErrors, ThrowOnError>({
+    url: '/api/v1/admin/users/suspend',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Unsuspend a user account
  *
  * Lifts a suspension on a user account by resetting its fraud flag to "none". API keys deactivated during suspension are NOT automatically reactivated. Requires admin API key.
  */
-export const postApiV1AdminUsersUnsuspend = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminUsersUnsuspendData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AdminUsersUnsuspendResponses, PostApiV1AdminUsersUnsuspendErrors, ThrowOnError>({
-        url: '/api/v1/admin/users/unsuspend',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AdminUsersUnsuspend = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminUsersUnsuspendData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AdminUsersUnsuspendResponses, PostApiV1AdminUsersUnsuspendErrors, ThrowOnError>({
+    url: '/api/v1/admin/users/unsuspend',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List user agent preferences
  *
  * Returns all model preferences the user has set for agents
  */
-export const getApiV1AgentPreferences = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1AgentPreferencesData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1AgentPreferencesResponses, GetApiV1AgentPreferencesErrors, ThrowOnError>({
-        url: '/api/v1/agent-preferences',
-        ...options
-    });
-};
+export const getApiV1AgentPreferences = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1AgentPreferencesData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1AgentPreferencesResponses, GetApiV1AgentPreferencesErrors, ThrowOnError>({ url: '/api/v1/agent-preferences', ...options });
 
 /**
  * List agents
  *
  * Returns all active agents available in the system
  */
-export const getApiV1Agents = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1AgentsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1AgentsResponses, GetApiV1AgentsErrors, ThrowOnError>({
-        url: '/api/v1/agents',
-        ...options
-    });
-};
+export const getApiV1Agents = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1AgentsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1AgentsResponses, GetApiV1AgentsErrors, ThrowOnError>({ url: '/api/v1/agents', ...options });
 
 /**
  * Get agent
  *
  * Returns a specific agent by its ID
  */
-export const getApiV1AgentsById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgentsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1AgentsByIdResponses, GetApiV1AgentsByIdErrors, ThrowOnError>({
-        url: '/api/v1/agents/{id}',
-        ...options
-    });
-};
+export const getApiV1AgentsById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgentsByIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1AgentsByIdResponses, GetApiV1AgentsByIdErrors, ThrowOnError>({ url: '/api/v1/agents/{id}', ...options });
 
 /**
  * Set user agent preference
  *
  * Sets or updates the user's preferred model for a specific agent
  */
-export const putApiV1AgentsByIdPreference = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AgentsByIdPreferenceData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1AgentsByIdPreferenceResponses, PutApiV1AgentsByIdPreferenceErrors, ThrowOnError>({
-        url: '/api/v1/agents/{id}/preference',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1AgentsByIdPreference = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AgentsByIdPreferenceData, ThrowOnError>) => (options.client ?? client).put<PutApiV1AgentsByIdPreferenceResponses, PutApiV1AgentsByIdPreferenceErrors, ThrowOnError>({
+    url: '/api/v1/agents/{id}/preference',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Disable MFA
  */
-export const postApiV1AuthMfaDisable = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaDisableData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AuthMfaDisableResponses, PostApiV1AuthMfaDisableErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/disable',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AuthMfaDisable = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaDisableData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AuthMfaDisableResponses, PostApiV1AuthMfaDisableErrors, ThrowOnError>({
+    url: '/api/v1/auth/mfa/disable',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete a passkey
  */
-export const deleteApiV1AuthMfaPasskeyCredentialsByCredentialId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/passkey/credentials/{credential_id}',
-        ...options
-    });
-};
+export const deleteApiV1AuthMfaPasskeyCredentialsByCredentialId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors, ThrowOnError>({ url: '/api/v1/auth/mfa/passkey/credentials/{credential_id}', ...options });
 
 /**
  * Begin passkey enrollment
  */
-export const postApiV1AuthMfaPasskeyEnrollBegin = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaPasskeyEnrollBeginData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1AuthMfaPasskeyEnrollBeginResponses, PostApiV1AuthMfaPasskeyEnrollBeginErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/passkey/enroll/begin',
-        ...options
-    });
-};
+export const postApiV1AuthMfaPasskeyEnrollBegin = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaPasskeyEnrollBeginData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1AuthMfaPasskeyEnrollBeginResponses, PostApiV1AuthMfaPasskeyEnrollBeginErrors, ThrowOnError>({ url: '/api/v1/auth/mfa/passkey/enroll/begin', ...options });
 
 /**
  * Finish passkey enrollment
  */
-export const postApiV1AuthMfaPasskeyEnrollFinish = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaPasskeyEnrollFinishData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AuthMfaPasskeyEnrollFinishResponses, PostApiV1AuthMfaPasskeyEnrollFinishErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/passkey/enroll/finish',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AuthMfaPasskeyEnrollFinish = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaPasskeyEnrollFinishData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AuthMfaPasskeyEnrollFinishResponses, PostApiV1AuthMfaPasskeyEnrollFinishErrors, ThrowOnError>({
+    url: '/api/v1/auth/mfa/passkey/enroll/finish',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Begin passkey login verification
  */
-export const postApiV1AuthMfaPasskeyVerifyBegin = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaPasskeyVerifyBeginData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1AuthMfaPasskeyVerifyBeginResponses, PostApiV1AuthMfaPasskeyVerifyBeginErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/passkey/verify/begin',
-        ...options
-    });
-};
+export const postApiV1AuthMfaPasskeyVerifyBegin = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaPasskeyVerifyBeginData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1AuthMfaPasskeyVerifyBeginResponses, PostApiV1AuthMfaPasskeyVerifyBeginErrors, ThrowOnError>({ url: '/api/v1/auth/mfa/passkey/verify/begin', ...options });
 
 /**
  * Finish passkey login verification
  */
-export const postApiV1AuthMfaPasskeyVerifyFinish = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaPasskeyVerifyFinishData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AuthMfaPasskeyVerifyFinishResponses, PostApiV1AuthMfaPasskeyVerifyFinishErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/passkey/verify/finish',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AuthMfaPasskeyVerifyFinish = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaPasskeyVerifyFinishData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AuthMfaPasskeyVerifyFinishResponses, PostApiV1AuthMfaPasskeyVerifyFinishErrors, ThrowOnError>({
+    url: '/api/v1/auth/mfa/passkey/verify/finish',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Regenerate recovery codes
  */
-export const postApiV1AuthMfaRecoveryCodesRegenerate = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaRecoveryCodesRegenerateData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1AuthMfaRecoveryCodesRegenerateResponses, PostApiV1AuthMfaRecoveryCodesRegenerateErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/recovery-codes/regenerate',
-        ...options
-    });
-};
+export const postApiV1AuthMfaRecoveryCodesRegenerate = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaRecoveryCodesRegenerateData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1AuthMfaRecoveryCodesRegenerateResponses, PostApiV1AuthMfaRecoveryCodesRegenerateErrors, ThrowOnError>({ url: '/api/v1/auth/mfa/recovery-codes/regenerate', ...options });
 
 /**
  * MFA status
  *
  * Returns whether MFA is enabled and which factors are enrolled.
  */
-export const getApiV1AuthMfaStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1AuthMfaStatusData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1AuthMfaStatusResponses, GetApiV1AuthMfaStatusErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/status',
-        ...options
-    });
-};
+export const getApiV1AuthMfaStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1AuthMfaStatusData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1AuthMfaStatusResponses, GetApiV1AuthMfaStatusErrors, ThrowOnError>({ url: '/api/v1/auth/mfa/status', ...options });
 
 /**
  * Begin TOTP enrollment
  */
-export const postApiV1AuthMfaTotpEnrollInit = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaTotpEnrollInitData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1AuthMfaTotpEnrollInitResponses, PostApiV1AuthMfaTotpEnrollInitErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/totp/enroll/init',
-        ...options
-    });
-};
+export const postApiV1AuthMfaTotpEnrollInit = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1AuthMfaTotpEnrollInitData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1AuthMfaTotpEnrollInitResponses, PostApiV1AuthMfaTotpEnrollInitErrors, ThrowOnError>({ url: '/api/v1/auth/mfa/totp/enroll/init', ...options });
 
 /**
  * Verify TOTP enrollment
  */
-export const postApiV1AuthMfaTotpEnrollVerify = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaTotpEnrollVerifyData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AuthMfaTotpEnrollVerifyResponses, PostApiV1AuthMfaTotpEnrollVerifyErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/totp/enroll/verify',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AuthMfaTotpEnrollVerify = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaTotpEnrollVerifyData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AuthMfaTotpEnrollVerifyResponses, PostApiV1AuthMfaTotpEnrollVerifyErrors, ThrowOnError>({
+    url: '/api/v1/auth/mfa/totp/enroll/verify',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Verify MFA at login
  */
-export const postApiV1AuthMfaVerify = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaVerifyData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1AuthMfaVerifyResponses, PostApiV1AuthMfaVerifyErrors, ThrowOnError>({
-        url: '/api/v1/auth/mfa/verify',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1AuthMfaVerify = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AuthMfaVerifyData, ThrowOnError>) => (options.client ?? client).post<PostApiV1AuthMfaVerifyResponses, PostApiV1AuthMfaVerifyErrors, ThrowOnError>({
+    url: '/api/v1/auth/mfa/verify',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Bootstrap client session
  *
  * Returns the authenticated user identity, feature-flag assignments, server build metadata, and the connector availability catalog in a single call. Intended to be called once after auth resolves on the client.
  */
-export const getApiV1Bootstrap = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1BootstrapData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1BootstrapResponses, GetApiV1BootstrapErrors, ThrowOnError>({
-        url: '/api/v1/bootstrap',
-        ...options
-    });
-};
+export const getApiV1Bootstrap = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1BootstrapData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1BootstrapResponses, GetApiV1BootstrapErrors, ThrowOnError>({ url: '/api/v1/bootstrap', ...options });
 
 /**
  * Create chat completion
  *
  * Generates a chat completion using the configured gateway. Supports streaming when stream=true.
  */
-export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ChatCompletionsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ChatCompletionsResponses, PostApiV1ChatCompletionsErrors, ThrowOnError>({
-        url: '/api/v1/chat/completions',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ChatCompletionsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ChatCompletionsResponses, PostApiV1ChatCompletionsErrors, ThrowOnError>({
+    url: '/api/v1/chat/completions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Resume (replay + tail) a buffered chat stream
  *
  * Replays the buffered SSE prefix of an interrupted chat stream from the Redis buffer, byte-identical to the original wire, then live-tails it to its terminal state. The response is an SSE stream (text/event-stream) terminated by `data: [DONE]`. A non-completed terminal (tool calls awaited, deadline exceeded, generation error, or a cancel raced in during tail) is delivered as an in-stream error event (`code: stream_interrupted`) followed by `[DONE]`; raw tool-request frames are never replayed. Unknown, expired, cancelled, and not-owned ids all return 410 (no existence oracle), as does corruption detected before the stream starts (a completed terminal whose buffered frames were lost or head-truncated); the same corruption surfacing mid-tail arrives after headers commit and is delivered in-stream as `stream_interrupted` + `[DONE]`, so callers must handle both signals. Bearer auth; the caller must own the stream.
  */
-export const getApiV1ChatStreamsByInferenceId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ChatStreamsByInferenceIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1ChatStreamsByInferenceIdResponses, GetApiV1ChatStreamsByInferenceIdErrors, ThrowOnError>({
-        url: '/api/v1/chat/streams/{inference_id}',
-        ...options
-    });
-};
+export const getApiV1ChatStreamsByInferenceId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ChatStreamsByInferenceIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1ChatStreamsByInferenceIdResponses, GetApiV1ChatStreamsByInferenceIdErrors, ThrowOnError>({ url: '/api/v1/chat/streams/{inference_id}', ...options });
 
 /**
  * Cancel a buffered chat stream
  *
  * Cancels an in-flight or detached chat generation identified by its inference ID, from any pod. Writes the first-terminal-wins cancel tombstone, broadcasts a cross-pod cancel, and (on the generating pod) stops generation immediately. Idempotent: a stream already in a terminal state returns `{"status":"noop"}`, distinguishing an explicit cancel from a mere disconnect. Unknown, expired, or not-owned ids return 410 (no existence oracle). Bearer auth; the caller must own the stream. Credits are untouched — the generation goroutine settles partial usage through its existing path.
  */
-export const postApiV1ChatStreamsByInferenceIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ChatStreamsByInferenceIdCancelData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ChatStreamsByInferenceIdCancelResponses, PostApiV1ChatStreamsByInferenceIdCancelErrors, ThrowOnError>({
-        url: '/api/v1/chat/streams/{inference_id}/cancel',
-        ...options
-    });
-};
+export const postApiV1ChatStreamsByInferenceIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ChatStreamsByInferenceIdCancelData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ChatStreamsByInferenceIdCancelResponses, PostApiV1ChatStreamsByInferenceIdCancelErrors, ThrowOnError>({ url: '/api/v1/chat/streams/{inference_id}/cancel', ...options });
 
 /**
  * Get configuration
  *
  * Returns public configuration including registered apps
  */
-export const getApiV1Config = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConfigData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1ConfigResponses, GetApiV1ConfigErrors, ThrowOnError>({
-        url: '/api/v1/config',
-        ...options
-    });
-};
+export const getApiV1Config = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConfigData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1ConfigResponses, GetApiV1ConfigErrors, ThrowOnError>({ url: '/api/v1/config', ...options });
 
 /**
  * Mint a connect-flow ticket
  *
  * Issues a single-use, 10-minute ticket that fronts the upstream OAuth redirect for a connector vault provider. The browser uses the returned ticket_id as the entry point to /connectors/{provider}/connect.
  */
-export const postApiV1ConnectTickets = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectTicketsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ConnectTicketsResponses, PostApiV1ConnectTicketsErrors, ThrowOnError>({
-        url: '/api/v1/connect-tickets',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1ConnectTickets = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectTicketsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ConnectTicketsResponses, PostApiV1ConnectTicketsErrors, ThrowOnError>({
+    url: '/api/v1/connect-tickets',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Mint a short-lived upstream connector access token
  *
  * Returns a short-lived upstream access token for the (user, agent, provider) tuple, after enforcing per-agent scope authorization. The caller uses the returned token directly against the upstream provider's API. Errors carry a structured envelope: 412 connector_not_connected/scope_not_covered include a connect_url the caller can open to remediate.
  */
-export const postApiV1ConnectorTokensByProvider = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorTokensByProviderData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ConnectorTokensByProviderResponses, PostApiV1ConnectorTokensByProviderErrors, ThrowOnError>({
-        url: '/api/v1/connector-tokens/{provider}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1ConnectorTokensByProvider = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorTokensByProviderData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ConnectorTokensByProviderResponses, PostApiV1ConnectorTokensByProviderErrors, ThrowOnError>({
+    url: '/api/v1/connector-tokens/{provider}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List the user's connected connectors
  *
  * Returns the set of active connector credentials owned by the authenticated user plus denied_tools, a flat provider-independent list of the tool names the user has disabled (the SDK hides these client-side). The encrypted_refresh_token is never exposed; the response is safe to ship to the browser.
  */
-export const getApiV1Connectors = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConnectorsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1ConnectorsResponses, GetApiV1ConnectorsErrors, ThrowOnError>({
-        url: '/api/v1/connectors',
-        ...options
-    });
-};
+export const getApiV1Connectors = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConnectorsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1ConnectorsResponses, GetApiV1ConnectorsErrors, ThrowOnError>({ url: '/api/v1/connectors', ...options });
 
 /**
  * Import a browser-resident refresh token into the vault
  *
  * Silent-migration entry point for users with existing browser-resident OAuth tokens. The portal verifies the refresh token against the upstream provider (capturing any rotation) and persists it in connector_credentials only if no active row exists. Invalid tokens return 400 invalid_grant; the client should clear localStorage and prompt the user to reconnect.
  */
-export const postApiV1ConnectorsImport = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorsImportData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ConnectorsImportResponses, PostApiV1ConnectorsImportErrors, ThrowOnError>({
-        url: '/api/v1/connectors/import',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1ConnectorsImport = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorsImportData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ConnectorsImportResponses, PostApiV1ConnectorsImportErrors, ThrowOnError>({
+    url: '/api/v1/connectors/import',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Disconnect a connector
  *
  * Marks the local credential as user-revoked and purges the in-process token cache. For most providers it also revokes the upstream refresh token (best-effort); shared-consent providers (Google's gmail/gdrive/gcalendar share one consent screen) revoke locally only, since an upstream /revoke would cascade and disconnect the sibling connectors. Returns 200 even if any upstream revoke fails — the local revoke is the source of truth.
  */
-export const postApiV1ConnectorsByProviderDisconnect = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorsByProviderDisconnectData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ConnectorsByProviderDisconnectResponses, PostApiV1ConnectorsByProviderDisconnectErrors, ThrowOnError>({
-        url: '/api/v1/connectors/{provider}/disconnect',
-        ...options
-    });
-};
+export const postApiV1ConnectorsByProviderDisconnect = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorsByProviderDisconnectData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ConnectorsByProviderDisconnectResponses, PostApiV1ConnectorsByProviderDisconnectErrors, ThrowOnError>({ url: '/api/v1/connectors/{provider}/disconnect', ...options });
 
 /**
  * Proxy a connector API call
  *
  * Forwards a request to a connector's upstream API server-side, minting the user's connector token internally. Some upstreams (X, Slack) send no CORS headers, so the browser cannot call them directly. The provider comes from the path and must have a proxy policy; the request path is restricted to strict per-provider allowlists. A path on the read allowlist is forwarded as a GET (with `query` as the querystring) and minted with "read" access; a path on the provider's separate write allowlist is forwarded as a POST (with `body` as the JSON payload) and minted with "write" access. Most providers (X) are read-only — they list no write paths. The upstream status code and JSON body are returned verbatim. Mint failures carry the same structured envelope as the mint endpoint: 412 connector_not_connected/scope_not_covered/invalid_grant include a connect_url.
  */
-export const postApiV1ConnectorsByProviderProxy = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorsByProviderProxyData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ConnectorsByProviderProxyResponses, PostApiV1ConnectorsByProviderProxyErrors, ThrowOnError>({
-        url: '/api/v1/connectors/{provider}/proxy',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1ConnectorsByProviderProxy = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ConnectorsByProviderProxyData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ConnectorsByProviderProxyResponses, PostApiV1ConnectorsByProviderProxyErrors, ThrowOnError>({
+    url: '/api/v1/connectors/{provider}/proxy',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Capability catalog + Allow/Disable state for a connector
  *
  * Returns every capability (access level) the provider exposes with its upstream scopes, a server-owned label, whether the user's credential currently grants it, and the user's Allow/Disable policy (missing row → enabled). connected reflects an active credential row.
  */
-export const getApiV1ConnectorsByProviderScopes = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ConnectorsByProviderScopesData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1ConnectorsByProviderScopesResponses, GetApiV1ConnectorsByProviderScopesErrors, ThrowOnError>({
-        url: '/api/v1/connectors/{provider}/scopes',
-        ...options
-    });
-};
+export const getApiV1ConnectorsByProviderScopes = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ConnectorsByProviderScopesData, ThrowOnError>) => (options.client ?? client).get<GetApiV1ConnectorsByProviderScopesResponses, GetApiV1ConnectorsByProviderScopesErrors, ThrowOnError>({ url: '/api/v1/connectors/{provider}/scopes', ...options });
 
 /**
  * Batch Allow/Disable connector capabilities
  *
  * Upserts the user's per-capability Allow/Disable policy for one provider. Each access level is validated against the provider registry (400 unknown). On any disable, the (user, oauth_app) mint cache is purged so the change takes effect immediately rather than after the cache TTL. Returns the updated capability states.
  */
-export const putApiV1ConnectorsByProviderScopes = <ThrowOnError extends boolean = false>(options: Options<PutApiV1ConnectorsByProviderScopesData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1ConnectorsByProviderScopesResponses, PutApiV1ConnectorsByProviderScopesErrors, ThrowOnError>({
-        url: '/api/v1/connectors/{provider}/scopes',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1ConnectorsByProviderScopes = <ThrowOnError extends boolean = false>(options: Options<PutApiV1ConnectorsByProviderScopesData, ThrowOnError>) => (options.client ?? client).put<PutApiV1ConnectorsByProviderScopesResponses, PutApiV1ConnectorsByProviderScopesErrors, ThrowOnError>({
+    url: '/api/v1/connectors/{provider}/scopes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Denied tools for a connector
  *
  * Returns the tools the user has explicitly denied for one provider. Tools absent from the list are enabled (default-open). The provider is validated against the registry (400 unknown); tool names are opaque and never validated.
  */
-export const getApiV1ConnectorsByProviderTools = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ConnectorsByProviderToolsData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1ConnectorsByProviderToolsResponses, GetApiV1ConnectorsByProviderToolsErrors, ThrowOnError>({
-        url: '/api/v1/connectors/{provider}/tools',
-        ...options
-    });
-};
+export const getApiV1ConnectorsByProviderTools = <ThrowOnError extends boolean = false>(options: Options<GetApiV1ConnectorsByProviderToolsData, ThrowOnError>) => (options.client ?? client).get<GetApiV1ConnectorsByProviderToolsResponses, GetApiV1ConnectorsByProviderToolsErrors, ThrowOnError>({ url: '/api/v1/connectors/{provider}/tools', ...options });
 
 /**
  * Batch ALLOW/DENY connector tools
  *
  * Upserts the user's per-tool ALLOW/DENY policy for one provider. The provider is validated against the registry (400 unknown); tool names are opaque (not parsed) but must be 1-255 chars, and the batch is capped at 100 items. Returns the post-write denied set.
  */
-export const putApiV1ConnectorsByProviderTools = <ThrowOnError extends boolean = false>(options: Options<PutApiV1ConnectorsByProviderToolsData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutApiV1ConnectorsByProviderToolsResponses, PutApiV1ConnectorsByProviderToolsErrors, ThrowOnError>({
-        url: '/api/v1/connectors/{provider}/tools',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const putApiV1ConnectorsByProviderTools = <ThrowOnError extends boolean = false>(options: Options<PutApiV1ConnectorsByProviderToolsData, ThrowOnError>) => (options.client ?? client).put<PutApiV1ConnectorsByProviderToolsResponses, PutApiV1ConnectorsByProviderToolsErrors, ThrowOnError>({
+    url: '/api/v1/connectors/{provider}/tools',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get credit balance
  *
  * Returns the credit balance and related information for the authenticated user. Optionally accepts X-Timezone header for accurate next claim time calculation.
  */
-export const getApiV1CreditsBalance = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CreditsBalanceData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1CreditsBalanceResponses, GetApiV1CreditsBalanceErrors, ThrowOnError>({
-        url: '/api/v1/credits/balance',
-        ...options
-    });
-};
+export const getApiV1CreditsBalance = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CreditsBalanceData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1CreditsBalanceResponses, GetApiV1CreditsBalanceErrors, ThrowOnError>({ url: '/api/v1/credits/balance', ...options });
 
 /**
  * List available credit packs
  *
  * Returns available credit packs with prices fetched from Stripe.
  */
-export const getApiV1CreditsPacks = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CreditsPacksData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1CreditsPacksResponses, GetApiV1CreditsPacksErrors, ThrowOnError>({
-        url: '/api/v1/credits/packs',
-        ...options
-    });
-};
+export const getApiV1CreditsPacks = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CreditsPacksData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1CreditsPacksResponses, GetApiV1CreditsPacksErrors, ThrowOnError>({ url: '/api/v1/credits/packs', ...options });
 
 /**
  * Create credit pack checkout session
  *
  * Creates a Stripe Checkout Session for purchasing a one-time credit pack and returns the checkout URL.
  */
-export const postApiV1CreditsPurchase = <ThrowOnError extends boolean = false>(options: Options<PostApiV1CreditsPurchaseData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1CreditsPurchaseResponses, PostApiV1CreditsPurchaseErrors, ThrowOnError>({
-        url: '/api/v1/credits/purchase',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1CreditsPurchase = <ThrowOnError extends boolean = false>(options: Options<PostApiV1CreditsPurchaseData, ThrowOnError>) => (options.client ?? client).post<PostApiV1CreditsPurchaseResponses, PostApiV1CreditsPurchaseErrors, ThrowOnError>({
+    url: '/api/v1/credits/purchase',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Redeem Anuma Tokens for credits
  *
  * Burns the specified amount of Anuma Tokens via the portal operator (burnFor) and adds equivalent credits to the user's enrollment.
  */
-export const postApiV1CreditsRedeemTokens = <ThrowOnError extends boolean = false>(options: Options<PostApiV1CreditsRedeemTokensData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1CreditsRedeemTokensResponses, PostApiV1CreditsRedeemTokensErrors, ThrowOnError>({
-        url: '/api/v1/credits/redeem-tokens',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1CreditsRedeemTokens = <ThrowOnError extends boolean = false>(options: Options<PostApiV1CreditsRedeemTokensData, ThrowOnError>) => (options.client ?? client).post<PostApiV1CreditsRedeemTokensResponses, PostApiV1CreditsRedeemTokensErrors, ThrowOnError>({
+    url: '/api/v1/credits/redeem-tokens',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List curated models
  *
  * Returns the product-curated catalog of models with display metadata (name, description, provider, price tier, quality, privacy flag, tier gate). Replaces the hardcoded list previously maintained in the web/mobile clients. Public, no auth required.
  */
-export const getApiV1CuratedModels = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CuratedModelsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1CuratedModelsResponses, unknown, ThrowOnError>({
-        url: '/api/v1/curated-models',
-        ...options
-    });
-};
+export const getApiV1CuratedModels = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CuratedModelsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1CuratedModelsResponses, unknown, ThrowOnError>({ url: '/api/v1/curated-models', ...options });
 
 /**
  * List apps
  *
  * Lists all apps owned by the authenticated developer with pagination.
  */
-export const getApiV1DeveloperApps = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DeveloperAppsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1DeveloperAppsResponses, GetApiV1DeveloperAppsErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps',
-        ...options
-    });
-};
+export const getApiV1DeveloperApps = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DeveloperAppsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1DeveloperAppsResponses, GetApiV1DeveloperAppsErrors, ThrowOnError>({ url: '/api/v1/developer/apps', ...options });
 
 /**
  * Create app
  *
  * Creates a new app owned by the authenticated developer.
  */
-export const postApiV1DeveloperApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1DeveloperAppsResponses, PostApiV1DeveloperAppsErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1DeveloperApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1DeveloperAppsResponses, PostApiV1DeveloperAppsErrors, ThrowOnError>({
+    url: '/api/v1/developer/apps',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete app
  *
  * Soft-deletes an app by deactivating it. The app can be reactivated later.
  */
-export const deleteApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}',
-        ...options
-    });
-};
+export const deleteApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}', ...options });
 
 /**
  * Get app
  *
  * Retrieves details of a specific app owned by the developer.
  */
-export const getApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}',
-        ...options
-    });
-};
+export const getApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}', ...options });
 
 /**
  * Update app
  *
  * Updates an app's settings. Only provided fields are updated.
  */
-export const patchApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => {
-    return (options.client ?? client).patch<PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const patchApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => (options.client ?? client).patch<PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({
+    url: '/api/v1/developer/apps/{app_uuid}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List API keys
  *
  * Lists all API keys for the app (without secrets) with pagination.
  */
-export const getApiV1DeveloperAppsByAppUuidApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidApiKeysData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/api-keys',
-        ...options
-    });
-};
+export const getApiV1DeveloperAppsByAppUuidApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidApiKeysData, ThrowOnError>) => (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}/api-keys', ...options });
 
 /**
  * Create API key
  *
  * Creates a new API key for the app. The full key is only shown once.
  */
-export const postApiV1DeveloperAppsByAppUuidApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidApiKeysData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/api-keys',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1DeveloperAppsByAppUuidApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidApiKeysData, ThrowOnError>) => (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, ThrowOnError>({
+    url: '/api/v1/developer/apps/{app_uuid}/api-keys',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete API key
  *
  * Revokes (deletes) an API key.
  */
-export const deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/api-keys/{key_id}',
-        ...options
-    });
-};
+export const deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}/api-keys/{key_id}', ...options });
 
 /**
  * Fund developer app balance
  *
  * Creates a Stripe checkout session to purchase credits for the app balance
  */
-export const postApiV1DeveloperAppsByAppUuidFund = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidFundData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidFundErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/fund',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1DeveloperAppsByAppUuidFund = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidFundData, ThrowOnError>) => (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidFundErrors, ThrowOnError>({
+    url: '/api/v1/developer/apps/{app_uuid}/fund',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Remove Privy
  *
  * Removes Privy authentication configuration from an app.
  */
-export const deleteApiV1DeveloperAppsByAppUuidPrivy = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidPrivyData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/privy',
-        ...options
-    });
-};
+export const deleteApiV1DeveloperAppsByAppUuidPrivy = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidPrivyData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}/privy', ...options });
 
 /**
  * Configure Privy
  *
  * Configures Privy authentication for an app.
  */
-export const postApiV1DeveloperAppsByAppUuidPrivy = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidPrivyData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidPrivyErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/privy',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1DeveloperAppsByAppUuidPrivy = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidPrivyData, ThrowOnError>) => (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidPrivyErrors, ThrowOnError>({
+    url: '/api/v1/developer/apps/{app_uuid}/privy',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get app usage
  *
  * Returns aggregate usage data and timeseries for an app within a time range.
  */
-export const getApiV1DeveloperAppsByAppUuidUsage = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsageData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/usage',
-        ...options
-    });
-};
+export const getApiV1DeveloperAppsByAppUuidUsage = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsageData, ThrowOnError>) => (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}/usage', ...options });
 
 /**
  * Get app user usage
  *
  * Returns per-user usage data for an app within a time range, paginated.
  */
-export const getApiV1DeveloperAppsByAppUuidUsageUsers = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsageUsersData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/usage/users',
-        ...options
-    });
-};
+export const getApiV1DeveloperAppsByAppUuidUsageUsers = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsageUsersData, ThrowOnError>) => (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}/usage/users', ...options });
 
 /**
  * List users
  *
  * Lists all users enrolled in the app with their credit balances.
  */
-export const getApiV1DeveloperAppsByAppUuidUsers = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsersData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/users',
-        ...options
-    });
-};
+export const getApiV1DeveloperAppsByAppUuidUsers = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsersData, ThrowOnError>) => (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}/users', ...options });
 
 /**
  * Get user
  *
  * Retrieves details of a specific user enrolled in the app.
  */
-export const getApiV1DeveloperAppsByAppUuidUsersByAddress = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsersByAddressData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/users/{address}',
-        ...options
-    });
-};
+export const getApiV1DeveloperAppsByAppUuidUsersByAddress = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsersByAddressData, ThrowOnError>) => (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, ThrowOnError>({ url: '/api/v1/developer/apps/{app_uuid}/users/{address}', ...options });
 
 /**
  * Update user limit
  *
  * Updates a user's cost limit. Credits are transferred from the app balance.
  */
-export const patchApiV1DeveloperAppsByAppUuidUsersByAddress = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, ThrowOnError>) => {
-    return (options.client ?? client).patch<PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/users/{address}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const patchApiV1DeveloperAppsByAppUuidUsersByAddress = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, ThrowOnError>) => (options.client ?? client).patch<PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, ThrowOnError>({
+    url: '/api/v1/developer/apps/{app_uuid}/users/{address}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Top up user credits
  *
  * Adds credits to a user's enrollment. Credits are transferred from the app balance atomically.
  */
-export const postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, ThrowOnError>({
-        url: '/api/v1/developer/apps/{app_uuid}/users/{address}/top-up',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, ThrowOnError>) => (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, ThrowOnError>({
+    url: '/api/v1/developer/apps/{app_uuid}/users/{address}/top-up',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get billing history
  *
  * Returns a paginated list of the developer's completed app funding payments.
  */
-export const getApiV1DeveloperBilling = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DeveloperBillingData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1DeveloperBillingResponses, GetApiV1DeveloperBillingErrors, ThrowOnError>({
-        url: '/api/v1/developer/billing',
-        ...options
-    });
-};
+export const getApiV1DeveloperBilling = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DeveloperBillingData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1DeveloperBillingResponses, GetApiV1DeveloperBillingErrors, ThrowOnError>({ url: '/api/v1/developer/billing', ...options });
 
 /**
  * Get OpenAPI specification
  *
  * Returns the OpenAPI 3.1 specification for this API
  */
-export const getApiV1DocsSwaggerJson = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DocsSwaggerJsonData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1DocsSwaggerJsonResponses, unknown, ThrowOnError>({
-        url: '/api/v1/docs/swagger.json',
-        ...options
-    });
-};
+export const getApiV1DocsSwaggerJson = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DocsSwaggerJsonData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1DocsSwaggerJsonResponses, unknown, ThrowOnError>({ url: '/api/v1/docs/swagger.json', ...options });
 
 /**
  * Create embeddings
  *
  * Generates embeddings using the configured gateway.
  */
-export const postApiV1Embeddings = <ThrowOnError extends boolean = false>(options: Options<PostApiV1EmbeddingsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1EmbeddingsResponses, PostApiV1EmbeddingsErrors, ThrowOnError>({
-        url: '/api/v1/embeddings',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1Embeddings = <ThrowOnError extends boolean = false>(options: Options<PostApiV1EmbeddingsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1EmbeddingsResponses, PostApiV1EmbeddingsErrors, ThrowOnError>({
+    url: '/api/v1/embeddings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Bootstrap guest session
  *
  * Returns feature-flag assignments and server build metadata for an unauthenticated visitor. The client must generate a UUID v4 on first visit, persist it locally, and send it as X-Guest-ID on every call. Returns 400 if the header is missing or malformed.
  */
-export const getApiV1GuestBootstrap = <ThrowOnError extends boolean = false>(options: Options<GetApiV1GuestBootstrapData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1GuestBootstrapResponses, GetApiV1GuestBootstrapErrors, ThrowOnError>({
-        url: '/api/v1/guest-bootstrap',
-        ...options
-    });
-};
+export const getApiV1GuestBootstrap = <ThrowOnError extends boolean = false>(options: Options<GetApiV1GuestBootstrapData, ThrowOnError>) => (options.client ?? client).get<GetApiV1GuestBootstrapResponses, GetApiV1GuestBootstrapErrors, ThrowOnError>({ url: '/api/v1/guest-bootstrap', ...options });
 
 /**
  * Guest chat completion (free trial)
  *
  * Unauthenticated chat completion locked to a single model with a per-guest message cap. Each guest UUID gets a fixed number of free messages; subsequent requests return 402 with a sign-up prompt.
  */
-export const postApiV1GuestChatCompletions = <ThrowOnError extends boolean = false>(options: Options<PostApiV1GuestChatCompletionsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1GuestChatCompletionsResponses, PostApiV1GuestChatCompletionsErrors, ThrowOnError>({
-        url: '/api/v1/guest/chat/completions',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1GuestChatCompletions = <ThrowOnError extends boolean = false>(options: Options<PostApiV1GuestChatCompletionsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1GuestChatCompletionsResponses, PostApiV1GuestChatCompletionsErrors, ThrowOnError>({
+    url: '/api/v1/guest/chat/completions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Return the caller's identity and granted scopes
  *
  * Returns user_address, client_id, and scopes for the request's authenticated principal. The auth middleware injects a GrantContext on both Privy and OAuth bearer paths; this handler just reads it out.
  */
-export const getApiV1Me = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1MeData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1MeResponses, GetApiV1MeErrors, ThrowOnError>({
-        url: '/api/v1/me',
-        ...options
-    });
-};
+export const getApiV1Me = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1MeData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1MeResponses, GetApiV1MeErrors, ThrowOnError>({ url: '/api/v1/me', ...options });
 
 /**
  * Resolve a public shared artifact's media
  */
-export const getApiV1MediaSharedBySlug = <ThrowOnError extends boolean = false>(options: Options<GetApiV1MediaSharedBySlugData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1MediaSharedBySlugResponses, GetApiV1MediaSharedBySlugErrors, ThrowOnError>({
-        url: '/api/v1/media/shared/{slug}',
-        ...options
-    });
-};
+export const getApiV1MediaSharedBySlug = <ThrowOnError extends boolean = false>(options: Options<GetApiV1MediaSharedBySlugData, ThrowOnError>) => (options.client ?? client).get<GetApiV1MediaSharedBySlugResponses, GetApiV1MediaSharedBySlugErrors, ThrowOnError>({ url: '/api/v1/media/shared/{slug}', ...options });
 
 /**
  * List available models
  *
  * Returns a list of all available models from the configured gateway with optional filters. Models include modality information indicating their capabilities (e.g., llm, embedding, vision, image, audio, reasoning, code, reranker, multimodal, video).
  */
-export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ModelsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1ModelsResponses, GetApiV1ModelsErrors, ThrowOnError>({
-        url: '/api/v1/models',
-        ...options
-    });
-};
+export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ModelsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1ModelsResponses, GetApiV1ModelsErrors, ThrowOnError>({ url: '/api/v1/models', ...options });
 
 /**
  * Moderate content
  *
  * Scans the supplied texts with the content-moderation model and returns the threshold-applied verdict (flagged, crossed categories, raw scores). Intended as a server-side output-safety gate for machine callers.
  */
-export const postApiV1Moderate = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ModerateData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ModerateResponses, PostApiV1ModerateErrors, ThrowOnError>({
-        url: '/api/v1/moderate',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1Moderate = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ModerateData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ModerateResponses, PostApiV1ModerateErrors, ThrowOnError>({
+    url: '/api/v1/moderate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Register push-notification device
  *
  * Stores an Expo push token so the portal can later deliver push notifications to this device. Idempotent — re-posting the same token refreshes the row.
  */
-export const postApiV1NotificationsDevices = <ThrowOnError extends boolean = false>(options: Options<PostApiV1NotificationsDevicesData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1NotificationsDevicesResponses, PostApiV1NotificationsDevicesErrors, ThrowOnError>({
-        url: '/api/v1/notifications/devices',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1NotificationsDevices = <ThrowOnError extends boolean = false>(options: Options<PostApiV1NotificationsDevicesData, ThrowOnError>) => (options.client ?? client).post<PostApiV1NotificationsDevicesResponses, PostApiV1NotificationsDevicesErrors, ThrowOnError>({
+    url: '/api/v1/notifications/devices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Unregister push-notification device
  *
  * Removes a previously registered Expo push token for the authenticated user. Returns 200 on success and 404 if no matching device exists.
  */
-export const postApiV1NotificationsDevicesUnregister = <ThrowOnError extends boolean = false>(options: Options<PostApiV1NotificationsDevicesUnregisterData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1NotificationsDevicesUnregisterResponses, PostApiV1NotificationsDevicesUnregisterErrors, ThrowOnError>({
-        url: '/api/v1/notifications/devices/unregister',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1NotificationsDevicesUnregister = <ThrowOnError extends boolean = false>(options: Options<PostApiV1NotificationsDevicesUnregisterData, ThrowOnError>) => (options.client ?? client).post<PostApiV1NotificationsDevicesUnregisterResponses, PostApiV1NotificationsDevicesUnregisterErrors, ThrowOnError>({
+    url: '/api/v1/notifications/devices/unregister',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List personas
  *
  * Returns all personas with the prompt field stripped from config
  */
-export const getApiV1Personas = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1PersonasData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1PersonasResponses, GetApiV1PersonasErrors, ThrowOnError>({
-        url: '/api/v1/personas',
-        ...options
-    });
-};
+export const getApiV1Personas = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1PersonasData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1PersonasResponses, GetApiV1PersonasErrors, ThrowOnError>({ url: '/api/v1/personas', ...options });
 
 /**
  * Get persona
  *
  * Returns a specific persona by its ID with full configuration
  */
-export const getApiV1PersonasById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1PersonasByIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1PersonasByIdResponses, GetApiV1PersonasByIdErrors, ThrowOnError>({
-        url: '/api/v1/personas/{id}',
-        ...options
-    });
-};
+export const getApiV1PersonasById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1PersonasByIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1PersonasByIdResponses, GetApiV1PersonasByIdErrors, ThrowOnError>({ url: '/api/v1/personas/{id}', ...options });
 
 /**
  * Create phone call
@@ -1478,734 +1079,531 @@ export const getApiV1PersonasById = <ThrowOnError extends boolean = false>(optio
  * Queues an AI phone call on behalf of the authenticated user.
  * Phone numbers must be in E.164 format with country code (e.g., +15551234567).
  */
-export const postApiV1PhoneCalls = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PhoneCallsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1PhoneCallsResponses, PostApiV1PhoneCallsErrors, ThrowOnError>({
-        url: '/api/v1/phone-calls',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1PhoneCalls = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PhoneCallsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1PhoneCallsResponses, PostApiV1PhoneCallsErrors, ThrowOnError>({
+    url: '/api/v1/phone-calls',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get phone call
  *
  * Returns the latest Bland.ai call status, summary, and transcript details for a queued phone call.
  */
-export const getApiV1PhoneCallsByCallId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1PhoneCallsByCallIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1PhoneCallsByCallIdResponses, GetApiV1PhoneCallsByCallIdErrors, ThrowOnError>({
-        url: '/api/v1/phone-calls/{call_id}',
-        ...options
-    });
-};
+export const getApiV1PhoneCallsByCallId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1PhoneCallsByCallIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1PhoneCallsByCallIdResponses, GetApiV1PhoneCallsByCallIdErrors, ThrowOnError>({ url: '/api/v1/phone-calls/{call_id}', ...options });
 
 /**
  * Get crypto prices
  *
  * Extracts ticker candidates (cashtags, uppercase symbols, lowercase names) from the supplied prompt, resolves them against CryptoCompare, and returns USD quotes. Used by SDK pre-processors to enrich prompts with crypto market data.
  */
-export const postApiV1PreprocessorsCryptoPrices = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsCryptoPricesData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1PreprocessorsCryptoPricesResponses, PostApiV1PreprocessorsCryptoPricesErrors, ThrowOnError>({
-        url: '/api/v1/preprocessors/crypto-prices',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1PreprocessorsCryptoPrices = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsCryptoPricesData, ThrowOnError>) => (options.client ?? client).post<PostApiV1PreprocessorsCryptoPricesResponses, PostApiV1PreprocessorsCryptoPricesErrors, ThrowOnError>({
+    url: '/api/v1/preprocessors/crypto-prices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Search the web
  *
  * Forwards a query to Anuma Search and returns normalized web results. Used by SDK pre-processors to enrich prompts with live web context.
  */
-export const postApiV1PreprocessorsSearch = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsSearchData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1PreprocessorsSearchResponses, PostApiV1PreprocessorsSearchErrors, ThrowOnError>({
-        url: '/api/v1/preprocessors/search',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1PreprocessorsSearch = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsSearchData, ThrowOnError>) => (options.client ?? client).post<PostApiV1PreprocessorsSearchResponses, PostApiV1PreprocessorsSearchErrors, ThrowOnError>({
+    url: '/api/v1/preprocessors/search',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get stock prices
  *
  * Extracts uppercase ticker candidates (cashtags, 2–5 letter uppercase symbols) and returns Twelve Data quotes covering stocks, ETFs, indices, FX, and commodities.
  */
-export const postApiV1PreprocessorsStockPrices = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsStockPricesData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1PreprocessorsStockPricesResponses, PostApiV1PreprocessorsStockPricesErrors, ThrowOnError>({
-        url: '/api/v1/preprocessors/stock-prices',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1PreprocessorsStockPrices = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsStockPricesData, ThrowOnError>) => (options.client ?? client).post<PostApiV1PreprocessorsStockPricesResponses, PostApiV1PreprocessorsStockPricesErrors, ThrowOnError>({
+    url: '/api/v1/preprocessors/stock-prices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get weather
  *
  * Extracts a location name from the prompt, geocodes it via Open-Meteo, and returns current conditions plus a short daily forecast.
  */
-export const postApiV1PreprocessorsWeather = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsWeatherData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1PreprocessorsWeatherResponses, PostApiV1PreprocessorsWeatherErrors, ThrowOnError>({
-        url: '/api/v1/preprocessors/weather',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1PreprocessorsWeather = <ThrowOnError extends boolean = false>(options: Options<PostApiV1PreprocessorsWeatherData, ThrowOnError>) => (options.client ?? client).post<PostApiV1PreprocessorsWeatherResponses, PostApiV1PreprocessorsWeatherErrors, ThrowOnError>({
+    url: '/api/v1/preprocessors/weather',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Create response
  *
  * Generates a response using the Responses API format. Supports streaming when stream=true.
  */
-export const postApiV1Responses = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ResponsesData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1ResponsesResponses, PostApiV1ResponsesErrors, ThrowOnError>({
-        url: '/api/v1/responses',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1Responses = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ResponsesData, ThrowOnError>) => (options.client ?? client).post<PostApiV1ResponsesResponses, PostApiV1ResponsesErrors, ThrowOnError>({
+    url: '/api/v1/responses',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List my shared artifacts
  */
-export const getApiV1Shares = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SharesData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1SharesResponses, GetApiV1SharesErrors, ThrowOnError>({
-        url: '/api/v1/shares',
-        ...options
-    });
-};
+export const getApiV1Shares = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SharesData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1SharesResponses, GetApiV1SharesErrors, ThrowOnError>({ url: '/api/v1/shares', ...options });
 
 /**
  * Publish an artifact to a public share link
  *
  * Records a public share for media already uploaded to an allow-listed host and returns a slug + link. Hardened mode moderates the media and copies it into the encrypted store before publishing (images only); a rejected image returns 403.
  */
-export const postApiV1Shares = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SharesData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SharesResponses, PostApiV1SharesErrors, ThrowOnError>({
-        url: '/api/v1/shares',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1Shares = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SharesData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SharesResponses, PostApiV1SharesErrors, ThrowOnError>({
+    url: '/api/v1/shares',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Unpublish a shared artifact
  */
-export const deleteApiV1SharesBySlug = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1SharesBySlugData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1SharesBySlugResponses, DeleteApiV1SharesBySlugErrors, ThrowOnError>({
-        url: '/api/v1/shares/{slug}',
-        ...options
-    });
-};
+export const deleteApiV1SharesBySlug = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1SharesBySlugData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1SharesBySlugResponses, DeleteApiV1SharesBySlugErrors, ThrowOnError>({ url: '/api/v1/shares/{slug}', ...options });
 
 /**
  * Get a public shared artifact
  */
-export const getApiV1SharesBySlug = <ThrowOnError extends boolean = false>(options: Options<GetApiV1SharesBySlugData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1SharesBySlugResponses, GetApiV1SharesBySlugErrors, ThrowOnError>({
-        url: '/api/v1/shares/{slug}',
-        ...options
-    });
-};
+export const getApiV1SharesBySlug = <ThrowOnError extends boolean = false>(options: Options<GetApiV1SharesBySlugData, ThrowOnError>) => (options.client ?? client).get<GetApiV1SharesBySlugResponses, GetApiV1SharesBySlugErrors, ThrowOnError>({ url: '/api/v1/shares/{slug}', ...options });
 
 /**
  * Report a shared artifact
  */
-export const postApiV1SharesBySlugReport = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SharesBySlugReportData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SharesBySlugReportResponses, unknown, ThrowOnError>({
-        url: '/api/v1/shares/{slug}/report',
-        ...options
-    });
-};
+export const postApiV1SharesBySlugReport = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SharesBySlugReportData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SharesBySlugReportResponses, unknown, ThrowOnError>({ url: '/api/v1/shares/{slug}/report', ...options });
 
 /**
  * Cancel subscription
  *
  * Cancels the user's subscription at the end of the current billing period (cancel_at_period_end). Optionally accepts a cancellation-reason survey body.
  */
-export const postApiV1SubscriptionsCancel = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCancelData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/cancel',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postApiV1SubscriptionsCancel = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCancelData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelErrors, ThrowOnError>({
+    url: '/api/v1/subscriptions/cancel',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Cancel scheduled downgrade
  *
  * Cancels a scheduled plan downgrade by releasing the Stripe Subscription Schedule, keeping the current plan active.
  */
-export const postApiV1SubscriptionsCancelScheduledDowngrade = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCancelScheduledDowngradeData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/cancel-scheduled-downgrade',
-        ...options
-    });
-};
+export const postApiV1SubscriptionsCancelScheduledDowngrade = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCancelScheduledDowngradeData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, ThrowOnError>({ url: '/api/v1/subscriptions/cancel-scheduled-downgrade', ...options });
 
 /**
  * Create checkout session
  *
  * Creates a Stripe Checkout Session for a subscription plan and returns the checkout URL. Identify the plan with either price_id directly, or tier ("starter"/"pro") + interval ("month"/"year").
  */
-export const postApiV1SubscriptionsCreateCheckoutSession = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsCreateCheckoutSessionData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCreateCheckoutSessionErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/create-checkout-session',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1SubscriptionsCreateCheckoutSession = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsCreateCheckoutSessionData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCreateCheckoutSessionErrors, ThrowOnError>({
+    url: '/api/v1/subscriptions/create-checkout-session',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Create customer portal session
  *
  * Creates a Stripe Customer Portal session for managing subscription and returns the portal URL
  */
-export const postApiV1SubscriptionsCustomerPortal = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsCustomerPortalData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsCustomerPortalErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/customer-portal',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1SubscriptionsCustomerPortal = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsCustomerPortalData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsCustomerPortalErrors, ThrowOnError>({
+    url: '/api/v1/subscriptions/customer-portal',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List available subscription plans
  *
  * Returns available subscription plans with prices fetched from Stripe.
  */
-export const getApiV1SubscriptionsPlans = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SubscriptionsPlansData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsPlansErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/plans',
-        ...options
-    });
-};
+export const getApiV1SubscriptionsPlans = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SubscriptionsPlansData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsPlansErrors, ThrowOnError>({ url: '/api/v1/subscriptions/plans', ...options });
 
 /**
  * Renew subscription
  *
  * Reactivates a subscription that was scheduled for cancellation (undoes cancel_at_period_end)
  */
-export const postApiV1SubscriptionsRenew = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsRenewData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsRenewErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/renew',
-        ...options
-    });
-};
+export const postApiV1SubscriptionsRenew = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsRenewData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsRenewErrors, ThrowOnError>({ url: '/api/v1/subscriptions/renew', ...options });
 
 /**
  * Schedule subscription downgrade
  *
  * Schedules a plan downgrade (tier or interval) to take effect at the end of the current billing period using Stripe Subscription Schedules.
  */
-export const postApiV1SubscriptionsScheduleDowngrade = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsScheduleDowngradeData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsScheduleDowngradeErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/schedule-downgrade',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1SubscriptionsScheduleDowngrade = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsScheduleDowngradeData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsScheduleDowngradeErrors, ThrowOnError>({
+    url: '/api/v1/subscriptions/schedule-downgrade',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get subscription status
  *
  * Returns the current subscription status, plan, and billing period info
  */
-export const getApiV1SubscriptionsStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SubscriptionsStatusData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1SubscriptionsStatusResponses, GetApiV1SubscriptionsStatusErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/status',
-        ...options
-    });
-};
+export const getApiV1SubscriptionsStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SubscriptionsStatusData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1SubscriptionsStatusResponses, GetApiV1SubscriptionsStatusErrors, ThrowOnError>({ url: '/api/v1/subscriptions/status', ...options });
 
 /**
  * Upgrade subscription
  *
  * Upgrades the current subscription to a higher tier or from monthly to annual billing by modifying the existing Stripe subscription in-place. No extra credits are allocated for the current month; the new plan's credit amount starts at the next billing cycle. Requesting the plan the user is already on (same tier and interval) is an idempotent no-op that returns 200, so a stale client that re-submits an upgrade does not error.
  */
-export const postApiV1SubscriptionsUpgrade = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsUpgradeData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsUpgradeErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/upgrade',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1SubscriptionsUpgrade = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsUpgradeData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsUpgradeErrors, ThrowOnError>({
+    url: '/api/v1/subscriptions/upgrade',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Handle Stripe webhook
  *
  * Receives and processes Stripe webhook events for subscription lifecycle management
  */
-export const postApiV1SubscriptionsWebhook = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsWebhookData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SubscriptionsWebhookResponses, PostApiV1SubscriptionsWebhookErrors, ThrowOnError>({
-        url: '/api/v1/subscriptions/webhook',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1SubscriptionsWebhook = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsWebhookData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SubscriptionsWebhookResponses, PostApiV1SubscriptionsWebhookErrors, ThrowOnError>({
+    url: '/api/v1/subscriptions/webhook',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List available tools
  *
  * Returns a map of available MCP tool schemas indexed by tool name.
  */
-export const getApiV1Tools = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ToolsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1ToolsResponses, GetApiV1ToolsErrors, ThrowOnError>({
-        url: '/api/v1/tools',
-        ...options
-    });
-};
+export const getApiV1Tools = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ToolsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1ToolsResponses, GetApiV1ToolsErrors, ThrowOnError>({ url: '/api/v1/tools', ...options });
 
 /**
  * Get usage by modality
  *
  * Returns usage grouped into the four user-facing modality buckets (text, image, video, audio) for the authenticated user within a time period. Tool spend is attributed to the bucket of the calling model. Unknown models default to text.
  */
-export const getApiV1UsageByModality = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UsageByModalityData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1UsageByModalityResponses, GetApiV1UsageByModalityErrors, ThrowOnError>({
-        url: '/api/v1/usage/by-modality',
-        ...options
-    });
-};
+export const getApiV1UsageByModality = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UsageByModalityData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1UsageByModalityResponses, GetApiV1UsageByModalityErrors, ThrowOnError>({ url: '/api/v1/usage/by-modality', ...options });
 
 /**
  * Weekly inference volume
  */
-export const getApiV1UsageInferenceWeekly = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UsageInferenceWeeklyData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1UsageInferenceWeeklyResponses, unknown, ThrowOnError>({
-        url: '/api/v1/usage/inference-weekly',
-        ...options
-    });
-};
+export const getApiV1UsageInferenceWeekly = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UsageInferenceWeeklyData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1UsageInferenceWeeklyResponses, unknown, ThrowOnError>({ url: '/api/v1/usage/inference-weekly', ...options });
 
 /**
  * Get usage by model
  *
  * Returns per-model usage (spend, requests, tokens) and tool usage grouped by model for the authenticated user within a time period.
  */
-export const getApiV1UsageModels = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UsageModelsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1UsageModelsResponses, GetApiV1UsageModelsErrors, ThrowOnError>({
-        url: '/api/v1/usage/models',
-        ...options
-    });
-};
+export const getApiV1UsageModels = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UsageModelsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1UsageModelsResponses, GetApiV1UsageModelsErrors, ThrowOnError>({ url: '/api/v1/usage/models', ...options });
 
 /**
  * List active per-platform agent consents
  *
  * Returns the authenticated user's active consents, optionally filtered by platform.
  */
-export const getApiV1UserAgentConsents = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UserAgentConsentsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1UserAgentConsentsResponses, GetApiV1UserAgentConsentsErrors, ThrowOnError>({
-        url: '/api/v1/user/agent-consents',
-        ...options
-    });
-};
+export const getApiV1UserAgentConsents = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UserAgentConsentsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1UserAgentConsentsResponses, GetApiV1UserAgentConsentsErrors, ThrowOnError>({ url: '/api/v1/user/agent-consents', ...options });
 
 /**
  * Create per-platform agent consent
  *
  * Grants the authenticated user's consent for an agent on a specific platform (e.g. "sms"). Idempotent — returns the existing consent if one is already active. Un-revokes any prior revoked grant for the same (user, agent, platform).
  */
-export const postApiV1UserAgentConsents = <ThrowOnError extends boolean = false>(options: Options<PostApiV1UserAgentConsentsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1UserAgentConsentsResponses, PostApiV1UserAgentConsentsErrors, ThrowOnError>({
-        url: '/api/v1/user/agent-consents',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1UserAgentConsents = <ThrowOnError extends boolean = false>(options: Options<PostApiV1UserAgentConsentsData, ThrowOnError>) => (options.client ?? client).post<PostApiV1UserAgentConsentsResponses, PostApiV1UserAgentConsentsErrors, ThrowOnError>({
+    url: '/api/v1/user/agent-consents',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Revoke per-platform agent consent
  *
  * Revokes the authenticated user's consent for an agent on a specific platform. Idempotent — returns 200 even when no active consent exists. Other platforms' consents are unaffected.
  */
-export const deleteApiV1UserAgentConsentsByAgentId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1UserAgentConsentsByAgentIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1UserAgentConsentsByAgentIdResponses, DeleteApiV1UserAgentConsentsByAgentIdErrors, ThrowOnError>({
-        url: '/api/v1/user/agent-consents/{agent_id}',
-        ...options
-    });
-};
+export const deleteApiV1UserAgentConsentsByAgentId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1UserAgentConsentsByAgentIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1UserAgentConsentsByAgentIdResponses, DeleteApiV1UserAgentConsentsByAgentIdErrors, ThrowOnError>({ url: '/api/v1/user/agent-consents/{agent_id}', ...options });
 
 /**
  * Lookup active agent grant (service key)
  *
  * Service-key-authenticated lookup of an active grant for (user_id, agent_id, platform). Returns 404 when no active grant exists. Used by the cf-tasks Worker to gate job execution.
  */
-export const getApiV1UserAgentGrants = <ThrowOnError extends boolean = false>(options: Options<GetApiV1UserAgentGrantsData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetApiV1UserAgentGrantsResponses, GetApiV1UserAgentGrantsErrors, ThrowOnError>({
-        url: '/api/v1/user/agent-grants',
-        ...options
-    });
-};
+export const getApiV1UserAgentGrants = <ThrowOnError extends boolean = false>(options: Options<GetApiV1UserAgentGrantsData, ThrowOnError>) => (options.client ?? client).get<GetApiV1UserAgentGrantsResponses, GetApiV1UserAgentGrantsErrors, ThrowOnError>({ url: '/api/v1/user/agent-grants', ...options });
 
 /**
  * List user API keys
  *
  * Lists all API keys owned by the authenticated user for the app they are authenticated against.
  */
-export const getApiV1UserApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UserApiKeysData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1UserApiKeysResponses, GetApiV1UserApiKeysErrors, ThrowOnError>({
-        url: '/api/v1/user/api-keys',
-        ...options
-    });
-};
+export const getApiV1UserApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UserApiKeysData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1UserApiKeysResponses, GetApiV1UserApiKeysErrors, ThrowOnError>({ url: '/api/v1/user/api-keys', ...options });
 
 /**
  * Create user API key
  *
  * Creates a new API key for the authenticated user, scoped to the app they are authenticated against. The full key is only shown once. Requires JWT authentication (API key auth is not allowed).
  */
-export const postApiV1UserApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1UserApiKeysData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1UserApiKeysResponses, PostApiV1UserApiKeysErrors, ThrowOnError>({
-        url: '/api/v1/user/api-keys',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1UserApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1UserApiKeysData, ThrowOnError>) => (options.client ?? client).post<PostApiV1UserApiKeysResponses, PostApiV1UserApiKeysErrors, ThrowOnError>({
+    url: '/api/v1/user/api-keys',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete user API key
  *
  * Deletes an API key owned by the authenticated user.
  */
-export const deleteApiV1UserApiKeysByKeyId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1UserApiKeysByKeyIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1UserApiKeysByKeyIdResponses, DeleteApiV1UserApiKeysByKeyIdErrors, ThrowOnError>({
-        url: '/api/v1/user/api-keys/{key_id}',
-        ...options
-    });
-};
+export const deleteApiV1UserApiKeysByKeyId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1UserApiKeysByKeyIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1UserApiKeysByKeyIdResponses, DeleteApiV1UserApiKeysByKeyIdErrors, ThrowOnError>({ url: '/api/v1/user/api-keys/{key_id}', ...options });
 
 /**
  * List user OAuth grants
  *
  * Returns all OAuth grants (active and revoked) for the authenticated user, including today's daily spend.
  */
-export const getApiV1UserOauthGrants = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UserOauthGrantsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1UserOauthGrantsResponses, GetApiV1UserOauthGrantsErrors, ThrowOnError>({
-        url: '/api/v1/user/oauth/grants',
-        ...options
-    });
-};
+export const getApiV1UserOauthGrants = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UserOauthGrantsData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1UserOauthGrantsResponses, GetApiV1UserOauthGrantsErrors, ThrowOnError>({ url: '/api/v1/user/oauth/grants', ...options });
 
 /**
  * Revoke OAuth grant
  *
  * Revokes an OAuth grant owned by the authenticated user, disabling the associated agent's access.
  */
-export const deleteApiV1UserOauthGrantsById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1UserOauthGrantsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1UserOauthGrantsByIdResponses, DeleteApiV1UserOauthGrantsByIdErrors, ThrowOnError>({
-        url: '/api/v1/user/oauth/grants/{id}',
-        ...options
-    });
-};
+export const deleteApiV1UserOauthGrantsById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1UserOauthGrantsByIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1UserOauthGrantsByIdResponses, DeleteApiV1UserOauthGrantsByIdErrors, ThrowOnError>({ url: '/api/v1/user/oauth/grants/{id}', ...options });
 
 /**
  * Update OAuth grant
  *
  * Updates the daily spending cap on an OAuth grant owned by the authenticated user.
  */
-export const patchApiV1UserOauthGrantsById = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1UserOauthGrantsByIdData, ThrowOnError>) => {
-    return (options.client ?? client).patch<PatchApiV1UserOauthGrantsByIdResponses, PatchApiV1UserOauthGrantsByIdErrors, ThrowOnError>({
-        url: '/api/v1/user/oauth/grants/{id}',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const patchApiV1UserOauthGrantsById = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1UserOauthGrantsByIdData, ThrowOnError>) => (options.client ?? client).patch<PatchApiV1UserOauthGrantsByIdResponses, PatchApiV1UserOauthGrantsByIdErrors, ThrowOnError>({
+    url: '/api/v1/user/oauth/grants/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List bound wallets
  */
-export const getApiV1WalletsBinding = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1WalletsBindingData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1WalletsBindingResponses, GetApiV1WalletsBindingErrors, ThrowOnError>({
-        url: '/api/v1/wallets/binding',
-        ...options
-    });
-};
+export const getApiV1WalletsBinding = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1WalletsBindingData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1WalletsBindingResponses, GetApiV1WalletsBindingErrors, ThrowOnError>({ url: '/api/v1/wallets/binding', ...options });
 
 /**
  * Bind a wallet
  */
-export const postApiV1WalletsBinding = <ThrowOnError extends boolean = false>(options: Options<PostApiV1WalletsBindingData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1WalletsBindingResponses, PostApiV1WalletsBindingErrors, ThrowOnError>({
-        url: '/api/v1/wallets/binding',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postApiV1WalletsBinding = <ThrowOnError extends boolean = false>(options: Options<PostApiV1WalletsBindingData, ThrowOnError>) => (options.client ?? client).post<PostApiV1WalletsBindingResponses, PostApiV1WalletsBindingErrors, ThrowOnError>({
+    url: '/api/v1/wallets/binding',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Issue a wallet-binding nonce
  */
-export const postApiV1WalletsBindingNonce = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1WalletsBindingNonceData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1WalletsBindingNonceResponses, PostApiV1WalletsBindingNonceErrors, ThrowOnError>({
-        url: '/api/v1/wallets/binding/nonce',
-        ...options
-    });
-};
+export const postApiV1WalletsBindingNonce = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1WalletsBindingNonceData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1WalletsBindingNonceResponses, PostApiV1WalletsBindingNonceErrors, ThrowOnError>({ url: '/api/v1/wallets/binding/nonce', ...options });
 
 /**
  * Unbind a wallet
  */
-export const deleteApiV1WalletsBindingByAddress = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1WalletsBindingByAddressData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteApiV1WalletsBindingByAddressResponses, DeleteApiV1WalletsBindingByAddressErrors, ThrowOnError>({
-        url: '/api/v1/wallets/binding/{address}',
-        ...options
-    });
-};
+export const deleteApiV1WalletsBindingByAddress = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1WalletsBindingByAddressData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1WalletsBindingByAddressResponses, DeleteApiV1WalletsBindingByAddressErrors, ThrowOnError>({ url: '/api/v1/wallets/binding/{address}', ...options });
 
 /**
  * Handle RevenueCat webhook
  *
  * Processes RevenueCat webhook events for in-app purchases
  */
-export const postApiV1WebhooksRevenuecat = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1WebhooksRevenuecatData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiV1WebhooksRevenuecatResponses, PostApiV1WebhooksRevenuecatErrors, ThrowOnError>({
-        url: '/api/v1/webhooks/revenuecat',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postApiV1WebhooksRevenuecat = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1WebhooksRevenuecatData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1WebhooksRevenuecatResponses, PostApiV1WebhooksRevenuecatErrors, ThrowOnError>({
+    url: '/api/v1/webhooks/revenuecat',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Stake-to-earn credit rate
  */
-export const getApiV1ZetaCreditRate = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ZetaCreditRateData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1ZetaCreditRateResponses, unknown, ThrowOnError>({
-        url: '/api/v1/zeta/credit-rate',
-        ...options
-    });
-};
+export const getApiV1ZetaCreditRate = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ZetaCreditRateData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1ZetaCreditRateResponses, unknown, ThrowOnError>({ url: '/api/v1/zeta/credit-rate', ...options });
 
 /**
  * ZETA market stats
  */
-export const getApiV1ZetaMarket = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ZetaMarketData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiV1ZetaMarketResponses, unknown, ThrowOnError>({
-        url: '/api/v1/zeta/market',
-        ...options
-    });
-};
+export const getApiV1ZetaMarket = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ZetaMarketData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1ZetaMarketResponses, unknown, ThrowOnError>({ url: '/api/v1/zeta/market', ...options });
 
 /**
  * Exchange authorization code for tokens
  *
  * Exchanges an OAuth authorization code for access and refresh tokens
  */
-export const postAuthOauthByProviderExchange = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderExchangeData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderExchangeErrors, ThrowOnError>({
-        url: '/auth/oauth/{provider}/exchange',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postAuthOauthByProviderExchange = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderExchangeData, ThrowOnError>) => (options.client ?? client).post<PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderExchangeErrors, ThrowOnError>({
+    url: '/auth/oauth/{provider}/exchange',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Refresh access token
  *
  * Refreshes an expired access token using a refresh token
  */
-export const postAuthOauthByProviderRefresh = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRefreshData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRefreshErrors, ThrowOnError>({
-        url: '/auth/oauth/{provider}/refresh',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postAuthOauthByProviderRefresh = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRefreshData, ThrowOnError>) => (options.client ?? client).post<PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRefreshErrors, ThrowOnError>({
+    url: '/auth/oauth/{provider}/refresh',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Revoke OAuth token
  *
  * Revokes an OAuth access or refresh token
  */
-export const postAuthOauthByProviderRevoke = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRevokeData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthOauthByProviderRevokeResponses, PostAuthOauthByProviderRevokeErrors, ThrowOnError>({
-        url: '/auth/oauth/{provider}/revoke',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-};
+export const postAuthOauthByProviderRevoke = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRevokeData, ThrowOnError>) => (options.client ?? client).post<PostAuthOauthByProviderRevokeResponses, PostAuthOauthByProviderRevokeErrors, ThrowOnError>({
+    url: '/auth/oauth/{provider}/revoke',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Upstream OAuth callback
  *
  * Receives the authorization code from the upstream provider, atomically consumes the connect ticket, exchanges the code for tokens, and persists the encrypted refresh token. Redirects the browser back to ticket.return_to.
  */
-export const getConnectorsByProviderCallback = <ThrowOnError extends boolean = false>(options: Options<GetConnectorsByProviderCallbackData, ThrowOnError>) => {
-    return (options.client ?? client).get<unknown, GetConnectorsByProviderCallbackErrors, ThrowOnError>({
-        url: '/connectors/{provider}/callback',
-        ...options
-    });
-};
+export const getConnectorsByProviderCallback = <ThrowOnError extends boolean = false>(options: Options<GetConnectorsByProviderCallbackData, ThrowOnError>) => (options.client ?? client).get<unknown, GetConnectorsByProviderCallbackErrors, ThrowOnError>({ url: '/connectors/{provider}/callback', ...options });
 
 /**
  * Begin upstream OAuth connect flow
  *
  * Redirects the browser to the upstream OAuth /authorize endpoint for the given connector provider, using a connect-ticket as the auth carrier. Step-up vs initial connect is detected from existing connector_credentials state.
  */
-export const getConnectorsByProviderConnect = <ThrowOnError extends boolean = false>(options: Options<GetConnectorsByProviderConnectData, ThrowOnError>) => {
-    return (options.client ?? client).get<unknown, GetConnectorsByProviderConnectErrors, ThrowOnError>({
-        url: '/connectors/{provider}/connect',
-        ...options
-    });
-};
+export const getConnectorsByProviderConnect = <ThrowOnError extends boolean = false>(options: Options<GetConnectorsByProviderConnectData, ThrowOnError>) => (options.client ?? client).get<unknown, GetConnectorsByProviderConnectErrors, ThrowOnError>({ url: '/connectors/{provider}/connect', ...options });
 
 /**
  * Health check
  *
  * Returns the current health status of the service.
  */
-export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetHealthResponses, GetHealthErrors, ThrowOnError>({
-        url: '/health',
-        ...options
-    });
-};
+export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, GetHealthErrors, ThrowOnError>({ url: '/health', ...options });
 
 /**
  * Resolve a Privy DID to an account ID
  *
  * Internal server-to-server endpoint used by the nearby service. Returns the internal account ID for the given Privy DID.
  */
-export const getInternalAccountsByDidByDid = <ThrowOnError extends boolean = false>(options: Options<GetInternalAccountsByDidByDidData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetInternalAccountsByDidByDidResponses, GetInternalAccountsByDidByDidErrors, ThrowOnError>({
-        url: '/internal/accounts/by-did/{did}',
-        ...options
-    });
-};
+export const getInternalAccountsByDidByDid = <ThrowOnError extends boolean = false>(options: Options<GetInternalAccountsByDidByDidData, ThrowOnError>) => (options.client ?? client).get<GetInternalAccountsByDidByDidResponses, GetInternalAccountsByDidByDidErrors, ThrowOnError>({ url: '/internal/accounts/by-did/{did}', ...options });
 
 /**
  * OAuth 2.0 authorization endpoint
  *
  * Starts the OAuth 2.0 authorization code flow. Requires the user to be authenticated via Privy JWT. When the requested scopes fit an existing grant, auto-issues a code; otherwise 302s back with error=access_denied (consent UI lands in PR #2).
  */
-export const getOauthAuthorize = <ThrowOnError extends boolean = false>(options: Options<GetOauthAuthorizeData, ThrowOnError>) => {
-    return (options.client ?? client).get<unknown, GetOauthAuthorizeErrors, ThrowOnError>({
-        url: '/oauth/authorize',
-        ...options
-    });
-};
+export const getOauthAuthorize = <ThrowOnError extends boolean = false>(options: Options<GetOauthAuthorizeData, ThrowOnError>) => (options.client ?? client).get<unknown, GetOauthAuthorizeErrors, ThrowOnError>({ url: '/oauth/authorize', ...options });
 
 /**
  * OAuth consent screen
  *
  * Displays the consent form for the user to approve or deny an OAuth application.
  */
-export const getOauthConsent = <ThrowOnError extends boolean = false>(options: Options<GetOauthConsentData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetOauthConsentResponses, GetOauthConsentErrors, ThrowOnError>({
-        url: '/oauth/consent',
-        ...options
-    });
-};
+export const getOauthConsent = <ThrowOnError extends boolean = false>(options: Options<GetOauthConsentData, ThrowOnError>) => (options.client ?? client).get<GetOauthConsentResponses, GetOauthConsentErrors, ThrowOnError>({ url: '/oauth/consent', ...options });
 
 /**
  * Process OAuth consent
  *
  * Handles the consent form submission. Approve creates a grant and returns the auth code as JSON when the caller sends `Accept: application/json`, or as a 302 redirect to redirect_uri otherwise. Deny mirrors the same content negotiation: JSON error body or redirect with `error=access_denied`.
  */
-export const postOauthConsent = <ThrowOnError extends boolean = false>(options?: Options<PostOauthConsentData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostOauthConsentResponses, PostOauthConsentErrors, ThrowOnError>({
-        ...urlSearchParamsBodySerializer,
-        url: '/oauth/consent',
-        ...options,
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            ...options?.headers
-        }
-    });
-};
+export const postOauthConsent = <ThrowOnError extends boolean = false>(options?: Options<PostOauthConsentData, ThrowOnError>) => (options?.client ?? client).post<PostOauthConsentResponses, PostOauthConsentErrors, ThrowOnError>({
+    ...urlSearchParamsBodySerializer,
+    url: '/oauth/consent',
+    ...options,
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...options?.headers
+    }
+});
 
 /**
  * OAuth 2.0 token revocation (RFC 7009)
  *
  * Revokes a refresh token, or (with token_type_hint=grant) the entire grant. Always returns 200 per RFC 7009 when the client is authenticated.
  */
-export const postOauthRevoke = <ThrowOnError extends boolean = false>(options?: Options<PostOauthRevokeData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostOauthRevokeResponses, PostOauthRevokeErrors, ThrowOnError>({
-        ...urlSearchParamsBodySerializer,
-        url: '/oauth/revoke',
-        ...options,
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            ...options?.headers
-        }
-    });
-};
+export const postOauthRevoke = <ThrowOnError extends boolean = false>(options?: Options<PostOauthRevokeData, ThrowOnError>) => (options?.client ?? client).post<PostOauthRevokeResponses, PostOauthRevokeErrors, ThrowOnError>({
+    ...urlSearchParamsBodySerializer,
+    url: '/oauth/revoke',
+    ...options,
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...options?.headers
+    }
+});
 
 /**
  * OAuth 2.0 token endpoint
  *
  * Exchanges an authorization code or rotates a refresh token for a new access+refresh pair.
  */
-export const postOauthToken = <ThrowOnError extends boolean = false>(options?: Options<PostOauthTokenData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostOauthTokenResponses, PostOauthTokenErrors, ThrowOnError>({
-        ...urlSearchParamsBodySerializer,
-        url: '/oauth/token',
-        ...options,
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            ...options?.headers
-        }
-    });
-};
+export const postOauthToken = <ThrowOnError extends boolean = false>(options?: Options<PostOauthTokenData, ThrowOnError>) => (options?.client ?? client).post<PostOauthTokenResponses, PostOauthTokenErrors, ThrowOnError>({
+    ...urlSearchParamsBodySerializer,
+    url: '/oauth/token',
+    ...options,
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...options?.headers
+    }
+});
