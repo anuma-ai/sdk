@@ -199,11 +199,21 @@ function rerankDateMs(item: {
     return item.lastObservedAt;
   }
   const updatedMs = item.updatedAt?.getTime();
-  if (updatedMs !== null && updatedMs !== undefined && Number.isFinite(updatedMs) && updatedMs > 0) {
+  if (
+    updatedMs !== null &&
+    updatedMs !== undefined &&
+    Number.isFinite(updatedMs) &&
+    updatedMs > 0
+  ) {
     return updatedMs;
   }
   const createdMs = item.createdAt?.getTime();
-  if (createdMs !== null && createdMs !== undefined && Number.isFinite(createdMs) && createdMs > 0) {
+  if (
+    createdMs !== null &&
+    createdMs !== undefined &&
+    Number.isFinite(createdMs) &&
+    createdMs > 0
+  ) {
     return createdMs;
   }
   return undefined;
