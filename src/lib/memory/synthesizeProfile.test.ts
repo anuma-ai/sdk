@@ -542,6 +542,31 @@ describe("synthesizeProfile", () => {
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
   });
 
+  // A partial/unparseable structured response must NOT publish the raw JSON
+  // payload as section text — it degrades to the prior section (stale).
+  it("does not publish a raw JSON payload when structured output is incomplete", async () => {
+    mockGetAll.mockResolvedValue([
+      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+    ]);
+    // Truncated JSON payload, no parsed structuredOutput.
+    mockReflect.mockResolvedValueOnce({
+      text: '{"summary": "half a sen',
+      basedOn: { memoryIds: ["a"] },
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    } as never);
+
+    const previous = priorDoc(
+      [section("bio", "good prior bio", ["a"])],
+      2000,
+      fingerprint([FACETS[0]])
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]], previous });
+
+    expect(doc.sections[0].text).toBe("good prior bio"); // prior kept, not the JSON fragment
+    expect(doc.sections[0].stale).toBe(true);
+  });
+
   // A cited fact that LEFT scope (or was hard-deleted) vanishes from the scoped
   // snapshot without advancing the watermark — the citing section must still
   // refresh rather than reuse evidence recall no longer returns.

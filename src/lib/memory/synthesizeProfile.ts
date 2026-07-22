@@ -516,7 +516,7 @@ async function synthesizeFacet(
   // Empty memoryIds means recall found no evidence — treat as legitimate empty
   // to properly clear sections whose cited facts were deleted/superseded.
   const noEvidence = result.basedOn.memoryIds.length === 0;
-  const { text, legitimateEmpty } = extractFacetText(result.structuredOutput, result.text);
+  const { text, legitimateEmpty } = extractFacetText(result.structuredOutput);
 
   if (!text && !legitimateEmpty && !noEvidence) {
     // Degraded empty (LLM produced nothing but not an explicit no-evidence
@@ -576,19 +576,20 @@ Rules:
 - Respond as JSON: { "summary": <the section text, or "">, "hasEvidence": <true|false> }.`;
 }
 
-/** Pull section text from the structured output, falling back to raw text.
- * Returns `legitimateEmpty` when the LLM explicitly reported no evidence
- * (hasEvidence=false) — the caller clears the section in that case, but treats
- * any OTHER empty result as a degradation and keeps the prior section. */
-function extractFacetText(
-  structured: unknown,
-  rawText: string
-): { text: string; legitimateEmpty: boolean } {
+/** Pull section text from the structured output only. Returns `legitimateEmpty`
+ * when the LLM explicitly reported no evidence (hasEvidence=false) — the caller
+ * clears the section in that case; any OTHER empty result (missing/partial JSON)
+ * is a degradation, so the caller keeps the prior section. */
+function extractFacetText(structured: unknown): { text: string; legitimateEmpty: boolean } {
   if (structured && typeof structured === "object") {
     const obj = structured as { summary?: unknown; hasEvidence?: unknown };
     if (obj.hasEvidence === false) return { text: "", legitimateEmpty: true };
     if (typeof obj.summary === "string")
       return { text: obj.summary.trim(), legitimateEmpty: false };
   }
-  return { text: rawText.trim(), legitimateEmpty: false };
+  // No valid structured summary — missing, partial, or unparseable JSON. This is
+  // a DEGRADED result, not a legitimate empty: never fall back to reflect's raw
+  // text, which (since we always request structured output) is the JSON payload
+  // itself and would publish a truncated `{"summary": ...` fragment as prose.
+  return { text: "", legitimateEmpty: false };
 }
