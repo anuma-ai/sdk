@@ -8,7 +8,14 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import { isEncrypted } from "../db/encryption-utils";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
-import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
+import {
+  getAllVaultMemoriesOp,
+  getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByIdsOp,
+  updateVaultMemoryEmbeddingOp,
+} from "../db/memoryVault/operations";
+import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
@@ -1197,6 +1204,139 @@ export async function eagerEmbedContent(
       () => {}
     );
   }
+}
+
+/**
+ * Pure cosine top-k admission over already-vectored candidates. Ties break
+ * by recency (newer `updatedAt` wins) so the projected corpus builder's
+ * admission window is deterministic across cache-hit/miss ordering.
+ */
+export function admitVaultProjections(
+  queryEmbedding: ArrayLike<number>,
+  vectored: Array<{ uniqueId: string; embedding: ArrayLike<number>; updatedAt: Date }>,
+  k: number
+): string[] {
+  return vectored
+    .map((it) => ({ it, score: cosineSimilarity(queryEmbedding, it.embedding) }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score || b.it.updatedAt.getTime() - a.it.updatedAt.getTime())
+    .slice(0, k)
+    .map((s) => s.it.uniqueId);
+}
+
+/**
+ * Projected decrypt-last corpus (B2). Ranks from the vector LRU + a
+ * column-projected key scan (no blobs), loads the embedding column ONLY for
+ * cache-miss ids, decrypts content ONLY for the admission window. Un-embedded
+ * rows (no usable stored vector) are a bounded lane: decrypt+embed up to
+ * `unembeddedCap`, log drops.
+ */
+export async function buildProjectedCorpus(
+  query: string,
+  vaultCtx: VaultMemoryOperationsContext,
+  embeddingOptions: EmbeddingOptions,
+  cache: VaultEmbeddingCache,
+  queryOpts: { scopes?: string[]; folderId?: string | null },
+  opts: { limit: number; admitFactor: number; admitFloor: number; unembeddedCap: number }
+): Promise<{
+  memories: StoredVaultMemory[];
+  embeddedItems: EmbeddedItem[];
+  queryEmbedding: number[];
+  vaultSize: number;
+}> {
+  const keys = await getVaultCandidateKeysOp(
+    vaultCtx,
+    Object.keys(queryOpts).length > 0 ? queryOpts : undefined
+  );
+  const vaultSize = keys.length;
+  const queryEmbedding = await generateEmbedding(query, embeddingOptions);
+  const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
+
+  const vectored: Array<{ uniqueId: string; embedding: Float32Array; updatedAt: Date }> = [];
+  const missIds: string[] = []; // cache miss, has a compatible stored vector (load it)
+  const noVectorIds: string[] = []; // no usable stored vector (un-embedded lane)
+  const keyById = new Map(keys.map((k) => [k.uniqueId, k]));
+  for (const k of keys) {
+    const cached = cache.get(k.uniqueId);
+    if (cached && cached.length === queryEmbedding.length) {
+      vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
+      continue;
+    }
+    const modelCompatible = (k.embeddingModel ?? currentModel) === currentModel;
+    if (modelCompatible) missIds.push(k.uniqueId);
+    else noVectorIds.push(k.uniqueId);
+  }
+
+  // Load embedding column ONLY for cache misses that claim a compatible vector.
+  if (missIds.length > 0) {
+    const rows = await getVaultEmbeddingsByIdsOp(vaultCtx, missIds);
+    const gotVector = new Set<string>();
+    for (const r of rows) {
+      if (!r.embedding) continue;
+      try {
+        const parsed = JSON.parse(r.embedding) as number[];
+        if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
+          const vec = Float32Array.from(parsed);
+          cache.set(r.uniqueId, vec);
+          const k = keyById.get(r.uniqueId)!;
+          vectored.push({ uniqueId: r.uniqueId, embedding: vec, updatedAt: k.updatedAt });
+          gotVector.add(r.uniqueId);
+        }
+      } catch {
+        /* fall through to un-embedded lane */
+      }
+    }
+    for (const id of missIds) if (!gotVector.has(id)) noVectorIds.push(id);
+  }
+
+  // Un-embedded lane: bounded decrypt+embed so those rows can still rank.
+  if (noVectorIds.length > 0) {
+    const laneIds = noVectorIds.slice(0, opts.unembeddedCap);
+    if (noVectorIds.length > laneIds.length) {
+      getLogger().warn(
+        `memoryVault: projected search un-embedded lane capped at ${laneIds.length}/${noVectorIds.length}`
+      );
+    }
+    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds)).filter(
+      (m) => !isEncrypted(m.content)
+    );
+    if (laneRows.length > 0) {
+      const laneVecs = await generateEmbeddings(
+        laneRows.map((m) => m.content),
+        embeddingOptions
+      );
+      laneRows.forEach((m, i) => {
+        const vec = Float32Array.from(laneVecs[i]);
+        cache.set(m.uniqueId, vec);
+        vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
+        updateVaultMemoryEmbeddingOp(
+          vaultCtx,
+          m.uniqueId,
+          JSON.stringify(laneVecs[i]),
+          currentModel
+        ).catch(() => {});
+      });
+    }
+  }
+
+  const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
+  const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
+  const memories = (await getVaultMemoriesByIdsOp(vaultCtx, admittedIds)).filter(
+    (m) => !isEncrypted(m.content)
+  );
+  const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
+    id: m.uniqueId,
+    content: m.content,
+    embedding: cache.get(m.uniqueId) ?? [],
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+    proofCount: m.proofCount,
+    eventTimeStart: m.eventTimeStart,
+    sourceChunkIds: m.sourceChunkIds,
+    eventTimeEnd: m.eventTimeEnd,
+    eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
+  }));
+  return { memories, embeddedItems, queryEmbedding, vaultSize };
 }
 
 /**

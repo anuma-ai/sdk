@@ -5,6 +5,8 @@ import {
   searchVaultMemoriesWithSize,
   preEmbedVaultMemories,
   eagerEmbedContent,
+  admitVaultProjections,
+  buildProjectedCorpus,
 } from "./searchTool";
 import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
@@ -14,6 +16,9 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
   updateVaultMemoryEmbeddingOp: vi.fn().mockResolvedValue(undefined),
+  getVaultCandidateKeysOp: vi.fn(),
+  getVaultEmbeddingsByIdsOp: vi.fn(),
+  getVaultMemoriesByIdsOp: vi.fn(),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -26,6 +31,8 @@ vi.mock("../memory/reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
+import * as ops from "../db/memoryVault/operations";
+import * as embed from "../memoryEngine/embeddings";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { rerankPairs } from "../memory/reranker";
@@ -858,5 +865,78 @@ describe("embedding model versioning", () => {
     );
     expect(results).toHaveLength(1);
     expect(results[0].similarity).toBeCloseTo(1);
+  });
+});
+
+describe("admitVaultProjections", () => {
+  const v = (id: string, e: number[], u = "2026-05-01") =>
+    ({ uniqueId: id, embedding: Float32Array.from(e), updatedAt: new Date(u) });
+  it("ranks by cosine desc, caps at k, ties by recency", () => {
+    expect(admitVaultProjections([1, 0], [v("mid", [0.6, 0.8]), v("top", [1, 0])], 2)).toEqual([
+      "top",
+      "mid",
+    ]);
+    expect(
+      admitVaultProjections(
+        [1, 0],
+        [v("o", [1, 0], "2026-05"), v("n", [1, 0], "2026-06")],
+        5
+      )
+    ).toEqual(["n", "o"]);
+  });
+});
+
+describe("buildProjectedCorpus", () => {
+  const embOpts = { model: "m" } as any;
+  beforeEach(() => {
+    // restoreAllMocks drops any mockResolvedValue left behind by earlier
+    // describe blocks in this file; clearAllMocks resets call history so
+    // "not called" assertions here aren't polluted by prior tests sharing
+    // the same auto-mocked module.
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+  it("loads embeddings only for cache misses; decrypts only the admission set", async () => {
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      { uniqueId: "cached", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      { uniqueId: "miss", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+    ] as any);
+    const embByIds = vi
+      .spyOn(ops, "getVaultEmbeddingsByIdsOp")
+      .mockResolvedValue([{ uniqueId: "miss", embedding: "[0.6,0.8]", embeddingModel: "m" }] as any);
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
+      {
+        uniqueId: "cached",
+        content: "alpha",
+        embedding: "[1,0]",
+        embeddingModel: "m",
+        scope: "private",
+        folderId: null,
+        userId: null,
+        isDeleted: false,
+        proofCount: 1,
+        sourceChunkIds: null,
+        eventTimeStart: null,
+        eventTimeEnd: null,
+        eventTimeKind: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as any);
+    const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp");
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = new Map([["cached", Float32Array.from([1, 0])]]); // warm hit
+    const out = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, {
+      limit: 2,
+      admitFactor: 1,
+      admitFloor: 2,
+      unembeddedCap: 100,
+    });
+
+    expect(getAll).not.toHaveBeenCalled(); // no whole-vault load
+    expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"]); // only the miss embedded-loaded
+    expect(out.vaultSize).toBe(2);
+    expect(byIds.mock.calls[0][1]).toContain("cached"); // admission decrypt
   });
 });
