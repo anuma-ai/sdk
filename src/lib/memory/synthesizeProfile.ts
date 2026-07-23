@@ -36,6 +36,7 @@ import {
   DEFAULT_PROFILE_PROOF_ALPHA,
 } from "./profileSalience.js";
 import { recall } from "./recall.js";
+import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
 import type { RankedMemory, RecallContext } from "./types.js";
 
@@ -661,9 +662,12 @@ async function synthesizeFacet(
   const reviewed = options.reviewedMemoryIds;
   const hasReviewGate = reviewed !== undefined && reviewed.length > 0;
 
+  // When gating, fetch up to RECALL_MAX_LIMIT before intersecting — `undefined`
+  // is NOT unbounded (`recall` defaults to 8), which would shrink the pool
+  // below the ungated facet limit and drop approved evidence ranked 9+.
   const recalled = await recall(facet.query, ctx, {
     scopes,
-    limit: hasReviewGate ? undefined : limit,
+    limit: hasReviewGate ? RECALL_MAX_LIMIT : limit,
     types: ["fact"],
     factTypeWeights,
     proofCountAlpha,

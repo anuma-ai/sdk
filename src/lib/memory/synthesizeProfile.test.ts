@@ -13,6 +13,7 @@ import {
   DEFAULT_PROFILE_PROOF_ALPHA,
 } from "./profileSalience.js";
 import { recall } from "./recall.js";
+import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
 import {
   type ProfileConfigFingerprint,
@@ -767,6 +768,35 @@ describe("synthesizeProfile", () => {
     expect(doc.sections[0].text).toBe("Reviewed bio");
     expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual(["a"]);
     expect(mockReflect.mock.calls[1][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual(["a"]);
+  });
+
+  it("recalls with RECALL_MAX_LIMIT when reviewedMemoryIds gate is on", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    // Honor limit so a regression to undefined/DEFAULT_LIMIT(8) fails loudly.
+    mockRecall.mockImplementation(async (_q, _ctx, options) => {
+      const all = Array.from({ length: 30 }, (_, i) => ranked(`m${i}`));
+      const limit = options?.limit ?? 8;
+      return {
+        memories: all.slice(0, limit),
+        usedBudget: "low" as const,
+        reranked: false,
+        candidateCount: all.length,
+      };
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["m0"]));
+
+    await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      reviewedMemoryIds: ["m0", "m25"],
+    });
+
+    expect(mockRecall.mock.calls[0][2]?.limit).toBe(RECALL_MAX_LIMIT);
+    // m25 ranks past DEFAULT_LIMIT(8) but within RECALL_MAX_LIMIT — must survive.
+    expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual([
+      "m0",
+      "m25",
+    ]);
   });
 
   it("clears a section when reviewedMemoryIds excludes all recalled evidence", async () => {
