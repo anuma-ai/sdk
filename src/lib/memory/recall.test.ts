@@ -40,6 +40,17 @@ vi.mock("../memoryVault/decomposeQuery", () => ({
   decomposeQuery: vi.fn(),
 }));
 
+// Wrap (not replace) so the real ranking pipeline still runs — this test
+// file pins actual orchestration — while letting us assert on the
+// `searchOptions` argument recall() forwards through.
+vi.mock("../memoryVault/searchTool", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../memoryVault/searchTool")>();
+  return {
+    ...actual,
+    searchVaultMemoriesWithSize: vi.fn(actual.searchVaultMemoriesWithSize),
+  };
+});
+
 import { searchChunksOp, type StorageOperationsContext } from "../db/chat/operations";
 import type { ChunkSearchResult } from "../db/chat/types";
 import {
@@ -55,6 +66,7 @@ import {
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
+import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool";
 
 import { recall } from "./recall";
 import { createRecallTool, RECALL_MAX_LIMIT } from "./recallTool";
@@ -468,6 +480,35 @@ describe("recall — filters and pass-through", () => {
       scopes: ["work"],
       folderId: null,
     });
+  });
+
+  it("forwards decryptLast through to searchVaultMemoriesWithSize", async () => {
+    // decryptLast:true flips searchVaultMemoriesWithSize onto the
+    // projected-corpus path (Task 1-5, exercised by searchTool.test.ts),
+    // which needs ops this file doesn't mock — irrelevant to what's under
+    // test here (option pass-through), so swallow it and assert on the
+    // recorded call args instead.
+    await recall(QUERY, makeCtx(), { decryptLast: true }).catch(() => {});
+
+    expect(searchVaultMemoriesWithSize).toHaveBeenCalledWith(
+      QUERY,
+      vaultCtx,
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ decryptLast: true })
+    );
+  });
+
+  it("omits decryptLast from searchVaultMemoriesWithSize options when unset", async () => {
+    await recall(QUERY, makeCtx());
+
+    expect(searchVaultMemoriesWithSize).toHaveBeenCalledWith(
+      QUERY,
+      vaultCtx,
+      expect.anything(),
+      expect.anything(),
+      expect.not.objectContaining({ decryptLast: expect.anything() })
+    );
   });
 
   it("applies the default limit of 8", async () => {

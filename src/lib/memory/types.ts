@@ -157,6 +157,13 @@ export interface RecallOptions {
   bm25AdmissionDivisor?: number;
   /** RRF smoothing constant for lane fusion (facts × chunks and side lanes). Default: 60. */
   rrfK?: number;
+  /**
+   * Decrypt vault memory content only for the top-N ranked candidates
+   * instead of the whole vault. Forwarded verbatim to the vault search
+   * pipeline's `MemoryVaultSearchOptions`. Default: off (legacy
+   * whole-vault decrypt path).
+   */
+  decryptLast?: boolean;
 }
 
 export interface RecallContext {

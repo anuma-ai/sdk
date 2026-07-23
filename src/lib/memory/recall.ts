@@ -242,6 +242,7 @@ export async function recall(
           bm25AdmissionDivisor: options.bm25AdmissionDivisor,
         }),
         ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+        ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
         ...(decomposeAvailable && {
           decompose: "llm" as const,
           decomposeOptions: options.decomposeOptions,
