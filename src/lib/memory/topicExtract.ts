@@ -66,6 +66,15 @@ export interface TopicExtractionInput {
  */
 export interface TopicExtractOptions extends PortalLlmAuth {
   baseUrl?: string;
+  /**
+   * Optional per-call request path override, forwarded to
+   * {@link callPortalJsonCompletion}. When set, topic extraction POSTs to
+   * `baseUrl + endpointOverride` instead of the default
+   * `/api/v1/chat/completions` — path only, body unchanged. Lets callers route
+   * this internal-utility pass to a dedicated endpoint. Invalid values throw at
+   * call time (see {@link validateEndpointOverride}).
+   */
+  endpointOverride?: string;
   /** Defaults to {@link DEFAULT_EXTRACTION_MODEL} — the sanctioned extraction
    * model. Don't point this at a second model without an eval. */
   model?: string;
@@ -137,6 +146,9 @@ export async function extractEntitiesForMemories(
       ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
       ...(options.getToken !== undefined && { getToken: options.getToken }),
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      ...(options.endpointOverride !== undefined && {
+        endpointOverride: options.endpointOverride,
+      }),
       model: options.model ?? DEFAULT_EXTRACTION_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       userMessage: `${vocabularyNote}Memories:\n${listing}\n\nList each memory's named entities.`,

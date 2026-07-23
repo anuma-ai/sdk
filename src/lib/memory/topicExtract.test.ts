@@ -51,6 +51,22 @@ describe("extractEntitiesForMemories", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("forwards endpointOverride to the request path (baseUrl + override)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: topicResponse([{ id: "mem_1", entities: [] }]) } }],
+      }),
+    });
+    await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], {
+      apiKey: "k",
+      baseUrl: "https://portal.test",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
+  });
+
   it("parses entities per memory; omitted ids stay ABSENT (unanswered)", async () => {
     const fetchFn = mockFetch(
       topicResponse([

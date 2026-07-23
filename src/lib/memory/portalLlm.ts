@@ -10,6 +10,7 @@
  */
 
 import { BASE_URL } from "../../clientConfig.js";
+import { validateEndpointOverride } from "../chat/endpointOverride.js";
 import { getLogger } from "../logger.js";
 
 /** Read per-call so tests that mutate `process.env` between imports take effect. */
@@ -128,6 +129,15 @@ interface PortalLlmRequest extends PortalLlmAuth {
    * Tests pass `() => 0` to retry without real delay.
    */
   backoffMs?: (attempt: number) => number;
+  /**
+   * Optional per-call request path override. When set, the completion POSTs to
+   * `baseUrl + endpointOverride` instead of the default `/api/v1/chat/completions`
+   * — path only, the request body is unchanged. Must be a non-empty root-relative
+   * path (validated via {@link validateEndpointOverride}); an invalid value throws
+   * at call time before any request is sent. Used to route internal-utility calls
+   * to a dedicated endpoint (e.g. `/api/v1/utility/chat/completions`).
+   */
+  endpointOverride?: string;
 }
 
 /**
@@ -213,6 +223,18 @@ export async function resolvePortalAuthHeaders(
  */
 export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<unknown> {
   const log = getLogger();
+  // Resolve the request path once, up front. Default to /api/v1/chat/completions;
+  // an endpointOverride is validated here (root-relative, no off-origin) and an
+  // invalid value throws immediately — a caller bug, not a transient batch
+  // failure, so it must not be swallowed into the null-on-failure path.
+  let endpoint = "/api/v1/chat/completions";
+  if (req.endpointOverride !== undefined) {
+    const overrideValidation = validateEndpointOverride(req.endpointOverride);
+    if (!overrideValidation.valid) {
+      throw new Error(overrideValidation.message);
+    }
+    endpoint = overrideValidation.endpoint;
+  }
   const maxAttempts = Math.max(1, req.maxAttempts ?? 3);
   const startedAt = Date.now();
   const overBudget = () =>
@@ -237,7 +259,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
             ),
           }
         : req;
-    const outcome = await attemptPortalJson(attemptReq);
+    const outcome = await attemptPortalJson(attemptReq, endpoint);
     if (outcome.kind === "ok") return outcome.value;
     if (outcome.kind === "terminal") {
       log.warn(`[${req.tag}] ${outcome.reason}`);
@@ -279,7 +301,7 @@ export async function callPortalJsonCompletion(req: PortalLlmRequest): Promise<u
  * A token that's unavailable (fetch failed / returned null) is terminal — we
  * don't retry the token service in a tight loop.
  */
-async function attemptPortalJson(req: PortalLlmRequest): Promise<AttemptOutcome> {
+async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promise<AttemptOutcome> {
   const baseUrl = req.baseUrl ?? defaultBaseUrl();
   const fetchImpl = req.fetchFn ?? fetch;
   const timeoutMs = req.timeoutMs ?? 60_000;
@@ -325,7 +347,7 @@ async function attemptPortalJson(req: PortalLlmRequest): Promise<AttemptOutcome>
 
   let response: Response;
   try {
-    response = await fetchImpl(`${baseUrl}/api/v1/chat/completions`, {
+    response = await fetchImpl(`${baseUrl}${endpoint}`, {
       method: "POST",
       headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
