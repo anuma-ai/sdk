@@ -205,6 +205,23 @@ describe("traverseGraphLane — hop reachability", () => {
     expect(ids.indexOf("C")).toBeGreaterThan(ids.indexOf("B"));
   });
 
+  it("recovers an all-lowercase query through the same fallback seed extraction (D4)", async () => {
+    const ctx = makeEntityCtx();
+    await buildChain(ctx);
+
+    // "what about alpha" strict-extracts nothing (all lowercase), but the
+    // lowercase fallback recovers "alpha" ("about" is stopworded, "alpha"
+    // matches the stored canonical). Same seed as the capitalized QUERY → the
+    // multi-hop lane returns the same ids, so the seed extraction — not just
+    // recall's single-hop lane — benefits from the fix.
+    const lower = await traverseGraphLane("what about alpha", ctx, { maxHops: 1 });
+    const upper = await traverseGraphLane(QUERY, ctx, { maxHops: 1 });
+
+    expect(lower).toEqual(upper);
+    // Not vacuously equal (both []): the seed memories are actually present.
+    expect(lower).toEqual(expect.arrayContaining(["A", "B"]));
+  });
+
   it("returns [] when the query has no extractable entities", async () => {
     const ctx = makeEntityCtx();
     await buildChain(ctx);

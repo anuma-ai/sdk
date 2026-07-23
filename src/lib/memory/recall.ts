@@ -482,7 +482,10 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
  *
  * Returns an empty array (not just empty ranking) when:
  *  - `ctx.entityCtx` is not provided
- *  - The query has no extractable entities (all-lowercase or stopwords)
+ *  - The query yields no entities — the strict capitalized pass is empty AND
+ *    the lowercase fallback produced no candidates (a stopword-only query).
+ *    Lowercase/dictated queries now DO reach this lane via that fallback;
+ *    only a genuinely entity-free query short-circuits here.
  *  - No stored memories share any of the query's entities
  *
  * The ranking is by raw shared-count, not the tanh score — we hand off
