@@ -25,11 +25,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
-import {
-  searchVaultMemories,
-  type VaultEmbeddingCache,
-  type VaultSearchResult,
-} from "../memoryVault/searchTool.js";
+import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.85;
@@ -95,32 +91,8 @@ export async function retain(
     // 0.65) and asks an LLM to decide create/update/noop/supersede. Catches
     // paraphrased duplicates the strict cosine-merge below misses, and retires
     // stale values on a state change.
-    //
-    // This search doubles as the candidate set for Stage 2 below: the 0.85
-    // strict-merge threshold is a subset of the 0.65 consolidate floor (same
-    // query/scope/folder, descending-similarity order — see
-    // `consolidateThreshold`'s "looser than auto-merge" doc), so when this
-    // search ran we derive the merge hit from its results in memory instead
-    // of re-querying the vault a second time.
-    let consolidateMatches: VaultSearchResult[] | null = null;
     if (options.consolidateOptions) {
-      const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
-      const topK = options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K;
-      consolidateMatches = await searchVaultMemories(
-        trimmed,
-        ctx.vaultCtx,
-        ctx.embeddingOptions,
-        ctx.vaultCache,
-        {
-          limit: topK,
-          minSimilarity: consolidateThreshold,
-          useFusion: false,
-          scopes: [resolvedScope],
-          ...(options.folderId !== undefined && { folderId: options.folderId }),
-        }
-      );
-
-      const outcome = await tryConsolidate(trimmed, ctx, options, consolidateMatches);
+      const outcome = await tryConsolidate(trimmed, ctx, options);
       if (outcome) {
         if ("done" in outcome) return outcome.done;
         supersedeTargetId = outcome.supersede;
@@ -133,20 +105,22 @@ export async function retain(
     // threshold semantics; the fusion ranker produces a different score
     // scale and isn't suitable for a pairwise-similarity gate.
     if (!supersedeTargetId) {
-      const mergeMatch = consolidateMatches
-        ? consolidateMatches.find((m) => m.similarity >= threshold)
-        : (
-            await searchVaultMemories(trimmed, ctx.vaultCtx, ctx.embeddingOptions, ctx.vaultCache, {
-              limit: 1,
-              minSimilarity: threshold,
-              useFusion: false,
-              scopes: [resolvedScope],
-              ...(options.folderId !== undefined && { folderId: options.folderId }),
-            })
-          )[0];
+      const matches = await searchVaultMemories(
+        trimmed,
+        ctx.vaultCtx,
+        ctx.embeddingOptions,
+        ctx.vaultCache,
+        {
+          limit: 1,
+          minSimilarity: threshold,
+          useFusion: false,
+          scopes: [resolvedScope],
+          ...(options.folderId !== undefined && { folderId: options.folderId }),
+        }
+      );
 
-      if (mergeMatch) {
-        const targetId = mergeMatch.uniqueId;
+      if (matches.length > 0) {
+        const targetId = matches[0].uniqueId;
         const existing = await getVaultMemoryOp(ctx.vaultCtx, targetId);
         if (existing && !existing.supersededBy) {
           const mergedSourceIds = unionStrings(
@@ -368,11 +342,29 @@ type ConsolidateOutcome = { done: RetainResult } | { supersede: string; content:
 async function tryConsolidate(
   trimmed: string,
   ctx: RetainContext,
-  options: RetainOptions,
-  matches: VaultSearchResult[]
+  options: RetainOptions
 ): Promise<ConsolidateOutcome> {
   const consolidateOptions = options.consolidateOptions;
   if (!consolidateOptions) return null;
+
+  const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
+  const topK = options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K;
+  // Same scope resolution as retain() — search the scope we'll write to.
+  const resolvedScope = options.scope ?? DEFAULT_SCOPE;
+
+  const matches = await searchVaultMemories(
+    trimmed,
+    ctx.vaultCtx,
+    ctx.embeddingOptions,
+    ctx.vaultCache,
+    {
+      limit: topK,
+      minSimilarity: consolidateThreshold,
+      useFusion: false,
+      scopes: [resolvedScope],
+      ...(options.folderId !== undefined && { folderId: options.folderId }),
+    }
+  );
   if (matches.length === 0) return null;
 
   const candidates = matches.map((m) => ({
