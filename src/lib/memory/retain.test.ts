@@ -531,9 +531,12 @@ describe("retain — write-time supersession (A2)", () => {
   });
 
   it("falls through to plain create when the supersede target vanished (race)", async () => {
-    vi.mocked(searchVaultMemories)
-      .mockResolvedValueOnce([{ uniqueId: "old", content: "x", similarity: 0.7 } as never]) // consolidate candidate search
-      .mockResolvedValueOnce([]); // Stage-2 strict merge search on the create fall-through
+    // Single shared consolidate-candidate search (0.65 floor); its 0.7 hit is
+    // below the 0.85 merge threshold, so Stage 2's in-memory derive also
+    // comes up empty — no second search is issued.
+    vi.mocked(searchVaultMemories).mockResolvedValueOnce([
+      { uniqueId: "old", content: "x", similarity: 0.7 } as never,
+    ]);
     vi.mocked(consolidateMemory).mockResolvedValue({
       action: "supersede",
       targetId: "old",
@@ -547,6 +550,7 @@ describe("retain — write-time supersession (A2)", () => {
 
     expect(result.action).toBe("create");
     expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(searchVaultMemories)).toHaveBeenCalledTimes(1);
   });
 
   it("does not retire the old fact when the new one is tombstone-suppressed", async () => {
@@ -611,11 +615,12 @@ describe("retain — write-time supersession (A2)", () => {
   });
 
   it("falls through to plain create when the target is already superseded", async () => {
-    vi.mocked(searchVaultMemories)
-      .mockResolvedValueOnce([
-        { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
-      ]) // consolidate candidate search
-      .mockResolvedValueOnce([]); // Stage-2 strict merge search on the fall-through
+    // Single shared consolidate-candidate search (0.65 floor); its 0.7 hit is
+    // below the 0.85 merge threshold, so Stage 2's in-memory derive also
+    // comes up empty — no second search is issued.
+    vi.mocked(searchVaultMemories).mockResolvedValueOnce([
+      { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
+    ]);
     vi.mocked(consolidateMemory).mockResolvedValue({
       action: "supersede",
       targetId: "old",
@@ -633,5 +638,37 @@ describe("retain — write-time supersession (A2)", () => {
 
     expect(result.action).toBe("create");
     expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(searchVaultMemories)).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs one shared search and derives the 0.85 merge candidate in memory", async () => {
+    // Only ONE searchVaultMemories call is queued. If retain() still issued a
+    // second (Stage-2) search, vitest would return `undefined` for it and the
+    // subsequent `.length`/`.find` access would throw — failing the test.
+    const spy = vi
+      .mocked(searchVaultMemories)
+      .mockResolvedValueOnce([
+        { uniqueId: "existing-id", content: "same fact", similarity: 0.9 } as never,
+      ]);
+    // The LLM declines to consolidate (says "create") — Stage 2 must still
+    // pick up the 0.9 hit from the SAME result set and merge into it.
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "existing-id",
+      content: "same fact",
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({
+      uniqueId: "existing-id",
+      proofCount: 2,
+    } as never);
+
+    const result = await retain("same fact", ctx, { consolidateOptions });
+
+    expect(spy).toHaveBeenCalledTimes(1); // was 2 (0.65 consolidate + 0.85 merge)
+    expect(result.action).toBe("merge");
+    expect(result.targetId).toBe("existing-id");
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
   });
 });
