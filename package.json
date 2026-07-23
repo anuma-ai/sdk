@@ -11,6 +11,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "react-native": "./dist/index.cjs",
       "react-server": "./dist/index.mjs",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs",
@@ -18,14 +19,14 @@
     },
     "./constants": {
       "types": "./dist/constants/index.d.ts",
-      "react-native": "./dist/constants/index.mjs",
+      "react-native": "./dist/constants/index.cjs",
       "import": "./dist/constants/index.mjs",
       "require": "./dist/constants/index.cjs",
       "default": "./dist/constants/index.cjs"
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
-      "react-native": "./dist/react/index.mjs",
+      "react-native": "./dist/react/index.cjs",
       "import": "./dist/react/index.mjs",
       "require": "./dist/react/index.cjs",
       "default": "./dist/react/index.cjs"
@@ -38,14 +39,14 @@
     },
     "./expo": {
       "types": "./dist/expo/index.d.ts",
-      "react-native": "./dist/expo/index.mjs",
+      "react-native": "./dist/expo/index.cjs",
       "import": "./dist/expo/index.mjs",
       "require": "./dist/expo/index.cjs",
       "default": "./dist/expo/index.cjs"
     },
     "./polyfills": {
       "types": "./dist/polyfills/index.d.ts",
-      "react-native": "./dist/polyfills/index.mjs",
+      "react-native": "./dist/polyfills/index.cjs",
       "import": "./dist/polyfills/index.mjs",
       "require": "./dist/polyfills/index.cjs",
       "default": "./dist/polyfills/index.cjs"
@@ -71,6 +72,7 @@
     },
     "./tools": {
       "types": "./dist/tools/index.d.ts",
+      "react-native": "./dist/tools/index.cjs",
       "import": "./dist/tools/index.mjs",
       "require": "./dist/tools/index.cjs",
       "default": "./dist/tools/index.cjs"
