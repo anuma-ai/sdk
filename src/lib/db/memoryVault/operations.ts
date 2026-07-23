@@ -561,6 +561,84 @@ export async function getVaultRankingProjectionsOp(
   return results.map(vaultMemoryRawToRankable);
 }
 
+export interface VaultCandidateKey {
+  uniqueId: string;
+  folderId: string | null;
+  scope: string;
+  embeddingModel: string | null;
+  updatedAt: Date;
+}
+
+/**
+ * SQL WHERE fragment mirroring baseVaultConditions (is_deleted, superseded_by,
+ * user_id) for the projected-read path. Kept adjacent to baseVaultConditions —
+ * they MUST stay in lockstep.
+ */
+function baseVaultSql(
+  ctx: VaultMemoryOperationsContext
+): { sql: string; args: Array<string | number | boolean | null> } {
+  const clauses = ['"is_deleted" = 0', '"superseded_by" is null'];
+  const args: Array<string | number | boolean | null> = [];
+  if (ctx.userId !== undefined) {
+    clauses.push('"user_id" = ?');
+    args.push(ctx.userId);
+  }
+  return { sql: clauses.join(" and "), args };
+}
+
+/**
+ * Column-projected candidate keys — id + rank-metadata, NO content/embedding
+ * blobs. On OPFS-SQLite this is a projected SELECT (skips the blobs on disk);
+ * on LokiJS (Q.unsafeSqlQuery throws) it falls back to the standard Q query +
+ * unsafeFetchRaw (blobs are already resident there, so the read is free).
+ */
+export async function getVaultCandidateKeysOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: { scopes?: string[]; folderId?: string | null }
+): Promise<VaultCandidateKey[]> {
+  const mapRaw = (raw: Record<string, unknown>): VaultCandidateKey => ({
+    uniqueId: raw.id as string,
+    folderId: (raw.folder_id as string | null) ?? null,
+    scope: (raw.scope as string) ?? "",
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
+    updatedAt: new Date(raw.updated_at as number),
+  });
+
+  // OPFS-SQLite: projected SELECT (skips content/embedding blobs).
+  try {
+    const base = baseVaultSql(ctx);
+    const clauses = [base.sql];
+    const args = [...base.args];
+    if (options?.scopes?.length) {
+      clauses.push(`"scope" in (${options.scopes.map(() => "?").join(",")})`);
+      args.push(...options.scopes);
+    }
+    if (options?.folderId !== undefined) {
+      clauses.push(options.folderId === null ? '"folder_id" is null' : '"folder_id" = ?');
+      if (options.folderId !== null) args.push(options.folderId);
+    }
+    const sql =
+      `select "id", "scope", "folder_id", "embedding_model", "updated_at" ` +
+      `from "memory_vault" where ${clauses.join(" and ")}`;
+    const rows = (await ctx.vaultMemoryCollection
+      .query(Q.unsafeSqlQuery(sql, args))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return rows.map(mapRaw);
+  } catch {
+    // LokiJS fallback (Q.unsafeSqlQuery unsupported): standard Q query, full raw
+    // rows (blobs resident, no extra I/O), projected in-memory.
+    const conditions = [
+      ...baseVaultConditions(ctx),
+      ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+      ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+    ];
+    const rows = (await ctx.vaultMemoryCollection
+      .query(...conditions)
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return rows.map(mapRaw);
+  }
+}
+
 /**
  * Bulk-decrypt a KNOWN set of memories by ID — the "decrypt last" half of
  * on-demand recall (#5017) for lanes whose size is NOT bounded to the top-N

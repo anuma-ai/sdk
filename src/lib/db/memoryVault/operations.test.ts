@@ -7,6 +7,7 @@ import {
   getVaultMemoriesByIdsOp,
   getAllVaultMemoriesOp,
   getVaultRankingProjectionsOp,
+  getVaultCandidateKeysOp,
   getAllVaultMemoryContentsOp,
   updateVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
@@ -1573,5 +1574,92 @@ describe("getVaultMemoriesByIdsOp", () => {
 
     // is_deleted + superseded_by + id oneOf (no user_id — makeCtx sets none).
     expect(queryFn.mock.calls[0].length).toBe(3);
+  });
+});
+
+describe("getVaultCandidateKeysOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("maps projected candidate keys and excludes deleted/superseded via conditions", async () => {
+    const raws = [
+      {
+        id: "a",
+        scope: "private",
+        folder_id: null,
+        embedding_model: "m",
+        updated_at: new Date("2026-05-01").getTime(),
+      },
+    ];
+    // Loki path: unsafeSqlQuery throws → falls back to Q query + unsafeFetchRaw.
+    // The mock must actually throw on the first (SQL) call to drive that fallback —
+    // a bare object mock never throws on its own, so simulate the real Loki adapter
+    // behavior (Q.unsafeSqlQuery unsupported) explicitly.
+    let calls = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      return {
+        unsafeFetchRaw: vi.fn(async () => raws),
+        fetch: vi.fn(),
+      };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const keys = await getVaultCandidateKeysOp(ctx, { scopes: ["private"] });
+
+    expect(keys).toEqual([
+      {
+        uniqueId: "a",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date("2026-05-01"),
+      },
+    ]);
+    // conditions include is_deleted + superseded_by + scope (baseVaultConditions parity).
+    // calls[0] is the try-path SQL call (throws); calls[1] is the Loki fallback's
+    // Q query with the spread condition list: is_deleted, superseded_by, scope
+    // (no user_id — makeCtx sets none; no folder_id — not requested here).
+    expect(queryFn.mock.calls[1].length).toBe(3);
+  });
+
+  it("falls back to the Loki path when the projected SQL query throws", async () => {
+    const raws = [
+      {
+        id: "b",
+        scope: "shared",
+        folder_id: "f1",
+        embedding_model: null,
+        updated_at: new Date("2026-06-01").getTime(),
+      },
+    ];
+    let callCount = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      callCount += 1;
+      if (callCount === 1) {
+        // Simulate the OPFS-SQLite projected SELECT path throwing (e.g. Q.unsafeSqlQuery
+        // unsupported on this adapter) so the catch block's Loki fallback runs.
+        throw new Error("unsafeSqlQuery not supported");
+      }
+      return {
+        unsafeFetchRaw: vi.fn(async () => raws),
+        fetch: vi.fn(),
+      };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const keys = await getVaultCandidateKeysOp(ctx, { folderId: "f1" });
+
+    expect(keys).toEqual([
+      {
+        uniqueId: "b",
+        folderId: "f1",
+        scope: "shared",
+        embeddingModel: null,
+        updatedAt: new Date("2026-06-01"),
+      },
+    ]);
+    // First call = try path (throws), second call = fallback Q query.
+    expect(queryFn).toHaveBeenCalledTimes(2);
   });
 });
