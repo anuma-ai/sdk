@@ -76,6 +76,16 @@ export {
   TREND_RECENT_WINDOW_DAYS,
   TREND_STALE_WINDOW_DAYS,
 } from "./observationTrend.js";
+export {
+  DEFAULT_PROFILE_FACT_TYPE_WEIGHTS,
+  DEFAULT_PROFILE_PROOF_ALPHA,
+  DEFAULT_PROFILE_TREND_MULTIPLIERS,
+  type ProfileSalienceInput,
+  type RankedProfileCandidate,
+  rankProfileCandidates,
+  scoreProfileSalience,
+  type ScoreProfileSalienceOptions,
+} from "./profileSalience.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,

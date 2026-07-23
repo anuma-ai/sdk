@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { reflect } from "./reflect.js";
 import type { RecallContext } from "./types.js";
@@ -31,6 +31,10 @@ const completionResponse = (
 });
 
 describe("reflect", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns empty result for blank query", async () => {
     const fetchFn = vi.fn() as unknown as typeof fetch;
     const result = await reflect("   ", ctx, { apiKey: "k", fetchFn });
@@ -328,5 +332,36 @@ describe("reflect", () => {
     });
     expect(result.structuredOutput).toBeUndefined();
     expect(result.text).toBe("not json");
+  });
+
+  it("skips recall when memories override is provided", async () => {
+    const fetchFn = mockFetch(completionResponse("Grounded on the provided set."));
+    const result = await reflect("q", ctx, {
+      apiKey: "k",
+      fetchFn,
+      memories: [
+        {
+          id: "reviewed-1",
+          kind: "fact",
+          content: "Vegetarian.",
+          score: 0.95,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    });
+    expect(mockRecall).not.toHaveBeenCalled();
+    expect(result.basedOn.memoryIds).toEqual(["reviewed-1"]);
+    expect(result.text).toBe("Grounded on the provided set.");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns empty without calling the LLM when memories override is empty", async () => {
+    const fetchFn = vi.fn() as unknown as typeof fetch;
+    const result = await reflect("q", ctx, { apiKey: "k", fetchFn, memories: [] });
+    expect(mockRecall).not.toHaveBeenCalled();
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(result.basedOn.memoryIds).toEqual([]);
+    expect(result.text).toBe("");
   });
 });

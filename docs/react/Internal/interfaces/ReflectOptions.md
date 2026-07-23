@@ -400,6 +400,18 @@ Cap response length. Default: 4096.
 
 ***
 
+### memories?
+
+> `optional` **memories**: [`RankedMemory`](RankedMemory.md)\[]
+
+Defined in: [src/lib/memory/reflect.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/reflect.ts#72)
+
+Skip Stage-1 [recall](../functions/recall.md) and synthesize from these memories instead.
+Used by `synthesizeProfile` after intersecting recall with a
+`reviewedMemoryIds` gate so the LLM never sees unreviewed evidence.
+
+***
+
 ### minScore?
 
 > `optional` **minScore**: `number`

@@ -2,6 +2,10 @@
 
 Defined in: [src/lib/memory/observationTrend.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/observationTrend.ts#31)
 
+## Extended by
+
+* [`ProfileSalienceInput`](ProfileSalienceInput.md)
+
 ## Properties
 
 ### createdAt

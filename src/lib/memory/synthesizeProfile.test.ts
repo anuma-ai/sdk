@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./reflect.js", () => ({ reflect: vi.fn() }));
+vi.mock("./recall.js", () => ({ recall: vi.fn() }));
 vi.mock("../db/memoryVault/operations.js", () => ({ getAllVaultMemoriesOp: vi.fn() }));
 vi.mock("../memoryEngine/embeddings.js", () => ({ generateEmbeddings: vi.fn() }));
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
+import {
+  DEFAULT_PROFILE_FACT_TYPE_WEIGHTS,
+  DEFAULT_PROFILE_PROOF_ALPHA,
+} from "./profileSalience.js";
+import { recall } from "./recall.js";
+import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
 import {
   type ProfileConfigFingerprint,
@@ -16,9 +23,10 @@ import {
   PROFILE_DOC_VERSION,
   synthesizeProfile,
 } from "./synthesizeProfile.js";
-import type { RecallContext } from "./types.js";
+import type { RankedMemory, RecallContext } from "./types.js";
 
 const mockReflect = vi.mocked(reflect);
+const mockRecall = vi.mocked(recall);
 const mockGetAll = vi.mocked(getAllVaultMemoriesOp);
 const mockEmbed = vi.mocked(generateEmbeddings);
 
@@ -43,12 +51,17 @@ function sig(facets: ProfileFacet[]): string {
 }
 
 /** The config fingerprint a given facet set + default scopes produce. */
-function fingerprint(facets: ProfileFacet[], redacted = false): ProfileConfigFingerprint {
+function fingerprint(
+  facets: ProfileFacet[],
+  redacted = false,
+  reviewedMemoryIds: readonly string[] = []
+): ProfileConfigFingerprint {
   return {
     facetKeys: facets.map((f) => f.key).sort(),
     facetsSignature: sig(facets),
     scopes: ["private"],
     redacted,
+    reviewedMemoryIdsSignature: [...new Set(reviewedMemoryIds)].sort().join("\n"),
   };
 }
 
@@ -78,11 +91,35 @@ function mem(id: string, opts: Partial<StoredVaultMemory> = {}): StoredVaultMemo
     supersededBy: null,
     supersededAt: null,
     lastObservedAt: null,
+    factType: null,
+    archivedAt: null,
+    trustTier: null,
     createdAt: opts.createdAt ?? new Date(500),
     updatedAt: opts.updatedAt ?? new Date(1000),
     isDeleted: false,
     ...opts,
   };
+}
+
+function ranked(id: string): RankedMemory {
+  return {
+    id,
+    kind: "fact",
+    content: `content ${id}`,
+    score: 0.9,
+    createdAt: new Date(500),
+    updatedAt: new Date(1000),
+  };
+}
+
+/** Default recall mock: return one fact so reflect stubs still see evidence. */
+function stubRecallForReflect() {
+  mockRecall.mockResolvedValue({
+    memories: [ranked("a")],
+    usedBudget: "low" as const,
+    reranked: false,
+    candidateCount: 1,
+  });
 }
 
 function reflectResult(summary: string, memoryIds: string[], hasEvidence = true) {
@@ -117,6 +154,9 @@ function priorDoc(sections: ProfileSection[], watermark: number, config = cfg())
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Facet path now recalls first; default empty so tests that only stub
+  // reflect still get a legitimate-empty section unless they stub recall.
+  stubRecallForReflect();
 });
 
 describe("synthesizeProfile", () => {
@@ -134,6 +174,19 @@ describe("synthesizeProfile", () => {
 
   it("synthesizes one section per facet, carrying source ids + watermark + config", async () => {
     mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(3000) })]);
+    mockRecall
+      .mockResolvedValueOnce({
+        memories: [ranked("a")],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+      })
+      .mockResolvedValueOnce({
+        memories: [ranked("a")],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+      });
     mockReflect
       .mockResolvedValueOnce(reflectResult("A bio", ["a"]))
       .mockResolvedValueOnce(reflectResult("Some interests", ["a"]));
@@ -154,21 +207,47 @@ describe("synthesizeProfile", () => {
       weakening: 0,
       stale: 1,
     });
+    expect(mockRecall).toHaveBeenCalledTimes(2);
     expect(mockReflect).toHaveBeenCalledTimes(2);
+    // Profile-worthiness knobs on facet recall (not global chat defaults).
+    expect(mockRecall.mock.calls[0][2]).toMatchObject({
+      factTypeWeights: DEFAULT_PROFILE_FACT_TYPE_WEIGHTS,
+      proofCountAlpha: DEFAULT_PROFILE_PROOF_ALPHA,
+      types: ["fact"],
+    });
+    // Reflect receives the recalled set via memories override.
+    expect(mockReflect.mock.calls[0][2]).toMatchObject({
+      memories: [expect.objectContaining({ id: "a" })],
+    });
     // The snapshot is scoped to the same scopes synthesis recalls from.
     expect(mockGetAll.mock.calls[0][1]).toMatchObject({ scopes: ["private"] });
   });
 
   it("collapses a section to empty when the facet reports no evidence", async () => {
     mockGetAll.mockResolvedValue([mem("a")]);
-    mockReflect
-      .mockResolvedValueOnce(reflectResult("", [], false))
-      .mockResolvedValueOnce(reflectResult("Interests", ["a"]));
+    mockRecall
+      .mockResolvedValueOnce({
+        memories: [],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 0,
+      })
+      .mockResolvedValueOnce({
+        memories: [ranked("a")],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+      });
+    mockReflect.mockResolvedValueOnce(reflectResult("Interests", ["a"]));
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS });
 
     expect(doc.sections[0].text).toBe("");
+    expect(doc.sections[0].sourceMemoryIds).toEqual([]);
+    expect(doc.sections[0].stale).toBeUndefined();
     expect(doc.sections[1].text).toBe("Interests");
+    // Empty recall short-circuits before reflect.
+    expect(mockReflect).toHaveBeenCalledTimes(1);
   });
 
   it("reuses the previous doc wholesale when the vault hasn't advanced", async () => {
@@ -666,5 +745,140 @@ describe("synthesizeProfile", () => {
     expect(mockReflect).toHaveBeenCalledTimes(1); // only bio refreshed
     expect(doc.sections.find((s) => s.key === "bio")!.text).toBe(""); // cleared
     expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
+  });
+
+  it("intersects facet evidence with reviewedMemoryIds before reflect", async () => {
+    mockGetAll.mockResolvedValue([mem("a"), mem("b")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("Reviewed bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("Reviewed interests", ["a"]));
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      reviewedMemoryIds: ["a"],
+    });
+
+    expect(doc.sections[0].text).toBe("Reviewed bio");
+    expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual(["a"]);
+    expect(mockReflect.mock.calls[1][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual(["a"]);
+  });
+
+  it("recalls with RECALL_MAX_LIMIT when reviewedMemoryIds gate is on", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    // Honor limit so a regression to undefined/DEFAULT_LIMIT(8) fails loudly.
+    mockRecall.mockImplementation(async (_q, _ctx, options) => {
+      const all = Array.from({ length: 30 }, (_, i) => ranked(`m${i}`));
+      const limit = options?.limit ?? 8;
+      return {
+        memories: all.slice(0, limit),
+        usedBudget: "low" as const,
+        reranked: false,
+        candidateCount: all.length,
+      };
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["m0"]));
+
+    await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      reviewedMemoryIds: ["m0", "m25"],
+    });
+
+    expect(mockRecall.mock.calls[0][2]?.limit).toBe(RECALL_MAX_LIMIT);
+    // m25 ranks past DEFAULT_LIMIT(8) but within RECALL_MAX_LIMIT — must survive.
+    expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual([
+      "m0",
+      "m25",
+    ]);
+  });
+
+  it("clears a section when reviewedMemoryIds excludes all recalled evidence", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+    });
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      reviewedMemoryIds: ["not-a"],
+    });
+
+    expect(doc.sections[0].text).toBe("");
+    expect(doc.sections[0].sourceMemoryIds).toEqual([]);
+    expect(doc.sections[0].stale).toBeUndefined();
+    expect(mockReflect).not.toHaveBeenCalled();
+  });
+
+  it("does not gate when reviewedMemoryIds is empty", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["a", "b"]));
+
+    await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      reviewedMemoryIds: [],
+    });
+
+    expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("invalidates delta reuse when reviewedMemoryIds changes (vault unchanged)", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) }), mem("b")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("Narrow bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("Narrow interests", ["a"]));
+
+    const previous = priorDoc(
+      [section("bio", "Wide bio", ["a", "b"]), section("interests", "Wide interests", ["a", "b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b"])
+    );
+    previous.observationTrends = {
+      new: 0,
+      strengthening: 0,
+      stable: 0,
+      weakening: 0,
+      stale: 2,
+    };
+
+    // Same vault watermark; review set narrowed a,b → a. Must not reuse.
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a"],
+    });
+
+    expect(doc).not.toBe(previous);
+    expect(doc.config.reviewedMemoryIdsSignature).toBe("a");
+    expect(doc.sections[0].text).toBe("Narrow bio");
+    expect(doc.sections[0].sourceMemoryIds).toEqual(["a"]);
+    expect(mockReflect).toHaveBeenCalledTimes(2);
   });
 });
