@@ -28,10 +28,16 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
 import type { PiiRedactor } from "../pii/redactor.js";
+import type { FactType } from "./autoExtract.js";
 import { type ObservationTrend, summarizeObservationTrends } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
+import {
+  DEFAULT_PROFILE_FACT_TYPE_WEIGHTS,
+  DEFAULT_PROFILE_PROOF_ALPHA,
+} from "./profileSalience.js";
+import { recall } from "./recall.js";
 import { reflect } from "./reflect.js";
-import type { RecallContext } from "./types.js";
+import type { RankedMemory, RecallContext } from "./types.js";
 
 /** Open-weights default for on-device synthesis. Mirrors consolidate.ts:
  * ling-2.6-flash is preferred over gpt-oss for structured JSON (gpt-oss returns
@@ -220,6 +226,24 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    * Omit only when the caller redacts downstream — `nearby` also moderates
    * server-side, but the client should never publish un-gated text. */
   redactor?: PiiRedactor;
+  /**
+   * Per-FactType score multipliers for facet recall. Default:
+   * {@link DEFAULT_PROFILE_FACT_TYPE_WEIGHTS} (durable types boosted).
+   * Does not change global chat `recall()` defaults.
+   */
+  factTypeWeights?: Partial<Record<FactType, number>>;
+  /**
+   * Proof-count α for facet recall. Default: {@link DEFAULT_PROFILE_PROOF_ALPHA}
+   * (0.2). Chat recall stays at 0.1.
+   */
+  proofCountAlpha?: number;
+  /**
+   * When non-empty, intersect each facet's recalled evidence with this id set
+   * before the LLM runs (publish-review gate). Empty intersection → empty
+   * section (legitimate no-evidence), not a stale fallback. Omit / empty →
+   * no gate.
+   */
+  reviewedMemoryIds?: readonly string[];
 }
 
 /**
@@ -597,25 +621,63 @@ async function attributeFacts(
  * publish-safe. On a DEGRADED-empty result (LLM failure, empty text despite
  * evidence) it falls back to the prior section (marked stale) rather than
  * wiping a previously-good section (#3). A legitimate "no evidence" verdict
- * (hasEvidence=false) clears the section as intended. */
+ * (hasEvidence=false) clears the section as intended.
+ *
+ * Evidence path: recall with profile-worthiness knobs → optional
+ * `reviewedMemoryIds` intersection → reflect with `memories` override so the
+ * LLM never sees unreviewed facts.
+ */
 async function synthesizeFacet(
   facet: ProfileFacet,
   ctx: RecallContext,
   options: SynthesizeProfileOptions,
   prior: ProfileSection | undefined
 ): Promise<ProfileSection> {
+  const scopes = options.scopes ?? DEFAULT_SCOPES;
+  const limit = options.limit ?? DEFAULT_FACET_RECALL_LIMIT;
+  const factTypeWeights = options.factTypeWeights ?? DEFAULT_PROFILE_FACT_TYPE_WEIGHTS;
+  const proofCountAlpha = options.proofCountAlpha ?? DEFAULT_PROFILE_PROOF_ALPHA;
+
+  const recalled = await recall(facet.query, ctx, {
+    scopes,
+    limit,
+    types: ["fact"],
+    factTypeWeights,
+    proofCountAlpha,
+  });
+
+  let memories: RankedMemory[] = recalled.memories;
+  const reviewed = options.reviewedMemoryIds;
+  if (reviewed !== undefined && reviewed.length > 0) {
+    const allowed = new Set(reviewed);
+    memories = memories.filter((m) => allowed.has(m.id));
+  }
+
+  // Reviewed gate (or empty recall) with no surviving evidence — clear the
+  // section as legitimate empty, not a stale LLM failure.
+  if (memories.length === 0) {
+    return {
+      key: facet.key,
+      label: facet.label,
+      text: "",
+      sourceMemoryIds: [],
+      generatedAt: Date.now(),
+    };
+  }
+
   const result = await reflect(facet.query, ctx, {
     apiKey: options.apiKey,
     getToken: options.getToken,
     llmModel: options.llmModel ?? DEFAULT_SYNTHESIS_MODEL,
     baseUrl: options.baseUrl,
     fetchFn: options.fetchFn,
-    scopes: options.scopes ?? DEFAULT_SCOPES,
-    limit: options.limit ?? DEFAULT_FACET_RECALL_LIMIT,
+    scopes,
+    limit,
     types: ["fact"],
     maxTokens: DEFAULT_FACET_MAX_TOKENS,
     systemPrompt: buildFacetSystemPrompt(facet),
     responseSchema: FACET_RESPONSE_SCHEMA,
+    memories,
   });
 
   // Empty memoryIds means recall found no evidence — treat as legitimate empty
