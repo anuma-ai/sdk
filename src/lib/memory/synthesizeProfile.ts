@@ -655,22 +655,24 @@ async function synthesizeFacet(
 ): Promise<ProfileSection> {
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const limit = options.limit ?? DEFAULT_FACET_RECALL_LIMIT;
-  const factTypeWeights = options.factTypeWeights ?? DEFAULT_PROFILE_FACT_TYPE_WEIGHTS;
+  const factTypeWeights = { ...DEFAULT_PROFILE_FACT_TYPE_WEIGHTS, ...options.factTypeWeights };
   const proofCountAlpha = options.proofCountAlpha ?? DEFAULT_PROFILE_PROOF_ALPHA;
+
+  const reviewed = options.reviewedMemoryIds;
+  const hasReviewGate = reviewed !== undefined && reviewed.length > 0;
 
   const recalled = await recall(facet.query, ctx, {
     scopes,
-    limit,
+    limit: hasReviewGate ? undefined : limit,
     types: ["fact"],
     factTypeWeights,
     proofCountAlpha,
   });
 
   let memories: RankedMemory[] = recalled.memories;
-  const reviewed = options.reviewedMemoryIds;
-  if (reviewed !== undefined && reviewed.length > 0) {
+  if (hasReviewGate) {
     const allowed = new Set(reviewed);
-    memories = memories.filter((m) => allowed.has(m.id));
+    memories = memories.filter((m) => allowed.has(m.id)).slice(0, limit);
   }
 
   // Reviewed gate (or empty recall) with no surviving evidence — clear the
