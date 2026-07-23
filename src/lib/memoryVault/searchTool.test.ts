@@ -869,19 +869,18 @@ describe("embedding model versioning", () => {
 });
 
 describe("admitVaultProjections", () => {
-  const v = (id: string, e: number[], u = "2026-05-01") =>
-    ({ uniqueId: id, embedding: Float32Array.from(e), updatedAt: new Date(u) });
+  const v = (id: string, e: number[], u = "2026-05-01") => ({
+    uniqueId: id,
+    embedding: Float32Array.from(e),
+    updatedAt: new Date(u),
+  });
   it("ranks by cosine desc, caps at k, ties by recency", () => {
     expect(admitVaultProjections([1, 0], [v("mid", [0.6, 0.8]), v("top", [1, 0])], 2)).toEqual([
       "top",
       "mid",
     ]);
     expect(
-      admitVaultProjections(
-        [1, 0],
-        [v("o", [1, 0], "2026-05"), v("n", [1, 0], "2026-06")],
-        5
-      )
+      admitVaultProjections([1, 0], [v("o", [1, 0], "2026-05"), v("n", [1, 0], "2026-06")], 5)
     ).toEqual(["n", "o"]);
   });
 });
@@ -898,12 +897,26 @@ describe("buildProjectedCorpus", () => {
   });
   it("loads embeddings only for cache misses; decrypts only the admission set", async () => {
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
-      { uniqueId: "cached", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
-      { uniqueId: "miss", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      {
+        uniqueId: "cached",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
+      {
+        uniqueId: "miss",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
     ] as any);
     const embByIds = vi
       .spyOn(ops, "getVaultEmbeddingsByIdsOp")
-      .mockResolvedValue([{ uniqueId: "miss", embedding: "[0.6,0.8]", embeddingModel: "m" }] as any);
+      .mockResolvedValue([
+        { uniqueId: "miss", embedding: "[0.6,0.8]", embeddingModel: "m" },
+      ] as any);
     const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
       {
         uniqueId: "cached",
@@ -927,16 +940,90 @@ describe("buildProjectedCorpus", () => {
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = new Map([["cached", Float32Array.from([1, 0])]]); // warm hit
-    const out = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, {
-      limit: 2,
-      admitFactor: 1,
-      admitFloor: 2,
-      unembeddedCap: 100,
-    });
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      cache,
+      {},
+      {
+        limit: 2,
+        admitFactor: 1,
+        admitFloor: 2,
+        unembeddedCap: 100,
+      }
+    );
 
     expect(getAll).not.toHaveBeenCalled(); // no whole-vault load
     expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"]); // only the miss embedded-loaded
     expect(out.vaultSize).toBe(2);
     expect(byIds.mock.calls[0][1]).toContain("cached"); // admission decrypt
+  });
+});
+
+describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("decryptLast ON: projected path, no whole-vault load", async () => {
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      {
+        uniqueId: "a",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
+    ] as any);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
+      { uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" },
+    ] as any);
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
+      {
+        uniqueId: "a",
+        content: "alpha",
+        embedding: "[1,0]",
+        embeddingModel: "m",
+        scope: "private",
+        folderId: null,
+        userId: null,
+        isDeleted: false,
+        proofCount: 1,
+        sourceChunkIds: null,
+        eventTimeStart: null,
+        eventTimeEnd: null,
+        eventTimeKind: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as any);
+    const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp");
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
+      limit: 5,
+      decryptLast: true,
+    });
+
+    expect(getAll).not.toHaveBeenCalled();
+    expect(out.results.map((r) => r.uniqueId)).toContain("a");
+  });
+
+  it("decryptLast OFF: legacy whole-vault path", async () => {
+    const getAll = vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([] as any);
+    const keys = vi.spyOn(ops, "getVaultCandidateKeysOp");
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
+      limit: 5,
+    });
+
+    expect(getAll).toHaveBeenCalledTimes(1);
+    expect(keys).not.toHaveBeenCalled();
+    expect(out.results).toEqual([]);
   });
 });
