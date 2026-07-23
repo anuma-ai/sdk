@@ -1026,4 +1026,86 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     expect(keys).not.toHaveBeenCalled();
     expect(out.results).toEqual([]);
   });
+
+  it("decryptLast ranking parity: same top-N uniqueIds + order as legacy, on a fully-embedded vault", async () => {
+    // Fixture: 4 rows, ALL with a stored/cached embedding, cosine-unambiguous
+    // relative to the query vector [1,0,0,0] (m1 > m2 > m3 > m4). BM25 term
+    // overlap with the "cats" query is deliberately monotonic with cosine too
+    // (m1 repeats "cats", m2 mentions it once, m3/m4 don't) so the fusion
+    // ranker's RRF combination isn't fighting itself — this isolates the
+    // thing under test (does decryptLast's projected corpus feed the SAME
+    // ranker the SAME candidate set as the legacy whole-vault load) from
+    // fusion-ranker tie-breaking, which has its own coverage elsewhere.
+    const FIXTURE: Array<{ uniqueId: string; content: string; vec: number[] }> = [
+      { uniqueId: "m1", content: "cats cats cats are wonderful pets", vec: [1, 0, 0, 0] },
+      { uniqueId: "m2", content: "cats are okay I guess", vec: [0.8, 0.6, 0, 0] },
+      { uniqueId: "m3", content: "dogs are loyal companions", vec: [0.6, 0.8, 0, 0] },
+      { uniqueId: "m4", content: "fish swim quietly in ponds", vec: [0.3, 0.95, 0, 0] },
+    ];
+    const now = new Date("2026-01-01T00:00:00Z");
+    const toRow = (f: (typeof FIXTURE)[number]) => ({
+      uniqueId: f.uniqueId,
+      content: f.content,
+      embedding: JSON.stringify(f.vec),
+      embeddingModel: "m",
+      scope: "private",
+      folderId: null,
+      userId: null,
+      isDeleted: false,
+      proofCount: 1,
+      sourceChunkIds: null,
+      eventTimeStart: null,
+      eventTimeEnd: null,
+      eventTimeKind: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const embOpts = { model: "m" } as any;
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0, 0]);
+
+    // --- decryptLast path: projected candidate scan + admission decrypt ---
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(
+      FIXTURE.map((f) => ({
+        uniqueId: f.uniqueId,
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: now,
+      })) as any
+    );
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
+      async (_ctx: any, ids: string[]) =>
+        FIXTURE.filter((f) => ids.includes(f.uniqueId)).map(toRow) as any
+    );
+    const cacheA = createVaultEmbeddingCache();
+    FIXTURE.forEach((f) => cacheA.set(f.uniqueId, Float32Array.from(f.vec)));
+
+    const decryptLastOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheA, {
+      limit: 3,
+      decryptLast: true,
+      // Admission window wide enough to admit the whole 4-row vault — this
+      // is the "fair fixture" requirement: nothing gets truncated before it
+      // reaches the ranker, so a divergence would be a real bug, not a
+      // window-size artifact.
+      admitFactor: 10,
+      admitFloor: 10,
+    });
+
+    // --- legacy path: same fixture, same query, whole-vault load ---
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue(FIXTURE.map(toRow) as any);
+    const cacheB = createVaultEmbeddingCache();
+    FIXTURE.forEach((f) => cacheB.set(f.uniqueId, Float32Array.from(f.vec)));
+
+    const legacyOut = await searchVaultMemoriesWithSize("cats", {} as any, embOpts, cacheB, {
+      limit: 3,
+    });
+
+    expect(legacyOut.results.length).toBeGreaterThan(0);
+    expect(decryptLastOut.results.map((r) => r.uniqueId)).toEqual(
+      legacyOut.results.map((r) => r.uniqueId)
+    );
+    // Same top-N size too, not just a matching prefix.
+    expect(decryptLastOut.results.length).toBe(legacyOut.results.length);
+  });
 });
