@@ -2,7 +2,7 @@
 
 > **getApiV1AdminUsersLookup**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminUsersLookupData`](../type-aliases/GetApiV1AdminUsersLookupData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminUsersLookupResponses`](../type-aliases/GetApiV1AdminUsersLookupResponses.md), [`GetApiV1AdminUsersLookupErrors`](../type-aliases/GetApiV1AdminUsersLookupErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:570](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#570)
+Defined in: [src/client/sdk.gen.ts:424](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#424)
 
 Lookup user by identifier
 

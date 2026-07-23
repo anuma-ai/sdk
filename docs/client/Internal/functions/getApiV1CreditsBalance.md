@@ -1,8 +1,8 @@
 # getApiV1CreditsBalance
 
-> **getApiV1CreditsBalance**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsBalanceData`](../type-aliases/GetApiV1CreditsBalanceData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1CreditsBalanceResponses`](../type-aliases/GetApiV1CreditsBalanceResponses.md), [`GetApiV1CreditsBalanceErrors`](../type-aliases/GetApiV1CreditsBalanceErrors.md), `ThrowOnError`>
+> **getApiV1CreditsBalance**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsBalanceData`](../type-aliases/GetApiV1CreditsBalanceData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1CreditsBalanceResponses`](../type-aliases/GetApiV1CreditsBalanceResponses.md), [`GetApiV1CreditsBalanceErrors`](../type-aliases/GetApiV1CreditsBalanceErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1006](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1006)
+Defined in: [src/client/sdk.gen.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#740)
 
 Get credit balance
 
@@ -51,7 +51,7 @@ Returns the credit balance and related information for the authenticated user. O
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsBalanceData`](../type-aliases/GetApiV1CreditsBalanceData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsBalanceData`](../type-aliases/GetApiV1CreditsBalanceData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

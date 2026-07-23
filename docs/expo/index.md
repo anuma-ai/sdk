@@ -226,6 +226,12 @@ Re-exports [classifyInjectionCandidates](../react/Internal/functions/classifyInj
 
 ***
 
+### classifyObservationTrend
+
+Re-exports [classifyObservationTrend](../react/Internal/functions/classifyObservationTrend.md)
+
+***
+
 ### classifyStockPrice
 
 Re-exports [classifyStockPrice](../react/Internal/functions/classifyStockPrice.md)
@@ -1066,6 +1072,18 @@ Re-exports [NowSource](../react/Internal/type-aliases/NowSource.md)
 
 ***
 
+### ObservationTrend
+
+Re-exports [ObservationTrend](../react/Internal/type-aliases/ObservationTrend.md)
+
+***
+
+### ObservationTrendInput
+
+Re-exports [ObservationTrendInput](../react/Internal/interfaces/ObservationTrendInput.md)
+
+***
+
 ### onKeyAvailable
 
 Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
@@ -1546,6 +1564,12 @@ Re-exports [StreamResumeHandle](../react/Internal/type-aliases/StreamResumeHandl
 
 ***
 
+### summarizeObservationTrends
+
+Re-exports [summarizeObservationTrends](../react/Internal/functions/summarizeObservationTrends.md)
+
+***
+
 ### supersedeVaultMemoryOp
 
 Re-exports [supersedeVaultMemoryOp](../react/Internal/functions/supersedeVaultMemoryOp.md)
@@ -1603,6 +1627,18 @@ Re-exports [TOPICS\_EXTRACTION\_VERSION](../react/Internal/variables/TOPICS_EXTR
 ### traverseGraphLane
 
 Re-exports [traverseGraphLane](../react/Internal/functions/traverseGraphLane.md)
+
+***
+
+### TREND\_RECENT\_WINDOW\_DAYS
+
+Re-exports [TREND\_RECENT\_WINDOW\_DAYS](../react/Internal/variables/TREND_RECENT_WINDOW_DAYS.md)
+
+***
+
+### TREND\_STALE\_WINDOW\_DAYS
+
+Re-exports [TREND\_STALE\_WINDOW\_DAYS](../react/Internal/variables/TREND_STALE_WINDOW_DAYS.md)
 
 ***
 

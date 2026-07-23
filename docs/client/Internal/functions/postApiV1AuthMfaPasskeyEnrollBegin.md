@@ -1,8 +1,8 @@
 # postApiV1AuthMfaPasskeyEnrollBegin
 
-> **postApiV1AuthMfaPasskeyEnrollBegin**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaPasskeyEnrollBeginData`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AuthMfaPasskeyEnrollBeginResponses`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginResponses.md), [`PostApiV1AuthMfaPasskeyEnrollBeginErrors`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginErrors.md), `ThrowOnError`>
+> **postApiV1AuthMfaPasskeyEnrollBegin**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaPasskeyEnrollBeginData`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1AuthMfaPasskeyEnrollBeginResponses`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginResponses.md), [`PostApiV1AuthMfaPasskeyEnrollBeginErrors`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:688](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#688)
+Defined in: [src/client/sdk.gen.ts:509](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#509)
 
 Begin passkey enrollment
 
@@ -49,7 +49,7 @@ Begin passkey enrollment
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaPasskeyEnrollBeginData`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaPasskeyEnrollBeginData`](../type-aliases/PostApiV1AuthMfaPasskeyEnrollBeginData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

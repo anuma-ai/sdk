@@ -68,6 +68,14 @@ export {
   type ScreenedCandidate,
   type ScreenResult,
 } from "./injectionScreen.js";
+export {
+  classifyObservationTrend,
+  type ObservationTrend,
+  type ObservationTrendInput,
+  summarizeObservationTrends,
+  TREND_RECENT_WINDOW_DAYS,
+  TREND_STALE_WINDOW_DAYS,
+} from "./observationTrend.js";
 export { recall } from "./recall.js";
 export {
   createRecallTool,

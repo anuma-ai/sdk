@@ -2,7 +2,7 @@
 
 > **postApiV1AdminPrivyIdentifiersMigrate**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminPrivyIdentifiersMigrateData`](../type-aliases/PostApiV1AdminPrivyIdentifiersMigrateData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminPrivyIdentifiersMigrateResponses`](../type-aliases/PostApiV1AdminPrivyIdentifiersMigrateResponses.md), [`PostApiV1AdminPrivyIdentifiersMigrateErrors`](../type-aliases/PostApiV1AdminPrivyIdentifiersMigrateErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:492](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#492)
+Defined in: [src/client/sdk.gen.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#370)
 
 Migrate Privy wallet identifiers
 

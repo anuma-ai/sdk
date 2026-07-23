@@ -1510,7 +1510,8 @@ export async function searchVaultMemoriesWithSize(
   // The rankers below all return bare {uniqueId, content, similarity}
   // — they're pure functions over EmbeddedItem and don't always carry the
   // memory's timestamps / C2–C4 metadata. Stamp on the way out so
-  // downstream RankedMemory is complete even when a lane rebuilds a row.
+  // downstream RankedMemory (and observationTrend) is complete even when
+  // a lane rebuilds a row.
   const metaById = new Map(
     memories.map((m) => [
       m.uniqueId,
