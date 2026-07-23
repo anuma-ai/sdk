@@ -151,7 +151,8 @@ interface EmbeddedItem {
   updatedAt?: Date;
   /** Number of times this fact has been re-observed (W4 — auto-merge). */
   proofCount?: number | null;
-  /** C3 re-observation watermark (Unix ms). Surfaced for C2 trend labels. */
+  /** C3 re-observation watermark (Unix ms). Used for C2 trend labels + C4
+   * date-prefixed CE pairs when no event_time is set. */
   lastObservedAt?: number | null;
   /** W6 temporal-lane anchors — carried through to VaultSearchResult so the
    * recall executor can surface event dates without a second DB+decrypt. */
@@ -165,6 +166,57 @@ interface EmbeddedItem {
    * VaultSearchResult so recall() can suppress the originating chunk in the
    * chunk lane (a fact and the chunk it came from shouldn't both surface). */
   sourceChunkIds?: string[] | null;
+}
+
+/**
+ * C4 date for cross-encoder pairs: prefer the fact's anchored event time,
+ * then the C3 re-observation watermark, then write-time stamps.
+ *
+ * `eventTimeStart === 0` (and other non-positive values) is treated as a
+ * legacy sentinel — same as recall's temporal lane — and skipped so the CE
+ * falls through to lastObservedAt / write stamps instead of a 1970 prefix.
+ */
+function rerankDateMs(item: {
+  eventTimeStart?: number | null;
+  lastObservedAt?: number | null;
+  updatedAt?: Date;
+  createdAt?: Date;
+}): number | undefined {
+  if (
+    item.eventTimeStart !== null &&
+    item.eventTimeStart !== undefined &&
+    Number.isFinite(item.eventTimeStart) &&
+    item.eventTimeStart > 0
+  ) {
+    return item.eventTimeStart;
+  }
+  if (
+    item.lastObservedAt !== null &&
+    item.lastObservedAt !== undefined &&
+    Number.isFinite(item.lastObservedAt) &&
+    item.lastObservedAt > 0
+  ) {
+    return item.lastObservedAt;
+  }
+  const updatedMs = item.updatedAt?.getTime();
+  if (
+    updatedMs !== null &&
+    updatedMs !== undefined &&
+    Number.isFinite(updatedMs) &&
+    updatedMs > 0
+  ) {
+    return updatedMs;
+  }
+  const createdMs = item.createdAt?.getTime();
+  if (
+    createdMs !== null &&
+    createdMs !== undefined &&
+    Number.isFinite(createdMs) &&
+    createdMs > 0
+  ) {
+    return createdMs;
+  }
+  return undefined;
 }
 
 /**
@@ -732,6 +784,7 @@ export async function rankFusedVaultMemoriesAsync(
   // needs CE.
   let combined: VaultSearchResult[];
   let tailSlice: VaultSearchResult[] = [];
+  const itemById = new Map(items.map((i) => [i.id, i]));
 
   if (options?.rerank) {
     const rerankTopN = options.rerankTopN ?? 30;
@@ -749,7 +802,12 @@ export async function rankFusedVaultMemoriesAsync(
     try {
       const reranked = await rerankPairs(
         query,
-        headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+        headSlice.map((r) => ({
+          id: r.uniqueId,
+          content: r.content,
+          // C4: date-prefix the CE doc so temporal alignment influences rank.
+          dateMs: rerankDateMs(itemById.get(r.uniqueId) ?? r),
+        }))
       );
       tailSlice = v2Ranked.slice(rerankTopN);
 
@@ -1101,7 +1159,12 @@ export async function rankComposite(
     try {
       const reranked = await rerankPairs(
         originalQuery,
-        headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+        headSlice.map((r) => ({
+          id: r.uniqueId,
+          content: r.content,
+          // C4: date-prefix the CE doc so temporal alignment influences rank.
+          dateMs: rerankDateMs(itemById.get(r.uniqueId) ?? r),
+        }))
       );
       const ceById = new Map(reranked.map((r) => [r.id, r.score]));
 
@@ -1263,7 +1326,7 @@ export interface VaultSearchResult {
   updatedAt?: Date;
   /** Times this fact has been re-observed — for C2 trend labels. */
   proofCount?: number | null;
-  /** C3 re-observation watermark (Unix ms) — for C2 trend labels. */
+  /** C3 re-observation watermark (Unix ms) — for C2 trends + C4 CE dates. */
   lastObservedAt?: number | null;
   /** W6 temporal-lane anchors carried through to downstream `RankedMemory`
    * so the recall executor can surface dates to the answer model without
@@ -1446,8 +1509,9 @@ export async function searchVaultMemoriesWithSize(
 
   // The rankers below all return bare {uniqueId, content, similarity}
   // — they're pure functions over EmbeddedItem and don't always carry the
-  // memory's timestamps / C2 metadata. Stamp on the way out so downstream
-  // RankedMemory (and observationTrend) is complete.
+  // memory's timestamps / C2–C4 metadata. Stamp on the way out so
+  // downstream RankedMemory (and observationTrend) is complete even when
+  // a lane rebuilds a row.
   const metaById = new Map(
     memories.map((m) => [
       m.uniqueId,
