@@ -640,6 +640,41 @@ export async function getVaultCandidateKeysOp(
 }
 
 /**
+ * Column-projected embedding lookup for a KNOWN set of ids — id + embedding +
+ * embedding_model, NO content. Used to backfill cache-miss vectors during
+ * ranking without paying the content-decrypt cost. Mirrors
+ * {@link getVaultCandidateKeysOp}'s dual-path shape: a projected SELECT on
+ * OPFS-SQLite, falling back to the standard Q query + unsafeFetchRaw on
+ * LokiJS (Q.unsafeSqlQuery throws there).
+ */
+export async function getVaultEmbeddingsByIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  ids: string[]
+): Promise<Array<{ uniqueId: string; embedding: string | null; embeddingModel: string | null }>> {
+  if (ids.length === 0) return [];
+  const mapRaw = (raw: Record<string, unknown>) => ({
+    uniqueId: raw.id as string,
+    embedding: (raw.embedding as string | null) ?? null,
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
+  });
+  try {
+    const base = baseVaultSql(ctx);
+    const sql =
+      `select "id", "embedding", "embedding_model" from "memory_vault" ` +
+      `where ${base.sql} and "id" in (${ids.map(() => "?").join(",")})`;
+    const rows = (await ctx.vaultMemoryCollection
+      .query(Q.unsafeSqlQuery(sql, [...base.args, ...ids]))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return rows.map(mapRaw);
+  } catch {
+    const rows = (await ctx.vaultMemoryCollection
+      .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids)))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return rows.map(mapRaw);
+  }
+}
+
+/**
  * Bulk-decrypt a KNOWN set of memories by ID — the "decrypt last" half of
  * on-demand recall (#5017) for lanes whose size is NOT bounded to the top-N
  * (e.g. the keyword lane over un-embedded rows). Uses `unsafeFetchRaw` + a

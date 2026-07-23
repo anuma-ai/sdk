@@ -9,6 +9,8 @@ export {
   getAllVaultMemoryContentsOp,
   getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
+  getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
   getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
   getVaultRankingProjectionsOp,
@@ -19,6 +21,7 @@ export {
   TOPICS_EXTRACTION_VERSION,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
+  type VaultCandidateKey,
   type VaultMemoryOperationsContext,
 } from "./operations";
 export {

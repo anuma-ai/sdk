@@ -8,6 +8,7 @@ import {
   getAllVaultMemoriesOp,
   getVaultRankingProjectionsOp,
   getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
   getAllVaultMemoryContentsOp,
   updateVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
@@ -1756,6 +1757,115 @@ describe("getVaultCandidateKeysOp", () => {
 
     const lokiKeys = await getVaultCandidateKeysOp(lokiCtx);
     expect(lokiKeys).toHaveLength(1);
+    expect(lokiQueryFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("getVaultEmbeddingsByIdsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns [] for empty ids without querying", async () => {
+    const ctx = makeCtx();
+    expect(await getVaultEmbeddingsByIdsOp(ctx, [])).toEqual([]);
+    expect(ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("projects id+embedding for the requested ids", async () => {
+    const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => raws), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const out = await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+    expect(out).toEqual([{ uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" }]);
+  });
+
+  it("uses the projected SQL SELECT on the OPFS-SQLite path when unsafeSqlQuery does not throw", async () => {
+    const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
+    // Non-throwing queryFn — mirrors the real OPFS-SQLite adapter, where
+    // Q.unsafeSqlQuery is supported and the try-branch completes without
+    // ever falling back to the Loki path.
+    const queryFn = vi.fn((..._c: any[]) => ({
+      unsafeFetchRaw: vi.fn(async () => raws),
+      fetch: vi.fn(),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const out = await getVaultEmbeddingsByIdsOp(ctx, ["a", "b"]);
+
+    expect(out).toEqual([{ uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" }]);
+    // Only one call — the try-path succeeds, so there's no Loki fallback call.
+    expect(queryFn).toHaveBeenCalledTimes(1);
+
+    const sqlQueryArg = queryFn.mock.calls[0][0] as {
+      type: string;
+      sql: string;
+      values: unknown[];
+    };
+    expect(sqlQueryArg.type).toBe("sqlQuery");
+    // Strict column projection — id/embedding/embedding_model ONLY, no content.
+    expect(sqlQueryArg.sql).toMatch(
+      /^select "id", "embedding", "embedding_model" from "memory_vault" where /
+    );
+    expect(sqlQueryArg.sql).toContain('"is_deleted" = 0');
+    expect(sqlQueryArg.sql).toContain('"superseded_by" is null');
+    expect(sqlQueryArg.sql).toContain('"id" in (?,?)');
+    expect(sqlQueryArg.values).toEqual(["a", "b"]);
+  });
+
+  it("falls back to the Loki path when the projected SQL query throws", async () => {
+    const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
+    let calls = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      return {
+        unsafeFetchRaw: vi.fn(async () => raws),
+        fetch: vi.fn(),
+      };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const out = await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+
+    expect(out).toEqual([{ uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" }]);
+    // First call = try path (throws), second call = Loki fallback's Q query
+    // (baseVaultConditions + id oneOf = 3 conditions with no user_id set).
+    expect(queryFn).toHaveBeenCalledTimes(2);
+    expect(queryFn.mock.calls[1].length).toBe(3);
+  });
+
+  it("enforces user_id scoping on both the SQL path and the Loki fallback path", async () => {
+    const rows = [{ id: "a", embedding: "[1,0]", embedding_model: null }];
+
+    // --- SQL path: user_id lands in the WHERE clause AND the bound args. ---
+    const sqlQueryFn = vi.fn((..._c: any[]) => ({
+      unsafeFetchRaw: vi.fn(async () => rows),
+      fetch: vi.fn(),
+    }));
+    const sqlCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: sqlQueryFn } as any });
+
+    const sqlOut = await getVaultEmbeddingsByIdsOp(sqlCtx, ["a"]);
+    expect(sqlOut).toHaveLength(1);
+
+    const sqlQueryArg = sqlQueryFn.mock.calls[0][0] as { sql: string; values: unknown[] };
+    expect(sqlQueryArg.sql).toContain('"user_id" = ?');
+    expect(sqlQueryArg.values).toEqual(["u1", "a"]);
+
+    // --- Loki fallback path: user_id comes through baseVaultConditions. ---
+    let calls = 0;
+    const lokiQueryFn = vi.fn((...conditions: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      // Fallback Q query conditions: is_deleted + superseded_by + user_id + id-oneOf = 4.
+      expect(conditions.length).toBe(4);
+      return {
+        unsafeFetchRaw: vi.fn(async () => rows),
+        fetch: vi.fn(),
+      };
+    });
+    const lokiCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: lokiQueryFn } as any });
+
+    const lokiOut = await getVaultEmbeddingsByIdsOp(lokiCtx, ["a"]);
+    expect(lokiOut).toHaveLength(1);
     expect(lokiQueryFn).toHaveBeenCalledTimes(2);
   });
 });

@@ -306,6 +306,8 @@ export {
   getAllVaultMemoryContentsOp,
   getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
+  getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
   getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
   getVaultRankingProjectionsOp,
@@ -320,6 +322,7 @@ export {
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
+  type VaultCandidateKey,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
 // Vault folders
