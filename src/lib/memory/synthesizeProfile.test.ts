@@ -50,12 +50,17 @@ function sig(facets: ProfileFacet[]): string {
 }
 
 /** The config fingerprint a given facet set + default scopes produce. */
-function fingerprint(facets: ProfileFacet[], redacted = false): ProfileConfigFingerprint {
+function fingerprint(
+  facets: ProfileFacet[],
+  redacted = false,
+  reviewedMemoryIds: readonly string[] = []
+): ProfileConfigFingerprint {
   return {
     facetKeys: facets.map((f) => f.key).sort(),
     facetsSignature: sig(facets),
     scopes: ["private"],
     redacted,
+    reviewedMemoryIdsSignature: [...new Set(reviewedMemoryIds)].sort().join("\n"),
   };
 }
 
@@ -805,5 +810,45 @@ describe("synthesizeProfile", () => {
       "a",
       "b",
     ]);
+  });
+
+  it("invalidates delta reuse when reviewedMemoryIds changes (vault unchanged)", async () => {
+    mockGetAll.mockResolvedValue([mem("a", { updatedAt: new Date(2000) }), mem("b")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+    mockReflect
+      .mockResolvedValueOnce(reflectResult("Narrow bio", ["a"]))
+      .mockResolvedValueOnce(reflectResult("Narrow interests", ["a"]));
+
+    const previous = priorDoc(
+      [section("bio", "Wide bio", ["a", "b"]), section("interests", "Wide interests", ["a", "b"])],
+      2000,
+      fingerprint(FACETS, false, ["a", "b"])
+    );
+    previous.observationTrends = {
+      new: 0,
+      strengthening: 0,
+      stable: 0,
+      weakening: 0,
+      stale: 2,
+    };
+
+    // Same vault watermark; review set narrowed a,b → a. Must not reuse.
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: FACETS,
+      previous,
+      reviewedMemoryIds: ["a"],
+    });
+
+    expect(doc).not.toBe(previous);
+    expect(doc.config.reviewedMemoryIdsSignature).toBe("a");
+    expect(doc.sections[0].text).toBe("Narrow bio");
+    expect(doc.sections[0].sourceMemoryIds).toEqual(["a"]);
+    expect(mockReflect).toHaveBeenCalledTimes(2);
   });
 });

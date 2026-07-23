@@ -2,7 +2,7 @@
 
 > **rankProfileCandidates**(`inputs`: readonly [`ProfileSalienceInput`](../interfaces/ProfileSalienceInput.md)\[], `now`: `number`, `options`: [`ScoreProfileSalienceOptions`](../interfaces/ScoreProfileSalienceOptions.md)): [`RankedProfileCandidate`](../interfaces/RankedProfileCandidate.md)\[]
 
-Defined in: src/lib/memory/profileSalience.ts:114
+Defined in: [src/lib/memory/profileSalience.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#114)
 
 Rank vault facts by profile-worthiness (descending score).
 Ties broken by higher proofCount, then id ascending for stability.

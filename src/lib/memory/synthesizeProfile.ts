@@ -163,8 +163,9 @@ export interface ProfileSection {
 /** Fingerprint of the config that produced a {@link ProfileDoc}. Delta reuse
  * (both the wholesale fast path and per-section reuse) is only valid when the
  * current call's config matches — otherwise reused sections could carry the
- * wrong scope's evidence, un-redacted text under a now-present redactor, or an
- * old section shape. */
+ * wrong scope's evidence, un-redacted text under a now-present redactor, an
+ * old section shape, or text grounded in memory ids that are no longer in the
+ * publish-review set. */
 export interface ProfileConfigFingerprint {
   /** Facet keys present in the doc, sorted. */
   facetKeys: ProfileFacetKey[];
@@ -179,6 +180,14 @@ export interface ProfileConfigFingerprint {
   /** Whether a PII redactor gated the section text. Reusing un-gated text under
    * a now-present redactor would leak PII, so this flips the fingerprint. */
   redacted: boolean;
+  /**
+   * Order-independent digest of {@link SynthesizeProfileOptions.reviewedMemoryIds}.
+   * Empty string when the review gate is off (omit / empty array). Changing the
+   * set must invalidate reuse — otherwise a narrowed review keeps text grounded
+   * in unreviewed ids, and a widened review leaves previously-cleared sections
+   * empty.
+   */
+  reviewedMemoryIdsSignature: string;
 }
 
 /** A synthesized profile. Server-authoritative once published; the client
@@ -275,6 +284,7 @@ export async function synthesizeProfile(
     facetsSignature: facetsSignature(facets),
     scopes: [...scopes].sort(),
     redacted: options.redactor !== undefined,
+    reviewedMemoryIdsSignature: reviewedMemoryIdsSignature(options.reviewedMemoryIds),
   };
 
   // A prior doc is only reusable when its SHAPE (version) AND the config that
@@ -405,12 +415,22 @@ function configMatches(
   if (!a) return false;
   // facetsSignature subsumes the facet key set AND each facet's prompt content,
   // so a prompt-only change (same keys) still invalidates reuse.
+  // reviewedMemoryIdsSignature: missing on docs that predate the field ≡ ""
+  // (ungated), so an ungated re-run still reuses; a newly-supplied review set
+  // invalidates.
   return (
     a.redacted === b.redacted &&
     a.facetsSignature === b.facetsSignature &&
+    (a.reviewedMemoryIdsSignature ?? "") === b.reviewedMemoryIdsSignature &&
     a.scopes.length === b.scopes.length &&
     a.scopes.every((s, i) => s === b.scopes[i])
   );
+}
+
+/** Order-independent digest of the publish-review id set. Empty / omitted → "". */
+function reviewedMemoryIdsSignature(ids: readonly string[] | undefined): string {
+  if (ids === undefined || ids.length === 0) return "";
+  return [...new Set(ids)].sort().join("\n");
 }
 
 /** Order-independent digest of the facet definitions — key + label + query +

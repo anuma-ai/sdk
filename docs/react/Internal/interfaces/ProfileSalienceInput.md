@@ -1,6 +1,6 @@
 # ProfileSalienceInput
 
-Defined in: src/lib/memory/profileSalience.ts:49
+Defined in: [src/lib/memory/profileSalience.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#49)
 
 ## Extends
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/observationTrend.ts:32](https://github.com/anuma-ai/
 
 > `optional` **factType**: `string` | `null`
 
-Defined in: src/lib/memory/profileSalience.ts:53
+Defined in: [src/lib/memory/profileSalience.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#53)
 
 Extractor FactType; null/undefined → neutral weight (1.0).
 
@@ -34,7 +34,7 @@ Extractor FactType; null/undefined → neutral weight (1.0).
 
 > **id**: `string`
 
-Defined in: src/lib/memory/profileSalience.ts:51
+Defined in: [src/lib/memory/profileSalience.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#51)
 
 Vault memory id — required for [rankProfileCandidates](../functions/rankProfileCandidates.md).
 

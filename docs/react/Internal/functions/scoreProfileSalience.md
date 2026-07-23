@@ -2,7 +2,7 @@
 
 > **scoreProfileSalience**(`input`: [`ProfileSalienceInput`](../interfaces/ProfileSalienceInput.md), `now`: `number`, `options`: [`ScoreProfileSalienceOptions`](../interfaces/ScoreProfileSalienceOptions.md)): `number`
 
-Defined in: src/lib/memory/profileSalience.ts:91
+Defined in: [src/lib/memory/profileSalience.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/profileSalience.ts#91)
 
 Score a vault fact for profile-worthiness.
 
