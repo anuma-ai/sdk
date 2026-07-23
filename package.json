@@ -86,7 +86,6 @@
     },
     "./server": {
       "types": "./dist/server/index.d.ts",
-      "react-native": "./dist/react/index.cjs",
       "import": "./dist/server/index.mjs",
       "require": "./dist/server/index.cjs",
       "default": "./dist/server/index.cjs"
