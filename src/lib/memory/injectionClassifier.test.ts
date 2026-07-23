@@ -45,6 +45,40 @@ describe("classifyInjectionCandidates", () => {
     expect([...flagged]).toEqual([1]);
   });
 
+  it("does not abort a slow-but-valid completion within the default budget", async () => {
+    // Regression guard for the 15s→45s budget bump: a completion arriving at 20s
+    // (past the old 15s cap, within the 45s default) must finish and catch the
+    // poison, not be aborted into a fail-clean empty result. The fetch honours the
+    // abort signal, so an over-tight budget would reject instead of resolving.
+    vi.useFakeTimers();
+    try {
+      const fetchFn = vi.fn().mockImplementation(
+        (_url: string, init: { signal?: AbortSignal }) =>
+          new Promise((resolve, reject) => {
+            const t = setTimeout(
+              () => resolve({ ok: true, json: async () => choices({ poisoned: [2] }) }),
+              20_000
+            );
+            init.signal?.addEventListener("abort", () => {
+              clearTimeout(t);
+              reject(new Error("aborted"));
+            });
+          })
+      ) as unknown as typeof fetch;
+
+      const pending = classifyInjectionCandidates(clean, {
+        apiKey: "k",
+        fetchFn,
+        backoffMs: () => 0,
+      });
+      await vi.advanceTimersByTimeAsync(21_000);
+      const { flagged } = await pending;
+      expect([...flagged]).toEqual([1]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("flags nothing when the model returns an empty list", async () => {
     const fetchFn = mockFetch(choices({ poisoned: [] }));
     const { flagged } = await classifyInjectionCandidates(clean, { apiKey: "k", fetchFn });

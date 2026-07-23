@@ -51,10 +51,20 @@ import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
  * returns empty completions on single-decision prompts.
  */
 const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
-/** A quarantine call is a background safety check on a cheap path — retry a
- * transient blip once but don't hold the turn open long. */
+/** A quarantine call is a post-turn background safety check — retry a transient
+ * blip once. */
 const DEFAULT_ATTEMPTS = 2;
-const DEFAULT_TOTAL_TIMEOUT_MS = 15_000;
+/**
+ * Wall-clock budget across attempts. This runs post-turn (via `extractAndRetain`'s
+ * worker), NOT on the user's response path, and it FAILS CLEAN — a timeout silently
+ * skips the injection screen and keeps the candidate, so too tight a budget quietly
+ * weakens the security check. The default open model (`ling`, open-weights on
+ * deepinfra/alibaba for the privacy reasons above) has occasional cold/queued tail
+ * latency past the old 15s cap, which aborted legitimate completions — observed as
+ * ai-portal→bifrost `context deadline exceeded` at 15.001s. 45s gives ~3x headroom;
+ * a latency-sensitive caller can still tighten via `totalTimeoutMs`.
+ */
+const DEFAULT_TOTAL_TIMEOUT_MS = 45_000;
 /** Hard cap on candidates classified in one turn — bounds prompt size + cost.
  * Above it, only the first N are classified; the remainder stay clean (they
  * already passed the deterministic screen). */
@@ -96,7 +106,8 @@ export interface InjectionClassifierOptions extends PortalLlmAuth {
   fetchFn?: typeof fetch;
   /** Max portal attempts on a TRANSIENT failure. Default 2. */
   maxAttempts?: number;
-  /** Absolute wall-clock budget across attempts. Default 15s. */
+  /** Absolute wall-clock budget across attempts. Default 45s — sized for slow
+   * open-weights provider tail latency; tighten on a latency-sensitive path. */
   totalTimeoutMs?: number;
   /** Backoff before each retry (ms). Tests pass `() => 0`. */
   backoffMs?: (attempt: number) => number;
