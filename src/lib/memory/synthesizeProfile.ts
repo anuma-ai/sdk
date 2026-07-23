@@ -28,6 +28,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
 import type { PiiRedactor } from "../pii/redactor.js";
+import { type ObservationTrend, summarizeObservationTrends } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import { reflect } from "./reflect.js";
 import type { RecallContext } from "./types.js";
@@ -187,6 +188,12 @@ export interface ProfileDoc {
   vaultWatermark: number;
   /** The config that produced this doc — see {@link ProfileConfigFingerprint}. */
   config: ProfileConfigFingerprint;
+  /**
+   * C2 — counts of observation-trend labels over live vault facts at
+   * synthesis time. Lets People Nearby surface "interests trending up"
+   * without another LLM pass. Recomputed every synthesis (not delta-cached).
+   */
+  observationTrends: Record<ObservationTrend, number>;
   /** Unix ms this doc was produced. */
   generatedAt: number;
 }
@@ -272,6 +279,19 @@ export async function synthesizeProfile(
     includeSuperseded: true,
   });
   const watermark = computeVaultWatermark(memories);
+  // C2 trends: live facts only (deleted/superseded don't belong in a
+  // "what's trending" signal). Cheap + pure — recomputed even on the
+  // delta fast path so a re-observation that didn't change watermark
+  // equality still refreshes the badge counts when the caller re-runs.
+  const observationTrends = summarizeObservationTrends(
+    memories
+      .filter((m) => !m.isDeleted && m.supersededBy === null)
+      .map((m) => ({
+        createdAt: m.createdAt,
+        lastObservedAt: m.lastObservedAt,
+        proofCount: m.proofCount,
+      }))
+  );
 
   // Fast path: reusable prior doc AND nothing in the vault changed since it AND
   // no sections are stale (which would block documented retry) AND every cited
@@ -294,13 +314,20 @@ export async function synthesizeProfile(
     // is facet-ordered, and facetsSignature intentionally ignores order so a
     // reorder reuses content). Preserve object identity when the order already
     // matches — a pure reorder is free (no regeneration), just an array reorder.
+    // Always refresh C2 trend counts (cheap, reflects current evidence).
     const sameOrder =
       previous.sections.length === facets.length &&
       facets.every((f, i) => previous.sections[i]?.key === f.key);
-    if (sameOrder) return previous;
+    if (sameOrder) {
+      // Preserve object identity when trend counts are unchanged — callers
+      // (and tests) treat wholesale reuse as referential equality.
+      if (trendsEqual(previous.observationTrends, observationTrends)) return previous;
+      return { ...previous, observationTrends };
+    }
     return {
       ...previous,
       sections: facets.map((f) => previous.sections.find((s) => s.key === f.key)!),
+      observationTrends,
     };
   }
 
@@ -339,6 +366,7 @@ export async function synthesizeProfile(
     sections,
     vaultWatermark: watermark,
     config,
+    observationTrends,
     generatedAt: Date.now(),
   };
 }
@@ -371,6 +399,22 @@ function facetsSignature(facets: ProfileFacet[]): string {
     .map((f) => JSON.stringify([f.key, f.label, f.query, f.guidance]))
     .sort()
     .join("\n");
+}
+
+/** Whether two C2 trend-count maps are equal. Missing prior → not equal
+ * (forces a refresh onto docs that predate the field). */
+function trendsEqual(
+  a: Record<ObservationTrend, number> | undefined,
+  b: Record<ObservationTrend, number>
+): boolean {
+  if (!a) return false;
+  return (
+    a.new === b.new &&
+    a.strengthening === b.strengthening &&
+    a.stable === b.stable &&
+    a.weakening === b.weakening &&
+    a.stale === b.stale
+  );
 }
 
 /** A memory's effective change-time — the newest of last edit, supersession,

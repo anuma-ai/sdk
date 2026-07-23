@@ -30,6 +30,7 @@ import {
   type NeighborRefiner,
   traverseGraphLane,
 } from "./graphTraversal.js";
+import { classifyObservationTrend } from "./observationTrend.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
 import { rrfFuse } from "./rrf.js";
@@ -333,7 +334,7 @@ export async function recall(
   // about cosine-vs-cosine ordering directly.
   if (types.length === 1 || factResults.length === 0 || chunkResults.length === 0) {
     const memories: RankedMemory[] = [
-      ...factResults.map(toFactMemory),
+      ...factResults.map((r) => toFactMemory(r, options.now)),
       ...chunkResults.map(toChunkMemory),
     ];
     memories.sort((a, b) => b.score - a.score);
@@ -365,7 +366,7 @@ export async function recall(
 
   const byId = new Map<string, RankedMemory>();
   for (const r of factResults) {
-    const m = toFactMemory(r);
+    const m = toFactMemory(r, options.now);
     m.score = fused.get(`fact:${r.uniqueId}`) ?? 0;
     if (!m.scoreBreakdown) m.scoreBreakdown = {};
     m.scoreBreakdown.fused = r.similarity;
@@ -429,7 +430,10 @@ export async function recall(
   };
 }
 
-function toFactMemory(r: VaultSearchResult): RankedMemory {
+function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
+  const createdAt = r.createdAt ?? new Date(0);
+  const proofCount = r.proofCount ?? undefined;
+  const lastObservedAt = r.lastObservedAt ?? null;
   return {
     id: r.uniqueId,
     kind: "fact",
@@ -446,6 +450,18 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     ...(r.factType !== undefined && { factType: r.factType }),
     ...(r.sourceChunkIds !== undefined &&
       r.sourceChunkIds !== null && { sourceChunkIds: r.sourceChunkIds }),
+    ...(proofCount !== undefined && proofCount !== null && { proofCount }),
+    ...(lastObservedAt !== null && { lastObservedAt }),
+    // C2 — algorithmic trend from evidence timestamps (no LLM). Honor
+    // RecallOptions.now so back-dated eval harnesses get consistent labels.
+    observationTrend: classifyObservationTrend(
+      {
+        createdAt,
+        lastObservedAt,
+        proofCount,
+      },
+      now ?? Date.now()
+    ),
     // r.similarity from searchVaultMemoriesWithSize is the fused score
     // (cosine + BM25 + RRF + recency + proof) when useFusion=true (the
     // default) and pure cosine when useFusion=false. The breakdown
@@ -454,7 +470,7 @@ function toFactMemory(r: VaultSearchResult): RankedMemory {
     content: r.content,
     score: r.similarity,
     scoreBreakdown: { fused: r.similarity },
-    createdAt: r.createdAt ?? new Date(0),
+    createdAt,
     updatedAt: r.updatedAt ?? new Date(0),
   };
 }

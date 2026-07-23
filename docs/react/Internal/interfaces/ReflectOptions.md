@@ -40,7 +40,7 @@ Endpoint for the answer LLM.
 
 > `optional` **bm25AdmissionDivisor**: `number`
 
-Defined in: [src/lib/memory/types.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#178)
+Defined in: [src/lib/memory/types.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#189)
 
 Divisor mapping BM25 scores to the admission floor. Default: 50.
 
@@ -54,7 +54,7 @@ Divisor mapping BM25 scores to the admission floor. Default: 50.
 
 > `optional` **budget**: [`Budget`](../type-aliases/Budget.md)
 
-Defined in: [src/lib/memory/types.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#105)
+Defined in: [src/lib/memory/types.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#116)
 
 Search depth. Default: 'low'.
 
@@ -68,7 +68,7 @@ Search depth. Default: 'low'.
 
 > `optional` **ceWeight**: `number`
 
-Defined in: [src/lib/memory/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#164)
+Defined in: [src/lib/memory/types.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#175)
 
 Multiplicative cross-encoder blend weight. Default: 0.1.
 
@@ -82,7 +82,7 @@ Multiplicative cross-encoder blend weight. Default: 0.1.
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/types.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#125)
+Defined in: [src/lib/memory/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#136)
 
 Restrict chunk search to one conversation. Chunk-only.
 
@@ -96,7 +96,7 @@ Restrict chunk search to one conversation. Chunk-only.
 
 > `optional` **decomposeOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#136)
+Defined in: [src/lib/memory/types.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#147)
 
 Auth + endpoint for the LLM-based query decomposition pass. Without
 these, decompose is skipped even at `budget: 'high'`. Mirrors the
@@ -123,7 +123,7 @@ of `apiKey` / `getToken` is required; see [PortalLlmAuth](PortalLlmAuth.md).
 
 > `optional` **entityFanout**: `number`
 
-Defined in: [src/lib/memory/types.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#189)
+Defined in: [src/lib/memory/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#200)
 
 Max neighbor entities expanded per hop. Default: 8.
 
@@ -137,7 +137,7 @@ Max neighbor entities expanded per hop. Default: 8.
 
 > `optional` **excludeConversationId**: `string`
 
-Defined in: [src/lib/memory/types.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#127)
+Defined in: [src/lib/memory/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#138)
 
 Exclude one conversation from chunk search. Chunk-only.
 
@@ -151,7 +151,7 @@ Exclude one conversation from chunk search. Chunk-only.
 
 > `optional` **factTypes**: (`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`)\[]
 
-Defined in: [src/lib/memory/types.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#116)
+Defined in: [src/lib/memory/types.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#127)
 
 Typed memory (PR1) — restrict fact recall to these FactTypes. Optional
 and no-op when unset (all types are eligible). Vault-only.
@@ -166,7 +166,7 @@ and no-op when unset (all types are eligible). Vault-only.
 
 > `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`, `number`>>
 
-Defined in: [src/lib/memory/types.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#123)
+Defined in: [src/lib/memory/types.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#134)
 
 PR5 — optional per-FactType score multiplier applied in the fusion boost
 stage (e.g. boost `identity`/`constraint`, down-weight `ongoing_context`).
@@ -287,7 +287,7 @@ Override fetch (for tests).
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memory/types.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#111)
+Defined in: [src/lib/memory/types.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#122)
 
 Vault folder filter. Vault-only.
 
@@ -319,7 +319,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **graphRefine**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#200)
+Defined in: [src/lib/memory/types.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#211)
 
 PR5 — enable LLM graph path-refinement: at each traversal hop a model picks
 which neighbor entities to expand instead of pure co-occurrence ranking.
@@ -338,7 +338,7 @@ call per expansion hop.
 
 > `optional` **includeChunks**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#107)
+Defined in: [src/lib/memory/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#118)
 
 Include source chunks for fact memories that have provenance. Default: false.
 
@@ -352,7 +352,7 @@ Include source chunks for fact memories that have provenance. Default: false.
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/memory/types.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#101)
+Defined in: [src/lib/memory/types.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#112)
 
 Max items returned. Default: 8.
 
@@ -376,7 +376,7 @@ Override the answer model. Default: anthropic/claude-sonnet-4-6.
 
 > `optional` **maxHops**: `number`
 
-Defined in: [src/lib/memory/types.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#187)
+Defined in: [src/lib/memory/types.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#198)
 
 Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only).
 
@@ -404,7 +404,7 @@ Cap response length. Default: 4096.
 
 > `optional` **minScore**: `number`
 
-Defined in: [src/lib/memory/types.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#129)
+Defined in: [src/lib/memory/types.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#140)
 
 Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors today's defaults).
 
@@ -418,7 +418,7 @@ Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors t
 
 > `optional` **mmr**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#170)
+Defined in: [src/lib/memory/types.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#181)
 
 Apply MMR diversification after ranking (rerank pipeline only). Default: false.
 
@@ -432,7 +432,7 @@ Apply MMR diversification after ranking (rerank pipeline only). Default: false.
 
 > `optional` **nodeBudget**: `number`
 
-Defined in: [src/lib/memory/types.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#191)
+Defined in: [src/lib/memory/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#202)
 
 Hard cap on accumulated memory IDs across all hops. Default: 64.
 
@@ -446,7 +446,7 @@ Hard cap on accumulated memory IDs across all hops. Default: 64.
 
 > `optional` **now**: `number`
 
-Defined in: [src/lib/memory/types.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#147)
+Defined in: [src/lib/memory/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#158)
 
 Reference "now" for resolving relative temporal phrases in the
 query ("last week", "yesterday", "N days ago"). Default: `Date.now()`.
@@ -464,7 +464,7 @@ resolves windows in 2026 and never overlaps stored event\_time.
 
 > `optional` **onDiagnostics**: (`diagnostics`: [`RecallDiagnostics`](RecallDiagnostics.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#155)
+Defined in: [src/lib/memory/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#166)
 
 Best-effort observability hook. Called once per `recall()` with per-lane
 timings, lane counts, and soft-degradation signals — the raw material for
@@ -511,7 +511,7 @@ swallowed (diagnostics must never break retrieval). Off unless provided.
 
 > `optional` **proofCountAlpha**: `number`
 
-Defined in: [src/lib/memory/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#176)
+Defined in: [src/lib/memory/types.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#187)
 
 Proof-count log-boost scale. Default: 0.1.
 
@@ -525,7 +525,7 @@ Proof-count log-boost scale. Default: 0.1.
 
 > `optional` **recency**: [`RecencyOptions`](RecencyOptions.md)
 
-Defined in: [src/lib/memory/types.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#168)
+Defined in: [src/lib/memory/types.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#179)
 
 Recency decay curve overrides (per-year decay slope, floor, no-date multiplier).
 
@@ -539,7 +539,7 @@ Recency decay curve overrides (per-year decay slope, floor, no-date multiplier).
 
 > `optional` **recencyAlpha**: `number`
 
-Defined in: [src/lib/memory/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#166)
+Defined in: [src/lib/memory/types.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#177)
 
 Recency boost slope in the fused ranker. Default: 1.0.
 
@@ -553,7 +553,7 @@ Recency boost slope in the fused ranker. Default: 1.0.
 
 > `optional` **rerankTopN**: `number`
 
-Defined in: [src/lib/memory/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#162)
+Defined in: [src/lib/memory/types.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#173)
 
 Number of candidates fed to the cross-encoder rerank stage. Default: 30.
 
@@ -577,7 +577,7 @@ Optional JSON Schema to coerce structured outputs.
 
 > `optional` **rrfK**: `number`
 
-Defined in: [src/lib/memory/types.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#180)
+Defined in: [src/lib/memory/types.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#191)
 
 RRF smoothing constant for lane fusion (facts × chunks and side lanes). Default: 60.
 
@@ -591,7 +591,7 @@ RRF smoothing constant for lane fusion (facts × chunks and side lanes). Default
 
 > `optional` **scopes**: `string`\[]
 
-Defined in: [src/lib/memory/types.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#109)
+Defined in: [src/lib/memory/types.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#120)
 
 Vault scope filter. Vault-only.
 
@@ -605,7 +605,7 @@ Vault scope filter. Vault-only.
 
 > `optional` **supersessionBoost**: `number`
 
-Defined in: [src/lib/memory/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#172)
+Defined in: [src/lib/memory/types.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#183)
 
 Supersession score-gap transfer factor. Default: 0.8.
 
@@ -619,7 +619,7 @@ Supersession score-gap transfer factor. Default: 0.8.
 
 > `optional` **supersessionWindow**: `number`
 
-Defined in: [src/lib/memory/types.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#174)
+Defined in: [src/lib/memory/types.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#185)
 
 Hard cap on the supersession candidate window. Default: 50.
 
@@ -643,7 +643,7 @@ Override the grounding system prompt.
 
 > `optional` **types**: [`MemoryKind`](../type-aliases/MemoryKind.md)\[]
 
-Defined in: [src/lib/memory/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#99)
+Defined in: [src/lib/memory/types.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#110)
 
 Which kinds to search. Default: \['fact'].
 

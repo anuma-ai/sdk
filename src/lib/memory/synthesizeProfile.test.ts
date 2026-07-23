@@ -110,6 +110,7 @@ function priorDoc(sections: ProfileSection[], watermark: number, config = cfg())
     sections,
     vaultWatermark: watermark,
     config,
+    observationTrends: { new: 0, strengthening: 0, stable: 0, weakening: 0, stale: 0 },
     generatedAt: 1,
   };
 }
@@ -145,6 +146,14 @@ describe("synthesizeProfile", () => {
     expect(doc.sections[0].sourceMemoryIds).toEqual(["a"]);
     expect(doc.vaultWatermark).toBe(3000);
     expect(doc.config).toEqual(cfg(false));
+    // createdAt=500ms epoch → long-quiet → stale (C2)
+    expect(doc.observationTrends).toEqual({
+      new: 0,
+      strengthening: 0,
+      stable: 0,
+      weakening: 0,
+      stale: 1,
+    });
     expect(mockReflect).toHaveBeenCalledTimes(2);
     // The snapshot is scoped to the same scopes synthesis recalls from.
     expect(mockGetAll.mock.calls[0][1]).toMatchObject({ scopes: ["private"] });
@@ -168,6 +177,15 @@ describe("synthesizeProfile", () => {
       [section("bio", "old bio", ["a"]), section("interests", "old", ["a"])],
       2000
     );
+    // Match the C2 counts synthesizeProfile will recompute for mem("a") so
+    // wholesale reuse keeps object identity.
+    previous.observationTrends = {
+      new: 0,
+      strengthening: 0,
+      stable: 0,
+      weakening: 0,
+      stale: 1,
+    };
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
