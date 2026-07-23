@@ -611,8 +611,8 @@ describe("retain — tombstones (respectTombstones)", () => {
   });
 
   it("still creates when the nearest tombstone is below threshold", async () => {
-    // cosine([1,0,0],[0.8,0.6,0]) = 0.8 < 0.85
-    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("dead-1", [0.8, 0.6, 0], true)]);
+    // cosine([1,0,0],[0.6,0.8,0]) = 0.6 < 0.8 (auto-merge threshold)
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([row("dead-1", [0.6, 0.8, 0], true)]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue(row("new-1", [1, 0, 0], false));
 
     const result = await retain("Likes tea", ctx, { respectTombstones: true });

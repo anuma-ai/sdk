@@ -2,7 +2,7 @@
 
 > **retain**(`content`: `string`, `ctx`: [`RetainContext`](../interfaces/RetainContext.md), `options`: [`RetainOptions`](../interfaces/RetainOptions.md)): `Promise`<[`RetainResult`](../interfaces/RetainResult.md)>
 
-Defined in: [src/lib/memory/retain.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#59)
+Defined in: [src/lib/memory/retain.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/retain.ts#64)
 
 Persist a memory, merging into the nearest existing record if its
 cosine similarity exceeds the auto-merge threshold.

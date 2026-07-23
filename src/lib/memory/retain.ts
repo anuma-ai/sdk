@@ -18,6 +18,7 @@ import {
   createVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
+  supersedeVaultMemoryOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
@@ -28,15 +29,19 @@ import { cosineSimilarity } from "../memoryEngine/vector.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
-const DEFAULT_AUTO_MERGE_THRESHOLD = 0.85;
+const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
 /** Scope an unset `options.scope` resolves to — matches the DB write default
  * (`createVaultMemoryOp`). Used for BOTH the dedup search and the write so they
  * stay symmetric (see retain()). */
 const DEFAULT_SCOPE = "private";
 /** Looser threshold for the consolidator candidate set — paraphrased dupes
- * cluster around 0.7–0.8, which the strict 0.85 cosine merge misses. */
-const DEFAULT_CONSOLIDATE_THRESHOLD = 0.65;
-const DEFAULT_CONSOLIDATE_TOP_K = 5;
+ * cluster around 0.6–0.8, which the strict cosine merge misses. Lowered to
+ * catch reworded duplicates (e.g. "prefers dark mode" vs "prefers dark mode in
+ * every app"). */
+const DEFAULT_CONSOLIDATE_THRESHOLD = 0.55;
+/** Widened so a value change can find (and retire) ALL stale duplicates of the
+ * old value in one pass, not just the nearest few. */
+const DEFAULT_CONSOLIDATE_TOP_K = 20;
 
 export interface RetainContext {
   vaultCtx: VaultMemoryOperationsContext;
@@ -82,7 +87,9 @@ export async function retain(
   // merge (the new value must be created fresh, never merged) and stamp
   // `superseded_by` on this id after the create succeeds. The content is the
   // consolidator's refined version of the new fact.
-  let supersedeTargetId: string | undefined;
+  // All stale memories the consolidator wants retired (every duplicate of a
+  // now-changed standing value), and the refined new-fact content.
+  let supersedeTargetIds: string[] = [];
   let supersedeContent: string | undefined;
 
   if (enableAutoMerge) {
@@ -95,7 +102,7 @@ export async function retain(
       const outcome = await tryConsolidate(trimmed, ctx, options);
       if (outcome) {
         if ("done" in outcome) return outcome.done;
-        supersedeTargetId = outcome.supersede;
+        supersedeTargetIds = outcome.supersede;
         supersedeContent = outcome.content;
       }
     }
@@ -106,7 +113,7 @@ export async function retain(
     // scale and isn't suitable for a pairwise-similarity gate.
     // Stage 2 is skipped when superseding (main's A2): a changed value must be
     // created fresh, never merged into some other row.
-    if (!supersedeTargetId) {
+    if (supersedeTargetIds.length === 0) {
       const matches = await searchVaultMemories(
         trimmed,
         ctx.vaultCtx,
@@ -252,23 +259,31 @@ export async function retain(
   // (or it was deleted), NOTHING is created and we fall through to a plain
   // create below — the fact is still stored, and the rare duplicate self-
   // reconciles at the next consolidation / strict cosine merge.
-  if (supersedeTargetId) {
+  if (supersedeTargetIds.length > 0) {
+    const [primaryTargetId, ...restTargetIds] = supersedeTargetIds;
     const { created, retired } = await createSupersedingMemoryOp(
       ctx.vaultCtx,
       createOpts,
-      supersedeTargetId
+      primaryTargetId
     );
     if (created && retired) {
       ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
+      // Retire the remaining stale duplicates too, pointing them at the new
+      // memory. Best-effort (non-atomic): a per-id failure or a concurrent
+      // retire just leaves that row live — self-reconciled by the next
+      // consolidation — and must not undo the successful primary write.
+      for (const staleId of restTargetIds) {
+        await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, created.uniqueId).catch(() => {});
+      }
       return {
         action: "supersede",
         memoryId: created.uniqueId,
-        targetId: supersedeTargetId,
+        targetId: primaryTargetId,
         proofCount: 1,
       };
     }
-    // Concurrent loss (target already retired/gone) → fall through to a plain
-    // create so the fact is still persisted; no orphan was created.
+    // Concurrent loss (primary target already retired/gone) → fall through to a
+    // plain create so the fact is still persisted; no orphan was created.
   }
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
@@ -420,7 +435,7 @@ function resurrectFields(existing: {
  *   stale `supersede` id. `content` is the refined new fact from the consolidator.
  * - `null` — no consolidation decision; fall through to strict merge / create.
  */
-type ConsolidateOutcome = { done: RetainResult } | { supersede: string; content: string } | null;
+type ConsolidateOutcome = { done: RetainResult } | { supersede: string[]; content: string } | null;
 
 async function tryConsolidate(
   trimmed: string,
@@ -470,12 +485,25 @@ async function tryConsolidate(
   // refined content. retain() creates the new fact fresh (never merges) using
   // the consolidator's content and stamps superseded_by on the old one.
   // `getVaultMemoryOp` already excludes deleted rows.
-  if (decision.action === "supersede" && decision.targetId && decision.content) {
-    const existing = await getVaultMemoryOp(ctx.vaultCtx, decision.targetId);
-    // Target gone or already superseded → fall through to plain create rather
-    // than re-retiring an already-retired row.
-    if (!existing || existing.supersededBy) return null;
-    return { supersede: decision.targetId, content: decision.content };
+  if (decision.action === "supersede" && decision.content) {
+    // Multi-supersede: retire EVERY stale duplicate the consolidator flagged,
+    // not just one — so a value change collapses all paraphrases of the old
+    // value. Accept the multi-id `targetIds` shape, falling back to a single
+    // `targetId` for back-compat. Keep only targets that still exist and aren't
+    // already retired (a concurrent supersession may have beaten us to some).
+    const requestedIds = decision.targetIds?.length
+      ? decision.targetIds
+      : decision.targetId
+        ? [decision.targetId]
+        : [];
+    if (requestedIds.length === 0) return null;
+    const valid: string[] = [];
+    for (const id of requestedIds) {
+      const existing = await getVaultMemoryOp(ctx.vaultCtx, id);
+      if (existing && !existing.supersededBy) valid.push(id);
+    }
+    if (valid.length === 0) return null;
+    return { supersede: valid, content: decision.content };
   }
 
   if (decision.action === "noop" && decision.targetId) {

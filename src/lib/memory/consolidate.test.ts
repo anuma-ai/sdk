@@ -65,10 +65,33 @@ describe("consolidateMemory", () => {
       apiKey: "k",
       fetchFn,
     });
-    // targetId = the stale fact to retire; content = the NEW fact to persist.
+    // targetId = the (first) stale fact to retire; targetIds = the full set;
+    // content = the NEW fact to persist. A single-id decision normalizes to a
+    // one-element targetIds.
     expect(result).toEqual({
       action: "supersede",
       targetId: "m1",
+      targetIds: ["m1"],
+      content: "User has a cat named Mochi.",
+    });
+  });
+
+  it("supersede collects ALL stale ids when the LLM returns targetIds[] (multi-supersede)", async () => {
+    const fetchFn = mockFetch(
+      choices({
+        action: "supersede",
+        targetIds: ["m1", "m2"],
+        content: "User has a cat named Mochi.",
+      })
+    );
+    const result = await consolidateMemory("User has a cat named Mochi.", candidates, {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(result).toEqual({
+      action: "supersede",
+      targetId: "m1",
+      targetIds: ["m1", "m2"],
       content: "User has a cat named Mochi.",
     });
   });
