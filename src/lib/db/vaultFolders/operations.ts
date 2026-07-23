@@ -76,6 +76,16 @@ export async function updateVaultFolderOp(
     const scopeChanged = opts.scope !== undefined && opts.scope !== record.scope;
 
     const updated = await ctx.database.write(async () => {
+      // Fetch the cascade set BEFORE preparing any update: prepareUpdate →
+      // batch must happen within the same tick (an interleaved `await` lets
+      // WatermelonDB's dev "wasn't sent to batch() synchronously" diagnostic
+      // fire, RedBoxing Debug builds).
+      const memories = scopeChanged
+        ? await ctx.vaultMemoryCollection
+            .query(Q.where("folder_id", id), Q.where("is_deleted", false))
+            .fetch()
+        : [];
+
       const updates: Model[] = [];
 
       updates.push(
@@ -85,18 +95,12 @@ export async function updateVaultFolderOp(
         })
       );
 
-      if (scopeChanged) {
-        const memories = await ctx.vaultMemoryCollection
-          .query(Q.where("folder_id", id), Q.where("is_deleted", false))
-          .fetch();
-
-        for (const memory of memories) {
-          updates.push(
-            memory.prepareUpdate((r) => {
-              r._setRaw("scope", opts.scope!);
-            })
-          );
-        }
+      for (const memory of memories) {
+        updates.push(
+          memory.prepareUpdate((r) => {
+            r._setRaw("scope", opts.scope!);
+          })
+        );
       }
 
       await ctx.database.batch(...updates);

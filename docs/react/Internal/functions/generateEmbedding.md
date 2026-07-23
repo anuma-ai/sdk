@@ -2,7 +2,7 @@
 
 > **generateEmbedding**(`text`: `string`, `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<`number`\[]>
 
-Defined in: [src/lib/memoryEngine/generate.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/generate.ts#114)
+Defined in: [src/lib/memoryEngine/generate.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/generate.ts#122)
 
 Generate an embedding for text using the API
 

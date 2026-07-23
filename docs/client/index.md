@@ -488,6 +488,7 @@
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
 | [HandlersModerateRequest](Internal/type-aliases/HandlersModerateRequest.md) | - |
 | [HandlersModerateResponse](Internal/type-aliases/HandlersModerateResponse.md) | - |
+| [HandlersNearbyModerateRequest](Internal/type-aliases/HandlersNearbyModerateRequest.md) | - |
 | [HandlersNonceResponse](Internal/type-aliases/HandlersNonceResponse.md) | - |
 | [HandlersNotificationDeviceResponse](Internal/type-aliases/HandlersNotificationDeviceResponse.md) | - |
 | [HandlersOAuthClientResponse](Internal/type-aliases/HandlersOAuthClientResponse.md) | - |
@@ -1021,6 +1022,11 @@
 | [PostApiV1UserApiKeysErrors](Internal/type-aliases/PostApiV1UserApiKeysErrors.md) | - |
 | [PostApiV1UserApiKeysResponse](Internal/type-aliases/PostApiV1UserApiKeysResponse.md) | - |
 | [PostApiV1UserApiKeysResponses](Internal/type-aliases/PostApiV1UserApiKeysResponses.md) | - |
+| [PostApiV1UtilityResponsesData](Internal/type-aliases/PostApiV1UtilityResponsesData.md) | - |
+| [PostApiV1UtilityResponsesError](Internal/type-aliases/PostApiV1UtilityResponsesError.md) | - |
+| [PostApiV1UtilityResponsesErrors](Internal/type-aliases/PostApiV1UtilityResponsesErrors.md) | - |
+| [PostApiV1UtilityResponsesResponse](Internal/type-aliases/PostApiV1UtilityResponsesResponse.md) | - |
+| [PostApiV1UtilityResponsesResponses](Internal/type-aliases/PostApiV1UtilityResponsesResponses.md) | - |
 | [PostApiV1WalletsBindingData](Internal/type-aliases/PostApiV1WalletsBindingData.md) | - |
 | [PostApiV1WalletsBindingError](Internal/type-aliases/PostApiV1WalletsBindingError.md) | - |
 | [PostApiV1WalletsBindingErrors](Internal/type-aliases/PostApiV1WalletsBindingErrors.md) | - |
@@ -1051,6 +1057,16 @@
 | [PostAuthOauthByProviderRevokeErrors](Internal/type-aliases/PostAuthOauthByProviderRevokeErrors.md) | - |
 | [PostAuthOauthByProviderRevokeResponse](Internal/type-aliases/PostAuthOauthByProviderRevokeResponse.md) | - |
 | [PostAuthOauthByProviderRevokeResponses](Internal/type-aliases/PostAuthOauthByProviderRevokeResponses.md) | - |
+| [PostInternalEmbeddingsData](Internal/type-aliases/PostInternalEmbeddingsData.md) | - |
+| [PostInternalEmbeddingsError](Internal/type-aliases/PostInternalEmbeddingsError.md) | - |
+| [PostInternalEmbeddingsErrors](Internal/type-aliases/PostInternalEmbeddingsErrors.md) | - |
+| [PostInternalEmbeddingsResponse](Internal/type-aliases/PostInternalEmbeddingsResponse.md) | - |
+| [PostInternalEmbeddingsResponses](Internal/type-aliases/PostInternalEmbeddingsResponses.md) | - |
+| [PostInternalModerateData](Internal/type-aliases/PostInternalModerateData.md) | - |
+| [PostInternalModerateError](Internal/type-aliases/PostInternalModerateError.md) | - |
+| [PostInternalModerateErrors](Internal/type-aliases/PostInternalModerateErrors.md) | - |
+| [PostInternalModerateResponse](Internal/type-aliases/PostInternalModerateResponse.md) | - |
+| [PostInternalModerateResponses](Internal/type-aliases/PostInternalModerateResponses.md) | - |
 | [PostOauthConsentData](Internal/type-aliases/PostOauthConsentData.md) | - |
 | [PostOauthConsentError](Internal/type-aliases/PostOauthConsentError.md) | - |
 | [PostOauthConsentErrors](Internal/type-aliases/PostOauthConsentErrors.md) | - |
@@ -1273,12 +1289,15 @@
 | [postApiV1SubscriptionsWebhook](Internal/functions/postApiV1SubscriptionsWebhook.md) | Handle Stripe webhook |
 | [postApiV1UserAgentConsents](Internal/functions/postApiV1UserAgentConsents.md) | Create per-platform agent consent |
 | [postApiV1UserApiKeys](Internal/functions/postApiV1UserApiKeys.md) | Create user API key |
+| [postApiV1UtilityResponses](Internal/functions/postApiV1UtilityResponses.md) | Create utility response |
 | [postApiV1WalletsBinding](Internal/functions/postApiV1WalletsBinding.md) | Bind a wallet |
 | [postApiV1WalletsBindingNonce](Internal/functions/postApiV1WalletsBindingNonce.md) | Issue a wallet-binding nonce |
 | [postApiV1WebhooksRevenuecat](Internal/functions/postApiV1WebhooksRevenuecat.md) | Handle RevenueCat webhook |
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
+| [postInternalEmbeddings](Internal/functions/postInternalEmbeddings.md) | Create embeddings (internal) |
+| [postInternalModerate](Internal/functions/postInternalModerate.md) | Moderate content (internal) |
 | [postOauthConsent](Internal/functions/postOauthConsent.md) | Process OAuth consent |
 | [postOauthRevoke](Internal/functions/postOauthRevoke.md) | OAuth 2.0 token revocation (RFC 7009) |
 | [postOauthToken](Internal/functions/postOauthToken.md) | OAuth 2.0 token endpoint |

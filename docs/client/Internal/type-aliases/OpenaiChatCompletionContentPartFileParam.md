@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionContentPartFileParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3438)
+Defined in: [src/client/types.gen.ts:3443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3443)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3438](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3439](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3439)
+Defined in: [src/client/types.gen.ts:3444](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3444)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3439](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **file**: [`OpenaiChatCompletionContentPartFileFileParam`](OpenaiChatCompletionContentPartFileFileParam.md)
 
-Defined in: [src/client/types.gen.ts:3440](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3440)
+Defined in: [src/client/types.gen.ts:3445](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3445)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3440](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:3446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3446)
+Defined in: [src/client/types.gen.ts:3451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3451)
 
 The type of the content part. Always `file`.
 

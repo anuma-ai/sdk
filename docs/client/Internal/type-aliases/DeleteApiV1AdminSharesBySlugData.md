@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminSharesBySlugData** = `object`
 
-Defined in: [src/client/types.gen.ts:5836](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5836)
+Defined in: [src/client/types.gen.ts:5841](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5841)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5836](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:5837](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5837)
+Defined in: [src/client/types.gen.ts:5842](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5842)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:5837](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5838](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5838)
+Defined in: [src/client/types.gen.ts:5843](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5843)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:5844](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5844)
+Defined in: [src/client/types.gen.ts:5849](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5849)
 
 **slug**
 
@@ -46,7 +46,7 @@ Share slug
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:5850](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5850)
+Defined in: [src/client/types.gen.ts:5855](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5855)
 
 **reason?**
 
@@ -60,4 +60,4 @@ Takedown reason (recorded)
 
 > **url**: `"/api/v1/admin/shares/{slug}"`
 
-Defined in: [src/client/types.gen.ts:5856](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5856)
+Defined in: [src/client/types.gen.ts:5861](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5861)

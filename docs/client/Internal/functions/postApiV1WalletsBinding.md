@@ -2,7 +2,7 @@
 
 > **postApiV1WalletsBinding**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1WalletsBindingData`](../type-aliases/PostApiV1WalletsBindingData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1WalletsBindingResponses`](../type-aliases/PostApiV1WalletsBindingResponses.md), [`PostApiV1WalletsBindingErrors`](../type-aliases/PostApiV1WalletsBindingErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1975](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1975)
+Defined in: [src/client/sdk.gen.ts:1453](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1453)
 
 Bind a wallet
 

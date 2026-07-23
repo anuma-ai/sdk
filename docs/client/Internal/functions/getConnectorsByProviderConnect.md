@@ -2,7 +2,7 @@
 
 > **getConnectorsByProviderConnect**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetConnectorsByProviderConnectData`](../type-aliases/GetConnectorsByProviderConnectData.md), `ThrowOnError`>): `RequestResult`<`unknown`, [`GetConnectorsByProviderConnectErrors`](../type-aliases/GetConnectorsByProviderConnectErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2107](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2107)
+Defined in: [src/client/sdk.gen.ts:1550](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1550)
 
 Begin upstream OAuth connect flow
 

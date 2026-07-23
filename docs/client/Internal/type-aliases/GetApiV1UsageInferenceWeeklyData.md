@@ -2,7 +2,7 @@
 
 > **GetApiV1UsageInferenceWeeklyData** = `object`
 
-Defined in: [src/client/types.gen.ts:9622](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9622)
+Defined in: [src/client/types.gen.ts:9627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9627)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:9622](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:9623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9623)
+Defined in: [src/client/types.gen.ts:9628](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9628)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:9623](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:9624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9624)
+Defined in: [src/client/types.gen.ts:9629](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9629)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:9624](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:9625](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9625)
+Defined in: [src/client/types.gen.ts:9630](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9630)
 
 **weeks?**
 
@@ -40,4 +40,4 @@ Number of ISO weeks to return (1–52, default 12)
 
 > **url**: `"/api/v1/usage/inference-weekly"`
 
-Defined in: [src/client/types.gen.ts:9631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9631)
+Defined in: [src/client/types.gen.ts:9636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9636)

@@ -1,8 +1,8 @@
 # getApiV1Tools
 
-> **getApiV1Tools**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ToolsData`](../type-aliases/GetApiV1ToolsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ToolsResponses`](../type-aliases/GetApiV1ToolsResponses.md), [`GetApiV1ToolsErrors`](../type-aliases/GetApiV1ToolsErrors.md), `ThrowOnError`>
+> **getApiV1Tools**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ToolsData`](../type-aliases/GetApiV1ToolsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1ToolsResponses`](../type-aliases/GetApiV1ToolsResponses.md), [`GetApiV1ToolsErrors`](../type-aliases/GetApiV1ToolsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1789](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1789)
+Defined in: [src/client/sdk.gen.ts:1319](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1319)
 
 List available tools
 
@@ -51,7 +51,7 @@ Returns a map of available MCP tool schemas indexed by tool name.
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1ToolsData`](../type-aliases/GetApiV1ToolsData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1ToolsData`](../type-aliases/GetApiV1ToolsData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

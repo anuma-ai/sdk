@@ -1,8 +1,8 @@
 # getApiV1ZetaCreditRate
 
-> **getApiV1ZetaCreditRate**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaCreditRateData`](../type-aliases/GetApiV1ZetaCreditRateData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ZetaCreditRateResponses`](../type-aliases/GetApiV1ZetaCreditRateResponses.md), `unknown`, `ThrowOnError`>
+> **getApiV1ZetaCreditRate**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaCreditRateData`](../type-aliases/GetApiV1ZetaCreditRateData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1ZetaCreditRateResponses`](../type-aliases/GetApiV1ZetaCreditRateResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2025](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2025)
+Defined in: [src/client/sdk.gen.ts:1489](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1489)
 
 Stake-to-earn credit rate
 
@@ -49,7 +49,7 @@ Stake-to-earn credit rate
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaCreditRateData`](../type-aliases/GetApiV1ZetaCreditRateData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1ZetaCreditRateData`](../type-aliases/GetApiV1ZetaCreditRateData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

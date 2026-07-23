@@ -2,7 +2,7 @@
 
 > **getInternalAccountsByDidByDid**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetInternalAccountsByDidByDidData`](../type-aliases/GetInternalAccountsByDidByDidData.md), `ThrowOnError`>): `RequestResult`<[`GetInternalAccountsByDidByDidResponses`](../type-aliases/GetInternalAccountsByDidByDidResponses.md), [`GetInternalAccountsByDidByDidErrors`](../type-aliases/GetInternalAccountsByDidByDidErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2131](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2131)
+Defined in: [src/client/sdk.gen.ts:1564](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1564)
 
 Resolve a Privy DID to an account ID
 

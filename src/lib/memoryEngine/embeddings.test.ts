@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/chat/operations", () => ({
   getConversationsOp: vi.fn(),
+  getMessageOp: vi.fn(),
   getMessagesOp: vi.fn(),
   updateMessageChunksOp: vi.fn(),
   updateMessageEmbeddingOp: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("../db/chat/operations", () => ({
 
 import {
   getConversationsOp,
+  getMessageOp,
   getMessagesOp,
   type StorageOperationsContext,
   updateMessageChunksOp,
@@ -30,8 +32,10 @@ import type { StoredConversation, StoredMessage } from "../db/chat/types";
 
 import {
   chunkAndEmbedAllMessages,
+  chunkAndEmbedMessage,
   EmbeddingHttpError,
   embedAllMessages,
+  embedMessage,
   generateEmbedding,
   generateEmbeddings,
   isFatalEmbeddingError,
@@ -225,8 +229,9 @@ describe("generateEmbedding", () => {
   });
 
   it("re-throws after exhausting retries when fetch keeps throwing", async () => {
-    // A network fault (fetch rejects) must NOT bypass the retry — the
-    // generated client propagates the throw rather than returning { error }.
+    // A network fault (fetch rejects) must NOT bypass the retry. openapi-ts
+    // >=0.97 may surface that as `{ error }` instead of a thrown rejection;
+    // withEmbeddingRetry still retries and rethrows the underlying Error.
     const fetchMock = vi.fn(async () => {
       throw new Error("ECONNRESET");
     });
@@ -511,5 +516,58 @@ describe("chunkAndEmbedAllMessages retry-storm guard", () => {
     ).rejects.toBeInstanceOf(EmbeddingHttpError);
     expect(fetchMock).toHaveBeenCalledTimes(1); // batched → one request, then abort
     expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("embedMessage / chunkAndEmbedMessage — O(1) indexed lookup (D4)", () => {
+  const ctx = {} as StorageOperationsContext;
+
+  it("embedMessage resolves the message by id (not a full-history scan)", async () => {
+    stubFetchOk();
+    vi.mocked(getMessageOp).mockResolvedValue({
+      uniqueId: "m2",
+      content: "hello world",
+    } as unknown as StoredMessage);
+    vi.mocked(updateMessageEmbeddingOp).mockResolvedValue({
+      uniqueId: "m2",
+    } as unknown as StoredMessage);
+
+    await embedMessage(ctx, "m2", { apiKey: "k", baseUrl: BASE });
+
+    expect(getMessageOp).toHaveBeenCalledWith(ctx, "m2");
+    // The old path scanned every conversation's messages — must not happen now.
+    expect(getConversationsOp).not.toHaveBeenCalled();
+    expect(getMessagesOp).not.toHaveBeenCalled();
+    const [, id, vector] = vi.mocked(updateMessageEmbeddingOp).mock.calls[0];
+    expect(id).toBe("m2");
+    expect(vector).toEqual(embeddingFor("hello world"));
+  });
+
+  it("embedMessage skips the API when the message already has a vector", async () => {
+    const fetchMock = stubFetchOk();
+    vi.mocked(getMessageOp).mockResolvedValue({
+      uniqueId: "m1",
+      content: "hi",
+      vector: [1, 2, 3],
+    } as unknown as StoredMessage);
+
+    const result = await embedMessage(ctx, "m1", { apiKey: "k", baseUrl: BASE });
+
+    expect(result?.uniqueId).toBe("m1");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateMessageEmbeddingOp).not.toHaveBeenCalled();
+  });
+
+  it("embedMessage returns null for an unknown id", async () => {
+    vi.mocked(getMessageOp).mockResolvedValue(null);
+    expect(await embedMessage(ctx, "gone", { apiKey: "k", baseUrl: BASE })).toBeNull();
+    expect(getMessagesOp).not.toHaveBeenCalled();
+  });
+
+  it("chunkAndEmbedMessage resolves by id and returns null when not found", async () => {
+    vi.mocked(getMessageOp).mockResolvedValue(null);
+    expect(await chunkAndEmbedMessage(ctx, "gone", { apiKey: "k", baseUrl: BASE })).toBeNull();
+    expect(getMessageOp).toHaveBeenCalledWith(ctx, "gone");
+    expect(getConversationsOp).not.toHaveBeenCalled();
   });
 });

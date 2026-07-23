@@ -1,3 +1,5 @@
+import type { FactType } from "../../memory/autoExtract.js";
+
 export interface StoredVaultMemory {
   /** WatermelonDB internal ID */
   uniqueId: string;
@@ -43,6 +45,19 @@ export interface StoredVaultMemory {
   /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
    * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
   topicsExtractedVersion: number | null;
+  /** C3 re-observation watermark: Unix ms of the last retain() merge into this
+   * fact. Distinct from `updatedAt` (which merges preserve). Null = never
+   * re-observed since the column was added; synthesis falls back to
+   * `updatedAt` in that case. */
+  lastObservedAt: number | null;
+  /** Typed memory (PR1) — the extractor's FactType for this fact, or null on
+   * legacy/manual/untyped rows. Plaintext string (not narrowed to FactType
+   * here since the DB can hold any stored value). */
+  factType: string | null;
+  /** Decay archive state (PR2) — Unix ms when archived, or null when active. */
+  archivedAt: number | null;
+  /** Tier-0 security (PR3) — "quarantined" | "trusted" | null. */
+  trustTier: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -74,6 +89,12 @@ export interface CreateVaultMemoryOptions {
     /** Kind: 'point' | 'range' | 'ongoing' | null (or omit). */
     kind: "point" | "range" | "ongoing" | null;
   };
+  /** Typed memory (PR1) — the extractor's classification for this fact.
+   * Omit for manual/untyped saves (persisted as null). */
+  factType?: FactType;
+  /** Tier-0 security (PR3) — set "quarantined" when the injection screen
+   * flagged this fact. Omit for the default (null/trusted). */
+  trustTier?: string;
 }
 
 export interface UpdateVaultMemoryOptions {
@@ -118,7 +139,27 @@ export interface UpdateVaultMemoryOptions {
    * without inflating recency on top.
    */
   preserveUpdatedAt?: boolean;
+  /** C3: Unix ms to stamp as the re-observation watermark (`last_observed_at`).
+   * Set by retain() merge/consolidate paths so a re-observation records "seen
+   * again now" without touching `updated_at` (which `preserveUpdatedAt` keeps
+   * pinned). Omit to leave the existing value untouched. */
+  lastObservedAt?: number;
   /** If provided, sets whether the user has taken manual control of this
    * memory's topics. Set by {@link setMemoryEntitiesOp}. */
   topicsUserManaged?: boolean;
+  /** Typed memory (PR1) — set/refine the fact's classification on update.
+   * Used by retain()'s lazy backfill (adopt an incoming type only when the
+   * existing row has none). Omit to leave the existing value untouched. */
+  factType?: FactType;
+  /** Tier-0 security (PR3) — set the trust tier on update ("quarantined" |
+   * "trusted"). Omit to leave the existing value untouched. */
+  trustTier?: string;
+  /**
+   * PR5 — un-archive on re-observe. When true, clears `archived_at` (null) as
+   * part of the write, resurrecting a decayed row that a new observation just
+   * merged into. retain() sets this (with `preserveUpdatedAt` OFF) so the
+   * restored row's decay clock resets and it doesn't immediately re-archive.
+   * Omit/false to leave `archived_at` untouched.
+   */
+  restore?: boolean;
 }

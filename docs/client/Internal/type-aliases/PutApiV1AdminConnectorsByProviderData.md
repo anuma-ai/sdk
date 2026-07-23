@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminConnectorsByProviderData** = `object`
 
-Defined in: [src/client/types.gen.ts:5204](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5204)
+Defined in: [src/client/types.gen.ts:5209](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5209)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5204](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersSetConnectorEnabledRequest`](HandlersSetConnectorEnabledRequest.md)
 
-Defined in: [src/client/types.gen.ts:5208](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5208)
+Defined in: [src/client/types.gen.ts:5213](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5213)
 
 Desired state
 
@@ -20,7 +20,7 @@ Desired state
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5209](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5209)
+Defined in: [src/client/types.gen.ts:5214](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5214)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:5215](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5215)
+Defined in: [src/client/types.gen.ts:5220](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5220)
 
 **provider**
 
@@ -48,7 +48,7 @@ Logical connector provider
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5221](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5221)
+Defined in: [src/client/types.gen.ts:5226](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5226)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/client/types.gen.ts:5221](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/connectors/{provider}"`
 
-Defined in: [src/client/types.gen.ts:5222](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5222)
+Defined in: [src/client/types.gen.ts:5227](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5227)

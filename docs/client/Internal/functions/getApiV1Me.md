@@ -1,8 +1,8 @@
 # getApiV1Me
 
-> **getApiV1Me**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1MeData`](../type-aliases/GetApiV1MeData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1MeResponses`](../type-aliases/GetApiV1MeResponses.md), [`GetApiV1MeErrors`](../type-aliases/GetApiV1MeErrors.md), `ThrowOnError`>
+> **getApiV1Me**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1MeData`](../type-aliases/GetApiV1MeData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1MeResponses`](../type-aliases/GetApiV1MeResponses.md), [`GetApiV1MeErrors`](../type-aliases/GetApiV1MeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1374](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1374)
+Defined in: [src/client/sdk.gen.ts:1006](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1006)
 
 Return the caller's identity and granted scopes
 
@@ -51,7 +51,7 @@ Returns user\_address, client\_id, and scopes for the request's authenticated pr
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1MeData`](../type-aliases/GetApiV1MeData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1MeData`](../type-aliases/GetApiV1MeData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

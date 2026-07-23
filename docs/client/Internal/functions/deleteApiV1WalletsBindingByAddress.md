@@ -2,7 +2,7 @@
 
 > **deleteApiV1WalletsBindingByAddress**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1WalletsBindingByAddressData`](../type-aliases/DeleteApiV1WalletsBindingByAddressData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1WalletsBindingByAddressResponses`](../type-aliases/DeleteApiV1WalletsBindingByAddressResponses.md), [`DeleteApiV1WalletsBindingByAddressErrors`](../type-aliases/DeleteApiV1WalletsBindingByAddressErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1999](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1999)
+Defined in: [src/client/sdk.gen.ts:1470](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1470)
 
 Unbind a wallet
 

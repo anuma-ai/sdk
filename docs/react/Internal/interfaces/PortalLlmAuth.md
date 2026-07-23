@@ -14,7 +14,11 @@ runtime); `apiKey` takes precedence when both are set.
 ## Extended by
 
 * [`ExtractFactsOptions`](ExtractFactsOptions.md)
+* [`InjectionClassifierOptions`](InjectionClassifierOptions.md)
+* [`LlmDecayClassifierOptions`](LlmDecayClassifierOptions.md)
+* [`LlmNeighborRefinerOptions`](LlmNeighborRefinerOptions.md)
 * [`ReflectOptions`](ReflectOptions.md)
+* [`SynthesizeProfileOptions`](SynthesizeProfileOptions.md)
 * [`TopicExtractOptions`](TopicExtractOptions.md)
 
 ## Properties

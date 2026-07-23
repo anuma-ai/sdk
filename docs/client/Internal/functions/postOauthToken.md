@@ -1,8 +1,8 @@
 # postOauthToken
 
-> **postOauthToken**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostOauthTokenData`](../type-aliases/PostOauthTokenData.md), `ThrowOnError`>): `RequestResult`<[`PostOauthTokenResponses`](../type-aliases/PostOauthTokenResponses.md), [`PostOauthTokenErrors`](../type-aliases/PostOauthTokenErrors.md), `ThrowOnError`>
+> **postOauthToken**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostOauthTokenData`](../type-aliases/PostOauthTokenData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostOauthTokenResponses`](../type-aliases/PostOauthTokenResponses.md), [`PostOauthTokenErrors`](../type-aliases/PostOauthTokenErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2201](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2201)
+Defined in: [src/client/sdk.gen.ts:1643](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1643)
 
 OAuth 2.0 token endpoint
 
@@ -51,7 +51,7 @@ Exchanges an authorization code or rotates a refresh token for a new access+refr
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`PostOauthTokenData`](../type-aliases/PostOauthTokenData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`PostOauthTokenData`](../type-aliases/PostOauthTokenData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

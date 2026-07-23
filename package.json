@@ -152,7 +152,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260721055054",
+    "@anuma/portal": "1.0.0-next.20260721230408",
     "@babel/parser": "^7.29.2",
     "@babel/types": "^7.29.0",
     "ai": "6.0.202",
@@ -170,7 +170,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
     "@eslint/js": "^10.0.1",
-    "@hey-api/openapi-ts": "0.87.2",
+    "@hey-api/openapi-ts": "0.97.3",
     "@huggingface/transformers": "^3.0.0",
     "@microsoft/api-extractor": "^7.57.1",
     "@nozbe/watermelondb": "^0.28.0",

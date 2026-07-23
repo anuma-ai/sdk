@@ -1,8 +1,8 @@
 # getApiV1UsageModels
 
-> **getApiV1UsageModels**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UsageModelsData`](../type-aliases/GetApiV1UsageModelsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1UsageModelsResponses`](../type-aliases/GetApiV1UsageModelsResponses.md), [`GetApiV1UsageModelsErrors`](../type-aliases/GetApiV1UsageModelsErrors.md), `ThrowOnError`>
+> **getApiV1UsageModels**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UsageModelsData`](../type-aliases/GetApiV1UsageModelsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1UsageModelsResponses`](../type-aliases/GetApiV1UsageModelsResponses.md), [`GetApiV1UsageModelsErrors`](../type-aliases/GetApiV1UsageModelsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1823](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1823)
+Defined in: [src/client/sdk.gen.ts:1338](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1338)
 
 Get usage by model
 
@@ -51,7 +51,7 @@ Returns per-model usage (spend, requests, tokens) and tool usage grouped by mode
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1UsageModelsData`](../type-aliases/GetApiV1UsageModelsData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1UsageModelsData`](../type-aliases/GetApiV1UsageModelsData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

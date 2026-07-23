@@ -1,8 +1,8 @@
 # getHealth
 
-> **getHealth**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`>): `RequestResult`<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`>
+> **getHealth**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2119](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2119)
+Defined in: [src/client/sdk.gen.ts:1557](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1557)
 
 Health check
 
@@ -51,7 +51,7 @@ Returns the current health status of the service.
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

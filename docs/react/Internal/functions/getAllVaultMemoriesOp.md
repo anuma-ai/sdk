@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:466](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#466)
+Defined in: [src/lib/db/memoryVault/operations.ts:554](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#554)
 
 ## Parameters
 
@@ -52,6 +52,23 @@ Defined in: [src/lib/db/memoryVault/operations.ts:466](https://github.com/anuma-
 <tr>
 <td>
 
+`options.factTypes?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+<td>
+
+Typed memory (PR1) — restrict to these fact types. Omit for no filter.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.folderId?`
 
 </td>
@@ -63,6 +80,23 @@ Defined in: [src/lib/db/memoryVault/operations.ts:466](https://github.com/anuma-
 <td>
 
 ‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeArchived?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include archived (decayed) memories. Default `false` (PR1 choke point).
 
 </td>
 </tr>
@@ -83,6 +117,23 @@ Include soft-deleted memories in the result (each carries
 `isDeleted: true`). Default `false` — deleted rows are excluded, as
 they are from every other read path. Used by the Memory Graph to
 render "forgotten" nodes; ordinary consumers should leave this off.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeQuarantined?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Include quarantined memories. Default `false` (PR1 choke point).
 
 </td>
 </tr>

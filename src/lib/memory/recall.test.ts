@@ -18,12 +18,15 @@ vi.mock("../db/chat/operations", () => ({
 
 vi.mock("../db/entities/operations", () => ({
   getMemoriesByEntityNamesOp: vi.fn(),
+  getEntitiesByMemoryIdsOp: vi.fn(),
 }));
 
 vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
   getMemoriesByEventTimeOp: vi.fn(),
   updateVaultMemoryEmbeddingOp: vi.fn(),
+  countActiveVaultMemoriesOp: vi.fn(),
+  getActiveVaultMemoryIdsOp: vi.fn(),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -44,9 +47,12 @@ import { searchChunksOp, type StorageOperationsContext } from "../db/chat/operat
 import type { ChunkSearchResult } from "../db/chat/types";
 import {
   type EntityOperationsContext,
+  getEntitiesByMemoryIdsOp,
   getMemoriesByEntityNamesOp,
 } from "../db/entities/operations";
 import {
+  countActiveVaultMemoriesOp,
+  getActiveVaultMemoryIdsOp,
   getAllVaultMemoriesOp,
   getMemoriesByEventTimeOp,
   updateVaultMemoryEmbeddingOp,
@@ -57,7 +63,7 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
 
 import { recall } from "./recall";
-import { createRecallTool, RECALL_MAX_LIMIT } from "./recallTool";
+import { createRecallTool, RECALL_MAX_LIMIT, RECALL_MAX_MEMORIES_PER_TURN } from "./recallTool";
 import { RerankerUnavailableError, rerankPairs } from "./reranker";
 import type { RecallContext, RecallDiagnostics } from "./types";
 
@@ -138,7 +144,14 @@ beforeEach(() => {
   ]);
   vi.mocked(updateVaultMemoryEmbeddingOp).mockResolvedValue(null);
   vi.mocked(getMemoriesByEventTimeOp).mockResolvedValue([]);
+  vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(3);
+  // Default: every discovered id is active (the traversal active-set filter is a
+  // no-op unless a test archives something).
+  vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
+    async (_ctx, ids: string[]) => new Set(ids)
+  );
   vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
+  vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
   vi.mocked(searchChunksOp).mockResolvedValue([]);
   vi.mocked(generateEmbedding).mockImplementation(async (text) => vecFor(text));
   vi.mocked(generateEmbeddings).mockImplementation(async (texts) => texts.map(vecFor));
@@ -518,6 +531,82 @@ describe("recall — entity (W5) lane", () => {
     await recall(ENTITY_QUERY, makeCtx({ vaultCtx: vaultCtxWithEntities }));
     expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
   });
+
+  // PR4 — multi-hop traversal gating. The reverse-edge op
+  // getEntitiesByMemoryIdsOp is the tell that the BFS expanded past the seed;
+  // it must fire ONLY on the high budget (traverse flag) AND only when the
+  // caller opts into more than one hop.
+  it("does NOT traverse (single-hop only) at budget=low", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
+    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+  });
+
+  it("does NOT traverse (single-hop only) at budget=mid", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "mid" });
+    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+  });
+
+  it("PR5: expands past the seed at budget=high with the default MAX_HOPS=2", async () => {
+    // The PR5 default is 2 hops, so high budget now expands past the seed —
+    // the reverse-edge op fires once on the seed frontier.
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high" });
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledTimes(1);
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledWith(entityCtx, ["m3"]);
+  });
+
+  it("expands past the seed at budget=high with explicit maxHops>1", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high", maxHops: 2 });
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledTimes(1);
+    expect(getEntitiesByMemoryIdsOp).toHaveBeenCalledWith(entityCtx, ["m3"]);
+  });
+
+  it("PR5: caps to seed-only when the vault-size count exceeds the density threshold", async () => {
+    // The threaded count (5000 > VAULT_SIZE_HOP_CAP) forces seed-only, so the
+    // reverse-edge op never runs even at high budget with default hops.
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(5000);
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "high" });
+    expect(countActiveVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx);
+    expect(getEntitiesByMemoryIdsOp).not.toHaveBeenCalled();
+  });
+
+  it("PR5: single-hop budgets do NOT compute the vault-size count", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
+    expect(countActiveVaultMemoriesOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("recall — auxiliary lane fail-isolation", () => {
+  // The graph + temporal lanes are RRF side-signals sharing a Promise.all with
+  // primary recall. A transient throw in one must NOT reject that Promise.all
+  // and zero out primary cosine/BM25 recall (the regression this guards).
+  it("a throwing graph lane still returns primary cosine/BM25 results", async () => {
+    // Query M1 both matches m1 by cosine (1.0) AND yields extractable entities
+    // (["owns","bailey"]), so the graph lane runs — and here throws.
+    vi.mocked(getMemoriesByEntityNamesOp).mockRejectedValue(new Error("watermelon boom"));
+
+    const result = await recall(M1, makeCtx({ entityCtx }), { budget: "high" });
+
+    // The graph lane WAS exercised (the throw path)...
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalled();
+    // ...yet primary recall still surfaced the cosine hit.
+    expect(result.memories.map((m) => m.id)).toContain("m1");
+  });
+
+  it("a throwing temporal lane does not reject recall", async () => {
+    vi.mocked(getMemoriesByEventTimeOp).mockRejectedValue(new Error("watermelon boom"));
+    // A temporal phrase activates the temporal lane, which throws. Pre-fix this
+    // rejected the whole recall; now it degrades to an empty lane.
+    await expect(recall("what did i do yesterday", makeCtx())).resolves.toBeDefined();
+    expect(getMemoriesByEventTimeOp).toHaveBeenCalled();
+  });
 });
 
 describe("recall — temporal (W6) lane", () => {
@@ -696,14 +785,19 @@ describe("createRecallTool executor", () => {
     await expect(tool.executor!({ query: "" })).rejects.toThrow(/query/);
   });
 
-  it("clamps an LLM-supplied limit to RECALL_MAX_LIMIT", async () => {
+  it("clamps an LLM-supplied limit to the per-turn volume budget (Tier-0 PR3)", async () => {
+    // RECALL_MAX_LIMIT (50) is the hard arg ceiling, but the PR3 extraction-
+    // resistance per-turn volume budget (40) is tighter and now wins, with a
+    // truncation notice appended.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(bulkVault(60));
     const tool = createRecallTool(makeCtx(), { types: ["fact"] });
 
     const output = await tool.executor!({ query: QUERY, limit: 999 });
 
     expect(RECALL_MAX_LIMIT).toBe(50);
-    expect(output).toContain(`Found ${RECALL_MAX_LIMIT} relevant memories`);
+    expect(RECALL_MAX_MEMORIES_PER_TURN).toBeLessThan(RECALL_MAX_LIMIT);
+    expect(output).toContain(`Found ${RECALL_MAX_MEMORIES_PER_TURN} relevant memories`);
+    expect(output).toContain("truncated");
   });
 
   it("uses the default limit of 8 when the LLM omits it", async () => {
@@ -724,15 +818,18 @@ describe("createRecallTool executor", () => {
     expect(output).toContain("Found 14 relevant memories");
   });
 
-  it("returns an error string (does not throw) when recall fails downstream", async () => {
+  it("throws (does not leak an error string) when recall fails downstream", async () => {
     // Use the query-embedding call as the failure injection point — it's
     // unguarded, unlike the cross-encoder rerank which now soft-degrades.
+    // The executor re-throws so the tool-loop treats it as a failed call,
+    // rather than returning "Error searching memory: …" as a successful result
+    // that leaks into the model's visible context (same rule as invalid args).
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("boom"));
     const tool = createRecallTool(makeCtx(), { types: ["fact"], budget: "mid" });
 
-    const output = await tool.executor!({ query: QUERY });
-
-    expect(output).toBe("Error searching memory: boom");
+    await expect(tool.executor!({ query: QUERY })).rejects.toThrow(
+      /recall_memory: search failed — boom/
+    );
   });
 
   it("reports retrieved fact ids via onFactsRetrieved", async () => {

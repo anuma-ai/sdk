@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionNewParamsResponseFormatUnion** = `object`
 
-Defined in: [src/client/types.gen.ts:3795](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3795)
+Defined in: [src/client/types.gen.ts:3800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3800)
 
 An object specifying the format that the model must output.
 
@@ -21,7 +21,7 @@ preferred for models that support it.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3796](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3796)
+Defined in: [src/client/types.gen.ts:3801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3801)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/client/types.gen.ts:3796](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofJSONObject**: [`SharedResponseFormatJsonObjectParam`](SharedResponseFormatJsonObjectParam.md)
 
-Defined in: [src/client/types.gen.ts:3797](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3797)
+Defined in: [src/client/types.gen.ts:3802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3802)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/client/types.gen.ts:3797](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofJSONSchema**: [`SharedResponseFormatJsonSchemaParam`](SharedResponseFormatJsonSchemaParam.md)
 
-Defined in: [src/client/types.gen.ts:3798](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3798)
+Defined in: [src/client/types.gen.ts:3803](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3803)
 
 ***
 
@@ -45,4 +45,4 @@ Defined in: [src/client/types.gen.ts:3798](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **ofText**: [`SharedResponseFormatTextParam`](SharedResponseFormatTextParam.md)
 
-Defined in: [src/client/types.gen.ts:3799](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3799)
+Defined in: [src/client/types.gen.ts:3804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3804)

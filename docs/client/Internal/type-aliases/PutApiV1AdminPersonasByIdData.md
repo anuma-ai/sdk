@@ -2,7 +2,7 @@
 
 > **PutApiV1AdminPersonasByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:5627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5627)
+Defined in: [src/client/types.gen.ts:5632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5632)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5627](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUpdatePersonaRequest`](HandlersUpdatePersonaRequest.md)
 
-Defined in: [src/client/types.gen.ts:5631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5631)
+Defined in: [src/client/types.gen.ts:5636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5636)
 
 Update persona request
 
@@ -20,7 +20,7 @@ Update persona request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5632)
+Defined in: [src/client/types.gen.ts:5637](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5637)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:5638](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5638)
+Defined in: [src/client/types.gen.ts:5643](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5643)
 
 **id**
 
@@ -48,7 +48,7 @@ Persona ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5644)
+Defined in: [src/client/types.gen.ts:5649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5649)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/client/types.gen.ts:5644](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/personas/{id}"`
 
-Defined in: [src/client/types.gen.ts:5645](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5645)
+Defined in: [src/client/types.gen.ts:5650](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5650)
