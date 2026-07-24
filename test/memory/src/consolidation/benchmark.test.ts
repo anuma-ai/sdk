@@ -24,6 +24,8 @@
  * pass rate is the fraction of runs that matched the label.
  */
 
+import "dotenv/config";
+
 import { consolidateMemory } from "../../../../src/lib/memory/consolidate.js";
 
 // ---------------------------------------------------------------------------
