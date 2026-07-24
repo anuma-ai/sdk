@@ -153,6 +153,7 @@ export async function extractEntitiesForMemories(
       systemPrompt: SYSTEM_PROMPT,
       userMessage: `${vocabularyNote}Memories:\n${listing}\n\nList each memory's named entities.`,
       tag: "memory/topics",
+      extra: { max_tokens: 8192 },
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
       ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
       ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
