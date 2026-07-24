@@ -524,6 +524,42 @@ describe("recall — entity (W5) lane", () => {
     expect(getMemoriesByEntityNamesOp).not.toHaveBeenCalled();
   });
 
+  it("recovers the lane for an all-lowercase query via the fallback (D4)", async () => {
+    // Pre-fix, an all-lowercase query extracted no entities and the W5 lane was
+    // silently dead. The lowercase fallback now emits n-gram candidates; the op
+    // is called with them, and a stored-entity match surfaces the graph-only
+    // fixture m3 (zero cosine vs the query — only the graph lane can admit it).
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(
+      new Map([["m3", new Set(["san francisco"])]])
+    );
+
+    const result = await recall("is there anyone in san francisco", makeCtx({ entityCtx }));
+
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "san",
+      "francisco",
+      "san francisco",
+    ]);
+    expect(result.memories.map((m) => m.id)).toContain("m3");
+  });
+
+  it("a lowercase query matching no stored entity adds no garbage (empty lane)", async () => {
+    // The fallback candidates ARE looked up, but none match a stored canonical →
+    // empty Map → the lane yields []. The op was called (lane engaged) yet m3
+    // never surfaces: no cosine hit, no graph hit, no garbage. This is the
+    // precision guarantee that lets the fallback over-emit safely.
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
+
+    const result = await recall("is there anyone in san francisco", makeCtx({ entityCtx }));
+
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "san",
+      "francisco",
+      "san francisco",
+    ]);
+    expect(result.memories.map((m) => m.id)).not.toContain("m3");
+  });
+
   it("falls back to vaultCtx.entityCtx when ctx.entityCtx is absent", async () => {
     const vaultCtxWithEntities = {
       entityCtx,
