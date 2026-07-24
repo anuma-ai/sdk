@@ -39,6 +39,16 @@ export const TOPIC_EXTRACTION_BATCH_SIZE = 10;
 const MAX_CHARS_PER_MEMORY = 300;
 /** Cap on existing-vocabulary names included in the prompt. */
 const MAX_VOCABULARY_NAMES = 100;
+/**
+ * Output-token ceiling for a batch response, sent as the modern
+ * `max_completion_tokens` field. This MUST be `max_completion_tokens`, not the
+ * deprecated `max_tokens`: the portal reads only the former, so a `max_tokens`
+ * value is silently dropped and the request falls back to the portal's 4096
+ * per-step default — which truncates a verbose 10-memory batch mid-JSON and
+ * drops the whole batch (Cerebras honors `max_completion_tokens` and stops at
+ * 4096 with `finish_reason=length`). Cerebras allows ~41k; 8192 is generous
+ * headroom over the ~1-2k the batch's JSON actually needs. */
+const MAX_COMPLETION_TOKENS = 8192;
 
 // NOTE: bump TOPICS_EXTRACTION_VERSION (db/memoryVault/operations.ts) whenever
 // this prompt or DEFAULT_EXTRACTION_MODEL changes, so the sweep re-extracts the
@@ -49,8 +59,8 @@ Each memory is a short statement about the user. For each memory, list the NAMED
 
 Include only NAMED entities, skip generic/common nouns. ${ENTITY_KIND_GUIDELINES}
 
-Output strict JSON: {"memories": [{"id": string, "entities": [{"name": string, "kind": string}]}]}
-- exactly one element per input memory, echoing its id verbatim
+Each memory below is written as "<id>: <text>". Output strict JSON: {"memories": [{"id": string, "entities": [{"name": string, "kind": string}]}]}
+- exactly one element per input memory; copy its id EXACTLY as written (the token before the first ": "), with no brackets, quotes, or extra characters
 - "entities" may be empty when a memory mentions no named entities — most short memories have 0-3
 No prose.`;
 
@@ -139,7 +149,7 @@ export async function extractEntitiesForMemories(
     const listing = batch
       .map((m) => {
         const content = m.content.slice(0, MAX_CHARS_PER_MEMORY);
-        return `[${m.id}] ${redactor ? redactor.redactText(content).text : content}`;
+        return `${m.id}: ${redactor ? redactor.redactText(content).text : content}`;
       })
       .join("\n");
     const parsed = await callPortalJsonCompletion({
@@ -153,6 +163,7 @@ export async function extractEntitiesForMemories(
       systemPrompt: SYSTEM_PROMPT,
       userMessage: `${vocabularyNote}Memories:\n${listing}\n\nList each memory's named entities.`,
       tag: "memory/topics",
+      extra: { max_completion_tokens: MAX_COMPLETION_TOKENS },
       ...(options.fetchFn && { fetchFn: options.fetchFn }),
       ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
       ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
@@ -227,9 +238,17 @@ function parseTopicResponse(
   for (const raw of list) {
     if (typeof raw !== "object" || raw === null) continue;
     const obj = raw as Record<string, unknown>;
-    if (typeof obj.id !== "string" || !validIds.has(obj.id) || out.has(obj.id)) continue;
+    if (typeof obj.id !== "string") continue;
+    // Tolerate a model that decorates the echoed id (e.g. ling wraps it as
+    // "[mem_1]") — strip a single pair of wrapping brackets + whitespace so the
+    // batch still reconciles instead of silently dropping all its memories.
+    const id = obj.id
+      .trim()
+      .replace(/^\[([\s\S]*)\]$/, "$1")
+      .trim();
+    if (!validIds.has(id) || out.has(id)) continue;
     const entities = Array.isArray(obj.entities) ? parseEntities(obj.entities) : [];
-    out.set(obj.id, entities);
+    out.set(id, entities);
   }
   return out;
 }
