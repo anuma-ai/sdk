@@ -72,7 +72,7 @@ Decide one of four actions:
 
 - "create": the new memory describes a distinct fact not covered by any existing memory. Write it as new.
 - "update": the new memory describes the SAME FACET as exactly one existing memory and is COMPATIBLE with it — it adds detail, fixes an incomplete value, or rephrases the same still-true fact. Return targetId of that existing memory + the consolidated content (richest version of the two).
-- "supersede": the new memory REPLACES a standing fact whose value has CHANGED and is now INCOMPATIBLE with an existing memory — the old fact was true before but is false now (a state change). Return targetId of the STALE existing memory to retire + content = the NEW fact. The old memory is kept as history, not overwritten or deleted; do not re-state it.
+- "supersede": the new memory REPLACES a standing fact whose value has CHANGED and is now INCOMPATIBLE with an existing memory — the old fact was true before but is false now (a state change). Return "targetIds": an array of the ids of EVERY existing candidate that describes the SAME standing attribute now being changed — retire ALL stale duplicates of the old value, not just one (the candidate list may contain several paraphrases of the same old fact) + content = the NEW fact. The old memories are kept as history, not overwritten or deleted; do not re-state them.
 - "noop": the new memory is already fully captured by an existing memory — same facet, no new information. Skip the write.
 
 RULES (carry these strictly):
@@ -88,14 +88,15 @@ RULES (carry these strictly):
 OUTPUT — strict JSON, no prose:
 {
   "action": "create" | "update" | "supersede" | "noop",
-  "targetId": "<existing memory id — required for update/supersede/noop, omit for create>",
+  "targetId": "<existing memory id — required for update/noop, omit for create/supersede>",
+  "targetIds": ["<id>", ...],
   "content": "<content — required for create/update/supersede, omit for noop>"
 }
 
-For "create": content is the new memory verbatim (or a slight refinement).
-For "update": content is the merged richest-version, ≤80 words.
-For "supersede": content is the NEW fact only (≤80 words); targetId is the stale memory being retired.
-For "noop": no content (existing memory is already correct).`;
+For "create": content is the new memory verbatim (or a slight refinement); omit targetId/targetIds.
+For "update": content is the merged richest-version, ≤80 words; targetId is the single memory to update.
+For "supersede": content is the NEW fact only (≤80 words); "targetIds" lists EVERY stale memory being retired (all candidates describing the same now-changed attribute).
+For "noop": no content (existing memory is already correct); targetId is that memory.`;
 
 interface ConsolidationCandidate {
   id: string;
@@ -106,9 +107,14 @@ interface ConsolidationCandidate {
 
 interface ConsolidationResult {
   action: "create" | "update" | "noop" | "supersede";
-  /** Defined for update/noop/supersede. For supersede it is the STALE memory
-   * being retired (not the merge target). */
+  /** Defined for update/noop/supersede. For supersede it is the FIRST stale
+   * memory being retired (kept for back-compat; see `targetIds` for the full
+   * set). */
   targetId?: string;
+  /** Defined for supersede: ALL stale memories to retire (every candidate that
+   * describes the same standing attribute now being changed), so a value change
+   * collapses every duplicate of the old value, not just one. */
+  targetIds?: string[];
   /** Defined for create/update/supersede. For supersede it is the NEW fact to
    * persist (the old one is retired, not overwritten). */
   content?: string;
@@ -296,17 +302,37 @@ function validate(
     return { action: "create", content: c.length > 0 ? c : newContent };
   }
 
-  // update / noop / supersede all require a valid targetId
-  const targetId = typeof obj.targetId === "string" ? obj.targetId : null;
-  if (!targetId || !validIds.has(targetId)) return null;
-
   if (action === "noop") {
+    // noop retires nothing — a single valid targetId is enough.
+    const targetId = typeof obj.targetId === "string" ? obj.targetId : null;
+    if (!targetId || !validIds.has(targetId)) return null;
     return { action: "noop", targetId };
   }
 
   // update — content is the consolidated form; supersede — content is the NEW
-  // fact (targetId is the stale one to retire). Both require non-empty content.
+  // fact (targetIds are the stale ones to retire). Both require non-empty content.
   const c = typeof obj.content === "string" ? obj.content.trim() : "";
   if (c.length === 0) return null;
-  return { action, targetId, content: c };
+
+  if (action === "supersede") {
+    // Multi-supersede: retire EVERY candidate describing the same now-changed
+    // attribute. UNION the multi-id `targetIds[]` with a single `targetId` so
+    // neither shape is lost — a model may emit `targetIds: []` alongside a valid
+    // `targetId`, or the old single-`targetId` shape with no array at all. Keep
+    // only valid, unique ids.
+    const rawIds: unknown[] = [
+      ...(Array.isArray(obj.targetIds) ? (obj.targetIds as unknown[]) : []),
+      ...(typeof obj.targetId === "string" ? [obj.targetId] : []),
+    ];
+    const targetIds = [
+      ...new Set(rawIds.filter((id): id is string => typeof id === "string" && validIds.has(id))),
+    ];
+    if (targetIds.length === 0) return null;
+    return { action: "supersede", targetId: targetIds[0], targetIds, content: c };
+  }
+
+  // update — single targetId
+  const targetId = typeof obj.targetId === "string" ? obj.targetId : null;
+  if (!targetId || !validIds.has(targetId)) return null;
+  return { action: "update", targetId, content: c };
 }

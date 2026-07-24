@@ -140,7 +140,8 @@
     "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs && node scripts/assert-no-client-self-import.mjs",
     "check": "pnpm run lint && pnpm run knip && pnpm run format && pnpm run generate",
     "eval:extraction": "tsx test/memory/src/extraction/benchmark.test.ts",
-    "eval:topic": "tsx test/memory/src/topic/benchmark.ts"
+    "eval:topic": "tsx test/memory/src/topic/benchmark.ts",
+    "eval:consolidation": "tsx test/memory/src/consolidation/benchmark.test.ts"
   },
   "repository": {
     "type": "git",
