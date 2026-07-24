@@ -28,10 +28,17 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
 import type { PiiRedactor } from "../pii/redactor.js";
+import type { FactType } from "./autoExtract.js";
 import { type ObservationTrend, summarizeObservationTrends } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
+import {
+  DEFAULT_PROFILE_FACT_TYPE_WEIGHTS,
+  DEFAULT_PROFILE_PROOF_ALPHA,
+} from "./profileSalience.js";
+import { recall } from "./recall.js";
+import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
-import type { RecallContext } from "./types.js";
+import type { RankedMemory, RecallContext } from "./types.js";
 
 /** Open-weights default for on-device synthesis. Mirrors consolidate.ts:
  * ling-2.6-flash is preferred over gpt-oss for structured JSON (gpt-oss returns
@@ -157,8 +164,9 @@ export interface ProfileSection {
 /** Fingerprint of the config that produced a {@link ProfileDoc}. Delta reuse
  * (both the wholesale fast path and per-section reuse) is only valid when the
  * current call's config matches — otherwise reused sections could carry the
- * wrong scope's evidence, un-redacted text under a now-present redactor, or an
- * old section shape. */
+ * wrong scope's evidence, un-redacted text under a now-present redactor, an
+ * old section shape, or text grounded in memory ids that are no longer in the
+ * publish-review set. */
 export interface ProfileConfigFingerprint {
   /** Facet keys present in the doc, sorted. */
   facetKeys: ProfileFacetKey[];
@@ -173,6 +181,14 @@ export interface ProfileConfigFingerprint {
   /** Whether a PII redactor gated the section text. Reusing un-gated text under
    * a now-present redactor would leak PII, so this flips the fingerprint. */
   redacted: boolean;
+  /**
+   * Order-independent digest of {@link SynthesizeProfileOptions.reviewedMemoryIds}.
+   * Empty string when the review gate is off (omit / empty array). Changing the
+   * set must invalidate reuse — otherwise a narrowed review keeps text grounded
+   * in unreviewed ids, and a widened review leaves previously-cleared sections
+   * empty.
+   */
+  reviewedMemoryIdsSignature: string;
 }
 
 /** A synthesized profile. Server-authoritative once published; the client
@@ -220,6 +236,24 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    * Omit only when the caller redacts downstream — `nearby` also moderates
    * server-side, but the client should never publish un-gated text. */
   redactor?: PiiRedactor;
+  /**
+   * Per-FactType score multipliers for facet recall. Default:
+   * {@link DEFAULT_PROFILE_FACT_TYPE_WEIGHTS} (durable types boosted).
+   * Does not change global chat `recall()` defaults.
+   */
+  factTypeWeights?: Partial<Record<FactType, number>>;
+  /**
+   * Proof-count α for facet recall. Default: {@link DEFAULT_PROFILE_PROOF_ALPHA}
+   * (0.2). Chat recall stays at 0.1.
+   */
+  proofCountAlpha?: number;
+  /**
+   * When non-empty, intersect each facet's recalled evidence with this id set
+   * before the LLM runs (publish-review gate). Empty intersection → empty
+   * section (legitimate no-evidence), not a stale fallback. Omit / empty →
+   * no gate.
+   */
+  reviewedMemoryIds?: readonly string[];
 }
 
 /**
@@ -251,6 +285,7 @@ export async function synthesizeProfile(
     facetsSignature: facetsSignature(facets),
     scopes: [...scopes].sort(),
     redacted: options.redactor !== undefined,
+    reviewedMemoryIdsSignature: reviewedMemoryIdsSignature(options.reviewedMemoryIds),
   };
 
   // A prior doc is only reusable when its SHAPE (version) AND the config that
@@ -381,12 +416,22 @@ function configMatches(
   if (!a) return false;
   // facetsSignature subsumes the facet key set AND each facet's prompt content,
   // so a prompt-only change (same keys) still invalidates reuse.
+  // reviewedMemoryIdsSignature: missing on docs that predate the field ≡ ""
+  // (ungated), so an ungated re-run still reuses; a newly-supplied review set
+  // invalidates.
   return (
     a.redacted === b.redacted &&
     a.facetsSignature === b.facetsSignature &&
+    (a.reviewedMemoryIdsSignature ?? "") === b.reviewedMemoryIdsSignature &&
     a.scopes.length === b.scopes.length &&
     a.scopes.every((s, i) => s === b.scopes[i])
   );
+}
+
+/** Order-independent digest of the publish-review id set. Empty / omitted → "". */
+function reviewedMemoryIdsSignature(ids: readonly string[] | undefined): string {
+  if (ids === undefined || ids.length === 0) return "";
+  return [...new Set(ids)].sort().join("\n");
 }
 
 /** Order-independent digest of the facet definitions — key + label + query +
@@ -597,25 +642,68 @@ async function attributeFacts(
  * publish-safe. On a DEGRADED-empty result (LLM failure, empty text despite
  * evidence) it falls back to the prior section (marked stale) rather than
  * wiping a previously-good section (#3). A legitimate "no evidence" verdict
- * (hasEvidence=false) clears the section as intended. */
+ * (hasEvidence=false) clears the section as intended.
+ *
+ * Evidence path: recall with profile-worthiness knobs → optional
+ * `reviewedMemoryIds` intersection → reflect with `memories` override so the
+ * LLM never sees unreviewed facts.
+ */
 async function synthesizeFacet(
   facet: ProfileFacet,
   ctx: RecallContext,
   options: SynthesizeProfileOptions,
   prior: ProfileSection | undefined
 ): Promise<ProfileSection> {
+  const scopes = options.scopes ?? DEFAULT_SCOPES;
+  const limit = options.limit ?? DEFAULT_FACET_RECALL_LIMIT;
+  const factTypeWeights = { ...DEFAULT_PROFILE_FACT_TYPE_WEIGHTS, ...options.factTypeWeights };
+  const proofCountAlpha = options.proofCountAlpha ?? DEFAULT_PROFILE_PROOF_ALPHA;
+
+  const reviewed = options.reviewedMemoryIds;
+  const hasReviewGate = reviewed !== undefined && reviewed.length > 0;
+
+  // When gating, fetch up to RECALL_MAX_LIMIT before intersecting — `undefined`
+  // is NOT unbounded (`recall` defaults to 8), which would shrink the pool
+  // below the ungated facet limit and drop approved evidence ranked 9+.
+  const recalled = await recall(facet.query, ctx, {
+    scopes,
+    limit: hasReviewGate ? RECALL_MAX_LIMIT : limit,
+    types: ["fact"],
+    factTypeWeights,
+    proofCountAlpha,
+  });
+
+  let memories: RankedMemory[] = recalled.memories;
+  if (hasReviewGate) {
+    const allowed = new Set(reviewed);
+    memories = memories.filter((m) => allowed.has(m.id)).slice(0, limit);
+  }
+
+  // Reviewed gate (or empty recall) with no surviving evidence — clear the
+  // section as legitimate empty, not a stale LLM failure.
+  if (memories.length === 0) {
+    return {
+      key: facet.key,
+      label: facet.label,
+      text: "",
+      sourceMemoryIds: [],
+      generatedAt: Date.now(),
+    };
+  }
+
   const result = await reflect(facet.query, ctx, {
     apiKey: options.apiKey,
     getToken: options.getToken,
     llmModel: options.llmModel ?? DEFAULT_SYNTHESIS_MODEL,
     baseUrl: options.baseUrl,
     fetchFn: options.fetchFn,
-    scopes: options.scopes ?? DEFAULT_SCOPES,
-    limit: options.limit ?? DEFAULT_FACET_RECALL_LIMIT,
+    scopes,
+    limit,
     types: ["fact"],
     maxTokens: DEFAULT_FACET_MAX_TOKENS,
     systemPrompt: buildFacetSystemPrompt(facet),
     responseSchema: FACET_RESPONSE_SCHEMA,
+    memories,
   });
 
   // Empty memoryIds means recall found no evidence — treat as legitimate empty

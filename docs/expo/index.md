@@ -616,6 +616,24 @@ Re-exports [DEFAULT\_PROFILE\_FACETS](../react/Internal/variables/DEFAULT_PROFIL
 
 ***
 
+### DEFAULT\_PROFILE\_FACT\_TYPE\_WEIGHTS
+
+Re-exports [DEFAULT\_PROFILE\_FACT\_TYPE\_WEIGHTS](../react/Internal/variables/DEFAULT_PROFILE_FACT_TYPE_WEIGHTS.md)
+
+***
+
+### DEFAULT\_PROFILE\_PROOF\_ALPHA
+
+Re-exports [DEFAULT\_PROFILE\_PROOF\_ALPHA](../react/Internal/variables/DEFAULT_PROFILE_PROOF_ALPHA.md)
+
+***
+
+### DEFAULT\_PROFILE\_TREND\_MULTIPLIERS
+
+Re-exports [DEFAULT\_PROFILE\_TREND\_MULTIPLIERS](../react/Internal/variables/DEFAULT_PROFILE_TREND_MULTIPLIERS.md)
+
+***
+
 ### DEFAULT\_VAULT\_CACHE\_SIZE
 
 Re-exports [DEFAULT\_VAULT\_CACHE\_SIZE](../react/Internal/variables/DEFAULT_VAULT_CACHE_SIZE.md)
@@ -1144,6 +1162,12 @@ Re-exports [ProfileFacetKey](../react/Internal/type-aliases/ProfileFacetKey.md)
 
 ***
 
+### ProfileSalienceInput
+
+Re-exports [ProfileSalienceInput](../react/Internal/interfaces/ProfileSalienceInput.md)
+
+***
+
 ### ProfileSection
 
 Re-exports [ProfileSection](../react/Internal/interfaces/ProfileSection.md)
@@ -1201,6 +1225,18 @@ Re-exports [QueueStatus](../react/Internal/interfaces/QueueStatus.md)
 ### RankedMemory
 
 Re-exports [RankedMemory](../react/Internal/interfaces/RankedMemory.md)
+
+***
+
+### RankedProfileCandidate
+
+Re-exports [RankedProfileCandidate](../react/Internal/interfaces/RankedProfileCandidate.md)
+
+***
+
+### rankProfileCandidates
+
+Re-exports [rankProfileCandidates](../react/Internal/functions/rankProfileCandidates.md)
 
 ***
 
@@ -1363,6 +1399,18 @@ Re-exports [RetainSource](../react/Internal/type-aliases/RetainSource.md)
 ### ScoreBreakdown
 
 Re-exports [ScoreBreakdown](../react/Internal/interfaces/ScoreBreakdown.md)
+
+***
+
+### scoreProfileSalience
+
+Re-exports [scoreProfileSalience](../react/Internal/functions/scoreProfileSalience.md)
+
+***
+
+### ScoreProfileSalienceOptions
+
+Re-exports [ScoreProfileSalienceOptions](../react/Internal/interfaces/ScoreProfileSalienceOptions.md)
 
 ***
 

@@ -66,23 +66,6 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
-    esbuildPlugins: [
-      {
-        name: "rewrite-client-import",
-        setup(build) {
-          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
-          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
-          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
-          // import that every tool-selection consumer pulls in). Anchored to a
-          // `client` segment so `../../clientConfig` (constants) still bundles. A
-          // depth-1-only regex silently re-bundled the whole client via
-          // generate.ts.
-          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
-            return { path: "@anuma/sdk", external: true };
-          });
-        },
-      },
-    ],
   },
   {
     entry: ["src/react/index.ts"],
@@ -106,23 +89,6 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
-    esbuildPlugins: [
-      {
-        name: "rewrite-client-import",
-        setup(build) {
-          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
-          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
-          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
-          // import that every tool-selection consumer pulls in). Anchored to a
-          // `client` segment so `../../clientConfig` (constants) still bundles. A
-          // depth-1-only regex silently re-bundled the whole client via
-          // generate.ts.
-          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
-            return { path: "@anuma/sdk", external: true };
-          });
-        },
-      },
-    ],
   },
   {
     entry: ["src/vercel/index.ts"],
@@ -186,23 +152,6 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
-    esbuildPlugins: [
-      {
-        name: "rewrite-client-import",
-        setup(build) {
-          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
-          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
-          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
-          // import that every tool-selection consumer pulls in). Anchored to a
-          // `client` segment so `../../clientConfig` (constants) still bundles. A
-          // depth-1-only regex silently re-bundled the whole client via
-          // generate.ts.
-          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
-            return { path: "@anuma/sdk", external: true };
-          });
-        },
-      },
-    ],
   },
   // Design — pointer-driven gesture system for AnumaNode trees.
   // The foundation for any visual editor on the SDK runtime
@@ -270,22 +219,5 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
-    esbuildPlugins: [
-      {
-        name: "rewrite-client-import",
-        setup(build) {
-          // Externalize the generated HTTP client to @anuma/sdk at ANY relative
-          // depth. The graph reaches it as both `../client` (e.g. council.ts) and
-          // `../../client` (memoryEngine/generate.ts, the runtime embeddings
-          // import that every tool-selection consumer pulls in). Anchored to a
-          // `client` segment so `../../clientConfig` (constants) still bundles. A
-          // depth-1-only regex silently re-bundled the whole client via
-          // generate.ts.
-          build.onResolve({ filter: /^(\.\.\/)+client$/ }, () => {
-            return { path: "@anuma/sdk", external: true };
-          });
-        },
-      },
-    ],
   },
 ]);

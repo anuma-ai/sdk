@@ -27,7 +27,7 @@ import {
   supportsResponseFormat,
 } from "./portalLlm.js";
 import { recall } from "./recall.js";
-import type { RecallContext, RecallOptions } from "./types.js";
+import type { RankedMemory, RecallContext, RecallOptions } from "./types.js";
 
 /** Fallback portal URL — shared with the rest of the SDK via
  * `clientConfig.BASE_URL`, which already resolves the standard
@@ -64,6 +64,12 @@ export interface ReflectOptions extends RecallOptions, PortalLlmAuth {
   fetchFn?: typeof fetch;
   /** Optional JSON Schema to coerce structured outputs. */
   responseSchema?: Record<string, unknown>;
+  /**
+   * Skip Stage-1 {@link recall} and synthesize from these memories instead.
+   * Used by `synthesizeProfile` after intersecting recall with a
+   * `reviewedMemoryIds` gate so the LLM never sees unreviewed evidence.
+   */
+  memories?: RankedMemory[];
 }
 
 export interface ReflectResult {
@@ -111,24 +117,30 @@ export async function reflect(
   // `RecallOptions` it is a recall result-set token budget (reserved for W1).
   // Forwarding it would wire an LLM response cap into recall's budget slot, so
   // strip it here and let the LLM-side read `options.maxTokens` below.
-  const { maxTokens: _llmMaxTokens, ...recallOptions } = options;
-  const recalled = await recall(trimmed, ctx, recallOptions);
+  //
+  // EXCEPT `memories`: when the caller already selected evidence (e.g. profile
+  // publish review), skip recall entirely and use that list.
+  const { maxTokens: _llmMaxTokens, memories: providedMemories, ...recallOptions } = options;
+  const recalledMemories =
+    providedMemories !== undefined
+      ? providedMemories
+      : (await recall(trimmed, ctx, recallOptions)).memories;
 
-  const memoryIds = recalled.memories.map((m) => m.id);
+  const memoryIds = recalledMemories.map((m) => m.id);
   const baseResult: ReflectResult = {
     text: "",
     basedOn: { memoryIds },
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
   };
 
-  if (recalled.memories.length === 0) {
+  if (recalledMemories.length === 0) {
     // No evidence — return the empty answer rather than letting the LLM
     // hallucinate. Callers can detect this via the empty memoryIds list.
     return baseResult;
   }
 
   // Stage 2: synthesize. Format memories as a numbered citable list.
-  const evidence = recalled.memories
+  const evidence = recalledMemories
     .map((m, i) => `[${i + 1}] (id: ${m.id}, kind: ${m.kind})\n${m.content}`)
     .join("\n\n");
 

@@ -2,7 +2,7 @@
 
 > **synthesizeProfile**(`ctx`: [`RecallContext`](../interfaces/RecallContext.md), `options`: [`SynthesizeProfileOptions`](../interfaces/SynthesizeProfileOptions.md)): `Promise`<[`ProfileDoc`](../interfaces/ProfileDoc.md)>
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#232)
+Defined in: [src/lib/memory/synthesizeProfile.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#266)
 
 Synthesize a shareable [ProfileDoc](../interfaces/ProfileDoc.md) from the user's vault, on-device.
 

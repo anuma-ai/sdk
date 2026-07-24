@@ -429,3 +429,73 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
     expect(secondHeaders.Authorization).toBe("Bearer tok-2");
   });
 });
+
+describe("callPortalJsonCompletion — endpointOverride", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    baseUrl: "https://portal.test",
+    model: "anthropic/claude-sonnet-4-6",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+  } as const;
+
+  it("posts to the default /api/v1/chat/completions when no override is given", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/chat/completions");
+  });
+
+  it("posts to the overridden path when endpointOverride is set", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
+  });
+
+  it("normalizes a missing leading slash onto the override path", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      endpointOverride: "api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
+  });
+
+  it("changes only the path — the request body is byte-identical with vs without override", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    await callPortalJsonCompletion({
+      ...baseArgs,
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn,
+    });
+    const bodyDefault = fetchFn.mock.calls[0][1].body as string;
+    const bodyOverride = fetchFn.mock.calls[1][1].body as string;
+    expect(bodyOverride).toBe(bodyDefault);
+  });
+
+  it("throws (rejects) on an empty/whitespace override before any request is sent", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await expect(
+      callPortalJsonCompletion({ ...baseArgs, endpointOverride: "   ", fetchFn })
+    ).rejects.toThrow(/non-empty, root-relative path/);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("throws (rejects) on an off-origin (absolute URL) override", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    await expect(
+      callPortalJsonCompletion({
+        ...baseArgs,
+        endpointOverride: "https://evil.com/api/v1/chat/completions",
+        fetchFn,
+      })
+    ).rejects.toThrow(/not a protocol-relative or absolute URL/);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
