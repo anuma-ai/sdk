@@ -117,7 +117,7 @@ describe("extractEntitiesForMemories", () => {
         messages: Array<{ role: string; content: string }>;
       };
       const userMessage = body.messages.find((m) => m.role === "user")!.content;
-      const ids = [...userMessage.matchAll(/\[(mem_\d+)\]/g)].map((m) => m[1]);
+      const ids = [...userMessage.matchAll(/^(mem_\d+): /gm)].map((m) => m[1]);
       return {
         ok: true,
         json: async () => ({
