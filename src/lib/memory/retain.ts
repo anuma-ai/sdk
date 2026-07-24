@@ -25,7 +25,12 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
-import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
+import {
+  type PreparedVaultCandidates,
+  prepareVaultCandidates,
+  rankPreparedVaultCandidates,
+  type VaultEmbeddingCache,
+} from "../memoryVault/searchTool.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.85;
@@ -85,14 +90,35 @@ export async function retain(
   let supersedeTargetId: string | undefined;
   let supersedeContent: string | undefined;
 
+  // B2 — Stage 1 (consolidate) and Stage 2 (strict merge) search the SAME universe with the
+  // SAME query, scope, and useFusion:false. Prepare the candidate set ONCE (one whole-vault
+  // load + one query embed, with content-decrypt deferred) and rank it per-stage below. Kept
+  // in the outer scope so the create path can reuse `prepared.queryEmbedding` for the write.
+  let prepared: PreparedVaultCandidates | undefined;
+
   if (enableAutoMerge) {
+    prepared = await prepareVaultCandidates(
+      trimmed,
+      ctx.vaultCtx,
+      ctx.embeddingOptions,
+      ctx.vaultCache,
+      {
+        useFusion: false,
+        scopes: [resolvedScope],
+        // PR5 — include archived rows as merge candidates so a re-observed fact resurrects
+        // (un-archives) the decayed row instead of creating a fresh duplicate.
+        includeArchived: true,
+        ...(options.folderId !== undefined && { folderId: options.folderId }),
+      }
+    );
+
     // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
     // Pulls top-K memories above the looser consolidation floor (default
     // 0.65) and asks an LLM to decide create/update/noop/supersede. Catches
     // paraphrased duplicates the strict cosine-merge below misses, and retires
     // stale values on a state change.
     if (options.consolidateOptions) {
-      const outcome = await tryConsolidate(trimmed, ctx, options);
+      const outcome = await tryConsolidate(trimmed, ctx, options, prepared);
       if (outcome) {
         if ("done" in outcome) return outcome.done;
         supersedeTargetId = outcome.supersede;
@@ -107,23 +133,18 @@ export async function retain(
     // Stage 2 is skipped when superseding (main's A2): a changed value must be
     // created fresh, never merged into some other row.
     if (!supersedeTargetId) {
-      const matches = await searchVaultMemories(
+      // B2 — rank the shared prepared set at Stage 2's strict params. Cannot be derived by
+      // filtering Stage 1's output: rankVaultMemories' supersession window scales with `limit`
+      // (topK*3 vs 1*3), so the per-stage score adjustments differ — re-rank instead.
+      const { results: matches } = await rankPreparedVaultCandidates(
         trimmed,
+        prepared,
         ctx.vaultCtx,
         ctx.embeddingOptions,
-        ctx.vaultCache,
         {
           limit: 1,
           minSimilarity: threshold,
           useFusion: false,
-          scopes: [resolvedScope],
-          // PR5 — include archived rows as merge candidates so a re-observed
-          // fact resurrects (un-archives) the decayed row instead of creating a
-          // fresh duplicate. The resurrection is applied on the merge write
-          // below, but ONLY for a row that is not superseded/deleted (the
-          // guards below preserve main's tombstone/supersession suppression).
-          includeArchived: true,
-          ...(options.folderId !== undefined && { folderId: options.folderId }),
         }
       );
 
@@ -193,7 +214,13 @@ export async function retain(
   // deleted between search and write): create a new memory. For supersession,
   // use the consolidator's refined content; otherwise use the original input.
   const contentToWrite = supersedeContent ?? trimmed;
-  const embedding = await generateEmbedding(contentToWrite, ctx.embeddingOptions);
+  // B2 — reuse the query embedding computed during prepare when the content we're writing is
+  // exactly `trimmed` (i.e. not superseding — where contentToWrite is the consolidator's
+  // refined text) and prepare actually embedded it (non-empty; empty vault skips the embed).
+  const embedding =
+    supersedeContent === undefined && prepared && prepared.queryEmbedding.length > 0
+      ? prepared.queryEmbedding
+      : await generateEmbedding(contentToWrite, ctx.embeddingOptions);
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   // Tombstone gate: if this create matches a soft-deleted memory, the user (or
@@ -425,30 +452,27 @@ type ConsolidateOutcome = { done: RetainResult } | { supersede: string; content:
 async function tryConsolidate(
   trimmed: string,
   ctx: RetainContext,
-  options: RetainOptions
+  options: RetainOptions,
+  prepared: PreparedVaultCandidates
 ): Promise<ConsolidateOutcome> {
   const consolidateOptions = options.consolidateOptions;
   if (!consolidateOptions) return null;
 
   const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
   const topK = options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K;
-  // Same scope resolution as retain() — search the scope we'll write to.
-  const resolvedScope = options.scope ?? DEFAULT_SCOPE;
 
-  const matches = await searchVaultMemories(
+  // B2 — rank the shared prepared set at Stage 1's loose consolidation params (topK@0.65)
+  // instead of a second whole-vault load + query embed. Scope/folder/includeArchived were
+  // already applied when `prepared` was built in retain().
+  const { results: matches } = await rankPreparedVaultCandidates(
     trimmed,
+    prepared,
     ctx.vaultCtx,
     ctx.embeddingOptions,
-    ctx.vaultCache,
     {
       limit: topK,
       minSimilarity: consolidateThreshold,
       useFusion: false,
-      scopes: [resolvedScope],
-      // PR5 — archived rows are consolidation candidates too, so a paraphrased
-      // re-observation resurrects a decayed row rather than duplicating it.
-      includeArchived: true,
-      ...(options.folderId !== undefined && { folderId: options.folderId }),
     }
   );
   if (matches.length === 0) return null;

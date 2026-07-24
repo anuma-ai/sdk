@@ -14,7 +14,8 @@ vi.mock("../memoryEngine/embeddings", () => ({
 }));
 
 vi.mock("../memoryVault/searchTool", () => ({
-  searchVaultMemories: vi.fn(),
+  prepareVaultCandidates: vi.fn(),
+  rankPreparedVaultCandidates: vi.fn(),
 }));
 
 vi.mock("./consolidate", () => ({
@@ -33,7 +34,7 @@ import { consolidateMemory } from "./consolidate";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import { searchVaultMemories } from "../memoryVault/searchTool";
+import { prepareVaultCandidates, rankPreparedVaultCandidates } from "../memoryVault/searchTool";
 
 import { retain } from "./retain";
 
@@ -46,9 +47,44 @@ const ctx = {
   vaultCache: new Map<string, Float32Array>(),
 };
 
+// B2 — retain() now prepares the candidate set once (prepareVaultCandidates) and ranks it
+// per stage (rankPreparedVaultCandidates: Stage 1 consolidate topK@0.65, Stage 2 merge 1@0.85).
+// These helpers keep the tests expressed as "what the vault surfaces": set ranked results, and
+// let the prepare mock mirror generateEmbedding so the create-path reused query embedding stays
+// consistent with each test's generateEmbedding mock.
+type VaultMatch = { uniqueId: string; content?: string; similarity?: number };
+function rankResult(results: VaultMatch[]) {
+  return {
+    results: results as never,
+    vaultSize: results.length,
+    reranked: false,
+    hadV2Head: results.length > 0,
+  };
+}
+/** Set the ranked results returned to every stage (Stage 1 + Stage 2 share the value). */
+function setVaultMatches(results: VaultMatch[]) {
+  vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult(results));
+}
+/** Queue per-stage ranked results in order (Stage 1, then Stage 2, ...). */
+function setVaultMatchesOnce(...stages: VaultMatch[][]) {
+  const m = vi.mocked(rankPreparedVaultCandidates);
+  for (const s of stages) m.mockResolvedValueOnce(rankResult(s));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   ctx.vaultCache.clear();
+  // Prepare mirrors generateEmbedding so `prepared.queryEmbedding` equals each test's embedding
+  // mock — the create path reuses it (B2), so tombstone/create assertions stay transparent.
+  vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+  vi.mocked(prepareVaultCandidates).mockImplementation((async (query, _vaultCtx, embOpts) => ({
+    embeddedItems: [],
+    queryEmbedding: await vi.mocked(generateEmbedding)(query as string, embOpts as never),
+    vaultSize: 0,
+    metaById: new Map(),
+    deferDecrypt: true,
+  })) as never);
+  vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]));
 });
 
 describe("retain", () => {
@@ -58,7 +94,7 @@ describe("retain", () => {
   });
 
   it("creates a new memory when no similar match exists", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    setVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
       uniqueId: "new-id",
@@ -85,31 +121,33 @@ describe("retain", () => {
   });
 
   it("scopes the dedup search to the same scope it writes (H2)", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    setVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
 
     // Scope unset → both search and write resolve to the DB default "private",
     // so dedup can't miss a private dupe or match across scopes.
     await retain("a fact", ctx);
-    expect(vi.mocked(searchVaultMemories).mock.calls[0][4]).toMatchObject({
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[0][4]).toMatchObject({
       scopes: ["private"],
     });
     expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({ scope: "private" });
 
     vi.clearAllMocks();
-    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    setVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
 
     // Caller scope → used for both.
     await retain("a fact", ctx, { scope: "shared" });
-    expect(vi.mocked(searchVaultMemories).mock.calls[0][4]).toMatchObject({ scopes: ["shared"] });
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[0][4]).toMatchObject({
+      scopes: ["shared"],
+    });
     expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({ scope: "shared" });
   });
 
   it("merges into the nearest match when cosine ≥ threshold", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
+    setVaultMatches([
       { uniqueId: "existing-id", content: "Allergic to shellfish", similarity: 0.92 },
     ]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
@@ -167,7 +205,7 @@ describe("retain", () => {
   });
 
   it("PR5: un-archives (restores) an archived row on re-observe instead of duplicating", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
+    setVaultMatches([
       { uniqueId: "archived-id", content: "Allergic to shellfish", similarity: 0.95 },
     ]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
@@ -194,7 +232,7 @@ describe("retain", () => {
 
     expect(result.action).toBe("merge");
     // The dedup search must opt into archived candidates.
-    expect(vi.mocked(searchVaultMemories).mock.calls[0][4]).toMatchObject({
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[0][4]).toMatchObject({
       includeArchived: true,
     });
     // The merge write restores the row and lets updated_at bump (no preserve).
@@ -205,7 +243,7 @@ describe("retain", () => {
   });
 
   it("PR5: an ACTIVE merge target preserves updated_at and does not set restore", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
+    setVaultMatches([
       { uniqueId: "active-id", content: "Allergic to shellfish", similarity: 0.95 },
     ]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
@@ -240,7 +278,7 @@ describe("retain", () => {
     // row was already retired by a newer, incompatible-value fact. Decay
     // resurrection must respect main's supersession: no merge, no restore — the
     // new observation falls through to a fresh create instead.
-    vi.mocked(searchVaultMemories).mockResolvedValue([
+    setVaultMatches([
       { uniqueId: "archived-superseded-id", content: "Lives in Portland", similarity: 0.95 },
     ]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
@@ -277,7 +315,7 @@ describe("retain", () => {
     // search (baseVaultConditions excludes is_deleted), so it can't be a merge/
     // resurrection target. On the create path, respectTombstones then suppresses
     // the re-creation so a user-deleted fact isn't silently resurrected.
-    vi.mocked(searchVaultMemories).mockResolvedValue([]); // deleted row not returned
+    setVaultMatches([]); // deleted row not returned
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     // getAllVaultMemoriesOp(includeDeleted) backs the tombstone scan.
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
@@ -302,7 +340,7 @@ describe("retain", () => {
   });
 
   it("persists factType on the create path (PR1)", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    setVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
 
@@ -314,9 +352,7 @@ describe("retain", () => {
   });
 
   it("lazily backfills factType on merge when the target has none (PR1)", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "id1", content: "Foo", similarity: 0.92 },
-    ]);
+    setVaultMatches([{ uniqueId: "id1", content: "Foo", similarity: 0.92 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
       uniqueId: "id1",
       content: "Foo",
@@ -336,9 +372,7 @@ describe("retain", () => {
   });
 
   it("never overwrites an existing non-null factType on merge (PR1)", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "id1", content: "Foo", similarity: 0.92 },
-    ]);
+    setVaultMatches([{ uniqueId: "id1", content: "Foo", similarity: 0.92 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
       uniqueId: "id1",
       content: "Foo",
@@ -356,9 +390,7 @@ describe("retain", () => {
   });
 
   it("dedupes source chunk ids on merge (no duplicates if already present)", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "id1", content: "Foo", similarity: 0.9 },
-    ]);
+    setVaultMatches([{ uniqueId: "id1", content: "Foo", similarity: 0.9 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
       uniqueId: "id1",
       content: "Foo",
@@ -407,9 +439,7 @@ describe("retain", () => {
     // Regression (#630): a null update result must NOT report a phantom merge
     // with an optimistic +1. When the target was deleted between search and
     // write (re-probe finds it gone), retain still retains the fact via create.
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "target", content: "Foo", similarity: 0.99 },
-    ]);
+    setVaultMatches([{ uniqueId: "target", content: "Foo", similarity: 0.99 }]);
     // First lookup (pre-write) finds the target; the post-null re-probe finds
     // it gone → benign race → create.
     vi.mocked(getVaultMemoryOp).mockResolvedValueOnce(mergeTarget).mockResolvedValue(null);
@@ -431,9 +461,7 @@ describe("retain", () => {
     // updateVaultMemoryOp collapses a caught write error into null just like a
     // concurrent delete. If the target is still present, falling through to
     // create would silently duplicate the fact — surface the failure instead.
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "target", content: "Foo", similarity: 0.99 },
-    ]);
+    setVaultMatches([{ uniqueId: "target", content: "Foo", similarity: 0.99 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue(mergeTarget); // still there on re-probe
     vi.mocked(updateVaultMemoryOp).mockResolvedValue(null); // write threw internally
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
@@ -446,9 +474,7 @@ describe("retain", () => {
   });
 
   it("force-creates when enableAutoMerge=false even if similar match exists", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "near-dup", content: "Foo", similarity: 0.99 },
-    ]);
+    setVaultMatches([{ uniqueId: "near-dup", content: "Foo", similarity: 0.99 }]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
       uniqueId: "fresh",
@@ -469,13 +495,14 @@ describe("retain", () => {
 
     expect(result.action).toBe("create");
     expect(result.memoryId).toBe("fresh");
-    // searchVaultMemories shouldn't even be called when autoMerge is off
-    expect(vi.mocked(searchVaultMemories)).not.toHaveBeenCalled();
+    // no vault load/search at all when autoMerge is off
+    expect(vi.mocked(prepareVaultCandidates)).not.toHaveBeenCalled();
+    expect(vi.mocked(rankPreparedVaultCandidates)).not.toHaveBeenCalled();
     expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
   it("respects custom autoMergeThreshold", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    setVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
       uniqueId: "x",
@@ -494,17 +521,18 @@ describe("retain", () => {
 
     await retain("Foo", ctx, { autoMergeThreshold: 0.95 });
 
-    expect(vi.mocked(searchVaultMemories)).toHaveBeenCalledWith(
+    // B2 — the threshold is applied at Stage 2's rank of the shared prepared set.
+    expect(vi.mocked(rankPreparedVaultCandidates)).toHaveBeenCalledWith(
       "Foo",
+      expect.anything(),
       mockVaultCtx,
       mockEmbeddingOptions,
-      ctx.vaultCache,
       expect.objectContaining({ minSimilarity: 0.95 })
     );
   });
 
   it("creates with source + sourceChunkIds when provided", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    setVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
       uniqueId: "auto",
@@ -539,9 +567,7 @@ describe("retain", () => {
   it("falls through to create when search hits but record fetch fails", async () => {
     // Edge: searchVaultMemories returns a stub but the record was deleted
     // between operations. Should not crash; create new instead.
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "ghost", content: "x", similarity: 0.9 },
-    ]);
+    setVaultMatches([{ uniqueId: "ghost", content: "x", similarity: 0.9 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue(null);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({
@@ -595,7 +621,7 @@ describe("retain — tombstones (respectTombstones)", () => {
 
   beforeEach(() => {
     // No live merge candidate by default — exercise the create path.
-    vi.mocked(searchVaultMemories).mockResolvedValue([]);
+    setVaultMatches([]);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
   });
 
@@ -666,9 +692,7 @@ describe("retain — tombstones (respectTombstones)", () => {
   });
 
   it("a live merge still wins and never reaches the tombstone check", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "live-1" } as Awaited<ReturnType<typeof searchVaultMemories>>[number],
-    ]);
+    setVaultMatches([{ uniqueId: "live-1" }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue(row("live-1", [1, 0, 0], false));
     vi.mocked(updateVaultMemoryOp).mockResolvedValue(row("live-1", [1, 0, 0], false));
 
@@ -684,7 +708,7 @@ describe("retain — write-time supersession (A2)", () => {
 
   it("supersedes the stale fact: creates the new one, stamps superseded_by, skips strict merge", async () => {
     // Consolidate candidate search (0.65 floor) surfaces the stale fact...
-    vi.mocked(searchVaultMemories).mockResolvedValue([
+    setVaultMatches([
       { uniqueId: "old-portland", content: "Lives in Portland", similarity: 0.7 } as never,
     ]);
     // ...and the LLM rules it a state change.
@@ -718,15 +742,17 @@ describe("retain — write-time supersession (A2)", () => {
       "old-portland"
     );
     // Not a plain create, and strict cosine merge (Stage 2) is skipped — only
-    // the one consolidate search ran.
+    // Stage 1's rank ran over the single prepared candidate set.
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
-    expect(vi.mocked(searchVaultMemories)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(rankPreparedVaultCandidates)).toHaveBeenCalledTimes(1);
   });
 
   it("falls through to plain create when the supersede target vanished (race)", async () => {
-    vi.mocked(searchVaultMemories)
-      .mockResolvedValueOnce([{ uniqueId: "old", content: "x", similarity: 0.7 } as never]) // consolidate candidate search
-      .mockResolvedValueOnce([]); // Stage-2 strict merge search on the create fall-through
+    setVaultMatchesOnce(
+      [{ uniqueId: "old", content: "x", similarity: 0.7 }], // Stage 1 consolidate candidate
+      [] // Stage 2 strict merge on the create fall-through
+    );
     vi.mocked(consolidateMemory).mockResolvedValue({
       action: "supersede",
       targetId: "old",
@@ -743,9 +769,7 @@ describe("retain — write-time supersession (A2)", () => {
   });
 
   it("does not retire the old fact when the new one is tombstone-suppressed", async () => {
-    vi.mocked(searchVaultMemories).mockResolvedValue([
-      { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
-    ]);
+    setVaultMatches([{ uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never]);
     vi.mocked(consolidateMemory).mockResolvedValue({
       action: "supersede",
       targetId: "old",
@@ -782,9 +806,7 @@ describe("retain — write-time supersession (A2)", () => {
     // Only the consolidate search runs — Stage 2 is skipped on the supersede
     // path, and the create fall-through goes straight to createVaultMemoryOp
     // (no further search). Queue exactly one value so nothing leaks to the next test.
-    vi.mocked(searchVaultMemories).mockResolvedValueOnce([
-      { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
-    ]);
+    setVaultMatchesOnce([{ uniqueId: "old", content: "Lives in Portland", similarity: 0.7 }]);
     vi.mocked(consolidateMemory).mockResolvedValue({
       action: "supersede",
       targetId: "old",
@@ -804,11 +826,10 @@ describe("retain — write-time supersession (A2)", () => {
   });
 
   it("falls through to plain create when the target is already superseded", async () => {
-    vi.mocked(searchVaultMemories)
-      .mockResolvedValueOnce([
-        { uniqueId: "old", content: "Lives in Portland", similarity: 0.7 } as never,
-      ]) // consolidate candidate search
-      .mockResolvedValueOnce([]); // Stage-2 strict merge search on the fall-through
+    setVaultMatchesOnce(
+      [{ uniqueId: "old", content: "Lives in Portland", similarity: 0.7 }], // Stage 1 consolidate candidate
+      [] // Stage 2 strict merge on the fall-through
+    );
     vi.mocked(consolidateMemory).mockResolvedValue({
       action: "supersede",
       targetId: "old",
@@ -826,5 +847,79 @@ describe("retain — write-time supersession (A2)", () => {
 
     expect(result.action).toBe("create");
     expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
+  });
+});
+
+describe("retain — B2 shared-fetch call counts", () => {
+  const consolidateOptions = { apiKey: "k" };
+
+  it("consolidation enabled, non-supersede: prepares once, embeds once, ranks twice", async () => {
+    // Stage 1 surfaces a candidate; the LLM says "create" (→ fall through); Stage 2 finds no
+    // strict merge → create. Both stages rank the SAME prepared set.
+    setVaultMatchesOnce(
+      [{ uniqueId: "cand", content: "similar", similarity: 0.7 }], // Stage 1 consolidate
+      [] // Stage 2 strict merge
+    );
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" } as never);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    await retain("a fact", ctx, { consolidateOptions });
+
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(rankPreparedVaultCandidates)).toHaveBeenCalledTimes(2);
+    // Query embedded once (inside prepare); the create path REUSES prepared.queryEmbedding.
+    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledTimes(1);
+  });
+
+  it("consolidation disabled: prepares once, embeds once, ranks once (Stage 2 only)", async () => {
+    setVaultMatches([]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    await retain("a fact", ctx);
+
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(rankPreparedVaultCandidates)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledTimes(1);
+  });
+
+  it("non-supersede + respectTombstones: reuses the query embedding (one embed, one tombstone load)", async () => {
+    setVaultMatches([]);
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]); // tombstone scan finds nothing
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+
+    await retain("a fact", ctx, { respectTombstones: true });
+
+    // Query embedded once total: prepare embeds it, and both the create write AND the tombstone
+    // scan reuse prepared.queryEmbedding rather than re-embedding.
+    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledTimes(1);
+    // The live-candidate load (prepare) and the includeDeleted tombstone load are separate
+    // universes; folding them into one is deferred cross-call work, so still two loads total —
+    // but only the tombstone one goes through getAllVaultMemoriesOp directly here.
+    expect(vi.mocked(getAllVaultMemoriesOp)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getAllVaultMemoriesOp).mock.calls[0][1]).toMatchObject({
+      includeDeleted: true,
+    });
+  });
+
+  it("supersede path: skips Stage 2 (ranks once) and re-embeds the refined content", async () => {
+    setVaultMatchesOnce([{ uniqueId: "old", content: "Lives in Portland", similarity: 0.7 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "old",
+      content: "Lives in San Francisco",
+    } as never);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "old" } as never);
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "new" } as never,
+      retired: true,
+    });
+
+    await retain("Lives in San Francisco", ctx, { consolidateOptions });
+
+    // Stage 2 skipped on supersede → only Stage 1 ranked.
+    expect(vi.mocked(rankPreparedVaultCandidates)).toHaveBeenCalledTimes(1);
+    // Two embeds: prepare (query) + the fresh embed of the consolidator's refined content
+    // (differs from the query, so it can't reuse prepared.queryEmbedding).
+    expect(vi.mocked(generateEmbedding)).toHaveBeenCalledTimes(2);
   });
 });

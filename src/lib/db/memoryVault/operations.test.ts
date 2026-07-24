@@ -265,6 +265,32 @@ describe("getAllVaultMemoriesOp", () => {
     expect(queryFn).toHaveBeenCalled();
   });
 
+  it("deferContentDecrypt leaves content raw (B2); default decrypts", async () => {
+    const rec = mockRecord({
+      id: "mem_1",
+      content: "encrypted:secret",
+      embedding: JSON.stringify([1, 2, 3]),
+    });
+    const queryFn = vi.fn(() => ({
+      fetch: vi.fn(async () => [rec]),
+      unsafeFetchRaw: vi.fn(async () => [rec._raw]),
+    }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+      walletAddress: "0xabc",
+      signMessage: vi.fn(),
+    } as any);
+
+    // Default: decryptVaultMemoryFields runs (mock strips the "encrypted:" prefix).
+    const eager = await getAllVaultMemoriesOp(ctx);
+    expect(eager[0].content).toBe("secret");
+
+    // Defer: content is left as the raw stored value; the plaintext embedding is untouched.
+    const deferred = await getAllVaultMemoriesOp(ctx, { deferContentDecrypt: true });
+    expect(deferred[0].content).toBe("encrypted:secret");
+    expect(deferred[0].embedding).toBe(JSON.stringify([1, 2, 3]));
+  });
+
   it("passes scope filter when options.scopes is provided", async () => {
     const fetchFn = vi.fn(async () => [mockRecord({ id: "mem_pub" })]);
     const queryFn = vi.fn((..._conditions: any[]) => ({

@@ -577,6 +577,14 @@ export async function getAllVaultMemoriesOp(
      * Used by a "memory history" view to render retired facts.
      */
     includeSuperseded?: boolean;
+    /**
+     * B2 — skip decrypting `content`, leaving the raw ciphertext/plaintext in
+     * `.content`. The caller MUST decrypt on demand (e.g. per top-K survivor
+     * via {@link decryptVaultMemoryOp}). Lets the `useFusion:false` search path
+     * avoid a whole-vault decrypt when cosine scoring only needs the id-keyed
+     * vector cache. `embedding` is plaintext and unaffected. Default `false`.
+     */
+    deferContentDecrypt?: boolean;
   }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
@@ -595,8 +603,33 @@ export async function getAllVaultMemoriesOp(
     string,
     unknown
   >[];
+  // B2 defer path: map raw rows WITHOUT decrypting content. vaultMemoryRawToStoredRaw is sync
+  // and already builds the full StoredVaultMemory (raw content); the caller decrypts survivors.
+  if (options?.deferContentDecrypt) {
+    return mapInBatches(results, (raw) => Promise.resolve(vaultMemoryRawToStoredRaw(raw)));
+  }
   return mapInBatches(results, (raw) =>
     vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
+}
+
+/**
+ * B2 — decrypt a single {@link StoredVaultMemory}'s `content` on demand. Used by the
+ * `useFusion:false` search path after {@link getAllVaultMemoriesOp} loaded rows with
+ * `deferContentDecrypt`, so only cache-miss rows + top-K survivors are decrypted instead of
+ * the whole vault. Not a regression vs. the eager path, which also decrypts per row (the
+ * encryption-key request is cached inside `requestEncryptionKey`).
+ */
+export async function decryptVaultMemoryOp(
+  ctx: VaultMemoryOperationsContext,
+  memory: StoredVaultMemory
+): Promise<StoredVaultMemory> {
+  if (!ctx.walletAddress) return memory;
+  return decryptVaultMemoryFields(
+    memory,
+    ctx.walletAddress,
+    ctx.signMessage,
+    ctx.embeddedWalletSigner
   );
 }
 
