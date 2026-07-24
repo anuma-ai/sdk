@@ -883,6 +883,23 @@ describe("admitVaultProjections", () => {
       admitVaultProjections([1, 0], [v("o", [1, 0], "2026-05"), v("n", [1, 0], "2026-06")], 5)
     ).toEqual(["n", "o"]);
   });
+
+  it("admits low/zero/negative-cosine rows within K (no sign gate) so BM25 can promote them", () => {
+    // orthogonal (cosine 0) and opposite (cosine -1) rows must still enter the
+    // admission window — the fusion ranker's BM25 lane may promote a lexical
+    // match the cosine ranks poorly. Parity with the legacy whole-vault path.
+    expect(
+      admitVaultProjections(
+        [1, 0],
+        [v("pos", [1, 0]), v("orthogonal", [0, 1]), v("opposite", [-1, 0])],
+        3
+      )
+    ).toEqual(["pos", "orthogonal", "opposite"]);
+    // K still caps: with K=1 only the best-cosine row is admitted.
+    expect(
+      admitVaultProjections([1, 0], [v("pos", [1, 0]), v("orthogonal", [0, 1])], 1)
+    ).toEqual(["pos"]);
+  });
 });
 
 describe("buildProjectedCorpus", () => {

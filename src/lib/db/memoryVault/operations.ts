@@ -11,6 +11,7 @@ import {
 } from "../entities/operations";
 import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
+import { getLogger } from "../../logger";
 import type {
   CreateVaultMemoryOptions,
   RankableVaultMemory,
@@ -624,9 +625,15 @@ export async function getVaultCandidateKeysOp(
       .query(Q.unsafeSqlQuery(sql, args))
       .unsafeFetchRaw()) as Record<string, unknown>[];
     return rows.map(mapRaw);
-  } catch {
+  } catch (err) {
     // LokiJS fallback (Q.unsafeSqlQuery unsupported): standard Q query, full raw
-    // rows (blobs resident, no extra I/O), projected in-memory.
+    // rows (blobs resident, no extra I/O), projected in-memory. Logged so a
+    // production regression (SQLite path failing → full-blob loads) is visible
+    // rather than a silent perf cliff.
+    getLogger().debug(
+      "memoryVault: getVaultCandidateKeysOp projected SQL unavailable, using full-load fallback: " +
+        (err instanceof Error ? err.message : String(err))
+    );
     const conditions = [
       ...baseVaultConditions(ctx),
       ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
@@ -666,7 +673,13 @@ export async function getVaultEmbeddingsByIdsOp(
       .query(Q.unsafeSqlQuery(sql, [...base.args, ...ids]))
       .unsafeFetchRaw()) as Record<string, unknown>[];
     return rows.map(mapRaw);
-  } catch {
+  } catch (err) {
+    // LokiJS fallback (see getVaultCandidateKeysOp) — logged so a silent
+    // degrade to full-blob loads is observable.
+    getLogger().debug(
+      "memoryVault: getVaultEmbeddingsByIdsOp projected SQL unavailable, using full-load fallback: " +
+        (err instanceof Error ? err.message : String(err))
+    );
     const rows = (await ctx.vaultMemoryCollection
       .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids)))
       .unsafeFetchRaw()) as Record<string, unknown>[];

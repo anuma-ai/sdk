@@ -1228,9 +1228,14 @@ export function admitVaultProjections(
   vectored: Array<{ uniqueId: string; embedding: ArrayLike<number>; updatedAt: Date }>,
   k: number
 ): string[] {
+  // Admit the top-K by cosine, ties by recency. NO `score > 0` gate: a
+  // low/zero/negative-cosine row must still be allowed into the decrypted
+  // admission window so the downstream BM25 lane can promote a strong lexical
+  // hit (parity with the legacy whole-vault path, which feeds every row to
+  // BM25). Degenerate/empty vectors score 0 (see cosineSimilarity), sort last,
+  // and only enter if K exceeds the embedded count — harmless.
   return vectored
     .map((it) => ({ it, score: cosineSimilarity(queryEmbedding, it.embedding) }))
-    .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score || b.it.updatedAt.getTime() - a.it.updatedAt.getTime())
     .slice(0, k)
     .map((s) => s.it.uniqueId);
@@ -1333,9 +1338,17 @@ export async function buildProjectedCorpus(
 
   const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
   const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
-  const memories = (await getVaultMemoriesByIdsOp(vaultCtx, admittedIds)).filter(
-    (m) => !isEncrypted(m.content)
-  );
+  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, admittedIds);
+  const memories = admittedRows.filter((m) => !isEncrypted(m.content));
+  // Parity with the legacy path's key-unavailable diagnostic: warn when an
+  // admitted row's content is still encrypted (decryption degraded) so the
+  // projected path doesn't silently swallow the signal.
+  if (memories.length < admittedRows.length) {
+    getLogger().warn(
+      `memoryVault: ${admittedRows.length - memories.length}/${admittedRows.length} admitted ` +
+        "memories still encrypted (key unavailable?) — excluded from projected search"
+    );
+  }
   const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
     id: m.uniqueId,
     content: m.content,
