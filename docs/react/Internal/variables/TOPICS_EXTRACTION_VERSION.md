@@ -1,6 +1,6 @@
 # TOPICS\_EXTRACTION\_VERSION
 
-> `const` **TOPICS\_EXTRACTION\_VERSION**: `1` = `1`
+> `const` **TOPICS\_EXTRACTION\_VERSION**: `2` = `2`
 
 Defined in: [src/lib/db/memoryVault/operations.ts:1013](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1013)
 

@@ -1010,7 +1010,7 @@ export async function getUnfiledVaultMemoriesOp(
  * by the next sweep, so topic-quality improvements propagate across the existing
  * vault. The worker's `limit` drains that re-extraction across sweeps.
  */
-export const TOPICS_EXTRACTION_VERSION = 1;
+export const TOPICS_EXTRACTION_VERSION = 2;
 
 /**
  * Result of {@link getMemoriesNeedingTopicExtractionOp}: which memories the

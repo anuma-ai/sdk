@@ -1,6 +1,6 @@
 # TopicExtractOptions
 
-Defined in: [src/lib/memory/topicExtract.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#67)
+Defined in: [src/lib/memory/topicExtract.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#77)
 
 Options for the topic-extraction LLM call. Auth follows the portal dual
 pattern — one of `apiKey` / `getToken` is required (see [PortalLlmAuth](PortalLlmAuth.md)).
@@ -29,7 +29,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **backoffMs**: (`attempt`: `number`) => `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#86)
+Defined in: [src/lib/memory/topicExtract.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#96)
 
 **Parameters**
 
@@ -66,7 +66,7 @@ Defined in: [src/lib/memory/topicExtract.ts:86](https://github.com/anuma-ai/sdk/
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/topicExtract.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#68)
+Defined in: [src/lib/memory/topicExtract.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#78)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/memory/topicExtract.ts:68](https://github.com/anuma-ai/sdk/
 
 > `optional` **endpointOverride**: `string`
 
-Defined in: [src/lib/memory/topicExtract.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#77)
+Defined in: [src/lib/memory/topicExtract.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#87)
 
 Optional per-call request path override, forwarded to
 callPortalJsonCompletion. When set, topic extraction POSTs to
@@ -89,7 +89,7 @@ call time (see validateEndpointOverride).
 
 > `optional` **existingEntityNames**: readonly `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#94)
+Defined in: [src/lib/memory/topicExtract.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#104)
 
 The user's existing entity vocabulary (canonical names). Included in the
 prompt so independent batches reuse canonical names instead of fragmenting
@@ -103,7 +103,7 @@ names first.
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/topicExtract.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#82)
+Defined in: [src/lib/memory/topicExtract.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#92)
 
 Override the global fetch implementation (useful for tests).
 
@@ -225,7 +225,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **maxAttempts**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#83)
+Defined in: [src/lib/memory/topicExtract.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#93)
 
 ***
 
@@ -233,7 +233,7 @@ Defined in: [src/lib/memory/topicExtract.ts:83](https://github.com/anuma-ai/sdk/
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memory/topicExtract.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#80)
+Defined in: [src/lib/memory/topicExtract.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#90)
 
 Defaults to DEFAULT\_EXTRACTION\_MODEL — the sanctioned extraction
 model. Don't point this at a second model without an eval.
@@ -244,7 +244,7 @@ model. Don't point this at a second model without an eval.
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/topicExtract.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#102)
+Defined in: [src/lib/memory/topicExtract.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#112)
 
 When set, PII in memory contents is replaced with tagged placeholders
 before the LLM call and returned entity names are de-anonymized (entities
@@ -258,7 +258,7 @@ callers that redact the conversation pipeline must redact this pass too.
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#84)
+Defined in: [src/lib/memory/topicExtract.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#94)
 
 ***
 
@@ -266,4 +266,4 @@ Defined in: [src/lib/memory/topicExtract.ts:84](https://github.com/anuma-ai/sdk/
 
 > `optional` **totalTimeoutMs**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#85)
+Defined in: [src/lib/memory/topicExtract.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#95)
