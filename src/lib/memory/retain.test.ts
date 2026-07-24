@@ -870,6 +870,36 @@ describe("retain — write-time supersession (A2)", () => {
     expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
+  it("multi-supersede: a secondary retire that returns false is re-read to check for a live leftover", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValueOnce([
+      { uniqueId: "d1", content: "dark a", similarity: 0.86 } as never,
+      { uniqueId: "d2", content: "dark b", similarity: 0.84 } as never,
+    ]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "d1",
+      targetIds: ["d1", "d2"],
+      content: "light",
+    });
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    // Primary (d1) retired atomically; the d2 secondary retire returns the
+    // ambiguous false, so retain re-reads d2 to tell "already gone" from a
+    // genuine live leftover. A live (non-superseded) row = genuine leftover.
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "light" } as never,
+      retired: true,
+    });
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(false);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "d2" } as never);
+
+    const result = await retain("light", ctx, { consolidateOptions });
+
+    // Primary supersession is atomic + reliable → still a supersede.
+    expect(result).toMatchObject({ action: "supersede", memoryId: "light", targetId: "d1" });
+    // The false secondary was re-read (not silently ignored) to disambiguate.
+    expect(vi.mocked(getVaultMemoryOp)).toHaveBeenCalledWith(mockVaultCtx, "d2");
+  });
+
   it("falls through to plain create when the target is already superseded", async () => {
     vi.mocked(searchVaultMemories)
       .mockResolvedValueOnce([

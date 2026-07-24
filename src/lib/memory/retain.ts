@@ -22,6 +22,7 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
+import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
@@ -271,14 +272,34 @@ export async function retain(
     );
     if (created && retired) {
       ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
-      // Retire the remaining stale duplicates against the new memory. Purely
-      // best-effort: `supersedeVaultMemoryOp` returns false for a row that is
-      // already gone/retired (a concurrent winner beat us, or the user deleted
-      // it) — that is the DESIRED end state, not a failure, so we don't retry,
-      // alarm, or block on it. Any true leftover self-reconciles at the next
-      // consolidation.
+      // Retire the remaining stale duplicates against the new memory. Best-effort,
+      // but the boolean result is ambiguous — `supersedeVaultMemoryOp` returns
+      // false BOTH for a row that is already gone/retired (benign — a concurrent
+      // winner or the user beat us) AND for a genuine write failure. So on a
+      // non-success we re-read the row to disambiguate: only a row that is still
+      // LIVE (exists, not superseded) is a real leftover. Benign already-retired
+      // rows are ignored (no false alarm); genuine live leftovers are surfaced
+      // (not silently swallowed) so a stuck duplicate is diagnosable — it still
+      // self-reconciles at the next consolidation + is down-ranked by recall's
+      // supersession pass in the meantime.
+      const liveLeftovers: string[] = [];
       for (const staleId of restTargetIds) {
-        await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, created.uniqueId).catch(() => {});
+        let ok = false;
+        try {
+          ok = (await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, created.uniqueId)) === true;
+        } catch {
+          // retire threw → `ok` stays false; re-read below tells apart a genuine
+          // live leftover from an already-gone row.
+        }
+        if (ok) continue;
+        const stillLive = await getVaultMemoryOp(ctx.vaultCtx, staleId).catch(() => null);
+        if (stillLive && !stillLive.supersededBy) liveLeftovers.push(staleId);
+      }
+      if (liveLeftovers.length > 0) {
+        getLogger().warn(
+          "[memory/retain] supersede left duplicate row(s) live — will reconcile at next consolidation",
+          { newMemoryId: created.uniqueId, leftover: liveLeftovers.length }
+        );
       }
       return {
         action: "supersede",
