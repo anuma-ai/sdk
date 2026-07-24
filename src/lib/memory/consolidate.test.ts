@@ -96,6 +96,27 @@ describe("consolidateMemory", () => {
     });
   });
 
+  it("supersede unions targetId when targetIds is empty (single-id not lost)", async () => {
+    const fetchFn = mockFetch(
+      choices({
+        action: "supersede",
+        targetIds: [],
+        targetId: "m1",
+        content: "User has a cat named Mochi.",
+      })
+    );
+    const result = await consolidateMemory("User has a cat named Mochi.", candidates, {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(result).toEqual({
+      action: "supersede",
+      targetId: "m1",
+      targetIds: ["m1"],
+      content: "User has a cat named Mochi.",
+    });
+  });
+
   it("degrades to create when supersede omits a valid targetId", async () => {
     // Missing/invalid targetId is a schema violation → terminal degrade to
     // create (never silently retire an unknown row).

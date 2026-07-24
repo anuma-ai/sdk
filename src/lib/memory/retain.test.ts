@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../db/memoryVault/operations", () => ({
   createVaultMemoryOp: vi.fn(),
   createSupersedingMemoryOp: vi.fn(),
+  supersedeVaultMemoryOp: vi.fn(),
   getVaultMemoryOp: vi.fn(),
   updateVaultMemoryOp: vi.fn(),
   getAllVaultMemoriesOp: vi.fn(),
@@ -26,6 +27,7 @@ import {
   createVaultMemoryOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
+  supersedeVaultMemoryOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
@@ -801,6 +803,70 @@ describe("retain — write-time supersession (A2)", () => {
     expect(vi.mocked(createSupersedingMemoryOp)).toHaveBeenCalled();
     // Fell back to a plain create — the fact is persisted, no orphan.
     expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalledTimes(1);
+  });
+
+  it("multi-supersede: retires EVERY stale duplicate against the new memory", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValueOnce([
+      { uniqueId: "d1", content: "Prefers dark mode in every app", similarity: 0.86 } as never,
+      {
+        uniqueId: "d2",
+        content: "Prefers dark mode in every app they use",
+        similarity: 0.84,
+      } as never,
+      { uniqueId: "d3", content: "Prefers dark mode", similarity: 0.83 } as never,
+    ]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "d1",
+      targetIds: ["d1", "d2", "d3"],
+      content: "Prefers light mode in every app",
+    });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "x" } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    // Primary retired atomically with the new memory; the rest retire cleanly.
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: { uniqueId: "light" } as never,
+      retired: true,
+    });
+    vi.mocked(supersedeVaultMemoryOp).mockResolvedValue(true);
+
+    const result = await retain("Prefers light mode in every app", ctx, { consolidateOptions });
+
+    expect(result).toMatchObject({ action: "supersede", memoryId: "light", targetId: "d1" });
+    // Primary (d1) retired atomically; d2 + d3 retired against the new id.
+    expect(vi.mocked(createSupersedingMemoryOp)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "d1"
+    );
+    expect(vi.mocked(supersedeVaultMemoryOp).mock.calls.map((c) => c[1])).toEqual(["d2", "d3"]);
+  });
+
+  it("multi-supersede: primary race-loss still retires the remaining stale ids", async () => {
+    vi.mocked(searchVaultMemories).mockResolvedValueOnce([
+      { uniqueId: "d1", content: "Prefers dark mode a", similarity: 0.86 } as never,
+      { uniqueId: "d2", content: "Prefers dark mode b", similarity: 0.84 } as never,
+    ]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "d1",
+      targetIds: ["d1", "d2"],
+      content: "Prefers light mode",
+    });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "x" } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    // Atomic op loses the race on the primary (d1 already retired) → plain create,
+    // then retire the whole set against the new id. d1 is gone (false); d2 succeeds.
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({ created: null, retired: false });
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "light" } as never);
+    vi.mocked(supersedeVaultMemoryOp).mockImplementation(async (_ctx, id) => id === "d2");
+
+    const result = await retain("Prefers light mode", ctx, { consolidateOptions });
+
+    // At least one stale row (d2) was retired → still a supersede, NOT a bare create.
+    expect(result).toMatchObject({ action: "supersede", memoryId: "light" });
+    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(supersedeVaultMemoryOp).mock.calls.map((c) => c[1])).toEqual(["d1", "d2"]);
   });
 
   it("falls through to plain create when the target is already superseded", async () => {

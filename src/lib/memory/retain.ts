@@ -27,6 +27,7 @@ import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
+import { getLogger } from "../logger.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
@@ -261,29 +262,57 @@ export async function retain(
   // reconciles at the next consolidation / strict cosine merge.
   if (supersedeTargetIds.length > 0) {
     const [primaryTargetId, ...restTargetIds] = supersedeTargetIds;
-    const { created, retired } = await createSupersedingMemoryOp(
-      ctx.vaultCtx,
-      createOpts,
-      primaryTargetId
-    );
-    if (created && retired) {
-      ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
-      // Retire the remaining stale duplicates too, pointing them at the new
-      // memory. Best-effort (non-atomic): a per-id failure or a concurrent
-      // retire just leaves that row live — self-reconciled by the next
-      // consolidation — and must not undo the successful primary write.
-      for (const staleId of restTargetIds) {
-        await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, created.uniqueId).catch(() => {});
+    // Prefer the atomic create+retire for the primary target (no orphaned
+    // successor window under concurrency). If it loses the race (primary
+    // already retired/deleted), still persist the fact with a plain create so
+    // we can retire the REMAINING stale ids against it — a primary race must
+    // not strand the other duplicates.
+    const atomic = await createSupersedingMemoryOp(ctx.vaultCtx, createOpts, primaryTargetId);
+    const primaryRetired = !!(atomic.created && atomic.retired);
+    const supersedeCreated = primaryRetired
+      ? atomic.created!
+      : await createVaultMemoryOp(ctx.vaultCtx, createOpts);
+    ctx.vaultCache.set(supersedeCreated.uniqueId, Float32Array.from(embedding));
+
+    // Retire every stale id not already retired by the atomic op, pointing it
+    // at the new memory. When the atomic op succeeded the primary is done, so
+    // only the rest remain; when it lost the race we retry the whole set (an
+    // already-gone id just returns false, harmless).
+    const toRetire = primaryRetired ? restTargetIds : supersedeTargetIds;
+    let retiredCount = primaryRetired ? 1 : 0;
+    const failed: string[] = [];
+    for (const staleId of toRetire) {
+      let ok = false;
+      try {
+        ok =
+          (await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, supersedeCreated.uniqueId)) === true;
+      } catch {
+        ok = false;
       }
-      return {
-        action: "supersede",
-        memoryId: created.uniqueId,
-        targetId: primaryTargetId,
-        proofCount: 1,
-      };
+      if (ok) retiredCount += 1;
+      else failed.push(staleId);
     }
-    // Concurrent loss (primary target already retired/gone) → fall through to a
-    // plain create so the fact is still persisted; no orphan was created.
+    // Best-effort by design (failed rows self-reconcile at the next
+    // consolidation), but a partial supersession must be diagnosable — surface
+    // it instead of silently reporting a clean supersede.
+    if (failed.length > 0) {
+      getLogger().warn("[memory/retain] partial supersession — some stale rows stayed live", {
+        newMemoryId: supersedeCreated.uniqueId,
+        retired: retiredCount,
+        failed: failed.length,
+      });
+    }
+    // If NOTHING was retired (e.g. a single primary that a concurrent supersede
+    // already retired), this is really a plain create — don't claim a supersede
+    // that didn't happen.
+    return retiredCount > 0
+      ? {
+          action: "supersede",
+          memoryId: supersedeCreated.uniqueId,
+          targetId: primaryTargetId,
+          proofCount: 1,
+        }
+      : { action: "create", memoryId: supersedeCreated.uniqueId, proofCount: 1 };
   }
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);

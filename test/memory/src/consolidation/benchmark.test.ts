@@ -288,7 +288,13 @@ async function main(): Promise<void> {
     "hard-negative": "hardneg",
   };
   console.log("\n\n=== SUMMARY (pass rate) ===\n");
-  const header = ["model".padEnd(34), ...categories.map((c) => shortLabel[c].padStart(10)), "OVERALL".padStart(8), "fallbk".padStart(7), "med ms".padStart(8)];
+  const header = [
+    "model".padEnd(34),
+    ...categories.map((c) => shortLabel[c].padStart(10)),
+    "OVERALL".padStart(8),
+    "fallbk".padStart(7),
+    "med ms".padStart(8),
+  ];
   console.log(header.join(" "));
   for (const model of MODELS) {
     const { runs, byCategory } = byModel[model];

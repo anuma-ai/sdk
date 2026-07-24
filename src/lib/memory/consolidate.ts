@@ -316,13 +316,14 @@ function validate(
 
   if (action === "supersede") {
     // Multi-supersede: retire EVERY candidate describing the same now-changed
-    // attribute. Prefer `targetIds[]`; fall back to a single `targetId` if the
-    // model emitted the old shape. Keep only valid, unique ids.
-    const rawIds = Array.isArray(obj.targetIds)
-      ? obj.targetIds
-      : typeof obj.targetId === "string"
-        ? [obj.targetId]
-        : [];
+    // attribute. UNION the multi-id `targetIds[]` with a single `targetId` so
+    // neither shape is lost — a model may emit `targetIds: []` alongside a valid
+    // `targetId`, or the old single-`targetId` shape with no array at all. Keep
+    // only valid, unique ids.
+    const rawIds = [
+      ...(Array.isArray(obj.targetIds) ? obj.targetIds : []),
+      ...(typeof obj.targetId === "string" ? [obj.targetId] : []),
+    ];
     const targetIds = [
       ...new Set(rawIds.filter((id): id is string => typeof id === "string" && validIds.has(id))),
     ];
