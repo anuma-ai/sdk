@@ -1867,6 +1867,12 @@ export type HandlersCreditBalanceResponse = {
      */
     lifetime_credits: number;
     /**
+     * NextResetDate is the next monthly credit refill date (ISO8601), keyed on the
+     * credit_expiry_day anchor — the same anchor the monthly claim uses, NOT the grant
+     * expires_at (which is anchor+1). Display-only; does not affect reset logic.
+     */
+    next_reset_date?: string;
+    /**
      * "basic" or "pro"
      */
     subscription_tier: string;
@@ -2577,14 +2583,23 @@ export type HandlersSetSubscriptionTierRequest = {
      */
     app_id?: number;
     /**
-     * "basic" or "pro"
+     * "month" or "year"; ignored for basic
+     */
+    interval?: string;
+    /**
+     * "basic", "starter", or "pro"
      */
     tier?: string;
     user_address?: string;
 };
 
 export type HandlersSetSubscriptionTierResponse = {
+    changed?: boolean;
+    interval?: string;
     message?: string;
+    scheduled_interval?: string;
+    scheduled_tier?: string;
+    status: string;
     success: boolean;
     tier: string;
     user_address: string;
@@ -3024,8 +3039,10 @@ export type HandlersUserLookupEnrollment = {
     created_at?: string;
     id?: number;
     lifetime_credits?: number;
+    payment_provider?: string;
     pro_activated_at?: string;
     starter_activated_at?: string;
+    subscription_source?: string;
     subscription_tier?: string;
     updated_at?: string;
 };
@@ -3047,7 +3064,10 @@ export type HandlersUserLookupResponse = {
     account?: HandlersUserLookupAccount;
     enrollments?: Array<HandlersUserLookupEnrollment>;
     portal_account_exists?: boolean;
+    primary_app_id?: number;
     privy?: HandlersUserLookupPrivy;
+    subscription?: HandlersSubscriptionStatusResponse;
+    subscription_error?: string;
     text_registrations?: Array<HandlersUserLookupTextReg>;
 };
 
@@ -5915,13 +5935,29 @@ export type PostApiV1AdminSubscriptionTierErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Payment Required
+     */
+    402: ResponseErrorResponse;
+    /**
      * Not Found
      */
     404: ResponseErrorResponse;
     /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
 };
 
 export type PostApiV1AdminSubscriptionTierError = PostApiV1AdminSubscriptionTierErrors[keyof PostApiV1AdminSubscriptionTierErrors];
@@ -10084,6 +10120,64 @@ export type PatchApiV1UserOauthGrantsByIdResponses = {
 };
 
 export type PatchApiV1UserOauthGrantsByIdResponse = PatchApiV1UserOauthGrantsByIdResponses[keyof PatchApiV1UserOauthGrantsByIdResponses];
+
+export type PostApiV1UtilityChatCompletionsData = {
+    /**
+     * Chat completion request
+     */
+    body: LlmapiChatCompletionRequest;
+    headers?: {
+        /**
+         * Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
+         */
+        'X-Stream-Resumable'?: string;
+        /**
+         * Set to 'openai' to receive standard OpenAI chat.completion.chunk streaming instead of the native response envelope
+         */
+        'X-Anuma-Stream-Format'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/utility/chat/completions';
+};
+
+export type PostApiV1UtilityChatCompletionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Insufficient balance or spending cap exceeded
+     */
+    402: ResponseInsufficientBalanceResponse;
+    /**
+     * Model not available on current subscription tier
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Input exceeds model context window
+     */
+    413: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1UtilityChatCompletionsError = PostApiV1UtilityChatCompletionsErrors[keyof PostApiV1UtilityChatCompletionsErrors];
+
+export type PostApiV1UtilityChatCompletionsResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiChatCompletionResponse | string;
+};
+
+export type PostApiV1UtilityChatCompletionsResponse = PostApiV1UtilityChatCompletionsResponses[keyof PostApiV1UtilityChatCompletionsResponses];
 
 export type PostApiV1UtilityResponsesData = {
     /**

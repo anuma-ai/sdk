@@ -2,4 +2,4 @@
 
 > **PostApiV1PreprocessorsStockPricesResponse** = [`PostApiV1PreprocessorsStockPricesResponses`](PostApiV1PreprocessorsStockPricesResponses.md)\[keyof [`PostApiV1PreprocessorsStockPricesResponses`](PostApiV1PreprocessorsStockPricesResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8953](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8953)
+Defined in: [src/client/types.gen.ts:8989](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8989)

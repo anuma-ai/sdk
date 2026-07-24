@@ -36,11 +36,23 @@ Total credits ever received (1 credit = $0.01)
 
 ***
 
+### next\_reset\_date?
+
+> `optional` **next\_reset\_date**: `string`
+
+Defined in: [src/client/types.gen.ts:1874](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1874)
+
+NextResetDate is the next monthly credit refill date (ISO8601), keyed on the
+credit\_expiry\_day anchor — the same anchor the monthly claim uses, NOT the grant
+expires\_at (which is anchor+1). Display-only; does not affect reset logic.
+
+***
+
 ### subscription\_tier
 
 > **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:1872](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1872)
+Defined in: [src/client/types.gen.ts:1878](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1878)
 
 "basic" or "pro"
 
@@ -50,7 +62,7 @@ Defined in: [src/client/types.gen.ts:1872](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **total\_tokens\_redeemed**: `string`
 
-Defined in: [src/client/types.gen.ts:1876](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1876)
+Defined in: [src/client/types.gen.ts:1882](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1882)
 
 Sum of on-chain token amounts redeemed (raw units, format with token decimals)
 
@@ -60,4 +72,4 @@ Sum of on-chain token amounts redeemed (raw units, format with token decimals)
 
 > **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:1877](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1877)
+Defined in: [src/client/types.gen.ts:1883](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1883)

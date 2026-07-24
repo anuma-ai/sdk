@@ -2,4 +2,4 @@
 
 > **PutApiV1AdminBotConfigResponse** = [`PutApiV1AdminBotConfigResponses`](PutApiV1AdminBotConfigResponses.md)\[keyof [`PutApiV1AdminBotConfigResponses`](PutApiV1AdminBotConfigResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5061](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5061)
+Defined in: [src/client/types.gen.ts:5081](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5081)

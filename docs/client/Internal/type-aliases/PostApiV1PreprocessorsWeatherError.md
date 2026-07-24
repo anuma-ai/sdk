@@ -2,4 +2,4 @@
 
 > **PostApiV1PreprocessorsWeatherError** = [`PostApiV1PreprocessorsWeatherErrors`](PostApiV1PreprocessorsWeatherErrors.md)\[keyof [`PostApiV1PreprocessorsWeatherErrors`](PostApiV1PreprocessorsWeatherErrors.md)]
 
-Defined in: [src/client/types.gen.ts:8984](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8984)
+Defined in: [src/client/types.gen.ts:9020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9020)

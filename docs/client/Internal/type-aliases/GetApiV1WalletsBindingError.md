@@ -2,4 +2,4 @@
 
 > **GetApiV1WalletsBindingError** = [`GetApiV1WalletsBindingErrors`](GetApiV1WalletsBindingErrors.md)\[keyof [`GetApiV1WalletsBindingErrors`](GetApiV1WalletsBindingErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10156](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10156)
+Defined in: [src/client/types.gen.ts:10250](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10250)

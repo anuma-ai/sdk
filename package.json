@@ -155,7 +155,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260723012206",
+    "@anuma/portal": "1.0.0-next.20260724050535",
     "@babel/parser": "^7.29.2",
     "@babel/types": "^7.29.0",
     "ai": "6.0.202",

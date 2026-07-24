@@ -2,7 +2,7 @@
 
 > **PostOauthConsentResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10777)
+Defined in: [src/client/types.gen.ts:10871](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10871)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10777](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersConsentApproveResponse`](HandlersConsentApproveResponse.md)
 
-Defined in: [src/client/types.gen.ts:10781](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10781)
+Defined in: [src/client/types.gen.ts:10875](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10875)
 
 Approve response when Accept: application/json (deny returns ConsentDenyResponse)

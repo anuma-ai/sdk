@@ -2,4 +2,4 @@
 
 > **DeleteApiV1AccountError** = [`DeleteApiV1AccountErrors`](DeleteApiV1AccountErrors.md)\[keyof [`DeleteApiV1AccountErrors`](DeleteApiV1AccountErrors.md)]
 
-Defined in: [src/client/types.gen.ts:4327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4327)
+Defined in: [src/client/types.gen.ts:4347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4347)

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionAssistantMessageParamAudio** = `object`
 
-Defined in: [src/client/types.gen.ts:3306](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3306)
+Defined in: [src/client/types.gen.ts:3326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3326)
 
 Data about a previous audio response from the model.
 [Learn more](https://platform.openai.com/docs/guides/audio).
@@ -13,7 +13,7 @@ Data about a previous audio response from the model.
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3307](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3307)
+Defined in: [src/client/types.gen.ts:3327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3327)
 
 ***
 
@@ -21,6 +21,6 @@ Defined in: [src/client/types.gen.ts:3307](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:3311](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3311)
+Defined in: [src/client/types.gen.ts:3331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3331)
 
 Unique identifier for a previous audio response from the model.

@@ -2,7 +2,7 @@
 
 > **PostInternalModerateResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10638](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10638)
+Defined in: [src/client/types.gen.ts:10732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10732)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10638](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersModerateResponse`](HandlersModerateResponse.md)
 
-Defined in: [src/client/types.gen.ts:10642](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10642)
+Defined in: [src/client/types.gen.ts:10736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10736)
 
 OK

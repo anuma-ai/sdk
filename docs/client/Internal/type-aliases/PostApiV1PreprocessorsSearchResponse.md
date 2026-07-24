@@ -2,4 +2,4 @@
 
 > **PostApiV1PreprocessorsSearchResponse** = [`PostApiV1PreprocessorsSearchResponses`](PostApiV1PreprocessorsSearchResponses.md)\[keyof [`PostApiV1PreprocessorsSearchResponses`](PostApiV1PreprocessorsSearchResponses.md)]
 
-Defined in: [src/client/types.gen.ts:8913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8913)
+Defined in: [src/client/types.gen.ts:8949](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8949)

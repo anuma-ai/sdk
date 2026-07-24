@@ -2,7 +2,7 @@
 
 > **postApiV1UtilityResponses**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1UtilityResponsesData`](../type-aliases/PostApiV1UtilityResponsesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1UtilityResponsesResponses`](../type-aliases/PostApiV1UtilityResponsesResponses.md), [`PostApiV1UtilityResponsesErrors`](../type-aliases/PostApiV1UtilityResponsesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1436](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1436)
+Defined in: [src/client/sdk.gen.ts:1450](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1450)
 
 Create utility response
 

@@ -1022,6 +1022,11 @@
 | [PostApiV1UserApiKeysErrors](Internal/type-aliases/PostApiV1UserApiKeysErrors.md) | - |
 | [PostApiV1UserApiKeysResponse](Internal/type-aliases/PostApiV1UserApiKeysResponse.md) | - |
 | [PostApiV1UserApiKeysResponses](Internal/type-aliases/PostApiV1UserApiKeysResponses.md) | - |
+| [PostApiV1UtilityChatCompletionsData](Internal/type-aliases/PostApiV1UtilityChatCompletionsData.md) | - |
+| [PostApiV1UtilityChatCompletionsError](Internal/type-aliases/PostApiV1UtilityChatCompletionsError.md) | - |
+| [PostApiV1UtilityChatCompletionsErrors](Internal/type-aliases/PostApiV1UtilityChatCompletionsErrors.md) | - |
+| [PostApiV1UtilityChatCompletionsResponse](Internal/type-aliases/PostApiV1UtilityChatCompletionsResponse.md) | - |
+| [PostApiV1UtilityChatCompletionsResponses](Internal/type-aliases/PostApiV1UtilityChatCompletionsResponses.md) | - |
 | [PostApiV1UtilityResponsesData](Internal/type-aliases/PostApiV1UtilityResponsesData.md) | - |
 | [PostApiV1UtilityResponsesError](Internal/type-aliases/PostApiV1UtilityResponsesError.md) | - |
 | [PostApiV1UtilityResponsesErrors](Internal/type-aliases/PostApiV1UtilityResponsesErrors.md) | - |
@@ -1289,6 +1294,7 @@
 | [postApiV1SubscriptionsWebhook](Internal/functions/postApiV1SubscriptionsWebhook.md) | Handle Stripe webhook |
 | [postApiV1UserAgentConsents](Internal/functions/postApiV1UserAgentConsents.md) | Create per-platform agent consent |
 | [postApiV1UserApiKeys](Internal/functions/postApiV1UserApiKeys.md) | Create user API key |
+| [postApiV1UtilityChatCompletions](Internal/functions/postApiV1UtilityChatCompletions.md) | Utility chat completions (internal) |
 | [postApiV1UtilityResponses](Internal/functions/postApiV1UtilityResponses.md) | Create utility response |
 | [postApiV1WalletsBinding](Internal/functions/postApiV1WalletsBinding.md) | Bind a wallet |
 | [postApiV1WalletsBindingNonce](Internal/functions/postApiV1WalletsBindingNonce.md) | Issue a wallet-binding nonce |

@@ -2,4 +2,4 @@
 
 > **DeleteApiV1SharesBySlugResponse** = [`DeleteApiV1SharesBySlugResponses`](DeleteApiV1SharesBySlugResponses.md)\[keyof [`DeleteApiV1SharesBySlugResponses`](DeleteApiV1SharesBySlugResponses.md)]
 
-Defined in: [src/client/types.gen.ts:9142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9142)
+Defined in: [src/client/types.gen.ts:9178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9178)
