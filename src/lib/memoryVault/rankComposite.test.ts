@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import * as bm25 from "./bm25.js";
 import { rankComposite } from "./searchTool.js";
 
 const NOW = new Date("2026-05-04T12:00:00Z");
@@ -98,5 +99,38 @@ describe("rankComposite", () => {
       recency: { now: NOW },
     });
     expect(withoutTail.find((r) => r.uniqueId === "orphan")).toBeUndefined();
+  });
+
+  it("tokenizes the BM25 corpus once and reuses it across every facet pass (B3)", async () => {
+    const prepareSpy = vi.spyOn(bm25, "prepareBM25Corpus");
+    const preparedSpy = vi.spyOn(bm25, "scoreBM25Prepared");
+    const rawSpy = vi.spyOn(bm25, "scoreBM25");
+
+    const items = [
+      { id: "A", content: "alpha beta gamma", embedding: emb({ 0: 1 }), updatedAt: NOW },
+      { id: "B", content: "beta gamma delta", embedding: emb({ 1: 1 }), updatedAt: NOW },
+      { id: "C", content: "gamma delta epsilon", embedding: emb({ 2: 1 }), updatedAt: NOW },
+    ];
+    const subQueries = [
+      { query: "alpha", embedding: emb({ 0: 1 }) },
+      { query: "delta", embedding: emb({ 2: 1 }) },
+    ];
+
+    await rankComposite("beta gamma", emb({ 0: 1 }), subQueries, items, {
+      limit: 3,
+      perFacetTopN: 5,
+      recency: { now: NOW },
+    });
+
+    // Corpus prepared exactly once for the whole composite recall...
+    expect(prepareSpy).toHaveBeenCalledTimes(1);
+    // ...and reused for every facet pass: the original query + each sub-query.
+    expect(preparedSpy).toHaveBeenCalledTimes(1 + subQueries.length);
+    // The whole-corpus-tokenizing wrapper is never hit on the composite path.
+    expect(rawSpy).not.toHaveBeenCalled();
+
+    prepareSpy.mockRestore();
+    preparedSpy.mockRestore();
+    rawSpy.mockRestore();
   });
 });

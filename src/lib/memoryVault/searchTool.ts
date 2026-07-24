@@ -24,7 +24,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
-import { scoreBM25 } from "./bm25";
+import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
 import { decomposeQuery } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
@@ -503,6 +503,13 @@ export function rankFusedVaultMemories(
      * ignored (treated as 1.0) so a bad weight can't zero out a lane.
      */
     factTypeWeights?: Record<string, number>;
+    /**
+     * B3 — a BM25 corpus tokenized once (via {@link prepareBM25Corpus}) and shared across
+     * multiple facet passes over the SAME `items` (composite recall). When provided, the
+     * whole-corpus re-tokenization inside this call is skipped. MUST have been prepared from
+     * the same `items` passed here. Omit for single-pass callers (behavior unchanged).
+     */
+    preparedBM25Corpus?: PreparedBM25Corpus;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
@@ -527,11 +534,14 @@ export function rankFusedVaultMemories(
   });
   const baseIds = new Set(baseRanked.map((r) => r.uniqueId));
 
-  // Stage 2 — BM25 admission for items not in the cosine ranking.
-  const bm25Scores = scoreBM25(
-    query,
-    items.map((i) => ({ id: i.id, content: i.content }))
-  );
+  // Stage 2 — BM25 admission for items not in the cosine ranking. Reuse a prepared corpus
+  // (B3) when the caller shares one across facet passes; otherwise tokenize inline as before.
+  const bm25Scores = options?.preparedBM25Corpus
+    ? scoreBM25Prepared(query, options.preparedBM25Corpus)
+    : scoreBM25(
+        query,
+        items.map((i) => ({ id: i.id, content: i.content }))
+      );
   const itemById = new Map(items.map((i) => [i.id, i]));
   const admitted: VaultSearchResult[] = [];
   for (const item of items) {
@@ -1042,8 +1052,16 @@ export async function rankComposite(
   const perFacetTopN = options?.perFacetTopN ?? 10;
   if (items.length === 0 || subQueries.length === 0) return [];
 
+  // B3 — every facet pass below ranks the SAME `items` with a different query, and each pass's
+  // BM25 stage would otherwise re-tokenize the whole corpus. Tokenize once here and share it
+  // across all passes via facetTuning (exact: scores are unchanged, just not recomputed).
+  const preparedBM25Corpus = prepareBM25Corpus(
+    items.map((i) => ({ id: i.id, content: i.content }))
+  );
+
   // Shared tuning knobs forwarded to every per-facet ranking call.
   const facetTuning = {
+    preparedBM25Corpus,
     ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
     ...(options?.recency && { recency: options.recency }),
     ...(options?.supersessionBoost !== undefined && {
