@@ -67,6 +67,19 @@ describe("extractEntitiesForMemories", () => {
     expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
   });
 
+  // Regression guard: the portal reads only `max_completion_tokens`; the
+  // deprecated `max_tokens` is silently ignored and truncates a verbose batch
+  // mid-JSON, dropping it. The batch request must carry the modern field.
+  it("sends max_completion_tokens (never the deprecated max_tokens)", async () => {
+    const fetchFn = mockFetch(topicResponse([{ id: "mem_1", entities: [] }]));
+    await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], { apiKey: "k", fetchFn });
+    const body = JSON.parse(
+      (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string
+    ) as Record<string, unknown>;
+    expect(body.max_completion_tokens).toBe(8192);
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
   it("parses entities per memory; omitted ids stay ABSENT (unanswered)", async () => {
     const fetchFn = mockFetch(
       topicResponse([
@@ -117,7 +130,7 @@ describe("extractEntitiesForMemories", () => {
         messages: Array<{ role: string; content: string }>;
       };
       const userMessage = body.messages.find((m) => m.role === "user")!.content;
-      const ids = [...userMessage.matchAll(/\[(mem_\d+)\]/g)].map((m) => m[1]);
+      const ids = [...userMessage.matchAll(/^(mem_\d+): /gm)].map((m) => m[1]);
       return {
         ok: true,
         json: async () => ({
