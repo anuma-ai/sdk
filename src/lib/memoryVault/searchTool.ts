@@ -1254,7 +1254,14 @@ export async function buildProjectedCorpus(
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   queryOpts: { scopes?: string[]; folderId?: string | null },
-  opts: { limit: number; admitFactor: number; admitFloor: number; unembeddedCap: number }
+  opts: {
+    limit: number;
+    admitFactor: number;
+    admitFloor: number;
+    unembeddedCap: number;
+    entityRanking?: string[];
+    temporalRanking?: string[];
+  }
 ): Promise<{
   memories: StoredVaultMemory[];
   embeddedItems: EmbeddedItem[];
@@ -1337,7 +1344,14 @@ export async function buildProjectedCorpus(
   }
 
   const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
-  const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
+  const cosineAdmittedIds = admitVaultProjections(queryEmbedding, vectored, k);
+  // Union entity and temporal side-lane IDs into the decrypt set so fusion
+  // can admit them even when they fall outside the cosine window (bug fix:
+  // side lanes exist specifically to surface cosine misses).
+  const sideLaneIds = new Set<string>();
+  if (opts.entityRanking) for (const id of opts.entityRanking) sideLaneIds.add(id);
+  if (opts.temporalRanking) for (const id of opts.temporalRanking) sideLaneIds.add(id);
+  const admittedIds = [...new Set([...cosineAdmittedIds, ...sideLaneIds])];
   const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, admittedIds);
   const memories = admittedRows.filter((m) => !isEncrypted(m.content));
   // Parity with the legacy path's key-unavailable diagnostic: warn when an
@@ -1433,6 +1447,8 @@ export async function searchVaultMemoriesWithSize(
       admitFactor: ADMIT_FACTOR,
       admitFloor: ADMIT_FLOOR,
       unembeddedCap: UNEMBEDDED_CAP,
+      entityRanking: searchOptions.entityRanking,
+      temporalRanking: searchOptions.temporalRanking,
     });
     if (corpus.vaultSize === 0) {
       return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
