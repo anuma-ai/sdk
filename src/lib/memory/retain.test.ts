@@ -842,7 +842,7 @@ describe("retain — write-time supersession (A2)", () => {
     expect(vi.mocked(supersedeVaultMemoryOp).mock.calls.map((c) => c[1])).toEqual(["d2", "d3"]);
   });
 
-  it("multi-supersede: primary race-loss still retires the remaining stale ids", async () => {
+  it("multi-supersede: primary race-loss falls through to a plain create (no forced retires)", async () => {
     vi.mocked(searchVaultMemories).mockResolvedValueOnce([
       { uniqueId: "d1", content: "Prefers dark mode a", similarity: 0.86 } as never,
       { uniqueId: "d2", content: "Prefers dark mode b", similarity: 0.84 } as never,
@@ -855,18 +855,19 @@ describe("retain — write-time supersession (A2)", () => {
     });
     vi.mocked(getVaultMemoryOp).mockResolvedValue({ uniqueId: "x" } as never);
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
-    // Atomic op loses the race on the primary (d1 already retired) → plain create,
-    // then retire the whole set against the new id. d1 is gone (false); d2 succeeds.
+    // Atomic op loses the race on the primary (a concurrent supersede already
+    // retired d1). We must NOT force-retire the rest against a brand-new
+    // successor (that would create a second live successor competing with the
+    // concurrent winner) — fall through to a plain create and self-reconcile.
     vi.mocked(createSupersedingMemoryOp).mockResolvedValue({ created: null, retired: false });
     vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "light" } as never);
-    vi.mocked(supersedeVaultMemoryOp).mockImplementation(async (_ctx, id) => id === "d2");
 
     const result = await retain("Prefers light mode", ctx, { consolidateOptions });
 
-    // At least one stale row (d2) was retired → still a supersede, NOT a bare create.
-    expect(result).toMatchObject({ action: "supersede", memoryId: "light" });
+    expect(result).toMatchObject({ action: "create", memoryId: "light" });
     expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(supersedeVaultMemoryOp).mock.calls.map((c) => c[1])).toEqual(["d1", "d2"]);
+    // No forced secondary retires on the race-loss path.
+    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
   it("falls through to plain create when the target is already superseded", async () => {

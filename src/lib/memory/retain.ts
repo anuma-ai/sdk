@@ -22,7 +22,6 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
-import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
@@ -262,57 +261,38 @@ export async function retain(
   // reconciles at the next consolidation / strict cosine merge.
   if (supersedeTargetIds.length > 0) {
     const [primaryTargetId, ...restTargetIds] = supersedeTargetIds;
-    // Prefer the atomic create+retire for the primary target (no orphaned
-    // successor window under concurrency). If it loses the race (primary
-    // already retired/deleted), still persist the fact with a plain create so
-    // we can retire the REMAINING stale ids against it — a primary race must
-    // not strand the other duplicates.
-    const atomic = await createSupersedingMemoryOp(ctx.vaultCtx, createOpts, primaryTargetId);
-    const primaryRetired = !!(atomic.created && atomic.retired);
-    const supersedeCreated = primaryRetired
-      ? atomic.created!
-      : await createVaultMemoryOp(ctx.vaultCtx, createOpts);
-    ctx.vaultCache.set(supersedeCreated.uniqueId, Float32Array.from(embedding));
-
-    // Retire every stale id not already retired by the atomic op, pointing it
-    // at the new memory. When the atomic op succeeded the primary is done, so
-    // only the rest remain; when it lost the race we retry the whole set (an
-    // already-gone id just returns false, harmless).
-    const toRetire = primaryRetired ? restTargetIds : supersedeTargetIds;
-    let retiredCount = primaryRetired ? 1 : 0;
-    const failed: string[] = [];
-    for (const staleId of toRetire) {
-      let ok = false;
-      try {
-        ok =
-          (await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, supersedeCreated.uniqueId)) === true;
-      } catch {
-        // retire failed → `ok` stays false; counted as a failed retire below.
+    // Create the new fact AND retire the primary stale row atomically, so a
+    // concurrent supersession of the same attribute can't interleave and leave
+    // an orphaned successor.
+    const { created, retired } = await createSupersedingMemoryOp(
+      ctx.vaultCtx,
+      createOpts,
+      primaryTargetId
+    );
+    if (created && retired) {
+      ctx.vaultCache.set(created.uniqueId, Float32Array.from(embedding));
+      // Retire the remaining stale duplicates against the new memory. Purely
+      // best-effort: `supersedeVaultMemoryOp` returns false for a row that is
+      // already gone/retired (a concurrent winner beat us, or the user deleted
+      // it) — that is the DESIRED end state, not a failure, so we don't retry,
+      // alarm, or block on it. Any true leftover self-reconciles at the next
+      // consolidation.
+      for (const staleId of restTargetIds) {
+        await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, created.uniqueId).catch(() => {});
       }
-      if (ok) retiredCount += 1;
-      else failed.push(staleId);
+      return {
+        action: "supersede",
+        memoryId: created.uniqueId,
+        targetId: primaryTargetId,
+        proofCount: 1,
+      };
     }
-    // Best-effort by design (failed rows self-reconcile at the next
-    // consolidation), but a partial supersession must be diagnosable — surface
-    // it instead of silently reporting a clean supersede.
-    if (failed.length > 0) {
-      getLogger().warn("[memory/retain] partial supersession — some stale rows stayed live", {
-        newMemoryId: supersedeCreated.uniqueId,
-        retired: retiredCount,
-        failed: failed.length,
-      });
-    }
-    // If NOTHING was retired (e.g. a single primary that a concurrent supersede
-    // already retired), this is really a plain create — don't claim a supersede
-    // that didn't happen.
-    return retiredCount > 0
-      ? {
-          action: "supersede",
-          memoryId: supersedeCreated.uniqueId,
-          targetId: primaryTargetId,
-          proofCount: 1,
-        }
-      : { action: "create", memoryId: supersedeCreated.uniqueId, proofCount: 1 };
+    // Primary lost the race (already retired/deleted by a concurrent
+    // supersession). Do NOT force-retire the remaining ids against a brand-new
+    // successor — that would create a second live successor competing with the
+    // concurrent winner. Fall through to the plain create/merge path below; the
+    // rare leftover duplicate self-reconciles at the next consolidation (same
+    // fall-through the single-target A2 path uses).
   }
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);
