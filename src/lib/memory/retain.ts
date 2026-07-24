@@ -298,7 +298,13 @@ export async function retain(
       if (liveLeftovers.length > 0) {
         getLogger().warn(
           "[memory/retain] supersede left duplicate row(s) live — will reconcile at next consolidation",
-          { newMemoryId: created.uniqueId, leftover: liveLeftovers.length }
+          {
+            newMemoryId: created.uniqueId,
+            leftover: liveLeftovers.length,
+            // Log the specific ids (opaque record ids, not content) so an
+            // operator can identify exactly which rows are still active.
+            leftoverIds: liveLeftovers,
+          }
         );
       }
       return {
