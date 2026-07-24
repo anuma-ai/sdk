@@ -22,12 +22,12 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
+import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
 import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
-import { getLogger } from "../logger.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
@@ -287,7 +287,7 @@ export async function retain(
         ok =
           (await supersedeVaultMemoryOp(ctx.vaultCtx, staleId, supersedeCreated.uniqueId)) === true;
       } catch {
-        ok = false;
+        // retire failed → `ok` stays false; counted as a failed retire below.
       }
       if (ok) retiredCount += 1;
       else failed.push(staleId);

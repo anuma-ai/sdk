@@ -320,8 +320,8 @@ function validate(
     // neither shape is lost — a model may emit `targetIds: []` alongside a valid
     // `targetId`, or the old single-`targetId` shape with no array at all. Keep
     // only valid, unique ids.
-    const rawIds = [
-      ...(Array.isArray(obj.targetIds) ? obj.targetIds : []),
+    const rawIds: unknown[] = [
+      ...(Array.isArray(obj.targetIds) ? (obj.targetIds as unknown[]) : []),
       ...(typeof obj.targetId === "string" ? [obj.targetId] : []),
     ];
     const targetIds = [
