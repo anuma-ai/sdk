@@ -2,7 +2,7 @@
 
 > `const` **TOPICS\_EXTRACTION\_VERSION**: `2` = `2`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1235](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1235)
+Defined in: [src/lib/db/memoryVault/operations.ts:1237](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1237)
 
 The current topic-extraction logic version. Bump this whenever the extraction
 prompt or model in `topicExtract.ts` changes: every memory stamped under an

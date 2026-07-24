@@ -2,7 +2,7 @@
 
 > **getVaultEmbeddingsByIdsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `ids`: `string`\[]): `Promise`<`object`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:764](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#764)
+Defined in: [src/lib/db/memoryVault/operations.ts:766](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#766)
 
 Column-projected embedding lookup for a KNOWN set of ids — id + embedding +
 embedding\_model, NO content. Used to backfill cache-miss vectors during
