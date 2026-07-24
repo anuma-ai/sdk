@@ -14,6 +14,9 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
   updateVaultMemoryEmbeddingOp: vi.fn().mockResolvedValue(undefined),
+  // B2 — the useFusion:false path defers content decrypt and decrypts cache-miss rows (and
+  // top-K survivors) on demand. Test content is already plaintext, so identity is correct.
+  decryptVaultMemoryOp: vi.fn(async (_ctx, memory) => memory),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -26,7 +29,7 @@ vi.mock("../memory/reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
+import { decryptVaultMemoryOp, getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { rerankPairs } from "../memory/reranker";
 import { setLogger, noopLogger, type Logger } from "../logger";
@@ -858,5 +861,143 @@ describe("embedding model versioning", () => {
     );
     expect(results).toHaveLength(1);
     expect(results[0].similarity).toBeCloseTo(1);
+  });
+});
+
+describe("B2 — useFusion:false defer content decrypt", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Simulate a row that arrived with content-decrypt deferred: the DB still holds the
+  // enc:vN: payload because getAllVaultMemoriesOp(deferContentDecrypt) skipped the decrypt.
+  // isEncrypted requires a ≥56-char hex payload; the decrypt mock keys off uniqueId so the
+  // exact ciphertext can be shared across rows.
+  const cipher = () => `enc:v3:${"ab".repeat(28)}`;
+
+  it("requests deferred decrypt ONLY on the useFusion:false path", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "cats")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0]));
+
+    await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: false,
+    });
+    expect(vi.mocked(getAllVaultMemoriesOp).mock.calls[0][1]).toMatchObject({
+      deferContentDecrypt: true,
+    });
+
+    vi.clearAllMocks();
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "cats")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    cache.set("m1", new Float32Array([1, 0, 0]));
+
+    // useFusion:true (recall) must never defer — BM25 tokenizes every row's content.
+    await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+      useFusion: true,
+    });
+    expect(vi.mocked(getAllVaultMemoriesOp).mock.calls[0][1]?.deferContentDecrypt).toBeUndefined();
+  });
+
+  it("decrypts only the top-K survivors on a warm cache (zero for non-survivors)", async () => {
+    const memories = [
+      makeMemory("m1", cipher()),
+      makeMemory("m2", cipher()),
+      makeMemory("m3", cipher()),
+    ];
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(decryptVaultMemoryOp).mockImplementation(async (_ctx, m) => ({
+      ...m,
+      content: `plain-${m.uniqueId}`,
+    }));
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0])); // cos 1.0 → the one survivor
+    cache.set("m2", new Float32Array([0.5, 0.5, 0]));
+    cache.set("m3", new Float32Array([0, 1, 0])); // cos 0
+
+    const results = await searchVaultMemories("q", mockVaultCtx, mockEmbeddingOptions, cache, {
+      limit: 1,
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    // All vectors warm → no re-embed; exactly one decrypt (the single survivor), not the vault.
+    expect(vi.mocked(generateEmbeddings)).not.toHaveBeenCalled();
+    expect(vi.mocked(decryptVaultMemoryOp)).toHaveBeenCalledTimes(1);
+    expect(results).toHaveLength(1);
+    expect(results[0].uniqueId).toBe("m1");
+    expect(results[0].content).toBe("plain-m1");
+  });
+
+  it("drops a survivor whose content is still encrypted after pass-2 decrypt", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", cipher())]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    // Key vanished mid-call: decrypt returns the still-ciphertext content.
+    vi.mocked(decryptVaultMemoryOp).mockImplementation(async (_ctx, m) => m);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0]));
+
+    const results = await searchVaultMemories("q", mockVaultCtx, mockEmbeddingOptions, cache, {
+      limit: 5,
+      minSimilarity: 0,
+      useFusion: false,
+    });
+    expect(results).toHaveLength(0);
+  });
+
+  it("re-embeds a cache-miss row from its decrypted content", async () => {
+    // Miss path: content arrives ciphertext, must be decrypted to re-embed.
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", cipher())]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+    vi.mocked(decryptVaultMemoryOp).mockImplementation(async (_ctx, m) => ({
+      ...m,
+      content: "the real fact",
+    }));
+
+    const cache = createVaultEmbeddingCache(); // cold
+
+    const results = await searchVaultMemories("q", mockVaultCtx, mockEmbeddingOptions, cache, {
+      limit: 5,
+      minSimilarity: 0,
+      useFusion: false,
+    });
+
+    // Re-embed used the DECRYPTED text, not the ciphertext.
+    expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledWith(
+      ["the real fact"],
+      mockEmbeddingOptions
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].content).toBe("the real fact");
+  });
+
+  it("reports vaultSize from existing rows even when all are still encrypted (defer path)", async () => {
+    // The decrypt mock returns the row unchanged → content stays ciphertext → every row is
+    // excluded, but vaultSize must still reflect the rows that EXIST (else callers read it as
+    // "empty vault" and invite duplicate saves).
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", cipher()),
+      makeMemory("m2", cipher()),
+    ]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(decryptVaultMemoryOp).mockImplementation(async (_ctx, m) => m);
+
+    const { results, vaultSize } = await searchVaultMemoriesWithSize(
+      "q",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      createVaultEmbeddingCache(),
+      { minSimilarity: 0, useFusion: false }
+    );
+
+    expect(results).toHaveLength(0);
+    expect(vaultSize).toBe(2);
   });
 });
