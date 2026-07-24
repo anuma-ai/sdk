@@ -1254,7 +1254,19 @@ export async function buildProjectedCorpus(
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   queryOpts: { scopes?: string[]; folderId?: string | null },
-  opts: { limit: number; admitFactor: number; admitFloor: number; unembeddedCap: number }
+  opts: {
+    limit: number;
+    admitFactor: number;
+    admitFloor: number;
+    unembeddedCap: number;
+    /**
+     * Side-lane candidate ids (graph/temporal) that must be decrypted even
+     * when their cosine falls outside the admission window — otherwise those
+     * lanes can never surface a cosine miss (their whole point). Only ids that
+     * are real, in-scope candidate rows (present in the key scan) are honored.
+     */
+    forceIncludeIds?: string[];
+  }
 ): Promise<{
   memories: StoredVaultMemory[];
   embeddedItems: EmbeddedItem[];
@@ -1266,6 +1278,11 @@ export async function buildProjectedCorpus(
     Object.keys(queryOpts).length > 0 ? queryOpts : undefined
   );
   const vaultSize = keys.length;
+  // Empty vault: nothing to rank. Return before embedding the query so an
+  // empty vault costs zero embedding calls.
+  if (keys.length === 0) {
+    return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
+  }
   const queryEmbedding = await generateEmbedding(query, embeddingOptions);
   const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
@@ -1338,7 +1355,17 @@ export async function buildProjectedCorpus(
 
   const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
   const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
-  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, admittedIds);
+  // Union in side-lane candidates whose cosine fell outside the window so the
+  // graph/temporal lanes can still admit them. Intersect against keyById so
+  // only real, in-scope rows are decrypted (drop ids from another scope/folder
+  // or that no longer exist). Set dedups against admittedIds.
+  const admissionSet = new Set(admittedIds);
+  if (opts.forceIncludeIds) {
+    for (const id of opts.forceIncludeIds) {
+      if (keyById.has(id)) admissionSet.add(id);
+    }
+  }
+  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet]);
   const memories = admittedRows.filter((m) => !isEncrypted(m.content));
   // Parity with the legacy path's key-unavailable diagnostic: warn when an
   // admitted row's content is still encrypted (decryption degraded) so the
@@ -1428,16 +1455,32 @@ export async function searchVaultMemoriesWithSize(
   let vaultSize: number;
 
   if (searchOptions?.decryptLast) {
+    // Side-lane candidate ids (graph W5 + temporal W6) forwarded by recall().
+    // Both option fields are id-only rankings (memory uniqueIds), so they map
+    // straight through as forced-decrypt ids — buildProjectedCorpus intersects
+    // them against the in-scope candidate set before decrypting.
+    const forceIncludeIds = [
+      ...(searchOptions.entityRanking ?? []),
+      ...(searchOptions.temporalRanking ?? []),
+    ];
     const corpus = await buildProjectedCorpus(query, vaultCtx, embeddingOptions, cache, queryOpts, {
       limit,
       admitFactor: ADMIT_FACTOR,
       admitFloor: ADMIT_FLOOR,
       unembeddedCap: UNEMBEDDED_CAP,
+      ...(forceIncludeIds.length > 0 && { forceIncludeIds }),
     });
     if (corpus.vaultSize === 0) {
       return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
+    // Keys exist but nothing decrypted (e.g. every admitted row still
+    // encrypted). Mirror the legacy path's memories.length === 0 guard so we
+    // don't fall through into decompose/LLM ranking on an empty head. Report
+    // the real vaultSize so callers don't mistake this for an empty vault.
+    if (memories.length === 0) {
+      return { results: [], vaultSize, reranked: false, hadV2Head: false };
+    }
   } else {
     const loaded = await getAllVaultMemoriesOp(
       vaultCtx,

@@ -31,11 +31,16 @@ vi.mock("../memory/reranker", async (importOriginal) => ({
   rerankPairs: vi.fn(),
 }));
 
+vi.mock("./decomposeQuery", () => ({
+  decomposeQuery: vi.fn(),
+}));
+
 import * as ops from "../db/memoryVault/operations";
 import * as embed from "../memoryEngine/embeddings";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { rerankPairs } from "../memory/reranker";
+import { decomposeQuery } from "./decomposeQuery";
 import { setLogger, noopLogger, type Logger } from "../logger";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 
@@ -976,6 +981,111 @@ describe("buildProjectedCorpus", () => {
     expect(out.vaultSize).toBe(2);
     expect(byIds.mock.calls[0][1]).toContain("cached"); // admission decrypt
   });
+
+  it("empty candidate set: returns empty WITHOUT embedding the query", async () => {
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([] as any);
+    const genEmb = vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const out = await buildProjectedCorpus("q", {} as any, embOpts, new Map(), {}, {
+      limit: 5,
+      admitFactor: 3,
+      admitFloor: 30,
+      unembeddedCap: 100,
+    });
+
+    // No candidate keys → nothing to search → skip the embedding call entirely.
+    expect(genEmb).not.toHaveBeenCalled();
+    expect(out).toEqual({ memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 });
+  });
+
+  it("forceIncludeIds: decrypts side-lane candidates outside the cosine admission window", async () => {
+    // "top" is cosine 1 (admitted at K=1); "sidehit" is cosine 0 (outside the
+    // window). A graph/temporal side lane names "sidehit" — it must still be
+    // decrypted so the RRF lane can promote it, mirroring the legacy path
+    // where every row is available to the ranker.
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      { uniqueId: "top", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      { uniqueId: "sidehit", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+    ] as any);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any); // both cached
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
+      async (_ctx: any, ids: string[]) =>
+        ids.map((id) => ({
+          uniqueId: id,
+          content: id,
+          embedding: null,
+          embeddingModel: "m",
+          scope: "private",
+          folderId: null,
+          userId: null,
+          isDeleted: false,
+          proofCount: 1,
+          sourceChunkIds: null,
+          eventTimeStart: null,
+          eventTimeEnd: null,
+          eventTimeKind: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })) as any
+    );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = new Map([
+      ["top", Float32Array.from([1, 0])], // cosine 1
+      ["sidehit", Float32Array.from([0, 1])], // cosine 0 — outside K=1 window
+    ]);
+    const out = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, {
+      limit: 1,
+      admitFactor: 1,
+      admitFloor: 1,
+      unembeddedCap: 100,
+      forceIncludeIds: ["sidehit"],
+    });
+
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    expect(decryptedIds).toContain("sidehit");
+    expect(out.memories.map((m) => m.uniqueId)).toContain("sidehit");
+  });
+
+  it("forceIncludeIds: ignores ids absent from the candidate-key set (out of scope)", async () => {
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      { uniqueId: "top", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+    ] as any);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
+      async (_ctx: any, ids: string[]) =>
+        ids.map((id) => ({
+          uniqueId: id,
+          content: id,
+          embedding: null,
+          embeddingModel: "m",
+          scope: "private",
+          folderId: null,
+          userId: null,
+          isDeleted: false,
+          proofCount: 1,
+          sourceChunkIds: null,
+          eventTimeStart: null,
+          eventTimeEnd: null,
+          eventTimeKind: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })) as any
+    );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = new Map([["top", Float32Array.from([1, 0])]]);
+    await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, {
+      limit: 1,
+      admitFactor: 1,
+      admitFloor: 1,
+      unembeddedCap: 100,
+      forceIncludeIds: ["ghost"], // not a candidate key
+    });
+
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    expect(decryptedIds).not.toContain("ghost");
+  });
 });
 
 describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
@@ -1124,5 +1234,106 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     );
     // Same top-N size too, not just a matching prefix.
     expect(decryptLastOut.results.length).toBe(legacyOut.results.length);
+  });
+
+  it("forwards entityRanking as forceIncludeIds so cosine-miss side-lane candidates are decrypted + surfaced", async () => {
+    // "top" (cosine 1) is admitted at K=1; "sidehit" (cosine 0) is outside the
+    // window. entityRanking names "sidehit" — recall's graph lane found it
+    // via entity overlap, not cosine. It must be decrypted and surfaced.
+    const rows = [
+      { uniqueId: "top", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      { uniqueId: "sidehit", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+    ];
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(rows as any);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
+      async (_ctx: any, ids: string[]) =>
+        ids.map((id) => ({
+          uniqueId: id,
+          content: id === "top" ? "cats are great" : "sidehit content",
+          embedding: null,
+          embeddingModel: "m",
+          scope: "private",
+          folderId: null,
+          userId: null,
+          isDeleted: false,
+          proofCount: 1,
+          sourceChunkIds: null,
+          eventTimeStart: null,
+          eventTimeEnd: null,
+          eventTimeKind: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })) as any
+    );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("top", Float32Array.from([1, 0]));
+    cache.set("sidehit", Float32Array.from([0, 1]));
+
+    const out = await searchVaultMemoriesWithSize("cats", {} as any, { model: "m" } as any, cache, {
+      limit: 5,
+      minSimilarity: 0,
+      decryptLast: true,
+      admitFactor: 0.2, // limit*0.2 = 1 → K=1, sidehit outside the window
+      admitFloor: 1,
+      entityRanking: ["sidehit"],
+    });
+
+    const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
+    expect(decryptedIds).toContain("sidehit");
+    expect(out.results.map((r) => r.uniqueId)).toContain("sidehit");
+  });
+
+  it("keys present but admission decrypt yields 0 rows → empty return, ranker/decompose skipped", async () => {
+    // vaultSize > 0 (keys exist) but every admitted row is still encrypted, so
+    // the searchable corpus is empty. Must early-return (like the legacy path)
+    // instead of falling through into decompose/LLM ranking on an empty head.
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      { uniqueId: "a", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      { uniqueId: "b", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+    ] as any);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
+      async (_ctx: any, ids: string[]) =>
+        ids.map((id) => ({
+          uniqueId: id,
+          // Still-encrypted content → filtered out of the corpus.
+          content: "enc:v3:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00",
+          embedding: null,
+          embeddingModel: "m",
+          scope: "private",
+          folderId: null,
+          userId: null,
+          isDeleted: false,
+          proofCount: 1,
+          sourceChunkIds: null,
+          eventTimeStart: null,
+          eventTimeEnd: null,
+          eventTimeKind: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })) as any
+    );
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("a", Float32Array.from([1, 0]));
+    cache.set("b", Float32Array.from([0, 1]));
+
+    const out = await searchVaultMemoriesWithSize("q", {} as any, { model: "m" } as any, cache, {
+      limit: 5,
+      decryptLast: true,
+      // If the corpus weren't empty-checked, this would drive decomposeQuery.
+      decompose: "llm",
+      decomposeOptions: { apiKey: "x" } as any,
+    });
+
+    expect(vi.mocked(decomposeQuery)).not.toHaveBeenCalled();
+    expect(out.results).toEqual([]);
+    expect(out.vaultSize).toBe(2);
+    expect(out.reranked).toBe(false);
+    expect(out.hadV2Head).toBe(false);
   });
 });
