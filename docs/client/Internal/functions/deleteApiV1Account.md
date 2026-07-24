@@ -1,8 +1,8 @@
 # deleteApiV1Account
 
-> **deleteApiV1Account**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AccountData`](../type-aliases/DeleteApiV1AccountData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AccountResponses`](../type-aliases/DeleteApiV1AccountResponses.md), [`DeleteApiV1AccountErrors`](../type-aliases/DeleteApiV1AccountErrors.md), `ThrowOnError`>
+> **deleteApiV1Account**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AccountData`](../type-aliases/DeleteApiV1AccountData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`DeleteApiV1AccountResponses`](../type-aliases/DeleteApiV1AccountResponses.md), [`DeleteApiV1AccountErrors`](../type-aliases/DeleteApiV1AccountErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#38)
+Defined in: [src/client/sdk.gen.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#33)
 
 Delete the authenticated user's account
 
@@ -51,7 +51,7 @@ Permanently deletes the user's account and all associated data. Cancels any acti
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`DeleteApiV1AccountData`](../type-aliases/DeleteApiV1AccountData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`DeleteApiV1AccountData`](../type-aliases/DeleteApiV1AccountData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

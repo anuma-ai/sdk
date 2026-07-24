@@ -2,7 +2,7 @@
 
 > **postApiV1AuthMfaVerify**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaVerifyData`](../type-aliases/PostApiV1AuthMfaVerifyData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AuthMfaVerifyResponses`](../type-aliases/PostApiV1AuthMfaVerifyResponses.md), [`PostApiV1AuthMfaVerifyErrors`](../type-aliases/PostApiV1AuthMfaVerifyErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:782](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#782)
+Defined in: [src/client/sdk.gen.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#572)
 
 Verify MFA at login
 

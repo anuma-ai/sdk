@@ -1,8 +1,8 @@
 # getApiV1CreditsPacks
 
-> **getApiV1CreditsPacks**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsPacksData`](../type-aliases/GetApiV1CreditsPacksData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1CreditsPacksResponses`](../type-aliases/GetApiV1CreditsPacksResponses.md), [`GetApiV1CreditsPacksErrors`](../type-aliases/GetApiV1CreditsPacksErrors.md), `ThrowOnError`>
+> **getApiV1CreditsPacks**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsPacksData`](../type-aliases/GetApiV1CreditsPacksData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1CreditsPacksResponses`](../type-aliases/GetApiV1CreditsPacksResponses.md), [`GetApiV1CreditsPacksErrors`](../type-aliases/GetApiV1CreditsPacksErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1018](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1018)
+Defined in: [src/client/sdk.gen.ts:747](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#747)
 
 List available credit packs
 
@@ -51,7 +51,7 @@ Returns available credit packs with prices fetched from Stripe.
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsPacksData`](../type-aliases/GetApiV1CreditsPacksData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsPacksData`](../type-aliases/GetApiV1CreditsPacksData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

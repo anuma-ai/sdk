@@ -83,7 +83,13 @@ export interface ExtractedMemory {
 // had pinned ~77% of cached entries to empty results. The version bump forces
 // those (and any other v1 entries written under the old behavior) to
 // re-extract instead of serving stale empties.
-const EXTRACTION_PROMPT_VERSION = "v2";
+//
+// v3 (2026-07): the extraction call now sends `max_completion_tokens` instead
+// of the deprecated `max_tokens`. The portal ignored the legacy field, so v2's
+// "6000" was silently clamped to the 4096 default; the cap is now actually
+// honored, changing extraction output. Bump forces v2 entries (written under
+// the effective-4096 behavior) to re-extract rather than serve stale results.
+const EXTRACTION_PROMPT_VERSION = "v3";
 const EXTRACTION_CACHE_SAVE_EVERY = 25;
 
 type CachedExtraction = Omit<ExtractedMemory, "sessionIndex" | "sessionId">;
@@ -124,19 +130,20 @@ async function persistExtractionCache(force = false): Promise<void> {
 
 // ── Embedding cache persistence ──
 
-async function loadEmbeddingCache(path: string): Promise<Map<string, number[]>> {
+async function loadEmbeddingCache(path: string): Promise<Map<string, Float32Array>> {
   try {
     await access(path);
     const data = await readFile(path, "utf-8");
     const entries: [string, number[]][] = JSON.parse(data);
     console.log(`Loaded ${entries.length} cached embeddings from disk`);
-    return new Map(entries);
+    // Convert number[] back to Float32Array to match the cache contract
+    return new Map(entries.map(([key, value]) => [key, Float32Array.from(value)]));
   } catch {
     return new Map();
   }
 }
 
-async function saveEmbeddingCache(path: string, cache: Map<string, number[]>): Promise<void> {
+async function saveEmbeddingCache(path: string, cache: Map<string, Float32Array>): Promise<void> {
   try {
     await mkdir(join(path, ".."), { recursive: true });
     // Stream entries one-by-one to avoid building a huge JSON string in memory.
@@ -146,7 +153,8 @@ async function saveEmbeddingCache(path: string, cache: Map<string, number[]>): P
     for (const [key, value] of cache) {
       if (!first) stream.write(",");
       first = false;
-      stream.write(JSON.stringify([key, value]));
+      // Convert Float32Array to number[] for JSON serialization
+      stream.write(JSON.stringify([key, Array.from(value)]));
     }
     stream.write("]");
     await new Promise<void>((resolve, reject) => {
@@ -430,7 +438,7 @@ export async function callChatCompletion(
         model: api.llmModel,
         messages,
         temperature: 0,
-        max_tokens: options?.maxTokens ?? 500,
+        max_completion_tokens: options?.maxTokens ?? 500,
       };
 
       if (options?.tools && options.tools.length > 0) {
@@ -535,7 +543,7 @@ Respond with ONLY "CORRECT" or "INCORRECT".`;
         model: api.llmModel,
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
-        max_tokens: 10,
+        max_completion_tokens: 10,
       }),
     });
 
@@ -668,7 +676,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           // and content comes back empty (finish_reason "length"). The
           // production SDK path sends no cap at all; 6000 keeps runaway-CoT
           // models (kimi) bounded while leaving reasoning room.
-          max_tokens: 6000,
+          max_completion_tokens: 6000,
         }),
       });
 

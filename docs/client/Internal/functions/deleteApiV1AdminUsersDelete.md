@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminUsersDelete**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminUsersDeleteData`](../type-aliases/DeleteApiV1AdminUsersDeleteData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminUsersDeleteResponses`](../type-aliases/DeleteApiV1AdminUsersDeleteResponses.md), [`DeleteApiV1AdminUsersDeleteErrors`](../type-aliases/DeleteApiV1AdminUsersDeleteErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:558](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#558)
+Defined in: [src/client/sdk.gen.ts:417](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#417)
 
 Delete user account (admin)
 

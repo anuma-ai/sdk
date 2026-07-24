@@ -3,12 +3,7 @@
 import { createSseClient } from '../core/serverSentEvents.gen';
 import type { HttpMethod } from '../core/types.gen';
 import { getValidRequestBody } from '../core/utils.gen';
-import type {
-  Client,
-  Config,
-  RequestOptions,
-  ResolvedRequestOptions,
-} from './types.gen';
+import type { Client, Config, RequestOptions, ResolvedRequestOptions } from './types.gen';
 import {
   buildUrl,
   createConfig,
@@ -34,26 +29,25 @@ export const createClient = (config: Config = {}): Client => {
     return getConfig();
   };
 
-  const interceptors = createInterceptors<
-    Response,
-    unknown,
-    ResolvedRequestOptions
-  >();
+  const interceptors = createInterceptors<Response, unknown, ResolvedRequestOptions>();
 
-  const beforeRequest = async (options: RequestOptions) => {
+  const beforeRequest = async <
+    TData = unknown,
+    ThrowOnError extends boolean = boolean,
+    Url extends string = string,
+  >(
+    options: RequestOptions<TData, ThrowOnError, Url>,
+  ) => {
     const opts = {
       ..._config,
       ...options,
       fetch: options.fetch ?? _config.fetch ?? globalThis.fetch,
       headers: mergeHeaders(_config.headers, options.headers),
-      serializedBody: undefined,
+      serializedBody: undefined as string | undefined,
     };
 
     if (opts.security) {
-      await setAuthParams({
-        ...opts,
-        security: opts.security,
-      });
+      await setAuthParams(opts);
     }
 
     if (opts.requestValidator) {
@@ -61,7 +55,7 @@ export const createClient = (config: Config = {}): Client => {
     }
 
     if (opts.body !== undefined && opts.bodySerializer) {
-      opts.serializedBody = opts.bodySerializer(opts.body);
+      opts.serializedBody = opts.bodySerializer(opts.body) as string | undefined;
     }
 
     // remove Content-Type header if body is empty to avoid sending invalid requests
@@ -69,9 +63,10 @@ export const createClient = (config: Config = {}): Client => {
       opts.headers.delete('Content-Type');
     }
 
-    const url = buildUrl(opts);
+    const resolvedOpts = opts as typeof opts & ResolvedRequestOptions<ThrowOnError, Url>;
+    const url = buildUrl(resolvedOpts);
 
-    return { opts, url };
+    return { opts: resolvedOpts, url };
   };
 
   // `Client['request']` is a generic `RequestFn`; the runtime implementation
@@ -79,163 +74,169 @@ export const createClient = (config: Config = {}): Client => {
   // signature and cast at the single point of return (`as Client`) instead of
   // papering over the mismatch with `@ts-expect-error` on every line.
   const request = async (options: RequestOptions) => {
-    const { opts, url } = await beforeRequest(options);
+    const throwOnError = options.throwOnError ?? _config.throwOnError;
 
-    for (const fn of interceptors.request.fns) {
-      if (fn) {
-        await fn(opts);
+    let response: Response | undefined;
+
+    try {
+      const { opts, url } = await beforeRequest(options);
+
+      for (const fn of interceptors.request.fns) {
+        if (fn) {
+          await fn(opts);
+        }
       }
-    }
 
-    // fetch must be assigned here, otherwise it would throw the error:
-    // TypeError: Failed to execute 'fetch' on 'Window': Illegal invocation
-    const _fetch = opts.fetch!;
-    const requestInit: ReqInit = {
-      ...opts,
-      body: getValidRequestBody(opts),
-    };
+      // fetch must be assigned here, otherwise it would throw the error:
+      // TypeError: Failed to execute 'fetch' on 'Window': Illegal invocation
+      const _fetch = opts.fetch!;
+      const requestInit: ReqInit = {
+        ...opts,
+        body: getValidRequestBody(opts),
+      };
 
-    let response = await _fetch(url, requestInit);
+      response = await _fetch(url, requestInit);
 
-    for (const fn of interceptors.response.fns) {
-      if (fn) {
-        response = await fn(response, opts);
+      for (const fn of interceptors.response.fns) {
+        if (fn) {
+          response = await fn(response, opts);
+        }
       }
-    }
 
-    const result = {
-      response,
-    };
+      const result = {
+        response,
+      };
 
-    if (response.ok) {
-      const parseAs =
-        (opts.parseAs === 'auto'
-          ? getParseAs(response.headers.get('Content-Type'))
-          : opts.parseAs) ?? 'json';
+      if (response.ok) {
+        const parseAs =
+          (opts.parseAs === 'auto'
+            ? getParseAs(response.headers.get('Content-Type'))
+            : opts.parseAs) ?? 'json';
 
-      if (
-        response.status === 204 ||
-        response.headers.get('Content-Length') === '0'
-      ) {
-        let emptyData: any;
+        if (response.status === 204 || response.headers.get('Content-Length') === '0') {
+          let emptyData: any;
+          switch (parseAs) {
+            case 'arrayBuffer':
+            case 'blob':
+            case 'text':
+              emptyData = await response[parseAs]();
+              break;
+            case 'formData':
+              emptyData = new FormData();
+              break;
+            case 'stream':
+              emptyData = response.body;
+              break;
+            case 'json':
+            default:
+              emptyData = {};
+              break;
+          }
+          return {
+            data: emptyData,
+            ...result,
+          };
+        }
+
+        let data: any;
         switch (parseAs) {
           case 'arrayBuffer':
           case 'blob':
-          case 'text':
-            emptyData = await response[parseAs]();
-            break;
           case 'formData':
-            emptyData = new FormData();
+          case 'text':
+            data = await response[parseAs]();
             break;
+          case 'json': {
+            // Some servers return 200 with no Content-Length and empty body.
+            // response.json() would throw; read as text and parse if non-empty.
+            const text = await response.text();
+            data = text ? JSON.parse(text) : {};
+            break;
+          }
           case 'stream':
-            emptyData = response.body;
-            break;
-          case 'json':
-          default:
-            emptyData = {};
-            break;
+            return {
+              data: response.body,
+              ...result,
+            };
         }
+
+        if (parseAs === 'json') {
+          if (opts.responseValidator) {
+            await opts.responseValidator(data);
+          }
+
+          if (opts.responseTransformer) {
+            data = await opts.responseTransformer(data);
+          }
+        }
+
         return {
-          data: emptyData,
+          data,
           ...result,
         };
       }
 
-      let data: any;
-      switch (parseAs) {
-        case 'arrayBuffer':
-        case 'blob':
-        case 'formData':
-        case 'json':
-        case 'text':
-          data = await response[parseAs]();
-          break;
-        case 'stream':
-          return {
-            data: response.body,
-            ...result,
-          };
+      const textError = await response.text();
+      let jsonError: unknown;
+
+      try {
+        jsonError = JSON.parse(textError);
+      } catch {
+        // noop
       }
 
-      if (parseAs === 'json') {
-        if (opts.responseValidator) {
-          await opts.responseValidator(data);
-        }
+      throw jsonError ?? textError;
+    } catch (error) {
+      let finalError = error;
 
-        if (opts.responseTransformer) {
-          data = await opts.responseTransformer(data);
+      for (const fn of interceptors.error.fns) {
+        if (fn) {
+          finalError = await fn(finalError, response, options as ResolvedRequestOptions);
         }
+      }
+
+      finalError = finalError || {};
+
+      if (throwOnError) {
+        throw finalError;
       }
 
       return {
-        data,
-        ...result,
+        error: finalError,
+        response,
       };
     }
-
-    const textError = await response.text();
-    let jsonError: unknown;
-
-    try {
-      jsonError = JSON.parse(textError);
-    } catch {
-      // noop
-    }
-
-    const error = jsonError ?? textError;
-    let finalError = error;
-
-    for (const fn of interceptors.error.fns) {
-      if (fn) {
-        finalError = (await fn(error, response, opts)) as string;
-      }
-    }
-
-    finalError = finalError || ({} as string);
-
-    if (opts.throwOnError) {
-      throw finalError;
-    }
-
-    return {
-      error: finalError,
-      ...result,
-    };
   };
 
-  const makeMethodFn =
-    (method: Uppercase<HttpMethod>) => (options: RequestOptions) =>
-      request({ ...options, method });
+  const makeMethodFn = (method: Uppercase<HttpMethod>) => (options: RequestOptions) =>
+    request({ ...options, method });
 
-  const makeSseFn =
-    (method: Uppercase<HttpMethod>) => async (options: RequestOptions) => {
-      const { opts, url } = await beforeRequest(options);
-      return createSseClient({
-        ...opts,
-        body: opts.body as BodyInit | null | undefined,
-        headers: opts.headers as unknown as Record<string, string>,
-        method,
-        onRequest: async (url, init) => {
-          let request = new Request(url, init);
-          const requestInit = {
-            ...init,
-            method: init.method as Config['method'],
-            url,
-          };
-          for (const fn of interceptors.request.fns) {
-            if (fn) {
-              await fn(requestInit);
-              request = new Request(requestInit.url, requestInit);
-            }
+  const makeSseFn = (method: Uppercase<HttpMethod>) => async (options: RequestOptions) => {
+    const { opts, url } = await beforeRequest(options);
+    return createSseClient({
+      ...opts,
+      body: opts.body as BodyInit | null | undefined,
+      method,
+      onRequest: async (url, init) => {
+        let request = new Request(url, init);
+        const requestInit = { ...init, url };
+        for (const fn of interceptors.request.fns) {
+          if (fn) {
+            await fn(requestInit as ResolvedRequestOptions);
+            request = new Request(requestInit.url, requestInit);
           }
-          return request;
-        },
-        url,
-      });
-    };
+        }
+        return request;
+      },
+      serializedBody: getValidRequestBody(opts) as BodyInit | null | undefined,
+      url,
+    });
+  };
+
+  const _buildUrl: Client['buildUrl'] = (options) => buildUrl({ ..._config, ...options });
 
   return {
-    buildUrl,
+    buildUrl: _buildUrl,
     connect: makeMethodFn('CONNECT'),
     delete: makeMethodFn('DELETE'),
     get: makeMethodFn('GET'),

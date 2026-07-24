@@ -24,7 +24,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:25](https://github.com/anuma-a
 
 > `optional` **entityCtx**: [`EntityOperationsContext`](EntityOperationsContext.md)
 
-Defined in: [src/lib/db/memoryVault/operations.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#33)
+Defined in: [src/lib/db/memoryVault/operations.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#45)
 
 When set, vault delete ops cascade to memory\_entity rows pointing at
 the deleted memories. Without this the W5 graph lane keeps returning
@@ -37,6 +37,24 @@ IDs of soft-deleted memories and the join table grows unbounded.
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
 Defined in: [src/lib/db/memoryVault/operations.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#24)
+
+***
+
+### singleTenant?
+
+> `optional` **singleTenant**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/operations.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#39)
+
+Asserts this context runs against a physically single-tenant database — one
+where every row belongs to the same owner (the per-wallet client DBs, which
+hold exactly one wallet's rows written with `user_id = null`). This is the
+ONLY thing that makes the decay sweep's unscoped scan/archive/delete safe
+without a `userId`: see assertVaultScopeForSweep. A shared /
+multi-tenant DB must NOT set this — it must scope by `userId` instead.
+`walletAddress` presence alone is NOT a substitute (the sweep query filters
+by `user_id` only, so a bare `walletAddress` on a shared DB would sweep
+every tenant).
 
 ***
 

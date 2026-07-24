@@ -2,11 +2,11 @@
 
 > **postApiV1AdminSubscriptionTier**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminSubscriptionTierData`](../type-aliases/PostApiV1AdminSubscriptionTierData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminSubscriptionTierResponses`](../type-aliases/PostApiV1AdminSubscriptionTierResponses.md), [`PostApiV1AdminSubscriptionTierErrors`](../type-aliases/PostApiV1AdminSubscriptionTierErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:530](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#530)
+Defined in: [src/client/sdk.gen.ts:396](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#396)
 
 Set user subscription tier
 
-Sets a user's subscription tier (basic, starter, or pro). Requires admin API key.
+Updates an existing Stripe subscription. Upgrades apply immediately, downgrades and basic-tier cancellations apply at period end. RevenueCat/staking users and users without an active Stripe subscription are rejected. Requires admin API key.
 
 ## Type Parameters
 

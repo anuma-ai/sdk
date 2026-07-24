@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Conversation } from "./models";
-import { createMessageOp, type StorageOperationsContext } from "./operations";
+import { createMessageOp, getMessageOp, type StorageOperationsContext } from "./operations";
 import type { CreateMessageOptions } from "./types";
 
 function makeDatabase(): Database {
@@ -87,5 +87,32 @@ describe("createMessageOp idempotency (duplicate uniqueId)", () => {
 
     const all = await ctx.messagesCollection.query().fetch();
     expect(all).toHaveLength(2);
+  });
+});
+
+describe("getMessageOp (by-id indexed lookup)", () => {
+  it("returns the message by uniqueId, and null for an unknown id", async () => {
+    const ctx = makeCtx(makeDatabase());
+    await createMessageOp(ctx, {
+      conversationId: "conv-1",
+      role: "user",
+      content: "hello",
+      uniqueId: "msg-x",
+    });
+
+    const found = await getMessageOp(ctx, "msg-x");
+    expect(found?.uniqueId).toBe("msg-x");
+    expect(found?.content).toBe("hello");
+
+    expect(await getMessageOp(ctx, "nope")).toBeNull();
+  });
+
+  it("propagates storage failures instead of masking them as null", async () => {
+    const ctx = makeCtx(makeDatabase());
+    ctx.messagesCollection.find = async () => {
+      throw new Error("database is locked");
+    };
+
+    await expect(getMessageOp(ctx, "msg-x")).rejects.toThrow("database is locked");
   });
 });

@@ -164,3 +164,23 @@ describe("CompletionsStrategy.processStreamChunk - whitespace-only deltas", () =
     expect(acc.content).toBe("## Heading\n\nBody");
   });
 });
+
+describe("CompletionsStrategy.buildRequestBody - output-token field", () => {
+  const strategy = new CompletionsStrategy();
+  const base = { messages: [], model: "gpt-oss/gpt-oss-120b", stream: false };
+
+  // Regression guard: the portal reads only `max_completion_tokens`; the
+  // deprecated `max_tokens` is silently ignored and truncates at the default
+  // cap. Never emit the legacy field.
+  it("emits max_completion_tokens (never the deprecated max_tokens)", () => {
+    const body = strategy.buildRequestBody({ ...base, maxOutputTokens: 1234 });
+    expect(body.max_completion_tokens).toBe(1234);
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
+  it("omits the cap entirely when maxOutputTokens is undefined", () => {
+    const body = strategy.buildRequestBody(base);
+    expect(body).not.toHaveProperty("max_completion_tokens");
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+});

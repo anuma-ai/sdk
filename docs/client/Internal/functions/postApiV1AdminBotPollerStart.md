@@ -2,7 +2,7 @@
 
 > **postApiV1AdminBotPollerStart**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminBotPollerStartData`](../type-aliases/PostApiV1AdminBotPollerStartData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminBotPollerStartResponses`](../type-aliases/PostApiV1AdminBotPollerStartResponses.md), [`PostApiV1AdminBotPollerStartErrors`](../type-aliases/PostApiV1AdminBotPollerStartErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#262)
+Defined in: [src/client/sdk.gen.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#201)
 
 Start the X-bot poller (admin)
 

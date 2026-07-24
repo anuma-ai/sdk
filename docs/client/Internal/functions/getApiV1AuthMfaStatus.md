@@ -1,8 +1,8 @@
 # getApiV1AuthMfaStatus
 
-> **getApiV1AuthMfaStatus**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AuthMfaStatusData`](../type-aliases/GetApiV1AuthMfaStatusData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AuthMfaStatusResponses`](../type-aliases/GetApiV1AuthMfaStatusResponses.md), [`GetApiV1AuthMfaStatusErrors`](../type-aliases/GetApiV1AuthMfaStatusErrors.md), `ThrowOnError`>
+> **getApiV1AuthMfaStatus**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AuthMfaStatusData`](../type-aliases/GetApiV1AuthMfaStatusData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1AuthMfaStatusResponses`](../type-aliases/GetApiV1AuthMfaStatusResponses.md), [`GetApiV1AuthMfaStatusErrors`](../type-aliases/GetApiV1AuthMfaStatusErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:748](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#748)
+Defined in: [src/client/sdk.gen.ts:550](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#550)
 
 MFA status
 
@@ -51,7 +51,7 @@ Returns whether MFA is enabled and which factors are enrolled.
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1AuthMfaStatusData`](../type-aliases/GetApiV1AuthMfaStatusData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1AuthMfaStatusData`](../type-aliases/GetApiV1AuthMfaStatusData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

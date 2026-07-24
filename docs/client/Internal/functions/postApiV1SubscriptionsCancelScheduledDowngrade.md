@@ -1,8 +1,8 @@
 # postApiV1SubscriptionsCancelScheduledDowngrade
 
-> **postApiV1SubscriptionsCancelScheduledDowngrade**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelScheduledDowngradeData`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsCancelScheduledDowngradeResponses`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeResponses.md), [`PostApiV1SubscriptionsCancelScheduledDowngradeErrors`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeErrors.md), `ThrowOnError`>
+> **postApiV1SubscriptionsCancelScheduledDowngrade**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelScheduledDowngradeData`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1SubscriptionsCancelScheduledDowngradeResponses`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeResponses.md), [`PostApiV1SubscriptionsCancelScheduledDowngradeErrors`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1661](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1661)
+Defined in: [src/client/sdk.gen.ts:1221](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1221)
 
 Cancel scheduled downgrade
 
@@ -51,7 +51,7 @@ Cancels a scheduled plan downgrade by releasing the Stripe Subscription Schedule
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelScheduledDowngradeData`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelScheduledDowngradeData`](../type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

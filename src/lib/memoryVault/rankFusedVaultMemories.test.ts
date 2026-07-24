@@ -153,6 +153,78 @@ describe("rankFusedVaultMemories", () => {
     expect(ids).toContain("bm25");
   });
 
+  it("PR5: factTypeWeights boosts a type above an otherwise-equal item", () => {
+    // Two items, identical cosine (1) and recency; only fact_type differs.
+    // A per-type weight tips the order in favor of the boosted type.
+    const items = [
+      {
+        id: "identity",
+        content: "works in engineering",
+        embedding: emb({ 0: 1 }),
+        updatedAt: daysAgo(10),
+        factType: "identity",
+      },
+      {
+        id: "ephemeral",
+        content: "was running late today",
+        embedding: emb({ 0: 1 }),
+        updatedAt: daysAgo(10),
+        factType: "ongoing_context",
+      },
+    ];
+    // Uniform (no weights) → tie broken by stable order (identity first here).
+    const boosted = rankFusedVaultMemories("engineering context", emb({ 0: 1 }), items, {
+      limit: 5,
+      recency: { now: NOW },
+      factTypeWeights: { identity: 2, ongoing_context: 0.5 },
+    });
+    expect(boosted[0].uniqueId).toBe("identity");
+    const identityScore = boosted.find((r) => r.uniqueId === "identity")!.similarity;
+    const ephemeralScore = boosted.find((r) => r.uniqueId === "ephemeral")!.similarity;
+    expect(identityScore).toBeGreaterThan(ephemeralScore);
+  });
+
+  it("PR5: an empty factTypeWeights map is a no-op (uniform)", () => {
+    const items = [
+      {
+        id: "a",
+        content: "works in engineering",
+        embedding: emb({ 0: 1 }),
+        updatedAt: daysAgo(10),
+        factType: "identity",
+      },
+    ];
+    const withEmpty = rankFusedVaultMemories("engineering", emb({ 0: 1 }), items, {
+      recency: { now: NOW },
+      factTypeWeights: {},
+    });
+    const without = rankFusedVaultMemories("engineering", emb({ 0: 1 }), items, {
+      recency: { now: NOW },
+    });
+    expect(withEmpty[0].similarity).toBeCloseTo(without[0].similarity, 10);
+  });
+
+  it("PR5: a non-finite / non-positive weight is ignored (treated as 1.0)", () => {
+    const items = [
+      {
+        id: "a",
+        content: "works in engineering",
+        embedding: emb({ 0: 1 }),
+        updatedAt: daysAgo(10),
+        factType: "identity",
+      },
+    ];
+    const bad = rankFusedVaultMemories("engineering", emb({ 0: 1 }), items, {
+      recency: { now: NOW },
+      factTypeWeights: { identity: 0 },
+    });
+    const neutral = rankFusedVaultMemories("engineering", emb({ 0: 1 }), items, {
+      recency: { now: NOW },
+    });
+    // 0 would zero out the score; it must be ignored → equals the no-weight score.
+    expect(bad[0].similarity).toBeCloseTo(neutral[0].similarity, 10);
+  });
+
   it("handles items with no updatedAt (neutral recency)", () => {
     const items = [
       { id: "a", content: "hello world", embedding: emb({ 0: 1 }) },

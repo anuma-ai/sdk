@@ -8,6 +8,7 @@
  */
 
 import { getLogger } from "../../logger";
+import { base64ToUint8Array, uint8ArrayToBase64 } from "../../processors/encoding";
 
 /** CloudKit JS CDN URL */
 const CLOUDKIT_JS_URL = "https://cdn.apple-cloudkit.com/ck/2/cloudkit.js";
@@ -325,9 +326,11 @@ export async function uploadFileToICloud(filename: string, content: Blob): Promi
   const recordName = `backup_${filename.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
   // For CloudKit assets, we need to upload the file as base64 or use asset uploads
-  // CloudKit JS uses a different approach - we'll store data as a base64 string for simplicity
+  // CloudKit JS uses a different approach - we'll store data as a base64 string for simplicity.
+  // Encode in bounded chunks: a plain `btoa(String.fromCharCode(...bytes))` spreads every byte as
+  // an argument and throws RangeError above ~100–500KB, so it always crashed on real backups.
   const arrayBuffer = await content.arrayBuffer();
-  const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  const base64Data = uint8ArrayToBase64(new Uint8Array(arrayBuffer));
 
   const record: CloudKitRecordToSave = {
     recordType: RECORD_TYPE,
@@ -421,11 +424,7 @@ export async function downloadICloudFile(recordName: string): Promise<Blob> {
 
   // If it's a base64 string (our upload format)
   if (typeof dataField === "string") {
-    const binaryString = atob(dataField);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
+    const bytes = base64ToUint8Array(dataField);
     return new Blob([bytes], { type: "application/json" });
   }
 

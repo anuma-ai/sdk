@@ -1,8 +1,8 @@
 # getApiV1UserAgentConsents
 
-> **getApiV1UserAgentConsents**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UserAgentConsentsData`](../type-aliases/GetApiV1UserAgentConsentsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1UserAgentConsentsResponses`](../type-aliases/GetApiV1UserAgentConsentsResponses.md), [`GetApiV1UserAgentConsentsErrors`](../type-aliases/GetApiV1UserAgentConsentsErrors.md), `ThrowOnError`>
+> **getApiV1UserAgentConsents**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1UserAgentConsentsData`](../type-aliases/GetApiV1UserAgentConsentsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1UserAgentConsentsResponses`](../type-aliases/GetApiV1UserAgentConsentsResponses.md), [`GetApiV1UserAgentConsentsErrors`](../type-aliases/GetApiV1UserAgentConsentsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1835](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1835)
+Defined in: [src/client/sdk.gen.ts:1345](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1345)
 
 List active per-platform agent consents
 
@@ -51,7 +51,7 @@ Returns the authenticated user's active consents, optionally filtered by platfor
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1UserAgentConsentsData`](../type-aliases/GetApiV1UserAgentConsentsData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1UserAgentConsentsData`](../type-aliases/GetApiV1UserAgentConsentsData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

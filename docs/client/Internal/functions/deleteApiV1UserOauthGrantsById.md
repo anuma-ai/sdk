@@ -2,7 +2,7 @@
 
 > **deleteApiV1UserOauthGrantsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1UserOauthGrantsByIdData`](../type-aliases/DeleteApiV1UserOauthGrantsByIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1UserOauthGrantsByIdResponses`](../type-aliases/DeleteApiV1UserOauthGrantsByIdResponses.md), [`DeleteApiV1UserOauthGrantsByIdErrors`](../type-aliases/DeleteApiV1UserOauthGrantsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1939](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1939)
+Defined in: [src/client/sdk.gen.ts:1415](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1415)
 
 Revoke OAuth grant
 

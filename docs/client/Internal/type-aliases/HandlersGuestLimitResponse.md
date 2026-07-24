@@ -2,7 +2,7 @@
 
 > **HandlersGuestLimitResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2083](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2083)
+Defined in: [src/client/types.gen.ts:2089](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2089)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2083](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **auth\_prompt**: `string`
 
-Defined in: [src/client/types.gen.ts:2084](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2084)
+Defined in: [src/client/types.gen.ts:2090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2090)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:2084](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **error**: `string`
 
-Defined in: [src/client/types.gen.ts:2085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2085)
+Defined in: [src/client/types.gen.ts:2091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2091)

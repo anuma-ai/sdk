@@ -2,7 +2,7 @@
 
 > **postApiV1AdminPersonas**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminPersonasData`](../type-aliases/PostApiV1AdminPersonasData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminPersonasResponses`](../type-aliases/PostApiV1AdminPersonasResponses.md), [`PostApiV1AdminPersonasErrors`](../type-aliases/PostApiV1AdminPersonasErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:420](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#420)
+Defined in: [src/client/sdk.gen.ts:314](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#314)
 
 Create persona
 

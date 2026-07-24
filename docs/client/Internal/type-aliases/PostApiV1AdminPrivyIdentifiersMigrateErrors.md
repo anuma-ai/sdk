@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPrivyIdentifiersMigrateErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5772](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5772)
+Defined in: [src/client/types.gen.ts:5797](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5797)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5772](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5776](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5776)
+Defined in: [src/client/types.gen.ts:5801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5801)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5780](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5780)
+Defined in: [src/client/types.gen.ts:5805](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5805)
 
 Internal Server Error

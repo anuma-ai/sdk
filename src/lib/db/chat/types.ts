@@ -23,7 +23,7 @@ import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../cha
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
-import type { DeferLoadingConfig, ServerTool } from "../../tools";
+import type { DeferLoadingConfig, ServerTool, ToolsCacheBackend } from "../../tools";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -149,6 +149,33 @@ export interface GetMessagesPageOptions {
    * limit"), and fractional values are floored.
    */
   limit: number;
+}
+
+/** Options for keyset-paginated conversation-list reads ({@link getConversationsPageOp}). */
+export interface GetConversationsPageOptions {
+  /**
+   * Upper-bound `created_at` cursor (epoch ms). Without
+   * `boundaryExcludeUniqueIds` it is EXCLUSIVE: only conversations with
+   * `createdAt < before` are returned. Omit to fetch the newest page.
+   */
+  before?: number;
+  /**
+   * uniqueIds of the rows the caller already holds AT the `before` boundary.
+   * `created_at` is NOT unique (a bulk restore/import writes many rows with the
+   * same timestamp) — with an exclusive cursor, an unseen row sharing the
+   * boundary timestamp would be silently skipped by every page. When provided,
+   * the boundary timestamp is fetched INCLUSIVELY and these known rows are
+   * filtered out, so a boundary-timestamp row is returned exactly once. Mirrors
+   * {@link GetMessagesPageOptions.boundaryExcludeUniqueIds}.
+   */
+  boundaryExcludeUniqueIds?: string[];
+  /**
+   * Maximum rows to return — the NEWEST `limit` rows of the matching range.
+   * Defaults to 200. A non-positive or non-finite value yields an EMPTY page
+   * (never an unbounded read — SQLite treats `LIMIT -1` as "no limit");
+   * fractional values are floored.
+   */
+  limit?: number;
 }
 
 /**
@@ -459,6 +486,13 @@ export interface BaseUseChatStorageOptions {
      * {@link DeferLoadingConfig}.
      */
     deferLoading?: DeferLoadingConfig;
+    /**
+     * Where to read/write the cached server-tools catalog. Defaults to browser
+     * `localStorage`, which is a silent no-op on React Native — so on RN pass an
+     * AsyncStorage/MMKV-backed {@link ToolsCacheBackend} here or every send
+     * refetches the whole catalog. Forwarded to `getServerTools`.
+     */
+    cache?: ToolsCacheBackend;
   };
   /**
    * Automatically generate embeddings for messages after saving.

@@ -1,6 +1,6 @@
-# Options\<TData, ThrowOnError>
+# Options\<TData, ThrowOnError, TResponse>
 
-> **Options**<`TData`, `ThrowOnError`> = `Options2`<`TData`, `ThrowOnError`> & `object`
+> **Options**<`TData`, `ThrowOnError`, `TResponse`> = `Options2`<`TData`, `ThrowOnError`, `TResponse`> & `object`
 
 Defined in: [src/client/sdk.gen.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#7)
 
@@ -52,6 +52,18 @@ used to access values that aren't defined as part of the SDK function.
 <td>
 
 `boolean`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`TResponse`
+
+</td>
+<td>
+
+`unknown`
 
 </td>
 </tr>

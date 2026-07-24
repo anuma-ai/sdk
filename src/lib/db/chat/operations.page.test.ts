@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Conversation } from "./models";
 import {
+  createConversationOp,
   createMessageOp,
+  getConversationsPageOp,
   getMessageCountOp,
   getMessageSkeletonsOp,
   getMessagesPageOp,
@@ -290,6 +292,167 @@ describe("getMessagesPageOp duplicated-boundary handling", () => {
 
     // Inclusive fetch of ids ≤ 8 minus the held row, newest 3 of the rest.
     expect(page.map((m) => m.messageId)).toEqual([5, 6, 7]);
+  });
+});
+
+/**
+ * Seed `count` conversations with a deterministic `created_at` (conv-i at
+ * i*1000 ms) so `created_at DESC` = conv-N … conv-1 and keyset cursors are
+ * exact. Returns the ctx plus a conversationId → uniqueId (raw `id`) lookup,
+ * since boundary-exclude keys on the raw row id.
+ */
+async function seedConversations(
+  count: number
+): Promise<{ ctx: StorageOperationsContext; uid: Map<string, string> }> {
+  const ctx = makeCtx(makeDatabase());
+  const uid = new Map<string, string>();
+  for (let i = 1; i <= count; i++) {
+    const conv = await createConversationOp(ctx, {
+      conversationId: `conv-${i}`,
+      title: `title ${i}`,
+    });
+    uid.set(conv.conversationId, conv.uniqueId);
+    const row = await ctx.conversationsCollection.find(conv.uniqueId);
+    await ctx.database.write(async () => {
+      await row.update((c) => c._setRaw("created_at", i * 1000));
+    });
+  }
+  return { ctx, uid };
+}
+
+describe("getConversationsPageOp", () => {
+  it("returns the newest `limit` conversations in created_at DESC order", async () => {
+    const { ctx } = await seedConversations(10);
+
+    const page = await getConversationsPageOp(ctx, { limit: 4 });
+
+    expect(page.map((c) => c.conversationId)).toEqual(["conv-10", "conv-9", "conv-8", "conv-7"]);
+    // Lazy projection: raw title under encryptedTitle, no decrypted `title`.
+    expect(page[0].encryptedTitle).toBe("title 10");
+    expect((page[0] as Record<string, unknown>).title).toBeUndefined();
+  });
+
+  it("defaults to a 200-row page and returns all when fewer exist", async () => {
+    const { ctx } = await seedConversations(5);
+
+    const page = await getConversationsPageOp(ctx);
+
+    expect(page.map((c) => c.conversationId)).toEqual([
+      "conv-5",
+      "conv-4",
+      "conv-3",
+      "conv-2",
+      "conv-1",
+    ]);
+  });
+
+  it("pages backward with `before` (exclusive created_at bound)", async () => {
+    const { ctx } = await seedConversations(10);
+
+    // conv-7 sits at created_at 7000; the next page starts strictly below it.
+    const page = await getConversationsPageOp(ctx, { before: 7000, limit: 4 });
+
+    expect(page.map((c) => c.conversationId)).toEqual(["conv-6", "conv-5", "conv-4", "conv-3"]);
+  });
+
+  it("returns the full remainder when limit exceeds the range", async () => {
+    const { ctx } = await seedConversations(10);
+
+    const page = await getConversationsPageOp(ctx, { before: 3000, limit: 50 });
+
+    expect(page.map((c) => c.conversationId)).toEqual(["conv-2", "conv-1"]);
+  });
+
+  it("returns an empty array when there are no conversations", async () => {
+    const ctx = makeCtx(makeDatabase());
+
+    expect(await getConversationsPageOp(ctx, { limit: 10 })).toEqual([]);
+  });
+
+  it("excludes soft-deleted conversations", async () => {
+    const { ctx, uid } = await seedConversations(5);
+    const row = await ctx.conversationsCollection.find(uid.get("conv-3")!);
+    await ctx.database.write(async () => {
+      await row.update((c) => c._setRaw("is_deleted", true));
+    });
+
+    const page = await getConversationsPageOp(ctx, { limit: 10 });
+
+    expect(page.map((c) => c.conversationId)).toEqual(["conv-5", "conv-4", "conv-2", "conv-1"]);
+  });
+
+  it("returns an empty page for non-positive or non-finite limits (never an unbounded read)", async () => {
+    // SQLite treats LIMIT -1 as "no limit" — an unguarded negative would
+    // silently fetch the ENTIRE list. Mirrors getMessagesPageOp's guard.
+    const { ctx } = await seedConversations(10);
+
+    expect(await getConversationsPageOp(ctx, { limit: 0 })).toEqual([]);
+    expect(await getConversationsPageOp(ctx, { limit: -1 })).toEqual([]);
+    expect(await getConversationsPageOp(ctx, { limit: Number.NaN })).toEqual([]);
+    expect(await getConversationsPageOp(ctx, { limit: -Infinity })).toEqual([]);
+  });
+
+  it("floors fractional limits", async () => {
+    const { ctx } = await seedConversations(10);
+
+    const page = await getConversationsPageOp(ctx, { limit: 2.9 });
+
+    expect(page.map((c) => c.conversationId)).toEqual(["conv-10", "conv-9"]);
+  });
+});
+
+describe("getConversationsPageOp duplicated-timestamp handling", () => {
+  it("does not lose a row sharing the boundary created_at when boundaryExcludeUniqueIds is passed", async () => {
+    // Bulk restore/import: two conversations share created_at 5000. An
+    // exclusive Q.lt cursor at 5000 would drop BOTH; the inclusive+exclude
+    // cursor must return the unheld twin exactly once.
+    const { ctx, uid } = await seedConversations(10);
+    const twin = await createConversationOp(ctx, {
+      conversationId: "conv-5-twin",
+      title: "twin",
+    });
+    const twinRow = await ctx.conversationsCollection.find(twin.uniqueId);
+    await ctx.database.write(async () => {
+      await twinRow.update((c) => c._setRaw("created_at", 5000));
+    });
+
+    // Caller holds conv-5 at the boundary and pages for the rest below 5000.
+    const page = await getConversationsPageOp(ctx, {
+      before: 5000,
+      limit: 10,
+      boundaryExcludeUniqueIds: [uid.get("conv-5")!],
+    });
+
+    expect(page.map((c) => c.conversationId)).toEqual([
+      "conv-5-twin",
+      "conv-4",
+      "conv-3",
+      "conv-2",
+      "conv-1",
+    ]);
+
+    // Without the exclude list the exclusive cursor keeps its old contract
+    // (and skips the twin — the documented tie hazard).
+    const exclusive = await getConversationsPageOp(ctx, { before: 5000, limit: 10 });
+    expect(exclusive.map((c) => c.conversationId)).toEqual([
+      "conv-4",
+      "conv-3",
+      "conv-2",
+      "conv-1",
+    ]);
+  });
+
+  it("respects limit while excluding boundary rows", async () => {
+    const { ctx, uid } = await seedConversations(10);
+
+    const page = await getConversationsPageOp(ctx, {
+      before: 8000,
+      limit: 3,
+      boundaryExcludeUniqueIds: [uid.get("conv-8")!],
+    });
+
+    // Inclusive fetch of created_at ≤ 8000 minus the held row, newest 3.
+    expect(page.map((c) => c.conversationId)).toEqual(["conv-7", "conv-6", "conv-5"]);
   });
 });
 

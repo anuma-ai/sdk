@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminSharesBySlug**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminSharesBySlugData`](../type-aliases/DeleteApiV1AdminSharesBySlugData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminSharesBySlugResponses`](../type-aliases/DeleteApiV1AdminSharesBySlugResponses.md), [`DeleteApiV1AdminSharesBySlugErrors`](../type-aliases/DeleteApiV1AdminSharesBySlugErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#518)
+Defined in: [src/client/sdk.gen.ts:389](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#389)
 
 Take down a shared artifact (admin)
 

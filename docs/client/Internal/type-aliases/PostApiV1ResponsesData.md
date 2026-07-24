@@ -2,7 +2,7 @@
 
 > **PostApiV1ResponsesData** = `object`
 
-Defined in: [src/client/types.gen.ts:8990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8990)
+Defined in: [src/client/types.gen.ts:9031](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9031)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:8990](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`LlmapiResponseRequest`](LlmapiResponseRequest.md)
 
-Defined in: [src/client/types.gen.ts:8994](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8994)
+Defined in: [src/client/types.gen.ts:9035](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9035)
 
 Response request
 
@@ -20,7 +20,7 @@ Response request
 
 > `optional` **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:8995](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8995)
+Defined in: [src/client/types.gen.ts:9036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9036)
 
 **X-Stream-Resumable?**
 
@@ -34,7 +34,7 @@ Set to 1 to opt this stream into detach-on-disconnect (resumable streaming)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:9001](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9001)
+Defined in: [src/client/types.gen.ts:9042](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9042)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:9001](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:9002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9002)
+Defined in: [src/client/types.gen.ts:9043](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9043)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:9002](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/responses"`
 
-Defined in: [src/client/types.gen.ts:9003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9003)
+Defined in: [src/client/types.gen.ts:9044](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9044)

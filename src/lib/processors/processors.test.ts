@@ -10,9 +10,9 @@
 
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
+import { base64ToUint8Array, dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
 import { ExcelProcessor } from "./ExcelProcessor";
 import { getSupportedFileTypes, isSupportedFile, preprocessFiles } from "./preprocessor";
 import { ProcessorRegistry } from "./registry";
@@ -108,6 +108,92 @@ describe("encoding utilities (Node.js)", () => {
     const result = await dataUrlToArrayBuffer(dataUrl);
 
     expect(new Uint8Array(result)).toEqual(original);
+  });
+
+  it("base64ToUint8Array roundtrips with uint8ArrayToBase64", () => {
+    const original = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) original[i] = i;
+
+    const decoded = base64ToUint8Array(uint8ArrayToBase64(original));
+    expect(decoded).toEqual(original);
+  });
+});
+
+// Deterministic pseudo-random fill so the large-buffer test is reproducible without Math.random.
+function fillPseudoRandom(buf: Uint8Array): Uint8Array {
+  let x = 0x9e3779b9;
+  for (let i = 0; i < buf.length; i++) {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    buf[i] = x & 0xff;
+  }
+  return buf;
+}
+
+// Fast byte-equality for large buffers. vitest's `toEqual` deep-diffs element-by-element with rich
+// diffing, which is far too slow (multi-second) on multi-MB typed arrays.
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+// Regression for the iCloud backup crash: the old upload path did
+// `btoa(String.fromCharCode(...bytes))`, which spreads every byte as an argument and throws
+// `RangeError: Maximum call stack size exceeded` above ~100–500KB — so any real backup crashed.
+// These tests force the browser fallback (Buffer undefined) and prove a multi-MB buffer both
+// encodes without throwing and round-trips to identical bytes.
+describe("encoding utilities (browser fallback, Buffer undefined)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("encodes a 2MB buffer without throwing and round-trips exactly", () => {
+    vi.stubGlobal("Buffer", undefined);
+    expect(typeof Buffer).toBe("undefined");
+
+    const original = fillPseudoRandom(new Uint8Array(2 * 1024 * 1024)); // 2MB
+
+    let base64 = "";
+    expect(() => {
+      base64 = uint8ArrayToBase64(original);
+    }).not.toThrow();
+
+    const decoded = base64ToUint8Array(base64);
+    expect(bytesEqual(decoded, original)).toBe(true);
+  });
+
+  it("chunk-boundary sizes round-trip (no mid-stream padding)", () => {
+    vi.stubGlobal("Buffer", undefined);
+
+    // Sizes around the 0x8000*3 chunk boundary, incl. non-multiples of 3.
+    for (const size of [
+      0,
+      1,
+      2,
+      3,
+      0x8000 * 3 - 1,
+      0x8000 * 3,
+      0x8000 * 3 + 1,
+      0x8000 * 3 * 2 + 7,
+    ]) {
+      const original = fillPseudoRandom(new Uint8Array(size));
+      const decoded = base64ToUint8Array(uint8ArrayToBase64(original));
+      expect(bytesEqual(decoded, original)).toBe(true);
+    }
+  });
+
+  it("matches the Node/Buffer encoding for the same bytes", () => {
+    const original = fillPseudoRandom(new Uint8Array(300 * 1024)); // 300KB, above the old crash range
+    const viaBuffer = uint8ArrayToBase64(original); // Buffer path (Node)
+
+    vi.stubGlobal("Buffer", undefined);
+    const viaBrowser = uint8ArrayToBase64(original); // chunked btoa path
+
+    expect(viaBrowser).toBe(viaBuffer);
   });
 });
 

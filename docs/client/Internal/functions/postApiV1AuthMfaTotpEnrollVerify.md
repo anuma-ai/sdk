@@ -2,7 +2,7 @@
 
 > **postApiV1AuthMfaTotpEnrollVerify**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaTotpEnrollVerifyData`](../type-aliases/PostApiV1AuthMfaTotpEnrollVerifyData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AuthMfaTotpEnrollVerifyResponses`](../type-aliases/PostApiV1AuthMfaTotpEnrollVerifyResponses.md), [`PostApiV1AuthMfaTotpEnrollVerifyErrors`](../type-aliases/PostApiV1AuthMfaTotpEnrollVerifyErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:768](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#768)
+Defined in: [src/client/sdk.gen.ts:560](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#560)
 
 Verify TOTP enrollment
 

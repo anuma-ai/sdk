@@ -1,8 +1,8 @@
 # getApiV1Shares
 
-> **getApiV1Shares**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SharesData`](../type-aliases/GetApiV1SharesData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1SharesResponses`](../type-aliases/GetApiV1SharesResponses.md), [`GetApiV1SharesErrors`](../type-aliases/GetApiV1SharesErrors.md), `ThrowOnError`>
+> **getApiV1Shares**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SharesData`](../type-aliases/GetApiV1SharesData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1SharesResponses`](../type-aliases/GetApiV1SharesResponses.md), [`GetApiV1SharesErrors`](../type-aliases/GetApiV1SharesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1587](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1587)
+Defined in: [src/client/sdk.gen.ts:1171](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1171)
 
 List my shared artifacts
 
@@ -49,7 +49,7 @@ List my shared artifacts
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1SharesData`](../type-aliases/GetApiV1SharesData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1SharesData`](../type-aliases/GetApiV1SharesData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

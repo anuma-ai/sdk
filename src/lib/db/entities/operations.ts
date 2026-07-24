@@ -399,3 +399,62 @@ export async function getMemoriesByEntityNamesOp(
   }
   return out;
 }
+
+/**
+ * Reverse of {@link getMemoriesByEntityNamesOp}: given a set of memory IDs
+ * (e.g. the current BFS frontier), return each memory's set of linked
+ * canonical entity names. This is the missing primitive for multi-hop graph
+ * traversal (PR4) — one step outward from a memory to its neighbor entities,
+ * which the traversal then expands to reach topically-adjacent memories.
+ *
+ * Empty input returns an empty map. Memory IDs with no links contribute
+ * nothing (they simply don't appear as keys).
+ *
+ * Multi-user safety mirrors {@link getMemoriesByEntityNamesOp} exactly: when
+ * `ctx.userId` is set, only `memory_entity` rows owned by that user are
+ * followed (with the same `allowUnscopedRows` LokiJS escape hatch for pre-v31
+ * rows whose `user_id` backfill was a no-op). Without the filter the reverse
+ * lookup would leak entity links written by other users.
+ *
+ * @public
+ */
+export async function getEntitiesByMemoryIdsOp(
+  ctx: EntityOperationsContext,
+  memoryIds: readonly string[]
+): Promise<Map<string, Set<string>>> {
+  const unique = Array.from(new Set(memoryIds.filter((id) => id.length > 0)));
+  if (unique.length === 0) return new Map();
+
+  const linkConditions: Q.Clause[] = [Q.where("memory_id", Q.oneOf(unique))];
+  if (ctx.userId !== undefined) {
+    if (ctx.allowUnscopedRows) {
+      // Same LokiJS escape hatch as getMemoriesByEntityNamesOp — admit
+      // user_id=null rows (pre-v31 backfill no-op) alongside the user's own.
+      linkConditions.push(Q.or(Q.where("user_id", ctx.userId), Q.where("user_id", null)));
+    } else {
+      linkConditions.push(Q.where("user_id", ctx.userId));
+    }
+  }
+  const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
+  if (links.length === 0) return new Map();
+
+  // Resolve entity IDs → canonical names in one batched read.
+  const entityIds = Array.from(new Set(links.map((l) => String(l.entityId))));
+  const entityRows = await ctx.entityCollection.query(Q.where("id", Q.oneOf(entityIds))).fetch();
+  const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
+
+  // memoryId → Set<entity name>.
+  const out = new Map<string, Set<string>>();
+  for (const link of links) {
+    const entityName = entityIdToName.get(String(link.entityId));
+    if (!entityName) continue;
+    const memoryId = String(link.memoryId);
+    let bucket = out.get(memoryId);
+    if (!bucket) {
+      bucket = new Set();
+      out.set(memoryId, bucket);
+    }
+    bucket.add(entityName);
+  }
+  return out;
+}

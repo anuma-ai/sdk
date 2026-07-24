@@ -92,6 +92,31 @@ describe("createMemoryVaultTool", () => {
     });
   });
 
+  it("PR5: threads a valid `type` arg to createVaultMemoryOp as factType", async () => {
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "typed-1" }));
+
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
+    await tool.executor!({ content: "Allergic to shellfish", type: "constraint" });
+
+    expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
+      content: "Allergic to shellfish",
+      scope: "private",
+      factType: "constraint",
+    });
+  });
+
+  it("PR5: drops an unknown `type` arg (persists untyped, no factType)", async () => {
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "untyped-1" }));
+
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
+    await tool.executor!({ content: "some fact", type: "banana" });
+
+    expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
+      content: "some fact",
+      scope: "private",
+    });
+  });
+
   it("passes explicit scope to createVaultMemoryOp", async () => {
     vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory());
 

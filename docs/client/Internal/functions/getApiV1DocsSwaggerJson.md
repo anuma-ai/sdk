@@ -1,8 +1,8 @@
 # getApiV1DocsSwaggerJson
 
-> **getApiV1DocsSwaggerJson**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DocsSwaggerJsonData`](../type-aliases/GetApiV1DocsSwaggerJsonData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DocsSwaggerJsonResponses`](../type-aliases/GetApiV1DocsSwaggerJsonResponses.md), `unknown`, `ThrowOnError`>
+> **getApiV1DocsSwaggerJson**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DocsSwaggerJsonData`](../type-aliases/GetApiV1DocsSwaggerJsonData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1DocsSwaggerJsonResponses`](../type-aliases/GetApiV1DocsSwaggerJsonResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1318](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1318)
+Defined in: [src/client/sdk.gen.ts:964](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#964)
 
 Get OpenAPI specification
 
@@ -51,7 +51,7 @@ Returns the OpenAPI 3.1 specification for this API
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1DocsSwaggerJsonData`](../type-aliases/GetApiV1DocsSwaggerJsonData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1DocsSwaggerJsonData`](../type-aliases/GetApiV1DocsSwaggerJsonData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

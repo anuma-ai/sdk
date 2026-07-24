@@ -2,7 +2,7 @@
 
 > **ServerToolsResponse** = { `checksum`: `string`; `tools`: `ServerToolsMap`; } | `ServerToolsMap`
 
-Defined in: [src/lib/tools/serverTools.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#56)
+Defined in: [src/lib/tools/serverTools.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#60)
 
 Response format from /api/v1/tools endpoint.
 New format includes checksum and tools wrapper.

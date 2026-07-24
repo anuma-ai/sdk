@@ -1,8 +1,8 @@
 # postApiV1AuthMfaRecoveryCodesRegenerate
 
-> **postApiV1AuthMfaRecoveryCodesRegenerate**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaRecoveryCodesRegenerateData`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AuthMfaRecoveryCodesRegenerateResponses`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateResponses.md), [`PostApiV1AuthMfaRecoveryCodesRegenerateErrors`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateErrors.md), `ThrowOnError`>
+> **postApiV1AuthMfaRecoveryCodesRegenerate**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaRecoveryCodesRegenerateData`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1AuthMfaRecoveryCodesRegenerateResponses`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateResponses.md), [`PostApiV1AuthMfaRecoveryCodesRegenerateErrors`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:736](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#736)
+Defined in: [src/client/sdk.gen.ts:543](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#543)
 
 Regenerate recovery codes
 
@@ -49,7 +49,7 @@ Regenerate recovery codes
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaRecoveryCodesRegenerateData`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`PostApiV1AuthMfaRecoveryCodesRegenerateData`](../type-aliases/PostApiV1AuthMfaRecoveryCodesRegenerateData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

@@ -66,16 +66,6 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
-    esbuildPlugins: [
-      {
-        name: "rewrite-client-import",
-        setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
-            return { path: "@anuma/sdk", external: true };
-          });
-        },
-      },
-    ],
   },
   {
     entry: ["src/react/index.ts"],
@@ -99,16 +89,6 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
-    esbuildPlugins: [
-      {
-        name: "rewrite-client-import",
-        setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
-            return { path: "@anuma/sdk", external: true };
-          });
-        },
-      },
-    ],
   },
   {
     entry: ["src/vercel/index.ts"],
@@ -148,6 +128,25 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/tools",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  // Tool-selection engine + resolver — the node/RN/RSC-safe orchestration layer
+  // exposed as "@anuma/sdk/tools/selection" (issue #702). Its own entry with
+  // isolated externals — the "tools/" prefix is a naming grouping, NOT part of
+  // the "@anuma/sdk/tools" factory bundle. Deliberately free of WatermelonDB and
+  // recharts (the embedding calls come from the db-free memoryEngine/generate
+  // core), so both externals are belt-and-suspenders. The ../client rewrite
+  // mirrors server/react/expo so the generated HTTP client is not re-bundled.
+  {
+    entry: ["src/tools/selection/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/tools/selection",
+    external: ["react", "recharts", "@nozbe/watermelondb"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
@@ -220,15 +219,5 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
-    esbuildPlugins: [
-      {
-        name: "rewrite-client-import",
-        setup(build) {
-          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
-            return { path: "@anuma/sdk", external: true };
-          });
-        },
-      },
-    ],
   },
 ]);

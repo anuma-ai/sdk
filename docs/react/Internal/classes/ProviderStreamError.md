@@ -1,6 +1,6 @@
 # ProviderStreamError
 
-Defined in: [src/lib/chat/toolLoop.ts:215](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#215)
+Defined in: [src/lib/chat/toolLoop.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#216)
 
 Error thrown when an upstream provider emits an in-stream error event.
 Carries the provider's code (e.g. `"timeout"`) so callers can match
@@ -17,7 +17,7 @@ instead of string-matching the message.
 
 > **new ProviderStreamError**(`message`: `string`, `code?`: `string`): `ProviderStreamError`
 
-Defined in: [src/lib/chat/toolLoop.ts:217](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#217)
+Defined in: [src/lib/chat/toolLoop.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#218)
 
 **Parameters**
 
@@ -70,7 +70,7 @@ Defined in: [src/lib/chat/toolLoop.ts:217](https://github.com/anuma-ai/sdk/blob/
 
 > `readonly` **code**: `string` | `undefined`
 
-Defined in: [src/lib/chat/toolLoop.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#216)
+Defined in: [src/lib/chat/toolLoop.ts:217](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#217)
 
 ***
 

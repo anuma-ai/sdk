@@ -2,7 +2,7 @@
 
 > **postApiV1Shares**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SharesData`](../type-aliases/PostApiV1SharesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SharesResponses`](../type-aliases/PostApiV1SharesResponses.md), [`PostApiV1SharesErrors`](../type-aliases/PostApiV1SharesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1599](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1599)
+Defined in: [src/client/sdk.gen.ts:1178](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1178)
 
 Publish an artifact to a public share link
 

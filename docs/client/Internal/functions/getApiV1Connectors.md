@@ -1,8 +1,8 @@
 # getApiV1Connectors
 
-> **getApiV1Connectors**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConnectorsData`](../type-aliases/GetApiV1ConnectorsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ConnectorsResponses`](../type-aliases/GetApiV1ConnectorsResponses.md), [`GetApiV1ConnectorsErrors`](../type-aliases/GetApiV1ConnectorsErrors.md), `ThrowOnError`>
+> **getApiV1Connectors**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConnectorsData`](../type-aliases/GetApiV1ConnectorsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1ConnectorsResponses`](../type-aliases/GetApiV1ConnectorsResponses.md), [`GetApiV1ConnectorsErrors`](../type-aliases/GetApiV1ConnectorsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:894](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#894)
+Defined in: [src/client/sdk.gen.ts:656](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#656)
 
 List the user's connected connectors
 
@@ -51,7 +51,7 @@ Returns the set of active connector credentials owned by the authenticated user 
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1ConnectorsData`](../type-aliases/GetApiV1ConnectorsData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1ConnectorsData`](../type-aliases/GetApiV1ConnectorsData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

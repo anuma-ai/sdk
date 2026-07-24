@@ -2,7 +2,7 @@
 
 > **postApiV1DeveloperApps**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1DeveloperAppsData`](../type-aliases/PostApiV1DeveloperAppsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1DeveloperAppsResponses`](../type-aliases/PostApiV1DeveloperAppsResponses.md), [`PostApiV1DeveloperAppsErrors`](../type-aliases/PostApiV1DeveloperAppsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1086](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1086)
+Defined in: [src/client/sdk.gen.ts:796](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#796)
 
 Create app
 

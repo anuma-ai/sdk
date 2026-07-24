@@ -1,8 +1,8 @@
 # getApiV1SubscriptionsStatus
 
-> **getApiV1SubscriptionsStatus**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1SubscriptionsStatusResponses`](../type-aliases/GetApiV1SubscriptionsStatusResponses.md), [`GetApiV1SubscriptionsStatusErrors`](../type-aliases/GetApiV1SubscriptionsStatusErrors.md), `ThrowOnError`>
+> **getApiV1SubscriptionsStatus**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1SubscriptionsStatusResponses`](../type-aliases/GetApiV1SubscriptionsStatusResponses.md), [`GetApiV1SubscriptionsStatusErrors`](../type-aliases/GetApiV1SubscriptionsStatusErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1745](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1745)
+Defined in: [src/client/sdk.gen.ts:1284](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1284)
 
 Get subscription status
 
@@ -51,7 +51,7 @@ Returns the current subscription status, plan, and billing period info
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

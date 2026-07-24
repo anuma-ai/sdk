@@ -51,6 +51,89 @@ describe("extractEntitiesForMemories", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("forwards endpointOverride to the request path (baseUrl + override)", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: topicResponse([{ id: "mem_1", entities: [] }]) } }],
+      }),
+    });
+    await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], {
+      apiKey: "k",
+      baseUrl: "https://portal.test",
+      endpointOverride: "/api/v1/utility/chat/completions",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect(fetchFn.mock.calls[0][0]).toBe("https://portal.test/api/v1/utility/chat/completions");
+  });
+
+  // Regression guard: the portal reads only `max_completion_tokens`; the
+  // deprecated `max_tokens` is silently ignored and truncates a verbose batch
+  // mid-JSON, dropping it. The batch request must carry the modern field.
+  it("sends max_completion_tokens (never the deprecated max_tokens)", async () => {
+    const fetchFn = mockFetch(topicResponse([{ id: "mem_1", entities: [] }]));
+    await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], { apiKey: "k", fetchFn });
+    const body = JSON.parse(
+      (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string
+    ) as Record<string, unknown>;
+    expect(body.max_completion_tokens).toBe(8192);
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
+  // Reconciliation guards for the id-echo defenses — the half of the fix that
+  // took ling from ~19/29 dropped to 0/29. Without these, a later simplification
+  // of the strip would keep the suite green while ling silently regressed.
+  it('reconciles a bracket-decorated id echo (e.g. ling\'s "[mem_1]")', async () => {
+    const fetchFn = mockFetch(
+      topicResponse([{ id: "[mem_1]", entities: [{ name: "Sara", kind: "person" }] }])
+    );
+    const res = await extractEntitiesForMemories([{ id: "mem_1", content: "wife Sara" }], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(res.get("mem_1")).toEqual([{ name: "Sara", kind: "person" }]);
+  });
+
+  it('reconciles a trailing-colon id echo ("mem_1:" from the id: delimiter)', async () => {
+    const fetchFn = mockFetch(topicResponse([{ id: "mem_1:", entities: [] }]));
+    const res = await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(res.has("mem_1")).toBe(true);
+    expect(res.get("mem_1")).toEqual([]);
+  });
+
+  it("renders a newline-containing memory as ONE listing row (no phantom split)", async () => {
+    let mem1Row: string | undefined;
+    const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      const userMessage = body.messages.find((m) => m.role === "user")!.content;
+      mem1Row = userMessage.split("\n").find((l) => l.startsWith("mem_1:"));
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: topicResponse([{ id: "mem_1", entities: [] }]) } }],
+        }),
+      };
+    }) as unknown as typeof fetch;
+    await extractEntitiesForMemories(
+      [{ id: "mem_1", content: "line one\nline two\n\nline three" }],
+      {
+        apiKey: "k",
+        fetchFn,
+      }
+    );
+    // The WHOLE memory must sit on its single "mem_1:" row. Without the
+    // whitespace collapse the content newlines split it, this row would end at
+    // "line one", and "line two"/"line three" would masquerade as fresh rows —
+    // so this exact-match fails if the fix regresses (the previous count-based
+    // assertion passed either way and guarded nothing).
+    expect(mem1Row).toBe("mem_1: line one line two line three");
+  });
+
   it("parses entities per memory; omitted ids stay ABSENT (unanswered)", async () => {
     const fetchFn = mockFetch(
       topicResponse([
@@ -101,7 +184,7 @@ describe("extractEntitiesForMemories", () => {
         messages: Array<{ role: string; content: string }>;
       };
       const userMessage = body.messages.find((m) => m.role === "user")!.content;
-      const ids = [...userMessage.matchAll(/\[(mem_\d+)\]/g)].map((m) => m[1]);
+      const ids = [...userMessage.matchAll(/^(mem_\d+): /gm)].map((m) => m[1]);
       return {
         ok: true,
         json: async () => ({

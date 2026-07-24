@@ -42,7 +42,10 @@ export default defineConfig({
   plugins: [
     {
       name: "@hey-api/client-next",
-      runtimeConfigPath: "../clientConfig",
+      // Resolved relative to the project root (openapi-ts config location), not
+      // the output folder. 0.87 treated this as relative to `output`; 0.97+
+      // emits an import relative to the generated client.gen.ts file.
+      runtimeConfigPath: "./src/clientConfig",
     },
   ],
 });

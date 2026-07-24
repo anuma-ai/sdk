@@ -2,7 +2,7 @@
 
 > **createVaultMemoriesBatchOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `optionsArray`: [`CreateVaultMemoryOptions`](../interfaces/CreateVaultMemoryOptions.md)\[]): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:330](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#330)
+Defined in: [src/lib/db/memoryVault/operations.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#406)
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 
 > **postApiV1AdminBotPollerStop**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminBotPollerStopData`](../type-aliases/PostApiV1AdminBotPollerStopData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminBotPollerStopResponses`](../type-aliases/PostApiV1AdminBotPollerStopResponses.md), [`PostApiV1AdminBotPollerStopErrors`](../type-aliases/PostApiV1AdminBotPollerStopErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#274)
+Defined in: [src/client/sdk.gen.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#208)
 
 Stop the X-bot poller (admin)
 

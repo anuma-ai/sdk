@@ -1,8 +1,8 @@
 # getApiV1Bootstrap
 
-> **getApiV1Bootstrap**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1BootstrapData`](../type-aliases/GetApiV1BootstrapData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1BootstrapResponses`](../type-aliases/GetApiV1BootstrapResponses.md), [`GetApiV1BootstrapErrors`](../type-aliases/GetApiV1BootstrapErrors.md), `ThrowOnError`>
+> **getApiV1Bootstrap**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1BootstrapData`](../type-aliases/GetApiV1BootstrapData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetApiV1BootstrapResponses`](../type-aliases/GetApiV1BootstrapResponses.md), [`GetApiV1BootstrapErrors`](../type-aliases/GetApiV1BootstrapErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:798](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#798)
+Defined in: [src/client/sdk.gen.ts:586](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#586)
 
 Bootstrap client session
 
@@ -51,7 +51,7 @@ Returns the authenticated user identity, feature-flag assignments, server build 
 </td>
 <td>
 
-[`Options`](../type-aliases/Options.md)<[`GetApiV1BootstrapData`](../type-aliases/GetApiV1BootstrapData.md), `ThrowOnError`>
+[`Options`](../type-aliases/Options.md)<[`GetApiV1BootstrapData`](../type-aliases/GetApiV1BootstrapData.md), `ThrowOnError`, `unknown`>
 
 </td>
 </tr>

@@ -2,7 +2,7 @@
 
 > **deleteApiV1UserApiKeysByKeyId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1UserApiKeysByKeyIdData`](../type-aliases/DeleteApiV1UserApiKeysByKeyIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1UserApiKeysByKeyIdResponses`](../type-aliases/DeleteApiV1UserApiKeysByKeyIdResponses.md), [`DeleteApiV1UserApiKeysByKeyIdErrors`](../type-aliases/DeleteApiV1UserApiKeysByKeyIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1915](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1915)
+Defined in: [src/client/sdk.gen.ts:1401](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1401)
 
 Delete user API key
 
