@@ -80,6 +80,53 @@ describe("extractEntitiesForMemories", () => {
     expect(body).not.toHaveProperty("max_tokens");
   });
 
+  // Reconciliation guards for the id-echo defenses — the half of the fix that
+  // took ling from ~19/29 dropped to 0/29. Without these, a later simplification
+  // of the strip would keep the suite green while ling silently regressed.
+  it('reconciles a bracket-decorated id echo (e.g. ling\'s "[mem_1]")', async () => {
+    const fetchFn = mockFetch(
+      topicResponse([{ id: "[mem_1]", entities: [{ name: "Sara", kind: "person" }] }])
+    );
+    const res = await extractEntitiesForMemories([{ id: "mem_1", content: "wife Sara" }], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(res.get("mem_1")).toEqual([{ name: "Sara", kind: "person" }]);
+  });
+
+  it('reconciles a trailing-colon id echo ("mem_1:" from the id: delimiter)', async () => {
+    const fetchFn = mockFetch(topicResponse([{ id: "mem_1:", entities: [] }]));
+    const res = await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], {
+      apiKey: "k",
+      fetchFn,
+    });
+    expect(res.has("mem_1")).toBe(true);
+    expect(res.get("mem_1")).toEqual([]);
+  });
+
+  it("renders a newline-containing memory as ONE listing row (no phantom split)", async () => {
+    let memoryRows = -1;
+    const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      const userMessage = body.messages.find((m) => m.role === "user")!.content;
+      memoryRows = userMessage.split("\n").filter((l) => /^mem_1:/.test(l)).length;
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: topicResponse([{ id: "mem_1", entities: [] }]) } }],
+        }),
+      };
+    }) as unknown as typeof fetch;
+    const res = await extractEntitiesForMemories(
+      [{ id: "mem_1", content: "line one\nline two\n\nline three" }],
+      { apiKey: "k", fetchFn }
+    );
+    expect(memoryRows).toBe(1); // collapsed to a single row, not split on the newlines
+    expect(res.has("mem_1")).toBe(true);
+  });
+
   it("parses entities per memory; omitted ids stay ABSENT (unanswered)", async () => {
     const fetchFn = mockFetch(
       topicResponse([

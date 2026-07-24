@@ -207,7 +207,7 @@ const band = (xs: number[]) =>
 
     rows.push(
       model.padEnd(nameW) +
-        ` | ${band(precision)} | ${band(recall)} | ${band(f1)} | ${band(kind)} | ${band(junk)} | ` +
+        ` | ${band(precision)} | ${band(recall)} | ${band(f1)} | ${band(kind)} | ${band(junk)} | ${unans.toFixed(1).padStart(7)} | ` +
         `${pct(canonNo.reused / canonNo.total)}->${pct(canonYes.reused / canonYes.total)} | ${secs.toFixed(1).padStart(5)}`
     );
     out[model] = { prRuns, canonNo, canonYes };
@@ -216,15 +216,16 @@ const band = (xs: number[]) =>
   console.log("\n===== TOPIC-EXTRACTION QUALITY =====\n");
   console.log(
     "model".padEnd(nameW) +
-      " | precision           | recall              | f1                  | kind acc            | junk-clean          | canon(no->voc) | s"
+      " | precision           | recall              | f1                  | kind acc            | junk-clean          | dropped | canon(no->voc) | s"
   );
   console.log(
     "-".repeat(nameW) +
-      "-+---------------------+---------------------+---------------------+---------------------+---------------------+----------------+----"
+      "-+---------------------+---------------------+---------------------+---------------------+---------------------+---------+----------------+----"
   );
   rows.forEach((r) => console.log(r));
   console.log(
     `\nprecision = TP/extracted (1-junk) · recall = TP/${GOLD_TOTAL} gold · junk-clean = empty memories kept empty (${EMPTY_CASES.length}) · ` +
+      `dropped = memories in a failed/unanswered batch (mean/${TOPIC_CASES.length}) — the metric this pass exists to keep at 0; recall and junk-clean are BOTH depressed by drops, so read dropped first · ` +
       `canon = seeded-name reuse-rate, no-vocab -> with-vocab lift (${CANON_CASES.length} cases). Run --verbose to audit false positives against gold completeness.`
   );
   console.log(JSON.stringify(out));

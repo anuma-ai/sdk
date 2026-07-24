@@ -148,7 +148,12 @@ export async function extractEntitiesForMemories(
     const batch = memories.slice(i, i + TOPIC_EXTRACTION_BATCH_SIZE);
     const listing = batch
       .map((m) => {
-        const content = m.content.slice(0, MAX_CHARS_PER_MEMORY);
+        // Collapse whitespace so a memory whose content contains a newline
+        // (textarea entry, doc import) can't masquerade as extra "id: text"
+        // rows once "\n" is the row delimiter — that would split one memory
+        // into two, answer a phantom id, and leave the real id absent (hence
+        // unstamped and re-tried every sweep).
+        const content = m.content.slice(0, MAX_CHARS_PER_MEMORY).replace(/\s+/g, " ").trim();
         return `${m.id}: ${redactor ? redactor.redactText(content).text : content}`;
       })
       .join("\n");
@@ -240,10 +245,13 @@ function parseTopicResponse(
     const obj = raw as Record<string, unknown>;
     if (typeof obj.id !== "string") continue;
     // Tolerate a model that decorates the echoed id (e.g. ling wraps it as
-    // "[mem_1]") — strip a single pair of wrapping brackets + whitespace so the
-    // batch still reconciles instead of silently dropping all its memories.
+    // "[mem_1]") or copies the "id: " listing delimiter's trailing colon
+    // ("mem_1:") — strip a trailing colon and a single pair of wrapping
+    // brackets + whitespace so the batch still reconciles instead of silently
+    // dropping all its memories.
     const id = obj.id
       .trim()
+      .replace(/:$/, "")
       .replace(/^\[([\s\S]*)\]$/, "$1")
       .trim();
     if (!validIds.has(id) || out.has(id)) continue;
