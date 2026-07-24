@@ -71,11 +71,24 @@ of `apiKey` / `getToken` is required; see [PortalLlmAuth](PortalLlmAuth.md).
 
 ***
 
+### decryptLast?
+
+> `optional` **decryptLast**: `boolean`
+
+Defined in: [src/lib/memory/types.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#198)
+
+Decrypt vault memory content only for the top-N ranked candidates
+instead of the whole vault. Forwarded verbatim to the vault search
+pipeline's `MemoryVaultSearchOptions`. Default: off (legacy
+whole-vault decrypt path).
+
+***
+
 ### entityFanout?
 
 > `optional` **entityFanout**: `number`
 
-Defined in: [src/lib/memory/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#200)
+Defined in: [src/lib/memory/types.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#207)
 
 Max neighbor entities expanded per hop. Default: 8.
 
@@ -129,7 +142,7 @@ Vault folder filter. Vault-only.
 
 > `optional` **graphRefine**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#211)
+Defined in: [src/lib/memory/types.ts:218](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#218)
 
 PR5 — enable LLM graph path-refinement: at each traversal hop a model picks
 which neighbor entities to expand instead of pure co-occurrence ranking.
@@ -164,7 +177,7 @@ Max items returned. Default: 8.
 
 > `optional` **maxHops**: `number`
 
-Defined in: [src/lib/memory/types.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#198)
+Defined in: [src/lib/memory/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#205)
 
 Total graph hops incl. the seed lookup (hop 1). Default: 1 (seed only).
 
@@ -204,7 +217,7 @@ Apply MMR diversification after ranking (rerank pipeline only). Default: false.
 
 > `optional` **nodeBudget**: `number`
 
-Defined in: [src/lib/memory/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#202)
+Defined in: [src/lib/memory/types.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#209)
 
 Hard cap on accumulated memory IDs across all hops. Default: 64.
 

@@ -677,9 +677,10 @@ export interface VaultCandidateKey {
  * are inlined as SQL literals (no bound args) to keep the projection paths'
  * bound-arg lists identical to the pre-decay behavior.
  */
-function baseVaultSql(
-  ctx: VaultMemoryOperationsContext
-): { sql: string; args: Array<string | number | boolean | null> } {
+function baseVaultSql(ctx: VaultMemoryOperationsContext): {
+  sql: string;
+  args: Array<string | number | boolean | null>;
+} {
   const clauses = [
     '"is_deleted" = 0',
     '"archived_at" is null',
@@ -746,9 +747,10 @@ export async function getVaultCandidateKeysOp(
       ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
       ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
     ];
-    const rows = (await ctx.vaultMemoryCollection
-      .query(...conditions)
-      .unsafeFetchRaw()) as Record<string, unknown>[];
+    const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+      string,
+      unknown
+    >[];
     return rows.map(mapRaw);
   }
 }

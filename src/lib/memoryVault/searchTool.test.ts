@@ -901,9 +901,9 @@ describe("admitVaultProjections", () => {
       )
     ).toEqual(["pos", "orthogonal", "opposite"]);
     // K still caps: with K=1 only the best-cosine row is admitted.
-    expect(
-      admitVaultProjections([1, 0], [v("pos", [1, 0]), v("orthogonal", [0, 1])], 1)
-    ).toEqual(["pos"]);
+    expect(admitVaultProjections([1, 0], [v("pos", [1, 0]), v("orthogonal", [0, 1])], 1)).toEqual([
+      "pos",
+    ]);
   });
 });
 
@@ -986,12 +986,19 @@ describe("buildProjectedCorpus", () => {
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([] as any);
     const genEmb = vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
-    const out = await buildProjectedCorpus("q", {} as any, embOpts, new Map(), {}, {
-      limit: 5,
-      admitFactor: 3,
-      admitFloor: 30,
-      unembeddedCap: 100,
-    });
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      new Map(),
+      {},
+      {
+        limit: 5,
+        admitFactor: 3,
+        admitFloor: 30,
+        unembeddedCap: 100,
+      }
+    );
 
     // No candidate keys → nothing to search → skip the embedding call entirely.
     expect(genEmb).not.toHaveBeenCalled();
@@ -1004,8 +1011,20 @@ describe("buildProjectedCorpus", () => {
     // decrypted so the RRF lane can promote it, mirroring the legacy path
     // where every row is available to the ranker.
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
-      { uniqueId: "top", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
-      { uniqueId: "sidehit", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      {
+        uniqueId: "top",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
+      {
+        uniqueId: "sidehit",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any); // both cached
     const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
@@ -1034,13 +1053,20 @@ describe("buildProjectedCorpus", () => {
       ["top", Float32Array.from([1, 0])], // cosine 1
       ["sidehit", Float32Array.from([0, 1])], // cosine 0 — outside K=1 window
     ]);
-    const out = await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, {
-      limit: 1,
-      admitFactor: 1,
-      admitFloor: 1,
-      unembeddedCap: 100,
-      forceIncludeIds: ["sidehit"],
-    });
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      cache,
+      {},
+      {
+        limit: 1,
+        admitFactor: 1,
+        admitFloor: 1,
+        unembeddedCap: 100,
+        forceIncludeIds: ["sidehit"],
+      }
+    );
 
     const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
     expect(decryptedIds).toContain("sidehit");
@@ -1049,7 +1075,13 @@ describe("buildProjectedCorpus", () => {
 
   it("forceIncludeIds: ignores ids absent from the candidate-key set (out of scope)", async () => {
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
-      { uniqueId: "top", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      {
+        uniqueId: "top",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
     const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
@@ -1075,13 +1107,20 @@ describe("buildProjectedCorpus", () => {
     vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
 
     const cache = new Map([["top", Float32Array.from([1, 0])]]);
-    await buildProjectedCorpus("q", {} as any, embOpts, cache, {}, {
-      limit: 1,
-      admitFactor: 1,
-      admitFloor: 1,
-      unembeddedCap: 100,
-      forceIncludeIds: ["ghost"], // not a candidate key
-    });
+    await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      cache,
+      {},
+      {
+        limit: 1,
+        admitFactor: 1,
+        admitFloor: 1,
+        unembeddedCap: 100,
+        forceIncludeIds: ["ghost"], // not a candidate key
+      }
+    );
 
     const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
     expect(decryptedIds).not.toContain("ghost");
@@ -1241,8 +1280,20 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     // window. entityRanking names "sidehit" — recall's graph lane found it
     // via entity overlap, not cosine. It must be decrypted and surfaced.
     const rows = [
-      { uniqueId: "top", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
-      { uniqueId: "sidehit", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      {
+        uniqueId: "top",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
+      {
+        uniqueId: "sidehit",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
     ];
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue(rows as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
@@ -1291,8 +1342,20 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     // the searchable corpus is empty. Must early-return (like the legacy path)
     // instead of falling through into decompose/LLM ranking on an empty head.
     vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
-      { uniqueId: "a", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
-      { uniqueId: "b", folderId: null, scope: "private", embeddingModel: "m", updatedAt: new Date() },
+      {
+        uniqueId: "a",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
+      {
+        uniqueId: "b",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
     ] as any);
     vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
     vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
