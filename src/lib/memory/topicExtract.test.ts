@@ -105,13 +105,13 @@ describe("extractEntitiesForMemories", () => {
   });
 
   it("renders a newline-containing memory as ONE listing row (no phantom split)", async () => {
-    let memoryRows = -1;
+    let mem1Row: string | undefined;
     const fetchFn = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(init.body as string) as {
         messages: Array<{ role: string; content: string }>;
       };
       const userMessage = body.messages.find((m) => m.role === "user")!.content;
-      memoryRows = userMessage.split("\n").filter((l) => /^mem_1:/.test(l)).length;
+      mem1Row = userMessage.split("\n").find((l) => l.startsWith("mem_1:"));
       return {
         ok: true,
         json: async () => ({
@@ -119,12 +119,19 @@ describe("extractEntitiesForMemories", () => {
         }),
       };
     }) as unknown as typeof fetch;
-    const res = await extractEntitiesForMemories(
+    await extractEntitiesForMemories(
       [{ id: "mem_1", content: "line one\nline two\n\nline three" }],
-      { apiKey: "k", fetchFn }
+      {
+        apiKey: "k",
+        fetchFn,
+      }
     );
-    expect(memoryRows).toBe(1); // collapsed to a single row, not split on the newlines
-    expect(res.has("mem_1")).toBe(true);
+    // The WHOLE memory must sit on its single "mem_1:" row. Without the
+    // whitespace collapse the content newlines split it, this row would end at
+    // "line one", and "line two"/"line three" would masquerade as fresh rows —
+    // so this exact-match fails if the fix regresses (the previous count-based
+    // assertion passed either way and guarded nothing).
+    expect(mem1Row).toBe("mem_1: line one line two line three");
   });
 
   it("parses entities per memory; omitted ids stay ABSENT (unanswered)", async () => {
