@@ -2,4 +2,4 @@
 
 > **PostApiV1AuthMfaTotpEnrollVerifyResponse** = [`PostApiV1AuthMfaTotpEnrollVerifyResponses`](PostApiV1AuthMfaTotpEnrollVerifyResponses.md)\[keyof [`PostApiV1AuthMfaTotpEnrollVerifyResponses`](PostApiV1AuthMfaTotpEnrollVerifyResponses.md)]
 
-Defined in: [src/client/types.gen.ts:6650](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6650)
+Defined in: [src/client/types.gen.ts:6686](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6686)

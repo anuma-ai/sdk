@@ -2,4 +2,4 @@
 
 > **PatchApiV1AdminOauthClientsByClientIdResponse** = [`PatchApiV1AdminOauthClientsByClientIdResponses`](PatchApiV1AdminOauthClientsByClientIdResponses.md)\[keyof [`PatchApiV1AdminOauthClientsByClientIdResponses`](PatchApiV1AdminOauthClientsByClientIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5538](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5538)
+Defined in: [src/client/types.gen.ts:5558](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5558)

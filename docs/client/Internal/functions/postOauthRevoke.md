@@ -2,7 +2,7 @@
 
 > **postOauthRevoke**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostOauthRevokeData`](../type-aliases/PostOauthRevokeData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostOauthRevokeResponses`](../type-aliases/PostOauthRevokeResponses.md), [`PostOauthRevokeErrors`](../type-aliases/PostOauthRevokeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1628](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1628)
+Defined in: [src/client/sdk.gen.ts:1642](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1642)
 
 OAuth 2.0 token revocation (RFC 7009)
 

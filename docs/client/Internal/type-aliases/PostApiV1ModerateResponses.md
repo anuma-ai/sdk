@@ -2,7 +2,7 @@
 
 > **PostApiV1ModerateResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:8587](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8587)
+Defined in: [src/client/types.gen.ts:8623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8623)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:8587](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersModerateResponse`](HandlersModerateResponse.md)
 
-Defined in: [src/client/types.gen.ts:8591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8591)
+Defined in: [src/client/types.gen.ts:8627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8627)
 
 OK

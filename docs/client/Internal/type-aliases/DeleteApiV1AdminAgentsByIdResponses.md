@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAgentsByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4467](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4467)
+Defined in: [src/client/types.gen.ts:4487](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4487)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4467](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:4471](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4471)
+Defined in: [src/client/types.gen.ts:4491](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4491)
 
 OK
 

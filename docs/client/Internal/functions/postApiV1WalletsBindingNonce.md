@@ -2,7 +2,7 @@
 
 > **postApiV1WalletsBindingNonce**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1WalletsBindingNonceData`](../type-aliases/PostApiV1WalletsBindingNonceData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`PostApiV1WalletsBindingNonceResponses`](../type-aliases/PostApiV1WalletsBindingNonceResponses.md), [`PostApiV1WalletsBindingNonceErrors`](../type-aliases/PostApiV1WalletsBindingNonceErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1465](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1465)
+Defined in: [src/client/sdk.gen.ts:1479](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1479)
 
 Issue a wallet-binding nonce
 

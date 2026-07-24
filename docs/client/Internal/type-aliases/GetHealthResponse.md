@@ -2,4 +2,4 @@
 
 > **GetHealthResponse** = [`GetHealthResponses`](GetHealthResponses.md)\[keyof [`GetHealthResponses`](GetHealthResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10539](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10539)
+Defined in: [src/client/types.gen.ts:10633](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10633)

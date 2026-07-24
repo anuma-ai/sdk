@@ -2,7 +2,7 @@
 
 > **PostApiV1WalletsBindingNonceResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10223](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10223)
+Defined in: [src/client/types.gen.ts:10317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10317)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10223](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersNonceResponse`](HandlersNonceResponse.md)
 
-Defined in: [src/client/types.gen.ts:10227](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10227)
+Defined in: [src/client/types.gen.ts:10321](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10321)
 
 OK

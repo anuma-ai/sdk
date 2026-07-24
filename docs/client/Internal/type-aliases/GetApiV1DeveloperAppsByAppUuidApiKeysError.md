@@ -2,4 +2,4 @@
 
 > **GetApiV1DeveloperAppsByAppUuidApiKeysError** = [`GetApiV1DeveloperAppsByAppUuidApiKeysErrors`](GetApiV1DeveloperAppsByAppUuidApiKeysErrors.md)\[keyof [`GetApiV1DeveloperAppsByAppUuidApiKeysErrors`](GetApiV1DeveloperAppsByAppUuidApiKeysErrors.md)]
 
-Defined in: [src/client/types.gen.ts:7719](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7719)
+Defined in: [src/client/types.gen.ts:7755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#7755)

@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderRefreshResponse** = [`PostAuthOauthByProviderRefreshResponses`](PostAuthOauthByProviderRefreshResponses.md)\[keyof [`PostAuthOauthByProviderRefreshResponses`](PostAuthOauthByProviderRefreshResponses.md)]
 
-Defined in: [src/client/types.gen.ts:10403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10403)
+Defined in: [src/client/types.gen.ts:10497](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10497)

@@ -2,7 +2,7 @@
 
 > **PostApiV1WalletsBindingErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10177](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10177)
+Defined in: [src/client/types.gen.ts:10271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10271)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10177](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10181](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10181)
+Defined in: [src/client/types.gen.ts:10275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10275)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10185)
+Defined in: [src/client/types.gen.ts:10279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10279)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10189](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10189)
+Defined in: [src/client/types.gen.ts:10283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10283)
 
 Conflict
 
@@ -40,6 +40,6 @@ Conflict
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10193](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10193)
+Defined in: [src/client/types.gen.ts:10287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10287)
 
 Too Many Requests

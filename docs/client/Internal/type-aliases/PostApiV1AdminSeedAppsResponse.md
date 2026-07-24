@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminSeedAppsResponse** = [`PostApiV1AdminSeedAppsResponses`](PostApiV1AdminSeedAppsResponses.md)\[keyof [`PostApiV1AdminSeedAppsResponses`](PostApiV1AdminSeedAppsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5839](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5839)
+Defined in: [src/client/types.gen.ts:5859](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5859)

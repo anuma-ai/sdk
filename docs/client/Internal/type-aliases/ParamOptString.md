@@ -2,7 +2,7 @@
 
 > **ParamOptString** = `object`
 
-Defined in: [src/client/types.gen.ts:4177](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4177)
+Defined in: [src/client/types.gen.ts:4197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4197)
 
 The [IANA timezone](https://timeapi.io/documentation/iana-timezones) of the
 user, e.g. `America/Los_Angeles`.
@@ -13,4 +13,4 @@ user, e.g. `America/Los_Angeles`.
 
 > `optional` **value**: `string`
 
-Defined in: [src/client/types.gen.ts:4178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4178)
+Defined in: [src/client/types.gen.ts:4198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4198)
