@@ -230,7 +230,7 @@ export class CompletionsStrategy implements ApiStrategy {
       model,
       stream,
       ...(temperature !== undefined && { temperature }),
-      ...(maxOutputTokens !== undefined && { max_tokens: maxOutputTokens }),
+      ...(maxOutputTokens !== undefined && { max_completion_tokens: maxOutputTokens }),
       ...(tools && { tools }),
       ...(toolChoice && { tool_choice: toolChoice }),
       ...(portal && { portal }),

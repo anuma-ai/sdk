@@ -192,7 +192,10 @@ export async function reflect(
       headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
-        max_tokens: maxTokens,
+        // Modern OpenAI field; the portal reads only `max_completion_tokens`
+        // (the deprecated `max_tokens` is silently ignored → falls back to the
+        // portal's default output cap and truncates the answer).
+        max_completion_tokens: maxTokens,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },

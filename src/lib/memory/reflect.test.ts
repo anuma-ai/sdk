@@ -364,4 +364,16 @@ describe("reflect", () => {
     expect(result.basedOn.memoryIds).toEqual([]);
     expect(result.text).toBe("");
   });
+
+  // Regression guard: the portal reads only `max_completion_tokens`; the
+  // deprecated `max_tokens` is silently ignored and truncates the answer at the
+  // default cap. The answer request must carry the modern field, never the legacy one.
+  it("sends max_completion_tokens (never the deprecated max_tokens)", async () => {
+    oneMemory();
+    const fetchFn = mockFetch(completionResponse("answer"));
+    await reflect("q", ctx, { apiKey: "k", fetchFn, maxTokens: 512 });
+    const body = sentBody(fetchFn);
+    expect(body.max_completion_tokens).toBe(512);
+    expect(body).not.toHaveProperty("max_tokens");
+  });
 });
