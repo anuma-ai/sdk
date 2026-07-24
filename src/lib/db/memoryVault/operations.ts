@@ -1,6 +1,7 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { getLogger } from "../../logger";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils";
 import {
   type EntityInput,
@@ -11,7 +12,6 @@ import {
 } from "../entities/operations";
 import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
-import { getLogger } from "../../logger";
 import type {
   CreateVaultMemoryOptions,
   RankableVaultMemory,
