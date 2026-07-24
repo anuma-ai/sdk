@@ -83,7 +83,13 @@ export interface ExtractedMemory {
 // had pinned ~77% of cached entries to empty results. The version bump forces
 // those (and any other v1 entries written under the old behavior) to
 // re-extract instead of serving stale empties.
-const EXTRACTION_PROMPT_VERSION = "v2";
+//
+// v3 (2026-07): the extraction call now sends `max_completion_tokens` instead
+// of the deprecated `max_tokens`. The portal ignored the legacy field, so v2's
+// "6000" was silently clamped to the 4096 default; the cap is now actually
+// honored, changing extraction output. Bump forces v2 entries (written under
+// the effective-4096 behavior) to re-extract rather than serve stale results.
+const EXTRACTION_PROMPT_VERSION = "v3";
 const EXTRACTION_CACHE_SAVE_EVERY = 25;
 
 type CachedExtraction = Omit<ExtractedMemory, "sessionIndex" | "sessionId">;
@@ -432,7 +438,7 @@ export async function callChatCompletion(
         model: api.llmModel,
         messages,
         temperature: 0,
-        max_tokens: options?.maxTokens ?? 500,
+        max_completion_tokens: options?.maxTokens ?? 500,
       };
 
       if (options?.tools && options.tools.length > 0) {
@@ -537,7 +543,7 @@ Respond with ONLY "CORRECT" or "INCORRECT".`;
         model: api.llmModel,
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
-        max_tokens: 10,
+        max_completion_tokens: 10,
       }),
     });
 
@@ -670,7 +676,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
           // and content comes back empty (finish_reason "length"). The
           // production SDK path sends no cap at all; 6000 keeps runaway-CoT
           // models (kimi) bounded while leaving reasoning room.
-          max_tokens: 6000,
+          max_completion_tokens: 6000,
         }),
       });
 

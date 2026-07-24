@@ -101,7 +101,9 @@ interface PortalLlmRequest extends PortalLlmAuth {
   timeoutMs?: number;
   /** Override fetch (for tests). */
   fetchFn?: typeof fetch;
-  /** Optional extra fields merged into the request body (e.g. `max_tokens`). */
+  /** Optional extra fields merged into the request body (e.g.
+   * `max_completion_tokens` — use this modern field, not the deprecated
+   * `max_tokens`, which the portal ignores). */
   extra?: Record<string, unknown>;
   /**
    * Max attempts on a TRANSIENT failure (network/timeout, 408/409/425/429, any
