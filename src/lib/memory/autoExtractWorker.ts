@@ -25,6 +25,12 @@
  * during a busy window are still examined instead of scrolling out of a last-N
  * window.
  *
+ * The watermark advances only when the extractor genuinely EXAMINED the window.
+ * A pipeline throw and an `empty-after-retry` outcome (the extraction LLM
+ * returned empty/malformed after exhausting its retries) both leave it in place,
+ * so the next turn's window re-covers those messages instead of stranding them.
+ * A quiet turn that legitimately yielded no facts *does* advance it.
+ *
  * Durability: the in-memory watermark alone does NOT survive process death, so
  * a session killed after messages accumulate but before extraction would, on
  * the next launch, fall back to a trailing-window guess and could skip the
@@ -322,9 +328,11 @@ const MAX_TRACKED_CONVERSATIONS = 200;
 /** Per-conversation extraction state (keyed by conversationId, undefined included). */
 interface ConversationState {
   /**
-   * Id of the last message extracted through. Advances only on a completed
-   * extraction (not on throw), so a transient failure leaves the messages to be
-   * re-covered by the next turn.
+   * Id of the last message extracted through. Advances only when the extractor
+   * genuinely examined the window — not on a throw, and not on an
+   * `empty-after-retry` outcome (the LLM failed after exhausting retries, so
+   * nothing was examined). Either way the messages are left to be re-covered by
+   * the next turn.
    */
   watermark?: string;
   /**
@@ -610,17 +618,28 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           }
         );
 
-        // Extraction completed (even with zero facts is a legit "examined,
+        // Extraction EXAMINED the window (even zero facts is a legit "examined,
         // nothing durable") → advance the watermark past everything we sent, so
-        // the next turn starts after it. Only on success: a throw skips this,
-        // leaving these messages to be re-covered next turn (transient retry).
-        const advancedTo = window[window.length - 1].id;
-        stateFor(conversationId).watermark = advancedTo;
-        // Persist through the durable cursor so a later session resumes here —
-        // but only on a contiguous advance and without regressing a concurrent
-        // writer (see persistCursor). The in-memory watermark always advances;
-        // only the durable write is guarded.
-        persistCursor(conversationId, messages, advancedTo, contiguous);
+        // the next turn starts after it.
+        //
+        // `empty-after-retry` is NOT examined: the extractor LLM returned
+        // empty/malformed after exhausting its retries, so this window's facts
+        // were never actually looked at. `extractFacts` swallows that into an
+        // empty candidate list rather than throwing, so without this guard the
+        // failure looked identical to a quiet turn — the watermark advanced,
+        // `persistCursor` wrote it through, and those messages were never
+        // re-examined. Leave the watermark where it is so the next turn's window
+        // re-covers them, exactly as a throw does. The window keeps widening
+        // until an extraction genuinely lands (bounded by `maxWindowSize`).
+        if (outcome !== "empty-after-retry") {
+          const advancedTo = window[window.length - 1].id;
+          stateFor(conversationId).watermark = advancedTo;
+          // Persist through the durable cursor so a later session resumes here —
+          // but only on a contiguous advance and without regressing a concurrent
+          // writer (see persistCursor). The in-memory watermark always advances;
+          // only the durable write is guarded.
+          persistCursor(conversationId, messages, advancedTo, contiguous);
+        }
 
         // extractAndRetain returns candidates and results length-aligned:
         // entries appear only when their retain() write succeeded, so
