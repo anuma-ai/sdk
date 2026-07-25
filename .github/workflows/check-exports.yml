@@ -34,3 +34,25 @@ jobs:
 
       - name: Check Exports
         run: pnpm check-exports
+
+  # Same family of invariant — invisible during development, felt by consumers —
+  # but about whether a public memory export has any consumer at all. knip can't
+  # see this: an entry-point re-export is knip's definition of used. Its own job
+  # because it needs no build.
+  export-consumers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Check Memory Export Consumers
+        run: node scripts/assert-export-consumers.mjs
