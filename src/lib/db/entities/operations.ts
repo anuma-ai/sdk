@@ -47,9 +47,23 @@ function entityToStored(e: Entity): StoredEntity {
 }
 
 /**
- * Core upsert logic WITHOUT a `database.write()` wrapper. Must be called from
- * inside an existing write block. Returns both the resolved entity map and the
- * prepared create/update operations that the caller must batch.
+ * Batch resolve-or-create a set of entities, WITHOUT its own
+ * `database.write()`: callers run it inside their existing write block and
+ * batch the returned `operations` alongside their own.
+ *
+ * That shape is load-bearing, not stylistic. When the upsert committed in its
+ * own writer, a caller's link insert landed in a SECOND writer — and a
+ * concurrent {@link replaceMemoryEntitiesGuardedOp} could run in the gap,
+ * see the freshly-upserted entity at zero links, prune it
+ * ({@link findOrphanedEntities}) and leave the caller inserting a
+ * memory_entity row pointing at a deleted entity.
+ *
+ * Names are deduplicated and normalized (lower-trim) before lookup. When an
+ * entity carries a `kind`, it is written on create and back-filled onto an
+ * existing row whose kind is still null — but a non-null kind is never
+ * overwritten (an earlier, likely-more-confident classification wins over a
+ * later one). If the same name appears twice with different kinds in one
+ * batch, the first non-null kind wins.
  */
 async function upsertEntitiesInWrite(
   ctx: EntityOperationsContext,
@@ -101,35 +115,10 @@ async function upsertEntitiesInWrite(
 }
 
 /**
- * Batch resolve-or-create a set of entities. Read + create run inside one
- * `database.write()` so concurrent turns can't race a check-then-create on
- * the same brand-new name.
- *
- * Names are deduplicated and normalized (lower-trim) before lookup. When an
- * entity carries a `kind`, it is written on create and back-filled onto an
- * existing row whose kind is still null — but a non-null kind is never
- * overwritten (an earlier, likely-more-confident classification wins over a
- * later one). If the same name appears twice with different kinds in one
- * batch, the first non-null kind wins.
- */
-async function upsertEntitiesOp(
-  ctx: EntityOperationsContext,
-  entities: ReadonlyArray<{ name: string; kind?: string }>
-): Promise<Map<string, StoredEntity>> {
-  return await ctx.database.write(async () => {
-    const { entities: entityMap, operations } = await upsertEntitiesInWrite(ctx, entities);
-    if (operations.length > 0) {
-      await ctx.database.batch(...operations);
-    }
-    return entityMap;
-  });
-}
-
-/**
  * Link a memory to one or more entities. Accepts bare names (back-compat)
  * or `{ name, kind }` objects. Names are normalized; missing entities are
  * auto-created (with their kind), and an existing entity's null kind is
- * back-filled — see {@link upsertEntitiesOp}. Idempotent — duplicate
+ * back-filled — see {@link upsertEntitiesInWrite}. Idempotent — duplicate
  * (memory_id, entity_id) pairs are skipped.
  *
  * `options.unlessTopicsUserManaged` re-checks the memory's vault row INSIDE

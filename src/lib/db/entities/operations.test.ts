@@ -447,3 +447,67 @@ describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
     expect(home.prepareDestroyPermanently).not.toHaveBeenCalled();
   });
 });
+
+describe("entity upsert + link atomicity", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /**
+   * The upsert must NOT commit in its own writer. When it did, the caller's link
+   * insert landed in a second writer, and a concurrent
+   * `replaceMemoryEntitiesGuardedOp` could slip into the gap, see the new entity
+   * at zero links, prune it, and leave a memory_entity row pointing at a deleted
+   * entity. WatermelonDB serializes writers, so "one writer" IS the fix.
+   */
+  it("linkMemoryEntitiesOp opens exactly ONE writer", async () => {
+    const { ctx } = makeCtx();
+
+    await linkMemoryEntitiesOp(ctx, "mem_1", [{ name: "Sara", kind: "person" }]);
+
+    const write = (ctx.database as unknown as { write: ReturnType<typeof vi.fn> }).write;
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("batches the entity create together with the link create", async () => {
+    const { ctx } = makeCtx();
+
+    await linkMemoryEntitiesOp(ctx, "mem_1", ["Sara"]);
+
+    // One batch carrying both, not an entity batch followed by a link batch.
+    const batch = (ctx.database as unknown as { batch: ReturnType<typeof vi.fn> }).batch;
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch.mock.calls[0]!.length).toBe(2);
+  });
+
+  it("replaceMemoryEntitiesGuardedOp also opens exactly ONE writer", async () => {
+    const { ctx } = makeCtx();
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: null }]),
+      })),
+    }));
+
+    await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain"]);
+
+    const write = (ctx.database as unknown as { write: ReturnType<typeof vi.fn> }).write;
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("still records vocabulary when the guard skips the links", async () => {
+    // Entity rows are global vocabulary, so a user-managed memory blocks the
+    // LINKS but not the upsert — asserted here because the atomicity refactor
+    // moved the upsert inside the writer, next to the guard.
+    const { ctx } = makeCtx();
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: true }]),
+      })),
+    }));
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result).toEqual([]);
+    expect(created).toHaveLength(1);
+  });
+});
