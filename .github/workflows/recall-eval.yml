@@ -1,0 +1,155 @@
+name: Recall Eval
+
+# Bounded LongMemEval retrieval gate for recall-ranking changes.
+#
+# Why a separate workflow instead of a `pull_request` trigger on longmemeval.yml:
+# that workflow's dispatch inputs are all `required: true` (they resolve BLANK on
+# a pull_request event, which has no inputs), and its final step PUSHES results
+# to the `benchmarks` branch — a PR must never do that. Cloning just the setup +
+# cache steps has a far smaller blast radius than retrofitting both behaviours.
+#
+# WHAT THIS GATES — retrieval only:
+#   blocking : retrieval avgRecall + avgPrecision
+#   reported : answer accuracy (NEVER blocking)
+# Accuracy depends on the answer LLM and the judge, and it fails independently of
+# retrieval: at the time this gate was written a clean 50-question run measured
+# 95.5% retrieval recall alongside 0.0% accuracy across every question type (see
+# the harness issue), and the `benchmarks` branch holds recall runs at 0–1.8%
+# accuracy beside healthy ~80% ones. Gating accuracy would red PRs for outages
+# the PR didn't cause. Retrieval is what a ranking change actually moves.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "gate = fail on retrieval regression vs committed baseline; save-baseline = write a new baseline artifact"
+        required: false
+        type: choice
+        default: "gate"
+        options: ["gate", "save-baseline"]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/recall-eval.yml"
+      # The recall/ranking stack — same surface the vault-search gate watches.
+      # Both fire on a ranking PR by design: vault-search is the cheap
+      # deterministic signal, this one is the end-to-end retrieval check.
+      - "src/lib/memory/recall.ts"
+      - "src/lib/memory/recallConstants.ts"
+      - "src/lib/memory/recallTool.ts"
+      - "src/lib/memory/rrf.ts"
+      - "src/lib/memory/mmr.ts"
+      - "src/lib/memory/recency.ts"
+      - "src/lib/memory/queryEntities.ts"
+      - "src/lib/memory/queryTemporal.ts"
+      - "src/lib/memory/graphTraversal.ts"
+      - "src/lib/memory/retain.ts"
+      - "src/lib/memoryVault/**"
+      # The harness + shared gate helper.
+      - "test/memory/longmemeval.ts"
+      - "test/memory/src/longmemeval/**"
+      - "test/memory/src/gate.ts"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+      NODE_OPTIONS: "--max-old-space-size=6144"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      # HuggingFace rate-limits the dataset endpoint and will 429 when this is
+      # re-run in quick succession, so cache the dataset + embedding cache the
+      # same way longmemeval.yml does.
+      - name: Restore longmemeval cache (datasets + embeddings)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/longmemeval/embedding-cache-*.json
+            ~/.cache/longmemeval/longmemeval_oracle.json
+          key: longmemeval-recall-gate-v1
+
+      - name: Preload dataset
+        run: pnpm --silent eval:longmemeval --preload
+
+      # The pinned bounded config. Every knob here is RECORDED in the baseline
+      # and the harness refuses to gate on a mismatch, so changing any of them
+      # requires regenerating the baseline — they can't drift apart silently.
+      #   --max 50            : ~2.5 min end to end; enough sample for an 8pt floor
+      #   --decompose=off     : drops the LLM query-decomposition call
+      #   --consolidate=false : drops the LLM retain-time consolidation call
+      #   --rerank=false      : drops the native cross-encoder (also avoids a
+      #                         teardown crash in the ONNX runtime)
+      - name: Run recall gate
+        if: env.INPUT_MODE == 'gate'
+        run: |
+          set -o pipefail
+          pnpm --silent eval:longmemeval \
+            --strategy recall --variant oracle --max 50 \
+            --llm gpt-oss/gpt-oss-120b --extract-llm gpt-oss/gpt-oss-120b \
+            --concurrency 10 --decompose=off --consolidate=false --rerank=false \
+            --output results.json \
+            --baseline test/memory/src/longmemeval/recall-baseline.json
+
+      - name: Run recall eval (save baseline)
+        if: env.INPUT_MODE == 'save-baseline'
+        run: |
+          set -o pipefail
+          pnpm --silent eval:longmemeval \
+            --strategy recall --variant oracle --max 50 \
+            --llm gpt-oss/gpt-oss-120b --extract-llm gpt-oss/gpt-oss-120b \
+            --concurrency 10 --decompose=off --consolidate=false --rerank=false \
+            --output results.json --save-baseline
+          echo "### Generated recall baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat test/memory/src/longmemeval/recall-baseline.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated baseline
+        if: env.INPUT_MODE == 'save-baseline'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recall-baseline
+          path: test/memory/src/longmemeval/recall-baseline.json
+          if-no-files-found: error
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "## Recall eval — retrieval gate (oracle, 50 questions)"
+            if [ -f results.json ]; then
+              echo '```'
+              jq -r '
+                "  BLOCKING — retrieval:",
+                "    recall    : \((.retrieval.avgRecall*1000|round/10))%",
+                "    precision : \((.retrieval.avgPrecision*1000|round/10))%",
+                "",
+                "  reported only (never gates):",
+                "    accuracy  : \((.accuracy*1000|round/10))%  (\(.correctAnswers)/\(.totalQuestions))"
+              ' results.json 2>/dev/null || echo "  (could not parse results.json)"
+              echo '```'
+            else
+              echo "_No result (the eval failed before writing results.json)._"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recall-eval-results
+          path: results.json
+          if-no-files-found: ignore

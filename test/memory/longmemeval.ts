@@ -13,8 +13,17 @@
 
 import "dotenv/config";
 import { parseArgs } from "node:util";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../src/lib/memoryEngine/constants.js";
+import {
+  buildGateBaseline,
+  compareToGateBaseline,
+  describeConfigMismatch,
+  formatGateRegressions,
+  type GateBaseline,
+  type GateMetricSpec,
+  isValidGateBaseline,
+} from "./src/gate.js";
 import {
   loadLongMemEvalDataset,
   preloadAllDatasets,
@@ -107,8 +116,43 @@ const { values: args } = parseArgs({
     mmr: { type: "boolean" },
     "rerank-candidates": { type: "string" },
     "bm25-divisor": { type: "string" },
+    // Retrieval regression gate — same contract as the other eval suites.
+    // Deliberately gates RETRIEVAL only; see RECALL_GATE_METRICS.
+    baseline: { type: "string" },
+    "save-baseline": { type: "boolean", default: false },
   },
 });
+
+const DEFAULT_RECALL_BASELINE_PATH = "test/memory/src/longmemeval/recall-baseline.json";
+
+/**
+ * Gated metrics for the recall gate.
+ *
+ * ONLY retrieval metrics block. `accuracy` is reported but never gated, and that
+ * is a deliberate call from the data: the `benchmarks` branch history has
+ * recall-strategy oracle runs at ~80% accuracy / ~94% retrieval recall sitting
+ * beside sibling runs that collapsed to 0–1.8% accuracy. Those collapses are
+ * answer-LLM / infrastructure flakiness, not ranking regressions — gating on
+ * accuracy would red PRs for reasons the PR didn't cause. Retrieval recall and
+ * precision are what a ranking change actually moves, and they don't depend on
+ * the answer model at all.
+ *
+ * The gate config additionally pins `--decompose=off --consolidate=false
+ * --rerank=false`, removing the LLM calls inside the retrieval path (query
+ * decomposition, retain-time consolidation) and the native cross-encoder.
+ *
+ * Retrieval still is NOT deterministic, because building the vault runs LLM
+ * extraction per session: two back-to-back 50-question oracle runs of unchanged
+ * code measured recall 91.5% then 95.5% (precision 92.0% / 96.0%) — a ~4pp
+ * swing. The floor is set to 8pp so that measured noise has ~2x margin, since a
+ * real ranking collapse moves far more than that. The committed baseline is a
+ * SINGLE run (the harness has no repeat mode), so this floor — not an observed
+ * spread — is what governs the gate.
+ */
+const RECALL_GATE_METRICS: GateMetricSpec[] = [
+  { key: "retrievalRecall", direction: "higher-better", minTolerance: 0.08, label: "recall" },
+  { key: "retrievalPrecision", direction: "higher-better", minTolerance: 0.08, label: "precision" },
+];
 
 /** Parse a numeric CLI flag, exiting with a clear error on garbage input
  *  so a typo'd sweep doesn't silently fall back to the SDK default.
@@ -401,6 +445,15 @@ async function main(): Promise<void> {
         await writeFile(args.output, JSON.stringify(result, null, 2));
         console.log(`\nResults written to ${args.output}`);
       }
+
+      // Retrieval regression gate. Only meaningful on a single-strategy run —
+      // the comparison shape has two summaries and no single set of numbers to
+      // gate, so it's excluded above.
+      if (args["save-baseline"]) {
+        await saveRecallBaseline(result, args.baseline ?? DEFAULT_RECALL_BASELINE_PATH);
+      } else if (args.baseline) {
+        await gateRecallAgainstBaseline(result, args.baseline);
+      }
     }
 
     process.exit(0);
@@ -408,6 +461,119 @@ async function main(): Promise<void> {
     console.error("Benchmark failed:", error);
     process.exit(1);
   }
+}
+
+/** Retrieval metrics the gate reads, flattened to the gate's run shape. */
+function recallMetrics(result: {
+  retrieval: { avgRecall: number; avgPrecision: number };
+}): Record<string, number> {
+  return {
+    retrievalRecall: result.retrieval.avgRecall,
+    retrievalPrecision: result.retrieval.avgPrecision,
+  };
+}
+
+/**
+ * The knobs these numbers depend on. Recorded so the gate refuses to compare a
+ * bounded PR run against, say, a full-variant or differently-piped baseline —
+ * every one of these changes what recall means.
+ */
+function recallGateConfig(): Record<string, string | number | boolean> {
+  return {
+    strategy: args.strategy ?? "",
+    variant: args.variant ?? "",
+    max: args.max ?? "",
+    llm: args.llm ?? "",
+    decompose: args.decompose ?? "",
+    consolidate: args.consolidate ?? "",
+    // Recorded because the cross-encoder reorders results: a baseline captured
+    // with rerank on is not comparable to a gate run with it off.
+    rerank: args.rerank ?? "",
+    recallTypes: args["recall-types"] ?? "",
+    recallEmit: args["recall-emit"] ?? "",
+    recallLaneMode: args["recall-lane-mode"] ?? "",
+  };
+}
+
+/**
+ * Refuse to treat a run that retrieved NOTHING as a baseline or as a passing
+ * gate. Zero recall across every question is an infrastructure failure (the
+ * portal 500s, an expired key, a dataset that didn't load), not a measurement:
+ * the first capture attempt for this gate scored 0.0/0.0 because the extractor
+ * was 500ing, and it would have committed a baseline that can never fail.
+ * Observed in the wild too — the `benchmarks` branch holds several
+ * recall-strategy runs at 0–1.8% accuracy beside healthy ~80% ones.
+ */
+function assertRetrievalHappened(result: {
+  retrieval: { avgRecall: number; avgPrecision: number };
+}): void {
+  const { avgRecall, avgPrecision } = result.retrieval;
+  if (avgRecall > 0 || avgPrecision > 0) return;
+  console.error(
+    `\n  Retrieval was 0% on every question — treating this as a FAILED RUN, not a result.\n` +
+      `  A baseline captured here could never fail, and a gate passing here would be vacuous.\n` +
+      `  Check the portal (HTTP 500s / auth) and the dataset cache, then re-run.\n`
+  );
+  process.exit(1);
+}
+
+async function saveRecallBaseline(
+  result: { retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number },
+  path: string
+): Promise<void> {
+  assertRetrievalHappened(result);
+  const baseline = buildGateBaseline(
+    [recallMetrics(result)],
+    RECALL_GATE_METRICS,
+    recallGateConfig()
+  );
+  await writeFile(path, JSON.stringify(baseline, null, 2) + "\n");
+  console.error(
+    `\nRecall baseline written to ${path}. ` +
+      `Accuracy at capture was ${(result.accuracy * 100).toFixed(1)}% — recorded for reference ` +
+      `only; the gate does not read it.`
+  );
+}
+
+async function gateRecallAgainstBaseline(
+  result: { retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number },
+  path: string
+): Promise<void> {
+  // A wholly-failed run must fail the gate loudly rather than reporting a
+  // retrieval regression it can't distinguish from an outage.
+  assertRetrievalHappened(result);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(path, "utf-8"));
+  } catch (err) {
+    console.error(`Failed to load recall baseline from ${path}: ${String(err)}`);
+    process.exit(1);
+  }
+  if (!isValidGateBaseline(parsed, RECALL_GATE_METRICS)) {
+    console.error(
+      `\n  ${path} is not a valid recall baseline (expected a config + metrics object). ` +
+        `Generate one with --save-baseline.\n`
+    );
+    process.exit(1);
+  }
+  const baseline: GateBaseline = parsed;
+  const mismatch = describeConfigMismatch(baseline, recallGateConfig());
+  if (mismatch) {
+    console.error(`\n  Refusing to gate: ${mismatch}. Re-run to match, or regenerate.\n`);
+    process.exit(1);
+  }
+  const regressions = compareToGateBaseline([recallMetrics(result)], baseline, RECALL_GATE_METRICS);
+  if (regressions.length === 0) {
+    console.error(
+      `\n  Retrieval gate: no regressions detected ` +
+        `(accuracy ${(result.accuracy * 100).toFixed(1)}%, not gated).\n`
+    );
+    return;
+  }
+  console.error("\n  RETRIEVAL REGRESSION DETECTED\n");
+  console.error(formatGateRegressions(regressions));
+  console.error("");
+  process.exit(1);
 }
 
 main();

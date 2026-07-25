@@ -1,0 +1,29 @@
+{
+  "config": {
+    "strategy": "recall",
+    "variant": "oracle",
+    "max": "50",
+    "llm": "gpt-oss/gpt-oss-120b",
+    "decompose": "off",
+    "consolidate": "false",
+    "rerank": "false",
+    "recallTypes": "",
+    "recallEmit": "",
+    "recallLaneMode": ""
+  },
+  "runs": 1,
+  "metrics": {
+    "retrievalRecall": {
+      "mean": 0.955,
+      "min": 0.955,
+      "max": 0.955,
+      "tolerance": 0.08
+    },
+    "retrievalPrecision": {
+      "mean": 0.96,
+      "min": 0.96,
+      "max": 0.96,
+      "tolerance": 0.08
+    }
+  }
+}
