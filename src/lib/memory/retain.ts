@@ -27,7 +27,12 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
-import { searchVaultMemories, type VaultEmbeddingCache } from "../memoryVault/searchTool.js";
+import {
+  type PreparedVaultCandidates,
+  prepareVaultCandidates,
+  rankPreparedVaultCandidates,
+  type VaultEmbeddingCache,
+} from "../memoryVault/searchTool.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
@@ -92,15 +97,48 @@ export async function retain(
   // now-changed standing value), and the refined new-fact content.
   let supersedeTargetIds: string[] = [];
   let supersedeContent: string | undefined;
+  // Shared candidate set for both merge stages, built once below when
+  // auto-merge is on. Kept in the outer scope so the create path can reuse its
+  // query embedding instead of re-embedding identical text.
+  let prepared: PreparedVaultCandidates | undefined;
 
   if (enableAutoMerge) {
+    // Both merge stages search an IDENTICAL universe — same query, scope,
+    // folder, and `includeArchived` — and differ only in rank-time parameters
+    // (limit + threshold). So load, decrypt and embed ONCE here and rank that
+    // prepared set per stage below. This is the expensive half of the search;
+    // retain used to pay it twice per fact, and auto-extraction retains several
+    // facts per turn.
+    //
+    // Prepared at the WIDEST limit either stage uses (Stage 1's topK). Under
+    // `decryptLast` the projected admission window is
+    // `max(limit * admitFactor, admitFloor)`, so preparing narrow would hand
+    // Stage 1 fewer candidates than it would have seen alone. Preparing wide and
+    // ranking narrow is safe — a superset — which is why the max is required and
+    // not merely tidy.
+    prepared = await prepareVaultCandidates(
+      trimmed,
+      ctx.vaultCtx,
+      ctx.embeddingOptions,
+      ctx.vaultCache,
+      {
+        limit: Math.max(options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K, 1),
+        useFusion: false,
+        scopes: [resolvedScope],
+        // PR5 — include archived rows as merge candidates so a re-observed fact
+        // resurrects (un-archives) the decayed row instead of duplicating it.
+        includeArchived: true,
+        ...(options.folderId !== undefined && { folderId: options.folderId }),
+      }
+    );
+
     // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
     // Pulls top-K memories above the looser consolidation floor (default
     // 0.65) and asks an LLM to decide create/update/noop/supersede. Catches
     // paraphrased duplicates the strict cosine-merge below misses, and retires
     // stale values on a state change.
     if (options.consolidateOptions) {
-      const outcome = await tryConsolidate(trimmed, ctx, options);
+      const outcome = await tryConsolidate(trimmed, ctx, options, prepared);
       if (outcome) {
         if ("done" in outcome) return outcome.done;
         supersedeTargetIds = outcome.supersede;
@@ -115,23 +153,21 @@ export async function retain(
     // Stage 2 is skipped when superseding (main's A2): a changed value must be
     // created fresh, never merged into some other row.
     if (supersedeTargetIds.length === 0) {
-      const matches = await searchVaultMemories(
+      // Rank the SHARED prepared set at Stage 2's strict parameters. This cannot
+      // be derived by filtering Stage 1's output to >= threshold: the ranker
+      // sizes its supersession window as `min(limit * 3, supersessionWindow)`,
+      // and the two stages pass different limits (topK vs 1), so their score
+      // adjustments — and therefore their ordering — differ. Re-rank instead.
+      // (A previous attempt at "the 0.8 stage is the 0.55 stage filtered" was
+      // reverted upstream for exactly this reason; see anuma-ai/sdk#759.)
+      const { results: matches } = await rankPreparedVaultCandidates(
         trimmed,
-        ctx.vaultCtx,
+        prepared,
         ctx.embeddingOptions,
-        ctx.vaultCache,
         {
           limit: 1,
           minSimilarity: threshold,
           useFusion: false,
-          scopes: [resolvedScope],
-          // PR5 — include archived rows as merge candidates so a re-observed
-          // fact resurrects (un-archives) the decayed row instead of creating a
-          // fresh duplicate. The resurrection is applied on the merge write
-          // below, but ONLY for a row that is not superseded/deleted (the
-          // guards below preserve main's tombstone/supersession suppression).
-          includeArchived: true,
-          ...(options.folderId !== undefined && { folderId: options.folderId }),
         }
       );
 
@@ -201,7 +237,18 @@ export async function retain(
   // deleted between search and write): create a new memory. For supersession,
   // use the consolidator's refined content; otherwise use the original input.
   const contentToWrite = supersedeContent ?? trimmed;
-  const embedding = await generateEmbedding(contentToWrite, ctx.embeddingOptions);
+  // Reuse the query vector from the shared prepare when the text we're about to
+  // store is the SAME text we searched with — that's the common case (no
+  // supersession), and re-embedding identical content is a wasted network call.
+  // A `supersedeContent` write is the consolidator's rewritten text, so it must
+  // be embedded fresh. A zero-length vector means prepare short-circuited on an
+  // empty vault and never embedded, so fall through in that case too.
+  const reusableQueryEmbedding =
+    supersedeContent === undefined && prepared && prepared.queryEmbedding.length > 0
+      ? prepared.queryEmbedding
+      : undefined;
+  const embedding =
+    reusableQueryEmbedding ?? (await generateEmbedding(contentToWrite, ctx.embeddingOptions));
   const embeddingModel = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   // Tombstone gate: if this create matches a soft-deleted memory, the user (or
@@ -476,30 +523,28 @@ type ConsolidateOutcome = { done: RetainResult } | { supersede: string[]; conten
 async function tryConsolidate(
   trimmed: string,
   ctx: RetainContext,
-  options: RetainOptions
+  options: RetainOptions,
+  /** Shared candidate set from retain(), prepared at this stage's topK. */
+  prepared: PreparedVaultCandidates
 ): Promise<ConsolidateOutcome> {
   const consolidateOptions = options.consolidateOptions;
   if (!consolidateOptions) return null;
 
   const consolidateThreshold = options.consolidateThreshold ?? DEFAULT_CONSOLIDATE_THRESHOLD;
   const topK = options.consolidateTopK ?? DEFAULT_CONSOLIDATE_TOP_K;
-  // Same scope resolution as retain() — search the scope we'll write to.
-  const resolvedScope = options.scope ?? DEFAULT_SCOPE;
 
-  const matches = await searchVaultMemories(
+  // Rank the shared prepared set at Stage 1's looser parameters. Scope / folder /
+  // includeArchived were applied when the set was prepared, so they are not
+  // repeated here — retain() prepares with exactly this stage's topK as the
+  // widest limit (see the prepare call).
+  const { results: matches } = await rankPreparedVaultCandidates(
     trimmed,
-    ctx.vaultCtx,
+    prepared,
     ctx.embeddingOptions,
-    ctx.vaultCache,
     {
       limit: topK,
       minSimilarity: consolidateThreshold,
       useFusion: false,
-      scopes: [resolvedScope],
-      // PR5 — archived rows are consolidation candidates too, so a paraphrased
-      // re-observation resurrects a decayed row rather than duplicating it.
-      includeArchived: true,
-      ...(options.folderId !== undefined && { folderId: options.folderId }),
     }
   );
   if (matches.length === 0) return null;
