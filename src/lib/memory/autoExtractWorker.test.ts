@@ -271,6 +271,40 @@ describe("createAutoExtractor", () => {
     expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual(["m1", "m2"]);
   });
 
+  it("does NOT advance the watermark on 'empty-after-retry' (re-covers next turn)", async () => {
+    // The extractor LLM returned empty/malformed after exhausting its retries,
+    // so this window was never actually examined. extractAndRetain reports that
+    // as an outcome rather than throwing, so the worker must not treat it as a
+    // completed pass — otherwise the window's facts are stranded permanently.
+    vi.mocked(extractAndRetain)
+      .mockResolvedValueOnce({ ...EMPTY_RESULT, outcome: "empty-after-retry" })
+      .mockResolvedValue(EMPTY_RESULT);
+    const extractor = createAutoExtractor(baseOptions);
+
+    extractor.processTurn(messages, "c1"); // failed extraction
+    await flush();
+    extractor.processTurn(messages, "c1"); // same window must be re-sent
+    await flush();
+
+    expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual(["m1", "m2"]);
+  });
+
+  it("DOES advance the watermark on a legitimately quiet turn ('no-facts')", async () => {
+    // Counterpart to the test above: "examined, nothing durable" is a real pass,
+    // so re-firing the same state is a no-op. Guards against over-correcting the
+    // empty-after-retry fix into "never advance on zero candidates".
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const extractor = createAutoExtractor(baseOptions);
+
+    extractor.processTurn(messages, "c1");
+    await flush();
+    extractor.processTurn(messages, "c1");
+    await flush();
+
+    expect(vi.mocked(extractAndRetain)).toHaveBeenCalledTimes(1);
+  });
+
   it("dispose drops a queued pending turn", async () => {
     const finishFirst = blockFirstCall();
     const extractor = createAutoExtractor(baseOptions);
@@ -506,6 +540,22 @@ describe("createAutoExtractor — durable cursor store (A3)", () => {
 
     // Fresh conversation → trailing window of all 6 → watermark advances to m5.
     expect(set).toHaveBeenCalledWith("conv1", "m5");
+  });
+
+  it("does NOT persist the cursor on 'empty-after-retry'", async () => {
+    // The durable half of the same guard: writing the cursor through on a failed
+    // extraction strands the window for every LATER session too, not just this one.
+    vi.mocked(extractAndRetain).mockResolvedValue({
+      ...EMPTY_RESULT,
+      outcome: "empty-after-retry",
+    });
+    const { store, set } = makeCursorStore();
+    const extractor = createAutoExtractor({ ...baseOptions, cursorStore: store });
+
+    extractor.processTurn(mk(6), "conv1");
+    await flush();
+
+    expect(set).not.toHaveBeenCalled();
   });
 
   it("hydrates the watermark from the cursor so only post-cursor messages are sent", async () => {
