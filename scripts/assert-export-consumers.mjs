@@ -43,15 +43,24 @@ const codeOf = (file) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^[^\n"'`]*\/\/.*$/gm, "");
 
-/** `{ a, type B, c as d }` → the value names (`a`, `d`'s source `c`). */
-function valueNames(block) {
-  const names = [];
+/**
+ * Value specifiers of a `{…}` block, as `{ source, exposed }`.
+ *
+ * Which side of an `as` matters depends on the statement. In a barrel's
+ * `export { internalFn as publicFn }` the tracked name is `publicFn` — that's
+ * what a consumer can call and what the manifest must list. In a consumer's
+ * `import { publicFn as local }` the name that identifies the export is
+ * `publicFn`, the source side. So both are returned and the caller picks.
+ */
+function valueSpecifiers(block) {
+  const specs = [];
   for (const part of block.split(",")) {
-    const name = part.trim();
-    if (!name || name.startsWith("type ")) continue;
-    names.push(name.split(/\s+as\s+/)[0].trim());
+    const spec = part.trim();
+    if (!spec || spec.startsWith("type ")) continue;
+    const [source, exposed = source] = spec.split(/\s+as\s+/).map((s) => s.trim());
+    specs.push({ source, exposed });
   }
-  return names;
+  return specs;
 }
 
 /** `src/lib/memory/index.ts` + `./reflect.js` → `src/lib/memory/reflect.ts`. */
@@ -74,7 +83,11 @@ function resolveModule(fromFile, spec) {
   return resolved;
 }
 
-/** Value exports of a barrel, keyed to their defining module. */
+/**
+ * Public value exports of a barrel: the exposed name → its defining module,
+ * plus `source → exposed` for anything re-exported under a different name, so a
+ * consumer importing straight from the defining module still counts.
+ */
 function readBarrel(file) {
   const src = codeOf(file);
   if (/export\s+\*\s+from/.test(src)) {
@@ -85,21 +98,29 @@ function readBarrel(file) {
     process.exit(1);
   }
   const byName = new Map();
+  const aliases = new Map();
   for (const [, keyword, typeOnly, block, spec] of src.matchAll(SPECIFIER)) {
     if (keyword !== "export" || typeOnly) continue; // types can't be "mounted"
-    for (const name of valueNames(block)) {
+    for (const { source, exposed } of valueSpecifiers(block)) {
       // Tuning constants are configuration, not a feature that can go dark.
-      if (/^[A-Z0-9_]+$/.test(name)) continue;
-      byName.set(name, resolveModule(file, spec));
+      if (/^[A-Z0-9_]+$/.test(exposed)) continue;
+      byName.set(exposed, resolveModule(file, spec));
+      if (source !== exposed) aliases.set(source, exposed);
     }
   }
-  return byName;
+  return { byName, aliases };
 }
 
 // --- 1. the tracked surface -------------------------------------------------
-/** @type {Map<string, string>} export name → defining module */
+/** @type {Map<string, string>} public export name → defining module */
 const definedIn = new Map();
-for (const barrel of BARRELS) for (const [n, m] of readBarrel(barrel)) definedIn.set(n, m);
+/** @type {Map<string, string>} defining-module name → public name, when they differ */
+const aliasedTo = new Map();
+for (const barrel of BARRELS) {
+  const { byName, aliases } = readBarrel(barrel);
+  for (const [name, module] of byName) definedIn.set(name, module);
+  for (const [source, exposed] of aliases) aliasedTo.set(source, exposed);
+}
 
 // --- 2. who imports what ----------------------------------------------------
 // A consumer is a real module: barrels only forward, and tests prove behavior,
@@ -107,13 +128,16 @@ for (const barrel of BARRELS) for (const [n, m] of readBarrel(barrel)) definedIn
 const sources = readdirSync(join(ROOT, "src"), { recursive: true })
   .map((entry) => `src/${entry}`.replaceAll("\\", "/"))
   .filter((f) => /\.tsx?$/.test(f) && !/\.(test|spec)\.tsx?$/.test(f) && !f.endsWith("/index.ts"));
-/** @type {Map<string, Set<string>>} export name → files importing it */
+/** @type {Map<string, Set<string>>} public export name → files importing it */
 const importers = new Map();
 for (const file of sources) {
   for (const [, , , block, spec] of codeOf(file).matchAll(SPECIFIER)) {
     if (!spec.startsWith(".")) continue; // package imports can't reach our own exports
-    for (const name of valueNames(block)) {
-      if (!definedIn.has(name)) continue;
+    for (const { source } of valueSpecifiers(block)) {
+      // `source` is the name the target module exports. Map it through any barrel
+      // rename so importing `internalFn` counts as consuming `publicFn`.
+      const name = definedIn.has(source) ? source : aliasedTo.get(source);
+      if (!name) continue;
       if (!importers.has(name)) importers.set(name, new Set());
       importers.get(name).add(file);
     }
