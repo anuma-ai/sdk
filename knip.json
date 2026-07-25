@@ -3,7 +3,12 @@
   "project": ["src/**/*.ts", "src/**/*.tsx"],
   "entry": [
     "test/tools/slide-generation/dumpDesignSystem.ts",
-    "test/tools/slide-generation/dumpCatalog.ts"
+    "test/tools/slide-generation/dumpCatalog.ts",
+    "test/memory/longmemeval.ts",
+    "test/memory/src/extraction/benchmark.test.ts",
+    "test/memory/src/topic/benchmark.ts",
+    "test/memory/src/consolidation/benchmark.test.ts",
+    "test/memory/src/vault/benchmark.test.ts"
   ],
   "ignore": ["src/client/**"],
   "ignoreDependencies": [

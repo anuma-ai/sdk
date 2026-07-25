@@ -21,6 +21,9 @@ export default defineConfig({
       // Extraction regression-gate math (baseline build + compare) — pure,
       // no PORTAL_API_KEY; the live eval that feeds it runs only in CI.
       "test/memory/src/extraction/baseline.unit.test.ts",
+      // Shared regression-gate math for the topic / consolidation / recall
+      // gates — pure, same deal: the live evals that feed it run only in CI.
+      "test/memory/src/gate.test.ts",
     ],
     // Browser tests need Playwright's Chromium binary and ~3-5s per case.
     // Skipped by default so `vitest run` stays fast; run via
