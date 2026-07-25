@@ -51,6 +51,11 @@ on:
     paths:
       - ".github/workflows/topic-eval.yml"
       - "src/lib/memory/topicExtract.ts"
+      # topicExtract's SYSTEM_PROMPT interpolates ENTITY_KIND_GUIDELINES from
+      # autoExtract, and parses responses with its `parseEntities` — so editing
+      # autoExtract changes topic-extraction output even though topicExtract.ts
+      # is untouched. Without this path the gate would miss exactly that edit.
+      - "src/lib/memory/autoExtract.ts"
       - "src/lib/db/entities/types.ts"
       - "test/memory/src/topic/**"
       - "test/memory/src/gate.ts"
@@ -109,17 +114,24 @@ jobs:
       - name: Run eval (main = BEFORE baseline)
         if: env.INPUT_MODE == 'ab' && env.INPUT_BASELINE == 'true'
         run: |
-          # Swap ONLY the topic prompt + taxonomy back to main; keep the branch's
+          # Swap the topic prompt + taxonomy back to main; keep the branch's
           # corpus + scorer (they live in test/, identical on both sides) so the
           # comparison is apples-to-apples. tsx runs without a typecheck, so a
           # kind-taxonomy difference between the two sides is fine at runtime
           # (kind is a string).
+          #
+          # autoExtract.ts is swapped too, not just topicExtract.ts: the topic
+          # SYSTEM_PROMPT interpolates ENTITY_KIND_GUIDELINES from it and parses
+          # with its `parseEntities`. Leaving it on the branch version meant the
+          # "before" arm ran main's topic file against the BRANCH's guidelines —
+          # so it was never actually main's prompt.
           set -o pipefail
-          git checkout origin/main -- src/lib/memory/topicExtract.ts src/lib/db/entities/types.ts
+          SWAP_FILES="src/lib/memory/topicExtract.ts src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts"
+          git checkout origin/main -- $SWAP_FILES
           echo "::group::before (main topic prompt + taxonomy)"
           pnpm --silent eval:topic $EVAL_ARGS | tee before.json
           echo "::endgroup::"
-          git checkout HEAD -- src/lib/memory/topicExtract.ts src/lib/db/entities/types.ts
+          git checkout HEAD -- $SWAP_FILES
 
       - name: Run eval (save golden baseline)
         if: env.INPUT_MODE == 'save-baseline'
