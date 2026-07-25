@@ -261,7 +261,13 @@ export type RecallDegradation =
   | "rerank-unavailable"
   /** `budget: 'high'` requested but no `decomposeOptions`, so query
    *  decomposition was skipped and the budget downgraded to mid. */
-  | "decompose-unavailable";
+  | "decompose-unavailable"
+  /** The query embedding failed, so the cosine lane was inert and results were
+   *  ranked on BM25 (lexical) alone. The embeddings provider is a single upstream
+   *  with no fallback, so this is a whole-provider outage rather than a per-item
+   *  miss — expect a quality drop, not a total loss. Also set when a sub-query
+   *  embed failed and the composite path fell back to the single-query path. */
+  | "embeddings-unavailable";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).

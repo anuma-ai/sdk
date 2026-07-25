@@ -149,6 +149,9 @@ export async function recall(
   // Used to distinguish "CE skipped on empty head (lane-only hits)" from
   // "CE failed on a non-empty head (actual outage)".
   let hadV2Head = false;
+  // Set when the vault search's query embedding failed and it ranked on BM25
+  // alone, or when the chunk lane had to be skipped for the same reason.
+  let embeddingsUnavailable = false;
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
@@ -164,6 +167,7 @@ export async function recall(
       degraded.push("rerank-unavailable");
     }
     if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
+    if (embeddingsUnavailable) degraded.push("embeddings-unavailable");
     const diagnostics: RecallDiagnostics = {
       usedBudget,
       reranked: didRerank,
@@ -216,8 +220,20 @@ export async function recall(
       : undefined;
   const prepStart = nowMs();
   const [queryEmbedding, entityRanking, temporalRanking] = await Promise.all([
+    // The chunk lane is cosine-only — `searchChunksOp` needs a real vector, and
+    // there is no lexical fallback for it — so an embeddings outage must SKIP the
+    // lane, not reject this shared Promise.all and take the primary fact lane
+    // (which BM25 can still serve) down with it. Mirrors safeLane's posture.
     needsChunkEmbedding
-      ? generateEmbedding(query, ctx.embeddingOptions)
+      ? generateEmbedding(query, ctx.embeddingOptions).catch((err) => {
+          getLogger().warn(
+            `[memory/recall] chunk-lane query embedding failed; skipping the chunk lane: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+          embeddingsUnavailable = true;
+          return undefined;
+        })
       : Promise.resolve(undefined),
     // The graph + temporal lanes are AUXILIARY (RRF side-signals). A transient
     // WatermelonDB throw in either must NOT reject this Promise.all and take
@@ -246,6 +262,7 @@ export async function recall(
       vaultSize: size,
       reranked,
       hadV2Head: v2Head,
+      embeddingsUnavailable: factEmbeddingsUnavailable,
     } = await searchVaultMemoriesWithSize(
       query,
       ctx.vaultCtx,
@@ -302,6 +319,7 @@ export async function recall(
     vaultSize = size;
     didRerank = reranked;
     hadV2Head = v2Head;
+    if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
     factLaneMs = nowMs() - factStart;
   }
 

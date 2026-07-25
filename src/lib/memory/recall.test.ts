@@ -860,12 +860,13 @@ describe("createRecallTool executor", () => {
   });
 
   it("throws (does not leak an error string) when recall fails downstream", async () => {
-    // Use the query-embedding call as the failure injection point — it's
-    // unguarded, unlike the cross-encoder rerank which now soft-degrades.
-    // The executor re-throws so the tool-loop treats it as a failed call,
+    // Injection point is the vault DB read, which is still genuinely fatal. It
+    // used to be the query embedding, but that now soft-degrades to BM25 (A3) —
+    // as the cross-encoder rerank already did — so it no longer fails a recall.
+    // The executor must re-throw so the tool-loop treats it as a failed call,
     // rather than returning "Error searching memory: …" as a successful result
     // that leaks into the model's visible context (same rule as invalid args).
-    vi.mocked(generateEmbedding).mockRejectedValue(new Error("boom"));
+    vi.mocked(getAllVaultMemoriesOp).mockRejectedValue(new Error("boom"));
     const tool = createRecallTool(makeCtx(), { types: ["fact"], budget: "mid" });
 
     await expect(tool.executor!({ query: QUERY })).rejects.toThrow(
@@ -990,5 +991,51 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0].candidateCount).toBe(0);
     expect(seen[0].factCount).toBe(0);
+  });
+});
+
+/**
+ * A3 — the embeddings provider is a single upstream with no fallback, so an
+ * outage must degrade rather than remove memory from the turn. The fact lane
+ * falls back to BM25 (lexical, needs no vector); the chunk lane has no lexical
+ * equivalent and is skipped instead of taking the fact lane down with it.
+ */
+describe("recall — embeddings outage degrades instead of throwing", () => {
+  it("still returns BM25 hits and reports embeddings-unavailable", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall("shellfish", makeCtx(), {
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories.map((m) => m.content)).toContain("allergic to shellfish");
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  it("skips the chunk lane rather than failing the fact lane with it", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+
+    const seen: RecallDiagnostics[] = [];
+    // Requesting BOTH lanes: the chunk lane needs a query vector and has no
+    // lexical fallback, so it must drop out while facts still resolve. Before
+    // this it rejected the shared Promise.all and killed the whole recall.
+    const result = await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(result.memories.length).toBeGreaterThan(0);
+    expect(seen[0].chunkCount).toBe(0);
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
+  });
+
+  it("does not report the degradation when embeddings are healthy", async () => {
+    const seen: RecallDiagnostics[] = [];
+    await recall(QUERY, makeCtx(), { onDiagnostics: (d) => seen.push(d) });
+    expect(seen[0].degraded).not.toContain("embeddings-unavailable");
   });
 });

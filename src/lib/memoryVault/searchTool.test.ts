@@ -412,17 +412,51 @@ describe("createMemoryVaultSearchTool", () => {
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(mockVaultCtx, undefined);
   });
 
-  it("returns error message when embedding generation fails", async () => {
-    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "content")]);
+  // A3 — an embeddings outage degrades to BM25 instead of failing the search.
+  // The provider is a single upstream with no fallback, so the old behavior
+  // (propagate and return "Error searching vault") meant one outage removed
+  // memory from every turn for its duration.
+  it("degrades to BM25 and still returns a lexical hit when the query embed fails", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+      makeMemory("m2", "prefers window seats"),
+    ]);
     vi.mocked(generateEmbedding).mockRejectedValue(new Error("API rate limit"));
 
     const cache = createVaultEmbeddingCache();
-    cache.set("m1", new Float32Array([1, 0, 0]));
-
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
-    const result = await tool.executor!({ query: "test" });
+    const result = await tool.executor!({ query: "shellfish" });
 
-    expect(result).toBe("Error searching vault: API rate limit");
+    // Cosine is inert (no query vector), but BM25 admits the lexical match.
+    expect(result).toContain("allergic to shellfish");
+    expect(result).not.toContain("Error searching vault");
+  });
+
+  it("tells the model the lookup was DEGRADED, not that no memory exists", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("API rate limit"));
+
+    const cache = createVaultEmbeddingCache();
+    const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
+    // No lexical overlap either, so the result set is genuinely empty.
+    const result = await tool.executor!({ query: "zzzz nonexistent" });
+
+    // "No relevant memories found" here would invite the model to assert the
+    // user has no such memory, when in fact only keyword matching ran.
+    expect(result).not.toBe("No relevant memories found in the vault.");
+    expect(result).toContain("temporarily unavailable");
+  });
+
+  it("still reports a genuinely empty result normally when embeddings work", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "prefers window seats")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0])); // orthogonal → no cosine hit
+    const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
+    const result = await tool.executor!({ query: "zzzz nonexistent" });
+
+    expect(result).toBe("No relevant memories found in the vault.");
   });
 });
 
