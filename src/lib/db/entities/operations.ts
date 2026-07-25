@@ -1,4 +1,4 @@
-import type { Collection, Database } from "@nozbe/watermelondb";
+import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 // Type-only — no runtime dependency on the memoryVault module (which imports
@@ -47,9 +47,16 @@ function entityToStored(e: Entity): StoredEntity {
 }
 
 /**
- * Batch resolve-or-create a set of entities. Read + create run inside one
- * `database.write()` so concurrent turns can't race a check-then-create on
- * the same brand-new name.
+ * Batch resolve-or-create a set of entities, WITHOUT its own
+ * `database.write()`: callers run it inside their existing write block and
+ * batch the returned `operations` alongside their own.
+ *
+ * That shape is load-bearing, not stylistic. When the upsert committed in its
+ * own writer, a caller's link insert landed in a SECOND writer — and a
+ * concurrent {@link replaceMemoryEntitiesGuardedOp} could run in the gap,
+ * see the freshly-upserted entity at zero links, prune it
+ * ({@link findOrphanedEntities}) and leave the caller inserting a
+ * memory_entity row pointing at a deleted entity.
  *
  * Names are deduplicated and normalized (lower-trim) before lookup. When an
  * entity carries a `kind`, it is written on create and back-filled onto an
@@ -58,12 +65,10 @@ function entityToStored(e: Entity): StoredEntity {
  * later one). If the same name appears twice with different kinds in one
  * batch, the first non-null kind wins.
  */
-async function upsertEntitiesOp(
+async function upsertEntitiesInWrite(
   ctx: EntityOperationsContext,
   entities: ReadonlyArray<{ name: string; kind?: string }>
-): Promise<Map<string, StoredEntity>> {
-  // Normalize + collapse duplicates, tracking the first non-null kind seen
-  // for each name.
+): Promise<{ entities: Map<string, StoredEntity>; operations: Model[] }> {
   const kindByName = new Map<string, string | undefined>();
   for (const e of entities) {
     const name = normalizeName(e.name);
@@ -77,50 +82,43 @@ async function upsertEntitiesOp(
   }
   const unique = Array.from(kindByName.keys());
   const out = new Map<string, StoredEntity>();
-  if (unique.length === 0) return out;
+  if (unique.length === 0) return { entities: out, operations: [] };
 
-  return await ctx.database.write(async () => {
-    const existing = await ctx.entityCollection
-      .query(Q.where("canonical_name", Q.oneOf(unique)))
-      .fetch();
-    const existingNames = new Set(existing.map((e) => e.canonicalName));
+  const existing = await ctx.entityCollection
+    .query(Q.where("canonical_name", Q.oneOf(unique)))
+    .fetch();
+  const existingNames = new Set(existing.map((e) => e.canonicalName));
 
-    // Back-fill kind only where the stored row has none; never clobber a
-    // non-null kind.
-    const updates = existing.filter((e) => {
-      const incoming = kindByName.get(e.canonicalName);
-      return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
-    });
-
-    const missing = unique.filter((n) => !existingNames.has(n));
-    const created = missing.map((name) =>
-      ctx.entityCollection.prepareCreate((record) => {
-        record._setRaw("canonical_name", name);
-        const kind = kindByName.get(name);
-        if (kind !== undefined) record._setRaw("kind", kind);
-      })
-    );
-    const updated = updates.map((e) =>
-      e.prepareUpdate((record) => {
-        record._setRaw("kind", kindByName.get(e.canonicalName) as string);
-      })
-    );
-    if (created.length > 0 || updated.length > 0) {
-      await ctx.database.batch(...created, ...updated);
-    }
-
-    // Reflect the (now-updated) existing rows and the freshly created ones.
-    for (const e of existing) out.set(e.canonicalName, entityToStored(e));
-    for (const record of created) out.set(record.canonicalName, entityToStored(record));
-    return out;
+  const updates = existing.filter((e) => {
+    const incoming = kindByName.get(e.canonicalName);
+    return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
   });
+
+  const missing = unique.filter((n) => !existingNames.has(n));
+  const created = missing.map((name) =>
+    ctx.entityCollection.prepareCreate((record) => {
+      record._setRaw("canonical_name", name);
+      const kind = kindByName.get(name);
+      if (kind !== undefined) record._setRaw("kind", kind);
+    })
+  );
+  const updated = updates.map((e) =>
+    e.prepareUpdate((record) => {
+      record._setRaw("kind", kindByName.get(e.canonicalName) as string);
+    })
+  );
+
+  for (const e of existing) out.set(e.canonicalName, entityToStored(e));
+  for (const record of created) out.set(record.canonicalName, entityToStored(record));
+
+  return { entities: out, operations: [...created, ...updated] };
 }
 
 /**
  * Link a memory to one or more entities. Accepts bare names (back-compat)
  * or `{ name, kind }` objects. Names are normalized; missing entities are
  * auto-created (with their kind), and an existing entity's null kind is
- * back-filled — see {@link upsertEntitiesOp}. Idempotent — duplicate
+ * back-filled — see {@link upsertEntitiesInWrite}. Idempotent — duplicate
  * (memory_id, entity_id) pairs are skipped.
  *
  * `options.unlessTopicsUserManaged` re-checks the memory's vault row INSIDE
@@ -131,8 +129,9 @@ async function upsertEntitiesOp(
  * mid-call (orphaning links the cascade already swept) — so only an in-write
  * check guarantees a user's manual edit or delete can't be grafted over. The
  * row read fails CLOSED (skip links) so a transient fault never attaches
- * topics to a memory we couldn't verify. Entity upserts still happen
- * (vocabulary is global); returns [] when links were skipped.
+ * topics to a memory we couldn't verify. Entity upserts and link creation
+ * run in ONE writer to prevent orphan-prune races; returns [] when links
+ * were skipped.
  */
 export async function linkMemoryEntitiesOp(
   ctx: EntityOperationsContext,
@@ -143,35 +142,42 @@ export async function linkMemoryEntitiesOp(
   if (entityInputs.length === 0) return [];
 
   const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
-  const byName = await upsertEntitiesOp(ctx, normalized);
-  const entities = Array.from(byName.values());
-  if (entities.length === 0) return [];
-
   const userId = ctx.userId;
   let skipped = false;
-  // Read existing pairs *inside* the write so two parallel
-  // linkMemoryEntitiesOp calls for the same memory can't both miss and
-  // both insert overlapping (memory_id, entity_id) rows — which would
-  // inflate the shared-count downstream in rankByEntityOverlap.
+  let entities: StoredEntity[] = [];
+
   await ctx.database.write(async () => {
+    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
+      ctx,
+      normalized
+    );
+    entities = Array.from(byName.values());
+
     if (options?.unlessTopicsUserManaged && (await autoLinkBlocked(ctx, memoryId))) {
+      if (entityOps.length > 0) {
+        await ctx.database.batch(...entityOps);
+      }
       skipped = true;
       return;
     }
+
+    if (entities.length === 0) return;
+
     const existingLinks = await ctx.memoryEntityCollection
       .query(Q.where("memory_id", memoryId))
       .fetch();
     const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
-    if (toCreate.length === 0) return;
-    const prepared = toCreate.map((e) =>
+    if (entityOps.length === 0 && toCreate.length === 0) return;
+
+    const linkOps = toCreate.map((e) =>
       ctx.memoryEntityCollection.prepareCreate((record) => {
         record._setRaw("memory_id", memoryId);
         record._setRaw("entity_id", e.uniqueId);
         if (userId !== undefined) record._setRaw("user_id", userId);
       })
     );
-    await ctx.database.batch(...prepared);
+    await ctx.database.batch(...entityOps, ...linkOps);
   });
 
   return skipped ? [] : entities;
@@ -208,6 +214,10 @@ async function autoLinkBlocked(ctx: EntityOperationsContext, memoryId: string): 
  * destroy-stale are batched in ONE writer, after the same in-write guard as
  * the link op (user-managed / deleted / absent / read-fault ⇒ skip).
  *
+ * That batch also prunes `entity` rows left with no links at all (see
+ * {@link findOrphanedEntities}) — otherwise a topic the extractor has disowned
+ * keeps rendering as a chip that matches no memory.
+ *
  * Returns the linked entities ([] for an answered-empty set), or null when
  * the guard skipped — callers must treat null as "not persisted" (e.g. don't
  * stamp `topics_extracted_at`).
@@ -218,16 +228,22 @@ export async function replaceMemoryEntitiesGuardedOp(
   entityInputs: ReadonlyArray<EntityInput>
 ): Promise<StoredEntity[] | null> {
   const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
-  const byName = await upsertEntitiesOp(ctx, normalized);
-  const entities = Array.from(byName.values());
-
   const userId = ctx.userId;
   let skipped = false;
+  let entities: StoredEntity[] = [];
+
   await ctx.database.write(async () => {
     if (await autoLinkBlocked(ctx, memoryId)) {
       skipped = true;
       return;
     }
+
+    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
+      ctx,
+      normalized
+    );
+    entities = Array.from(byName.values());
+
     const existingLinks = await ctx.memoryEntityCollection
       .query(Q.where("memory_id", memoryId))
       .fetch();
@@ -235,8 +251,10 @@ export async function replaceMemoryEntitiesGuardedOp(
     const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
     const toDestroy = existingLinks.filter((l) => !keep.has(String(l.entityId)));
-    if (toCreate.length === 0 && toDestroy.length === 0) return;
+    if (entityOps.length === 0 && toCreate.length === 0 && toDestroy.length === 0) return;
+    const orphans = await findOrphanedEntities(ctx, memoryId, toDestroy);
     await ctx.database.batch(
+      ...entityOps,
       ...toCreate.map((e) =>
         ctx.memoryEntityCollection.prepareCreate((record) => {
           record._setRaw("memory_id", memoryId);
@@ -244,11 +262,55 @@ export async function replaceMemoryEntitiesGuardedOp(
           if (userId !== undefined) record._setRaw("user_id", userId);
         })
       ),
-      ...toDestroy.map((l) => l.prepareDestroyPermanently())
+      ...toDestroy.map((l) => l.prepareDestroyPermanently()),
+      ...orphans.map((e) => e.prepareDestroyPermanently())
     );
   });
 
   return skipped ? null : entities;
+}
+
+/**
+ * Entity rows that will have NO links left once `toDestroy` is applied.
+ *
+ * Without this, an auto-extraction pass that stops mentioning an entity leaves
+ * the `entity` row behind forever: clients render one chip per row, so a topic
+ * the extractor has disowned keeps showing up and filters to nothing (client
+ * issue #5135 — a calendar block titled "Home"). Re-extraction under a bumped
+ * TOPICS_EXTRACTION_VERSION drops the link, and this drops the now-dead row with
+ * it.
+ *
+ * Deliberately UNSCOPED by `user_id`: `entity` rows are global vocabulary with
+ * no owner, so a row any other memory — or any other user — still references
+ * must never be deleted. Only links belonging to THIS memory are the ones going
+ * away, so anything else keeps the row alive. Runs inside the caller's writer,
+ * where the link deletes aren't visible yet, which is why the check is
+ * "links that aren't this memory's" rather than a plain count.
+ *
+ * Only reached from the auto path. A topic the user created by hand and never
+ * used has no links to destroy, so it is never a candidate; one the extractor
+ * had linked and then disowned is treated as extractor vocabulary and goes.
+ *
+ * No `Q.oneOf` chunking here (unlike the sweep query): the candidate list is one
+ * memory's entities — single digits, nowhere near SQLite's variable cap.
+ */
+async function findOrphanedEntities(
+  ctx: EntityOperationsContext,
+  memoryId: string,
+  toDestroy: readonly MemoryEntity[]
+): Promise<Entity[]> {
+  const candidateIds = [...new Set(toDestroy.map((l) => String(l.entityId)))];
+  if (candidateIds.length === 0) return [];
+
+  const links = await ctx.memoryEntityCollection
+    .query(Q.where("entity_id", Q.oneOf(candidateIds)))
+    .fetch();
+  const stillLinked = new Set(
+    links.filter((l) => String(l.memoryId) !== memoryId).map((l) => String(l.entityId))
+  );
+  const orphanIds = candidateIds.filter((id) => !stillLinked.has(id));
+  if (orphanIds.length === 0) return [];
+  return await ctx.entityCollection.query(Q.where("id", Q.oneOf(orphanIds))).fetch();
 }
 
 /**

@@ -57,7 +57,11 @@ const SYSTEM_PROMPT = `You assign topics to saved memories for a personal memory
 
 Each memory is a short statement about the user. For each memory, list the NAMED entities it mentions — these become the memory's topics, used to connect related memories in a knowledge graph.
 
-Include only NAMED entities, skip generic/common nouns. ${ENTITY_KIND_GUIDELINES}
+Include only NAMED entities, skip generic/common nouns. A topic must identify a specific thing the user could recognize by name; if it would be equally true of thousands of unrelated memories, leave it out:
+- SKIP bare generic nouns even when the memory capitalizes them or a calendar entry is titled that way — "Home", "Work", "Meeting", "Lunch", "Birthday", "Appointment", "Trip", "Today", "Friday", "March" are NOT topics.
+- KEEP the specific thing instead, when the memory names one: "Blue Bottle on Valencia" over "cafe", "Chicago Marathon" over "event", "Hollowpoint Labs" over "work".
+- Prefer 0 entities over a weak one. A memory whose only candidate is a generic noun has NO entities.
+${ENTITY_KIND_GUIDELINES}
 
 Each memory below is written as "<id>: <text>". Output strict JSON: {"memories": [{"id": string, "entities": [{"name": string, "kind": string}]}]}
 - exactly one element per input memory; copy its id EXACTLY as written (the token before the first ": "), with no brackets, quotes, or extra characters
@@ -141,7 +145,7 @@ export async function extractEntitiesForMemories(
     .map((n) => (redactor ? redactor.redactText(n).text : n));
   const vocabularyNote =
     vocabulary.length > 0
-      ? `The user's existing topics: ${vocabulary.join(", ")}.\nWhen a memory refers to one of these, reuse the EXACT existing name (same spelling and casing) instead of a variant.\n\n`
+      ? `The user's existing topics: ${vocabulary.join(", ")}.\nWhen a memory refers to one of these, reuse the EXACT existing name (same spelling, casing, spacing and punctuation) instead of a variant — if "Foo.ai" is listed, never emit "Foo ai" or "Foo AI", and if "Jane Roe" is listed, emit that rather than a bare "Jane".\n\n`
       : "";
 
   for (let i = 0; i < memories.length; i += TOPIC_EXTRACTION_BATCH_SIZE) {

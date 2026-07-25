@@ -14,6 +14,7 @@ function makeEntityRecord(canonicalName: string, kind: string | null = null, id?
   const raw: Record<string, unknown> = { canonical_name: canonicalName, kind };
   return {
     id: id ?? `ent_${canonicalName}`,
+    prepareDestroyPermanently: vi.fn(() => ({ _op: "destroy-entity", canonicalName })),
     get canonicalName() {
       return raw.canonical_name as string;
     },
@@ -263,10 +264,10 @@ describe("replaceMemoryEntitiesGuardedOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
   /** Existing memory_entity link row with a destroy hook. */
-  function makeLink(entityId: string) {
+  function makeLink(entityId: string, memoryId = "mem_1") {
     return {
       entityId,
-      memoryId: "mem_1",
+      memoryId,
       prepareDestroyPermanently: vi.fn(() => ({ _op: "destroy", entityId })),
     };
   }
@@ -340,5 +341,173 @@ describe("replaceMemoryEntitiesGuardedOp", () => {
       expect(result).toBeNull();
       expect(stale.prepareDestroyPermanently).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeLink(entityId: string, memoryId = "mem_1") {
+    return {
+      entityId,
+      memoryId,
+      prepareDestroyPermanently: vi.fn(() => ({ _op: "destroy-link", entityId })),
+    };
+  }
+
+  /**
+   * The op runs two memory_entity queries: the memory's own links, then the
+   * links of every entity whose link is going away. `linkQueries` supplies them
+   * in order so a test can say "this entity is still referenced elsewhere".
+   */
+  function makePruneCtx(
+    orphanCandidates: ReturnType<typeof makeEntityRecord>[],
+    linkQueries: ReturnType<typeof makeLink>[][]
+  ) {
+    const { ctx, memoryEntityCollection, entityCollection } = makeCtx(orphanCandidates);
+    let call = 0;
+    (memoryEntityCollection.query as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      const rows = linkQueries[Math.min(call, linkQueries.length - 1)] ?? [];
+      call += 1;
+      return { fetch: vi.fn(async () => rows) };
+    });
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: null }]),
+      })),
+    }));
+    return { ctx, entityCollection };
+  }
+
+  it("destroys an entity row whose last link just went away", async () => {
+    const home = makeEntityRecord("home", "place", "ent_home");
+    const link = makeLink("ent_home");
+    // Answered-empty replace: the re-extraction pass no longer mentions "home".
+    const { ctx } = makePruneCtx([home], [[link], [link]]);
+
+    const result = await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", []);
+
+    expect(result).toEqual([]);
+    expect(link.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
+    expect(home.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an entity another memory still links", async () => {
+    const home = makeEntityRecord("home", "place", "ent_home");
+    const mine = makeLink("ent_home");
+    const theirs = makeLink("ent_home", "mem_2");
+    const { ctx, entityCollection } = makePruneCtx([home], [[mine], [mine, theirs]]);
+
+    await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", []);
+
+    expect(mine.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
+    expect(home.prepareDestroyPermanently).not.toHaveBeenCalled();
+    // Nothing orphaned ⇒ the entity lookup is skipped entirely.
+    expect(entityCollection.query).not.toHaveBeenCalled();
+  });
+
+  it("keeps an entity a DIFFERENT USER still links", async () => {
+    // `entity` rows are global vocabulary with no owner, so the prune must not
+    // be user-scoped — deleting a row another user references is data loss.
+    const shared = makeEntityRecord("zetachain", "organization", "ent_zeta");
+    const mine = makeLink("ent_zeta");
+    const otherUser = makeLink("ent_zeta", "mem_other_user");
+    const { ctx } = makePruneCtx([shared], [[mine], [mine, otherUser]]);
+
+    await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", []);
+
+    expect(shared.prepareDestroyPermanently).not.toHaveBeenCalled();
+  });
+
+  it("prunes nothing when no link was destroyed", async () => {
+    const keep = makeEntityRecord("zetachain", null, "ent_keep");
+    const kept = makeLink("ent_keep");
+    const { ctx } = makePruneCtx([keep], [[kept], [kept]]);
+
+    // "zetachain" is still extracted, so its link survives and so must the row.
+    await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain"]);
+
+    expect(kept.prepareDestroyPermanently).not.toHaveBeenCalled();
+    expect(keep.prepareDestroyPermanently).not.toHaveBeenCalled();
+  });
+
+  it("does not run at all when the guard skips the memory", async () => {
+    const home = makeEntityRecord("home", "place", "ent_home");
+    const link = makeLink("ent_home");
+    const { ctx } = makePruneCtx([home], [[link], [link]]);
+    (ctx.database as unknown as { get: ReturnType<typeof vi.fn> }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: true }]),
+      })),
+    }));
+
+    const result = await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", []);
+
+    expect(result).toBeNull();
+    expect(home.prepareDestroyPermanently).not.toHaveBeenCalled();
+  });
+});
+
+describe("entity upsert + link atomicity", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /**
+   * The upsert must NOT commit in its own writer. When it did, the caller's link
+   * insert landed in a second writer, and a concurrent
+   * `replaceMemoryEntitiesGuardedOp` could slip into the gap, see the new entity
+   * at zero links, prune it, and leave a memory_entity row pointing at a deleted
+   * entity. WatermelonDB serializes writers, so "one writer" IS the fix.
+   */
+  it("linkMemoryEntitiesOp opens exactly ONE writer", async () => {
+    const { ctx } = makeCtx();
+
+    await linkMemoryEntitiesOp(ctx, "mem_1", [{ name: "Sara", kind: "person" }]);
+
+    const write = (ctx.database as unknown as { write: ReturnType<typeof vi.fn> }).write;
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("batches the entity create together with the link create", async () => {
+    const { ctx } = makeCtx();
+
+    await linkMemoryEntitiesOp(ctx, "mem_1", ["Sara"]);
+
+    // One batch carrying both, not an entity batch followed by a link batch.
+    const batch = (ctx.database as unknown as { batch: ReturnType<typeof vi.fn> }).batch;
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch.mock.calls[0]!.length).toBe(2);
+  });
+
+  it("replaceMemoryEntitiesGuardedOp also opens exactly ONE writer", async () => {
+    const { ctx } = makeCtx();
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: null }]),
+      })),
+    }));
+
+    await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain"]);
+
+    const write = (ctx.database as unknown as { write: ReturnType<typeof vi.fn> }).write;
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("still records vocabulary when the guard skips the links", async () => {
+    // Entity rows are global vocabulary, so a user-managed memory blocks the
+    // LINKS but not the upsert — asserted here because the atomicity refactor
+    // moved the upsert inside the writer, next to the guard.
+    const { ctx } = makeCtx();
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: true }]),
+      })),
+    }));
+
+    const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
+      unlessTopicsUserManaged: true,
+    });
+
+    expect(result).toEqual([]);
+    expect(created).toHaveLength(1);
   });
 });

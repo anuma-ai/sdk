@@ -2,12 +2,12 @@
 
 > **linkMemoryEntitiesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityInputs`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[], `options?`: `object`): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
 
-Defined in: [src/lib/db/entities/operations.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#137)
+Defined in: [src/lib/db/entities/operations.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#136)
 
 Link a memory to one or more entities. Accepts bare names (back-compat)
 or `{ name, kind }` objects. Names are normalized; missing entities are
 auto-created (with their kind), and an existing entity's null kind is
-back-filled — see upsertEntitiesOp. Idempotent — duplicate
+back-filled — see upsertEntitiesInWrite. Idempotent — duplicate
 (memory\_id, entity\_id) pairs are skipped.
 
 `options.unlessTopicsUserManaged` re-checks the memory's vault row INSIDE
@@ -18,8 +18,9 @@ topic worker) need this: a pre-call check races the LLM round-trip —
 mid-call (orphaning links the cascade already swept) — so only an in-write
 check guarantees a user's manual edit or delete can't be grafted over. The
 row read fails CLOSED (skip links) so a transient fault never attaches
-topics to a memory we couldn't verify. Entity upserts still happen
-(vocabulary is global); returns \[] when links were skipped.
+topics to a memory we couldn't verify. Entity upserts and link creation
+run in ONE writer to prevent orphan-prune races; returns \[] when links
+were skipped.
 
 ## Parameters
 
