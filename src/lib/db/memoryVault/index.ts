@@ -12,7 +12,11 @@ export {
   getDecayCandidatesRawOp,
   getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
+  getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
+  getVaultRankingProjectionsOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
   restoreVaultMemoryOp,
@@ -22,10 +26,12 @@ export {
   TOPICS_EXTRACTION_VERSION,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
+  type VaultCandidateKey,
   type VaultMemoryOperationsContext,
 } from "./operations";
 export {
   type CreateVaultMemoryOptions,
+  type RankableVaultMemory,
   type StoredVaultMemory,
   type UpdateVaultMemoryOptions,
 } from "./types";

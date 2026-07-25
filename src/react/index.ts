@@ -311,9 +311,14 @@ export {
   getDecayCandidatesRawOp,
   getMemoriesNeedingTopicExtractionOp,
   getUnfiledVaultMemoriesOp,
+  getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
+  getVaultRankingProjectionsOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
+  type RankableVaultMemory,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   stampTopicsExtractedAtOp,
@@ -324,6 +329,7 @@ export {
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
+  type VaultCandidateKey,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
 // Vault folders

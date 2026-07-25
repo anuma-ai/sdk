@@ -8,7 +8,14 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import { isEncrypted } from "../db/encryption-utils";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
-import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
+import {
+  getAllVaultMemoriesOp,
+  getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByIdsOp,
+  updateVaultMemoryEmbeddingOp,
+} from "../db/memoryVault/operations";
+import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { getLogger } from "../logger";
 import { applyMMR } from "../memory/mmr";
 import type { PortalLlmAuth } from "../memory/portalLlm";
@@ -122,6 +129,18 @@ export interface MemoryVaultSearchOptions {
    * pass-through from `recall()` when the query has a temporal phrase.
    */
   temporalRanking?: string[];
+  /**
+   * B2 decrypt-last — when set, build the ranking corpus from a
+   * column-projected key scan + vector LRU (no whole-vault blob load),
+   * decrypting content only for the admission window via
+   * {@link buildProjectedCorpus}. Default OFF: the legacy whole-vault
+   * prefix stays byte-identical.
+   */
+  decryptLast?: boolean;
+  /** Admission window multiplier for decrypt-last (`limit * admitFactor`). Default 3. */
+  admitFactor?: number;
+  /** Admission window floor for decrypt-last. Default 30. */
+  admitFloor?: number;
 }
 
 /**
@@ -1314,6 +1333,181 @@ export async function eagerEmbedContent(
 }
 
 /**
+ * Pure cosine top-k admission over already-vectored candidates. Ties break
+ * by recency (newer `updatedAt` wins) so the projected corpus builder's
+ * admission window is deterministic across cache-hit/miss ordering.
+ */
+export function admitVaultProjections(
+  queryEmbedding: ArrayLike<number>,
+  vectored: Array<{ uniqueId: string; embedding: ArrayLike<number>; updatedAt: Date }>,
+  k: number
+): string[] {
+  // Admit the top-K by cosine, ties by recency. NO `score > 0` gate: a
+  // low/zero/negative-cosine row must still be allowed into the decrypted
+  // admission window so the downstream BM25 lane can promote a strong lexical
+  // hit (parity with the legacy whole-vault path, which feeds every row to
+  // BM25). Degenerate/empty vectors score 0 (see cosineSimilarity), sort last,
+  // and only enter if K exceeds the embedded count — harmless.
+  return vectored
+    .map((it) => ({ it, score: cosineSimilarity(queryEmbedding, it.embedding) }))
+    .sort((a, b) => b.score - a.score || b.it.updatedAt.getTime() - a.it.updatedAt.getTime())
+    .slice(0, k)
+    .map((s) => s.it.uniqueId);
+}
+
+/**
+ * Projected decrypt-last corpus (B2). Ranks from the vector LRU + a
+ * column-projected key scan (no blobs), loads the embedding column ONLY for
+ * cache-miss ids, decrypts content ONLY for the admission window. Un-embedded
+ * rows (no usable stored vector) are a bounded lane: decrypt+embed up to
+ * `unembeddedCap`, log drops.
+ */
+export async function buildProjectedCorpus(
+  query: string,
+  vaultCtx: VaultMemoryOperationsContext,
+  embeddingOptions: EmbeddingOptions,
+  cache: VaultEmbeddingCache,
+  queryOpts: { scopes?: string[]; folderId?: string | null },
+  opts: {
+    limit: number;
+    admitFactor: number;
+    admitFloor: number;
+    unembeddedCap: number;
+    /**
+     * Side-lane candidate ids (graph/temporal) that must be decrypted even
+     * when their cosine falls outside the admission window — otherwise those
+     * lanes can never surface a cosine miss (their whole point). Only ids that
+     * are real, in-scope candidate rows (present in the key scan) are honored.
+     */
+    forceIncludeIds?: string[];
+  }
+): Promise<{
+  memories: StoredVaultMemory[];
+  embeddedItems: EmbeddedItem[];
+  queryEmbedding: number[];
+  vaultSize: number;
+}> {
+  const keys = await getVaultCandidateKeysOp(
+    vaultCtx,
+    Object.keys(queryOpts).length > 0 ? queryOpts : undefined
+  );
+  const vaultSize = keys.length;
+  // Empty vault: nothing to rank. Return before embedding the query so an
+  // empty vault costs zero embedding calls.
+  if (keys.length === 0) {
+    return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
+  }
+  const queryEmbedding = await generateEmbedding(query, embeddingOptions);
+  const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
+
+  const vectored: Array<{ uniqueId: string; embedding: Float32Array; updatedAt: Date }> = [];
+  const missIds: string[] = []; // cache miss, has a compatible stored vector (load it)
+  const noVectorIds: string[] = []; // no usable stored vector (un-embedded lane)
+  const keyById = new Map(keys.map((k) => [k.uniqueId, k]));
+  for (const k of keys) {
+    const cached = cache.get(k.uniqueId);
+    if (cached && cached.length === queryEmbedding.length) {
+      vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
+      continue;
+    }
+    const modelCompatible = (k.embeddingModel ?? currentModel) === currentModel;
+    if (modelCompatible) missIds.push(k.uniqueId);
+    else noVectorIds.push(k.uniqueId);
+  }
+
+  // Load embedding column ONLY for cache misses that claim a compatible vector.
+  if (missIds.length > 0) {
+    const rows = await getVaultEmbeddingsByIdsOp(vaultCtx, missIds);
+    const gotVector = new Set<string>();
+    for (const r of rows) {
+      if (!r.embedding) continue;
+      try {
+        const parsed = JSON.parse(r.embedding) as number[];
+        if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
+          const vec = Float32Array.from(parsed);
+          cache.set(r.uniqueId, vec);
+          const k = keyById.get(r.uniqueId)!;
+          vectored.push({ uniqueId: r.uniqueId, embedding: vec, updatedAt: k.updatedAt });
+          gotVector.add(r.uniqueId);
+        }
+      } catch {
+        /* fall through to un-embedded lane */
+      }
+    }
+    for (const id of missIds) if (!gotVector.has(id)) noVectorIds.push(id);
+  }
+
+  // Un-embedded lane: bounded decrypt+embed so those rows can still rank.
+  if (noVectorIds.length > 0) {
+    const laneIds = noVectorIds.slice(0, opts.unembeddedCap);
+    if (noVectorIds.length > laneIds.length) {
+      getLogger().warn(
+        `memoryVault: projected search un-embedded lane capped at ${laneIds.length}/${noVectorIds.length}`
+      );
+    }
+    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds)).filter(
+      (m) => !isEncrypted(m.content)
+    );
+    if (laneRows.length > 0) {
+      const laneVecs = await generateEmbeddings(
+        laneRows.map((m) => m.content),
+        embeddingOptions
+      );
+      laneRows.forEach((m, i) => {
+        const vec = Float32Array.from(laneVecs[i]);
+        cache.set(m.uniqueId, vec);
+        vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
+        updateVaultMemoryEmbeddingOp(
+          vaultCtx,
+          m.uniqueId,
+          JSON.stringify(laneVecs[i]),
+          currentModel
+        ).catch(() => {});
+      });
+    }
+  }
+
+  const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
+  const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
+  // Union in side-lane candidates whose cosine fell outside the window so the
+  // graph/temporal lanes can still admit them. Intersect against keyById so
+  // only real, in-scope rows are decrypted (drop ids from another scope/folder
+  // or that no longer exist). Set dedups against admittedIds.
+  const admissionSet = new Set(admittedIds);
+  if (opts.forceIncludeIds) {
+    for (const id of opts.forceIncludeIds) {
+      if (keyById.has(id)) admissionSet.add(id);
+    }
+  }
+  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet]);
+  const memories = admittedRows.filter((m) => !isEncrypted(m.content));
+  // Parity with the legacy path's key-unavailable diagnostic: warn when an
+  // admitted row's content is still encrypted (decryption degraded) so the
+  // projected path doesn't silently swallow the signal.
+  if (memories.length < admittedRows.length) {
+    getLogger().warn(
+      `memoryVault: ${admittedRows.length - memories.length}/${admittedRows.length} admitted ` +
+        "memories still encrypted (key unavailable?) — excluded from projected search"
+    );
+  }
+  const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
+    id: m.uniqueId,
+    content: m.content,
+    embedding: cache.get(m.uniqueId) ?? [],
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+    proofCount: m.proofCount,
+    lastObservedAt: m.lastObservedAt,
+    eventTimeStart: m.eventTimeStart,
+    sourceChunkIds: m.sourceChunkIds,
+    eventTimeEnd: m.eventTimeEnd,
+    eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
+    factType: m.factType,
+  }));
+  return { memories, embeddedItems, queryEmbedding, vaultSize };
+}
+
+/**
  * A single vault search result with its similarity score.
  */
 export interface VaultSearchResult {
@@ -1380,115 +1574,156 @@ export async function searchVaultMemoriesWithSize(
   if (searchOptions?.factTypes?.length) queryOpts.factTypes = searchOptions.factTypes;
   if (searchOptions?.includeArchived) queryOpts.includeArchived = true;
 
-  const loaded = await getAllVaultMemoriesOp(
-    vaultCtx,
-    Object.keys(queryOpts).length > 0 ? queryOpts : undefined
-  );
-  // Decryption is best-effort (decryptField returns the raw enc:vN:
-  // payload when the key is unavailable). Still-encrypted content must
-  // not reach ranking: BM25 would tokenize hex garbage, the embedder
-  // would embed ciphertext, and the recall tool would hand enc:vN:
-  // blocks to the answer model as "memories". Exclude and report.
-  const memories = loaded.filter((m) => !isEncrypted(m.content));
-  if (memories.length < loaded.length) {
-    getLogger().warn(
-      `memoryVault: ${loaded.length - memories.length}/${loaded.length} memories still ` +
-        "encrypted (key unavailable?) — excluded from search"
-    );
-  }
-  // vaultSize reports rows that EXIST (loaded), not rows that were
-  // searchable: callers treat vaultSize === 0 as "the vault is empty —
-  // nothing saved yet" and say so to the LLM, which would invite
-  // duplicate saves while decryption is temporarily unavailable.
-  if (memories.length === 0) {
-    return { results: [], vaultSize: loaded.length, reranked: false, hadV2Head: false };
-  }
+  // Both paths converge on these four locals. decryptLast builds the corpus
+  // from a projected key scan (no whole-vault blob load); the default path
+  // runs the legacy whole-vault prefix verbatim.
+  const ADMIT_FACTOR = searchOptions?.admitFactor ?? 3;
+  const ADMIT_FLOOR = searchOptions?.admitFloor ?? 30;
+  const UNEMBEDDED_CAP = 200;
+  let memories: StoredVaultMemory[];
+  let embeddedItems: EmbeddedItem[];
+  let queryEmbedding: number[];
+  let vaultSize: number;
 
-  // Embed the query
-  const queryEmbedding = await generateEmbedding(query, embeddingOptions);
-  const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
-
-  // Batch-(re)embed any vault entries that aren't cached with a usable vector.
-  // A persisted DB vector is usable only when it (a) parses, (b) was produced
-  // by the current model — `embedding_model` null is grandfathered as
-  // current-model-compatible (legacy rows), non-null must match — and (c) has
-  // the same dimension as the query embedding. Stale-model or wrong-dim vectors
-  // are re-embedded and re-stamped instead of being loaded; otherwise an
-  // embedding-model change would silently rank the whole vault at cosine 0.
-  const uncachedTexts: string[] = [];
-  const uncachedIndices: number[] = [];
-  let staleReembedCount = 0;
-  for (let i = 0; i < memories.length; i++) {
-    const content = memories[i].content;
-    const memoryId = memories[i].uniqueId;
-    // A cache hit is usable only if its dimension matches the query. The cache
-    // is keyed by memory id (not model) and can be seeded by preEmbedVaultMemories
-    // — which has no query vector to dim-check against — so a grandfathered
-    // wrong-dim vector could otherwise live in the cache and evade re-embed.
-    const cached = cache.get(memoryId);
-    if (cached && cached.length === queryEmbedding.length) continue;
-    if (cached) cache.delete(memoryId); // wrong-dim cache entry — drop and re-resolve
-
-    // Check for a usable persisted embedding in DB first. null/undefined model
-    // is grandfathered (coalesces to current); a real different model is stale.
-    const storedModel = memories[i].embeddingModel;
-    const modelCompatible = (storedModel ?? currentModel) === currentModel;
-    if (memories[i].embedding && modelCompatible) {
-      try {
-        const parsed = JSON.parse(memories[i].embedding!) as number[];
-        if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
-          cache.set(memoryId, Float32Array.from(parsed));
-          continue;
-        }
-        // Dimension mismatch — model changed dims (even a grandfathered
-        // null row). Fall through to re-embed.
-      } catch {
-        // Invalid JSON, re-embed
-      }
+  if (searchOptions?.decryptLast) {
+    // Side-lane candidate ids (graph W5 + temporal W6) forwarded by recall().
+    // Both option fields are id-only rankings (memory uniqueIds), so they map
+    // straight through as forced-decrypt ids — buildProjectedCorpus intersects
+    // them against the in-scope candidate set before decrypting.
+    const forceIncludeIds = [
+      ...(searchOptions.entityRanking ?? []),
+      ...(searchOptions.temporalRanking ?? []),
+    ];
+    const corpus = await buildProjectedCorpus(query, vaultCtx, embeddingOptions, cache, queryOpts, {
+      limit,
+      admitFactor: ADMIT_FACTOR,
+      admitFloor: ADMIT_FLOOR,
+      unembeddedCap: UNEMBEDDED_CAP,
+      ...(forceIncludeIds.length > 0 && { forceIncludeIds }),
+    });
+    if (corpus.vaultSize === 0) {
+      return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
     }
-    if (memories[i].embedding && !modelCompatible) staleReembedCount++;
-    uncachedTexts.push(content);
-    uncachedIndices.push(i);
-  }
-  if (staleReembedCount > 0) {
-    getLogger().warn(
-      `memoryVault: re-embedding ${staleReembedCount} memories whose stored embedding ` +
-        `model differs from the current model (${currentModel}) — embedding-model change detected`
+    ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
+    // Keys exist but nothing decrypted (e.g. every admitted row still
+    // encrypted). Mirror the legacy path's memories.length === 0 guard so we
+    // don't fall through into decompose/LLM ranking on an empty head. Report
+    // the real vaultSize so callers don't mistake this for an empty vault.
+    if (memories.length === 0) {
+      return { results: [], vaultSize, reranked: false, hadV2Head: false };
+    }
+  } else {
+    const loaded = await getAllVaultMemoriesOp(
+      vaultCtx,
+      Object.keys(queryOpts).length > 0 ? queryOpts : undefined
     );
-  }
-  if (uncachedTexts.length > 0) {
-    const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
-    for (let j = 0; j < uncachedTexts.length; j++) {
-      cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
-      // Persist embedding + model to DB (fire-and-forget)
-      updateVaultMemoryEmbeddingOp(
-        vaultCtx,
-        memories[uncachedIndices[j]].uniqueId,
-        JSON.stringify(newEmbeddings[j]),
-        currentModel
-      ).catch(
-        // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-        () => {}
+    vaultSize = loaded.length;
+    // Decryption is best-effort (decryptField returns the raw enc:vN:
+    // payload when the key is unavailable). Still-encrypted content must
+    // not reach ranking: BM25 would tokenize hex garbage, the embedder
+    // would embed ciphertext, and the recall tool would hand enc:vN:
+    // blocks to the answer model as "memories". Exclude and report.
+    memories = loaded.filter((m) => !isEncrypted(m.content));
+    if (memories.length < loaded.length) {
+      getLogger().warn(
+        `memoryVault: ${loaded.length - memories.length}/${loaded.length} memories still ` +
+          "encrypted (key unavailable?) — excluded from search"
       );
     }
-  }
+    // vaultSize reports rows that EXIST (loaded), not rows that were
+    // searchable: callers treat vaultSize === 0 as "the vault is empty —
+    // nothing saved yet" and say so to the LLM, which would invite
+    // duplicate saves while decryption is temporarily unavailable.
+    if (memories.length === 0) {
+      return { results: [], vaultSize: loaded.length, reranked: false, hadV2Head: false };
+    }
 
-  // Missing embeddings → []; cosine returns 0 (lane no-op), but W5/W6
-  // side lanes can still admit the row.
-  const embeddedItems: EmbeddedItem[] = memories.map((m) => ({
-    id: m.uniqueId,
-    content: m.content,
-    embedding: cache.get(m.uniqueId) ?? [],
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-    proofCount: m.proofCount,
-    lastObservedAt: m.lastObservedAt,
-    eventTimeStart: m.eventTimeStart,
-    sourceChunkIds: m.sourceChunkIds,
-    eventTimeEnd: m.eventTimeEnd,
-    eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
-    factType: m.factType,
-  }));
+    // Embed the query
+    queryEmbedding = await generateEmbedding(query, embeddingOptions);
+    const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
+
+    // Batch-(re)embed any vault entries that aren't cached with a usable vector.
+    // A persisted DB vector is usable only when it (a) parses, (b) was produced
+    // by the current model — `embedding_model` null is grandfathered as
+    // current-model-compatible (legacy rows), non-null must match — and (c) has
+    // the same dimension as the query embedding. Stale-model or wrong-dim vectors
+    // are re-embedded and re-stamped instead of being loaded; otherwise an
+    // embedding-model change would silently rank the whole vault at cosine 0.
+    const uncachedTexts: string[] = [];
+    const uncachedIndices: number[] = [];
+    let staleReembedCount = 0;
+    for (let i = 0; i < memories.length; i++) {
+      const content = memories[i].content;
+      const memoryId = memories[i].uniqueId;
+      // A cache hit is usable only if its dimension matches the query. The cache
+      // is keyed by memory id (not model) and can be seeded by preEmbedVaultMemories
+      // — which has no query vector to dim-check against — so a grandfathered
+      // wrong-dim vector could otherwise live in the cache and evade re-embed.
+      const cached = cache.get(memoryId);
+      if (cached && cached.length === queryEmbedding.length) continue;
+      if (cached) cache.delete(memoryId); // wrong-dim cache entry — drop and re-resolve
+
+      // Check for a usable persisted embedding in DB first. null/undefined model
+      // is grandfathered (coalesces to current); a real different model is stale.
+      const storedModel = memories[i].embeddingModel;
+      const modelCompatible = (storedModel ?? currentModel) === currentModel;
+      if (memories[i].embedding && modelCompatible) {
+        try {
+          const parsed = JSON.parse(memories[i].embedding!) as number[];
+          if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
+            cache.set(memoryId, Float32Array.from(parsed));
+            continue;
+          }
+          // Dimension mismatch — model changed dims (even a grandfathered
+          // null row). Fall through to re-embed.
+        } catch {
+          // Invalid JSON, re-embed
+        }
+      }
+      if (memories[i].embedding && !modelCompatible) staleReembedCount++;
+      uncachedTexts.push(content);
+      uncachedIndices.push(i);
+    }
+    if (staleReembedCount > 0) {
+      getLogger().warn(
+        `memoryVault: re-embedding ${staleReembedCount} memories whose stored embedding ` +
+          `model differs from the current model (${currentModel}) — embedding-model change detected`
+      );
+    }
+    if (uncachedTexts.length > 0) {
+      const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
+      for (let j = 0; j < uncachedTexts.length; j++) {
+        cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
+        // Persist embedding + model to DB (fire-and-forget)
+        updateVaultMemoryEmbeddingOp(
+          vaultCtx,
+          memories[uncachedIndices[j]].uniqueId,
+          JSON.stringify(newEmbeddings[j]),
+          currentModel
+        ).catch(
+          // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+          () => {}
+        );
+      }
+    }
+
+    // Missing embeddings → []; cosine returns 0 (lane no-op), but W5/W6
+    // side lanes can still admit the row.
+    embeddedItems = memories.map((m) => ({
+      id: m.uniqueId,
+      content: m.content,
+      embedding: cache.get(m.uniqueId) ?? [],
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+      proofCount: m.proofCount,
+      lastObservedAt: m.lastObservedAt,
+      eventTimeStart: m.eventTimeStart,
+      sourceChunkIds: m.sourceChunkIds,
+      eventTimeEnd: m.eventTimeEnd,
+      eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
+      factType: m.factType,
+    }));
+  }
 
   // Dimension net. The load loop above re-embeds stale-model and wrong-dim
   // vectors, so this should normally be empty; it still fires if a re-embed
@@ -1611,7 +1846,7 @@ export async function searchVaultMemoriesWithSize(
       });
       return stampTimestamps({
         results: composite,
-        vaultSize: loaded.length,
+        vaultSize,
         reranked: rerankStats.applied,
         hadV2Head: v2HeadStats.hadResults,
       });
@@ -1638,7 +1873,7 @@ export async function searchVaultMemoriesWithSize(
     });
     return stampTimestamps({
       results,
-      vaultSize: loaded.length,
+      vaultSize,
       reranked: rerankStats.applied,
       hadV2Head: v2HeadStats.hadResults,
     });
@@ -1653,7 +1888,7 @@ export async function searchVaultMemoriesWithSize(
       ...(searchOptions?.temporalRanking && { temporalRanking: searchOptions.temporalRanking }),
     });
     // Sync fusion path doesn't rerank, so hadV2Head is true if any results exist.
-    return stampTimestamps({ results, vaultSize: loaded.length, hadV2Head: results.length > 0 });
+    return stampTimestamps({ results, vaultSize, hadV2Head: results.length > 0 });
   }
 
   const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
@@ -1668,7 +1903,7 @@ export async function searchVaultMemoriesWithSize(
   });
 
   // Cosine-only path doesn't rerank, so hadV2Head is true if any results exist.
-  return stampTimestamps({ results, vaultSize: loaded.length, hadV2Head: results.length > 0 });
+  return stampTimestamps({ results, vaultSize, hadV2Head: results.length > 0 });
 }
 
 /**
