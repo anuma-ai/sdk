@@ -208,6 +208,10 @@ async function autoLinkBlocked(ctx: EntityOperationsContext, memoryId: string): 
  * destroy-stale are batched in ONE writer, after the same in-write guard as
  * the link op (user-managed / deleted / absent / read-fault ⇒ skip).
  *
+ * That batch also prunes `entity` rows left with no links at all (see
+ * {@link findOrphanedEntities}) — otherwise a topic the extractor has disowned
+ * keeps rendering as a chip that matches no memory.
+ *
  * Returns the linked entities ([] for an answered-empty set), or null when
  * the guard skipped — callers must treat null as "not persisted" (e.g. don't
  * stamp `topics_extracted_at`).
@@ -236,6 +240,7 @@ export async function replaceMemoryEntitiesGuardedOp(
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
     const toDestroy = existingLinks.filter((l) => !keep.has(String(l.entityId)));
     if (toCreate.length === 0 && toDestroy.length === 0) return;
+    const orphans = await findOrphanedEntities(ctx, memoryId, toDestroy);
     await ctx.database.batch(
       ...toCreate.map((e) =>
         ctx.memoryEntityCollection.prepareCreate((record) => {
@@ -244,11 +249,55 @@ export async function replaceMemoryEntitiesGuardedOp(
           if (userId !== undefined) record._setRaw("user_id", userId);
         })
       ),
-      ...toDestroy.map((l) => l.prepareDestroyPermanently())
+      ...toDestroy.map((l) => l.prepareDestroyPermanently()),
+      ...orphans.map((e) => e.prepareDestroyPermanently())
     );
   });
 
   return skipped ? null : entities;
+}
+
+/**
+ * Entity rows that will have NO links left once `toDestroy` is applied.
+ *
+ * Without this, an auto-extraction pass that stops mentioning an entity leaves
+ * the `entity` row behind forever: clients render one chip per row, so a topic
+ * the extractor has disowned keeps showing up and filters to nothing (client
+ * issue #5135 — a calendar block titled "Home"). Re-extraction under a bumped
+ * TOPICS_EXTRACTION_VERSION drops the link, and this drops the now-dead row with
+ * it.
+ *
+ * Deliberately UNSCOPED by `user_id`: `entity` rows are global vocabulary with
+ * no owner, so a row any other memory — or any other user — still references
+ * must never be deleted. Only links belonging to THIS memory are the ones going
+ * away, so anything else keeps the row alive. Runs inside the caller's writer,
+ * where the link deletes aren't visible yet, which is why the check is
+ * "links that aren't this memory's" rather than a plain count.
+ *
+ * Only reached from the auto path. A topic the user created by hand and never
+ * used has no links to destroy, so it is never a candidate; one the extractor
+ * had linked and then disowned is treated as extractor vocabulary and goes.
+ *
+ * No `Q.oneOf` chunking here (unlike the sweep query): the candidate list is one
+ * memory's entities — single digits, nowhere near SQLite's variable cap.
+ */
+async function findOrphanedEntities(
+  ctx: EntityOperationsContext,
+  memoryId: string,
+  toDestroy: readonly MemoryEntity[]
+): Promise<Entity[]> {
+  const candidateIds = [...new Set(toDestroy.map((l) => String(l.entityId)))];
+  if (candidateIds.length === 0) return [];
+
+  const links = await ctx.memoryEntityCollection
+    .query(Q.where("entity_id", Q.oneOf(candidateIds)))
+    .fetch();
+  const stillLinked = new Set(
+    links.filter((l) => String(l.memoryId) !== memoryId).map((l) => String(l.entityId))
+  );
+  const orphanIds = candidateIds.filter((id) => !stillLinked.has(id));
+  if (orphanIds.length === 0) return [];
+  return await ctx.entityCollection.query(Q.where("id", Q.oneOf(orphanIds))).fetch();
 }
 
 /**
