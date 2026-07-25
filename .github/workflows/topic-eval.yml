@@ -1,0 +1,212 @@
+name: Topic Eval
+
+# Runs the topic-extraction quality benchmark (precision / recall / f1 / kind
+# accuracy / junk-suppression / canonicalization / dropped-batches) against the
+# portal LLM. Mirrors extraction-eval.yml — two ways in:
+#   - workflow_dispatch: on-demand, pick mode/repeats/model.
+#   - pull_request touching the topic-extraction path: auto-run the regression
+#     gate against the committed baseline. `topicExtract.ts` shipped three
+#     quality regressions in one week (#757, #765, client #5140/#5155/#5160) with
+#     no gate on it at all; this is that gate. Paths-scoped so ordinary PRs skip.
+#     (Same-repo branches get PORTAL_API_KEY; fork PRs don't and will fail —
+#     acceptable for a private SDK where contributors push branches, not forks.)
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "ab = before/after A/B; save-baseline = write golden baseline artifact; gate = fail on regression vs committed baseline"
+        required: false
+        type: choice
+        default: "ab"
+        options: ["ab", "save-baseline", "gate"]
+      repeat:
+        description: "Runs per config (topic extraction is non-deterministic; >=3 recommended, 5 matches the committed baseline)"
+        required: false
+        type: string
+        default: "5"
+      models:
+        description: "Comma-separated models. Blank = the live default (gpt-oss-120b) for gate/save-baseline, or the 3-model candidate sweep for a plain ab run. gate/save-baseline require exactly one."
+        required: false
+        type: string
+        default: ""
+      verbose:
+        description: "Print per-run false positives (extracted entities matching no gold) to the log"
+        required: false
+        type: choice
+        default: "false"
+        options: ["true", "false"]
+      baseline:
+        description: "ab mode only: also run the main-branch topic prompt/taxonomy as an A/B baseline"
+        required: false
+        type: choice
+        default: "true"
+        options: ["true", "false"]
+  # Default activity types (opened / synchronize / reopened). Same caveat as
+  # extraction-eval.yml: GitHub has no `retargeted` pull_request activity and a
+  # base change only fires `edited`, which we deliberately don't subscribe to
+  # (it also fires on every title/description edit and would re-run this LLM
+  # gate needlessly). A stacked PR retargeted to `main` needs one more push.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/topic-eval.yml"
+      - "src/lib/memory/topicExtract.ts"
+      - "src/lib/db/entities/types.ts"
+      - "test/memory/src/topic/**"
+      - "test/memory/src/gate.ts"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      # Free-form inputs via env (not ${{ }} inline) so the shell tokenizes
+      # after substitution — blocks command injection from the dispatch UI.
+      # pull_request (no inputs) runs the regression gate at repeat 5, which is
+      # what baseline.json records — the benchmark REFUSES to gate on a repeat
+      # mismatch, so these two numbers must stay in sync.
+      INPUT_MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'gate') || 'ab' }}
+      INPUT_REPEAT: ${{ inputs.repeat || '5' }}
+      INPUT_MODELS: ${{ inputs.models }}
+      INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
+      INPUT_VERBOSE: ${{ inputs.verbose || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need origin/main for the A/B prompt swap
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build eval args
+        run: |
+          args=(--json --repeat "$INPUT_REPEAT")
+          [ -n "$INPUT_MODELS" ] && args+=(--models "$INPUT_MODELS")
+          [ "$INPUT_VERBOSE" = "true" ] && args+=(--verbose)
+          # Persist as a newline-safe single string for later steps.
+          printf 'EVAL_ARGS=%s\n' "${args[*]}" >> "$GITHUB_ENV"
+
+      # `pnpm --silent` throughout: without it pnpm's lifecycle banner
+      # ("> @anuma/sdk@... eval:topic") lands on STDOUT ahead of the JSON and
+      # every `jq` below silently falls into its parse-error fallback.
+      - name: Run eval (this branch = AFTER)
+        if: env.INPUT_MODE == 'ab'
+        run: |
+          # pipefail so a failed eval isn't masked by tee's exit code.
+          set -o pipefail
+          echo "::group::after (branch topic prompt + taxonomy)"
+          pnpm --silent eval:topic $EVAL_ARGS | tee after.json
+          echo "::endgroup::"
+
+      - name: Run eval (main = BEFORE baseline)
+        if: env.INPUT_MODE == 'ab' && env.INPUT_BASELINE == 'true'
+        run: |
+          # Swap ONLY the topic prompt + taxonomy back to main; keep the branch's
+          # corpus + scorer (they live in test/, identical on both sides) so the
+          # comparison is apples-to-apples. tsx runs without a typecheck, so a
+          # kind-taxonomy difference between the two sides is fine at runtime
+          # (kind is a string).
+          set -o pipefail
+          git checkout origin/main -- src/lib/memory/topicExtract.ts src/lib/db/entities/types.ts
+          echo "::group::before (main topic prompt + taxonomy)"
+          pnpm --silent eval:topic $EVAL_ARGS | tee before.json
+          echo "::endgroup::"
+          git checkout HEAD -- src/lib/memory/topicExtract.ts src/lib/db/entities/types.ts
+
+      - name: Run eval (save golden baseline)
+        if: env.INPUT_MODE == 'save-baseline'
+        run: |
+          # Writes test/memory/src/topic/baseline.json. CI can't commit it back,
+          # so it's uploaded as an artifact for a human to download+commit.
+          set -o pipefail
+          echo "::group::save-baseline"
+          pnpm --silent eval:topic $EVAL_ARGS --save-baseline | tee after.json
+          echo "::endgroup::"
+          echo "### Generated baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat test/memory/src/topic/baseline.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated baseline
+        if: env.INPUT_MODE == 'save-baseline'
+        uses: actions/upload-artifact@v4
+        with:
+          name: topic-baseline
+          path: test/memory/src/topic/baseline.json
+          if-no-files-found: error
+
+      - name: Run eval (regression gate)
+        if: env.INPUT_MODE == 'gate'
+        run: |
+          # Exits non-zero if any gated metric moves past its committed baseline's
+          # own tolerance — including `dropped` (whole-batch extraction failures),
+          # the only lower-is-better metric and the one #757 regressed on.
+          # pipefail so the gate's non-zero exit isn't swallowed by tee.
+          set -o pipefail
+          pnpm --silent eval:topic $EVAL_ARGS --baseline test/memory/src/topic/baseline.json | tee after.json
+
+      - name: Summarize gate result
+        if: always() && env.INPUT_MODE == 'gate'
+        run: |
+          {
+            echo "## Topic eval — regression gate (vs committed baseline)"
+            if [ -f after.json ]; then
+              echo '```'
+              jq -r '
+                .models | to_entries[] |
+                "  \(.key)  (\(.value.runs | length) runs)",
+                (.value.mean |
+                  "    recall / precision : \((.recall*1000|round/10))% / \((.precision*1000|round/10))%",
+                  "    f1 / kind accuracy : \((.f1*1000|round/10))% / \((.kindAccuracy*1000|round/10))%",
+                  "    junk-clean         : \((.junkCleanRate*1000|round/10))%",
+                  "    canon (with vocab) : \((.canonWithVocab*1000|round/10))%",
+                  "    dropped (want 0)   : \(.dropped)")
+              ' after.json 2>/dev/null || echo "  (could not parse after.json)"
+              echo '```'
+            else
+              echo "_Gate did not produce a result (eval step failed before writing after.json)._"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarize before vs after
+        if: always() && env.INPUT_MODE == 'ab'
+        run: |
+          summarize() {
+            local f="$1" label="$2"
+            [ -f "$f" ] || { echo "  ($label: no result)"; return; }
+            jq -r --arg L "$label" '
+              .models | to_entries[] |
+              "  \($L) — \(.key)",
+              (.value.mean |
+                "    recall / precision : \((.recall*1000|round/10))% / \((.precision*1000|round/10))%",
+                "    f1 / kind accuracy : \((.f1*1000|round/10))% / \((.kindAccuracy*1000|round/10))%",
+                "    junk-clean         : \((.junkCleanRate*1000|round/10))%",
+                "    canon no-vocab->vocab: \((.canonNoVocab*1000|round/10))% -> \((.canonWithVocab*1000|round/10))%",
+                "    dropped (want 0)   : \(.dropped)")
+            ' "$f"
+          }
+          {
+            echo "## Topic eval — before vs after"
+            echo '```'
+            summarize before.json "BEFORE (main)"
+            summarize after.json  "AFTER  (branch)"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: topic-eval-results
+          path: |
+            before.json
+            after.json
+          if-no-files-found: ignore
