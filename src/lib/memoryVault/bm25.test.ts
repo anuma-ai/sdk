@@ -126,3 +126,43 @@ describe("prepareBM25Corpus + scoreBM25Prepared (B3 tokenize-once)", () => {
     expect(scoreBM25Prepared("hello", prepareBM25Corpus(allEmpty)).size).toBe(0);
   });
 });
+
+describe("scoreBM25 — zero-term query short-circuit", () => {
+  /**
+   * Proves the corpus is never tokenized: reading `content` throws, so any
+   * document pass blows up. Guards the B3 regression both review bots caught —
+   * delegating to prepare+score unconditionally made a stopword-only query cost
+   * a full vault tokenize + DF build.
+   */
+  const landmine = [
+    {
+      id: "a",
+      get content(): string {
+        throw new Error("corpus was prepared for a zero-term query");
+      },
+    },
+    {
+      id: "b",
+      get content(): string {
+        throw new Error("corpus was prepared for a zero-term query");
+      },
+    },
+  ] as unknown as Parameters<typeof scoreBM25>[1];
+
+  it.each(["", "   ", "!!! ...", "the and of"])(
+    "returns empty without touching the corpus for %o",
+    (query) => {
+      expect(scoreBM25(query, landmine).size).toBe(0);
+    }
+  );
+
+  it("still scores normally once the query has a real term", () => {
+    const items = [
+      { id: "a", content: "matcha green tea" },
+      { id: "b", content: "black coffee" },
+    ];
+    const scores = scoreBM25("matcha", items);
+    expect(scores.get("a")).toBeGreaterThan(0);
+    expect(scores.has("b")).toBe(false);
+  });
+});
