@@ -751,14 +751,16 @@ describe("extractAndRetain", () => {
           type: "other",
           confidence: 0.9,
           sourceMessageIds: ["m1"],
-          entities: ["A"],
+          // Named placeholders, not "A"/"B": a bare article is content-free and
+          // the salience gate drops it before linking (see entitySalience.ts).
+          entities: ["Acme"],
         },
         {
           content: "fact 2",
           type: "other",
           confidence: 0.9,
           sourceMessageIds: ["m1"],
-          entities: ["B"],
+          entities: ["Globex"],
         },
       ],
     };

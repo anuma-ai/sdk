@@ -96,6 +96,31 @@ const GENERIC_ENTITY_NAMES = new Set([
   "vacation",
   "holiday",
   "trip",
+  // Plurals are listed explicitly rather than stemmed: naive `s`-stripping
+  // would fold real titles into generics ("The Times" → "time"). Only plurals
+  // that are junk as topics in their own right belong here — note the absence
+  // of "times", "places", and anything else that reads as a name.
+  "days",
+  "weeks",
+  "weekends",
+  "months",
+  "years",
+  "rooms",
+  "offices",
+  "houses",
+  "apartments",
+  "stores",
+  "shops",
+  "hotels",
+  "meetings",
+  "calls",
+  "appointments",
+  "reminders",
+  "events",
+  "birthdays",
+  "trips",
+  "vacations",
+  "holidays",
   // Meta / filler the models occasionally echo back as an entity
   "user",
   "assistant",
@@ -120,11 +145,19 @@ const GENERIC_ENTITY_NAMES = new Set([
 /**
  * True when an entity name is too generic to be a topic.
  *
- * Single tokens are matched against {@link GENERIC_ENTITY_NAMES}. A multi-token
- * name is dropped only when EVERY token is generic ("the meeting", "home
- * office") — one distinctive token is enough to make the phrase a real entity
- * ("Chicago Marathon", "Anuma offsite"), mirroring the multi-word rule the
- * client's heuristic extractor already uses.
+ * One distinctive token is enough to keep a phrase ("Chicago Marathon", "Anuma
+ * offsite", "Blue Bottle on Valencia"), mirroring the multi-word rule the
+ * client's heuristic extractor already uses. Tokens that are neither generic nor
+ * a modifier count as distinctive, so `Next.js` survives on its "js".
+ *
+ * The one subtlety is the article guard. An article plus a single generic noun
+ * reads as a TITLE, not a calendar leak — "The Office" is a real product entity
+ * (and a gold case in `test/memory/src/topic/dataset.ts`), so dropping it would
+ * both lose the link and make the version-3 re-extraction sweep delete an
+ * existing valid one. Articles therefore protect a lone noun, while possessives,
+ * temporal qualifiers and prepositions do not: "next week", "my office" and
+ * "work from home" are still generic. The cost is that "the meeting" survives —
+ * a cheap miss, where dropping "The Office" would be an expensive one.
  */
 export function isGenericEntityName(name: string): boolean {
   const tokens = name
@@ -132,19 +165,35 @@ export function isGenericEntityName(name: string): boolean {
     .split(/[^\p{L}\p{N}]+/u)
     .filter((token) => token.length > 0);
   if (tokens.length === 0) return true;
-  // Determiners and temporal qualifiers can't rescue a phrase from being
-  // all-generic ("the meeting", "next week"), so they don't count as
-  // distinctive tokens. They are still only IGNORED, never treated as generic
-  // themselves — "Next.js" keeps its distinctive "js".
-  const meaningful = tokens.filter((token) => !WEAK_MODIFIERS.has(token));
-  const judged = meaningful.length > 0 ? meaningful : tokens;
-  return judged.every((token) => GENERIC_ENTITY_NAMES.has(token));
+
+  const distinctive = tokens.filter(
+    (token) =>
+      !GENERIC_ENTITY_NAMES.has(token) && !ARTICLES.has(token) && !WEAK_MODIFIERS.has(token)
+  );
+  if (distinctive.length > 0) return false;
+
+  const generic = tokens.filter((token) => GENERIC_ENTITY_NAMES.has(token));
+  // Nothing but modifiers ("the", "at", a bare "A") — content-free, no entity
+  // here at all. This also drops the rare abbreviation spelled like a function
+  // word ("ON" for Ontario); single letters that aren't function words ("C",
+  // "X", "R") are distinctive and survive above.
+  if (generic.length === 0) return true;
+  const titleShaped =
+    generic.length === 1 &&
+    tokens.some((token) => ARTICLES.has(token)) &&
+    !tokens.some((token) => WEAK_MODIFIERS.has(token));
+  return !titleShaped;
 }
 
+/** Title-forming — these protect a single generic noun ("The Office"). */
+const ARTICLES = new Set(["the", "a", "an"]);
+
+/**
+ * Never distinctive and never title-forming: possessives, temporal qualifiers,
+ * and the prepositions/conjunctions that glue generic nouns together ("meeting
+ * at home", "work from home", "home and work").
+ */
 const WEAK_MODIFIERS = new Set([
-  "the",
-  "a",
-  "an",
   "my",
   "our",
   "their",
@@ -152,8 +201,20 @@ const WEAK_MODIFIERS = new Set([
   "her",
   "its",
   "this",
+  "that",
   "next",
   "last",
   "upcoming",
   "every",
+  "at",
+  "in",
+  "on",
+  "of",
+  "for",
+  "with",
+  "from",
+  "to",
+  "by",
+  "and",
+  "or",
 ]);

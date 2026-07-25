@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { TOPIC_CASES } from "../../../test/memory/src/topic/dataset";
 import { parseEntities } from "./autoExtract";
 import { isGenericEntityName } from "./entitySalience";
 
@@ -12,7 +13,7 @@ describe("isGenericEntityName", () => {
   });
 
   it("drops pure date noise", () => {
-    for (const name of ["Today", "tomorrow", "Friday", "March", "next week", "the weekend"]) {
+    for (const name of ["Today", "tomorrow", "Friday", "March", "next week", "this weekend"]) {
       expect(isGenericEntityName(name)).toBe(true);
     }
   });
@@ -32,10 +33,47 @@ describe("isGenericEntityName", () => {
     }
   });
 
-  it("drops an all-generic phrase, determiners included", () => {
-    for (const name of ["the meeting", "my home office", "a birthday dinner"]) {
+  it("drops an all-generic phrase held together by modifiers", () => {
+    for (const name of [
+      "my home office",
+      "a birthday dinner",
+      "meeting at home",
+      "work from home",
+      "home and work",
+      "next week",
+    ]) {
       expect(isGenericEntityName(name)).toBe(true);
     }
+  });
+
+  it("drops plural generics too", () => {
+    for (const name of ["Meetings", "Trips", "Calls", "weekends", "Appointments"]) {
+      expect(isGenericEntityName(name)).toBe(true);
+    }
+  });
+
+  it("keeps an article + single noun, which reads as a title", () => {
+    // "The Office" is a gold product entity — dropping it would lose the link
+    // AND make the re-extraction sweep delete existing valid ones. Possessives
+    // and qualifiers deliberately do NOT get this protection.
+    expect(isGenericEntityName("The Office")).toBe(false);
+    expect(isGenericEntityName("The Trip")).toBe(false);
+    expect(isGenericEntityName("my office")).toBe(true);
+    expect(isGenericEntityName("this trip")).toBe(true);
+    // The accepted cost of the guard: an article + generic noun is kept even
+    // when it reads as date noise, because the shape is indistinguishable from
+    // a title ("The Weeknd", "The Trip"). A cheap miss, unlike a lost entity.
+    expect(isGenericEntityName("the weekend")).toBe(false);
+  });
+
+  it("never drops a gold entity from the topic-extraction eval dataset", () => {
+    // The dataset is the spec for what extraction should produce, so it is also
+    // the spec for what this gate must not throw away. This is what would have
+    // caught "The Office".
+    const dropped = TOPIC_CASES.flatMap((c) => c.gold)
+      .map((g) => g.name)
+      .filter((name) => isGenericEntityName(name));
+    expect(dropped).toEqual([]);
   });
 
   it("keeps the connectors a personal memory graph needs", () => {
