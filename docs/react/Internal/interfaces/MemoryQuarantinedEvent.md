@@ -1,6 +1,6 @@
 # MemoryQuarantinedEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#81)
+Defined in: [src/lib/memory/autoExtractWorker.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#87)
 
 Tier-0 security (PR3) — fired once per candidate the injection screen
 quarantined and persisted as an audit row. Distinct from
@@ -29,7 +29,7 @@ Defined in: [src/lib/memory/autoExtract.ts:202](https://github.com/anuma-ai/sdk/
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#82)
+Defined in: [src/lib/memory/autoExtractWorker.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#88)
 
 ***
 
