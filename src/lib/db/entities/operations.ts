@@ -1,4 +1,4 @@
-import type { Collection, Database } from "@nozbe/watermelondb";
+import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 // Type-only — no runtime dependency on the memoryVault module (which imports
@@ -47,6 +47,60 @@ function entityToStored(e: Entity): StoredEntity {
 }
 
 /**
+ * Core upsert logic WITHOUT a `database.write()` wrapper. Must be called from
+ * inside an existing write block. Returns both the resolved entity map and the
+ * prepared create/update operations that the caller must batch.
+ */
+async function upsertEntitiesInWrite(
+  ctx: EntityOperationsContext,
+  entities: ReadonlyArray<{ name: string; kind?: string }>
+): Promise<{ entities: Map<string, StoredEntity>; operations: Model[] }> {
+  const kindByName = new Map<string, string | undefined>();
+  for (const e of entities) {
+    const name = normalizeName(e.name);
+    if (name.length === 0) continue;
+    const kind = e.kind && e.kind.length > 0 ? e.kind : undefined;
+    if (!kindByName.has(name)) {
+      kindByName.set(name, kind);
+    } else if (kindByName.get(name) === undefined && kind !== undefined) {
+      kindByName.set(name, kind);
+    }
+  }
+  const unique = Array.from(kindByName.keys());
+  const out = new Map<string, StoredEntity>();
+  if (unique.length === 0) return { entities: out, operations: [] };
+
+  const existing = await ctx.entityCollection
+    .query(Q.where("canonical_name", Q.oneOf(unique)))
+    .fetch();
+  const existingNames = new Set(existing.map((e) => e.canonicalName));
+
+  const updates = existing.filter((e) => {
+    const incoming = kindByName.get(e.canonicalName);
+    return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
+  });
+
+  const missing = unique.filter((n) => !existingNames.has(n));
+  const created = missing.map((name) =>
+    ctx.entityCollection.prepareCreate((record) => {
+      record._setRaw("canonical_name", name);
+      const kind = kindByName.get(name);
+      if (kind !== undefined) record._setRaw("kind", kind);
+    })
+  );
+  const updated = updates.map((e) =>
+    e.prepareUpdate((record) => {
+      record._setRaw("kind", kindByName.get(e.canonicalName) as string);
+    })
+  );
+
+  for (const e of existing) out.set(e.canonicalName, entityToStored(e));
+  for (const record of created) out.set(record.canonicalName, entityToStored(record));
+
+  return { entities: out, operations: [...created, ...updated] };
+}
+
+/**
  * Batch resolve-or-create a set of entities. Read + create run inside one
  * `database.write()` so concurrent turns can't race a check-then-create on
  * the same brand-new name.
@@ -62,57 +116,12 @@ async function upsertEntitiesOp(
   ctx: EntityOperationsContext,
   entities: ReadonlyArray<{ name: string; kind?: string }>
 ): Promise<Map<string, StoredEntity>> {
-  // Normalize + collapse duplicates, tracking the first non-null kind seen
-  // for each name.
-  const kindByName = new Map<string, string | undefined>();
-  for (const e of entities) {
-    const name = normalizeName(e.name);
-    if (name.length === 0) continue;
-    const kind = e.kind && e.kind.length > 0 ? e.kind : undefined;
-    if (!kindByName.has(name)) {
-      kindByName.set(name, kind);
-    } else if (kindByName.get(name) === undefined && kind !== undefined) {
-      kindByName.set(name, kind);
-    }
-  }
-  const unique = Array.from(kindByName.keys());
-  const out = new Map<string, StoredEntity>();
-  if (unique.length === 0) return out;
-
   return await ctx.database.write(async () => {
-    const existing = await ctx.entityCollection
-      .query(Q.where("canonical_name", Q.oneOf(unique)))
-      .fetch();
-    const existingNames = new Set(existing.map((e) => e.canonicalName));
-
-    // Back-fill kind only where the stored row has none; never clobber a
-    // non-null kind.
-    const updates = existing.filter((e) => {
-      const incoming = kindByName.get(e.canonicalName);
-      return incoming !== undefined && (e.kind === null || e.kind === undefined || e.kind === "");
-    });
-
-    const missing = unique.filter((n) => !existingNames.has(n));
-    const created = missing.map((name) =>
-      ctx.entityCollection.prepareCreate((record) => {
-        record._setRaw("canonical_name", name);
-        const kind = kindByName.get(name);
-        if (kind !== undefined) record._setRaw("kind", kind);
-      })
-    );
-    const updated = updates.map((e) =>
-      e.prepareUpdate((record) => {
-        record._setRaw("kind", kindByName.get(e.canonicalName) as string);
-      })
-    );
-    if (created.length > 0 || updated.length > 0) {
-      await ctx.database.batch(...created, ...updated);
+    const { entities: entityMap, operations } = await upsertEntitiesInWrite(ctx, entities);
+    if (operations.length > 0) {
+      await ctx.database.batch(...operations);
     }
-
-    // Reflect the (now-updated) existing rows and the freshly created ones.
-    for (const e of existing) out.set(e.canonicalName, entityToStored(e));
-    for (const record of created) out.set(record.canonicalName, entityToStored(record));
-    return out;
+    return entityMap;
   });
 }
 
@@ -131,8 +140,9 @@ async function upsertEntitiesOp(
  * mid-call (orphaning links the cascade already swept) — so only an in-write
  * check guarantees a user's manual edit or delete can't be grafted over. The
  * row read fails CLOSED (skip links) so a transient fault never attaches
- * topics to a memory we couldn't verify. Entity upserts still happen
- * (vocabulary is global); returns [] when links were skipped.
+ * topics to a memory we couldn't verify. Entity upserts and link creation
+ * run in ONE writer to prevent orphan-prune races; returns [] when links
+ * were skipped.
  */
 export async function linkMemoryEntitiesOp(
   ctx: EntityOperationsContext,
@@ -143,35 +153,42 @@ export async function linkMemoryEntitiesOp(
   if (entityInputs.length === 0) return [];
 
   const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
-  const byName = await upsertEntitiesOp(ctx, normalized);
-  const entities = Array.from(byName.values());
-  if (entities.length === 0) return [];
-
   const userId = ctx.userId;
   let skipped = false;
-  // Read existing pairs *inside* the write so two parallel
-  // linkMemoryEntitiesOp calls for the same memory can't both miss and
-  // both insert overlapping (memory_id, entity_id) rows — which would
-  // inflate the shared-count downstream in rankByEntityOverlap.
+  let entities: StoredEntity[] = [];
+
   await ctx.database.write(async () => {
+    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
+      ctx,
+      normalized
+    );
+    entities = Array.from(byName.values());
+
     if (options?.unlessTopicsUserManaged && (await autoLinkBlocked(ctx, memoryId))) {
+      if (entityOps.length > 0) {
+        await ctx.database.batch(...entityOps);
+      }
       skipped = true;
       return;
     }
+
+    if (entities.length === 0) return;
+
     const existingLinks = await ctx.memoryEntityCollection
       .query(Q.where("memory_id", memoryId))
       .fetch();
     const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
-    if (toCreate.length === 0) return;
-    const prepared = toCreate.map((e) =>
+    if (entityOps.length === 0 && toCreate.length === 0) return;
+
+    const linkOps = toCreate.map((e) =>
       ctx.memoryEntityCollection.prepareCreate((record) => {
         record._setRaw("memory_id", memoryId);
         record._setRaw("entity_id", e.uniqueId);
         if (userId !== undefined) record._setRaw("user_id", userId);
       })
     );
-    await ctx.database.batch(...prepared);
+    await ctx.database.batch(...entityOps, ...linkOps);
   });
 
   return skipped ? [] : entities;
@@ -222,16 +239,22 @@ export async function replaceMemoryEntitiesGuardedOp(
   entityInputs: ReadonlyArray<EntityInput>
 ): Promise<StoredEntity[] | null> {
   const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
-  const byName = await upsertEntitiesOp(ctx, normalized);
-  const entities = Array.from(byName.values());
-
   const userId = ctx.userId;
   let skipped = false;
+  let entities: StoredEntity[] = [];
+
   await ctx.database.write(async () => {
     if (await autoLinkBlocked(ctx, memoryId)) {
       skipped = true;
       return;
     }
+
+    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
+      ctx,
+      normalized
+    );
+    entities = Array.from(byName.values());
+
     const existingLinks = await ctx.memoryEntityCollection
       .query(Q.where("memory_id", memoryId))
       .fetch();
@@ -239,9 +262,10 @@ export async function replaceMemoryEntitiesGuardedOp(
     const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
     const toDestroy = existingLinks.filter((l) => !keep.has(String(l.entityId)));
-    if (toCreate.length === 0 && toDestroy.length === 0) return;
+    if (entityOps.length === 0 && toCreate.length === 0 && toDestroy.length === 0) return;
     const orphans = await findOrphanedEntities(ctx, memoryId, toDestroy);
     await ctx.database.batch(
+      ...entityOps,
       ...toCreate.map((e) =>
         ctx.memoryEntityCollection.prepareCreate((record) => {
           record._setRaw("memory_id", memoryId);
