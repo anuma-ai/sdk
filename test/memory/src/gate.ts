@@ -140,6 +140,18 @@ export function compareToGateBaseline(
   for (const spec of specs) {
     const base = baseline.metrics?.[spec.key];
     if (!base) continue;
+    // A band that EXISTS but is malformed is a corrupt baseline, not a
+    // forward-compat gap. `isValidGateBaseline` only requires SOME metric to be
+    // well-formed, so a file with one good band and one `{"mean": "0.9"}` would
+    // otherwise reach here and silently disable that metric: the arithmetic
+    // yields NaN, every NaN comparison is false, and the gate reports "no
+    // regression" for a metric it never actually checked.
+    if (!Number.isFinite(base.mean) || !Number.isFinite(base.tolerance)) {
+      throw new Error(
+        `Baseline band for "${spec.key}" is malformed (mean=${String(base.mean)}, ` +
+          `tolerance=${String(base.tolerance)}); regenerate the baseline.`
+      );
+    }
     const current = meanOf(series(runs, spec.key));
     const drop = spec.direction === "higher-better" ? base.mean - current : current - base.mean;
     // Strictly MORE than the tolerance, with float slack: a drop landing exactly

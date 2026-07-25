@@ -108,6 +108,27 @@ describe("compareToGateBaseline", () => {
     const older = { ...baseline, metrics: { recall: baseline.metrics.recall } };
     expect(compareToGateBaseline([run({ dropped: 99 })], older, SPECS)).toEqual([]);
   });
+
+  // A MISSING band is forward-compat (skip); a PRESENT but malformed one is a
+  // corrupt baseline. Without this the NaN arithmetic silently disables that
+  // metric's gate while every other metric still validates the file.
+  it("throws on a present-but-malformed band rather than silently skipping it", () => {
+    for (const bad of [
+      { mean: "0.9", tolerance: 0.05 },
+      { mean: 0.9, tolerance: null },
+      { mean: Number.NaN, tolerance: 0.05 },
+      { mean: 0.9 },
+    ]) {
+      const corrupt = {
+        ...baseline,
+        metrics: { ...baseline.metrics, dropped: bad },
+      } as unknown as typeof baseline;
+      // The file still validates — `recall` is well-formed — so the guard has
+      // to live in the comparison, not only in the shape check.
+      expect(isValidGateBaseline(corrupt, SPECS)).toBe(true);
+      expect(() => compareToGateBaseline([run()], corrupt, SPECS)).toThrow(/malformed/);
+    }
+  });
 });
 
 describe("isValidGateBaseline", () => {
