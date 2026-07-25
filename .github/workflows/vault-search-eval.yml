@@ -85,12 +85,14 @@ jobs:
       - name: Run eval (regression gate)
         if: env.INPUT_MODE == 'gate'
         run: |
-          # pipefail so the gate's non-zero exit isn't swallowed by tee.
-          # --silent so pnpm's lifecycle banner doesn't precede the JSON on stdout.
-          set -o pipefail
-          args=(--json --baseline test/memory/src/vault/baseline.json)
+          # `--output` rather than `| tee`: the benchmark writes the result
+          # document to the file itself and logs only to stderr, so the summary
+          # below gets clean JSON. Piping stdout also can't work on the path that
+          # matters — the gate exits non-zero on a regression, and the file must
+          # already exist by then (it's written before the comparison runs).
+          args=(--json --output results.json --baseline test/memory/src/vault/baseline.json)
           [ "$INPUT_REFRESH" = "true" ] && args+=(--refresh-embeddings)
-          pnpm --silent eval:vault-search "${args[@]}" | tee results.json
+          pnpm --silent eval:vault-search "${args[@]}"
 
       - name: Run eval (save baseline)
         if: env.INPUT_MODE == 'save-baseline'

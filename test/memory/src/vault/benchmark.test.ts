@@ -86,6 +86,17 @@ const { values: args } = parseArgs({
   },
 });
 
+/**
+ * Progress output. In `--json` mode stdout carries the single result document,
+ * so everything else must go to stderr — otherwise the interleaved progress
+ * lines make the output unparseable and CI's `jq` summary silently falls back
+ * to "(could not parse)".
+ */
+function progress(line: string): void {
+  if (args.json) console.error(line);
+  else console.log(line);
+}
+
 const RANKER_NAME = (args.ranker ?? "cosine").toLowerCase();
 if (RANKER_NAME !== "cosine" && RANKER_NAME !== "fused") {
   console.error(`Invalid --ranker "${RANKER_NAME}". Expected "cosine" or "fused".`);
@@ -501,7 +512,7 @@ async function main() {
 
   const embeddingCache = await loadEmbeddingCache(EMBEDDING_MODEL, !!args["refresh-embeddings"]);
 
-  console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
+  progress(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
   const { vectors: memoryEmbeddings, misses: memMisses } = await embedWithCache(
     VAULT_MEMORIES.map((m) => m.content),
     embeddingOptions,
@@ -521,7 +532,7 @@ async function main() {
         await readFile("test/memory/src/vault/decompositions.json", "utf-8")
       ) as Record<string, DecomposedQuery>;
       const composite = Object.values(decompositions).filter((d) => d.mode === "composite").length;
-      console.log(
+      progress(
         `Loaded ${Object.keys(decompositions).length} decompositions (${composite} composite)`
       );
     } catch (err) {
@@ -546,7 +557,7 @@ async function main() {
     }
   }
 
-  console.log(
+  progress(
     `Embedding ${queries.length} queries${
       subQueriesSeen.size > 0 ? ` + ${subQueriesSeen.size} sub-queries` : ""
     }...`
@@ -566,12 +577,12 @@ async function main() {
   const totalMisses = memMisses + qMisses;
   if (totalMisses > 0) {
     await saveEmbeddingCache(embeddingCache, EMBEDDING_MODEL);
-    console.log(`Embedding cache: ${totalMisses} new, ${embeddingCache.size} total (saved).`);
+    progress(`Embedding cache: ${totalMisses} new, ${embeddingCache.size} total (saved).`);
   } else {
-    console.log(`Embedding cache: 0 misses — frozen vectors (deterministic run).`);
+    progress(`Embedding cache: 0 misses — frozen vectors (deterministic run).`);
   }
 
-  console.log(`Running ${queries.length} queries...\n`);
+  progress(`Running ${queries.length} queries...\n`);
 
   const embeddedItems = VAULT_MEMORIES.map((m) => ({
     id: m.id,
@@ -581,7 +592,7 @@ async function main() {
   }));
 
   if (RERANK) {
-    console.log("Pre-loading reranker model...");
+    progress("Pre-loading reranker model...");
     await preloadReranker();
   }
 
@@ -619,7 +630,7 @@ async function main() {
         embedding: queryEmbeddingMap.get(sq) ?? queryEmbedding,
       }));
       if (args.verbose) {
-        console.log(`[composite] "${query.query}" → ${decomp.subQueries.length} sub-queries`);
+        progress(`[composite] "${query.query}" → ${decomp.subQueries.length} sub-queries`);
       }
       ranked = await rankComposite(
         query.query,
@@ -757,52 +768,12 @@ async function main() {
   }
 
   // ---------------------------------------------------------------------------
-  // Baseline comparison
-  // ---------------------------------------------------------------------------
-
-  if (args.baseline) {
-    try {
-      const baselineRaw = await readFile(args.baseline, "utf-8");
-      const baselineData = JSON.parse(baselineRaw);
-      // Refuse an apples-to-oranges comparison. A baseline predating config
-      // recording has no `config` block at all — that's not a mismatch to
-      // report, it's an unusable baseline, so say so and point at how to fix it.
-      if (!baselineData?.config) {
-        console.error(
-          `\n  ${args.baseline} records no run config, so a regression here can't be told ` +
-            `apart from a different configuration. Regenerate it with --save-baseline.\n`
-        );
-        process.exit(1);
-      }
-      const mismatch = describeConfigMismatch(
-        { config: baselineData.config, runs: 1, metrics: {} },
-        gateConfig()
-      );
-      if (mismatch) {
-        console.error(`\n  Refusing to gate: ${mismatch}. Re-run to match, or regenerate.\n`);
-        process.exit(1);
-      }
-      const regressions = compareWithBaseline(byCategory, overall, baselineData);
-      if (regressions.length > 0) {
-        console.error("\n  REGRESSION DETECTED\n");
-        console.error("  Metric          Category        Baseline  Current   Delta");
-        console.error("  ──────────────  ──────────────  ────────  ────────  ──────");
-        for (const r of regressions) {
-          console.error(
-            `  ${r.metric.padEnd(14)}  ${r.category.padEnd(14)}  ${formatPct(r.baseline, 7)}  ${formatPct(r.current, 7)}  ${formatPct(r.delta, 5)}`
-          );
-        }
-        process.exit(1);
-      }
-      console.log("  Baseline comparison: no regressions detected.\n");
-    } catch (err) {
-      console.error(`Failed to load baseline from ${args.baseline}: ${err}`);
-      process.exit(1);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // JSON output
+  //
+  // Emitted BEFORE the baseline comparison on purpose. The gate `process.exit`s
+  // on a regression, so with the old ordering the one run you most want a result
+  // file for — the failing one — produced none, and CI's summary/artifact were
+  // always empty. Every sibling suite prints its report first, then gates.
   // ---------------------------------------------------------------------------
 
   if (args.json) {
@@ -851,8 +822,56 @@ async function main() {
     } else {
       console.log(jsonStr);
     }
-    return;
   }
+
+  // ---------------------------------------------------------------------------
+  // Baseline comparison
+  // ---------------------------------------------------------------------------
+
+  if (args.baseline) {
+    try {
+      const baselineRaw = await readFile(args.baseline, "utf-8");
+      const baselineData = JSON.parse(baselineRaw);
+      // Refuse an apples-to-oranges comparison. A baseline predating config
+      // recording has no `config` block at all — that's not a mismatch to
+      // report, it's an unusable baseline, so say so and point at how to fix it.
+      if (!baselineData?.config) {
+        console.error(
+          `\n  ${args.baseline} records no run config, so a regression here can't be told ` +
+            `apart from a different configuration. Regenerate it with --save-baseline.\n`
+        );
+        process.exit(1);
+      }
+      const mismatch = describeConfigMismatch(
+        { config: baselineData.config, runs: 1, metrics: {} },
+        gateConfig()
+      );
+      if (mismatch) {
+        console.error(`\n  Refusing to gate: ${mismatch}. Re-run to match, or regenerate.\n`);
+        process.exit(1);
+      }
+      const regressions = compareWithBaseline(byCategory, overall, baselineData);
+      if (regressions.length > 0) {
+        console.error("\n  REGRESSION DETECTED\n");
+        console.error("  Metric          Category        Baseline  Current   Delta");
+        console.error("  ──────────────  ──────────────  ────────  ────────  ──────");
+        for (const r of regressions) {
+          console.error(
+            `  ${r.metric.padEnd(14)}  ${r.category.padEnd(14)}  ${formatPct(r.baseline, 7)}  ${formatPct(r.current, 7)}  ${formatPct(r.delta, 5)}`
+          );
+        }
+        process.exit(1);
+      }
+      // stderr, not stdout: in --json mode stdout carries the result document.
+      console.error("  Baseline comparison: no regressions detected.\n");
+    } catch (err) {
+      console.error(`Failed to load baseline from ${args.baseline}: ${err}`);
+      process.exit(1);
+    }
+  }
+
+  // The human table below is non-JSON mode only; --json already emitted above.
+  if (args.json) return;
 
   // ---------------------------------------------------------------------------
   // Save baseline (non-JSON mode)
