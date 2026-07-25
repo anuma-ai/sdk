@@ -13,6 +13,34 @@ import { execFileSync } from "node:child_process";
 const SEVERITY_THRESHOLD = new Set(["high", "critical"]);
 const BULK_ENDPOINT = "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk";
 
+/**
+ * Time-boxed exceptions for advisories that have NO installable fix.
+ *
+ * Reach for this only when a `pnpm.overrides` entry can't resolve the finding —
+ * an override is always the better answer, and the audit reads pnpm's resolved
+ * tree so overrides are honored automatically. Every entry must carry the
+ * evidence for why an override is impossible plus an `expires` date; the audit
+ * FAILS on an expired entry, so an exception can't quietly become permanent.
+ *
+ * Fields: `id` (GHSA), `package`, `reason`, `expires` (YYYY-MM-DD, UTC).
+ */
+const ALLOWLIST = [
+  {
+    id: "GHSA-mh99-v99m-4gvg",
+    package: "brace-expansion",
+    expires: "2026-10-01",
+    reason:
+      "DoS via unbounded expansion; affects <=5.0.7, and 5.0.8 is the ONLY patched release. " +
+      "The copies we resolve are the 1.x/2.x maintenance lines (1.1.16 / 2.1.2 — already the " +
+      "newest of each major via pnpm.overrides), required by minimatch@3 / minimatch@5 under " +
+      "exceljs -> archiver -> glob and react-native -> @react-native/codegen -> glob. " +
+      "Overriding to 5.0.8 breaks them: it ships a namespace CJS export, so minimatch@3's " +
+      "`require('brace-expansion')(pattern)` throws `TypeError: expand is not a function` " +
+      "(verified locally). Clears when exceljs/react-native move off glob@7, or when the " +
+      "1.x/2.x lines get a backport.",
+  },
+];
+
 function collectPackages() {
   const raw = execFileSync("pnpm", ["list", "--prod", "--depth", "Infinity", "--json"], {
     encoding: "utf-8",
@@ -62,22 +90,80 @@ function filterByThreshold(advisories) {
   return findings;
 }
 
+/**
+ * The bulk endpoint keys advisories by npm's numeric id and carries the GHSA
+ * only inside `url` (and sometimes `github_advisory_id`), so match on either.
+ * Scoped by package name too — one GHSA must never excuse a different package.
+ */
+function matches(entry, finding) {
+  if (entry.package !== finding.pkg) return false;
+  return finding.github_advisory_id === entry.id || String(finding.url ?? "").includes(entry.id);
+}
+
+/**
+ * Split findings into suppressed and reportable, and surface allowlist hygiene:
+ * an EXPIRED entry stops suppressing (so its finding fails the build), and an
+ * entry that matched nothing is reported as removable.
+ */
+function applyAllowlist(findings, today) {
+  const expired = ALLOWLIST.filter((entry) => entry.expires < today);
+  const usable = ALLOWLIST.filter((entry) => entry.expires >= today);
+  const suppressed = [];
+  const reportable = [];
+  const matched = new Set();
+
+  for (const finding of findings) {
+    const entry = usable.find((candidate) => matches(candidate, finding));
+    if (entry) {
+      matched.add(entry.id);
+      suppressed.push({ finding, entry });
+    } else {
+      reportable.push(finding);
+    }
+  }
+  const stale = usable.filter((entry) => !matched.has(entry.id));
+  return { suppressed, reportable, expired, stale };
+}
+
 const packages = collectPackages();
 console.log(`Auditing ${packages.size} production packages...`);
 const advisories = await fetchAdvisories(packages);
 const findings = filterByThreshold(advisories);
+// UTC, so a run's verdict never depends on the runner's timezone.
+const today = new Date().toISOString().slice(0, 10);
+const { suppressed, reportable, expired, stale } = applyAllowlist(findings, today);
 
-if (findings.length === 0) {
-  console.log("No high or critical vulnerabilities in production dependencies.");
-  process.exit(0);
+for (const { finding, entry } of suppressed) {
+  console.log(
+    `\nAllowlisted until ${entry.expires}: [${finding.severity.toUpperCase()}] ${finding.pkg} — ${finding.title}`
+  );
+  console.log(`  ${finding.url}`);
+  console.log(`  Reason: ${entry.reason}`);
+}
+for (const entry of stale) {
+  console.log(
+    `\nAllowlist entry for ${entry.package} (${entry.id}) matched no finding — safe to remove.`
+  );
+}
+for (const entry of expired) {
+  console.error(
+    `\nAllowlist entry for ${entry.package} (${entry.id}) EXPIRED on ${entry.expires} — re-check for a fix, then update or remove the entry.`
+  );
 }
 
-console.error(
-  `\nFound ${findings.length} high/critical vulnerabilit${findings.length === 1 ? "y" : "ies"} in production dependencies:\n`
-);
-for (const f of findings) {
-  console.error(`  [${f.severity.toUpperCase()}] ${f.pkg} — ${f.title}`);
-  console.error(`    ${f.url}`);
-  console.error(`    Affected: ${f.vulnerable_versions}\n`);
+if (reportable.length > 0) {
+  console.error(
+    `\nFound ${reportable.length} unaddressed high/critical vulnerabilit${reportable.length === 1 ? "y" : "ies"} in production dependencies:\n`
+  );
+  for (const f of reportable) {
+    console.error(`  [${f.severity.toUpperCase()}] ${f.pkg} — ${f.title}`);
+    console.error(`    ${f.url}`);
+    console.error(`    Affected: ${f.vulnerable_versions}\n`);
+  }
 }
-process.exit(1);
+
+if (reportable.length > 0 || expired.length > 0) {
+  process.exit(1);
+}
+console.log("\nNo unaddressed high or critical vulnerabilities in production dependencies.");
+process.exit(0);
