@@ -20,6 +20,7 @@ import { ENTITY_KINDS, type EntityKind } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { isGenericEntityName } from "./entitySalience.js";
 import {
   classifyInjectionCandidates,
   type InjectionClassifierOptions,
@@ -853,6 +854,10 @@ function validateCandidates(
  * drop the entity). An unrecognized / missing `kind` is dropped so only
  * valid {@link EntityKind}s reach the store; the name is always kept.
  *
+ * Generic names are dropped here ({@link isGenericEntityName}) — both prompts
+ * ask for NAMED entities only, and this is the deterministic backstop for the
+ * bare common nouns the models still emit ("Home" from a calendar block).
+ *
  * Exported for topicExtract.ts (the standalone topic-extraction pass shares
  * this validator so both pipelines admit identical entity shapes) — not part
  * of the public SDK surface.
@@ -862,13 +867,13 @@ export function parseEntities(raw: unknown[]): ExtractedEntity[] {
   for (const e of raw) {
     if (typeof e === "string") {
       const name = e.trim();
-      if (name.length > 0) out.push({ name });
+      if (name.length > 0 && !isGenericEntityName(name)) out.push({ name });
       continue;
     }
     if (typeof e !== "object" || e === null) continue;
     const obj = e as Record<string, unknown>;
     const name = typeof obj.name === "string" ? obj.name.trim() : "";
-    if (name.length === 0) continue;
+    if (name.length === 0 || isGenericEntityName(name)) continue;
     const kind =
       typeof obj.kind === "string" && (ENTITY_KINDS as readonly string[]).includes(obj.kind)
         ? (obj.kind as EntityKind)
