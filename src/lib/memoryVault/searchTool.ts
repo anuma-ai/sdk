@@ -1367,7 +1367,19 @@ export async function buildProjectedCorpus(
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
-  queryOpts: { scopes?: string[]; folderId?: string | null },
+  /**
+   * Candidate-set filters, forwarded verbatim to `getVaultCandidateKeysOp`.
+   * Must stay a superset-compatible mirror of what the legacy
+   * `getAllVaultMemoriesOp` path accepts — this signature previously listed only
+   * `scopes`/`folderId`, which is how `factTypes` and `includeArchived` came to
+   * be silently dropped on the decrypt-last path (#779).
+   */
+  queryOpts: {
+    scopes?: string[];
+    folderId?: string | null;
+    factTypes?: string[];
+    includeArchived?: boolean;
+  },
   opts: {
     limit: number;
     admitFactor: number;
