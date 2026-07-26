@@ -42,9 +42,13 @@ on:
       - "src/lib/memory/queryEntities.ts"
       - "src/lib/memory/graphTraversal.ts"
       - "src/lib/memory/reranker.ts"
-      # Embedding model / dimensions feed every score.
-      - "src/lib/memoryEngine/constants.ts"
-      - "src/lib/memoryEngine/embeddings.ts"
+      # Every score is a cosine over embeddings, so the whole engine is in
+      # scope. embeddings.ts builds on `chunking` (chunk size / split logic),
+      # `generate` (the embed HTTP client), `constants` (the model id) and
+      # `vector`/`quantization` — listing only two files let edits to the others
+      # move gated retrieval without running this gate. A directory glob can
+      # only over-trigger, which is the safe direction for a gate.
+      - "src/lib/memoryEngine/**"
       # The corpus, scorer, and shared gate helper.
       - "test/memory/src/vault/**"
       - "test/memory/src/metrics.ts"
