@@ -258,20 +258,16 @@ export interface CreateAutoExtractorOptions {
   /**
    * Tier-0 security (PR5) — enable the optional SECOND-layer LLM injection
    * classifier over the candidates the deterministic screen passed as clean.
-   * Presence is the switch: absent → default off, no extra LLM call,
-   * byte-for-byte the deterministic-only screen, so `injectionClassifier: {}`
-   * is how a client turns it on. Auth is NOT configured here — like
-   * `consolidate`, the call reuses the `extract` credentials and defaults to
-   * its `baseUrl`. Fails clean on any error (see `injectionClassifier.ts`).
+   * Presence is the switch, so `injectionClassifier: {}` is how a client turns
+   * it on. Auth is NOT configured here — like `consolidate`, the call reuses
+   * the `extract` credentials and defaults to its `baseUrl`. See
+   * `injectionClassifier.ts` for the safety posture and the defaults.
    */
   injectionClassifier?: {
     /** Portal base URL for classifier calls. Default: the `extract` options' `baseUrl`. */
     baseUrl?: string;
-    /** Override the classifier model. Default: see `injectionClassifier.ts`. */
     model?: string;
-    /** Max candidates classified per turn. Default 20. */
     maxCandidates?: number;
-    /** Absolute wall-clock budget across attempts. Default 15s. */
     totalTimeoutMs?: number;
   };
   /** Per-fact event — fires once per memory written. */
@@ -538,31 +534,16 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     };
   };
 
-  // Resolve once — options are fixed for the extractor's lifetime.
+  // Resolve once — options are fixed for the extractor's lifetime. The caller's
+  // own fields pass through; `subPassAuth` goes last so the resolved baseUrl
+  // wins over the raw override it was handed.
   const consolidateOptions: RetainOptions["consolidateOptions"] = options.consolidate
-    ? {
-        ...subPassAuth(options.consolidate.baseUrl),
-        ...(options.consolidate.model !== undefined && { model: options.consolidate.model }),
-        ...(options.consolidate.onFallback !== undefined && {
-          onFallback: options.consolidate.onFallback,
-        }),
-      }
+    ? { ...options.consolidate, ...subPassAuth(options.consolidate.baseUrl) }
     : undefined;
 
   const injectionClassifierOptions: InjectionClassifierOptions | undefined =
     options.injectionClassifier
-      ? {
-          ...subPassAuth(options.injectionClassifier.baseUrl),
-          ...(options.injectionClassifier.model !== undefined && {
-            model: options.injectionClassifier.model,
-          }),
-          ...(options.injectionClassifier.maxCandidates !== undefined && {
-            maxCandidates: options.injectionClassifier.maxCandidates,
-          }),
-          ...(options.injectionClassifier.totalTimeoutMs !== undefined && {
-            totalTimeoutMs: options.injectionClassifier.totalTimeoutMs,
-          }),
-        }
+      ? { ...options.injectionClassifier, ...subPassAuth(options.injectionClassifier.baseUrl) }
       : undefined;
 
   // Warn once if the caller wired a vault context with cascade-delete
