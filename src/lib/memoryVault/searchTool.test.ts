@@ -977,9 +977,73 @@ describe("buildProjectedCorpus", () => {
     );
 
     expect(getAll).not.toHaveBeenCalled(); // no whole-vault load
-    expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"]); // only the miss embedded-loaded
+    // Only the miss is embedded-loaded. The third arg is the hydration filter
+    // (#779) — undefined here because this query didn't opt into archived rows,
+    // which is what keeps the default exclusion in force.
+    expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"], undefined);
     expect(out.vaultSize).toBe(2);
     expect(byIds.mock.calls[0][1]).toContain("cached"); // admission decrypt
+  });
+
+  // #779: the key scan honoring includeArchived is only half the path. If the
+  // by-id hydration steps re-apply their default archived exclusion, admitted
+  // archived rows are silently dropped again (after consuming admission slots).
+  it("forwards includeArchived to BOTH hydration steps, not just the key scan", async () => {
+    const keys = vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      {
+        uniqueId: "arch",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
+    ] as any);
+    const embByIds = vi
+      .spyOn(ops, "getVaultEmbeddingsByIdsOp")
+      .mockResolvedValue([{ uniqueId: "arch", embedding: "[1,0]", embeddingModel: "m" }] as any);
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
+      {
+        uniqueId: "arch",
+        content: "archived fact",
+        embedding: "[1,0]",
+        embeddingModel: "m",
+        scope: "private",
+        folderId: null,
+        userId: null,
+        isDeleted: false,
+        proofCount: 1,
+        sourceChunkIds: null,
+        eventTimeStart: null,
+        eventTimeEnd: null,
+        eventTimeKind: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      new Map(),
+      {
+        includeArchived: true,
+      },
+      {
+        limit: 2,
+        admitFactor: 1,
+        admitFloor: 2,
+        unembeddedCap: 100,
+      }
+    );
+
+    // Key scan opts in — already fixed by the first half of #779.
+    expect(keys.mock.calls[0][1]).toMatchObject({ includeArchived: true });
+    // ...and BOTH hydration steps must opt in too, or the row vanishes here.
+    expect(embByIds.mock.calls[0][2]).toEqual({ includeArchived: true });
+    expect(byIds.mock.calls[0][2]).toEqual({ includeArchived: true });
+    expect(out.memories.map((m: any) => m.uniqueId)).toContain("arch");
   });
 
   it("empty candidate set: returns empty WITHOUT embedding the query", async () => {

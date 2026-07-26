@@ -792,7 +792,14 @@ export async function getVaultCandidateKeysOp(
  */
 export async function getVaultEmbeddingsByIdsOp(
   ctx: VaultMemoryOperationsContext,
-  ids: string[]
+  ids: string[],
+  /**
+   * Must match whatever admitted these ids. The caller has already filtered the
+   * candidate set; re-applying a DEFAULT-ON exclusion here silently deletes rows
+   * it deliberately admitted — which is how archived rows passed the key scan
+   * and then vanished at hydration (#779).
+   */
+  options?: { includeArchived?: boolean }
 ): Promise<Array<{ uniqueId: string; embedding: string | null; embeddingModel: string | null }>> {
   if (ids.length === 0) return [];
   const mapRaw = (raw: Record<string, unknown>) => ({
@@ -801,7 +808,9 @@ export async function getVaultEmbeddingsByIdsOp(
     embeddingModel: (raw.embedding_model as string | null) ?? null,
   });
   try {
-    const base = baseVaultSql(ctx);
+    const base = baseVaultSql(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    });
     const sql =
       `select "id", "embedding", "embedding_model" from "memory_vault" ` +
       `where ${base.sql} and "id" in (${ids.map(() => "?").join(",")})`;
@@ -817,7 +826,14 @@ export async function getVaultEmbeddingsByIdsOp(
         (err instanceof Error ? err.message : String(err))
     );
     const rows = (await ctx.vaultMemoryCollection
-      .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids)))
+      .query(
+        ...baseVaultConditions(ctx, {
+          ...(options?.includeArchived !== undefined && {
+            includeArchived: options.includeArchived,
+          }),
+        }),
+        Q.where("id", Q.oneOf(ids))
+      )
       .unsafeFetchRaw()) as Record<string, unknown>[];
     return rows.map(mapRaw);
   }
@@ -838,10 +854,17 @@ export async function getVaultEmbeddingsByIdsOp(
  */
 export async function getVaultMemoriesByIdsOp(
   ctx: VaultMemoryOperationsContext,
-  ids: string[]
+  ids: string[],
+  /** See {@link getVaultEmbeddingsByIdsOp} — must match what admitted these ids. */
+  options?: { includeArchived?: boolean }
 ): Promise<StoredVaultMemory[]> {
   if (ids.length === 0) return [];
-  const conditions = [...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids))];
+  const conditions = [
+    ...baseVaultConditions(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    }),
+    Q.where("id", Q.oneOf(ids)),
+  ];
   const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
     string,
     unknown

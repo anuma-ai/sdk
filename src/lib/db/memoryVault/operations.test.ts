@@ -2205,3 +2205,43 @@ describe("getVaultCandidateKeysOp — filter parity with the legacy path (#779)"
     expect(await lokiConditionCount({ includeArchived: true })).toBe(3);
   });
 });
+
+/**
+ * #779, second half. Fixing only the key scan was not enough: the decrypt-last
+ * path admits candidates via `getVaultCandidateKeysOp`, then hydrates them by id
+ * through these two ops. Both re-applied the default archived exclusion, so
+ * archived rows passed the scan and were silently dropped at hydration — while
+ * still consuming admission slots on the way.
+ */
+describe("by-id hydration ops honor includeArchived (#779)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("getVaultEmbeddingsByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+    expect(spy.mock.calls[0]![0] as string).toContain('"archived_at" is null');
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"], { includeArchived: true });
+    const withArchived = spy.mock.calls[1]![0] as string;
+    expect(withArchived).not.toContain("archived_at");
+    // The id restriction and the other safety filters must survive.
+    expect(withArchived).toContain('"id" in (?)');
+    expect(withArchived).toContain('"is_deleted" = 0');
+  });
+
+  it("getVaultMemoriesByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    // is_deleted + archived_at + trust_tier + superseded_by + id oneOf = 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"]);
+    expect(queryFn.mock.calls[0]!.length).toBe(5);
+
+    // − archived_at ⇒ 4. Unfixed code stays at 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"], { includeArchived: true });
+    expect(queryFn.mock.calls[1]!.length).toBe(4);
+  });
+});
