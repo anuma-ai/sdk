@@ -399,6 +399,16 @@ async function main(): Promise<void> {
     const dataset = await loadLongMemEvalDataset(variant);
     console.log(`Loaded ${dataset.length} entries`);
 
+    // Baseline flags only work with single-strategy runs; the comparison shape
+    // has two summaries and no single set of numbers to gate.
+    if ((args.baseline || args["save-baseline"]) && strategy === "both") {
+      console.error(
+        "Error: --baseline and --save-baseline require a single strategy.\n" +
+          "Use --strategy recall (or engine/vault/ensemble) to specify which strategy to gate.\n"
+      );
+      process.exit(1);
+    }
+
     const llmModel = args.llm || "cerebras/qwen-3-235b-a22b-instruct-2507";
     const result = await runLongMemEval(dataset, options, {
       apiKey,

@@ -15,15 +15,15 @@
   "runs": 1,
   "metrics": {
     "retrievalRecall": {
-      "mean": 0.92,
-      "min": 0.92,
-      "max": 0.92,
+      "mean": 0.955,
+      "min": 0.955,
+      "max": 0.955,
       "tolerance": 0.08
     },
     "retrievalPrecision": {
-      "mean": 0.92,
-      "min": 0.92,
-      "max": 0.92,
+      "mean": 0.96,
+      "min": 0.96,
+      "max": 0.96,
       "tolerance": 0.08
     }
   }
