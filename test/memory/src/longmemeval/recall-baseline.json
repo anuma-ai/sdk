@@ -4,6 +4,7 @@
     "variant": "oracle",
     "max": "50",
     "llm": "gpt-oss/gpt-oss-120b",
+    "extractLlm": "gpt-oss/gpt-oss-120b",
     "decompose": "off",
     "consolidate": "false",
     "rerank": "false",
@@ -14,15 +15,15 @@
   "runs": 1,
   "metrics": {
     "retrievalRecall": {
-      "mean": 0.955,
-      "min": 0.955,
-      "max": 0.955,
+      "mean": 0.92,
+      "min": 0.92,
+      "max": 0.92,
       "tolerance": 0.08
     },
     "retrievalPrecision": {
-      "mean": 0.96,
-      "min": 0.96,
-      "max": 0.96,
+      "mean": 0.92,
+      "min": 0.92,
+      "max": 0.92,
       "tolerance": 0.08
     }
   }

@@ -26,6 +26,13 @@ on:
         type: choice
         default: "gate"
         options: ["gate", "save-baseline"]
+  # PORTAL_API_KEY reaches PR-authored code here, same as extraction-eval.yml and
+  # the other eval gates. That's the accepted posture for this repo, not an
+  # oversight: fork PRs receive no secrets (so an outside contributor's code can
+  # never see the key and the job simply fails), and same-repo branches are
+  # pushed by people who already hold repo write access — they can read the
+  # secret directly, so the workflow grants them nothing new. Revisit only if
+  # this repo starts accepting fork PRs.
   pull_request:
     branches: [main]
     paths:
@@ -44,6 +51,10 @@ on:
       - "src/lib/memory/graphTraversal.ts"
       - "src/lib/memory/retain.ts"
       - "src/lib/memoryVault/**"
+      # Every score here is computed over embeddings, so an embedding-model or
+      # chunking change moves retrieval without touching a ranking file.
+      - "src/lib/memoryEngine/embeddings.ts"
+      - "src/lib/memoryEngine/constants.ts"
       # The harness + shared gate helper.
       - "test/memory/longmemeval.ts"
       - "test/memory/src/longmemeval/**"
@@ -70,19 +81,22 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      # HuggingFace rate-limits the dataset endpoint and will 429 when this is
-      # re-run in quick succession, so cache the dataset + embedding cache the
-      # same way longmemeval.yml does.
-      - name: Restore longmemeval cache (datasets + embeddings)
+      # HuggingFace rate-limits the dataset endpoint and 429s on repeat pulls,
+      # so persist the oracle dataset + embedding cache across runs.
+      #
+      # There is deliberately NO `--preload` step: that helper fetches all three
+      # variants (s, m, oracle), and this gate only ever reads oracle — so it
+      # would download two large files the cache doesn't keep, on every run,
+      # re-introducing exactly the 429 exposure this cache exists to remove.
+      # `loadLongMemEvalDataset` fetches on demand, so the eval pulls oracle
+      # itself on a cold cache and reuses it on every warm one.
+      - name: Restore longmemeval cache (oracle dataset + embeddings)
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/longmemeval/embedding-cache-*.json
             ~/.cache/longmemeval/longmemeval_oracle.json
           key: longmemeval-recall-gate-v1
-
-      - name: Preload dataset
-        run: pnpm --silent eval:longmemeval --preload
 
       # The pinned bounded config. Every knob here is RECORDED in the baseline
       # and the harness refuses to gate on a mismatch, so changing any of them

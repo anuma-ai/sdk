@@ -484,6 +484,11 @@ function recallGateConfig(): Record<string, string | number | boolean> {
     variant: args.variant ?? "",
     max: args.max ?? "",
     llm: args.llm ?? "",
+    // The EXTRACTOR is what decides which memories exist to be retrieved, so it
+    // moves the gated metrics at least as much as the answer model does. Without
+    // it recorded, swapping only `--extract-llm` would sail past the config
+    // check and compare two materially different vaults.
+    extractLlm: args["extract-llm"] ?? "",
     decompose: args.decompose ?? "",
     consolidate: args.consolidate ?? "",
     // Recorded because the cross-encoder reorders results: a baseline captured
