@@ -499,6 +499,10 @@ function recallGateConfig(): Record<string, string | number | boolean> {
     // it recorded, swapping only `--extract-llm` would sail past the config
     // check and compare two materially different vaults.
     extractLlm: args["extract-llm"] ?? "",
+    // Every gated retrieval score is computed over embeddings, so the embedding
+    // model must be recorded to refuse apples-to-oranges comparisons across
+    // different embedding spaces.
+    embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
     decompose: args.decompose ?? "",
     consolidate: args.consolidate ?? "",
     // Recorded because the cross-encoder reorders results: a baseline captured

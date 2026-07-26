@@ -5,6 +5,7 @@
     "max": "50",
     "llm": "gpt-oss/gpt-oss-120b",
     "extractLlm": "gpt-oss/gpt-oss-120b",
+    "embeddingModel": "qwen/qwen3-embedding-8b",
     "decompose": "off",
     "consolidate": "false",
     "rerank": "false",
