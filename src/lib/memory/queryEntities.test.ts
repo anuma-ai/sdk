@@ -143,9 +143,72 @@ describe("extractQueryEntities — lowercase fallback (recovers the W5 lane)", (
   });
 
   it("suppresses the fallback on a MIXED-case query once the strict pass hits", () => {
-    // "Sara" strict-matches, so the lowercase "tokyo" (a real place) is NOT
-    // recovered — the fallback is gated strictly on the strict pass being empty.
+    // "Sara" strict-matches and carries identity, so the lowercase "tokyo" (a
+    // real place) is NOT recovered — a strict pass holding a real name is
+    // treated as a successful extraction and returned verbatim.
     expect(extractQueryEntities("does Sara live in tokyo")).toEqual(["sara"]);
+  });
+});
+
+describe("extractQueryEntities — the fallback gate ignores function words", () => {
+  // The strict regex matches ANY capitalized ≥3-char token and the strict
+  // STOPWORDS set is narrow, so a sentence-initial function word used to count
+  // as a successful extraction and suppress the fallback. The lane then looked
+  // that function word up, matched no stored canonical, and stayed empty — the
+  // exact failure the fallback exists to prevent, on the question-initial
+  // phrasing the People-Nearby surface is built on.
+
+  it("falls back when the only strict hit is a leading auxiliary", () => {
+    // Before: ["are"] — the whole lane dead on a query that names a real place.
+    expect(extractQueryEntities("Are there any designers in san francisco")).toEqual([
+      "designers",
+      "san",
+      "francisco",
+      "san francisco",
+    ]);
+  });
+
+  it("falls back when the only strict hit is a contraction", () => {
+    // "What" is a strict stopword but "what's" is not — normalizeEntityName
+    // keeps the apostrophe, so the contraction leaks past STOPWORDS. Before:
+    // ["what's"].
+    expect(extractQueryEntities("What's happening in kyoto")).toEqual(["happening", "kyoto"]);
+  });
+
+  it("falls back when the only strict hit is a leading pronoun-ish quantifier", () => {
+    // Before: ["someone"]. The trailing bigram is the tier-major emission
+    // doing its job — "mentioned tokyo" is a candidate the stored-name lookup
+    // will simply not match, which is the precision contract.
+    expect(extractQueryEntities("Someone mentioned tokyo")).toEqual([
+      "mentioned",
+      "tokyo",
+      "mentioned tokyo",
+    ]);
+  });
+
+  it("treats a MULTI-WORD all-function-word strict hit as no hit", () => {
+    // "Are You" strict-matches as one capitalized run, emitting the phrase AND
+    // each token — every one a function word. The gate must test the whole set,
+    // not just single tokens. Before: ["are you", "are", "you"].
+    expect(extractQueryEntities("Are You going to san francisco")).toEqual([
+      "san",
+      "francisco",
+      "san francisco",
+    ]);
+  });
+
+  it("still returns the strict result verbatim when a real name is present", () => {
+    // The gate decides WHETHER to fall back, never what to return. "Are" is a
+    // function word but "Sara" is not, so this stays on the strict path — same
+    // candidates, same order — and "tokyo" is still NOT recovered.
+    expect(extractQueryEntities("Are you meeting Sara in tokyo")).toEqual(["are", "sara"]);
+  });
+
+  it("still returns [] when every strict hit AND every fallback token is a stopword", () => {
+    // Falling back on a function-word-only strict hit must not manufacture
+    // candidates: the fallback's own stopwording still applies, so the lane
+    // stays a no-op with zero DB lookups.
+    expect(extractQueryEntities("Are there any of them")).toEqual([]);
   });
 });
 

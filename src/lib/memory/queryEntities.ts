@@ -19,10 +19,15 @@
  *     autocaps off, and the lowercase conversational phrasing the People-Nearby
  *     chat-discovery surface is built on ("is there anyone in san francisco who
  *     works in ai") all lose case — and used to silently get no graph lane.
- *  2. LOWERCASE FALLBACK — runs ONLY when the strict pass yields nothing, so
- *     any query that already extracts is byte-for-byte unchanged (same
- *     candidates, same order, same single downstream lookup). It emits capped,
- *     aggressively-stopworded n-gram candidates regardless of case.
+ *  2. LOWERCASE FALLBACK — runs ONLY when the strict pass yields nothing
+ *     MEANINGFUL, so any query that already extracts a real name is
+ *     byte-for-byte unchanged (same candidates, same order, same single
+ *     downstream lookup). It emits capped, aggressively-stopworded n-gram
+ *     candidates regardless of case. "Nothing meaningful" rather than "nothing"
+ *     because the strict regex matches any capitalized word: a query that is
+ *     lowercase apart from a leading "Are"/"Does"/"What's" would otherwise be
+ *     treated as a successful extraction of that function word and never fall
+ *     back. See {@link hasMeaningfulCandidate}.
  *
  * Why the naive fix (just lowercasing the regex) is wrong, and why this isn't:
  * a case-insensitive regex would treat nearly every word as a candidate and
@@ -143,7 +148,17 @@ const FALLBACK_ONLY_STOPWORDS: string[] = (
   "tells thank that the their theirs them there these they think thinks this " +
   "those thought through to today told tomorrow under until up us want wanted " +
   "wants was we went were which while will with without work worked working " +
-  "works would yeah year years yep yesterday you your yours"
+  "works would yeah year years yep yesterday you your yours " +
+  // Contractions, grouped rather than merged alphabetically because they are a
+  // distinct leak: `normalizeEntityName` keeps the apostrophe, so "What's"
+  // canonicalizes to "what's" and never matches the bare "what" in STOPWORDS.
+  // They therefore reach BOTH passes — as fallback candidates, and (more
+  // importantly) as strict-pass survivors that used to suppress the fallback
+  // entirely. See {@link hasMeaningfulCandidate}.
+  "aren't can't couldn't didn't doesn't don't hadn't hasn't haven't he's " +
+  "how's i'd i'll i'm i've isn't it's let's she's shouldn't that's there's " +
+  "they're they've wasn't we're we've weren't what's when's where's who's " +
+  "why's won't wouldn't you'll you're you've"
 ).split(" ");
 
 /**
@@ -172,14 +187,52 @@ const MAX_FALLBACK_CANDIDATES = 12;
 const MAX_FALLBACK_TOKENS = 3;
 
 /**
+ * Whether a strict-pass result carries enough identity to count as a real
+ * extraction — the condition that decides if the lowercase fallback is needed.
+ *
+ * The naive test is "did the strict pass emit anything", but that conflates
+ * "the regex matched" with "extraction worked". {@link ENTITY_REGEX} matches
+ * ANY capitalized token of three or more characters, and the strict
+ * {@link STOPWORDS} set is deliberately narrow, so a sentence-initial function
+ * word — "Are", "Does", "Can", "Someone", "What's" — matches, survives, and
+ * lands in the result. A query that is lowercase apart from that leading
+ * capital would then skip the fallback, look the function word up, match no
+ * stored canonical name, and leave the lane empty. That is precisely the
+ * failure the fallback exists to prevent, on precisely the question-initial
+ * phrasing the People-Nearby discovery surface is built on ("Are there any
+ * designers in san francisco?").
+ *
+ * {@link FALLBACK_STOPWORDS} is the right oracle for "carries identity"
+ * because it is the set the fallback itself trusts for precision: a token the
+ * fallback would refuse to emit cannot be evidence that emitting was
+ * unnecessary. Using it here also keeps the two passes' notions of "function
+ * word" from drifting apart — the narrow set stays narrow for the strict
+ * pass's own filtering, and the wide set governs the gate.
+ *
+ * Note this only decides WHETHER to fall back. A strict pass that clears this
+ * bar still returns its own candidates verbatim, so every query that extracted
+ * before still extracts the same names in the same order.
+ */
+function hasMeaningfulCandidate(candidates: Iterable<string>): boolean {
+  for (const candidate of candidates) {
+    if (!candidate.split(/\s+/).every((token) => FALLBACK_STOPWORDS.has(token))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Extract candidate entity names from a query. Returns canonical
  * (lowercased) forms, deduplicated.
  *
  * Runs the strict capitalized-noun-phrase pass first; if it finds at least one
- * entity the result is returned verbatim — identical to the pre-fallback
- * behavior, so the hot path for well-cased queries is unchanged and never pays
- * for (nor is reordered by) the fallback. ONLY when the strict pass comes back
- * empty does the lowercase {@link extractFallbackCandidates} pass run.
+ * entity that isn't a bare function word, the result is returned verbatim —
+ * identical to the pre-fallback behavior, so the hot path for well-cased
+ * queries is unchanged and never pays for (nor is reordered by) the fallback.
+ * ONLY when the strict pass comes back empty, or comes back holding nothing but
+ * function words, does the lowercase {@link extractFallbackCandidates} pass run
+ * ({@link hasMeaningfulCandidate}).
  *
  * An empty/whitespace query, or one whose every token is a stopword, returns an
  * empty array — and an empty array makes the W5 graph lane a no-op (zero DB
@@ -206,9 +259,11 @@ export function extractQueryEntities(query: string): string[] {
       seen.add(candidate);
     }
   }
-  // Strict pass hit → return it verbatim (byte-identical to the pre-fallback
-  // behavior). Only the previously-empty case reaches the fallback.
-  if (seen.size > 0) return [...seen];
+  // Strict pass hit something MEANINGFUL → return it verbatim (byte-identical
+  // to the pre-fallback behavior). A pass whose every survivor is a function
+  // word counts as empty: it proves the regex fired, not that extraction
+  // worked. See {@link hasMeaningfulCandidate}.
+  if (hasMeaningfulCandidate(seen)) return [...seen];
   return extractFallbackCandidates(query);
 }
 
