@@ -20,9 +20,12 @@
  *   PORTAL_API_KEY=... pnpm eval:topic
  *   pnpm eval:topic --models inclusionai/ling-2.6-flash,gpt-oss/gpt-oss-120b --repeat 3 [--verbose]
  *   pnpm eval:topic --json
- *   pnpm eval:topic --repeat 5 --save-baseline   # write the golden baseline
- *   pnpm eval:topic --repeat 5 --baseline test/memory/src/topic/baseline.json
+ *   pnpm eval:topic --repeat 10 --save-baseline  # write the golden baseline
+ *   pnpm eval:topic --repeat 10 --baseline test/memory/src/topic/baseline.json
  *                                                # gate: exit 1 on a regression
+ *
+ * The gate REFUSES a repeat count that differs from the baseline's, so 10 is not
+ * a suggestion here — it is what the committed baseline records.
  */
 import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
@@ -47,9 +50,9 @@ const DEFAULT_BASELINE_PATH = "test/memory/src/topic/baseline.json";
 /**
  * Gated metrics.
  *
- * Floors are sized to the MEAN of the 5 gated runs, not to a single run. One
- * flipped item moves a 5-run mean by 1/(items x 5) — e.g. 1/170 = 0.6pt for the
- * 34 gold entities — so most floors below sit a few flips above that.
+ * Floors are sized to the MEAN of the 10 gated runs, not to a single run. One
+ * flipped item moves a 10-run mean by 1/(items x 10) — e.g. 1/340 = 0.3pt for
+ * the 34 gold entities — so most floors below sit well above that.
  *
  * `junkCleanRate` is the exception and keeps a wide floor: see its comment. A
  * floor has to cover the noise the metric ACTUALLY exhibits, not just one item's
