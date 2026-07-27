@@ -84,6 +84,11 @@ on:
   #  2. It gives a main-line signal: a regression that slipped review is
   #     at least recorded against main rather than silently absorbed.
   # Same paths as the PR trigger, so this stays off ordinary merges.
+  # The ONLY thing that seeds the shared caches. Actions scopes a cache to the
+  # ref that created it, so one born under refs/pull/N/merge is invisible to
+  # every other PR; without this main-branch run each PR cold-starts and re-pulls
+  # the dataset (HuggingFace 429s) and re-embeds. With merge_group now removed
+  # this is the sole seeder — do not prune it as a duplicate of the PR trigger.
   push:
     branches: [main]
     paths:
@@ -225,8 +230,16 @@ jobs:
     steps:
       - name: Check vault search gate result
         run: |
-          if [[ "${{ needs.vault-search-eval.result }}" == "failure" ]]; then
-            echo "Vault search eval gate failed"
+          # Allowlist, NOT a failure-check. A job killed by `timeout-minutes`
+          # concludes `cancelled`, not `failure`, so an `== "failure"` test posts
+          # green for a gate that never finished comparing anything. That is live
+          # on this repo: run 30302039028 had e2e-tools conclude `cancelled` on
+          # its 5m timeout and e2e-tools-status go `success` 3s later — on a
+          # REQUIRED check. These evals are far more exposed (30-45m budgets,
+          # live LLM against a portal that can stall).
+          result="${{ needs.vault-search-eval.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Vault search eval gate did not pass (result: $result)"
             exit 1
           fi
           echo "Vault search eval gate passed (or was skipped)"

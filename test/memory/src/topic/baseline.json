@@ -1,9 +1,9 @@
 {
   "config": {
     "model": "gpt-oss/gpt-oss-120b",
-    "repeat": 5
+    "repeat": 10
   },
-  "runs": 5,
+  "runs": 10,
   "metrics": {
     "recall": {
       "mean": 1,
@@ -13,32 +13,32 @@
       "tolerance": 0.02
     },
     "precision": {
-      "mean": 1,
-      "min": 1,
+      "mean": 0.9915873015873016,
+      "min": 0.9444444444444444,
       "max": 1,
-      "stdDev": 0,
+      "stdDev": 0.018841477112030387,
       "tolerance": 0.03
     },
     "f1": {
-      "mean": 1,
-      "min": 1,
+      "mean": 0.9956935817805384,
+      "min": 0.9714285714285714,
       "max": 1,
-      "stdDev": 0,
+      "stdDev": 0.00966617274247081,
       "tolerance": 0.02
     },
     "kindAccuracy": {
       "mean": 0.9470588235294117,
       "min": 0.8823529411764706,
       "max": 0.9705882352941176,
-      "stdDev": 0.038348249442368525,
-      "tolerance": 0.0485071250072666
+      "stdDev": 0.027027546572725932,
+      "tolerance": 0.03
     },
     "junkCleanRate": {
-      "mean": 1,
-      "min": 1,
+      "mean": 0.9857142857142858,
+      "min": 0.8571428571428571,
       "max": 1,
-      "stdDev": 0,
-      "tolerance": 0.15
+      "stdDev": 0.04517539514526258,
+      "tolerance": 0.12
     },
     "canonWithVocab": {
       "mean": 1,

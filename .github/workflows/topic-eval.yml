@@ -83,13 +83,13 @@ jobs:
       # pull_request (no inputs) runs the regression gate at repeat 5, which is
       # what baseline.json records — the benchmark REFUSES to gate on a repeat
       # mismatch, so these two numbers must stay in sync.
-      # `inputs.X || <default>` rather than an event-name special-case: on
-      # workflow_dispatch `inputs` is populated (the choice input supplies its own
-      # default), and on BOTH pull_request and merge_group it is empty, so the
-      # gate defaults fall through. The previous
-      # `(github.event_name == 'pull_request' && ...)` form silently degraded the
-      # merge queue to `ab` mode — running the eval but never comparing against
-      # the baseline, so the required status passed whatever the numbers were.
+      # `inputs.X || <default>` rather than an event-name special-case: `inputs`
+      # is populated only on workflow_dispatch (the choice inputs carry their own
+      # defaults) and empty on pull_request, so the gate defaults fall through.
+      # Behaviour-identical to the old form today; kept because the previous
+      # `(github.event_name == 'pull_request' && ...)` shape silently degraded any
+      # NEW trigger to `ab` mode — running the eval but never comparing against
+      # the baseline. That is the trap waiting if merge_group is added back.
       INPUT_MODE: ${{ inputs.mode || 'gate' }}
       INPUT_REPEAT: ${{ inputs.repeat || '5' }}
       INPUT_MODELS: ${{ inputs.models }}
@@ -252,8 +252,16 @@ jobs:
     steps:
       - name: Check topic gate result
         run: |
-          if [[ "${{ needs.topic-eval.result }}" == "failure" ]]; then
-            echo "Topic eval gate failed"
+          # Allowlist, NOT a failure-check. A job killed by `timeout-minutes`
+          # concludes `cancelled`, not `failure`, so an `== "failure"` test posts
+          # green for a gate that never finished comparing anything. That is live
+          # on this repo: run 30302039028 had e2e-tools conclude `cancelled` on
+          # its 5m timeout and e2e-tools-status go `success` 3s later — on a
+          # REQUIRED check. These evals are far more exposed (30-45m budgets,
+          # live LLM against a portal that can stall).
+          result="${{ needs.topic-eval.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Topic eval gate did not pass (result: $result)"
             exit 1
           fi
           echo "Topic eval gate passed (or was skipped)"

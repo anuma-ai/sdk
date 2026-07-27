@@ -70,15 +70,22 @@ const GATE_METRICS: GateMetricSpec[] = [
   { key: "f1", direction: "higher-better", minTolerance: 0.02 },
   // Observed 91.2–100%: a 3-of-34 kind flip is inherent noise, not a regression.
   { key: "kindAccuracy", direction: "higher-better", minTolerance: 0.03, label: "kind accuracy" },
-  // The one metric that CANNOT be scaled down to per-item mean width, because
-  // its per-run noise is huge: with only 7 traps, one observed run came in at
-  // 57.1% (3 traps over-extracted). A single such run among the 5 repeats drops
-  // the gated mean by 8.6pt, so a 0.06 floor would red a healthy PR — the
-  // regenerated baseline has stdDev 0, leaving the floor to govern outright.
-  // 0.15 tolerates one historically-normal bad run and fires on two (17.1pt).
-  // That keeps this a collapse detector; growing the trap corpus is what would
-  // let it tighten.
-  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.15, label: "junk-clean" },
+  // Sized inside a hard ceiling: there are exactly 7 traps (EMPTY_CASES), so
+  // junkCleanRate moves in 1/7 = 14.29pt steps per trap per run, and with a
+  // zero-stdDev capture `meanDiffTolerance` returns this floor flat.
+  //
+  //   1 trap broken on EVERY run (systematic)  drop 14.29pt  <- must FIRE
+  //   one historically-normal 57.1% run of 5   drop  8.57pt  <- must PASS
+  //   two such runs                            drop 17.14pt  <- must FIRE
+  //
+  // 0.12 satisfies all three. 0.15 (an earlier revision of this PR) sat just
+  // ABOVE the systematic case, so a prompt edit that reliably over-extracts one
+  // trap every run went green — the exact shape #757/#765 shipped.
+  //
+  // At n=7 the ambiguity is irreducible: "1 trap broken every run" and "5 traps
+  // broken in one run" are both 14.29pt on the mean, so any floor catching the
+  // first also reds the second. Growing the trap corpus is what separates them.
+  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.12, label: "junk-clean" },
   // 8 cases → one flip is 12.5%. Only the WITH-vocab rate is gated; the no-vocab
   // rate is the control arm and is reported, not gated.
   { key: "canonWithVocab", direction: "higher-better", minTolerance: 0.05, label: "canon (vocab)" },
