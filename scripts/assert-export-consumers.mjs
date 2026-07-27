@@ -105,8 +105,12 @@ const sources = readdirSync(join(ROOT, "src"), { recursive: true })
 /** @type {Map<string, Set<string>>} public export name → files importing it */
 const importers = new Map();
 for (const file of sources) {
-  for (const [, , , block, spec] of codeOf(file).matchAll(SPECIFIER)) {
+  for (const [, , typeOnly, block, spec] of codeOf(file).matchAll(SPECIFIER)) {
     if (!spec.startsWith(".")) continue; // package imports can't reach our own exports
+    // `import type {…}` is erased at build time, so it cannot call anything —
+    // counting it as consumption would mark a module live (and hide its whole
+    // dark subtree) on the strength of a type reference.
+    if (typeOnly) continue;
     for (const name of valueNames(block)) {
       if (!definedIn.has(name)) continue;
       if (!importers.has(name)) importers.set(name, new Set());
