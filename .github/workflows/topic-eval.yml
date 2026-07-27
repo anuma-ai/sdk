@@ -11,6 +11,10 @@ name: Topic Eval
 #     (Same-repo branches get PORTAL_API_KEY; fork PRs don't and will fail —
 #     acceptable for a private SDK where contributors push branches, not forks.)
 on:
+  # No paths filter in the queue, so this workflow's status is always produced
+  # there and can therefore be a REQUIRED check. The paths-scoped pull_request
+  # trigger below stays for early signal during review.
+  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -61,7 +65,7 @@ on:
       - "test/memory/src/gate.ts"
 
 jobs:
-  eval:
+  topic-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -222,3 +226,19 @@ jobs:
             before.json
             after.json
           if-no-files-found: ignore
+
+  # Stable context whatever the gate above did — the `e2e-tools-status` shape,
+  # which is the only kind safe to add to main's ruleset. Passes when the gate
+  # was skipped, fails only when it actually failed.
+  topic-eval-status:
+    if: always()
+    needs: [topic-eval]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check topic gate result
+        run: |
+          if [[ "${{ needs.topic-eval.result }}" == "failure" ]]; then
+            echo "Topic eval gate failed"
+            exit 1
+          fi
+          echo "Topic eval gate passed (or was skipped)"

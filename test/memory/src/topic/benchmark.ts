@@ -49,8 +49,11 @@ const DEFAULT_BASELINE_PATH = "test/memory/src/topic/baseline.json";
  *
  * Floors are sized to the MEAN of the 5 gated runs, not to a single run. One
  * flipped item moves a 5-run mean by 1/(items x 5) — e.g. 1/170 = 0.6pt for the
- * 34 gold entities, 1/35 = 2.9pt for the 7 junk traps — so each floor below sits
- * a few flips above that.
+ * 34 gold entities — so most floors below sit a few flips above that.
+ *
+ * `junkCleanRate` is the exception and keeps a wide floor: see its comment. A
+ * floor has to cover the noise the metric ACTUALLY exhibits, not just one item's
+ * worth, and a capture with stdDev 0 leaves the floor doing all the work.
  *
  * They were previously 0.06–0.30, sized to the spread of a SINGLE run. Applied to
  * a 5-run mean that made the gate ~sqrt(5) too loose (#772 review): the same
@@ -67,12 +70,15 @@ const GATE_METRICS: GateMetricSpec[] = [
   { key: "f1", direction: "higher-better", minTolerance: 0.02 },
   // Observed 91.2–100%: a 3-of-34 kind flip is inherent noise, not a regression.
   { key: "kindAccuracy", direction: "higher-better", minTolerance: 0.03, label: "kind accuracy" },
-  // Only 7 traps, and one run came in at 57.1% (3 traps over-extracted), so a
-  // single flip is 14.3% and the honest noise floor is ~2 flips. That makes this
-  // a collapse detector, not a drift detector — it fires when over-extraction is
-  // SYSTEMATIC across the repeats. Growing the trap corpus is what would tighten
-  // it; until then a loose-but-honest floor beats a flaky one.
-  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.06, label: "junk-clean" },
+  // The one metric that CANNOT be scaled down to per-item mean width, because
+  // its per-run noise is huge: with only 7 traps, one observed run came in at
+  // 57.1% (3 traps over-extracted). A single such run among the 5 repeats drops
+  // the gated mean by 8.6pt, so a 0.06 floor would red a healthy PR — the
+  // regenerated baseline has stdDev 0, leaving the floor to govern outright.
+  // 0.15 tolerates one historically-normal bad run and fires on two (17.1pt).
+  // That keeps this a collapse detector; growing the trap corpus is what would
+  // let it tighten.
+  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.15, label: "junk-clean" },
   // 8 cases → one flip is 12.5%. Only the WITH-vocab rate is gated; the no-vocab
   // rate is the control arm and is reported, not gated.
   { key: "canonWithVocab", direction: "higher-better", minTolerance: 0.05, label: "canon (vocab)" },
