@@ -34,7 +34,103 @@ export interface EntityOperationsContext {
    * (server / SQLite, where the migration backfill is authoritative).
    */
   allowUnscopedRows?: boolean;
+  /**
+   * Declares that this process holds exactly ONE tenant's entity table — a
+   * per-wallet client database, not a shared multi-user server.
+   *
+   * Read by `loadEntityVocabulary`, which enumerates the whole `entity` table
+   * to build its recall-time index. That table is global vocabulary with no
+   * owner ({@link listEntityNamesOp}), so enumerating it is only acceptable
+   * when there is nobody else in it.
+   *
+   * This is deliberately NOT inferred from {@link userId}. `userId` answers "is
+   * this read user-scoped" — the React client sets it to the connected wallet
+   * to scope legacy `memory_entity` rows on a database that is nevertheless
+   * physically single-tenant — so inferring tenancy from it is wrong in both
+   * directions. Mirrors `VaultMemoryOperationsContext.singleTenant`, which
+   * exists so the decay sweep's scope guard stops inferring safety from
+   * `walletAddress`. Default (absent) is the safe answer: no enumeration.
+   */
+  singleTenant?: boolean;
 }
+
+/**
+ * Bumped whenever this process creates or destroys `entity` rows. Read by the
+ * recall-time entity-vocabulary cache as half of its version stamp.
+ *
+ * A row COUNT alone is NOT a sound stamp, which is the whole reason this
+ * exists: {@link replaceMemoryEntitiesGuardedOp} can orphan-prune K entities
+ * and create K others inside one writer, leaving the count unchanged while the
+ * name SET has moved. A cache keyed on the count alone would then keep serving
+ * a vocabulary that is missing a brand-new name — a silent recall miss, which
+ * is precisely the failure the vocabulary tier exists to prevent, arriving
+ * through the cache added to prevent it.
+ *
+ * Process-local is sufficient today: `entity` rows are written from this module
+ * and nowhere else (`grep entityCollection src/lib` reaches only schema.ts and
+ * models.ts outside this file), and there is no sync engine.
+ *
+ * BUMPED AFTER THE WRITER RESOLVES, and that ordering has a known residual. A
+ * recall whose `countEntitiesOp` resolves against the post-commit table while
+ * this counter is still pre-bump computes a stamp for a state that no longer
+ * exists and can serve one stale index. It is one call wide and self-heals on
+ * the next recall. The alternative — bumping before or inside the writer — is
+ * worse in the direction that matters: a writer that throws would advance the
+ * stamp for a commit that never happened, and a rebuild cached under that stamp
+ * is wrong until something else moves it. Over-invalidating costs a rebuild;
+ * under-invalidating costs a wrong answer, so the cheap failure is the one to
+ * keep.
+ *
+ * A second `Database` in one process makes this counter shared, so a write to
+ * one table invalidates the other's cached vocabulary — an over-invalidation,
+ * costing a rebuild. It cannot cause the converse (one vault's names served for
+ * another's queries) because the vocabulary's version stamp also carries a
+ * per-context identity; this counter is not load-bearing for that. A sync
+ * engine writing `entity` rows behind this module's back WOULD under-invalidate
+ * and would need the stamp widened.
+ */
+let entityWriteGeneration = 0;
+
+/**
+ * Current entity-table write generation for this process. See
+ * {@link entityWriteGeneration} for why a row count is not enough on its own.
+ */
+export function getEntityWriteGeneration(): number {
+  return entityWriteGeneration;
+}
+
+/**
+ * Hard cap on `memory_entity` rows {@link getMemoriesByEntityNamesOp} will
+ * materialise PER SEED ENTITY.
+ *
+ * Per-entity, not per-lookup, and that distinction is the whole point. A single
+ * global cap is applied by the database across the combined result with no
+ * ordering guarantee, so one dense entity ("work", "2025") can fill the entire
+ * budget and the rows for every other seed are dropped before this function
+ * ever sees them. The overlap map is then built from an incomplete set, and
+ * `rankMemoriesByOverlap` — which ranks precisely by how many seeds a memory
+ * matched — undercounts or omits exactly the high-overlap memories the lane
+ * exists to surface. Capping downstream at NODE_BUDGET does not save it: that
+ * cut happens AFTER the ranking, so a truncated read picks the wrong 64.
+ *
+ * Bounding each seed separately makes starvation impossible by construction —
+ * every seed gets its own budget, and the total is still bounded at
+ * MAX_VOCABULARY_CANDIDATES (16) x this, the same ceiling the single global cap
+ * had. The cost is one indexed read per seed instead of one combined read;
+ * they are issued concurrently and each is an index hit on `entity_id`.
+ *
+ * KNOWN RESIDUAL, deliberately left. Each per-seed read is itself unordered, so
+ * for a seed with more than this many links the 250 rows returned are arbitrary.
+ * Cross-seed starvation is gone, but a memory that matches BOTH a rare seed and
+ * a dense hub can still lose its hub credit if that particular link falls
+ * outside the hub's 250 — undercounted overlap rather than a missing memory, so
+ * it can reorder within the lane but cannot drop a match entirely. Left as-is at
+ * NODE_BUDGET=64 because there is no relevance order to sort link rows by: any
+ * ORDER BY here would be arbitrary too, just deterministically arbitrary. Worth
+ * revisiting if `graphCount` / `graphSeedCount` diagnostics show dense hubs
+ * saturating this in production.
+ */
+const MAX_LINKS_PER_ENTITY = 250;
 
 function entityToStored(e: Entity): StoredEntity {
   return {
@@ -68,7 +164,7 @@ function entityToStored(e: Entity): StoredEntity {
 async function upsertEntitiesInWrite(
   ctx: EntityOperationsContext,
   entities: ReadonlyArray<{ name: string; kind?: string }>
-): Promise<{ entities: Map<string, StoredEntity>; operations: Model[] }> {
+): Promise<{ entities: Map<string, StoredEntity>; operations: Model[]; createdCount: number }> {
   const kindByName = new Map<string, string | undefined>();
   for (const e of entities) {
     const name = normalizeName(e.name);
@@ -82,7 +178,7 @@ async function upsertEntitiesInWrite(
   }
   const unique = Array.from(kindByName.keys());
   const out = new Map<string, StoredEntity>();
-  if (unique.length === 0) return { entities: out, operations: [] };
+  if (unique.length === 0) return { entities: out, operations: [], createdCount: 0 };
 
   const existing = await ctx.entityCollection
     .query(Q.where("canonical_name", Q.oneOf(unique)))
@@ -111,7 +207,7 @@ async function upsertEntitiesInWrite(
   for (const e of existing) out.set(e.canonicalName, entityToStored(e));
   for (const record of created) out.set(record.canonicalName, entityToStored(record));
 
-  return { entities: out, operations: [...created, ...updated] };
+  return { entities: out, operations: [...created, ...updated], createdCount: created.length };
 }
 
 /**
@@ -145,13 +241,16 @@ export async function linkMemoryEntitiesOp(
   const userId = ctx.userId;
   let skipped = false;
   let entities: StoredEntity[] = [];
+  let createdCount = 0;
 
   await ctx.database.write(async () => {
-    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
-      ctx,
-      normalized
-    );
+    const {
+      entities: byName,
+      operations: entityOps,
+      createdCount: created,
+    } = await upsertEntitiesInWrite(ctx, normalized);
     entities = Array.from(byName.values());
+    createdCount = created;
 
     if (options?.unlessTopicsUserManaged && (await autoLinkBlocked(ctx, memoryId))) {
       if (entityOps.length > 0) {
@@ -179,6 +278,10 @@ export async function linkMemoryEntitiesOp(
     );
     await ctx.database.batch(...entityOps, ...linkOps);
   });
+
+  // AFTER the writer resolves, never inside it: a throwing writer commits
+  // nothing and must not advance the stamp.
+  if (createdCount > 0) entityWriteGeneration++;
 
   return skipped ? [] : entities;
 }
@@ -231,6 +334,8 @@ export async function replaceMemoryEntitiesGuardedOp(
   const userId = ctx.userId;
   let skipped = false;
   let entities: StoredEntity[] = [];
+  let createdCount = 0;
+  let orphanCount = 0;
 
   await ctx.database.write(async () => {
     if (await autoLinkBlocked(ctx, memoryId)) {
@@ -238,11 +343,13 @@ export async function replaceMemoryEntitiesGuardedOp(
       return;
     }
 
-    const { entities: byName, operations: entityOps } = await upsertEntitiesInWrite(
-      ctx,
-      normalized
-    );
+    const {
+      entities: byName,
+      operations: entityOps,
+      createdCount: created,
+    } = await upsertEntitiesInWrite(ctx, normalized);
     entities = Array.from(byName.values());
+    createdCount = created;
 
     const existingLinks = await ctx.memoryEntityCollection
       .query(Q.where("memory_id", memoryId))
@@ -253,6 +360,7 @@ export async function replaceMemoryEntitiesGuardedOp(
     const toDestroy = existingLinks.filter((l) => !keep.has(String(l.entityId)));
     if (entityOps.length === 0 && toCreate.length === 0 && toDestroy.length === 0) return;
     const orphans = await findOrphanedEntities(ctx, memoryId, toDestroy);
+    orphanCount = orphans.length;
     await ctx.database.batch(
       ...entityOps,
       ...toCreate.map((e) =>
@@ -266,6 +374,11 @@ export async function replaceMemoryEntitiesGuardedOp(
       ...orphans.map((e) => e.prepareDestroyPermanently())
     );
   });
+
+  // Bumped for DESTROYS as well as creates, and after the writer resolves. This
+  // is the case a row count cannot see: pruning K orphans while creating K new
+  // entities leaves the count identical and the name set completely different.
+  if (createdCount > 0 || orphanCount > 0) entityWriteGeneration++;
 
   return skipped ? null : entities;
 }
@@ -402,6 +515,51 @@ export async function backfillMemoryEntityUserIdsOp(
 }
 
 /**
+ * Row count of the global `entity` table. One indexed COUNT — no rows are
+ * materialised and nothing is decrypted.
+ *
+ * Half of the recall-time entity-vocabulary cache's version stamp; see
+ * {@link getEntityWriteGeneration} for why a count alone is not sound.
+ */
+export async function countEntitiesOp(ctx: EntityOperationsContext): Promise<number> {
+  return ctx.entityCollection.query().fetchCount();
+}
+
+/**
+ * Enumerate every stored canonical entity name, for the recall-time vocabulary
+ * index that resolves query tokens against names that actually exist.
+ *
+ * `unsafeFetchRaw()`, NOT `.fetch()`. The precedent is
+ * `getActiveVaultMemoryIdsOp` / `getVaultRankingProjectionsOp`: a whole-table
+ * scan must not instantiate a WatermelonDB Model per row, because Models land
+ * in the never-evicted RecordCache and stay there for the life of the process.
+ * A real vault reaches ~15k entity rows and this runs on the recall path.
+ *
+ * DELIBERATELY UNSCOPED by `user_id`. The `entity` table is global vocabulary
+ * with no owner — that is what makes {@link findOrphanedEntities} correct — so
+ * there is no user column to filter on. A caller running multi-user must NOT
+ * build a vocabulary from this: it would materialise every user's entity names
+ * into one process's index at a cost nobody has measured, and hold them in
+ * memory even though lookups stay scoped by `memory_entity.user_id`.
+ * `loadEntityVocabulary` enforces that; this op does not guess.
+ */
+export async function listEntityNamesOp(
+  ctx: EntityOperationsContext,
+  options?: { limit?: number }
+): Promise<string[]> {
+  const limit = options?.limit;
+  // SQLite reads `LIMIT -1` as "no limit", so a non-positive value must not
+  // become a clause at all (same guard as the chat-side paginated reads).
+  const clauses = limit !== undefined && Number.isFinite(limit) && limit > 0 ? [Q.take(limit)] : [];
+  const rows = (await ctx.entityCollection.query(...clauses).unsafeFetchRaw()) as Array<
+    Record<string, unknown>
+  >;
+  return rows
+    .map((row) => row.canonical_name)
+    .filter((name): name is string => typeof name === "string" && name.length > 0);
+}
+
+/**
  * W5 graph-lane read: given a set of entity names (e.g. extracted from
  * a query), return the set of memory IDs linked to *any* of them, with
  * a per-memory count of how many of the queried entities they match.
@@ -432,7 +590,7 @@ export async function getMemoriesByEntityNamesOp(
   if (entityRows.length === 0) return new Map();
 
   const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
-  const linkConditions: Q.Clause[] = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
+  const linkConditions: Q.Clause[] = [];
   if (ctx.userId !== undefined) {
     if (ctx.allowUnscopedRows) {
       // LokiJS path: the v31 SQL backfill is a no-op, so pre-v31 rows
@@ -444,13 +602,34 @@ export async function getMemoriesByEntityNamesOp(
       linkConditions.push(Q.where("user_id", ctx.userId));
     }
   }
-  const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
+  // `unsafeFetchRaw`, NOT `.fetch()`. This is the graph lane's fan-out read and
+  // the only thing that ever bounded it was the extractor guessing wrong: a
+  // candidate that matched no stored name returned no rows. The vocabulary tier
+  // removes exactly that accident — every candidate it emits is a name that
+  // exists — so this read goes from "usually zero rows" to "always rows, for up
+  // to MAX_VOCABULARY_CANDIDATES real entities", and a dense entity ("2025",
+  // "work") can carry hundreds of links each. `.fetch()` would instantiate a
+  // WatermelonDB Model per link row into the never-evicted RecordCache; the two
+  // columns read here are raw. Same precedent as `listEntityNamesOp` and
+  // `getActiveVaultMemoryIdsOp`.
+  //
+  // One capped read PER SEED, concurrently, rather than one combined read with a
+  // global cap — see {@link MAX_LINKS_PER_ENTITY} for why a global cap silently
+  // corrupts the overlap ranking it feeds.
+  const perEntityRows = await Promise.all(
+    entityRows.map((entity) =>
+      ctx.memoryEntityCollection
+        .query(Q.where("entity_id", entity.id), ...linkConditions, Q.take(MAX_LINKS_PER_ENTITY))
+        .unsafeFetchRaw()
+    )
+  );
+  const linkRows = perEntityRows.flat() as Array<Record<string, unknown>>;
 
   // memoryId → Set<entity name> the memory matched.
   const out = new Map<string, Set<string>>();
-  for (const link of links) {
-    const memoryId = String(link.memoryId);
-    const entityName = entityIdToName.get(String(link.entityId));
+  for (const link of linkRows) {
+    const memoryId = String(link.memory_id);
+    const entityName = entityIdToName.get(String(link.entity_id));
     if (!entityName) continue;
     let bucket = out.get(memoryId);
     if (!bucket) {

@@ -16,9 +16,18 @@ vi.mock("../db/chat/operations", () => ({
   searchChunksOp: vi.fn(),
 }));
 
+// countEntitiesOp / listEntityNamesOp / getEntityWriteGeneration are reached
+// through entityVocabulary.ts, not directly by recall.ts. They still have to be
+// in this factory: a module mock replaces the WHOLE module, so omitting them
+// makes every vocabulary load throw, get swallowed by the fail-soft catch, and
+// silently route every entity-lane test below through the degraded path while
+// still passing.
 vi.mock("../db/entities/operations", () => ({
   getMemoriesByEntityNamesOp: vi.fn(),
   getEntitiesByMemoryIdsOp: vi.fn(),
+  countEntitiesOp: vi.fn(),
+  listEntityNamesOp: vi.fn(),
+  getEntityWriteGeneration: vi.fn(),
 }));
 
 vi.mock("../db/memoryVault/operations", () => ({
@@ -57,9 +66,12 @@ vi.mock("../memoryVault/searchTool", async (importOriginal) => {
 import { searchChunksOp, type StorageOperationsContext } from "../db/chat/operations";
 import type { ChunkSearchResult } from "../db/chat/types";
 import {
+  countEntitiesOp,
   type EntityOperationsContext,
   getEntitiesByMemoryIdsOp,
+  getEntityWriteGeneration,
   getMemoriesByEntityNamesOp,
+  listEntityNamesOp,
 } from "../db/entities/operations";
 import {
   countActiveVaultMemoriesOp,
@@ -74,6 +86,8 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool";
 
+import { createEntityVocabularyCache } from "./entityVocabulary";
+import { NODE_BUDGET } from "./graphTraversal";
 import { recall } from "./recall";
 import { createRecallTool, RECALL_MAX_LIMIT, RECALL_MAX_MEMORIES_PER_TURN } from "./recallTool";
 import { RerankerUnavailableError, rerankPairs } from "./reranker";
@@ -135,7 +149,15 @@ function makeChunk(id: string, conversationId: string, similarity: number): Chun
 
 const vaultCtx = {} as VaultMemoryOperationsContext;
 const storageCtx = {} as StorageOperationsContext;
-const entityCtx = {} as EntityOperationsContext;
+// Mirrors the shape react/useChatStorage builds: user-scoped legacy rows on a
+// database that is nevertheless one tenant's, declared as such. `singleTenant`
+// is what the vocabulary tier gates on; a bare `{}` fixture would pass the gate
+// for a reason production never supplies.
+const entityCtx = {
+  entityCollection: {},
+  userId: "0xwallet",
+  singleTenant: true,
+} as unknown as EntityOperationsContext;
 
 function makeCtx(overrides: Partial<RecallContext> = {}): RecallContext {
   return {
@@ -164,6 +186,11 @@ beforeEach(() => {
   );
   vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
   vi.mocked(getEntitiesByMemoryIdsOp).mockResolvedValue(new Map());
+  // Empty entity table by default ⇒ no vocabulary ⇒ the heuristic extractor,
+  // which is what the pre-existing lane tests below assert against.
+  vi.mocked(countEntitiesOp).mockResolvedValue(0);
+  vi.mocked(listEntityNamesOp).mockResolvedValue([]);
+  vi.mocked(getEntityWriteGeneration).mockReturnValue(0);
   vi.mocked(searchChunksOp).mockResolvedValue([]);
   vi.mocked(generateEmbedding).mockImplementation(async (text) => vecFor(text));
   vi.mocked(generateEmbeddings).mockImplementation(async (texts) => texts.map(vecFor));
@@ -550,7 +577,11 @@ describe("recall — entity (W5) lane", () => {
 
     const result = await recall(ENTITY_QUERY, makeCtx({ entityCtx }));
 
-    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "sara",
+      "traveling",
+      "sara traveling",
+    ]);
     // m3 has zero cosine vs the query — only the graph lane can admit it.
     expect(result.memories.map((m) => m.id)).toContain("m3");
   });
@@ -565,10 +596,10 @@ describe("recall — entity (W5) lane", () => {
     expect(getMemoriesByEntityNamesOp).not.toHaveBeenCalled();
   });
 
-  it("recovers the lane for an all-lowercase query via the fallback (D4)", async () => {
+  it("recovers the lane for an all-lowercase query via the lexical pass (D4)", async () => {
     // Pre-fix, an all-lowercase query extracted no entities and the W5 lane was
-    // silently dead. The lowercase fallback now emits n-gram candidates; the op
-    // is called with them, and a stored-entity match surfaces the graph-only
+    // silently dead. The lexical pass now emits n-gram candidates; the op is
+    // called with them, and a stored-entity match surfaces the graph-only
     // fixture m3 (zero cosine vs the query — only the graph lane can admit it).
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(
       new Map([["m3", new Set(["san francisco"])]])
@@ -585,10 +616,10 @@ describe("recall — entity (W5) lane", () => {
   });
 
   it("a lowercase query matching no stored entity adds no garbage (empty lane)", async () => {
-    // The fallback candidates ARE looked up, but none match a stored canonical →
+    // The lexical candidates ARE looked up, but none match a stored canonical →
     // empty Map → the lane yields []. The op was called (lane engaged) yet m3
     // never surfaces: no cosine hit, no graph hit, no garbage. This is the
-    // precision guarantee that lets the fallback over-emit safely.
+    // precision guarantee that lets the lexical pass over-emit safely.
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
 
     const result = await recall("is there anyone in san francisco", makeCtx({ entityCtx }));
@@ -606,7 +637,11 @@ describe("recall — entity (W5) lane", () => {
       entityCtx,
     } as VaultMemoryOperationsContext;
     await recall(ENTITY_QUERY, makeCtx({ vaultCtx: vaultCtxWithEntities }));
-    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "sara",
+      "traveling",
+      "sara traveling",
+    ]);
   });
 
   // PR4 — multi-hop traversal gating. The reverse-edge op
@@ -657,6 +692,250 @@ describe("recall — entity (W5) lane", () => {
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
     expect(countActiveVaultMemoriesOp).not.toHaveBeenCalled();
+  });
+
+  // The single-hop path is what low/mid budgets run, and it used to emit the
+  // ENTIRE resolved set. One dense entity name ("work", "2024") could put
+  // hundreds of ids into RRF and into the reranker's input, on the default path.
+  describe("single-hop node cap", () => {
+    const denseMatch = (n: number): Map<string, Set<string>> =>
+      new Map(Array.from({ length: n }, (_, i) => [`g${i}`, new Set(["sara"])]));
+
+    it("truncates a dense ranking to NODE_BUDGET", async () => {
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+
+    it("sends at most NODE_BUDGET * 2 ids through the active-id filter", async () => {
+      // The filter read is indexed and decrypt-free, but it is still an
+      // `IN`-clause whose width the query text should not be able to choose.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }));
+
+      expect(vi.mocked(getActiveVaultMemoryIdsOp).mock.calls[0][1]).toHaveLength(NODE_BUDGET * 2);
+    });
+
+    it("probes past archived rows rather than letting them starve the lane", async () => {
+      // Filtering AFTER the cap would let a run of archived ids at the top of
+      // the ranking eat the whole budget. Probing outward is what stops that.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+      vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
+        async (_ctx, ids: string[]) => new Set(ids.slice(NODE_BUDGET))
+      );
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+
+    it("probes past an archived run LONGER than one round", async () => {
+      // A single fixed probe only makes starvation less likely; it does not
+      // prevent it. With every id in the first round archived, a one-shot probe
+      // filters to nothing and the lane emits zero despite hundreds of
+      // reachable active memories behind the run. Archived ids cluster — a bulk
+      // forget, a dismissed import — so "longer than the probe" is a real shape,
+      // not a contrived one.
+      const ROUND = NODE_BUDGET * 2;
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(600));
+      vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
+        async (_ctx, ids: string[]) =>
+          // Ids are `g<i>`; everything before the first round boundary + 22 is
+          // archived, so round 1 comes back completely empty.
+          new Set(ids.filter((id) => Number(id.slice(1)) >= ROUND + 22))
+      );
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+
+    it("gives up after a bounded number of probe rounds", async () => {
+      // The converse guard: a vault whose graph lane is almost entirely
+      // archived must not turn one recall into an unbounded walk of the
+      // ranking. It emits what it found and stops.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(4000));
+      vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(async () => new Set<string>());
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }));
+
+      expect(vi.mocked(getActiveVaultMemoryIdsOp).mock.calls.length).toBeLessThanOrEqual(8);
+    });
+
+    it("caps even without a vaultCtx to filter against", async () => {
+      // No vault context means no active-id filter to piggyback the cap onto,
+      // so the cap has to be applied on its own branch.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(
+        ENTITY_QUERY,
+        { embeddingOptions: { apiKey: "test-key" }, entityCtx },
+        { types: ["chunk"], onDiagnostics: (d) => seen.push(d) }
+      );
+
+      expect(getActiveVaultMemoryIdsOp).not.toHaveBeenCalled();
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+  });
+
+  // The vocabulary tier resolves query tokens against the names the vault
+  // actually holds instead of guessing at them. It is OPT-IN, so every test
+  // below that exercises the tier passes `entityVocabulary: "auto"` explicitly
+  // rather than relying on the default.
+  //
+  // That is not ceremony. With the tier off by default, a test asserting "the
+  // vocabulary was never read" passes for the wrong reason — it would pass
+  // against a build where the tier is entirely broken. Opting in explicitly is
+  // what keeps the negative assertions meaningful.
+  describe("vocabulary tier", () => {
+    const ON = { entityVocabulary: "auto" } as const;
+    const stockVault = (names: string[]): void => {
+      vi.mocked(countEntitiesOp).mockResolvedValue(names.length);
+      vi.mocked(listEntityNamesOp).mockResolvedValue(names);
+    };
+
+    it("is OFF unless a host asks for it", async () => {
+      // The shipped default, pinned. Turning this on for everyone is a product
+      // decision (lane precision 46% -> 24%), and it was taken deliberately: the
+      // measured win is lane-only and nothing yet measures it through RRF
+      // fusion. A test so the default cannot drift back silently.
+      stockVault(["sara park"]);
+
+      await recall("where is sara", makeCtx({ entityCtx }));
+
+      expect(countEntitiesOp).not.toHaveBeenCalled();
+      expect(listEntityNamesOp).not.toHaveBeenCalled();
+      // Heuristic output: "sara", a name the vault does not actually hold.
+      expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+    });
+
+    it("resolves the query against stored names instead of guessing", async () => {
+      stockVault(["sara park", "kyoto", "san francisco"]);
+
+      await recall("where is sara", makeCtx({ entityCtx }), ON);
+
+      // The heuristic would have emitted ["sara"] — a name the vault does not
+      // hold. Grounded, the token resolves to the canonical it belongs to.
+      expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara park"]);
+    });
+
+    it("issues no vocabulary read at all when switched off", async () => {
+      stockVault(["sara park"]);
+
+      await recall("where is sara", makeCtx({ entityCtx }), { entityVocabulary: "off" });
+
+      // Asserting only the candidates would pass vacuously — an unused
+      // vocabulary and an unread one look identical from the output.
+      expect(countEntitiesOp).not.toHaveBeenCalled();
+      expect(listEntityNamesOp).not.toHaveBeenCalled();
+      expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+    });
+
+    it("stays off for a multi-user context, and does NOT report a degradation", async () => {
+      // The entity table is global vocabulary with no owner, so a multi-user
+      // process would index every user's names. That is a deliberate posture,
+      // not an outage, and must not show up in the degradation metric.
+      stockVault(["sara park"]);
+      const scopedEntityCtx = { userId: "u1" } as EntityOperationsContext;
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("where is sara", makeCtx({ entityCtx: scopedEntityCtx }), {
+        ...ON,
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(countEntitiesOp).not.toHaveBeenCalled();
+      expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(scopedEntityCtx, ["sara"]);
+      expect(seen[0].degraded).not.toContain("entity-vocabulary-unavailable");
+    });
+
+    it("falls back to the heuristic and reports a degradation when enumeration fails", async () => {
+      vi.mocked(countEntitiesOp).mockResolvedValue(3);
+      vi.mocked(listEntityNamesOp).mockRejectedValue(new Error("watermelon boom"));
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+      const seen: RecallDiagnostics[] = [];
+
+      const result = await recall("where is sara", makeCtx({ entityCtx }), {
+        ...ON,
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+      expect(seen[0].degraded).toContain("entity-vocabulary-unavailable");
+      // Degraded, not broken: the lane still returned its hit.
+      expect(result.memories.map((m) => m.id)).toContain("m3");
+    });
+
+    it("treats an empty entity table as configuration, not failure", async () => {
+      stockVault([]);
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("where is sara", makeCtx({ entityCtx }), {
+        ...ON,
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(listEntityNamesOp).not.toHaveBeenCalled();
+      expect(seen[0].degraded).not.toContain("entity-vocabulary-unavailable");
+    });
+
+    it("reuses a cached index across recalls while the entity table is unchanged", async () => {
+      stockVault(["sara park"]);
+      const entityVocabularyCache = createEntityVocabularyCache();
+      const ctx = makeCtx({ entityCtx, entityVocabularyCache });
+
+      await recall("where is sara", ctx, ON);
+      await recall("where is sara", ctx, ON);
+
+      // The version stamp is re-read every call (cheap, indexed COUNT); the
+      // enumeration + index build is what the cache saves.
+      expect(countEntitiesOp).toHaveBeenCalledTimes(2);
+      expect(listEntityNamesOp).toHaveBeenCalledTimes(1);
+    });
+
+    it("rebuilds when the entity table's write generation moves under a stable count", async () => {
+      // The case a row count alone cannot see: an orphan prune destroys one
+      // entity while a re-extraction creates another. Count identical, name set
+      // completely different. A count-keyed cache serves the stale index and the
+      // brand-new name is unrecallable — the exact bug this lane exists to kill.
+      stockVault(["sara park"]);
+      const entityVocabularyCache = createEntityVocabularyCache();
+      const ctx = makeCtx({ entityCtx, entityVocabularyCache });
+
+      await recall("where is sara", ctx, ON);
+
+      vi.mocked(getEntityWriteGeneration).mockReturnValue(1);
+      vi.mocked(listEntityNamesOp).mockResolvedValue(["kyoto"]);
+      await recall("anything about kyoto", ctx, ON);
+
+      expect(listEntityNamesOp).toHaveBeenCalledTimes(2);
+      expect(getMemoriesByEntityNamesOp).toHaveBeenLastCalledWith(entityCtx, ["kyoto"]);
+    });
+
+    it("threads resolved seeds into the multi-hop traversal rather than re-extracting", async () => {
+      // The traversal has its own extractor. If the resolved seeds are not
+      // handed down, the high budget silently reverts to the heuristic — the one
+      // budget that can most afford the better one.
+      stockVault(["sara park"]);
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["x"])]]));
+
+      await recall("where is sara", makeCtx({ entityCtx }), { ...ON, budget: "high" });
+
+      expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara park"]);
+    });
   });
 });
 
@@ -1026,5 +1305,67 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0].candidateCount).toBe(0);
     expect(seen[0].factCount).toBe(0);
+  });
+
+  // graphSeedCount + graphCount exist to separate two failures that look
+  // identical from outside: "the extractor produced nothing" and "the extractor
+  // worked, the vault had nothing". Conflating them is how a dead lane stayed
+  // invisible, so each of the four combinations gets its own pin.
+  describe("W5 lane counters", () => {
+    it("reports both the seed count and the contributed id count when the lane hits", async () => {
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(
+        new Map([
+          ["m3", new Set(["sara"])],
+          ["m2", new Set(["sara"])],
+        ])
+      );
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("Where is Sara traveling", makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphSeedCount).toBe(
+        vi.mocked(getMemoriesByEntityNamesOp).mock.calls[0][1].length
+      );
+      expect(seen[0].graphCount).toBe(2);
+    });
+
+    it("distinguishes 'extraction worked, the vault had nothing' from a dead extractor", async () => {
+      // Candidates WERE emitted and looked up; nothing matched. A lane that
+      // stayed quiet for this reason is behaving correctly.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("Where is Sara traveling", makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphSeedCount).toBeGreaterThan(0);
+      expect(seen[0].graphCount).toBe(0);
+    });
+
+    it("reports zero seeds for a query the extractor cannot resolve", async () => {
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("is there anyone who can help me", makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(getMemoriesByEntityNamesOp).not.toHaveBeenCalled();
+      expect(seen[0].graphSeedCount).toBe(0);
+      expect(seen[0].graphCount).toBe(0);
+    });
+
+    it("reports zeros when the lane never ran (no entityCtx)", async () => {
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("Where is Sara traveling", makeCtx(), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphSeedCount).toBe(0);
+      expect(seen[0].graphCount).toBe(0);
+    });
   });
 });

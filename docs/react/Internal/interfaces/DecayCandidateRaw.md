@@ -1,6 +1,6 @@
 # DecayCandidateRaw
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1489](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1489)
+Defined in: [src/lib/db/memoryVault/operations.ts:1507](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1507)
 
 The minimal plaintext shape the decay sweep needs — mirrors the `DecayInput`
 shape in `memory/decay` plus the row id. Deliberately omits `content`
@@ -12,7 +12,7 @@ shape in `memory/decay` plus the row id. Deliberately omits `content`
 
 > **archivedAt**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1497](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1497)
+Defined in: [src/lib/db/memoryVault/operations.ts:1515](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1515)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1497](https://github.com/anuma
 
 > **eventTimeEnd**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1492](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1492)
+Defined in: [src/lib/db/memoryVault/operations.ts:1510](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1510)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1492](https://github.com/anuma
 
 > **eventTimeKind**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1493](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1493)
+Defined in: [src/lib/db/memoryVault/operations.ts:1511](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1511)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1493](https://github.com/anuma
 
 > **factType**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1491](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1491)
+Defined in: [src/lib/db/memoryVault/operations.ts:1509](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1509)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1491](https://github.com/anuma
 
 > **source**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1498](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1498)
+Defined in: [src/lib/db/memoryVault/operations.ts:1516](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1516)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1498](https://github.com/anuma
 
 > **trustTier**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1502](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1502)
+Defined in: [src/lib/db/memoryVault/operations.ts:1520](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1520)
 
 `trusted` | `quarantined` | null. Quarantined rows still decay by RULE, but
 are never handed to the optional content-reading decay classifier (they must
@@ -64,7 +64,7 @@ not egress poison content — see the decay sweeper's `isBorderline`).
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1490](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1490)
+Defined in: [src/lib/db/memoryVault/operations.ts:1508](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1508)
 
 ***
 
@@ -72,7 +72,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:1490](https://github.com/anuma
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1496](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1496)
+Defined in: [src/lib/db/memoryVault/operations.ts:1514](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1514)
 
 Unix ms — the raw `updated_at`, used both for the age rule and as the
 optimistic-concurrency guard passed back to [archiveVaultMemoryOp](../functions/archiveVaultMemoryOp.md).

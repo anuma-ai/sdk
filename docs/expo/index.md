@@ -388,6 +388,12 @@ Re-exports [CreateDecaySweeperOptions](../react/Internal/interfaces/CreateDecayS
 
 ***
 
+### createEntityVocabularyCache
+
+Re-exports [createEntityVocabularyCache](../react/Internal/functions/createEntityVocabularyCache.md)
+
+***
+
 ### createLlmDecayClassifier
 
 Re-exports [createLlmDecayClassifier](../react/Internal/functions/createLlmDecayClassifier.md)
@@ -697,6 +703,18 @@ Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFol
 ### ENTITY\_FANOUT
 
 Re-exports [ENTITY\_FANOUT](../react/Internal/variables/ENTITY_FANOUT.md)
+
+***
+
+### EntityVocabulary
+
+Re-exports [EntityVocabulary](../react/Internal/interfaces/EntityVocabulary.md)
+
+***
+
+### EntityVocabularyCache
+
+Re-exports [EntityVocabularyCache](../react/Internal/interfaces/EntityVocabularyCache.md)
 
 ***
 

@@ -21,6 +21,13 @@
  *   pnpm eval:vault-search --verbose
  *   pnpm eval:vault-search --save-baseline
  *   pnpm eval:vault-search --baseline test/memory/src/vault/baseline.json
+ *
+ * W5 graph-lane arms (all require --graph --ranker fused):
+ *   --entities production            query side = the SHIPPED extractor, memory
+ *                                    side = the committed LLM entities
+ *   --vocabulary on                  ground the query side against the stored
+ *                                    names (requires --entities production)
+ *   --query-case lower|sentence|upper  re-case the query before EXTRACTION only
  */
 
 import "dotenv/config";
@@ -38,6 +45,11 @@ import {
   rankByEntityOverlap,
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import type { DecomposedQuery } from "../../../../src/lib/memoryVault/decomposeQuery.js";
+import {
+  buildEntityVocabulary,
+  type EntityVocabulary,
+} from "../../../../src/lib/memory/entityVocabulary.js";
+import { extractQueryEntities } from "../../../../src/lib/memory/queryEntities.js";
 import { preloadReranker } from "../../../../src/lib/memory/reranker.js";
 import {
   precisionAtK,
@@ -81,6 +93,8 @@ const { values: args } = parseArgs({
     "mmr-lambda": { type: "string" },
     graph: { type: "boolean", default: false },
     entities: { type: "string", default: "heuristic" },
+    "query-case": { type: "string", default: "as-written" },
+    vocabulary: { type: "string", default: "off" },
     decompose: { type: "string", default: "off" },
   },
 });
@@ -97,10 +111,52 @@ const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
 const USE_MMR = !!args.mmr;
 const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
 const USE_GRAPH = !!args.graph;
+// heuristic | llm  — both sides use the same bench-only extractor.
+// production        — the MEMORY side stays on llm-entities.json (mirroring the
+//                     LLM write path), while the QUERY side routes through the
+//                     real `extractQueryEntities`. That asymmetry is the point:
+//                     it is the only configuration that measures the shipped
+//                     query extractor against a realistic stored graph.
 const ENTITY_MODE = args.entities ?? "heuristic";
-if (ENTITY_MODE !== "heuristic" && ENTITY_MODE !== "llm") {
-  console.error(`Invalid --entities "${ENTITY_MODE}". Expected "heuristic" or "llm".`);
+if (ENTITY_MODE !== "heuristic" && ENTITY_MODE !== "llm" && ENTITY_MODE !== "production") {
+  console.error(
+    `Invalid --entities "${ENTITY_MODE}". Expected "heuristic", "llm" or "production".`
+  );
   process.exit(1);
+}
+// Casing applied to the query before EXTRACTION only — never before embedding.
+// The frozen-embedding cache is keyed on the original text, and re-casing it
+// would invalidate every vector and make the run non-deterministic.
+const QUERY_CASE = args["query-case"] ?? "as-written";
+if (!["as-written", "lower", "sentence", "upper"].includes(QUERY_CASE)) {
+  console.error(
+    `Invalid --query-case "${QUERY_CASE}". Expected "as-written", "lower", "sentence" or "upper".`
+  );
+  process.exit(1);
+}
+const VOCABULARY_MODE = args.vocabulary ?? "off";
+if (VOCABULARY_MODE !== "on" && VOCABULARY_MODE !== "off") {
+  console.error(`Invalid --vocabulary "${VOCABULARY_MODE}". Expected "on" or "off".`);
+  process.exit(1);
+}
+if (VOCABULARY_MODE === "on" && ENTITY_MODE !== "production") {
+  console.error(`--vocabulary=on requires --entities=production (it grounds the QUERY side).`);
+  process.exit(1);
+}
+
+function applyQueryCase(query: string): string {
+  switch (QUERY_CASE) {
+    case "lower":
+      return query.toLowerCase();
+    case "upper":
+      return query.toUpperCase();
+    case "sentence": {
+      const lower = query.toLowerCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    }
+    default:
+      return query;
+  }
 }
 const DECOMPOSE_MODE = (args.decompose ?? "off").toLowerCase();
 if (DECOMPOSE_MODE !== "off" && DECOMPOSE_MODE !== "llm") {
@@ -177,12 +233,26 @@ function loadLlmCache(): Record<string, string[]> {
 }
 
 function extractEntities(text: string): Set<string> {
-  if (ENTITY_MODE === "llm") {
+  if (ENTITY_MODE === "llm" || ENTITY_MODE === "production") {
     const cache = loadLlmCache();
     const entities = cache[text] ?? [];
     return new Set(entities.map((e) => e.toLowerCase().trim()).filter((e) => e.length > 0));
   }
   return heuristicEntities(text);
+}
+
+/**
+ * Query-side extraction. Under `--entities production` this is the SHIPPED
+ * extractor — the same code path recall() runs — optionally grounded against a
+ * vocabulary built from the memory-side entity names, which is what the client
+ * builds from the stored `entity` table.
+ */
+function extractQueryEntitiesForBench(
+  query: string,
+  vocabulary: EntityVocabulary | undefined
+): Set<string> {
+  if (ENTITY_MODE !== "production") return extractEntities(query);
+  return new Set(extractQueryEntities(applyQueryCase(query), vocabulary));
 }
 
 // ---------------------------------------------------------------------------
@@ -559,6 +629,15 @@ async function main() {
   const memoryEntitiesById = USE_GRAPH
     ? new Map(VAULT_MEMORIES.map((m) => [m.id, extractEntities(m.content)]))
     : null;
+  // The stored vocabulary the client would enumerate from the `entity` table —
+  // here, every canonical name the memory side produced.
+  const benchVocabulary =
+    VOCABULARY_MODE === "on" && memoryEntitiesById
+      ? buildEntityVocabulary(
+          [...new Set([...memoryEntitiesById.values()].flatMap((names) => [...names]))],
+          "bench"
+        )
+      : undefined;
 
   const results: QueryResult[] = [];
   for (const query of queries) {
@@ -572,7 +651,7 @@ async function main() {
     // pass it into whichever ranker is in play (composite or V2+CE).
     let entityRanking: string[] | undefined;
     if (USE_GRAPH && memoryEntitiesById && RANKER_NAME === "fused") {
-      const queryEnts = extractEntities(query.query);
+      const queryEnts = extractQueryEntitiesForBench(query.query, benchVocabulary);
       if (queryEnts.size > 0) {
         const overlapItems = embeddedItems.map((it) => ({
           id: it.id,

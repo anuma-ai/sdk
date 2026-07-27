@@ -25,9 +25,12 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { type EntityVocabulary, loadEntityVocabulary } from "./entityVocabulary.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
+  NODE_BUDGET,
+  rankMemoriesByOverlap,
   traverseGraphLane,
 } from "./graphTraversal.js";
 import { classifyObservationTrend } from "./observationTrend.js";
@@ -48,6 +51,55 @@ import type {
 const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 const DEFAULT_FACT_MIN_SCORE = 0.1;
+
+/**
+ * Default for {@link RecallOptions.entityVocabulary}.
+ *
+ * `"off"` — OPT-IN. A host turns the vocabulary tier on with
+ * `entityVocabulary: "auto"`; until it does, recall runs the deterministic
+ * heuristic extractor exactly as it did before this change.
+ *
+ * This is a deliberate decision, not an omission, so it is written down here
+ * rather than left to be inferred from a constant.
+ *
+ * The tier is a large measured win on the lane: 2.33x the RRF contribution the
+ * W5 lane makes to fusion, expected-id recall 16.1% to 37.5%, zero regressing
+ * queries, $0 and network-free, degrading to the heuristic on every failure.
+ * It also measurably lowers LANE precision, 46% to 24% on the benchmark corpus,
+ * because it activates on far more queries — on the 13 hard-negative queries the
+ * lane fires on 9 rather than 4, and the mean memories injected for one goes
+ * 0.46 to 1.62 (max 3 to 6). All of those are asserted against the committed
+ * baseline in `test/memory/src/vault/entityLane.test.ts`, so they cannot drift
+ * out of this comment silently.
+ *
+ * WHY OFF DESPITE THE WIN. Every number above measures the LANE IN ISOLATION —
+ * whether the lane's own ranking is better. None of them measure what a user
+ * actually receives, because recall RRF-fuses this lane with the cosine/BM25
+ * head and then reranks. That gap is not theoretical here: at `budget: "low"`
+ * there is no `rerankTopN` slice and `boostFor` multiplies back into the fused
+ * score (`searchTool.ts:601-618`), so a lane-only item at a deep head rank can
+ * be promoted into the final answer. A better lane ranking does not
+ * automatically mean a better final answer.
+ *
+ * The asymmetry decides it. Default-on with bad fused behaviour degrades every
+ * host's context quality silently, and we have no measurement that would catch
+ * it. Default-off with good fused behaviour costs one line in a host. Flip this
+ * token once a fused end-to-end A/B says the win survives fusion.
+ */
+const DEFAULT_ENTITY_VOCABULARY: "auto" | "off" = "off";
+
+/**
+ * How many rounds the graph lane will probe outward looking for active memories
+ * before giving up and emitting what it found. Each round is 2x NODE_BUDGET
+ * (128) ids and costs one indexed, decrypt-free read.
+ *
+ * A bound rather than "walk the whole ranking" because the ranking can be
+ * thousands of memories on a dense vault and a lane that is mostly archived is
+ * a lane with little left to contribute — 8 rounds walks past 1024 archived
+ * rows, which is far beyond any realistic bulk-forget run, without turning a
+ * degenerate vault into an unbounded read.
+ */
+const MAX_ACTIVE_PROBE_ROUNDS = 8;
 
 /** Monotonic wall clock in ms; `performance.now()` where available (browser /
  * RN / Node), else `Date.now()`. Used only for best-effort recall timings. */
@@ -149,6 +201,15 @@ export async function recall(
   // Used to distinguish "CE skipped on empty head (lane-only hits)" from
   // "CE failed on a non-empty head (actual outage)".
   let hadV2Head = false;
+  // W5 lane observability. `graphSeedCount` is reported by the lane builder
+  // (the only code that knows how many candidates the extractor emitted);
+  // `graphCount` is read off the returned ranking. Both are captured here so
+  // every emitDiagnostics return path sees them.
+  let graphSeedCount = 0;
+  let graphCount = 0;
+  // Degradations reported by the graph lane itself (it runs inside safeLane and
+  // cannot reach emitDiagnostics directly).
+  const laneDegradations: RecallDegradation[] = [];
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
@@ -164,6 +225,7 @@ export async function recall(
       degraded.push("rerank-unavailable");
     }
     if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
+    for (const signal of laneDegradations) if (!degraded.includes(signal)) degraded.push(signal);
     const diagnostics: RecallDiagnostics = {
       usedBudget,
       reranked: didRerank,
@@ -171,6 +233,8 @@ export async function recall(
       ...(vaultSize !== undefined && { vaultSize }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
+      graphCount,
+      graphSeedCount,
       timings: {
         total: nowMs() - t0,
         prep: prepMs,
@@ -224,19 +288,32 @@ export async function recall(
     // PRIMARY cosine/BM25 recall down with it — degrade the failing lane to an
     // empty ranking instead (mirrors safeCountVault's fail-soft posture).
     safeLane("graph", () =>
-      buildGraphLaneRanking(query, ctx, flags.traverse, {
-        ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-        ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-        ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-        ...(graphRefiner && { refineNeighbors: graphRefiner }),
-      })
+      buildGraphLaneRanking(
+        query,
+        ctx,
+        flags.traverse,
+        {
+          ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+          ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+          ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+          ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+          ...(graphRefiner && { refineNeighbors: graphRefiner }),
+        },
+        {
+          vocabularyMode: options.entityVocabulary ?? DEFAULT_ENTITY_VOCABULARY,
+          onSeeds: (count) => {
+            graphSeedCount = count;
+          },
+          onDegraded: (signal) => laneDegradations.push(signal),
+        }
+      )
     ),
     wantsTemporal
       ? safeLane("temporal", () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now))
       : Promise.resolve([] as string[]),
   ]);
   prepMs = nowMs() - prepStart;
+  graphCount = entityRanking.length;
 
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const factStart = nowMs();
@@ -483,10 +560,9 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
  *
  * Returns an empty array (not just empty ranking) when:
  *  - `ctx.entityCtx` is not provided
- *  - The query yields no entities — the strict capitalized pass is empty AND
- *    the lowercase fallback produced no candidates (a stopword-only query).
- *    Lowercase/dictated queries now DO reach this lane via that fallback;
- *    only a genuinely entity-free query short-circuits here.
+ *  - The query yields no candidate entity names at all — both extractor passes
+ *    came back empty (a stopword-only query). Casing is no longer a reason:
+ *    lowercase and dictated queries reach this lane like any other.
  *  - No stored memories share any of the query's entities
  *
  * The ranking is by raw shared-count, not the tanh score — we hand off
@@ -500,6 +576,11 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
  * (capped back to seed-only above the density threshold). When `traverse` is
  * false the single-hop path below runs — low/mid budgets never pay the
  * vault-size count and never expand past the seed.
+ *
+ * Node cap (both paths): the emitted ranking is capped at {@link NODE_BUDGET}.
+ * The multi-hop path has always bounded its accumulated pool; the single-hop
+ * path — the one low/mid budgets use — did not, so one dense entity name could
+ * emit an arbitrarily long ranking into RRF and into the reranker's input.
  *
  * Active filter (both paths): archived / quarantined ("forgotten") memory ids
  * are dropped before they enter the returned ranking — the multi-hop path
@@ -520,12 +601,34 @@ async function buildGraphLaneRanking(
     nodeBudget?: number;
     rrfK?: number;
     refineNeighbors?: NeighborRefiner;
+  } = {},
+  laneOptions: {
+    vocabularyMode?: "auto" | "off";
+    onSeeds?: (seedCount: number) => void;
+    onDegraded?: (signal: RecallDegradation) => void;
   } = {}
 ): Promise<string[]> {
   // Fall back to vaultCtx.entityCtx so callers don't have to thread the
   // graph-lane context twice (it's also where cascade-delete wiring lives).
   const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
   if (!entityCtx) return [];
+
+  // Resolve the query ONCE, before the branch, so both budget paths extract
+  // identically and the seed count is observable on both. `"off"` issues no
+  // vocabulary read at all — that is the point of the kill switch, so it cannot
+  // be implemented by loading and discarding.
+  let vocabulary: EntityVocabulary | undefined;
+  if ((laneOptions.vocabularyMode ?? DEFAULT_ENTITY_VOCABULARY) === "auto") {
+    // The degradation signal fires only on a genuine outage — loadEntityVocabulary
+    // owns that distinction, because an expected-unavailable context (multi-user,
+    // fresh vault) must not look like a failure in the metrics.
+    vocabulary = await loadEntityVocabulary(entityCtx, ctx.entityVocabularyCache, () =>
+      laneOptions.onDegraded?.("entity-vocabulary-unavailable")
+    );
+  }
+  const seedNames = extractQueryEntities(query, vocabulary);
+  laneOptions.onSeeds?.(seedNames.length);
+  if (seedNames.length === 0) return [];
   if (traverse) {
     // Multi-hop path. PR5: with the default MAX_HOPS=2 the density guard matters,
     // so thread a vault-size hint (a cheap indexed COUNT — no decrypt, no Model)
@@ -539,21 +642,26 @@ async function buildGraphLaneRanking(
     const vaultCtx = ctx.vaultCtx;
     return traverseGraphLane(query, entityCtx, {
       ...traversalOptions,
+      // Hand the resolved seeds down rather than let the traversal re-derive
+      // them: it would run the heuristic extractor and silently discard the
+      // grounded resolution on the one budget that can afford it.
+      seedNames,
       ...(vaultSize !== undefined && { vaultSize }),
       ...(vaultCtx && {
         filterActiveMemoryIds: (ids: string[]) => getActiveVaultMemoryIdsOp(vaultCtx, ids),
       }),
     });
   }
-  const queryEntities = extractQueryEntities(query);
-  if (queryEntities.length === 0) return [];
-  const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, queryEntities);
+  const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, seedNames);
   if (memoryToEntities.size === 0) return [];
-  // Sort by shared-entity count descending. Ties broken arbitrarily by
-  // map insertion order — RRF rank-quantization makes fine ties moot.
-  const ranked = [...memoryToEntities.entries()]
-    .sort((a, b) => b[1].size - a[1].size)
-    .map(([memoryId]) => memoryId);
+  const ranked = rankMemoriesByOverlap(memoryToEntities);
+  // Cap the lane at NODE_BUDGET. This was the only unbounded fan-out left on
+  // the DEFAULT path — the multi-hop branch has always capped, but low/mid go
+  // through here, and a single dense entity ("work", "2024") can resolve to
+  // hundreds of memories that then all occupy RRF rank slots and all enter the
+  // reranker's input. Capping it is also what pays for widening the extractor:
+  // more candidate names must not mean an unbounded candidate pool.
+  //
   // Drop archived / quarantined ("forgotten") ids BEFORE they enter
   // entityRanking — mirroring the multi-hop branch's per-hop active filter
   // above. They never load for display (the downstream itemById gate drops
@@ -562,10 +670,38 @@ async function buildGraphLaneRanking(
   // same indexed active-id read the high-budget path already pays. Only wired
   // when a vaultCtx is present (the same context the final recall gate filters
   // against); without it the lane keeps its pre-fix behavior.
+  //
+  // Probe OUTWARD IN ROUNDS rather than taking one fixed slice and filtering it.
+  // A single 2x probe only makes starvation less likely, it does not prevent it:
+  // a run of archived rows longer than the probe still empties the lane
+  // completely, and archived rows cluster (a bulk forget, an imported thread the
+  // user dismissed) rather than scattering uniformly. Rounds walk past the run
+  // instead of stopping at it.
+  //
+  // Sized so the common case is byte-identical to the single-probe version — one
+  // round of 2x the budget, one indexed read. Extra rounds are paid only when a
+  // round actually failed to fill the budget, i.e. exactly the case that used to
+  // silently return short.
   const vaultCtx = ctx.vaultCtx;
-  if (!vaultCtx) return ranked;
-  const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, ranked);
-  return ranked.filter((id) => activeIds.has(id));
+  if (!vaultCtx) return ranked.slice(0, NODE_BUDGET);
+  const roundSize = NODE_BUDGET * 2;
+  const active: string[] = [];
+  for (
+    let start = 0;
+    start < ranked.length &&
+    active.length < NODE_BUDGET &&
+    start < roundSize * MAX_ACTIVE_PROBE_ROUNDS;
+    start += roundSize
+  ) {
+    const round = ranked.slice(start, start + roundSize);
+    const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, round);
+    for (const id of round) {
+      if (!activeIds.has(id)) continue;
+      active.push(id);
+      if (active.length === NODE_BUDGET) break;
+    }
+  }
+  return active;
 }
 
 /**

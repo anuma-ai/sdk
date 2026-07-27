@@ -46,6 +46,11 @@ export {
   type NowSource,
 } from "./decayWorker.js";
 export {
+  createEntityVocabularyCache,
+  type EntityVocabulary,
+  type EntityVocabularyCache,
+} from "./entityVocabulary.js";
+export {
   capHopsForDensity,
   createLlmNeighborRefiner,
   ENTITY_FANOUT,

@@ -18,6 +18,10 @@ export default defineConfig({
       "test/memory/src/vault/embeddingCache.test.ts",
       // --compare pairing core (the skip branches) — pure, no PORTAL_API_KEY.
       "test/memory/src/vault/comparison.test.ts",
+      // W5 entity-lane extraction metrics against a committed baseline — the
+      // lane is embedding-free end to end, so this needs no PORTAL_API_KEY and
+      // runs in the fast unit suite on every change rather than only in CI.
+      "test/memory/src/vault/entityLane.test.ts",
       // Extraction regression-gate math (baseline build + compare) — pure,
       // no PORTAL_API_KEY; the live eval that feeds it runs only in CI.
       "test/memory/src/extraction/baseline.unit.test.ts",
