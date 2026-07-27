@@ -9,9 +9,12 @@
  *     current output — including its warts ("What's" survives stopwording; a
  *     non-ASCII INITIAL like "Łukasz" isn't matched by the strict regex because
  *     its `\b` anchor is ASCII-only). This PR must not silently "fix" those.
- *  2. FALLBACK only engages when the strict pass is EMPTY, and its output is
- *     deterministic (tier-major n-grams, position order within a tier,
- *     capped, stopworded).
+ *  2. FALLBACK only engages when the strict pass found nothing that carries
+ *     identity — empty, or holding only function words — and its output is
+ *     deterministic (tier-major n-grams, position order within a tier, capped,
+ *     stopworded). When it engages, its result is UNIONED with the strict
+ *     survivors rather than replacing them, so this pass can only ever widen
+ *     the candidate set. Several tests below pin exactly that.
  *
  * `extractQueryEntities` is pure/synchronous, so these run with no DB or mocks —
  * downstream, `getMemoriesByEntityNamesOp` validates candidates against stored
@@ -160,11 +163,14 @@ describe("extractQueryEntities — the fallback gate ignores function words", ()
 
   it("falls back when the only strict hit is a leading auxiliary", () => {
     // Before: ["are"] — the whole lane dead on a query that names a real place.
+    // "are" is still carried along by the union; it costs one IN-clause slot and
+    // matches nothing.
     expect(extractQueryEntities("Are there any designers in san francisco")).toEqual([
       "designers",
       "san",
       "francisco",
       "san francisco",
+      "are",
     ]);
   });
 
@@ -172,7 +178,11 @@ describe("extractQueryEntities — the fallback gate ignores function words", ()
     // "What" is a strict stopword but "what's" is not — normalizeEntityName
     // keeps the apostrophe, so the contraction leaks past STOPWORDS. Before:
     // ["what's"].
-    expect(extractQueryEntities("What's happening in kyoto")).toEqual(["happening", "kyoto"]);
+    expect(extractQueryEntities("What's happening in kyoto")).toEqual([
+      "happening",
+      "kyoto",
+      "what's",
+    ]);
   });
 
   it("falls back when the only strict hit is a leading pronoun-ish quantifier", () => {
@@ -183,6 +193,7 @@ describe("extractQueryEntities — the fallback gate ignores function words", ()
       "mentioned",
       "tokyo",
       "mentioned tokyo",
+      "someone",
     ]);
   });
 
@@ -194,6 +205,8 @@ describe("extractQueryEntities — the fallback gate ignores function words", ()
       "san",
       "francisco",
       "san francisco",
+      "are you",
+      "are",
     ]);
   });
 
@@ -204,11 +217,57 @@ describe("extractQueryEntities — the fallback gate ignores function words", ()
     expect(extractQueryEntities("Are you meeting Sara in tokyo")).toEqual(["are", "sara"]);
   });
 
-  it("still returns [] when every strict hit AND every fallback token is a stopword", () => {
-    // Falling back on a function-word-only strict hit must not manufacture
-    // candidates: the fallback's own stopwording still applies, so the lane
-    // stays a no-op with zero DB lookups.
-    expect(extractQueryEntities("Are there any of them")).toEqual([]);
+  it("does not manufacture candidates when the whole query is function words", () => {
+    // The fallback's own stopwording still applies, so nothing new is invented.
+    // The capitalized "Are" survives via the union — one indexed lookup that
+    // resolves to zero rows, which is the documented price of the union. An
+    // all-lowercase equivalent stays completely free (see the no-op test above).
+    expect(extractQueryEntities("Are there any of them")).toEqual(["are"]);
+    expect(extractQueryEntities("are there any of them")).toEqual([]);
+  });
+});
+
+describe("extractQueryEntities — falling back never loses a strict candidate", () => {
+  it("keeps a capitalized name that is also a function word", () => {
+    // "Will" is a real given name AND a fallback stopword. Gating on
+    // meaningfulness sends this to the fallback, which stopwords "will" away —
+    // so without the union the lane would go from ["will"] to [], a straight
+    // regression on the pre-fallback behavior.
+    expect(extractQueryEntities("Is Will here")).toEqual(["will"]);
+  });
+
+  it("unions the strict survivor in alongside recovered lowercase candidates", () => {
+    expect(extractQueryEntities("Is Will coming to dinner")).toEqual(["coming", "dinner", "will"]);
+    expect(extractQueryEntities("does Will know san francisco")).toEqual([
+      "san",
+      "francisco",
+      "san francisco",
+      "will",
+    ]);
+  });
+});
+
+describe("extractQueryEntities — multi-word canonicals led by a common word", () => {
+  it("emits the 'new <place>' bigram, not just the distinctive token", () => {
+    // A gram is rejected if ANY token is a stopword, so listing "new" meant the
+    // bigram never formed and the exact-canonical lookup missed the stored
+    // "new york" outright — only "york" was queried.
+    expect(extractQueryEntities("anyone in new york")).toEqual(["new", "york", "new york"]);
+    expect(extractQueryEntities("who lives in new orleans")).toEqual([
+      "new",
+      "orleans",
+      "new orleans",
+    ]);
+  });
+
+  it("does not recover a canonical whose INTERIOR token is a stopword", () => {
+    // Known limitation, pinned deliberately rather than half-fixed: "of" and
+    // "the" sit inside plenty of real canonicals ("bank of america"), but
+    // admitting them would let the fallback glue prepositions onto every gram
+    // and flood the lane — the exact failure mode this pass exists to avoid.
+    // The distinctive unigrams are still emitted, so the lane is degraded here
+    // rather than dead. Matching against stored names is what fixes this class.
+    expect(extractQueryEntities("anyone at bank of america")).toEqual(["bank", "america"]);
   });
 });
 

@@ -27,7 +27,10 @@
  *     because the strict regex matches any capitalized word: a query that is
  *     lowercase apart from a leading "Are"/"Does"/"What's" would otherwise be
  *     treated as a successful extraction of that function word and never fall
- *     back. See {@link hasMeaningfulCandidate}.
+ *     back. See {@link hasMeaningfulCandidate}. When it does fall back, the two
+ *     passes' results are UNIONED, never swapped — a strict survivor can be a
+ *     real name that collides with a function word ("Will"), and the fallback
+ *     would stopword it away. So this pass only ever widens the candidate set.
  *
  * Why the naive fix (just lowercasing the regex) is wrong, and why this isn't:
  * a case-insensitive regex would treat nearly every word as a candidate and
@@ -141,7 +144,15 @@ const FALLBACK_ONLY_STOPWORDS: string[] = (
   "getting go goes going gone got had has have having he help her here hers " +
   "him his hmm i in into is it its knew know knows later like liked likes " +
   "live lived lives living look looked looking looks made make makes may me " +
-  "meet meets might mine more most must my near need needed needs never new " +
+  // "new" is deliberately ABSENT. It is a function word on its own, but it also
+  // leads a large family of canonical place names — "new york", "new orleans",
+  // "new delhi", "new jersey" — and a gram is rejected if ANY of its tokens is a
+  // stopword, so listing it meant "anyone in new york" emitted only "york" and
+  // the exact-canonical lookup missed the stored "new york" entirely. The cost
+  // of leaving it out is that a query mentioning "new" spends one IN-clause slot
+  // on a candidate the stored-name lookup resolves to zero rows, which is the
+  // trade this whole pass is built on.
+  "meet meets might mine more most must my near need needed needs never " +
   "nobody nothing now of off okay on once only onto other our ours out over " +
   "own people person please recently said same say says see seen shall she " +
   "should since some somebody someone something soon still such talk tell " +
@@ -232,12 +243,18 @@ function hasMeaningfulCandidate(candidates: Iterable<string>): boolean {
  * queries is unchanged and never pays for (nor is reordered by) the fallback.
  * ONLY when the strict pass comes back empty, or comes back holding nothing but
  * function words, does the lowercase {@link extractFallbackCandidates} pass run
- * ({@link hasMeaningfulCandidate}).
+ * ({@link hasMeaningfulCandidate}) — and its result is UNIONED with whatever the
+ * strict pass held, so falling back can never lose a candidate the strict pass
+ * already found.
  *
- * An empty/whitespace query, or one whose every token is a stopword, returns an
- * empty array — and an empty array makes the W5 graph lane a no-op (zero DB
- * lookups in {@link buildGraphLaneRanking} / {@link traverseGraphLane}), so a
- * stopword-only query stays free.
+ * An empty/whitespace query, or an all-lowercase one whose every token is a
+ * stopword, returns an empty array — and an empty array makes the W5 graph lane
+ * a no-op (zero DB lookups in {@link buildGraphLaneRanking} /
+ * {@link traverseGraphLane}), so such a query stays free. A stopword-only query
+ * that happens to CAPITALIZE one of those stopwords ("Are there any of them")
+ * is the one exception: the strict regex matches it, the union preserves it, and
+ * the lane spends a single indexed lookup that resolves to zero rows. That is
+ * the price of never dropping a real name that collides with a function word.
  */
 export function extractQueryEntities(query: string): string[] {
   if (!query) return [];
@@ -264,7 +281,16 @@ export function extractQueryEntities(query: string): string[] {
   // word counts as empty: it proves the regex fired, not that extraction
   // worked. See {@link hasMeaningfulCandidate}.
   if (hasMeaningfulCandidate(seen)) return [...seen];
-  return extractFallbackCandidates(query);
+  // Otherwise fall back — but UNION the strict survivors back in rather than
+  // discarding them. A survivor can be a function word that is also a real name
+  // ("Will", "Grace"), and the fallback stopwords it exactly, so returning the
+  // fallback alone would DROP a lane the pre-fallback code had: "Is Will here"
+  // extracted `["will"]` before and would extract `[]` after. Unioning keeps
+  // this pass monotonic — it can only widen the candidate set, never narrow it —
+  // at a cost of one IN-clause slot for a term the stored-name lookup resolves
+  // to zero rows. Fallback candidates come first; both call sites treat the
+  // result as a set, so the order matters only under the downstream cap.
+  return [...new Set([...extractFallbackCandidates(query), ...seen])];
 }
 
 /**
