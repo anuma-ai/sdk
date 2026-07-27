@@ -10,11 +10,6 @@ name: Consolidation Eval
 # a 5-pass mean swings between 82.9% and 100% on an unchanged model, which
 # would make a tighter gate flaky rather than useful.
 on:
-  # Runs in the merge queue with NO paths filter, so the status below is always
-  # produced there and can therefore be a REQUIRED check. The paths-scoped
-  # pull_request trigger stays for early signal during review; a required check
-  # that never reports on an unrelated PR would block it forever.
-  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -33,18 +28,27 @@ on:
         required: false
         type: string
         default: ""
-  # NO paths filter, deliberately. `consolidation-eval-status` is a REQUIRED check on
-  # main, and a required context that never reports on an unrelated PR blocks it
-  # forever. Triggering on every PR (and skipping the expensive job below) is how
-  # e2e-tools.yml keeps `e2e-tools-status` satisfiable; the paths filter this
-  # replaced is what left `consolidation-eval-status` absent on PR #784.
+  # ADVISORY gate: paths-scoped, so it does not run on unrelated PRs and its
+  # status is simply absent there.
+  #
+  # ⚠ Do NOT add `consolidation-eval-status` to main's required checks in this shape. A
+  # required context that never reports blocks the PR forever — that is exactly
+  # what happened on #784, where `consolidation-eval-status` was required while
+  # paths-scoped and no unrelated PR could enter the merge queue.
+  #
+  # To make this one blocking: add a `merge_group:` trigger, drop `paths:` from
+  # `pull_request`, and add `if: github.event_name != 'pull_request'` to the eval
+  # job — then the status always reports and the eval runs in the queue. The cost
+  # is a full LLM eval on EVERY queued merge, which is why all five are advisory.
   pull_request:
     branches: [main]
+    paths:
+      - ".github/workflows/consolidation-eval.yml"
+      - "src/lib/memory/consolidate.ts"
+      - "test/memory/src/consolidation/**"
+      - "test/memory/src/gate.ts"
 jobs:
   consolidation-eval:
-    # Skipped on pull_request: the eval costs live LLM calls and the merge queue
-    # is where this gate actually blocks. Run it on a PR via workflow_dispatch.
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

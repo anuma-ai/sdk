@@ -9,10 +9,6 @@ name: Extraction Eval
 #     (Same-repo branches get PORTAL_API_KEY; fork PRs don't and will fail —
 #     acceptable for a private SDK where contributors push branches, not forks.)
 on:
-  # No paths filter in the queue, so this workflow's status is always produced
-  # there and can therefore be a REQUIRED check. The paths-scoped pull_request
-  # trigger below stays for early signal during review.
-  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -55,18 +51,18 @@ on:
   # every title/description edit and would re-run this ~5-min LLM gate needlessly.
   # So a STACKED PR retargeted to `main` must get one more push (or reopen) to
   # run the gate; that's the standard stacked-PR flow and normally happens anyway.
-  # ⚠ DO NOT add `extraction-eval-status` to main's required checks while this paths
-  # filter exists. Paths-scoped means the workflow does not run on an unrelated
-  # PR, so the status is never produced — and a required context that never
-  # reports blocks that PR forever. This bit us on #784 with
-  # `consolidation-eval-status`.
+  # ADVISORY gate: paths-scoped, so it does not run on unrelated PRs and its
+  # status is simply absent there.
   #
-  # This gate is intentionally ADVISORY: it gives early signal on PRs that touch
-  # its paths, at no cost to the merge queue. To make it blocking, convert it the
-  # way consolidation-eval/recall-eval were: drop `paths:` from `pull_request`
-  # and add `if: github.event_name != 'pull_request'` to the eval job, so the
-  # status always reports and the eval runs in the queue. That trade costs a full
-  # LLM eval on every queued merge, which is why it wasn't done for this one.
+  # ⚠ Do NOT add `extraction-eval-status` to main's required checks in this shape. A
+  # required context that never reports blocks the PR forever — that is exactly
+  # what happened on #784, where `consolidation-eval-status` was required while
+  # paths-scoped and no unrelated PR could enter the merge queue.
+  #
+  # To make this one blocking: add a `merge_group:` trigger, drop `paths:` from
+  # `pull_request`, and add `if: github.event_name != 'pull_request'` to the eval
+  # job — then the status always reports and the eval runs in the queue. The cost
+  # is a full LLM eval on EVERY queued merge, which is why all five are advisory.
   pull_request:
     branches: [main]
     paths:
