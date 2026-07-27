@@ -553,21 +553,36 @@ function asCount(value: unknown): number | undefined {
  * logs nothing and must never turn a successful completion into a failure.
  */
 function logPortalUsage(body: unknown, tag: string): void {
-  const root = asRecord(body);
-  if (!root) return;
-  const usage = asRecord(root.usage);
-  const promptTokens = asCount(usage?.prompt_tokens);
-  const completionTokens = asCount(usage?.completion_tokens);
-  if (promptTokens === undefined && completionTokens === undefined) return;
-  const cachedTokens =
-    asCount(asRecord(root.portal)?.cached_tokens) ??
-    asCount(asRecord(usage?.prompt_tokens_details)?.cached_tokens) ??
-    0;
-  const parts: string[] = [];
-  if (promptTokens !== undefined) parts.push(`prompt=${promptTokens}`);
-  if (completionTokens !== undefined) parts.push(`completion=${completionTokens}`);
-  parts.push(`cached=${cachedTokens}`);
-  getLogger().debug(`[${tag}] usage ${parts.join(" ")}`);
+  // The whole body is inside the boundary, not just the getLogger().debug call.
+  // `setLogger` takes an arbitrary consumer-supplied object, so `debug` can
+  // throw — and this now runs on the success path of every memory LLM call,
+  // ahead of the completion parse. Without the guard a logger that throws
+  // wouldn't just lose a log line: it would discard an otherwise-good portal
+  // response and skip the empty-completion retry below it, turning an
+  // observability hook into a source of extraction failures. Nothing this
+  // function can do is worth a caller's result, so it swallows everything.
+  //
+  // Deliberately silent: the only channel available for reporting a logging
+  // failure is the logger that just failed.
+  try {
+    const root = asRecord(body);
+    if (!root) return;
+    const usage = asRecord(root.usage);
+    const promptTokens = asCount(usage?.prompt_tokens);
+    const completionTokens = asCount(usage?.completion_tokens);
+    if (promptTokens === undefined && completionTokens === undefined) return;
+    const cachedTokens =
+      asCount(asRecord(root.portal)?.cached_tokens) ??
+      asCount(asRecord(usage?.prompt_tokens_details)?.cached_tokens) ??
+      0;
+    const parts: string[] = [];
+    if (promptTokens !== undefined) parts.push(`prompt=${promptTokens}`);
+    if (completionTokens !== undefined) parts.push(`completion=${completionTokens}`);
+    parts.push(`cached=${cachedTokens}`);
+    getLogger().debug(`[${tag}] usage ${parts.join(" ")}`);
+  } catch {
+    // ignored — see above
+  }
 }
 
 function extractCompletionContent(body: unknown): string | null {

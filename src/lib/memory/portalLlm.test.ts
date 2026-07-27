@@ -600,6 +600,29 @@ describe("callPortalJsonCompletion — reported token usage", () => {
     expect(debug).not.toHaveBeenCalled();
   });
 
+  it("does not let a throwing logger discard a successful completion", async () => {
+    // setLogger takes an arbitrary consumer object, so debug can throw. This
+    // one runs on the success path of every memory LLM call, ahead of the
+    // completion parse, so an unguarded throw wouldn't just lose a log line —
+    // it would fail an extraction that actually worked.
+    const throwing = vi.fn(() => {
+      throw new Error("logger backend is down");
+    });
+    setLogger({ debug: throwing, info: vi.fn(), warn: vi.fn(), error: vi.fn() });
+    const fetchFn = vi.fn().mockResolvedValue(
+      bodyResponse({
+        choices: [{ message: { content: '{"a":1}' } }],
+        usage: { prompt_tokens: 1500, completion_tokens: 40 },
+      })
+    );
+
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+
+    expect(result).toEqual({ a: 1 });
+    expect(throwing).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(1); // not retried as a failure
+  });
+
   it("still reports usage when the completion came back empty", async () => {
     // An empty completion is retried, but the prompt tokens were spent either
     // way — this is exactly the case where knowing whether the prefix was
