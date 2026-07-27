@@ -25,6 +25,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
+import { type EntityVocabulary, loadEntityVocabulary } from "./entityVocabulary.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
@@ -50,6 +51,21 @@ import type {
 const DEFAULT_LIMIT = 8;
 const DEFAULT_BUDGET: Budget = "low";
 const DEFAULT_FACT_MIN_SCORE = 0.1;
+
+/**
+ * Default for {@link RecallOptions.entityVocabulary}.
+ *
+ * `"auto"` means any host that passes an `entityCtx` gets the vocabulary tier
+ * without changing a line — a behaviour change on the default path, made
+ * deliberately because the tier is $0, network-free, measured at 2.28x the
+ * lane's RRF contribution with zero regressing queries, and degrades to the
+ * heuristic on every failure. It also measurably lowers LANE precision (47% to
+ * 25% on the benchmark corpus) because it activates on far more queries.
+ *
+ * Flipping the whole SDK to the heuristic is this one token; a single caller
+ * opts out with `entityVocabulary: "off"`.
+ */
+const DEFAULT_ENTITY_VOCABULARY: "auto" | "off" = "auto";
 
 /** Monotonic wall clock in ms; `performance.now()` where available (browser /
  * RN / Node), else `Date.now()`. Used only for best-effort recall timings. */
@@ -157,6 +173,9 @@ export async function recall(
   // every emitDiagnostics return path sees them.
   let graphSeedCount = 0;
   let graphCount = 0;
+  // Degradations reported by the graph lane itself (it runs inside safeLane and
+  // cannot reach emitDiagnostics directly).
+  const laneDegradations: RecallDegradation[] = [];
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
@@ -172,6 +191,7 @@ export async function recall(
       degraded.push("rerank-unavailable");
     }
     if (flags.decompose && !decomposeAvailable) degraded.push("decompose-unavailable");
+    for (const signal of laneDegradations) if (!degraded.includes(signal)) degraded.push(signal);
     const diagnostics: RecallDiagnostics = {
       usedBudget,
       reranked: didRerank,
@@ -245,8 +265,12 @@ export async function recall(
           ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
           ...(graphRefiner && { refineNeighbors: graphRefiner }),
         },
-        (count) => {
-          graphSeedCount = count;
+        {
+          vocabularyMode: options.entityVocabulary ?? DEFAULT_ENTITY_VOCABULARY,
+          onSeeds: (count) => {
+            graphSeedCount = count;
+          },
+          onDegraded: (signal) => laneDegradations.push(signal),
         }
       )
     ),
@@ -544,18 +568,32 @@ async function buildGraphLaneRanking(
     rrfK?: number;
     refineNeighbors?: NeighborRefiner;
   } = {},
-  onSeeds?: (seedCount: number) => void
+  laneOptions: {
+    vocabularyMode?: "auto" | "off";
+    onSeeds?: (seedCount: number) => void;
+    onDegraded?: (signal: RecallDegradation) => void;
+  } = {}
 ): Promise<string[]> {
   // Fall back to vaultCtx.entityCtx so callers don't have to thread the
   // graph-lane context twice (it's also where cascade-delete wiring lives).
   const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
   if (!entityCtx) return [];
-  // Extract once, up front, on BOTH branches — the seed count is the other half
-  // of the graphCount diagnostic and only this function can see it. A callback
-  // rather than a richer return type keeps safeLane's `() => Promise<string[]>`
-  // contract intact.
-  const seedNames = extractQueryEntities(query);
-  onSeeds?.(seedNames.length);
+
+  // Resolve the query ONCE, before the branch, so both budget paths extract
+  // identically and the seed count is observable on both. `"off"` issues no
+  // vocabulary read at all — that is the point of the kill switch, so it cannot
+  // be implemented by loading and discarding.
+  let vocabulary: EntityVocabulary | undefined;
+  if ((laneOptions.vocabularyMode ?? DEFAULT_ENTITY_VOCABULARY) === "auto") {
+    // The degradation signal fires only on a genuine outage — loadEntityVocabulary
+    // owns that distinction, because an expected-unavailable context (multi-user,
+    // fresh vault) must not look like a failure in the metrics.
+    vocabulary = await loadEntityVocabulary(entityCtx, ctx.entityVocabularyCache, () =>
+      laneOptions.onDegraded?.("entity-vocabulary-unavailable")
+    );
+  }
+  const seedNames = extractQueryEntities(query, vocabulary);
+  laneOptions.onSeeds?.(seedNames.length);
   if (seedNames.length === 0) return [];
   if (traverse) {
     // Multi-hop path. PR5: with the default MAX_HOPS=2 the density guard matters,
@@ -570,6 +608,10 @@ async function buildGraphLaneRanking(
     const vaultCtx = ctx.vaultCtx;
     return traverseGraphLane(query, entityCtx, {
       ...traversalOptions,
+      // Hand the resolved seeds down rather than let the traversal re-derive
+      // them: it would run the heuristic extractor and silently discard the
+      // grounded resolution on the one budget that can afford it.
+      seedNames,
       ...(vaultSize !== undefined && { vaultSize }),
       ...(vaultCtx && {
         filterActiveMemoryIds: (ids: string[]) => getActiveVaultMemoryIdsOp(vaultCtx, ids),

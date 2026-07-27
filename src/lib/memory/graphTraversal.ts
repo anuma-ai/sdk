@@ -134,6 +134,18 @@ export interface GraphTraversalOptions {
    * vault context with {@link ../db/memoryVault/operations.getActiveVaultMemoryIdsOp}.
    */
   filterActiveMemoryIds?: (ids: string[]) => Promise<Set<string>>;
+  /**
+   * Pre-resolved seed entity names. When provided, traversal seeds from these
+   * verbatim instead of running its own query extraction (an empty array means
+   * a no-op lane).
+   *
+   * This exists so a caller that has ALREADY resolved the query — for example
+   * against the vault's stored entity vocabulary — can hand the result down
+   * rather than have it silently re-derived by a weaker extractor, and so that
+   * the seed count stays observable to the caller for diagnostics. Omit it and
+   * the built-in heuristic extractor runs, which is the historical behaviour.
+   */
+  seedNames?: readonly string[];
 }
 
 /**
@@ -205,7 +217,7 @@ export async function traverseGraphLane(
   entityCtx: EntityOperationsContext,
   options: GraphTraversalOptions = {}
 ): Promise<string[]> {
-  const seedNames = extractQueryEntities(query);
+  const seedNames = options.seedNames ?? extractQueryEntities(query);
   if (seedNames.length === 0) return [];
 
   const entityFanout = clampPositiveInt(options.entityFanout, ENTITY_FANOUT);

@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { buildEntityVocabulary } from "../../../../src/lib/memory/entityVocabulary.js";
 import { extractQueryEntities } from "../../../../src/lib/memory/queryEntities.js";
 import { BENCHMARK_QUERIES, VAULT_MEMORIES } from "./dataset.js";
 
@@ -196,8 +197,17 @@ interface TierBaseline {
 
 type Extractor = (query: string) => string[];
 
+/**
+ * The vault's stored canonical names — what `listEntityNamesOp` enumerates in
+ * production, reconstructed here from the committed entity links.
+ */
+const VOCABULARY = buildEntityVocabulary([...entityToMemories.keys()], "entity-lane-eval");
+
 const TIERS: Record<string, Extractor> = {
+  /** No entity context, unreadable entity table, multi-user, or kill switch. */
   heuristic: (query) => extractQueryEntities(query),
+  /** The default path whenever a host passes an `entityCtx`. */
+  vocabulary: (query) => extractQueryEntities(query, VOCABULARY),
 };
 
 function measure(variant: Variant, extract: Extractor): LaneMetrics {

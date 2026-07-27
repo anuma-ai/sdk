@@ -15,6 +15,7 @@ import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { PiiRedactor } from "../pii/redactor.js";
 import type { FactType } from "./autoExtract.js";
+import type { EntityVocabularyCache } from "./entityVocabulary.js";
 import type { ObservationTrend } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
 import type { RecencyOptions } from "./recency.js";
@@ -216,6 +217,18 @@ export interface RecallOptions {
    * call per expansion hop.
    */
   graphRefine?: boolean;
+  /**
+   * W5 vocabulary-grounded query resolution. `"auto"` (the default) resolves
+   * query tokens against the vault's stored entity names when the entity table
+   * is readable and the context is single-user; `"off"` forces the
+   * deterministic heuristic extractor and issues no vocabulary read at all.
+   *
+   * The kill switch for the tier. Grounding roughly triples how often the graph
+   * lane finds something, and correspondingly lowers its precision — it fires on
+   * queries where it used to stay quiet. Turn it off per call if that trade is
+   * wrong for a given surface.
+   */
+  entityVocabulary?: "auto" | "off";
 }
 
 export interface RecallContext {
@@ -240,6 +253,18 @@ export interface RecallContext {
    * `memoryEntityCollection` from your DatabaseManager.
    */
   entityCtx?: EntityOperationsContext;
+  /**
+   * Optional entity-vocabulary cache for the W5 graph lane. When provided, the
+   * lane resolves query tokens against the vault's stored entity names instead
+   * of guessing at them, and reuses the built index across every recall in the
+   * session (rebuilding only when the entity table actually moves). Build via
+   * `createEntityVocabularyCache`.
+   *
+   * Omit it and the tier still runs — it just rebuilds the index per call. Omit
+   * `entityCtx` and the lane is off entirely. Clear the cache on any identity
+   * switch: entity names are derived from decrypted user content.
+   */
+  entityVocabularyCache?: EntityVocabularyCache;
 }
 
 export interface RecallResult {
@@ -261,7 +286,13 @@ export type RecallDegradation =
   | "rerank-unavailable"
   /** `budget: 'high'` requested but no `decomposeOptions`, so query
    *  decomposition was skipped and the budget downgraded to mid. */
-  | "decompose-unavailable";
+  | "decompose-unavailable"
+  /** The W5 vocabulary tier was requested but the entity table could not be
+   *  enumerated — a read failure, or a vault past the index ceiling — so the
+   *  lane fell back to the heuristic extractor. NOT emitted for expected
+   *  unavailability (a multi-user context, an empty entity table, or
+   *  `entityVocabulary: 'off'`), which are configuration rather than outage. */
+  | "entity-vocabulary-unavailable";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).

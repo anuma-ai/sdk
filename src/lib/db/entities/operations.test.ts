@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  countEntitiesOp,
   type EntityOperationsContext,
+  getEntityWriteGeneration,
   linkMemoryEntitiesOp,
+  listEntityNamesOp,
   replaceMemoryEntitiesGuardedOp,
 } from "./operations";
 
@@ -509,5 +512,150 @@ describe("entity upsert + link atomicity", () => {
 
     expect(result).toEqual([]);
     expect(created).toHaveLength(1);
+  });
+});
+
+describe("listEntityNamesOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /**
+   * A collection whose `.fetch()` THROWS. That is the assertion: this op runs a
+   * whole-table scan on the recall path, and `.fetch()` would instantiate a
+   * WatermelonDB Model per row into the never-evicted RecordCache — a real vault
+   * reaches ~15k entity rows. A test that only checked the returned names would
+   * pass either way and would be worth nothing here.
+   */
+  function makeRawCtx(rows: Array<Record<string, unknown>>) {
+    const take = vi.fn((n: number) => ({ _clause: "take", n }));
+    const query = vi.fn(() => ({
+      fetch: vi.fn(async () => {
+        throw new Error("Model instantiation on the hot path");
+      }),
+      unsafeFetchRaw: vi.fn(async () => rows),
+      fetchCount: vi.fn(async () => rows.length),
+    }));
+    const ctx = {
+      entityCollection: { query } as never,
+      memoryEntityCollection: {} as never,
+      database: {} as never,
+    } as EntityOperationsContext;
+    return { ctx, query, take };
+  }
+
+  it("reads raw records rather than materialising Models", async () => {
+    const { ctx } = makeRawCtx([{ canonical_name: "sara park" }, { canonical_name: "kyoto" }]);
+
+    await expect(listEntityNamesOp(ctx)).resolves.toEqual(["sara park", "kyoto"]);
+  });
+
+  it("drops rows with a missing or empty canonical name", async () => {
+    const { ctx } = makeRawCtx([
+      { canonical_name: "kyoto" },
+      { canonical_name: "" },
+      { canonical_name: null },
+      {},
+    ]);
+
+    await expect(listEntityNamesOp(ctx)).resolves.toEqual(["kyoto"]);
+  });
+
+  it("applies a positive limit and omits the clause otherwise", async () => {
+    const { ctx, query } = makeRawCtx([{ canonical_name: "kyoto" }]);
+
+    await listEntityNamesOp(ctx, { limit: 10 });
+    expect(query.mock.calls[0]).toHaveLength(1);
+
+    // SQLite reads `LIMIT -1` as "no limit", so a non-positive value must not
+    // become a clause at all.
+    for (const limit of [0, -1, Number.NaN, undefined]) {
+      query.mockClear();
+      await listEntityNamesOp(ctx, { limit });
+      expect(query.mock.calls[0]).toHaveLength(0);
+    }
+  });
+
+  it("counts without materialising anything either", async () => {
+    const { ctx } = makeRawCtx([{ canonical_name: "kyoto" }, { canonical_name: "osaka" }]);
+
+    await expect(countEntitiesOp(ctx)).resolves.toBe(2);
+  });
+});
+
+describe("entity write generation", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeLink(entityId: string, memoryId = "mem_1") {
+    return {
+      entityId,
+      memoryId,
+      prepareDestroyPermanently: vi.fn(() => ({ _op: "destroy-link", entityId })),
+    };
+  }
+
+  function makeWritableCtx(
+    existing: ReturnType<typeof makeEntityRecord>[],
+    linkQueries: ReturnType<typeof makeLink>[][] = [[], []]
+  ) {
+    const { ctx, memoryEntityCollection } = makeCtx(existing);
+    let call = 0;
+    (memoryEntityCollection.query as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      const rows = linkQueries[Math.min(call, linkQueries.length - 1)] ?? [];
+      call += 1;
+      return { fetch: vi.fn(async () => rows) };
+    });
+    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+      query: vi.fn(() => ({
+        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: null }]),
+      })),
+    }));
+    return ctx;
+  }
+
+  it("advances when a link op creates entity rows", async () => {
+    const before = getEntityWriteGeneration();
+
+    await linkMemoryEntitiesOp(makeWritableCtx([]), "mem_1", ["Sara"]);
+
+    expect(getEntityWriteGeneration()).toBeGreaterThan(before);
+  });
+
+  it("does NOT advance when every entity already existed", async () => {
+    const ctx = makeWritableCtx([makeEntityRecord("sara", "person")]);
+    const before = getEntityWriteGeneration();
+
+    await linkMemoryEntitiesOp(ctx, "mem_1", ["Sara"]);
+
+    // The stamp exists to invalidate a cached index. Bumping it on a pure
+    // link-only write would force a rebuild for no change in the name set.
+    expect(getEntityWriteGeneration()).toBe(before);
+  });
+
+  it("advances on an orphan PRUNE even though the row count only falls", async () => {
+    // The whole reason this counter exists. A re-extraction that prunes K
+    // entities and creates K others leaves fetchCount() identical while the name
+    // set has moved — a count-stamped cache would keep serving an index missing
+    // a brand-new name, which is a silent recall miss.
+    const home = makeEntityRecord("home", "place", "ent_home");
+    const link = makeLink("ent_home");
+    const ctx = makeWritableCtx([home], [[link], [link]]);
+    const before = getEntityWriteGeneration();
+
+    await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", []);
+
+    expect(home.prepareDestroyPermanently).toHaveBeenCalledTimes(1);
+    expect(getEntityWriteGeneration()).toBeGreaterThan(before);
+  });
+
+  it("does NOT advance when a throwing writer committed nothing", async () => {
+    const ctx = makeWritableCtx([]);
+    (ctx.database as unknown as { write: ReturnType<typeof vi.fn> }).write = vi.fn(async () => {
+      throw new Error("watermelon boom");
+    });
+    const before = getEntityWriteGeneration();
+
+    await expect(linkMemoryEntitiesOp(ctx, "mem_1", ["Sara"])).rejects.toThrow("watermelon boom");
+
+    // Advancing here would invalidate a cache that is still perfectly correct.
+    expect(getEntityWriteGeneration()).toBe(before);
   });
 });

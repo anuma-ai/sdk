@@ -2,7 +2,7 @@
 
 > **replaceMemoryEntitiesGuardedOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityInputs`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[] | `null`>
 
-Defined in: [src/lib/db/entities/operations.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#225)
+Defined in: [src/lib/db/entities/operations.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#261)
 
 REPLACE a memory's entity links with an auto-derived set — the topic
 worker's write primitive. Unlike [setMemoryEntitiesOp](setMemoryEntitiesOp.md) it does NOT

@@ -2,7 +2,7 @@
 
 > **linkMemoryEntitiesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityInputs`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[], `options?`: `object`): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
 
-Defined in: [src/lib/db/entities/operations.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#136)
+Defined in: [src/lib/db/entities/operations.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#165)
 
 Link a memory to one or more entities. Accepts bare names (back-compat)
 or `{ name, kind }` objects. Names are normalized; missing entities are

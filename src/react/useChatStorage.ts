@@ -100,7 +100,9 @@ import { getLogger } from "../lib/logger";
 import {
   type ChunkVectorCache,
   createChunkVectorCache,
+  createEntityVocabularyCache,
   createRecallTool as createRecallToolBase,
+  type EntityVocabularyCache,
   recall as recallBase,
   type RecallOptions,
   type RecallResult,
@@ -1693,6 +1695,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const chunkVectorCacheRef = useRef<ChunkVectorCache>(createChunkVectorCache());
 
   /**
+   * Stored entity-name index for the recall graph lane. Rebuilt only when the
+   * entity table's version stamp moves, and reused across every recall in
+   * between — without it the lane rebuilds the index on each call.
+   */
+  const entityVocabularyCacheRef = useRef<EntityVocabularyCache>(createEntityVocabularyCache());
+
+  /**
    * Cache for client tool description embeddings.
    * Maps tool name → embedding vector. Populated lazily on first message
    * and reused across messages (tool descriptions don't change).
@@ -1726,6 +1735,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     return onClearAllEncryptionState(() => {
       vaultEmbeddingCacheRef.current.clear();
       chunkVectorCacheRef.current.clear();
+      // Entity names are derived from decrypted user content — they are PII and
+      // must not survive an identity switch.
+      entityVocabularyCacheRef.current.clear();
     });
   }, []);
 
@@ -1773,6 +1785,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           embeddingOptions: vaultEmbeddingOptions,
           vaultCache: vaultEmbeddingCacheRef.current,
           chunkCache: chunkVectorCacheRef.current,
+          entityVocabularyCache: entityVocabularyCacheRef.current,
           // Graph lane fires when entityCtx is present and the query
           // contains extractable entities. Empty memory_entity (e.g.
           // before any auto-extraction linked entities) is a graceful
@@ -1845,6 +1858,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           embeddingOptions: vaultEmbeddingOptions,
           vaultCache: vaultEmbeddingCacheRef.current,
           chunkCache: chunkVectorCacheRef.current,
+          entityVocabularyCache: entityVocabularyCacheRef.current,
           // Graph lane fires only when entityCtx is present and the query
           // has extractable entities; empty memory_entity is a graceful
           // no-op (falls through to fact + chunk lanes). Mirrors createRecallTool.

@@ -1,16 +1,24 @@
 /**
- * Heuristic query-entity extractor for the W5 graph recall lane.
+ * Query-entity extraction for the W5 graph recall lane.
  *
  * Given a user query like "What's Sara doing in Kyoto next week?" we
  * want to surface "Sara" and "Kyoto" so the graph lane can pull memories
  * sharing those entities. This runs at recall-time, not extraction-time
  * — the auto-extractor's full LLM-based entity extraction would be far
- * too expensive on every query, so we use a regex similar to the chat
- * client's presentation-layer extractor.
+ * too expensive on every query.
  *
  * Returns canonicalized (lowercased, trimmed) names so they can be
  * looked up directly via {@link getMemoriesByEntityNamesOp}, which
  * normalizes the same way at write time.
+ *
+ * TWO TIERS. When the caller can supply an {@link EntityVocabulary} — the set
+ * of canonical names the vault actually holds — query tokens are RESOLVED
+ * against it and the heuristic below does not run; see `entityVocabulary.ts`
+ * for why that is a lookup rather than a guess and what it costs. When it
+ * cannot, the heuristic runs, and it is the floor: the lane degrades to
+ * guessing, never to nothing.
+ *
+ * The rest of this comment is about the heuristic tier.
  *
  * TWO PASSES, ONE BUDGET, NO GATE (epic #719, item D4 — the W5 casing gap):
  *  1. STRICT pass — the capitalized-noun-phrase {@link ENTITY_REGEX} below.
@@ -79,6 +87,7 @@
  */
 
 import { normalizeEntityName } from "../db/entities/types.js";
+import { type EntityVocabulary, MAX_VOCABULARY_CANDIDATES } from "./entityVocabulary.js";
 
 const STOPWORDS = new Set(
   [
@@ -254,26 +263,104 @@ function stripPossessive(token: string): string {
 }
 
 /**
- * Extract candidate entity names from a query. Returns canonical
- * (lowercased) forms, deduplicated, capped at {@link MAX_QUERY_CANDIDATES}.
+ * Naive English de-pluralization. The stored side is LLM-written and
+ * inconsistent about number ("keyboard" vs "keyboards" for the same concept),
+ * so probing both directions costs two extra Map lookups and recovers the
+ * mismatch. Returns `undefined` when the token is already singular-shaped.
+ */
+function depluralize(token: string): string | undefined {
+  if (token.length > 4 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
+  if (token.length > 4 && /(?:s|x|z|ch|sh)es$/u.test(token)) return token.slice(0, -2);
+  if (token.length > 3 && token.endsWith("s") && !token.endsWith("ss")) return token.slice(0, -1);
+  return undefined;
+}
+
+/** The other direction of {@link depluralize}. */
+function pluralize(token: string): string | undefined {
+  if (token.endsWith("s")) return undefined;
+  if (/(?:s|x|z|ch|sh)$/u.test(token)) return `${token}es`;
+  if (token.length > 2 && token.endsWith("y") && !/[aeiou]y$/u.test(token)) {
+    return `${token.slice(0, -1)}ies`;
+  }
+  return `${token}s`;
+}
+
+/**
+ * Resolve query tokens against the stored entity names — the grounded tier.
  *
- * Both passes always run into one shared budget — see the module comment for
- * why there is no gate between them. Candidate ORDER is the strict pass's
- * survivors in document order, then the lexical pass's grams tier-major; that
- * ordering is only observable when the cap binds, and it is what keeps a
- * well-cased query's candidate prefix identical to what the strict pass alone
- * would have produced.
+ * REPLACES the heuristic rather than unioning with it. Unioning was measured:
+ * it adds exactly zero gold recall and 3.6x the `IN`-clause width, because a
+ * heuristic candidate that the vocabulary did not already find is by
+ * construction a name the vault does not hold. The completeness argument in
+ * `entityVocabulary.ts` is what turns that measurement into a guarantee, and
+ * the property test in this file's test suite is what keeps it honest.
+ *
+ * Uses the SAME {@link TOKEN_REGEX} and {@link stripPossessive} as the lexical
+ * pass. That is not stylistic: the guarantee above holds only while the two
+ * tiers agree on what a token is.
+ *
+ * Scoring is `matched query tokens / tokens in the name`, so a fully covered
+ * short name outranks a partially covered long one. The sort is a genuine total
+ * order — canonical names are unique, so the third key never ties — which
+ * matters because the enumeration order of the entity table is not stable and a
+ * partial order would let it leak into the emitted candidates.
+ */
+function extractGroundedCandidates(query: string, vocabulary: EntityVocabulary): string[] {
+  const clamped = query.length > MAX_QUERY_CHARS ? query.slice(0, MAX_QUERY_CHARS) : query;
+  const queryTokens = new Set<string>();
+  for (const raw of clamped.match(TOKEN_REGEX) ?? []) {
+    const token = stripPossessive(normalizeEntityName(raw));
+    if (token.length < 2) continue;
+    queryTokens.add(token);
+    const singular = depluralize(token);
+    if (singular) queryTokens.add(singular);
+    const plural = pluralize(token);
+    if (plural) queryTokens.add(plural);
+  }
+
+  const matchedTokens = new Map<string, number>();
+  for (const token of queryTokens) {
+    for (const name of vocabulary.index.get(token) ?? []) {
+      matchedTokens.set(name, (matchedTokens.get(name) ?? 0) + 1);
+    }
+  }
+
+  return [...matchedTokens.entries()]
+    .map(([name, matched]) => [name, matched / name.split(" ").length] as const)
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length || (a[0] < b[0] ? -1 : 1))
+    .slice(0, MAX_VOCABULARY_CANDIDATES)
+    .map(([name]) => name);
+}
+
+/**
+ * Extract candidate entity names from a query. Returns canonical
+ * (lowercased) forms, deduplicated and capped.
+ *
+ * With a `vocabulary`, query tokens are RESOLVED against the names the vault
+ * actually holds ({@link extractGroundedCandidates}) and the heuristic below
+ * does not run. Without one — no entity context, an unreadable entity table, a
+ * fresh vault, a multi-user server, or the caller's kill switch — the heuristic
+ * runs and is the floor. The grounded tier can replace the heuristic; it can
+ * never degrade to nothing.
+ *
+ * Heuristic behaviour: both passes always run into one shared budget — see the
+ * module comment for why there is no gate between them. Candidate ORDER is the
+ * strict pass's survivors in document order, then the lexical pass's grams
+ * tier-major; that ordering is only observable when the cap binds, and it is
+ * what keeps a well-cased query's candidate prefix identical to what the strict
+ * pass alone would have produced.
  *
  * An empty/whitespace query, or one whose every token is a stopword, returns an
  * empty array — and an empty array makes the W5 graph lane a no-op (zero DB
  * lookups in {@link buildGraphLaneRanking} / {@link traverseGraphLane}), so a
  * stopword-only query stays free.
  *
- * Pure, synchronous, total: it cannot throw and cannot block, which is why the
- * lane can call it before deciding whether to touch the database at all.
+ * Pure, synchronous, total on both paths: it cannot throw and cannot block,
+ * which is why the lane can call it before deciding whether to issue a lookup.
  */
-export function extractQueryEntities(query: string): string[] {
+export function extractQueryEntities(query: string, vocabulary?: EntityVocabulary): string[] {
   if (!query) return [];
+  if (vocabulary) return extractGroundedCandidates(query, vocabulary);
   const clamped = query.length > MAX_QUERY_CHARS ? query.slice(0, MAX_QUERY_CHARS) : query;
 
   const out: string[] = [];

@@ -21,6 +21,7 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { buildEntityVocabulary } from "./entityVocabulary";
 import { extractQueryEntities } from "./queryEntities";
 
 describe("extractQueryEntities — strict capitalized pass (unchanged invariants)", () => {
@@ -286,6 +287,146 @@ describe("extractQueryEntities — ordering contract and bounds", () => {
     // ...and the same token IS reached when it falls inside the clamp, so the
     // assertion above is about the clamp and not about stopwording.
     expect(extractQueryEntities(`wa ${marker}`)).toContain(marker);
+  });
+});
+
+describe("extractQueryEntities — vocabulary-grounded tier", () => {
+  const VAULT = [
+    "sara park",
+    "kyoto",
+    "san francisco",
+    "ai",
+    "p99 latency",
+    "mechanical keyboards",
+    "the who",
+  ];
+  const vocabulary = buildEntityVocabulary(VAULT, "test");
+
+  it("resolves a partial mention to the canonical name the vault stores", () => {
+    // The heuristic emits "sara", which is not a stored name and matches
+    // nothing. Grounded, the token resolves to the name it belongs to.
+    expect(extractQueryEntities("where is sara", vocabulary)).toEqual(["sara park"]);
+  });
+
+  it("is casing-blind and possessive-blind, like the heuristic tier", () => {
+    for (const query of ["WHERE IS SARA", "Where is Sara", "where is sara's flight"]) {
+      expect(extractQueryEntities(query, vocabulary)).toContain("sara park");
+    }
+  });
+
+  it("bridges a number mismatch between query and stored name", () => {
+    // The write side is LLM-authored and inconsistent about number, so the same
+    // concept is stored singular in one memory and plural in another.
+    expect(extractQueryEntities("what keyboard do i use", vocabulary)).toContain(
+      "mechanical keyboards"
+    );
+    expect(extractQueryEntities("anything about keyboards", vocabulary)).toContain(
+      "mechanical keyboards"
+    );
+  });
+
+  it("ranks a fully covered short name above a partially covered long one", () => {
+    // "kyoto" is 1/1 covered; "san francisco" is 1/2. Score is coverage, so the
+    // complete match leads even though the other name is longer.
+    const out = extractQueryEntities("kyoto or san trip", vocabulary);
+    expect(out[0]).toBe("kyoto");
+    expect(out).toContain("san francisco");
+  });
+
+  it("returns NOTHING for a query that names nothing the vault holds", () => {
+    // Deliberately not falling back to the heuristic. Every candidate the
+    // heuristic could emit would have to be an exact stored name, and every
+    // stored name is reachable from its own tokens (see the guarantee below),
+    // so a fallback here can only add candidates that match no rows.
+    expect(extractQueryEntities("what did they say about it", vocabulary)).toEqual([]);
+    expect(extractQueryEntities("anything on quantum tunnelling", vocabulary)).toEqual([]);
+  });
+
+  it("emits a total order that does not depend on enumeration order", () => {
+    // The entity table's row order is not stable, and two names can tie on both
+    // coverage and length. Without a final tiebreak the emitted candidates —
+    // and therefore which of them survive the cap — would vary run to run.
+    const tied = ["alpha one", "alpha two"];
+    const forward = extractQueryEntities("alpha", buildEntityVocabulary(tied, "t"));
+    const reversed = extractQueryEntities("alpha", buildEntityVocabulary([...tied].reverse(), "t"));
+    expect(forward).toEqual(reversed);
+    expect(forward).toEqual(["alpha one", "alpha two"]);
+  });
+
+  it("clamps its input like the heuristic tier", () => {
+    const query = `${"wa ".repeat(2000)}kyoto`;
+    expect(extractQueryEntities(query, vocabulary)).toEqual([]);
+    expect(extractQueryEntities("wa kyoto", vocabulary)).toEqual(["kyoto"]);
+  });
+
+  // The no-union guarantee, mechanized. It is what licenses "the grounded tier
+  // returned [] and we do NOT fall back to the heuristic", and it is the only
+  // thing standing between that decision and a silent recall miss.
+  //
+  // The proposition: for every stored name, if the HEURISTIC tier would match it
+  // from its own text, the VOCABULARY tier matches it too. Then a grounded
+  // result of [] implies the heuristic would also have found nothing, so
+  // unioning could only add candidates that match no rows.
+  //
+  // (The argument that makes this the right proposition: the heuristic can only
+  // match a stored name by emitting a gram whose normalized string EQUALS it, so
+  // every token of the name is a query token. The index guarantees at least one
+  // of those tokens is a key. Both halves rest on the two tiers tokenizing
+  // identically, which is why they share one TOKEN_REGEX.)
+  describe("the no-union guarantee", () => {
+    const ADVERSARIAL = [
+      ...new Set([
+        ...VAULT,
+        "the who", // every token a stopword
+        "up to us", // every token below the index length floor
+        "ai ml", // ditto, but the heuristic CAN match this one
+        "a b", // every token below the QUERY tokenizer's floor too
+        "sf", // short single tokens
+        "p99",
+        "s3",
+        "1password", // digit-initial
+        "o'brien", // apostrophe that is not a possessive
+        "jean-luc picard",
+        "são paulo", // non-ASCII body
+      ]),
+    ];
+    const adversarialVocabulary = buildEntityVocabulary(ADVERSARIAL, "test");
+    const heuristicReaches = ADVERSARIAL.filter((name) =>
+      extractQueryEntities(name).includes(name)
+    );
+
+    it("covers a non-trivial share of the adversarial list", () => {
+      // Without this the guarantee below could pass by the heuristic reaching
+      // nothing at all, which is exactly the shape a vacuous test takes.
+      // Exactly three are unreachable to the heuristic by construction: the two
+      // all-function-word names and the 1-char one.
+      expect(heuristicReaches.length).toBe(ADVERSARIAL.length - 3);
+      expect(heuristicReaches).toContain("ai ml");
+      expect(heuristicReaches).toContain("jean-luc picard");
+      expect(heuristicReaches).toContain("1password");
+    });
+
+    it("misses no stored name the heuristic tier would have matched", () => {
+      const missed = heuristicReaches.filter(
+        (name) => !extractQueryEntities(name, adversarialVocabulary).includes(name)
+      );
+      expect(missed).toEqual([]);
+    });
+
+    it("reaches names the heuristic tier cannot", () => {
+      // Strictly-more, not merely not-less: an all-stopword name is invisible to
+      // the heuristic at every casing and resolvable here.
+      expect(extractQueryEntities("the who")).not.toContain("the who");
+      expect(extractQueryEntities("the who", adversarialVocabulary)).toContain("the who");
+    });
+
+    it("documents the one name NEITHER tier can reach", () => {
+      // Both tokenizers drop sub-2-char tokens, so a name of only 1-char tokens
+      // is unreachable on both sides. The guarantee holds — trivially — and this
+      // pins it as known rather than discovered later as a bug.
+      expect(extractQueryEntities("a b")).not.toContain("a b");
+      expect(extractQueryEntities("a b", adversarialVocabulary)).not.toContain("a b");
+    });
   });
 });
 

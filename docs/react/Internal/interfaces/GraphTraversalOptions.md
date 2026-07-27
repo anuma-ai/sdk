@@ -106,6 +106,24 @@ RRF smoothing constant for per-hop fusion. Default 60 (rrf.ts).
 
 ***
 
+### seedNames?
+
+> `optional` **seedNames**: readonly `string`\[]
+
+Defined in: [src/lib/memory/graphTraversal.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#148)
+
+Pre-resolved seed entity names. When provided, traversal seeds from these
+verbatim instead of running its own query extraction (an empty array means
+a no-op lane).
+
+This exists so a caller that has ALREADY resolved the query — for example
+against the vault's stored entity vocabulary — can hand the result down
+rather than have it silently re-derived by a weaker extractor, and so that
+the seed count stays observable to the caller for diagnostics. Omit it and
+the built-in heuristic extractor runs, which is the historical behaviour.
+
+***
+
 ### vaultSize?
 
 > `optional` **vaultSize**: `number`
