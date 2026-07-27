@@ -90,15 +90,21 @@ function isRetryableStatus(status: number): boolean {
  * sentence as a pass, and a false pass is the one direction of parse error
  * that inflates the score instead of deflating it.
  *
- * Up to two words may sit between the negation and the verdict ("not really
- * correct", "not at all correct"); beyond that the association stops being
- * reliable, so the regex stops guessing rather than reaching further.
+ * Up to six words may sit between the negation and the verdict. Two was the
+ * first guess and it was too tight: a hedged negative is the single most common
+ * shape a chat model reaches for, and "I don't think this is correct" puts four
+ * words in the gap, so the negation was missed and the trailing CORRECT scored
+ * as a pass. Widening costs only a false *unjudgeable* on a sentence where an
+ * unrelated NOT precedes a verdict word within six tokens, which retries and
+ * then drops out of the denominator. Missing a negation costs a false pass that
+ * silently inflates the benchmark. The asymmetry is the whole reason this regex
+ * exists, so it errs toward refusing to rule.
  *
  * The contraction alternative carries no leading `\b` on purpose — in "isn't"
  * the N sits mid-word, so a word boundary there never matches. Both apostrophe
  * characters are accepted because models emit either.
  */
-const NEGATED_VERDICT = /(?:\bNOT|N['’]T|\bNEVER)\s+(?:\w+\s+){0,2}(?:IN)?CORRECT\b/;
+const NEGATED_VERDICT = /(?:\bNOT|N['’]T|\bNEVER)\s+(?:\w+\s+){0,6}(?:IN)?CORRECT\b/;
 
 /**
  * Read a verdict out of the judge's response.

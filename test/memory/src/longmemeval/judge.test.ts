@@ -171,6 +171,13 @@ describe("evaluateAnswer verdicts", () => {
       "The generated answer is not correct.",
       "No — that isn't correct; it names the wrong city.",
       "This is not entirely correct.",
+      // Hedged negatives. A chat model reaches for these more readily than a
+      // bare "not correct", and they put four or five words between the
+      // negation and the verdict word — far enough that a tight window misses
+      // the qualifier entirely and the trailing CORRECT scores as a pass.
+      "I don't think this is correct.",
+      "I would not say that this is correct.",
+      "Based on the expected answer, this is not really what I would call correct.",
     ]) {
       stubFetch(completion(prose), completion("INCORRECT"));
 
