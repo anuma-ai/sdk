@@ -34,6 +34,57 @@ on:
       - ".github/workflows/vault-search-eval.yml"
       # The ranking stack itself.
       - "src/lib/memoryVault/**"
+      # The candidate-set filtering itself. searchTool calls
+      # getVaultCandidateKeysOp / getAllVaultMemoriesOp on every search, so the
+      # scope/folder/factTypes/includeArchived logic that decides WHICH rows are
+      # even eligible lives here. Without this glob a change confined to the DB
+      # layer skips the gate entirely — #780 is exactly such a change and only
+      # tripped these gates because it happened to also touch searchTool.ts.
+      - "src/lib/db/memoryVault/**"
+      - "src/lib/memory/recall.ts"
+      - "src/lib/memory/recallConstants.ts"
+      - "src/lib/memory/rrf.ts"
+      - "src/lib/memory/mmr.ts"
+      - "src/lib/memory/recency.ts"
+      - "src/lib/memory/queryEntities.ts"
+      - "src/lib/memory/graphTraversal.ts"
+      - "src/lib/memory/reranker.ts"
+      # Every score is a cosine over embeddings, so the whole engine is in
+      # scope. embeddings.ts builds on `chunking` (chunk size / split logic),
+      # `generate` (the embed HTTP client), `constants` (the model id) and
+      # `vector`/`quantization` — listing only two files let edits to the others
+      # move gated retrieval without running this gate. A directory glob can
+      # only over-trigger, which is the safe direction for a gate.
+      - "src/lib/memoryEngine/**"
+      # The corpus, scorer, and shared gate helper.
+      - "test/memory/src/vault/**"
+      - "test/memory/src/metrics.ts"
+      - "test/memory/src/gate.ts"
+
+  # Also run when a qualifying change LANDS on main. Two reasons, both
+  # load-bearing:
+  #  1. Actions scopes a cache to the ref that created it, so caches born
+  #     in a PR live only under refs/pull/N/merge. Without a main-branch
+  #     run nothing ever seeds the frozen embedding vectors
+  #     for other PRs to restore, and every PR cold-starts — which is the
+  #     HuggingFace 429 exposure (and, for the vault gate, the re-embed
+  #     that breaks the frozen-vector premise the flat threshold rests on).
+  #  2. It gives a main-line signal: a regression that slipped review is
+  #     at least recorded against main rather than silently absorbed.
+  # Same paths as the PR trigger, so this stays off ordinary merges.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/vault-search-eval.yml"
+      # The ranking stack itself.
+      - "src/lib/memoryVault/**"
+      # The candidate-set filtering itself. searchTool calls
+      # getVaultCandidateKeysOp / getAllVaultMemoriesOp on every search, so the
+      # scope/folder/factTypes/includeArchived logic that decides WHICH rows are
+      # even eligible lives here. Without this glob a change confined to the DB
+      # layer skips the gate entirely — #780 is exactly such a change and only
+      # tripped these gates because it happened to also touch searchTool.ts.
+      - "src/lib/db/memoryVault/**"
       - "src/lib/memory/recall.ts"
       - "src/lib/memory/recallConstants.ts"
       - "src/lib/memory/rrf.ts"
