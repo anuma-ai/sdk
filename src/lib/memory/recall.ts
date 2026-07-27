@@ -149,8 +149,12 @@ export async function recall(
   // Used to distinguish "CE skipped on empty head (lane-only hits)" from
   // "CE failed on a non-empty head (actual outage)".
   let hadV2Head = false;
-  // Set when the vault search's query embedding failed and it ranked on BM25
-  // alone, or when the chunk lane had to be skipped for the same reason.
+  // Set when the vault search had no usable cosine lane and ranked on BM25 alone
+  // (see PreparedVaultCandidates.embeddingsUnavailable), or when the chunk lane —
+  // which is cosine-only, with no lexical equivalent — had to be skipped because
+  // its query embed failed. NOT set for a partial embedding failure that still
+  // leaves cosine running: this drives an outage alarm and a model-facing "only
+  // keyword matching ran" message, and both would be false in that case.
   let embeddingsUnavailable = false;
 
   const emitDiagnostics = (candidateCount: number): void => {

@@ -262,11 +262,18 @@ export type RecallDegradation =
   /** `budget: 'high'` requested but no `decomposeOptions`, so query
    *  decomposition was skipped and the budget downgraded to mid. */
   | "decompose-unavailable"
-  /** The query embedding failed, so the cosine lane was inert and results were
-   *  ranked on BM25 (lexical) alone. The embeddings provider is a single upstream
+  /** There was no usable cosine lane, so results were ranked on BM25 (lexical)
+   *  alone: either the query embedding failed (or came back empty), or no
+   *  candidate had a vector to score against it because the row (re)embed failed.
+   *  Also set when the chunk lane — cosine-only, with no lexical equivalent — was
+   *  skipped for the same reason. The embeddings provider is a single upstream
    *  with no fallback, so this is a whole-provider outage rather than a per-item
-   *  miss — expect a quality drop, not a total loss. Also set when a sub-query
-   *  embed failed and the composite path fell back to the single-query path. */
+   *  miss — expect a quality drop, not a total loss.
+   *
+   *  NOT set for a partial failure that leaves cosine running (a sub-query embed
+   *  failing back to the single-query path, or a row batch failing while other
+   *  rows keep usable vectors) — those are logged, not reported, so this stays a
+   *  reliable outage signal rather than a general embedding-error counter. */
   | "embeddings-unavailable";
 
 /**
