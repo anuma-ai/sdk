@@ -103,8 +103,14 @@ function isRetryableStatus(status: number): boolean {
  * The contraction alternative carries no leading `\b` on purpose — in "isn't"
  * the N sits mid-word, so a word boundary there never matches. Both apostrophe
  * characters are accepted because models emit either.
+ *
+ * The gap matches `\S+` rather than `\w+` because `\w` excludes apostrophes, so
+ * a single contraction anywhere in the window ("I don't think that's correct")
+ * broke the repetition and dropped the whole match — the same silent pass the
+ * negation guard exists to prevent, reintroduced by the tokenizer. Anything
+ * non-whitespace counts as one gap token now.
  */
-const NEGATED_VERDICT = /(?:\bNOT|N['’]T|\bNEVER)\s+(?:\w+\s+){0,6}(?:IN)?CORRECT\b/;
+const NEGATED_VERDICT = /(?:\bNOT|N['’]T|\bNEVER)\s+(?:\S+\s+){0,6}(?:IN)?CORRECT\b/;
 
 /**
  * Read a verdict out of the judge's response.

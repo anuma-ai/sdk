@@ -178,6 +178,11 @@ describe("evaluateAnswer verdicts", () => {
       "I don't think this is correct.",
       "I would not say that this is correct.",
       "Based on the expected answer, this is not really what I would call correct.",
+      // Contractions inside the gap. `\w` excludes apostrophes, so matching gap
+      // tokens with `\w+` broke the repetition on "that's" and dropped the whole
+      // match — a negated reply scoring as a pass again, by a different route.
+      "I don't think that's correct.",
+      "No, it's not what I'd call correct.",
     ]) {
       stubFetch(completion(prose), completion("INCORRECT"));
 
