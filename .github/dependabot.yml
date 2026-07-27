@@ -1,0 +1,28 @@
+version: 2
+
+updates:
+  # Every action in .github/workflows is pinned to a full commit SHA rather than a
+  # floating tag, which means a pinned action never picks up upstream fixes on its
+  # own — including security fixes. Dependabot is what keeps those pins moving; without
+  # it, pinning just trades a supply-chain risk for a staleness one.
+  #
+  # Dependabot reads the `# vX.Y.Z` comment that trails each SHA to work out the
+  # current version and to rewrite that comment when it bumps the pin, so the comments
+  # are load-bearing — keep them in sync with the SHA if you ever pin one by hand.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # All the actions land in a single PR. These are CI-only dependencies with no
+    # runtime or published-artifact impact, and there are only eight distinct ones, so
+    # a weekly batch is cheaper to review as a unit than up to eight near-identical
+    # PRs — and one CI run on that PR exercises every bumped SHA at once.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    # Dependabot's default title ("Bump actions/checkout from ...") is not a
+    # conventional commit, so it fails the Semantic PR check in semantic-pr.yml. The
+    # prefix makes the title "ci: bump ..." which satisfies it.
+    commit-message:
+      prefix: "ci"
