@@ -155,7 +155,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#43)
+Defined in: [src/lib/db/memoryVault/models.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#52)
 
 ***
 
@@ -225,11 +225,21 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 ***
 
+### geohash
+
+> **geohash**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#51)
+
+Reserved coarse-geohash slot for landmark/Trail memories.
+
+***
+
 ### isDeleted
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#45)
+Defined in: [src/lib/db/memoryVault/models.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#54)
 
 ***
 
@@ -248,6 +258,16 @@ C3 re-observation watermark: Unix ms of the last retain() merge, or null.
 > **proofCount**: `number` | `null`
 
 Defined in: [src/lib/db/memoryVault/models.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#15)
+
+***
+
+### publishedAt
+
+> **publishedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#49)
+
+Unix ms when visibility last became non-private; null while private.
 
 ***
 
@@ -336,11 +356,21 @@ Tier-0 security (PR3) — "quarantined" | "trusted" | null.
 
 ***
 
+### twinOptIn
+
+> **twinOptIn**: `boolean` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#47)
+
+Owner opted this memory into their own digital twin (twin-scoped only).
+
+***
+
 ### updatedAt
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#44)
+Defined in: [src/lib/db/memoryVault/models.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#53)
 
 ***
 
@@ -349,6 +379,17 @@ Defined in: [src/lib/db/memoryVault/models.ts:44](https://github.com/anuma-ai/sd
 > **userId**: `string` | `null`
 
 Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#10)
+
+***
+
+### visibility
+
+> **visibility**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#45)
+
+People Nearby visibility: 'private' | 'public'. Null on legacy rows, and
+any unrecognised value, read as 'private' — never published without opt-in.
 
 ***
 

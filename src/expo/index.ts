@@ -252,6 +252,7 @@ export {
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
   restoreVaultMemoryOp,
+  setMemoryVisibilityOp,
   stampTopicsExtractedAtOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
@@ -261,6 +262,7 @@ export {
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultMemoryOperationsContext,
+  type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
 // Conversation memories (persistence for the conversation-level Memories panel)
 export {

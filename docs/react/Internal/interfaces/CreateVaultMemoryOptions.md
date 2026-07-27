@@ -1,6 +1,6 @@
 # CreateVaultMemoryOptions
 
-Defined in: [src/lib/db/memoryVault/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#90)
+Defined in: [src/lib/db/memoryVault/types.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#114)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:90](https://github.com/anuma-ai/sdk
 
 > **content**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#91)
+Defined in: [src/lib/db/memoryVault/types.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#115)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:91](https://github.com/anuma-ai/sdk
 
 > `optional` **embedding**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#97)
+Defined in: [src/lib/db/memoryVault/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#121)
 
 JSON-stringified embedding vector to persist
 
@@ -26,7 +26,7 @@ JSON-stringified embedding vector to persist
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#100)
+Defined in: [src/lib/db/memoryVault/types.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#124)
 
 Model that produced `embedding`. Persisted alongside it so a later
 model change can detect and re-embed stale vectors.
@@ -37,7 +37,7 @@ model change can detect and re-embed stale vectors.
 
 > `optional` **eventTime**: `object`
 
-Defined in: [src/lib/db/memoryVault/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#108)
+Defined in: [src/lib/db/memoryVault/types.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#132)
 
 W6 temporal lane — when the event in this memory occurred.
 
@@ -65,7 +65,7 @@ Unix ms timestamp of event start (or point).
 
 > `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
 
-Defined in: [src/lib/db/memoryVault/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#118)
+Defined in: [src/lib/db/memoryVault/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#142)
 
 Typed memory (PR1) — the extractor's classification for this fact.
 Omit for manual/untyped saves (persisted as null).
@@ -76,9 +76,19 @@ Omit for manual/untyped saves (persisted as null).
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#95)
+Defined in: [src/lib/db/memoryVault/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#119)
 
 Folder ID for organization, null or omitted if unfiled
+
+***
+
+### geohash?
+
+> `optional` **geohash**: `string`
+
+Defined in: [src/lib/db/memoryVault/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#154)
+
+Coarse geohash for location-tagged memory sources (landmarks/Trail).
 
 ***
 
@@ -86,9 +96,19 @@ Folder ID for organization, null or omitted if unfiled
 
 > `optional` **proofCount**: `number`
 
-Defined in: [src/lib/db/memoryVault/types.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#104)
+Defined in: [src/lib/db/memoryVault/types.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#128)
 
 Initial proof count. Defaults to 1 if omitted.
+
+***
+
+### publishedAt?
+
+> `optional` **publishedAt**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#152)
+
+Round-trip slot for restore/import; see [visibility](#visibility).
 
 ***
 
@@ -96,7 +116,7 @@ Initial proof count. Defaults to 1 if omitted.
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#93)
+Defined in: [src/lib/db/memoryVault/types.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#117)
 
 Scope for the memory. Defaults to "private" if omitted.
 
@@ -106,7 +126,7 @@ Scope for the memory. Defaults to "private" if omitted.
 
 > `optional` **source**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#106)
+Defined in: [src/lib/db/memoryVault/types.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#130)
 
 How the memory was created. Defaults to "manual" if omitted.
 
@@ -116,7 +136,7 @@ How the memory was created. Defaults to "manual" if omitted.
 
 > `optional` **sourceChunkIds**: `string`\[]
 
-Defined in: [src/lib/db/memoryVault/types.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#102)
+Defined in: [src/lib/db/memoryVault/types.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#126)
 
 Source message IDs that produced this fact (auto-extraction provenance).
 
@@ -126,7 +146,20 @@ Source message IDs that produced this fact (auto-extraction provenance).
 
 > `optional` **trustTier**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#121)
+Defined in: [src/lib/db/memoryVault/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#145)
 
 Tier-0 security (PR3) — set "quarantined" when the injection screen
 flagged this fact. Omit for the default (null/trusted).
+
+***
+
+### visibility?
+
+> `optional` **visibility**: [`VaultMemoryVisibility`](../type-aliases/VaultMemoryVisibility.md)
+
+Defined in: [src/lib/db/memoryVault/types.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#150)
+
+People Nearby cross-user visibility. Defaults to "private" if omitted —
+creation NEVER publishes; use [setMemoryVisibilityOp](../functions/setMemoryVisibilityOp.md) so the
+published\_at bookkeeping stays consistent. Accepted here only so bulk
+restore/import paths can round-trip an existing visibility.

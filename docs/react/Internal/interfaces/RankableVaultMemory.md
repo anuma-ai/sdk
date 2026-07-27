@@ -1,6 +1,6 @@
 # RankableVaultMemory
 
-Defined in: [src/lib/db/memoryVault/types.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#75)
+Defined in: [src/lib/db/memoryVault/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#99)
 
 Content-free projection of a vault memory, used to RANK candidates for recall
 WITHOUT decrypting the (encrypted) `content` column. Everything here is a
@@ -16,7 +16,7 @@ winners on demand via [getVaultMemoryOp](../functions/getVaultMemoryOp.md).
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#86)
+Defined in: [src/lib/db/memoryVault/types.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#110)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:86](https://github.com/anuma-ai/sdk
 
 > **embedding**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#83)
+Defined in: [src/lib/db/memoryVault/types.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#107)
 
 JSON-stringified embedding vector, null if not yet computed.
 
@@ -34,7 +34,7 @@ JSON-stringified embedding vector, null if not yet computed.
 
 > **embeddingModel**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#85)
+Defined in: [src/lib/db/memoryVault/types.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#109)
 
 Model that produced `embedding`. Null on legacy rows.
 
@@ -44,7 +44,7 @@ Model that produced `embedding`. Null on legacy rows.
 
 > **folderId**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/types.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#81)
+Defined in: [src/lib/db/memoryVault/types.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#105)
 
 Folder ID for organization, null if unfiled.
 
@@ -54,7 +54,7 @@ Folder ID for organization, null if unfiled.
 
 > **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#79)
+Defined in: [src/lib/db/memoryVault/types.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#103)
 
 Scope for partitioning memories (e.g., "private", "shared").
 
@@ -64,7 +64,7 @@ Scope for partitioning memories (e.g., "private", "shared").
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#77)
+Defined in: [src/lib/db/memoryVault/types.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#101)
 
 WatermelonDB internal ID — pass to `getVaultMemoryOp` to decrypt on demand.
 
@@ -74,4 +74,4 @@ WatermelonDB internal ID — pass to `getVaultMemoryOp` to decrypt on demand.
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#87)
+Defined in: [src/lib/db/memoryVault/types.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#111)

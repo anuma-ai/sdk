@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:556](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#556)
+Defined in: [src/lib/db/memoryVault/operations.ts:616](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#616)
 
 ## Parameters
 
@@ -204,6 +204,25 @@ Used by a "memory history" view to render retired facts.
 <td>
 
 ‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.visibility?`
+
+</td>
+<td>
+
+[`VaultMemoryVisibility`](../type-aliases/VaultMemoryVisibility.md)\[]
+
+</td>
+<td>
+
+Filter by People Nearby visibility. Legacy rows with a NULL column
+count as "private". Used by the publish reconciler to fetch the
+published set to diff against the server index.
 
 </td>
 </tr>
