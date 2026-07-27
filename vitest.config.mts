@@ -24,6 +24,12 @@ export default defineConfig({
       // Shared regression-gate math for the topic / consolidation / recall
       // gates — pure, same deal: the live evals that feed it run only in CI.
       "test/memory/src/gate.test.ts",
+      // LongMemEval scoring failure semantics — fetch is stubbed, so no
+      // PORTAL_API_KEY. This is the gate that keeps a broken judge, or an
+      // answer call that produced nothing, from being scored as "every answer
+      // is wrong" again; that silence is what made a healthy run read 0.0%
+      // accuracy beside 95% retrieval.
+      "test/memory/src/longmemeval/judge.test.ts",
     ],
     // Browser tests need Playwright's Chromium binary and ~3-5s per case.
     // Skipped by default so `vitest run` stays fast; run via

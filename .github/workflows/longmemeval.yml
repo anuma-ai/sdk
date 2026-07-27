@@ -308,6 +308,13 @@ jobs:
             strategy,
             totalQuestions,
             correctAnswers,
+            # Carried into the published summary so a partially-scored run is
+            # identifiable on the benchmarks branch. `accuracy` is over the
+            # SCORED questions, so it means something different when either of
+            # these is nonzero.
+            judgeFailures,
+            answerFailures,
+            harnessFailures,
             accuracy,
             byQuestionType,
             retrieval,

@@ -57,6 +57,22 @@ export interface LongMemEvalResult {
   expectedAnswer: string;
   generatedAnswer: string;
   isCorrect: boolean;
+  /** Set when the judge could not reach a verdict at all (transport failure,
+   *  starved completion, unparseable response). `isCorrect` is false in that
+   *  case but means nothing — this question is NOT a wrong answer and is
+   *  excluded from the accuracy denominator. */
+  judgeError?: string;
+  /** Set when the answer step produced nothing to judge — it threw, or came
+   *  back with empty content. Same deal as `judgeError`: `isCorrect` is false
+   *  but meaningless, and the question is excluded from the denominator rather
+   *  than counted as a miss. The judge is not called at all in this case. */
+  answerError?: string;
+  /** Set when the entry crashed outside the answer and judge steps and the
+   *  suite's per-entry catch fabricated a placeholder. That placeholder also
+   *  zeroes the retrieval numbers, so it is tracked apart from the other two
+   *  rather than folded in — but like them it is excluded from the accuracy
+   *  denominator, because a crashed entry is not a wrong answer either. */
+  harnessError?: string;
   retrievedSessionIds: string[];
   expectedSessionIds: string[];
   retrievalPrecision: number;
@@ -73,12 +89,33 @@ export interface LongMemEvalSummary {
   strategy: "memory-engine" | "memory-vault" | "memory-recall" | "memory-ensemble";
   totalQuestions: number;
   correctAnswers: number;
+  /** Questions the judge could not rule on. Nonzero means the accuracy below
+   *  is measuring a smaller sample than `totalQuestions`, and a run where it
+   *  equals `totalQuestions` measured nothing at all. */
+  judgeFailures: number;
+  /** Questions whose answer step produced nothing to judge. Counted apart from
+   *  `judgeFailures` because they point at a different culprit — the answer
+   *  model or its completion budget rather than the grader — but excluded from
+   *  the accuracy denominator for the same reason. */
+  answerFailures: number;
+  /** Questions that crashed before either step could report. Their placeholder
+   *  result also carries zeroed retrieval numbers, so a nonzero count here means
+   *  the retrieval figures are understated too — not just the accuracy. */
+  harnessFailures: number;
+  /** Correct answers over the questions that were actually SCORED
+   *  (`totalQuestions - judgeFailures - answerFailures - harnessFailures`), not over all
+   *  questions. Neither failure is a wrong answer, and counting them as such
+   *  is what made a broken evaluation step indistinguishable from a memory
+   *  system that answered nothing right. 0 when nothing was scored. */
   accuracy: number;
   byQuestionType: Record<
     LongMemEvalQuestionType,
     {
       total: number;
       correct: number;
+      judgeFailures: number;
+      answerFailures: number;
+      harnessFailures: number;
       accuracy: number;
     }
   >;
@@ -203,4 +240,9 @@ export interface ApiConfig {
    *  reasoning-heavy answer model (e.g. kimi) pair with a JSON-reliable
    *  extractor (e.g. gpt-5-mini, matching production autoExtract). */
   extractionModel?: string;
+  /** Model for the answer judge. Defaults to llmModel, i.e. the model under
+   *  evaluation grades its own answers — kept as the default so numbers stay
+   *  comparable with every historical run, but overridable (`--judge-llm`)
+   *  when the answer model is a poor grader or is the thing that's broken. */
+  judgeModel?: string;
 }
