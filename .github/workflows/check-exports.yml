@@ -34,3 +34,23 @@ jobs:
 
       - name: Check Exports
         run: pnpm check-exports
+
+  # Same family of invariant, about whether a public memory export has any
+  # consumer at all. See MEMORY_EXPORT_CONSUMERS.md. Its own job: needs no build.
+  export-consumers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Check Memory Export Consumers
+        run: pnpm check:export-consumers

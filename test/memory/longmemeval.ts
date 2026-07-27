@@ -13,8 +13,17 @@
 
 import "dotenv/config";
 import { parseArgs } from "node:util";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../src/lib/memoryEngine/constants.js";
+import {
+  buildGateBaseline,
+  compareToGateBaseline,
+  describeConfigMismatch,
+  formatGateRegressions,
+  type GateBaseline,
+  type GateMetricSpec,
+  isValidGateBaseline,
+} from "./src/gate.js";
 import {
   loadLongMemEvalDataset,
   preloadAllDatasets,
@@ -73,6 +82,7 @@ const { values: args } = parseArgs({
     strategy: { type: "string" },
     llm: { type: "string" },
     "extract-llm": { type: "string" },
+    "judge-llm": { type: "string" },
     "skip-existing": { type: "boolean", default: false },
     "question-id": { type: "string" },
     max: { type: "string", short: "m" },
@@ -107,8 +117,55 @@ const { values: args } = parseArgs({
     mmr: { type: "boolean" },
     "rerank-candidates": { type: "string" },
     "bm25-divisor": { type: "string" },
+    // Retrieval regression gate — same contract as the other eval suites.
+    // Deliberately gates RETRIEVAL only; see RECALL_GATE_METRICS.
+    baseline: { type: "string" },
+    "save-baseline": { type: "boolean", default: false },
+    /**
+     * Repeats for `--save-baseline`. Retrieval here is NOT deterministic (the
+     * vault is built by LLM extraction), and a single capture lands anywhere in
+     * the model's natural range — which moves the gate's fire threshold by as
+     * much as the spread itself. Capturing over several runs makes the mean
+     * representative and lets the tolerance come from measured spread instead of
+     * the floor alone. Ignored outside --save-baseline.
+     */
+    "baseline-repeat": { type: "string" },
   },
 });
+
+const DEFAULT_RECALL_BASELINE_PATH = "test/memory/src/longmemeval/recall-baseline.json";
+
+/**
+ * Gated metrics for the recall gate.
+ *
+ * ONLY retrieval metrics block. `accuracy` is reported but never gated, and that
+ * is a deliberate call from the data: the `benchmarks` branch history has
+ * recall-strategy oracle runs at ~80% accuracy / ~94% retrieval recall sitting
+ * beside sibling runs that collapsed to 0–1.8% accuracy. Those collapses are
+ * answer-LLM / infrastructure flakiness, not ranking regressions — gating on
+ * accuracy would red PRs for reasons the PR didn't cause. Retrieval recall and
+ * precision are what a ranking change actually moves, and they don't depend on
+ * the answer model at all.
+ *
+ * The gate config additionally pins `--decompose=off --consolidate=false
+ * --rerank=false`, removing the LLM calls inside the retrieval path (query
+ * decomposition, retain-time consolidation) and the native cross-encoder.
+ *
+ * Retrieval still is NOT deterministic, because building the vault runs LLM
+ * extraction per session: back-to-back 50-question oracle runs of unchanged code
+ * measured recall 91.5% / 95.5% / 92.0% — a ~4pp swing.
+ *
+ * The floor stays at SINGLE-RUN scale (8pp) on purpose, unlike the topic and
+ * consolidation gates which were retuned down to mean-scale. This gate compares
+ * ONE live run against a multi-run baseline, so the relevant uncertainty is a
+ * single run's, not a mean's — `gate.ts` accounts for that asymmetry via the
+ * standard error of the difference, sqrt(1/n_base + 1/1), and correctly WIDENS
+ * here where it tightens elsewhere.
+ */
+const RECALL_GATE_METRICS: GateMetricSpec[] = [
+  { key: "retrievalRecall", direction: "higher-better", minTolerance: 0.08, label: "recall" },
+  { key: "retrievalPrecision", direction: "higher-better", minTolerance: 0.08, label: "precision" },
+];
 
 /** Parse a numeric CLI flag, exiting with a clear error on garbage input
  *  so a typo'd sweep doesn't silently fall back to the SDK default.
@@ -158,6 +215,8 @@ Options:
                               Use a JSON-reliable model when the answer model
                               is reasoning-heavy (extraction results are cached
                               per model)
+  --judge-llm <model>         Override the answer-judging model (default: --llm,
+                              i.e. the model under evaluation grades itself)
   --skip-existing             Skip entries with existing transcript for same model
   --question-id <id>          Run only the specified question id
   -m, --max <n>               Maximum number of questions to evaluate
@@ -276,6 +335,22 @@ async function main(): Promise<void> {
     strategy = "both";
   }
 
+  // Fail FAST and LOUD on a gate request the comparison shape can't satisfy.
+  // The gate only runs in the single-strategy branch below, so on the default
+  // `both` shape `--baseline` used to be ignored while the process still exited
+  // 0 — a requested gate silently becoming a vacuous pass, and a requested
+  // `--save-baseline` silently writing nothing. That is precisely the failure
+  // mode `assertRetrievalHappened` exists to prevent, so it can't be tolerated
+  // here. Checked before the eval runs so nobody burns a run to learn it.
+  if ((args.baseline !== undefined || args["save-baseline"]) && strategy === "both") {
+    console.error(
+      `\n  --baseline / --save-baseline need a single strategy: the comparison shape ` +
+        `produces two summaries and no one set of numbers to gate.\n` +
+        `  Re-run with --strategy recall (or engine / vault / ensemble).\n`
+    );
+    process.exit(1);
+  }
+
   const options: LongMemEvalOptions = {
     variant: variant === "oracle" ? "s" : variant,
     strategy,
@@ -356,11 +431,16 @@ async function main(): Promise<void> {
     console.log(`Loaded ${dataset.length} entries`);
 
     const llmModel = args.llm || "cerebras/qwen-3-235b-a22b-instruct-2507";
-    const result = await runLongMemEval(dataset, options, {
-      apiKey,
-      baseUrl,
-      llmModel,
-    });
+    // judgeModel lives inside the closure so every `--baseline-repeat` capture
+    // is judged by the same model as the first one.
+    const runSuite = () =>
+      runLongMemEval(dataset, options, {
+        apiKey,
+        baseUrl,
+        llmModel,
+        ...(args["judge-llm"] && { judgeModel: args["judge-llm"] }),
+      });
+    const result = await runSuite();
 
     // Fetch model pricing and attach cost estimates
     const pricing = await fetchModelPricing(baseUrl, apiKey);
@@ -401,6 +481,49 @@ async function main(): Promise<void> {
         await writeFile(args.output, JSON.stringify(result, null, 2));
         console.log(`\nResults written to ${args.output}`);
       }
+
+      // Retrieval regression gate. Only meaningful on a single-strategy run —
+      // the comparison shape has two summaries and no single set of numbers to
+      // gate, so it's excluded above.
+      if (args["save-baseline"]) {
+        // Extra captures for a representative mean — see `--baseline-repeat`.
+        const repeats = Math.max(1, parseInt(args["baseline-repeat"] ?? "1", 10) || 1);
+        const runs = [result];
+        for (let i = 1; i < repeats; i++) {
+          console.error(`\n  baseline capture ${i + 1}/${repeats}...`);
+          const next = await runSuite();
+          if (isComparison(next)) break; // unreachable: guarded at arg-parse time
+          runs.push(next);
+        }
+        await saveRecallBaseline(runs, args.baseline ?? DEFAULT_RECALL_BASELINE_PATH);
+      } else if (args.baseline) {
+        await gateRecallAgainstBaseline(result, args.baseline);
+      }
+    }
+
+    // A run that couldn't be scored is not a run that scored badly. Exiting
+    // non-zero makes longmemeval.yml fail, and because the benchmarks-branch
+    // publish step is `if: success()`, an incomplete summary can no longer be
+    // committed next to healthy ones as if it were a real result.
+    //
+    // Keep this the last gate before the success exit. Any other gate added
+    // above it (a baseline comparison, say) must not exit 0 on its own, or a
+    // partially-scored run publishes through that path instead.
+    const unscored = isComparison(result)
+      ? result.engine.judgeFailures +
+        result.engine.answerFailures +
+        result.engine.harnessFailures +
+        result.vault.judgeFailures +
+        result.vault.answerFailures +
+        result.vault.harnessFailures
+      : result.judgeFailures + result.answerFailures + result.harnessFailures;
+    if (unscored > 0) {
+      console.error(
+        `\n${unscored} question(s) could not be scored (see the judge/no-answer counts above). ` +
+          `Accuracy covers only the questions that were actually scored — this run is ` +
+          `incomplete, not a low score.`
+      );
+      process.exit(1);
     }
 
     process.exit(0);
@@ -408,6 +531,137 @@ async function main(): Promise<void> {
     console.error("Benchmark failed:", error);
     process.exit(1);
   }
+}
+
+/** Retrieval metrics the gate reads, flattened to the gate's run shape. */
+function recallMetrics(result: {
+  retrieval: { avgRecall: number; avgPrecision: number };
+}): Record<string, number> {
+  return {
+    retrievalRecall: result.retrieval.avgRecall,
+    retrievalPrecision: result.retrieval.avgPrecision,
+  };
+}
+
+/**
+ * The knobs these numbers depend on. Recorded so the gate refuses to compare a
+ * bounded PR run against, say, a full-variant or differently-piped baseline —
+ * every one of these changes what recall means.
+ */
+function recallGateConfig(): Record<string, string | number | boolean> {
+  return {
+    strategy: args.strategy ?? "",
+    variant: args.variant ?? "",
+    max: args.max ?? "",
+    llm: args.llm ?? "",
+    // The EXTRACTOR is what decides which memories exist to be retrieved, so it
+    // moves the gated metrics at least as much as the answer model does. Without
+    // it recorded, swapping only `--extract-llm` would sail past the config
+    // check and compare two materially different vaults.
+    extractLlm: args["extract-llm"] ?? "",
+    // Every gated score is a cosine over these vectors, so a model swap changes
+    // the embedding space itself — the most total way to invalidate a
+    // comparison. The sibling vault-search gate records it for the same reason.
+    embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
+    decompose: args.decompose ?? "",
+    consolidate: args.consolidate ?? "",
+    // Recorded because the cross-encoder reorders results: a baseline captured
+    // with rerank on is not comparable to a gate run with it off.
+    rerank: args.rerank ?? "",
+    recallTypes: args["recall-types"] ?? "",
+    recallEmit: args["recall-emit"] ?? "",
+    recallLaneMode: args["recall-lane-mode"] ?? "",
+  };
+}
+
+/**
+ * Refuse to treat a run that retrieved NOTHING as a baseline or as a passing
+ * gate. Zero recall across every question is an infrastructure failure (the
+ * portal 500s, an expired key, a dataset that didn't load), not a measurement:
+ * the first capture attempt for this gate scored 0.0/0.0 because the extractor
+ * was 500ing, and it would have committed a baseline that can never fail.
+ * Observed in the wild too — the `benchmarks` branch holds several
+ * recall-strategy runs at 0–1.8% accuracy beside healthy ~80% ones.
+ */
+function assertRetrievalHappened(result: {
+  retrieval: { avgRecall: number; avgPrecision: number };
+}): void {
+  const { avgRecall, avgPrecision } = result.retrieval;
+  if (avgRecall > 0 || avgPrecision > 0) return;
+  console.error(
+    `\n  Retrieval was 0% on every question — treating this as a FAILED RUN, not a result.\n` +
+      `  A baseline captured here could never fail, and a gate passing here would be vacuous.\n` +
+      `  Check the portal (HTTP 500s / auth) and the dataset cache, then re-run.\n`
+  );
+  process.exit(1);
+}
+
+async function saveRecallBaseline(
+  runs: Array<{ retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number }>,
+  path: string
+): Promise<void> {
+  runs.forEach(assertRetrievalHappened);
+  const baseline = buildGateBaseline(
+    runs.map(recallMetrics),
+    RECALL_GATE_METRICS,
+    recallGateConfig()
+  );
+  await writeFile(path, JSON.stringify(baseline, null, 2) + "\n");
+  const band = baseline.metrics.retrievalRecall!;
+  console.error(
+    `\nRecall baseline written to ${path} from ${runs.length} run${runs.length === 1 ? "" : "s"}.\n` +
+      `  recall mean ${(band.mean * 100).toFixed(1)}% ` +
+      `[${(band.min * 100).toFixed(1)}–${(band.max * 100).toFixed(1)}], ` +
+      `tolerance ${(band.tolerance * 100).toFixed(1)}pt ` +
+      `→ the gate fires below ${((band.mean - band.tolerance) * 100).toFixed(1)}%.` +
+      (runs.length === 1
+        ? `\n  NOTE: a single capture lands wherever this run did, so the fire threshold ` +
+          `moves with it. Pass --baseline-repeat 3+ for a representative mean.`
+        : "") +
+      `\n  Accuracy at capture: ${runs.map((r) => `${(r.accuracy * 100).toFixed(1)}%`).join(", ")} ` +
+      `— recorded for reference only; the gate does not read it.`
+  );
+}
+
+async function gateRecallAgainstBaseline(
+  result: { retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number },
+  path: string
+): Promise<void> {
+  // A wholly-failed run must fail the gate loudly rather than reporting a
+  // retrieval regression it can't distinguish from an outage.
+  assertRetrievalHappened(result);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(path, "utf-8"));
+  } catch (err) {
+    console.error(`Failed to load recall baseline from ${path}: ${String(err)}`);
+    process.exit(1);
+  }
+  if (!isValidGateBaseline(parsed, RECALL_GATE_METRICS)) {
+    console.error(
+      `\n  ${path} is not a valid recall baseline (expected a config + metrics object). ` +
+        `Generate one with --save-baseline.\n`
+    );
+    process.exit(1);
+  }
+  const baseline: GateBaseline = parsed;
+  const mismatch = describeConfigMismatch(baseline, recallGateConfig());
+  if (mismatch) {
+    console.error(`\n  Refusing to gate: ${mismatch}. Re-run to match, or regenerate.\n`);
+    process.exit(1);
+  }
+  const regressions = compareToGateBaseline([recallMetrics(result)], baseline, RECALL_GATE_METRICS);
+  if (regressions.length === 0) {
+    console.error(
+      `\n  Retrieval gate: no regressions detected ` +
+        `(accuracy ${(result.accuracy * 100).toFixed(1)}%, not gated).\n`
+    );
+    return;
+  }
+  console.error("\n  RETRIEVAL REGRESSION DETECTED\n");
+  console.error(formatGateRegressions(regressions));
+  console.error("");
+  process.exit(1);
 }
 
 main();

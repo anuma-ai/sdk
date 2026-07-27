@@ -1,5 +1,20 @@
 import type { FactType } from "../../memory/autoExtract.js";
 
+/**
+ * People Nearby cross-user visibility. ORTHOGONAL to `scope` (model access):
+ * - `private`: local-only (default; null column grandfathered as private)
+ * - `public`: embedding + plaintext may be published (compatibility matching,
+ *   profile display, discovery answers, digital-twin prompts)
+ *
+ * TWO TIERS ONLY (decided 2026-07-27). An earlier design had a middle
+ * `matchable` tier that published a memory's embedding while keeping its text
+ * on-device; it was dropped, so a memory either never leaves the device or is
+ * published with its content. Any unrecognised stored value — including a
+ * `matchable` row written by a pre-release build — reads as `private`, which is
+ * the fail-safe direction: it un-publishes rather than exposes.
+ */
+export type VaultMemoryVisibility = "private" | "public";
+
 export interface StoredVaultMemory {
   /** WatermelonDB internal ID */
   uniqueId: string;
@@ -58,6 +73,15 @@ export interface StoredVaultMemory {
   archivedAt: number | null;
   /** Tier-0 security (PR3) — "quarantined" | "trusted" | null. */
   trustTier: string | null;
+  /** People Nearby cross-user visibility. Null column reads as "private". */
+  visibility: VaultMemoryVisibility;
+  /** Owner opted this memory into their own digital twin even when otherwise
+   * private (twin-scoped only — never indexed for matching, never displayed). */
+  twinOptIn: boolean;
+  /** Unix ms when visibility last became non-private; null while private. */
+  publishedAt: number | null;
+  /** Reserved coarse-geohash slot for landmark/Trail memories. */
+  geohash: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -119,6 +143,15 @@ export interface CreateVaultMemoryOptions {
   /** Tier-0 security (PR3) — set "quarantined" when the injection screen
    * flagged this fact. Omit for the default (null/trusted). */
   trustTier?: string;
+  /** People Nearby cross-user visibility. Defaults to "private" if omitted —
+   * creation NEVER publishes; use {@link setMemoryVisibilityOp} so the
+   * published_at bookkeeping stays consistent. Accepted here only so bulk
+   * restore/import paths can round-trip an existing visibility. */
+  visibility?: VaultMemoryVisibility;
+  /** Round-trip slot for restore/import; see {@link visibility}. */
+  publishedAt?: number | null;
+  /** Coarse geohash for location-tagged memory sources (landmarks/Trail). */
+  geohash?: string;
 }
 
 export interface UpdateVaultMemoryOptions {

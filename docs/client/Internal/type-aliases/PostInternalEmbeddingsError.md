@@ -2,4 +2,4 @@
 
 > **PostInternalEmbeddingsError** = [`PostInternalEmbeddingsErrors`](PostInternalEmbeddingsErrors.md)\[keyof [`PostInternalEmbeddingsErrors`](PostInternalEmbeddingsErrors.md)]
 
-Defined in: [src/client/types.gen.ts:10698](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10698)
+Defined in: [src/client/types.gen.ts:10734](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10734)

@@ -84,8 +84,13 @@ import { VaultFolder } from "./vaultFolders/models";
  *   backfill (null = legacy/untyped, active, un-screened — content is
  *   encrypted so in-migration classification is impossible; NULL = zero-risk,
  *   exact embedding_model precedent)
+ * - v41: Added visibility, twin_opt_in, published_at, geohash columns to
+ *   memory_vault for the People Nearby cross-user visibility axis. Visibility
+ *   is TWO-tier (`private | public`); null — and any unrecognised value —
+ *   reads as 'private', so nothing pre-existing is ever published without an
+ *   explicit visibility write
  */
-export const SDK_SCHEMA_VERSION = 40;
+export const SDK_SCHEMA_VERSION = 41;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -267,6 +272,25 @@ export const sdkSchema = appSchema({
         // screen flagged this fact, else null/"trusted". Indexed so the recall
         // choke point can default-exclude quarantined rows.
         { name: "trust_tier", type: "string", isOptional: true, isIndexed: true },
+        // People Nearby cross-user visibility axis — ORTHOGONAL to `scope`
+        // (which partitions by MODEL access: private vs shared providers).
+        // TWO tiers: 'private' (or null, or any unrecognised value —
+        // grandfathered / fail-safe) = local-only; 'public' = embedding +
+        // plaintext may be published (matching/profile/discovery/twin).
+        // The server index is the authority for what IS published; this
+        // column records the user's intent.
+        { name: "visibility", type: "string", isOptional: true, isIndexed: true },
+        // When true, the owner opted this memory into their own digital twin
+        // even if it is otherwise private (twin-scoped upload only — never
+        // indexed for matching, never displayed). Null/false = follows visibility.
+        { name: "twin_opt_in", type: "boolean", isOptional: true },
+        // Unix ms when visibility last became non-private. Null when private
+        // (cleared on revoke) — the publish reconciler uses it to diff local
+        // intent against the server index.
+        { name: "published_at", type: "number", isOptional: true },
+        // Reserved geo slot (coarse geohash) for landmark/Trail memories.
+        // Unused at launch; populated by location-tagged memory sources.
+        { name: "geohash", type: "string", isOptional: true },
       ],
     }),
     // Entity table — canonical names extracted from auto-extraction (W5).
@@ -432,6 +456,7 @@ export const sdkSchema = appSchema({
  * - v37 → v38: Added `topics_extracted_version` column to memory_vault (extraction-logic version; null read as 0 so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows)
  * - v38 → v39: Added `last_observed_at` column to memory_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated_at)
  * - v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
+ * - v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -981,6 +1006,24 @@ export const sdkMigrations = schemaMigrations({
             { name: "fact_type", type: "string", isOptional: true, isIndexed: true },
             { name: "archived_at", type: "number", isOptional: true, isIndexed: true },
             { name: "trust_tier", type: "string", isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
+    // v40 -> v41: People Nearby visibility axis on memory_vault. Existing rows
+    // keep visibility NULL — read as 'private' (nothing pre-existing is ever
+    // published without an explicit user action; the consent posture requires
+    // opt-in, never a retroactive default).
+    {
+      toVersion: 41,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "visibility", type: "string", isOptional: true, isIndexed: true },
+            { name: "twin_opt_in", type: "boolean", isOptional: true },
+            { name: "published_at", type: "number", isOptional: true },
+            { name: "geohash", type: "string", isOptional: true },
           ],
         }),
       ],

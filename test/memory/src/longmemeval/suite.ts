@@ -31,6 +31,7 @@ import type {
 } from "./types.js";
 import { calculatePercentiles } from "../metrics.js";
 import { getCacheDirectory } from "./dataset.js";
+import { summarizeJudgment } from "./judge.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { processEntryMemoryEngine } from "./memoryEngineStrategy.js";
 import { processEntryMemoryVault } from "./memoryVaultStrategy.js";
@@ -402,6 +403,24 @@ function stratifyByType(entries: LongMemEvalEntry[], n: number): LongMemEvalEntr
   return picked;
 }
 
+/**
+ * Completion budget for the answer-generation calls.
+ *
+ * Was 500, and like the judge's cap it only started biting when #760 swapped
+ * the deprecated `max_tokens` — which the portal dropped, leaving these calls
+ * running against the portal's 4096 default — for `max_completion_tokens`,
+ * which the portal honors. Reasoning tokens count against the cap, so an
+ * enforced 500 can leave a reasoning model (gpt-oss, gpt-5) nothing left for
+ * content: the completion comes back empty and an empty answer grades as an
+ * ordinary wrong answer.
+ *
+ * 4096 because that is the budget every run on the benchmarks branch was
+ * actually scored under, so restoring it keeps those numbers comparable rather
+ * than inventing a third regime. Models that finish early are unaffected — this
+ * is a ceiling, not a target.
+ */
+export const ANSWER_MAX_COMPLETION_TOKENS = 4096;
+
 export async function callChatCompletion(
   api: ApiConfig,
   messages: Array<{ role: string; content?: string; tool_calls?: any; tool_call_id?: string }>,
@@ -419,6 +438,7 @@ export async function callChatCompletion(
   let lastStatus: number | null = null;
   let lastError: unknown;
   let emptyRetryUsed = false;
+  let completionBudget = options?.maxTokens ?? ANSWER_MAX_COMPLETION_TOKENS;
 
   // Exponential backoff with jitter for transient errors. 429s hit hard
   // at concurrency=100 — Fireworks rate limits have tightened since the
@@ -438,7 +458,7 @@ export async function callChatCompletion(
         model: api.llmModel,
         messages,
         temperature: 0,
-        max_completion_tokens: options?.maxTokens ?? 500,
+        max_completion_tokens: completionBudget,
       };
 
       if (options?.tools && options.tools.length > 0) {
@@ -490,10 +510,26 @@ export async function callChatCompletion(
         options?.tools && options.tools.length > 0 ? message?.tool_calls : undefined;
       const content = message?.content || "";
 
+      // An empty completion is usually a starved budget rather than a flake:
+      // at temperature 0 an identical request replays the identical hidden
+      // reasoning and comes back empty again, so the one retry we spend here
+      // doubles the budget instead of just repeating itself.
       if (!content && !toolCalls && !emptyRetryUsed && attempt < maxAttempts) {
         emptyRetryUsed = true;
+        completionBudget *= 2;
         await sleep(backoffMs(attempt, null));
         continue;
+      }
+
+      if (!content && !toolCalls) {
+        // Returning "" here used to be the end of it: the caller handed the
+        // empty string to the judge, which dutifully graded it INCORRECT. Say
+        // so out loud — the strategies read an empty answer as an unscored
+        // question, not as a memory-system miss.
+        console.warn(
+          `  ⚠ ${api.llmModel} returned an empty completion after ${attempt} attempt(s) ` +
+            `(budget ${completionBudget}) — this question has no answer to judge`
+        );
       }
 
       return { content, toolCalls, usage: data.usage };
@@ -510,56 +546,6 @@ export async function callChatCompletion(
     throw new Error(`Chat completion failed: ${lastStatus}`);
   }
   throw lastError instanceof Error ? lastError : new Error("Chat completion failed");
-}
-
-export async function evaluateAnswer(
-  question: string,
-  expectedAnswer: string,
-  generatedAnswer: string,
-  api: ApiConfig
-): Promise<{
-  isCorrect: boolean;
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-}> {
-  const prompt = `You are an answer evaluator. Determine if the generated answer correctly answers the question, matching the expected answer's meaning.
-
-Question: ${question}
-Expected Answer: ${expectedAnswer}
-Generated Answer: ${generatedAnswer}
-
-Does the generated answer correctly capture the same information as the expected answer?
-Consider partial matches as correct if the key information is present.
-
-Respond with ONLY "CORRECT" or "INCORRECT".`;
-
-  try {
-    const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": api.apiKey,
-      },
-      body: JSON.stringify({
-        model: api.llmModel,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0,
-        max_completion_tokens: 10,
-      }),
-    });
-
-    if (!response.ok) return { isCorrect: false };
-
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-    };
-    const result = data.choices[0]?.message?.content?.trim().toUpperCase() || "";
-    const isCorrect = result.includes("CORRECT") && !result.includes("INCORRECT");
-    return { isCorrect, usage: data.usage };
-  } catch (error) {
-    console.error("Error evaluating answer:", error);
-    return { isCorrect: false };
-  }
 }
 
 export async function extractMemoriesFromSession(
@@ -876,16 +862,24 @@ function aggregateSummary(
   ] as const) {
     const typeResults = results.filter((r) => r.questionType === type);
     if (typeResults.length > 0) {
+      const tally = summarizeJudgment(typeResults);
       byQuestionType[type] = {
-        total: typeResults.length,
-        correct: typeResults.filter((r) => r.isCorrect).length,
-        accuracy: typeResults.filter((r) => r.isCorrect).length / typeResults.length,
+        total: tally.total,
+        correct: tally.correct,
+        judgeFailures: tally.judgeFailures,
+        answerFailures: tally.answerFailures,
+        harnessFailures: tally.harnessFailures,
+        accuracy: tally.accuracy,
       };
     }
   }
 
   const latencyStats = calculatePercentiles(latencies);
-  const correctCount = results.filter((r) => r.isCorrect).length;
+  // Accuracy is measured over the questions that were actually scored.
+  // Questions the judge couldn't rule on, and questions the answer step never
+  // produced an answer for, are surfaced as their own counts instead of being
+  // folded in as misses — see summarizeJudgment.
+  const overall = summarizeJudgment(results);
 
   const totalTokenUsage = results.reduce(
     (acc, r) => ({
@@ -901,9 +895,12 @@ function aggregateSummary(
     timestamp: new Date().toISOString(),
     datasetName: `longmemeval_${options.variant}_${strategy}`,
     strategy,
-    totalQuestions: results.length,
-    correctAnswers: correctCount,
-    accuracy: results.length > 0 ? correctCount / results.length : 0,
+    totalQuestions: overall.total,
+    correctAnswers: overall.correct,
+    judgeFailures: overall.judgeFailures,
+    answerFailures: overall.answerFailures,
+    harnessFailures: overall.harnessFailures,
+    accuracy: overall.accuracy,
     byQuestionType,
     retrieval: {
       avgPrecision:
@@ -1101,8 +1098,21 @@ export async function runLongMemEval(
 
         orderedResults[i] = result;
         completed++;
+        // A broken step gets its own marker: a live run that scrolls past
+        // 50 ✗ marks reads as "the memory system is broken", which is the
+        // wrong conclusion when it was the judge that never ruled or the
+        // answer call that never answered.
+        const marker = result.harnessError
+          ? "⚠ harness-error"
+          : result.answerError
+            ? "⚠ no-answer"
+            : result.judgeError
+              ? "⚠ judge-failed"
+              : result.isCorrect
+                ? "✓"
+                : "✗";
         console.log(
-          `[${completed}/${entries.length}] ${entry.question_id} ${result.isCorrect ? "✓" : "✗"} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
+          `[${completed}/${entries.length}] ${entry.question_id} ${marker} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
         );
       } catch (error) {
         orderedResults[i] = {
@@ -1111,7 +1121,15 @@ export async function runLongMemEval(
           question: entry.question,
           expectedAnswer: entry.answer,
           generatedAnswer: "",
+          // Everything below the error is fabricated, not measured. `isCorrect`
+          // false is not a verdict and the zeroed retrieval numbers are not a
+          // reading — `harnessError` is what tells the tally to exclude all of
+          // it. Without that key this placeholder counts as a scored miss, and
+          // a run full of crashes publishes a deflated accuracy while reporting
+          // no failures at all, which is the exact shape of #776 through a
+          // different door.
           isCorrect: false,
+          harnessError: String(error),
           retrievedSessionIds: [],
           expectedSessionIds: entry.answer_session_ids,
           retrievalPrecision: 0,
@@ -1122,7 +1140,10 @@ export async function runLongMemEval(
           details: { error: String(error) },
         };
         completed++;
-        console.error(`[${completed}/${entries.length}] ${entry.question_id} ✗ Error:`, error);
+        console.error(
+          `[${completed}/${entries.length}] ${entry.question_id} ⚠ harness-error:`,
+          error
+        );
       }
     }
 

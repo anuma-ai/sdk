@@ -54,13 +54,60 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   // Overall accuracy
   console.log(color("Overall Accuracy", COLORS.bold));
   console.log("─".repeat(70));
-  const accColor = summary.accuracy >= 0.5 ? COLORS.green : COLORS.red;
-  console.log(
-    `  Accuracy:`.padEnd(20) +
-      color(formatPercent(summary.accuracy), accColor) +
-      `  ${progressBar(summary.accuracy)}`
-  );
-  console.log(`  Correct:`.padEnd(20) + `${summary.correctAnswers}/${summary.totalQuestions}`);
+  const judgeFailures = summary.judgeFailures;
+  const answerFailures = summary.answerFailures;
+  const harnessFailures = summary.harnessFailures;
+  const unscored = judgeFailures + answerFailures + harnessFailures;
+  const judged = summary.totalQuestions - unscored;
+  if (judged === 0) {
+    // Every question came back unscored, so there is no accuracy to report.
+    // Printing "0.0%" here is precisely the failure this run hit: a dead
+    // evaluation step rendered as a perfect-looking zero score.
+    console.log(`  Accuracy:`.padEnd(20) + color("n/a — nothing was scored", COLORS.red));
+  } else {
+    const accColor = summary.accuracy >= 0.5 ? COLORS.green : COLORS.red;
+    console.log(
+      `  Accuracy:`.padEnd(20) +
+        color(formatPercent(summary.accuracy), accColor) +
+        `  ${progressBar(summary.accuracy)}`
+    );
+  }
+  console.log(`  Correct:`.padEnd(20) + `${summary.correctAnswers}/${judged}`);
+  if (unscored > 0) {
+    // Split because they point at different culprits: the grader vs. the
+    // answer model (or its completion budget). Both are excluded from the
+    // accuracy above, and neither is a wrong answer.
+    if (judgeFailures > 0) {
+      console.log(
+        `  Judge failures:`.padEnd(20) +
+          color(`${judgeFailures}/${summary.totalQuestions}`, COLORS.bold, COLORS.red)
+      );
+    }
+    if (answerFailures > 0) {
+      console.log(
+        `  No answer:`.padEnd(20) +
+          color(`${answerFailures}/${summary.totalQuestions}`, COLORS.bold, COLORS.red)
+      );
+    }
+    if (harnessFailures > 0) {
+      // Called out separately because it is the only one that also corrupts the
+      // retrieval block above: a crashed entry's placeholder reports precision
+      // and recall as 0, so those averages are dragged down by questions that
+      // were never actually measured.
+      console.log(
+        `  Harness errors:`.padEnd(20) +
+          color(`${harnessFailures}/${summary.totalQuestions}`, COLORS.bold, COLORS.red) +
+          color("  (retrieval figures above are understated too)", COLORS.red)
+      );
+    }
+    console.log(
+      color(
+        `  ⚠ ${unscored} question(s) could not be scored — these are NOT wrong answers.\n` +
+          `    Accuracy above is over the ${judged} scored question(s); the run is incomplete.`,
+        COLORS.red
+      )
+    );
+  }
   console.log();
 
   // By question type
@@ -83,11 +130,16 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
     const label = QUESTION_TYPE_LABELS[type];
     const typeAccColor = stats.accuracy >= 0.5 ? COLORS.green : COLORS.red;
     const isUnsupported = type === "temporal-reasoning" || type === "knowledge-update";
+    const typeUnscored = stats.judgeFailures + stats.answerFailures + stats.harnessFailures;
+    const typeJudged = stats.total - typeUnscored;
 
     console.log(
       `  ${label}:`.padEnd(30) +
-        color(formatPercent(stats.accuracy), typeAccColor).padStart(8) +
-        `  ${stats.correct}/${stats.total}`.padStart(10) +
+        (typeJudged === 0
+          ? color("n/a", COLORS.red).padStart(8)
+          : color(formatPercent(stats.accuracy), typeAccColor).padStart(8)) +
+        `  ${stats.correct}/${typeJudged}`.padStart(10) +
+        (typeUnscored > 0 ? color(`  (${typeUnscored} unscored)`, COLORS.red) : "") +
         (isUnsupported ? color("  (unsupported)", COLORS.yellow) : "")
     );
   }

@@ -10,12 +10,13 @@
 import { createConversationOp, createMessageOp } from "../../../../src/lib/db/chat/operations.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
+import { answerFailureReason, evaluateAnswer } from "./judge.js";
 import type { ApiConfig, LongMemEvalEntry, LongMemEvalResult, TokenUsage } from "./types.js";
 import {
+  ANSWER_MAX_COMPLETION_TOKENS,
   callChatCompletion,
   clearProgress,
   createStorageContext,
-  evaluateAnswer,
   logProgress,
   saveTranscript,
   selectSessions,
@@ -185,6 +186,7 @@ You are a personal assistant with access to the user's past conversation history
       tokenUsage.totalTokens += u.total_tokens;
     }
 
+    let thrownWhileAnswering: unknown;
     try {
       // Force tool use — in a real conversation the LLM would naturally call
       // the tool, but this eval sends a bare question with no prior context.
@@ -192,7 +194,7 @@ You are a personal assistant with access to the user's past conversation history
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools: [toolDef],
         toolChoice: "required",
-        maxTokens: 500,
+        maxTokens: ANSWER_MAX_COMPLETION_TOKENS,
       });
       clearProgress();
       addUsage(firstResponse.usage);
@@ -242,7 +244,7 @@ You are a personal assistant with access to the user's past conversation history
               { role: "system", content: secondSystemPrompt },
               { role: "user", content: entry.question },
             ],
-            { maxTokens: 500 }
+            { maxTokens: ANSWER_MAX_COMPLETION_TOKENS }
           );
           clearProgress();
           addUsage(secondResponse.usage);
@@ -257,9 +259,12 @@ You are a personal assistant with access to the user's past conversation history
       console.error("Memory engine answering failed:", error);
       generatedAnswer = "";
       transcript.error = String(error);
+      thrownWhileAnswering = error;
     }
 
     transcript.finalAnswer = generatedAnswer;
+    const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
+    if (answerError) transcript.answerError = answerError;
 
     // Retrieval metrics are derived from the onRetrieve callback above,
     // which captures the exact conversation IDs the tool returned to the LLM.
@@ -286,14 +291,21 @@ You are a personal assistant with access to the user's past conversation history
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    // Evaluate answer
-    logProgress("Evaluating answer...");
-    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
-    clearProgress();
-    addUsage(evalResult.usage);
-    const isCorrect = evalResult.isCorrect;
+    // Evaluate answer — unless there is no answer to evaluate, in which case
+    // grading the empty string would just relabel a broken call as a miss.
+    let isCorrect = false;
+    let judgeError: string | undefined;
+    if (!answerError) {
+      logProgress("Evaluating answer...");
+      const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+      clearProgress();
+      addUsage(evalResult.usage);
+      isCorrect = evalResult.verdict === "correct";
+      judgeError = evalResult.verdict === "unjudgeable" ? evalResult.reason : undefined;
+    }
 
     transcript.isCorrect = isCorrect;
+    if (judgeError) transcript.judgeError = judgeError;
     await saveTranscript(entry.question_id, transcript, verbose);
 
     const elapsed = performance.now() - startTime;
@@ -315,6 +327,8 @@ You are a personal assistant with access to the user's past conversation history
       expectedAnswer: entry.answer,
       generatedAnswer,
       isCorrect,
+      ...(judgeError && { judgeError }),
+      ...(answerError && { answerError }),
       retrievedSessionIds: [...retrievedSessionIds],
       expectedSessionIds: entry.answer_session_ids,
       retrievalPrecision,

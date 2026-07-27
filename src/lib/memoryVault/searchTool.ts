@@ -26,7 +26,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { cosineSimilarity } from "../memoryEngine/vector";
-import { scoreBM25 } from "./bm25";
+import { prepareBM25Corpus, type PreparedBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25";
 import { decomposeQuery } from "./decomposeQuery";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
@@ -517,6 +517,13 @@ export function rankFusedVaultMemories(
      * ignored (treated as 1.0) so a bad weight can't zero out a lane.
      */
     factTypeWeights?: Record<string, number>;
+    /**
+     * B3 — a BM25 corpus tokenized once (via {@link prepareBM25Corpus}) and shared across
+     * multiple facet passes over the SAME `items` (composite recall). When provided, the
+     * whole-corpus re-tokenization inside this call is skipped. MUST have been prepared from
+     * the same `items` passed here. Omit for single-pass callers (behavior unchanged).
+     */
+    preparedBM25Corpus?: PreparedBM25Corpus;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
@@ -541,11 +548,14 @@ export function rankFusedVaultMemories(
   });
   const baseIds = new Set(baseRanked.map((r) => r.uniqueId));
 
-  // Stage 2 — BM25 admission for items not in the cosine ranking.
-  const bm25Scores = scoreBM25(
-    query,
-    items.map((i) => ({ id: i.id, content: i.content }))
-  );
+  // Stage 2 — BM25 admission for items not in the cosine ranking. Reuse a prepared corpus
+  // (B3) when the caller shares one across facet passes; otherwise tokenize inline as before.
+  const bm25Scores = options?.preparedBM25Corpus
+    ? scoreBM25Prepared(query, options.preparedBM25Corpus)
+    : scoreBM25(
+        query,
+        items.map((i) => ({ id: i.id, content: i.content }))
+      );
   const itemById = new Map(items.map((i) => [i.id, i]));
   const admitted: VaultSearchResult[] = [];
   for (const item of items) {
@@ -1056,8 +1066,16 @@ export async function rankComposite(
   const perFacetTopN = options?.perFacetTopN ?? 10;
   if (items.length === 0 || subQueries.length === 0) return [];
 
+  // B3 — every facet pass below ranks the SAME `items` with a different query, and each pass's
+  // BM25 stage would otherwise re-tokenize the whole corpus. Tokenize once here and share it
+  // across all passes via facetTuning (exact: scores are unchanged, just not recomputed).
+  const preparedBM25Corpus = prepareBM25Corpus(
+    items.map((i) => ({ id: i.id, content: i.content }))
+  );
+
   // Shared tuning knobs forwarded to every per-facet ranking call.
   const facetTuning = {
+    preparedBM25Corpus,
     ...(options?.recencyAlpha !== undefined && { recencyAlpha: options.recencyAlpha }),
     ...(options?.recency && { recency: options.recency }),
     ...(options?.supersessionBoost !== undefined && {
@@ -1361,7 +1379,17 @@ async function embedQueryOrDegrade(
   onDegraded?: () => void
 ): Promise<number[]> {
   try {
-    return await generateEmbedding(query, embeddingOptions);
+    const embedding = await generateEmbedding(query, embeddingOptions);
+    // An empty vector is the same dead cosine lane as a thrown request — a
+    // malformed/empty provider response must not read as healthy, or the caller
+    // reports "No relevant memories" on a search that never ran cosine at all.
+    if (embedding.length === 0) {
+      getLogger().warn(
+        "memoryVault: query embedding came back empty — falling back to BM25-only ranking for this search"
+      );
+      onDegraded?.();
+    }
+    return embedding;
   } catch (err) {
     getLogger().warn(
       "memoryVault: query embedding failed — falling back to BM25-only ranking for this search: " +
@@ -1402,7 +1430,19 @@ export async function buildProjectedCorpus(
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
-  queryOpts: { scopes?: string[]; folderId?: string | null },
+  /**
+   * Candidate-set filters, forwarded verbatim to `getVaultCandidateKeysOp`.
+   * Must stay a superset-compatible mirror of what the legacy
+   * `getAllVaultMemoriesOp` path accepts — this signature previously listed only
+   * `scopes`/`folderId`, which is how `factTypes` and `includeArchived` came to
+   * be silently dropped on the decrypt-last path (#779).
+   */
+  queryOpts: {
+    scopes?: string[];
+    folderId?: string | null;
+    factTypes?: string[];
+    includeArchived?: boolean;
+  },
   opts: {
     limit: number;
     admitFactor: number;
@@ -1428,6 +1468,17 @@ export async function buildProjectedCorpus(
     vaultCtx,
     Object.keys(queryOpts).length > 0 ? queryOpts : undefined
   );
+  /**
+   * Filters the by-id hydration steps must repeat so they don't re-exclude rows
+   * the key scan above deliberately admitted.
+   *
+   * Only `includeArchived` needs carrying: it is the one DEFAULT-ON exclusion
+   * that `queryOpts` can switch off. The others (deleted / quarantined /
+   * superseded) are excluded by both stages identically, and `factTypes` is
+   * already enforced by the key scan — hydration is by explicit id, so the ids
+   * are constrained before they get here.
+   */
+  const hydrateOpts = queryOpts.includeArchived ? { includeArchived: true } : undefined;
   const vaultSize = keys.length;
   // Empty vault: nothing to rank. Return before embedding the query so an
   // empty vault costs zero embedding calls.
@@ -1439,11 +1490,11 @@ export async function buildProjectedCorpus(
     embeddingOptions,
     opts.onEmbeddingDegraded
   );
-  // With no query vector every cosine is 0, so `admitVaultProjections` falls back
-  // to its recency tiebreak and decrypts the k most-recently-updated rows. BM25
-  // then ranks those lexically. A lexical hit older than that window is missed —
-  // decrypt-last fundamentally needs cosine to choose what to decrypt — but the
-  // window is at least `admitFloor` rows and the alternative is no recall at all.
+  // With no query vector, every vector-resolution step below is dead work: a
+  // stored or cached vector is only usable if it dim-matches the query, and
+  // nothing matches length 0. Skip straight to a recency admission (see the
+  // `admittedIds` fallback) so the decrypt window is spent on rows BM25 can rank
+  // rather than on loading embedding columns for an inert cosine lane.
   const embeddingsDegraded = queryEmbedding.length === 0;
   const currentModel = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
@@ -1451,20 +1502,22 @@ export async function buildProjectedCorpus(
   const missIds: string[] = []; // cache miss, has a compatible stored vector (load it)
   const noVectorIds: string[] = []; // no usable stored vector (un-embedded lane)
   const keyById = new Map(keys.map((k) => [k.uniqueId, k]));
-  for (const k of keys) {
-    const cached = cache.get(k.uniqueId);
-    if (cached && cached.length === queryEmbedding.length) {
-      vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
-      continue;
+  if (!embeddingsDegraded) {
+    for (const k of keys) {
+      const cached = cache.get(k.uniqueId);
+      if (cached && cached.length === queryEmbedding.length) {
+        vectored.push({ uniqueId: k.uniqueId, embedding: cached, updatedAt: k.updatedAt });
+        continue;
+      }
+      const modelCompatible = (k.embeddingModel ?? currentModel) === currentModel;
+      if (modelCompatible) missIds.push(k.uniqueId);
+      else noVectorIds.push(k.uniqueId);
     }
-    const modelCompatible = (k.embeddingModel ?? currentModel) === currentModel;
-    if (modelCompatible) missIds.push(k.uniqueId);
-    else noVectorIds.push(k.uniqueId);
   }
 
   // Load embedding column ONLY for cache misses that claim a compatible vector.
   if (missIds.length > 0) {
-    const rows = await getVaultEmbeddingsByIdsOp(vaultCtx, missIds);
+    const rows = await getVaultEmbeddingsByIdsOp(vaultCtx, missIds, hydrateOpts);
     const gotVector = new Set<string>();
     for (const r of rows) {
       if (!r.embedding) continue;
@@ -1492,33 +1545,63 @@ export async function buildProjectedCorpus(
         `memoryVault: projected search un-embedded lane capped at ${laneIds.length}/${noVectorIds.length}`
       );
     }
-    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds)).filter(
+    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts)).filter(
       (m) => !isEncrypted(m.content)
     );
-    // Skip when degraded: these vectors exist only to feed the cosine lane, which
-    // is already inert without a query vector, and the same outage would just
-    // throw again. Their rows are still decrypted above, so BM25 still sees them.
-    if (laneRows.length > 0 && !embeddingsDegraded) {
-      const laneVecs = await generateEmbeddings(
-        laneRows.map((m) => m.content),
-        embeddingOptions
-      );
-      laneRows.forEach((m, i) => {
-        const vec = Float32Array.from(laneVecs[i]);
-        cache.set(m.uniqueId, vec);
-        vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
-        updateVaultMemoryEmbeddingOp(
-          vaultCtx,
-          m.uniqueId,
-          JSON.stringify(laneVecs[i]),
-          currentModel
-        ).catch(() => {});
-      });
+    // Guarded like the query embed: an outage here must not throw out of the whole
+    // search. These vectors only feed the cosine lane, so losing them costs cosine
+    // ordering for these rows — the admission below falls back to recency when it
+    // ends up with nothing vectored, and BM25 still ranks whatever is decrypted.
+    if (laneRows.length > 0) {
+      let laneVecs: number[][] | undefined;
+      try {
+        laneVecs = await generateEmbeddings(
+          laneRows.map((m) => m.content),
+          embeddingOptions
+        );
+      } catch (err) {
+        getLogger().warn(
+          `memoryVault: un-embedded lane embedding failed for ${laneRows.length} rows — they ` +
+            "rank on BM25 alone for this search: " +
+            (err instanceof Error ? err.message : String(err))
+        );
+      }
+      if (laneVecs) {
+        const vecs = laneVecs;
+        laneRows.forEach((m, i) => {
+          const vec = Float32Array.from(vecs[i]);
+          cache.set(m.uniqueId, vec);
+          vectored.push({ uniqueId: m.uniqueId, embedding: vec, updatedAt: m.updatedAt });
+          updateVaultMemoryEmbeddingOp(
+            vaultCtx,
+            m.uniqueId,
+            JSON.stringify(vecs[i]),
+            currentModel
+          ).catch(() => {});
+        });
+      }
     }
   }
 
   const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
-  const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
+  // Cosine can only choose what to decrypt when there is a query vector AND at
+  // least one row vector to score it against. With neither, `vectored` is empty
+  // and `admitVaultProjections` would admit NOTHING — BM25 would then rank an
+  // empty corpus and an embeddings outage would still cost all recall on this
+  // path, just silently. Admit the k most-recently-updated candidates instead and
+  // let BM25 rank those lexically.
+  //
+  // A lexical hit older than that window is missed: decrypt-last fundamentally
+  // needs cosine to pick what to decrypt, and this trades the whole vault for its
+  // most recent k. But k is at least `admitFloor` rows, and the alternative is no
+  // recall at all.
+  const admittedIds =
+    vectored.length > 0
+      ? admitVaultProjections(queryEmbedding, vectored, k)
+      : [...keys]
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+          .slice(0, k)
+          .map((key) => key.uniqueId);
   // Union in side-lane candidates whose cosine fell outside the window so the
   // graph/temporal lanes can still admit them. Intersect against keyById so
   // only real, in-scope rows are decrypted (drop ids from another scope/folder
@@ -1529,7 +1612,7 @@ export async function buildProjectedCorpus(
       if (keyById.has(id)) admissionSet.add(id);
     }
   }
-  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet]);
+  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet], hydrateOpts);
   const memories = admittedRows.filter((m) => !isEncrypted(m.content));
   // Parity with the legacy path's key-unavailable diagnostic: warn when an
   // admitted row's content is still encrypted (decryption degraded) so the
@@ -1591,34 +1674,92 @@ export interface VaultSearchResult {
 /**
  * Internal search that also returns the vault size, avoiding a second vault load.
  */
-export async function searchVaultMemoriesWithSize(
+
+/**
+ * The candidate set a vault search ranks over — the output of
+ * {@link prepareVaultCandidates} and the input to
+ * {@link rankPreparedVaultCandidates}.
+ *
+ * These are exactly the four locals both corpus-build paths (projected
+ * decrypt-last and legacy whole-vault) converge on. Splitting them out lets a
+ * caller that runs SEVERAL ranking passes over the same query+scope pay the
+ * expensive part — the row load, the content decrypt, and the query embed —
+ * only once. `retain()` is the motivating caller: its consolidation and
+ * strict-merge stages search an identical universe and differ only in
+ * rank-time parameters.
+ *
+ * Not part of the public SDK surface: no entry point re-exports these, so they
+ * are an internal seam for `retain()` and `searchVaultMemoriesWithSize`.
+ */
+export interface PreparedVaultCandidates {
+  /** Searchable rows (still-encrypted content already excluded). */
+  memories: StoredVaultMemory[];
+  /** Ranker input, one entry per searchable row. */
+  embeddedItems: EmbeddedItem[];
+  /** The query vector. Empty array when the vault had nothing to rank. */
+  queryEmbedding: number[];
+  /**
+   * Rows that EXIST in scope, not rows that were searchable — callers treat
+   * `vaultSize === 0` as "nothing saved yet", which must stay distinguishable
+   * from "saved but temporarily undecryptable".
+   */
+  vaultSize: number;
+  /**
+   * True when this candidate set has NO usable cosine lane — the query embed
+   * failed (or came back empty), or every row vector is missing because the row
+   * (re)embed failed. Ranking then runs on BM25 alone.
+   *
+   * Deliberately narrow: it means "cosine is inert", not "an embedding call
+   * somewhere failed". A partial failure that still leaves a query vector and
+   * some row vectors is logged, not reported here — callers turn this into
+   * `embeddings-unavailable` telemetry and a model-facing "only keyword
+   * matching ran" message, both of which would be false in that case.
+   */
+  embeddingsUnavailable: boolean;
+}
+
+/**
+ * Build the candidate set for a vault search: load in-scope rows, drop
+ * still-encrypted content, embed the query, and resolve every row's vector
+ * (cache → stored column → re-embed). This is the expensive half of
+ * {@link searchVaultMemoriesWithSize}; the ranking half is
+ * {@link rankPreparedVaultCandidates}.
+ *
+ * Returns `vaultSize: 0` for an empty scope and `memories: []` when rows exist
+ * but none were decryptable — the caller must distinguish those (see
+ * {@link PreparedVaultCandidates.vaultSize}).
+ *
+ * **Sharing one prepared set across several ranking passes:** sound only when
+ * every pass uses the same query, scope, folder, factTypes and includeArchived
+ * — and, under `decryptLast`, only when `limit` here is the WIDEST limit any
+ * pass will use. The projected path's decrypted admission window is
+ * `max(limit * admitFactor, admitFloor)`, so a set prepared for a narrow limit
+ * holds fewer candidates than a wider pass would have seen on its own. Preparing
+ * wide and ranking narrow is safe (a superset); the reverse silently truncates.
+ */
+export async function prepareVaultCandidates(
   query: string,
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
-): Promise<{
-  results: VaultSearchResult[];
-  vaultSize: number;
-  reranked: boolean;
-  hadV2Head: boolean;
-  /** True when the query embedding failed and this search ranked on BM25 alone. */
-  embeddingsUnavailable: boolean;
-}> {
-  const limit = searchOptions?.limit ?? 5;
-  const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
-  const scopes = searchOptions?.scopes;
-
+): Promise<PreparedVaultCandidates> {
+  // Guard here too, not only in searchVaultMemoriesWithSize: this is a public
+  // entry point now, so a direct caller (retain) must get the same no-storage-read
+  // short-circuit on a degenerate query.
   if (!query || typeof query !== "string") {
     return {
-      results: [],
+      memories: [],
+      embeddedItems: [],
+      queryEmbedding: [],
       vaultSize: 0,
-      reranked: false,
-      hadV2Head: false,
       embeddingsUnavailable: false,
     };
   }
-
+  // `limit` is read here only to size the projected decrypt-last admission
+  // window; the ranking depth is applied later, in rankPreparedVaultCandidates.
+  const limit = searchOptions?.limit ?? 5;
+  const scopes = searchOptions?.scopes;
   const folderId = searchOptions?.folderId;
 
   const queryOpts: {
@@ -1669,10 +1810,10 @@ export async function searchVaultMemoriesWithSize(
     });
     if (corpus.vaultSize === 0) {
       return {
-        results: [],
+        memories: [],
+        embeddedItems: [],
+        queryEmbedding: [],
         vaultSize: 0,
-        reranked: false,
-        hadV2Head: false,
         embeddingsUnavailable: false,
       };
     }
@@ -1682,7 +1823,13 @@ export async function searchVaultMemoriesWithSize(
     // don't fall through into decompose/LLM ranking on an empty head. Report
     // the real vaultSize so callers don't mistake this for an empty vault.
     if (memories.length === 0) {
-      return { results: [], vaultSize, reranked: false, hadV2Head: false, embeddingsUnavailable };
+      return {
+        memories: [],
+        embeddedItems: [],
+        queryEmbedding: [],
+        vaultSize,
+        embeddingsUnavailable,
+      };
     }
   } else {
     const loaded = await getAllVaultMemoriesOp(
@@ -1708,10 +1855,10 @@ export async function searchVaultMemoriesWithSize(
     // duplicate saves while decryption is temporarily unavailable.
     if (memories.length === 0) {
       return {
-        results: [],
+        memories: [],
+        embeddedItems: [],
+        queryEmbedding: [],
         vaultSize: loaded.length,
-        reranked: false,
-        hadV2Head: false,
         embeddingsUnavailable: false,
       };
     }
@@ -1775,19 +1922,36 @@ export async function searchVaultMemoriesWithSize(
       );
     }
     if (uncachedTexts.length > 0) {
-      const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
-      for (let j = 0; j < uncachedTexts.length; j++) {
-        cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
-        // Persist embedding + model to DB (fire-and-forget)
-        updateVaultMemoryEmbeddingOp(
-          vaultCtx,
-          memories[uncachedIndices[j]].uniqueId,
-          JSON.stringify(newEmbeddings[j]),
-          currentModel
-        ).catch(
-          // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-          () => {}
+      // Guarded for the same reason the query embed is: this batch is larger than
+      // the single query embed and so is the likelier thing to 429, and an outage
+      // that starts a moment after a successful query embed lands here. Throwing
+      // would take the whole search down and silently remove memory from the turn
+      // — the exact failure this function exists to prevent. A row left without a
+      // vector just scores cosine 0, and BM25 still ranks it.
+      let newEmbeddings: number[][] | undefined;
+      try {
+        newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
+      } catch (err) {
+        getLogger().warn(
+          `memoryVault: (re)embedding ${uncachedTexts.length} vault rows failed — they rank on ` +
+            "BM25 alone for this search: " +
+            (err instanceof Error ? err.message : String(err))
         );
+      }
+      if (newEmbeddings) {
+        for (let j = 0; j < uncachedTexts.length; j++) {
+          cache.set(memories[uncachedIndices[j]].uniqueId, Float32Array.from(newEmbeddings[j]));
+          // Persist embedding + model to DB (fire-and-forget)
+          updateVaultMemoryEmbeddingOp(
+            vaultCtx,
+            memories[uncachedIndices[j]].uniqueId,
+            JSON.stringify(newEmbeddings[j]),
+            currentModel
+          ).catch(
+            // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+            () => {}
+          );
+        }
       }
     }
 
@@ -1808,6 +1972,46 @@ export async function searchVaultMemoriesWithSize(
       factType: m.factType,
     }));
   }
+
+  // A query vector with nothing to score it against is just as inert as no query
+  // vector: every cosine is 0 and this set ranks on BM25 alone. Only reachable
+  // when a row (re)embed above failed — a healthy pass embeds every row that had
+  // no usable vector — so this is the batch-failure counterpart of a failed query
+  // embed, and callers must be able to tell the model the same thing about it.
+  if (!embeddingsUnavailable && !embeddedItems.some((it) => it.embedding.length > 0)) {
+    embeddingsUnavailable = true;
+  }
+
+  return { memories, embeddedItems, queryEmbedding, vaultSize, embeddingsUnavailable };
+}
+
+/**
+ * Rank an already-prepared candidate set. Pure with respect to storage — it
+ * touches neither the database nor the embedding cache, so it is safe to call
+ * repeatedly over one {@link prepareVaultCandidates} result.
+ *
+ * `limit` and `minSimilarity` are read from `searchOptions` here, so two calls
+ * over the same prepared set can rank at different depths and thresholds.
+ * Note that the ranking is NOT monotonic in `limit`: `rankVaultMemories` sizes
+ * its supersession window as `min(limit * 3, supersessionWindow)`, so a
+ * narrower pass is not the wider pass's output filtered — it must be re-ranked.
+ */
+export async function rankPreparedVaultCandidates(
+  query: string,
+  prepared: PreparedVaultCandidates,
+  embeddingOptions: EmbeddingOptions,
+  searchOptions?: MemoryVaultSearchOptions
+): Promise<{
+  results: VaultSearchResult[];
+  vaultSize: number;
+  reranked: boolean;
+  hadV2Head: boolean;
+  /** Forwarded from the prepared set — see {@link PreparedVaultCandidates.embeddingsUnavailable}. */
+  embeddingsUnavailable: boolean;
+}> {
+  const limit = searchOptions?.limit ?? 5;
+  const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
+  const { memories, embeddedItems, queryEmbedding, vaultSize, embeddingsUnavailable } = prepared;
 
   // Dimension net. The load loop above re-embeds stale-model and wrong-dim
   // vectors, so this should normally be empty; it still fires if a re-embed
@@ -1928,7 +2132,11 @@ export async function searchVaultMemoriesWithSize(
           "memoryVault: sub-query embedding failed — falling back to single-query ranking: " +
             (err instanceof Error ? err.message : String(err))
         );
-        embeddingsUnavailable = true;
+        // NOT reported as embeddingsUnavailable: the original query vector is
+        // still valid, so the single-query path below runs a real cosine lane.
+        // Flagging it would raise outage telemetry and tell the answer model
+        // only keyword matching ran, when full semantic ranking did — just
+        // without the multi-facet decomposition.
         subEmbeddings = [];
       }
       // On a sub-query embed failure, fall through to the single-query path below
@@ -2016,6 +2224,65 @@ export async function searchVaultMemoriesWithSize(
 
   // Cosine-only path doesn't rerank, so hadV2Head is true if any results exist.
   return stampTimestamps({ results, vaultSize, hadV2Head: results.length > 0 });
+}
+/**
+ * Search + rank in one call. Thin wrapper over {@link prepareVaultCandidates} +
+ * {@link rankPreparedVaultCandidates}; behavior is unchanged.
+ */
+export async function searchVaultMemoriesWithSize(
+  query: string,
+  vaultCtx: VaultMemoryOperationsContext,
+  embeddingOptions: EmbeddingOptions,
+  cache: VaultEmbeddingCache,
+  searchOptions?: MemoryVaultSearchOptions
+): Promise<{
+  results: VaultSearchResult[];
+  vaultSize: number;
+  reranked: boolean;
+  hadV2Head: boolean;
+  /** True when this search had no usable cosine lane and ranked on BM25 alone. */
+  embeddingsUnavailable: boolean;
+}> {
+  // Invalid query short-circuits BEFORE any storage read (the pre-split
+  // behavior — a test pins that `getAllVaultMemoriesOp` is never called).
+  if (!query || typeof query !== "string") {
+    return {
+      results: [],
+      vaultSize: 0,
+      reranked: false,
+      hadV2Head: false,
+      embeddingsUnavailable: false,
+    };
+  }
+  const prepared = await prepareVaultCandidates(
+    query,
+    vaultCtx,
+    embeddingOptions,
+    cache,
+    searchOptions
+  );
+  // Preserve the pre-split early returns exactly: an empty scope reports
+  // vaultSize 0, and rows-present-but-none-decryptable reports the real
+  // vaultSize so callers do not mistake it for an empty vault.
+  if (prepared.vaultSize === 0) {
+    return {
+      results: [],
+      vaultSize: 0,
+      reranked: false,
+      hadV2Head: false,
+      embeddingsUnavailable: prepared.embeddingsUnavailable,
+    };
+  }
+  if (prepared.memories.length === 0) {
+    return {
+      results: [],
+      vaultSize: prepared.vaultSize,
+      reranked: false,
+      hadV2Head: false,
+      embeddingsUnavailable: prepared.embeddingsUnavailable,
+    };
+  }
+  return rankPreparedVaultCandidates(query, prepared, embeddingOptions, searchOptions);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { Database } from "@nozbe/watermelondb";
+import { Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
@@ -19,6 +19,7 @@ import {
   supersedeVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,
   setMemoryEntitiesOp,
+  setMemoryVisibilityOp,
   clearMemoryTopicsOverrideOp,
   getMemoriesNeedingTopicExtractionOp,
   stampTopicsExtractedAtOp,
@@ -94,6 +95,18 @@ function mockRecord(overrides: Record<string, any> = {}) {
     },
     get supersededBy() {
       return raw.superseded_by ?? null;
+    },
+    get visibility() {
+      return raw.visibility ?? null;
+    },
+    get twinOptIn() {
+      return raw.twin_opt_in ?? null;
+    },
+    get publishedAt() {
+      return raw.published_at ?? null;
+    },
+    get geohash() {
+      return raw.geohash ?? null;
     },
     _setRaw(key: string, value: any) {
       raw[key] = value;
@@ -2127,5 +2140,434 @@ describe("baseVaultConditions — real read semantics (in-memory LokiJS)", () =>
       (m) => m.uniqueId
     );
     expect(withQuarantined).toContain(quarantined.uniqueId);
+  });
+});
+
+/**
+ * #779 — the decrypt-last search path routes its filters through
+ * `getVaultCandidateKeysOp`, which originally accepted only `scopes`/`folderId`.
+ * `factTypes` and `includeArchived` were therefore honored on the legacy
+ * whole-vault path and silently dropped here, so the same query returned
+ * different candidate sets depending on which path was active.
+ */
+describe("getVaultCandidateKeysOp — filter parity with the legacy path (#779)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  /** Drive the projected-SQL path and return the [sql, args] it built. */
+  async function captureSql(
+    options?: Parameters<typeof getVaultCandidateKeysOp>[1]
+  ): Promise<{ sql: string; args: unknown[] }> {
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getVaultCandidateKeysOp(ctx, options);
+    const call = spy.mock.calls[0]!;
+    return { sql: call[0] as string, args: (call[1] ?? []) as unknown[] };
+  }
+
+  it("filters by fact_type when factTypes is passed", async () => {
+    const { sql, args } = await captureSql({ factTypes: ["preference", "identity"] });
+    expect(sql).toContain('"fact_type" in (?,?)');
+    expect(args).toEqual(expect.arrayContaining(["preference", "identity"]));
+  });
+
+  it("omits the fact_type clause when factTypes is absent or empty", async () => {
+    expect((await captureSql()).sql).not.toContain("fact_type");
+    expect((await captureSql({ factTypes: [] })).sql).not.toContain("fact_type");
+  });
+
+  it("excludes archived rows by default", async () => {
+    expect((await captureSql()).sql).toContain('"archived_at" is null');
+  });
+
+  // The bug's sharpest edge: `baseVaultSql` hardcoded this clause, so
+  // includeArchived could not be satisfied on this path even in principle.
+  it("drops the archived filter when includeArchived is set", async () => {
+    const { sql } = await captureSql({ includeArchived: true });
+    expect(sql).not.toContain("archived_at");
+    // The other safety filters must survive — only archiving is opted out of.
+    expect(sql).toContain('"is_deleted" = 0');
+    expect(sql).toContain('"superseded_by" is null');
+  });
+
+  /** Drive the LokiJS fallback (first call throws) and count its Q conditions. */
+  async function lokiConditionCount(
+    options?: Parameters<typeof getVaultCandidateKeysOp>[1]
+  ): Promise<number> {
+    let calls = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      return { unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getVaultCandidateKeysOp(ctx, options);
+    return queryFn.mock.calls[1]!.length;
+  }
+
+  // Each case is chosen so the COUNT differs between fixed and unfixed code —
+  // asserting a count that happens to match on both (e.g. swapping archived_at
+  // for fact_type) would pass for the wrong reason.
+  it("applies both filters on the LokiJS fallback too", async () => {
+    // Baseline: is_deleted + archived_at + trust_tier + superseded_by.
+    // (no user_id — makeCtx sets none; no scope/folder_id — not requested.)
+    expect(await lokiConditionCount()).toBe(4);
+    // + fact_type ⇒ 5. Unfixed code drops it and stays at 4.
+    expect(await lokiConditionCount({ factTypes: ["preference"] })).toBe(5);
+    // − archived_at ⇒ 3. Unfixed code keeps it and stays at 4.
+    expect(await lokiConditionCount({ includeArchived: true })).toBe(3);
+  });
+});
+
+/**
+ * #779, second half. Fixing only the key scan was not enough: the decrypt-last
+ * path admits candidates via `getVaultCandidateKeysOp`, then hydrates them by id
+ * through these two ops. Both re-applied the default archived exclusion, so
+ * archived rows passed the scan and were silently dropped at hydration — while
+ * still consuming admission slots on the way.
+ */
+describe("by-id hydration ops honor includeArchived (#779)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("getVaultEmbeddingsByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+    expect(spy.mock.calls[0]![0] as string).toContain('"archived_at" is null');
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"], { includeArchived: true });
+    const withArchived = spy.mock.calls[1]![0] as string;
+    expect(withArchived).not.toContain("archived_at");
+    // The id restriction and the other safety filters must survive.
+    expect(withArchived).toContain('"id" in (?)');
+    expect(withArchived).toContain('"is_deleted" = 0');
+  });
+
+  it("getVaultMemoriesByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    // is_deleted + archived_at + trust_tier + superseded_by + id oneOf = 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"]);
+    expect(queryFn.mock.calls[0]!.length).toBe(5);
+
+    // − archived_at ⇒ 4. Unfixed code stays at 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"], { includeArchived: true });
+    expect(queryFn.mock.calls[1]!.length).toBe(4);
+  });
+});
+
+describe("visibility defaults", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("createVaultMemoryOp defaults visibility to 'private' with no published_at", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("visibility", "private");
+    expect(setRawSpy).toHaveBeenCalledWith("published_at", null);
+  });
+
+  it("createVaultMemoryOp round-trips visibility + publishedAt (restore path)", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, {
+      content: "hello",
+      visibility: "public",
+      publishedAt: 1750000000000,
+    });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("visibility", "public");
+    expect(setRawSpy).toHaveBeenCalledWith("published_at", 1750000000000);
+  });
+
+  it("createVaultMemoryOp ignores publishedAt when visibility is private", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, {
+      content: "hello",
+      visibility: "private",
+      publishedAt: 1750000000000,
+    });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("published_at", null);
+  });
+
+  it("vaultMemoryToStored grandfathers NULL visibility as 'private'", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const stored = await vaultMemoryToStored(record as any);
+    expect(stored.visibility).toBe("private");
+    expect(stored.twinOptIn).toBe(false);
+    expect(stored.publishedAt).toBe(null);
+    expect(stored.geohash).toBe(null);
+  });
+});
+
+describe("setMemoryVisibilityOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("publishes: sets visibility and stamps published_at, preserving updated_at", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    const before = Date.now();
+    const result = await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
+
+    expect(result).not.toBeNull();
+    expect(record.visibility).toBe("public");
+    expect(record.publishedAt).toBeGreaterThanOrEqual(before);
+    // updated_at restored — a visibility change is not a re-observation.
+    // (The mock getter returns the raw value the op wrote: original ms.)
+    expect(record.updatedAt).toBe(new Date("2025-01-01").getTime());
+  });
+
+  it("keeps an existing published_at when re-publishing an already-public memory", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("visibility", "public");
+    record._setRaw("published_at", 1750000000000);
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
+
+    expect(record.visibility).toBe("public");
+    expect(record.publishedAt).toBe(1750000000000);
+  });
+
+  it("re-stamps published_at when a revoke commits between probe and write", async () => {
+    // The invariant (published_at non-null iff visibility non-private) must
+    // survive a concurrent revoke. Emulate the interleaving WatermelonDB's
+    // serialized writer allows: the row is public with a stamp when we probe
+    // it, but a revoke commits first and clears both before our writer runs.
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("visibility", "public");
+    record._setRaw("published_at", 1750000000000);
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => {
+          record._setRaw("visibility", "private");
+          record._setRaw("published_at", null);
+          return cb();
+        }),
+      } as any,
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const before = Date.now();
+    await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
+
+    expect(record.visibility).toBe("public");
+    // Must be freshly stamped, NOT left null from the revoke that won the race.
+    expect(record.publishedAt).toBeGreaterThanOrEqual(before);
+  });
+
+  it("revokes: visibility 'private' clears published_at", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("visibility", "public");
+    record._setRaw("published_at", 1750000000000);
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "private" });
+
+    expect(record.visibility).toBe("private");
+    expect(record.publishedAt).toBe(null);
+  });
+
+  it("sets twin_opt_in when provided", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "private", twinOptIn: true });
+    expect(record.twinOptIn).toBe(true);
+  });
+
+  it("leaves twin_opt_in untouched when omitted", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("twin_opt_in", true);
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
+    expect(record.twinOptIn).toBe(true);
+  });
+
+  it("returns null for a soft-deleted memory", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("is_deleted", true);
+    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+
+    const result = await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
+    expect(result).toBeNull();
+    expect(record.visibility).toBe(null);
+  });
+
+  it("returns null for a record owned by another user (ctx.userId scoping)", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("user_id", "user_b");
+    const ctx = makeCtx({
+      userId: "user_a",
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
+    expect(result).toBeNull();
+    expect(record.visibility).toBe(null);
+  });
+});
+
+describe("visibility coercion (two-tier fail-safe)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // The tier model is `private | public`. An earlier design had a middle
+  // `matchable` tier; a row written by a pre-release build carrying it — or any
+  // value a future schema adds — must read as PRIVATE, never as published.
+  // Coercing the other way would expose content the user never consented to.
+  it.each([["matchable"], ["future_tier"], [""], [null]])(
+    "reads a stored %p visibility as 'private'",
+    async (stored) => {
+      const record = mockRecord({ id: "mem_1" });
+      record._setRaw("visibility", stored);
+      const ctx = makeCtx({
+        vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      });
+
+      const result = await getVaultMemoryOp(ctx, "mem_1");
+      expect(result?.visibility).toBe("private");
+    }
+  );
+
+  it("reads a stored 'public' visibility as 'public'", async () => {
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("visibility", "public");
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await getVaultMemoryOp(ctx, "mem_1");
+    expect(result?.visibility).toBe("public");
+  });
+});
+
+describe("getAllVaultMemoriesOp — visibility filtering", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("filters by non-private visibility with a plain oneOf", async () => {
+    const ctx = makeCtx();
+    await getAllVaultMemoriesOp(ctx, { visibility: ["public"] });
+
+    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const conditions = JSON.stringify(queryFn.mock.calls[0]);
+    expect(conditions).toContain("public");
+    // No null-OR branch needed when 'private' is not requested.
+    expect(conditions).not.toContain('"or"');
+  });
+
+  it("filtering for 'private' matches NULL and non-enum rows (NOT IN the excluded values)", async () => {
+    const ctx = makeCtx();
+    await getAllVaultMemoriesOp(ctx, { visibility: ["private"] });
+
+    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const conditions = JSON.stringify(queryFn.mock.calls[0]);
+    // NULL legacy rows OR anything outside the excluded non-private values —
+    // mirrors visibilityOrPrivate (unknown values read as private).
+    expect(conditions).toContain('"or"');
+    expect(conditions).toContain("notIn");
+    expect(conditions).toContain("public");
+  });
+
+  it("requesting every visibility tier applies no condition (matches all rows)", async () => {
+    const ctx = makeCtx();
+    await getAllVaultMemoriesOp(ctx, { visibility: ["private", "public"] });
+
+    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const conditions = JSON.stringify(queryFn.mock.calls[0]);
+    expect(conditions).not.toContain("visibility");
+  });
+
+  it("applies no visibility condition when the option is omitted", async () => {
+    const ctx = makeCtx();
+    await getAllVaultMemoriesOp(ctx);
+
+    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const conditions = JSON.stringify(queryFn.mock.calls[0]);
+    expect(conditions).not.toContain("visibility");
+  });
+});
+
+describe("visibility — batch create + raw mapper", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("createVaultMemoriesBatchOp defaults visibility to 'private' with published_at null", async () => {
+    const prepared: Array<Record<string, any>> = [];
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => undefined),
+      } as any,
+      vaultMemoryCollection: {
+        prepareCreate: vi.fn((builder: (r: any) => void) => {
+          const record = mockRecord();
+          builder(record);
+          prepared.push(record);
+          return record;
+        }),
+      } as any,
+    });
+
+    await createVaultMemoriesBatchOp(ctx, [{ content: "a" }, { content: "b" }]);
+
+    expect(prepared).toHaveLength(2);
+    for (const record of prepared) {
+      expect(record.visibility).toBe("private");
+      expect(record.publishedAt).toBe(null);
+    }
+  });
+
+  it("createVaultMemoriesBatchOp stamps published_at for a non-private create without one", async () => {
+    const prepared: Array<Record<string, any>> = [];
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => undefined),
+      } as any,
+      vaultMemoryCollection: {
+        prepareCreate: vi.fn((builder: (r: any) => void) => {
+          const record = mockRecord();
+          builder(record);
+          prepared.push(record);
+          return record;
+        }),
+      } as any,
+    });
+
+    const before = Date.now();
+    await createVaultMemoriesBatchOp(ctx, [{ content: "a", visibility: "public" }]);
+
+    // Invariant: published_at non-null iff visibility non-private.
+    expect(prepared[0].visibility).toBe("public");
+    expect(prepared[0].publishedAt).toBeGreaterThanOrEqual(before);
+  });
+
+  it("raw (unsafeFetchRaw) read path grandfathers NULL visibility as 'private'", async () => {
+    const ctx = makeCtx();
+    // makeCtx's unsafeFetchRaw serves raws without the new columns (legacy rows).
+    const results = await getAllVaultMemoriesOp(ctx);
+
+    expect(results.length).toBeGreaterThan(0);
+    for (const stored of results) {
+      expect(stored.visibility).toBe("private");
+      expect(stored.twinOptIn).toBe(false);
+      expect(stored.publishedAt).toBe(null);
+    }
   });
 });

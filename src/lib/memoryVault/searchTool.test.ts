@@ -1011,9 +1011,73 @@ describe("buildProjectedCorpus", () => {
     );
 
     expect(getAll).not.toHaveBeenCalled(); // no whole-vault load
-    expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"]); // only the miss embedded-loaded
+    // Only the miss is embedded-loaded. The third arg is the hydration filter
+    // (#779) — undefined here because this query didn't opt into archived rows,
+    // which is what keeps the default exclusion in force.
+    expect(embByIds).toHaveBeenCalledWith({} as any, ["miss"], undefined);
     expect(out.vaultSize).toBe(2);
     expect(byIds.mock.calls[0][1]).toContain("cached"); // admission decrypt
+  });
+
+  // #779: the key scan honoring includeArchived is only half the path. If the
+  // by-id hydration steps re-apply their default archived exclusion, admitted
+  // archived rows are silently dropped again (after consuming admission slots).
+  it("forwards includeArchived to BOTH hydration steps, not just the key scan", async () => {
+    const keys = vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      {
+        uniqueId: "arch",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date(),
+      },
+    ] as any);
+    const embByIds = vi
+      .spyOn(ops, "getVaultEmbeddingsByIdsOp")
+      .mockResolvedValue([{ uniqueId: "arch", embedding: "[1,0]", embeddingModel: "m" }] as any);
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
+      {
+        uniqueId: "arch",
+        content: "archived fact",
+        embedding: "[1,0]",
+        embeddingModel: "m",
+        scope: "private",
+        folderId: null,
+        userId: null,
+        isDeleted: false,
+        proofCount: 1,
+        sourceChunkIds: null,
+        eventTimeStart: null,
+        eventTimeEnd: null,
+        eventTimeKind: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      new Map(),
+      {
+        includeArchived: true,
+      },
+      {
+        limit: 2,
+        admitFactor: 1,
+        admitFloor: 2,
+        unembeddedCap: 100,
+      }
+    );
+
+    // Key scan opts in — already fixed by the first half of #779.
+    expect(keys.mock.calls[0][1]).toMatchObject({ includeArchived: true });
+    // ...and BOTH hydration steps must opt in too, or the row vanishes here.
+    expect(embByIds.mock.calls[0][2]).toEqual({ includeArchived: true });
+    expect(byIds.mock.calls[0][2]).toEqual({ includeArchived: true });
+    expect(out.memories.map((m: any) => m.uniqueId)).toContain("arch");
   });
 
   it("empty candidate set: returns empty WITHOUT embedding the query", async () => {
@@ -1158,6 +1222,171 @@ describe("buildProjectedCorpus", () => {
 
     const decryptedIds = byIds.mock.calls.flatMap((c) => c[1] as string[]);
     expect(decryptedIds).not.toContain("ghost");
+  });
+
+  // A3 follow-up. Cosine admission is what picks the decrypt window here, so a
+  // failed query embed doesn't just flatten the ordering — nothing dim-matches a
+  // length-0 vector, so NOTHING gets vectored and the window came back empty:
+  // BM25 then ranked an empty corpus and the outage still cost all recall on this
+  // path. Fall back to admitting the most-recently-updated candidates.
+  it("degraded: admits the most recent candidates by recency instead of nothing", async () => {
+    const older = new Date("2026-01-01T00:00:00Z");
+    const newer = new Date("2026-06-01T00:00:00Z");
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      { uniqueId: "old", folderId: null, scope: "private", embeddingModel: "m", updatedAt: older },
+      { uniqueId: "new", folderId: null, scope: "private", embeddingModel: "m", updatedAt: newer },
+    ] as any);
+    const embByIds = vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any);
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
+      async (_ctx: any, ids: string[]) =>
+        ids.map((id) => ({
+          uniqueId: id,
+          content: id === "new" ? "allergic to shellfish" : "prefers window seats",
+          embedding: null,
+          embeddingModel: "m",
+          scope: "private",
+          folderId: null,
+          userId: null,
+          isDeleted: false,
+          proofCount: 1,
+          sourceChunkIds: null,
+          eventTimeStart: null,
+          eventTimeEnd: null,
+          eventTimeKind: null,
+          createdAt: new Date(),
+          updatedAt: id === "new" ? newer : older,
+        })) as any
+    );
+    vi.spyOn(embed, "generateEmbedding").mockRejectedValue(new Error("API rate limit"));
+    const onEmbeddingDegraded = vi.fn();
+
+    // A warm cache entry must NOT rescue this: it can't dim-match the empty query
+    // vector either, which is exactly why the window came back empty before.
+    const cache = new Map([["old", Float32Array.from([1, 0])]]);
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      cache,
+      {},
+      { limit: 1, admitFactor: 1, admitFloor: 1, unembeddedCap: 100, onEmbeddingDegraded }
+    );
+
+    // k=1, so the recency fallback admits "new" — and it reaches BM25 decrypted.
+    expect(out.memories.map((m) => m.uniqueId)).toEqual(["new"]);
+    expect(byIds.mock.calls.flatMap((c) => c[1] as string[])).toEqual(["new"]);
+    expect(onEmbeddingDegraded).toHaveBeenCalled();
+    // No point loading embedding columns nothing can dim-match against.
+    expect(embByIds).not.toHaveBeenCalled();
+  });
+});
+
+// A3 follow-up: the query embed was the only guarded embedding call, but it is
+// not the only one on the read path — and it is the SMALLEST, so it is the least
+// likely of them to be the one that fails.
+describe("searchVaultMemoriesWithSize — embedding failures beyond the query embed", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("row (re)embed batch failure degrades instead of throwing out of the search", async () => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+      makeMemory("m2", "prefers window seats"),
+    ] as any);
+    // Query embed succeeds; the larger row batch is what 429s.
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+    vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
+
+    const out = await searchVaultMemoriesWithSize(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      createVaultEmbeddingCache(),
+      { limit: 5 }
+    );
+
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+    // No row ended up with a vector, so cosine is as inert as a failed query
+    // embed — the caller must be able to tell the model that.
+    expect(out.embeddingsUnavailable).toBe(true);
+  });
+
+  it("does NOT report an outage when the batch fails but some row vectors survive", async () => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+      makeMemory("m2", "prefers window seats"),
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+    vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0])); // m1 still has a usable vector
+    const out = await searchVaultMemoriesWithSize(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { limit: 5 }
+    );
+
+    // Cosine ranked m1 for real, so "only keyword matching ran" would be false —
+    // and would raise outage telemetry on a partial, self-healing degradation.
+    expect(out.embeddingsUnavailable).toBe(false);
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("does NOT report an outage when only the composite sub-query embed fails", async () => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+    // Only the sub-query batch fails — the row vectors are already cached.
+    vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "composite",
+      subQueries: ["allergies", "food"],
+    } as any);
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0]));
+    const out = await searchVaultMemoriesWithSize(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      {
+        limit: 5,
+        useFusion: true,
+        decompose: "llm",
+        decomposeOptions: { apiKey: "k" } as any,
+      }
+    );
+
+    // Falls through to the single-query ranker, which runs a REAL cosine lane on
+    // the original query vector — the multi-facet decomposition is all that's lost.
+    expect(out.embeddingsUnavailable).toBe(false);
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("treats a successful-but-empty query embedding as degraded", async () => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+    ] as any);
+    // Resolves rather than rejects — a malformed provider response must not read
+    // as a healthy search, or an empty result gets reported as "no such memory".
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([]);
+
+    const out = await searchVaultMemoriesWithSize(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      createVaultEmbeddingCache(),
+      { limit: 5 }
+    );
+
+    expect(out.embeddingsUnavailable).toBe(true);
   });
 });
 

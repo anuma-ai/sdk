@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { scoreBM25 } from "./bm25.js";
+import { prepareBM25Corpus, scoreBM25, scoreBM25Prepared } from "./bm25.js";
 
 describe("scoreBM25", () => {
   it("returns empty map for empty query", () => {
@@ -76,5 +76,93 @@ describe("scoreBM25", () => {
     ];
     const scores = scoreBM25("hello world", items);
     expect(scores.get("double")!).toBeGreaterThan(scores.get("single")!);
+  });
+});
+
+describe("prepareBM25Corpus + scoreBM25Prepared (B3 tokenize-once)", () => {
+  const corpusItems = [
+    { id: "p09", content: "Has a golden retriever named Biscuit" },
+    { id: "i06", content: "Enjoys hiking in Marin County on weekends" },
+    { id: "p25", content: "Vegetarian since 2020, but eats fish occasionally" },
+    { id: "d1", content: "common common rare tokens here" },
+    { id: "d2", content: "common common common filler words" },
+    { id: "empty", content: "" },
+    { id: "stop", content: "the and of to a" }, // all stopwords → zero tokens
+  ];
+
+  // Exactness: for any query, prepared scoring must equal the single-shot path byte-for-byte.
+  it.each([
+    ["biscuit"],
+    ["common"],
+    ["rare"],
+    ["hiking marin"],
+    [""], // empty query
+    ["the and of"], // stopword-only query
+    ["nonexistentterm"], // no overlap
+    ["Biscuit HIKING, fish"], // mixed case + punctuation + multi-term
+  ])("scoreBM25Prepared(%j) equals scoreBM25", (query) => {
+    const corpus = prepareBM25Corpus(corpusItems);
+    expect(scoreBM25Prepared(query, corpus)).toEqual(scoreBM25(query, corpusItems));
+  });
+
+  it("one prepared corpus serves many queries identically (the shared-pass invariant)", () => {
+    const corpus = prepareBM25Corpus(corpusItems);
+    for (const q of ["biscuit", "common", "rare", "fish"]) {
+      // Re-preparing per query (old behavior) must match reusing the shared corpus.
+      expect(scoreBM25Prepared(q, corpus)).toEqual(
+        scoreBM25Prepared(q, prepareBM25Corpus(corpusItems))
+      );
+    }
+  });
+
+  it("handles an empty corpus and an all-zero-length corpus", () => {
+    expect(scoreBM25Prepared("hello", prepareBM25Corpus([]))).toEqual(new Map());
+    const allEmpty = [
+      { id: "a", content: "" },
+      { id: "b", content: "the and of" }, // stopwords only → zero tokens
+    ];
+    expect(scoreBM25Prepared("hello", prepareBM25Corpus(allEmpty))).toEqual(new Map());
+    // avgdl is 0 here; no NaN must leak (docs are skipped by the dl===0 guard).
+    expect(scoreBM25Prepared("hello", prepareBM25Corpus(allEmpty)).size).toBe(0);
+  });
+});
+
+describe("scoreBM25 — zero-term query short-circuit", () => {
+  /**
+   * Proves the corpus is never tokenized: reading `content` throws, so any
+   * document pass blows up. Guards the B3 regression both review bots caught —
+   * delegating to prepare+score unconditionally made a stopword-only query cost
+   * a full vault tokenize + DF build.
+   */
+  const landmine = [
+    {
+      id: "a",
+      get content(): string {
+        throw new Error("corpus was prepared for a zero-term query");
+      },
+    },
+    {
+      id: "b",
+      get content(): string {
+        throw new Error("corpus was prepared for a zero-term query");
+      },
+    },
+  ] as unknown as Parameters<typeof scoreBM25>[1];
+
+  it.each(["", "   ", "!!! ...", "the and of"])(
+    "returns empty without touching the corpus for %o",
+    (query) => {
+      expect(scoreBM25(query, landmine).size).toBe(0);
+    }
+  );
+
+  it("still scores normally once the query has a real term", () => {
+    const items = [
+      { id: "a", content: "matcha green tea" },
+      { id: "b", content: "black coffee" },
+    ];
+    const scores = scoreBM25("matcha", items);
+    expect(scores.get("a")).toBeGreaterThan(0);
+    expect(scores.has("b")).toBe(false);
   });
 });

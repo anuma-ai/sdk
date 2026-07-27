@@ -40,6 +40,15 @@ export class VaultMemory extends Model {
   @field("archived_at") archivedAt!: number | null;
   /** Tier-0 security (PR3) — "quarantined" | "trusted" | null. */
   @field("trust_tier") trustTier!: string | null;
+  /** People Nearby visibility: 'private' | 'public'. Null on legacy rows, and
+   *  any unrecognised value, read as 'private' — never published without opt-in. */
+  @field("visibility") visibility!: string | null;
+  /** Owner opted this memory into their own digital twin (twin-scoped only). */
+  @field("twin_opt_in") twinOptIn!: boolean | null;
+  /** Unix ms when visibility last became non-private; null while private. */
+  @field("published_at") publishedAt!: number | null;
+  /** Reserved coarse-geohash slot for landmark/Trail memories. */
+  @field("geohash") geohash!: string | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

@@ -19,14 +19,15 @@ import {
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
+import { answerFailureReason, evaluateAnswer } from "./judge.js";
 import {
+  ANSWER_MAX_COMPLETION_TOKENS,
   buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
   createConsolidationFallbackTracker,
   createStorageContext,
   createVaultContext,
-  evaluateAnswer,
   extractMemoriesFromSession,
   formatHaystackDateAsObservation,
   logProgress,
@@ -264,11 +265,12 @@ You are a personal assistant with access to the user's past conversation history
     };
 
     let generatedAnswer = "";
+    let thrownWhileAnswering: unknown;
     try {
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools,
         toolChoice: "required",
-        maxTokens: 500,
+        maxTokens: ANSWER_MAX_COMPLETION_TOKENS,
       });
       addUsage(firstResponse.usage);
       transcript.firstResponse = firstResponse;
@@ -317,7 +319,7 @@ You are a personal assistant with access to the user's past conversation history
             { role: "system", content: secondSystemPrompt },
             { role: "user", content: entry.question },
           ],
-          { maxTokens: 500 }
+          { maxTokens: ANSWER_MAX_COMPLETION_TOKENS }
         );
         addUsage(secondResponse.usage);
         transcript.secondResponse = secondResponse;
@@ -329,9 +331,12 @@ You are a personal assistant with access to the user's past conversation history
       console.error("memory-ensemble answering failed:", error);
       transcript.error = String(error);
       generatedAnswer = "";
+      thrownWhileAnswering = error;
     }
 
     transcript.finalAnswer = generatedAnswer;
+    const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
+    if (answerError) transcript.answerError = answerError;
 
     const retrievedSessionIds = new Set<string>();
     for (const vId of retrievedVaultIds) {
@@ -358,10 +363,18 @@ You are a personal assistant with access to the user's past conversation history
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
-    addUsage(evalResult.usage);
-    const isCorrect = evalResult.isCorrect;
+    // Nothing to judge when the answer step produced nothing — grading the
+    // empty string would just relabel a broken call as a miss.
+    let isCorrect = false;
+    let judgeError: string | undefined;
+    if (!answerError) {
+      const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+      addUsage(evalResult.usage);
+      isCorrect = evalResult.verdict === "correct";
+      judgeError = evalResult.verdict === "unjudgeable" ? evalResult.reason : undefined;
+    }
     transcript.isCorrect = isCorrect;
+    if (judgeError) transcript.judgeError = judgeError;
     await saveTranscript(`${entry.question_id}_ensemble`, transcript, verbose);
 
     const elapsed = performance.now() - startTime;
@@ -381,6 +394,8 @@ You are a personal assistant with access to the user's past conversation history
       expectedAnswer: entry.answer,
       generatedAnswer,
       isCorrect,
+      ...(judgeError && { judgeError }),
+      ...(answerError && { answerError }),
       retrievedSessionIds: [...retrievedSessionIds],
       expectedSessionIds: entry.answer_session_ids,
       retrievalPrecision,

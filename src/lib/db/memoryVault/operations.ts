@@ -17,7 +17,39 @@ import type {
   RankableVaultMemory,
   StoredVaultMemory,
   UpdateVaultMemoryOptions,
+  VaultMemoryVisibility,
 } from "./types";
+
+/** Coerce a stored visibility column to the enum — null/unknown reads as
+ * "private" (grandfathered legacy rows; nothing is published without opt-in).
+ * "Unknown" deliberately includes the retired "matchable" tier and any value a
+ * FUTURE schema might add: coercing toward private fails safe, since the wrong
+ * answer un-publishes a memory rather than exposing one. */
+function visibilityOrPrivate(value: unknown): VaultMemoryVisibility {
+  return value === "public" ? value : "private";
+}
+
+const NON_PRIVATE_VISIBILITIES: VaultMemoryVisibility[] = ["public"];
+
+/**
+ * WHERE conditions for a visibility filter, mirroring {@link visibilityOrPrivate}:
+ * a filter that includes 'private' matches NULL rows (grandfathered legacy) AND
+ * any value outside the enum (a future schema's value must read as private
+ * here, exactly as the coercion presents it). Non-private filters match their
+ * literal values only.
+ */
+function visibilityConditions(requested?: VaultMemoryVisibility[]) {
+  if (!requested?.length) return [];
+  if (!requested.includes("private")) {
+    return [Q.where("visibility", Q.oneOf([...requested]))];
+  }
+  // 'private' requested: match NULL plus everything NOT IN the non-private
+  // values that were excluded from the request. (If nothing is excluded, the
+  // filter is a no-op — every row matches.)
+  const excluded = NON_PRIVATE_VISIBILITIES.filter((v) => !requested.includes(v));
+  if (excluded.length === 0) return [];
+  return [Q.or(Q.where("visibility", null), Q.where("visibility", Q.notIn(excluded)))];
+}
 
 export interface VaultMemoryOperationsContext {
   database: Database;
@@ -165,6 +197,10 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     factType: memory.factType ?? null,
     archivedAt: memory.archivedAt ?? null,
     trustTier: memory.trustTier ?? null,
+    visibility: visibilityOrPrivate(memory.visibility),
+    twinOptIn: memory.twinOptIn ?? false,
+    publishedAt: memory.publishedAt ?? null,
+    geohash: memory.geohash ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -229,6 +265,16 @@ export async function createVaultMemoryOp(
       if (opts.trustTier !== undefined) {
         // Tier-0 (PR3): re-validate the loose string against the known set.
         record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
+      }
+      record._setRaw("visibility", opts.visibility ?? "private");
+      // Invariant: published_at is non-null iff visibility is non-private.
+      // A non-private restore/import without a stamp gets one now.
+      record._setRaw(
+        "published_at",
+        opts.visibility && opts.visibility !== "private" ? (opts.publishedAt ?? Date.now()) : null
+      );
+      if (opts.geohash !== undefined) {
+        record._setRaw("geohash", opts.geohash);
       }
     });
   });
@@ -457,6 +503,16 @@ export async function createVaultMemoriesBatchOp(
           // Tier-0 (PR3): re-validate the loose string against the known set.
           record._setRaw("trust_tier", normalizeTrustTier(opts.trustTier));
         }
+        record._setRaw("visibility", opts.visibility ?? "private");
+        // Invariant: published_at is non-null iff visibility is non-private
+        // (see createVaultMemoryOp).
+        record._setRaw(
+          "published_at",
+          opts.visibility && opts.visibility !== "private" ? (opts.publishedAt ?? Date.now()) : null
+        );
+        if (opts.geohash !== undefined) {
+          record._setRaw("geohash", opts.geohash);
+        }
       })
     );
     await ctx.database.batch(...prepared);
@@ -533,6 +589,10 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     factType: (raw.fact_type as string | null) ?? null,
     archivedAt: (raw.archived_at as number | null) ?? null,
     trustTier: (raw.trust_tier as string | null) ?? null,
+    visibility: visibilityOrPrivate(raw.visibility),
+    twinOptIn: raw.twin_opt_in === true || raw.twin_opt_in === 1,
+    publishedAt: (raw.published_at as number | null) ?? null,
+    geohash: (raw.geohash as string | null) ?? null,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -579,11 +639,18 @@ export async function getAllVaultMemoriesOp(
      * Used by a "memory history" view to render retired facts.
      */
     includeSuperseded?: boolean;
+    /**
+     * Filter by People Nearby visibility. Legacy rows with a NULL column
+     * count as "private". Used by the publish reconciler to fetch the
+     * published set to diff against the server index.
+     */
+    visibility?: VaultMemoryVisibility[];
   }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+    ...visibilityConditions(options?.visibility),
     ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
     ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
@@ -677,13 +744,18 @@ export interface VaultCandidateKey {
  * are inlined as SQL literals (no bound args) to keep the projection paths'
  * bound-arg lists identical to the pre-decay behavior.
  */
-function baseVaultSql(ctx: VaultMemoryOperationsContext): {
+function baseVaultSql(
+  ctx: VaultMemoryOperationsContext,
+  options?: { includeArchived?: boolean }
+): {
   sql: string;
   args: Array<string | number | boolean | null>;
 } {
   const clauses = [
     '"is_deleted" = 0',
-    '"archived_at" is null',
+    // Mirrors `baseVaultConditions`' `includeArchived` branch. Defaults to
+    // excluding archived rows, so every existing caller is unchanged.
+    ...(options?.includeArchived ? [] : ['"archived_at" is null']),
     `"trust_tier" is not 'quarantined'`,
     '"superseded_by" is null',
   ];
@@ -703,7 +775,20 @@ function baseVaultSql(ctx: VaultMemoryOperationsContext): {
  */
 export async function getVaultCandidateKeysOp(
   ctx: VaultMemoryOperationsContext,
-  options?: { scopes?: string[]; folderId?: string | null }
+  options?: {
+    scopes?: string[];
+    folderId?: string | null;
+    /**
+     * Typed memory (PR1) — restrict to these fact types. Omit for no filter.
+     * MUST stay in step with `getAllVaultMemoriesOp`: this op backs the
+     * decrypt-last search path, and the two paths are meant to return the same
+     * candidate set for the same query. Dropping it here made typed recall
+     * silently path-dependent (#779).
+     */
+    factTypes?: string[];
+    /** Include archived (decayed) memories. Default `false`, as elsewhere. */
+    includeArchived?: boolean;
+  }
 ): Promise<VaultCandidateKey[]> {
   const mapRaw = (raw: Record<string, unknown>): VaultCandidateKey => ({
     uniqueId: raw.id as string,
@@ -715,7 +800,9 @@ export async function getVaultCandidateKeysOp(
 
   // OPFS-SQLite: projected SELECT (skips content/embedding blobs).
   try {
-    const base = baseVaultSql(ctx);
+    const base = baseVaultSql(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    });
     const clauses = [base.sql];
     const args = [...base.args];
     if (options?.scopes?.length) {
@@ -725,6 +812,10 @@ export async function getVaultCandidateKeysOp(
     if (options?.folderId !== undefined) {
       clauses.push(options.folderId === null ? '"folder_id" is null' : '"folder_id" = ?');
       if (options.folderId !== null) args.push(options.folderId);
+    }
+    if (options?.factTypes?.length) {
+      clauses.push(`"fact_type" in (${options.factTypes.map(() => "?").join(",")})`);
+      args.push(...options.factTypes);
     }
     const sql =
       `select "id", "scope", "folder_id", "embedding_model", "updated_at" ` +
@@ -743,9 +834,12 @@ export async function getVaultCandidateKeysOp(
         (err instanceof Error ? err.message : String(err))
     );
     const conditions = [
-      ...baseVaultConditions(ctx),
+      ...baseVaultConditions(ctx, {
+        ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+      }),
       ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
       ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+      ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
     ];
     const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
       string,
@@ -765,7 +859,14 @@ export async function getVaultCandidateKeysOp(
  */
 export async function getVaultEmbeddingsByIdsOp(
   ctx: VaultMemoryOperationsContext,
-  ids: string[]
+  ids: string[],
+  /**
+   * Must match whatever admitted these ids. The caller has already filtered the
+   * candidate set; re-applying a DEFAULT-ON exclusion here silently deletes rows
+   * it deliberately admitted — which is how archived rows passed the key scan
+   * and then vanished at hydration (#779).
+   */
+  options?: { includeArchived?: boolean }
 ): Promise<Array<{ uniqueId: string; embedding: string | null; embeddingModel: string | null }>> {
   if (ids.length === 0) return [];
   const mapRaw = (raw: Record<string, unknown>) => ({
@@ -774,7 +875,9 @@ export async function getVaultEmbeddingsByIdsOp(
     embeddingModel: (raw.embedding_model as string | null) ?? null,
   });
   try {
-    const base = baseVaultSql(ctx);
+    const base = baseVaultSql(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    });
     const sql =
       `select "id", "embedding", "embedding_model" from "memory_vault" ` +
       `where ${base.sql} and "id" in (${ids.map(() => "?").join(",")})`;
@@ -790,7 +893,14 @@ export async function getVaultEmbeddingsByIdsOp(
         (err instanceof Error ? err.message : String(err))
     );
     const rows = (await ctx.vaultMemoryCollection
-      .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids)))
+      .query(
+        ...baseVaultConditions(ctx, {
+          ...(options?.includeArchived !== undefined && {
+            includeArchived: options.includeArchived,
+          }),
+        }),
+        Q.where("id", Q.oneOf(ids))
+      )
       .unsafeFetchRaw()) as Record<string, unknown>[];
     return rows.map(mapRaw);
   }
@@ -811,10 +921,17 @@ export async function getVaultEmbeddingsByIdsOp(
  */
 export async function getVaultMemoriesByIdsOp(
   ctx: VaultMemoryOperationsContext,
-  ids: string[]
+  ids: string[],
+  /** See {@link getVaultEmbeddingsByIdsOp} — must match what admitted these ids. */
+  options?: { includeArchived?: boolean }
 ): Promise<StoredVaultMemory[]> {
   if (ids.length === 0) return [];
-  const conditions = [...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids))];
+  const conditions = [
+    ...baseVaultConditions(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    }),
+    Q.where("id", Q.oneOf(ids)),
+  ];
   const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
     string,
     unknown
@@ -1108,6 +1225,72 @@ export async function clearMemoryTopicsOverrideOp(
     });
   });
   return true;
+}
+
+/**
+ * Set a memory's People Nearby visibility (and optionally its twin opt-in).
+ *
+ * This is the ONLY sanctioned write path for `visibility` — it keeps the
+ * `published_at` bookkeeping consistent: transitioning to `public`
+ * stamps `published_at` (kept if already set); transitioning to `private`
+ * clears it (revoke). The server index remains the authority for what IS
+ * published — this records the user's intent for the reconciler to act on.
+ *
+ * Preserves `updated_at`: a visibility change is metadata, not a
+ * re-observation, so it must not inflate the recency multiplier (mirrors
+ * {@link setMemoryEntitiesOp}).
+ */
+export async function setMemoryVisibilityOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  opts: {
+    visibility: VaultMemoryVisibility;
+    /** If provided, sets the twin opt-in flag alongside the visibility. */
+    twinOptIn?: boolean;
+  }
+): Promise<StoredVaultMemory | null> {
+  let record: VaultMemory;
+  try {
+    record = await ctx.vaultMemoryCollection.find(id);
+  } catch {
+    return null;
+  }
+  if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
+
+  let stale = false;
+  await ctx.database.write(async () => {
+    // Re-check inside the serialized writer (see updateVaultMemoryOp): a
+    // delete that committed after the probe must win.
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+      stale = true;
+      return;
+    }
+    // Read BOTH timestamps inside the serialized writer, not at probe time. A
+    // revoke that committed in between would leave a stale non-null
+    // published_at snapshot here, so the publish branch would skip the stamp
+    // and commit `visibility: public` with a NULL published_at — precisely the
+    // invariant this op exists to hold, and one the reconciler reads as "must
+    // not exist in the server index".
+    const currentUpdatedAt = record.updatedAt.getTime();
+    const currentPublishedAt = record.publishedAt ?? null;
+    await record.update((r) => {
+      r._setRaw("visibility", opts.visibility);
+      if (opts.visibility === "private") {
+        // Revoke: clear the publish stamp — the reconciler treats a private
+        // memory with no published_at as "must not exist in the server index".
+        r._setRaw("published_at", null);
+      } else if (currentPublishedAt === null) {
+        r._setRaw("published_at", Date.now());
+      }
+      if (opts.twinOptIn !== undefined) {
+        r._setRaw("twin_opt_in", opts.twinOptIn);
+      }
+      r._setRaw("updated_at", currentUpdatedAt);
+    });
+  });
+  if (stale) return null;
+
+  return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function deleteVaultMemoryOp(

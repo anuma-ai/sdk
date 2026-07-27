@@ -19,34 +19,133 @@
  * Run:
  *   PORTAL_API_KEY=... pnpm eval:consolidation
  *   PORTAL_API_KEY=... MODELS="minimax/minimax-m3,inclusionai/ling-2.6-flash" RUNS=5 pnpm eval:consolidation
+ *   pnpm eval:consolidation --models inclusionai/ling-2.6-flash --runs 5 --json
+ *   pnpm eval:consolidation --runs 5 --save-baseline   # write the golden baseline
+ *   pnpm eval:consolidation --runs 5 --baseline test/memory/src/consolidation/baseline.json
+ *                                                     # gate: exit 1 on a regression
  *
- * Models are stochastic, so each case runs `RUNS` times (default 3) and the
- * pass rate is the fraction of runs that matched the label.
+ * Models are stochastic, so the whole corpus runs `RUNS` times (default 3) and
+ * the pass rate is the fraction of runs that matched the label. `--baseline`
+ * gates accuracy + fallback rate against a committed baseline; see GATE_METRICS
+ * for why that gate is a collapse detector rather than a drift detector.
  */
 
 import "dotenv/config";
+import { readFile, writeFile } from "node:fs/promises";
+import { parseArgs } from "node:util";
 
-import { consolidateMemory } from "../../../../src/lib/memory/consolidate.js";
+import {
+  consolidateMemory,
+  DEFAULT_CONSOLIDATION_MODEL,
+} from "../../../../src/lib/memory/consolidate.js";
+import {
+  buildGateBaseline,
+  compareToGateBaseline,
+  describeConfigMismatch,
+  formatGateRegressions,
+  type GateBaseline,
+  type GateMetricSpec,
+  isValidGateBaseline,
+} from "../gate.js";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
+const DEFAULT_BASELINE_PATH = "test/memory/src/consolidation/baseline.json";
+
+/**
+ * Gated metrics.
+ *
+ * IMPORTANT — this gate is coarse by construction. The corpus is 7 hand-labelled
+ * cases, so at `--runs 5` one flipped decision moves accuracy by 1/35 ≈ 2.9%.
+ * That makes this a detector for a COLLAPSE (a broken prompt, a schema change the
+ * model can't satisfy, a fallback storm) rather than for fine-grained quality
+ * drift. Growing the corpus is what would make a tighter gate meaningful.
+ *
+ * Each individual pass scores in 1/7 steps, so a 5-run baseline is a coin flip:
+ * consecutive 5-run passes of the live model scored 94.3% / 100% / 82.9%, and a
+ * baseline generated from the lucky 100% pass would red the gate on the healthy
+ * 82.9% one. The committed baseline is therefore generated at `--runs 15`, where
+ * the mean is representative. The workflow gates at the same run count — the
+ * benchmark REFUSES to compare across a different one.
+ *
+ * The FLOOR below is sized to the MEAN, not to a single pass. 15 passes over 7
+ * cases is 105 decisions, so one flipped decision moves the gated mean by
+ * 1/105 = 0.95pt, and 0.03 sits above three flips.
+ *
+ * It was previously 0.12–0.18, sized for a single pass (1/7 = 14.3pt). Applied to
+ * a 15-pass mean that made the gate ~sqrt(15) too loose: a case failing on EVERY
+ * pass moves the mean 12.4pt and was reported as "no regressions" — it took 3+
+ * simultaneously broken cases to fire at all (#772 review). `gate.ts` now derives
+ * the working tolerance from the standard error of the mean difference; this floor
+ * only stops a freakishly stable capture from setting a hair-trigger.
+ */
+const GATE_METRICS: GateMetricSpec[] = [
+  {
+    key: "overallAccuracy",
+    direction: "higher-better",
+    minTolerance: 0.03,
+    label: "accuracy",
+  },
+  // Fallbacks are the silent failure mode: a create-fallback leaves the stale
+  // contradiction consolidation exists to retire. Higher is worse.
+  { key: "fallbackRate", direction: "lower-better", minTolerance: 0.03, label: "fallback rate" },
+];
+
+const { values: args } = parseArgs({
+  options: {
+    models: { type: "string" },
+    runs: { type: "string" },
+    json: { type: "boolean", default: false },
+    // Regression gate — same contract as `eval:extraction` / `eval:topic`.
+    baseline: { type: "string", short: "b" },
+    "save-baseline": { type: "boolean", default: false },
+  },
+});
+
+const GATE_MODE = args["save-baseline"] || args.baseline !== undefined;
+
 const API_KEY = process.env.PORTAL_API_KEY;
 const BASE_URL = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
-const RUNS = Number(process.env.RUNS ?? "3");
+// `--runs` wins over RUNS= so CI doesn't depend on env plumbing; a garbage value
+// falls back rather than silently running zero times.
+const parsedRuns = Number(args.runs ?? process.env.RUNS ?? "3");
+const RUNS = Number.isFinite(parsedRuns) && parsedRuns >= 1 ? Math.floor(parsedRuns) : 3;
 
-// Candidate decide-models. Override with MODELS="a,b,c".
+// Candidate decide-models for a sweep. The gate instead defaults to the ONE
+// model production runs, so a committed baseline describes the live path.
 const DEFAULT_MODELS = [
   "minimax/minimax-m3",
   "inclusionai/ling-2.6-flash",
   "gpt-oss/gpt-oss-120b",
   "openrouter/amazon/nova-2-lite-v1",
 ];
-const MODELS = (process.env.MODELS ?? DEFAULT_MODELS.join(","))
+const MODELS = (
+  args.models ??
+  process.env.MODELS ??
+  (GATE_MODE ? DEFAULT_CONSOLIDATION_MODEL : DEFAULT_MODELS.join(","))
+)
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);
+
+/**
+ * Human/progress output. In `--json` mode everything except the single JSON
+ * document goes to stderr, so a CI gate can parse stdout.
+ */
+function report(line: string): void {
+  if (args.json) process.stderr.write(line + "\n");
+  else console.log(line);
+}
+
+if (GATE_MODE && MODELS.length !== 1) {
+  console.error(
+    `\n  --baseline / --save-baseline compare ONE model against the baseline; ` +
+      `got ${MODELS.length} (${MODELS.join(", ")}). Pass a single --models value.\n`
+  );
+  process.exit(1);
+}
 
 if (!API_KEY) {
   console.error(
@@ -225,35 +324,55 @@ async function runCaseForModel(c: Case, model: string): Promise<RunResult> {
   };
 }
 
+/** One repeat's metrics — a plain object TYPE so it stays assignable to the
+ * gate's `Record<string, number>` run shape. */
+type ConsolidationRunMetrics = {
+  overallAccuracy: number;
+  fallbackRate: number;
+};
+
+function metricsFor(results: readonly RunResult[]): ConsolidationRunMetrics {
+  const total = results.length || 1;
+  return {
+    overallAccuracy: results.filter((r) => r.correct).length / total,
+    fallbackRate: results.filter((r) => r.fallback).length / total,
+  };
+}
+
 async function main(): Promise<void> {
-  console.log(
+  report(
     `\nConsolidation decide-model benchmark — ${CASES.length} cases × ${RUNS} runs × ${MODELS.length} models\n` +
       `base=${BASE_URL}\n`
   );
 
   const byModel: Record<
     string,
-    { runs: RunResult[]; byCategory: Record<string, { pass: number; total: number }> }
+    {
+      runs: RunResult[];
+      perRun: ConsolidationRunMetrics[];
+      byCategory: Record<string, { pass: number; total: number }>;
+    }
   > = {};
 
   for (const model of MODELS) {
     const runs: RunResult[] = [];
     const byCategory: Record<string, { pass: number; total: number }> = {};
-    process.stdout.write(`\n${model}\n`);
-    for (const c of CASES) {
-      byCategory[c.category] ??= { pass: 0, total: 0 };
-      let casePass = 0;
-      for (let i = 0; i < RUNS; i++) {
+    report(`\n${model}`);
+    // Repeat-OUTER, case-inner. Each repeat is a full pass over the corpus, so
+    // it yields one comparable metric set and the gate gets a real run-to-run
+    // spread. (Case-outer would only ever produce a single aggregate.)
+    const perRunResults: RunResult[][] = [];
+    for (let i = 0; i < RUNS; i++) {
+      const thisRun: RunResult[] = [];
+      for (const c of CASES) {
+        byCategory[c.category] ??= { pass: 0, total: 0 };
         try {
           const r = await runCaseForModel(c, model);
-          runs.push(r);
+          thisRun.push(r);
           byCategory[c.category].total += 1;
-          if (r.correct) {
-            byCategory[c.category].pass += 1;
-            casePass += 1;
-          }
+          if (r.correct) byCategory[c.category].pass += 1;
         } catch (err) {
-          runs.push({
+          thisRun.push({
             correct: false,
             fallback: true,
             ms: 0,
@@ -264,10 +383,17 @@ async function main(): Promise<void> {
           console.error(`    ${c.name}: threw — ${err instanceof Error ? err.message : err}`);
         }
       }
-      const flag = casePass === RUNS ? "✓" : casePass === 0 ? "✗" : "~";
-      console.log(`    ${flag} [${c.category}] ${c.name} — ${casePass}/${RUNS}`);
+      perRunResults.push(thisRun);
+      runs.push(...thisRun);
     }
-    byModel[model] = { runs, byCategory };
+    // Per-case pass rate across the repeats (same numbers as before the loop
+    // inversion — the same decisions, just grouped after the fact).
+    CASES.forEach((c, idx) => {
+      const casePass = perRunResults.filter((run) => run[idx]?.correct).length;
+      const flag = casePass === RUNS ? "✓" : casePass === 0 ? "✗" : "~";
+      report(`    ${flag} [${c.category}] ${c.name} — ${casePass}/${RUNS}`);
+    });
+    byModel[model] = { runs, perRun: perRunResults.map(metricsFor), byCategory };
   }
 
   // Summary table.
@@ -287,7 +413,7 @@ async function main(): Promise<void> {
     noop: "noop",
     "hard-negative": "hardneg",
   };
-  console.log("\n\n=== SUMMARY (pass rate) ===\n");
+  report("\n\n=== SUMMARY (pass rate) ===\n");
   const header = [
     "model".padEnd(34),
     ...categories.map((c) => shortLabel[c].padStart(10)),
@@ -295,7 +421,7 @@ async function main(): Promise<void> {
     "fallbk".padStart(7),
     "med ms".padStart(8),
   ];
-  console.log(header.join(" "));
+  report(header.join(" "));
   for (const model of MODELS) {
     const { runs, byCategory } = byModel[model];
     const totalPass = runs.filter((r) => r.correct).length;
@@ -304,7 +430,7 @@ async function main(): Promise<void> {
       const b = byCategory[cat];
       return b ? pct(b.pass, b.total).padStart(10) : "  —  ".padStart(10);
     });
-    console.log(
+    report(
       [
         model.padEnd(34),
         ...cols,
@@ -314,11 +440,106 @@ async function main(): Promise<void> {
       ].join(" ")
     );
   }
-  console.log(
+  report(
     "\nOVERALL = correct action AND correct target-id set, excluding fallbacks.\n" +
       "fallbk  = share of runs that degraded to create-fallback (LLM error / bad JSON).\n" +
       "med ms  = median decision latency per call.\n"
   );
+
+  if (args.json) {
+    // ONE JSON document on stdout (see `report`), so a CI gate can parse it.
+    console.log(
+      JSON.stringify(
+        {
+          runs: RUNS,
+          cases: CASES.length,
+          models: Object.fromEntries(
+            Object.entries(byModel).map(([model, { perRun, byCategory }]) => [
+              model,
+              {
+                runs: perRun,
+                mean: {
+                  overallAccuracy: mean(perRun.map((m) => m.overallAccuracy)),
+                  fallbackRate: mean(perRun.map((m) => m.fallbackRate)),
+                },
+                byCategory,
+              },
+            ])
+          ),
+        },
+        null,
+        2
+      )
+    );
+  }
+
+  // Baseline handling last, all of its I/O on stderr so --json stays clean.
+  const model = MODELS[0];
+  const baselinePath = args.baseline ?? DEFAULT_BASELINE_PATH;
+  if (args["save-baseline"]) {
+    await saveBaseline(byModel[model].perRun, model, baselinePath);
+  } else if (args.baseline) {
+    await gateAgainstBaseline(byModel[model].perRun, model, baselinePath);
+  }
+}
+
+function mean(xs: number[]): number {
+  return xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
+}
+
+/** The knobs the numbers depend on, recorded in the baseline and refused on mismatch. */
+function gateConfig(model: string): { model: string; runs: number; cases: number } {
+  // `cases` is recorded too: growing the corpus changes what the accuracy means,
+  // so an old baseline must be regenerated rather than silently compared.
+  return { model, runs: RUNS, cases: CASES.length };
+}
+
+async function saveBaseline(
+  perRun: ConsolidationRunMetrics[],
+  model: string,
+  path: string
+): Promise<void> {
+  const baseline = buildGateBaseline(perRun, GATE_METRICS, gateConfig(model));
+  await writeFile(path, JSON.stringify(baseline, null, 2) + "\n");
+  console.error(
+    `\nBaseline written to ${path} (${perRun.length} run${perRun.length === 1 ? "" : "s"}, ${model}).`
+  );
+}
+
+async function gateAgainstBaseline(
+  perRun: ConsolidationRunMetrics[],
+  model: string,
+  path: string
+): Promise<void> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(path, "utf-8"));
+  } catch (err) {
+    console.error(`Failed to load baseline from ${path}: ${String(err)}`);
+    process.exit(1);
+  }
+  if (!isValidGateBaseline(parsed, GATE_METRICS)) {
+    console.error(
+      `\n  ${path} is not a valid consolidation baseline (expected a config + metrics ` +
+        `object). Generate one with --save-baseline.\n`
+    );
+    process.exit(1);
+  }
+  const baseline: GateBaseline = parsed;
+  const mismatch = describeConfigMismatch(baseline, gateConfig(model));
+  if (mismatch) {
+    console.error(`\n  Refusing to gate: ${mismatch}. Re-run to match, or regenerate.\n`);
+    process.exit(1);
+  }
+  const regressions = compareToGateBaseline(perRun, baseline, GATE_METRICS);
+  if (regressions.length === 0) {
+    console.error("\n  Baseline comparison: no regressions detected.\n");
+    return;
+  }
+  console.error("\n  REGRESSION DETECTED\n");
+  console.error(formatGateRegressions(regressions));
+  console.error("");
+  process.exit(1);
 }
 
 void main();

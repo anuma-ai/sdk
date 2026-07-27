@@ -1,0 +1,33 @@
+{
+  "config": {
+    "strategy": "recall",
+    "variant": "oracle",
+    "max": "50",
+    "llm": "gpt-oss/gpt-oss-120b",
+    "extractLlm": "gpt-oss/gpt-oss-120b",
+    "embeddingModel": "qwen/qwen3-embedding-8b",
+    "decompose": "off",
+    "consolidate": "false",
+    "rerank": "false",
+    "recallTypes": "",
+    "recallEmit": "",
+    "recallLaneMode": ""
+  },
+  "runs": 3,
+  "metrics": {
+    "retrievalRecall": {
+      "mean": 0.935,
+      "min": 0.935,
+      "max": 0.935,
+      "stdDev": 0,
+      "tolerance": 0.08
+    },
+    "retrievalPrecision": {
+      "mean": 0.94,
+      "min": 0.94,
+      "max": 0.94,
+      "stdDev": 0,
+      "tolerance": 0.08
+    }
+  }
+}

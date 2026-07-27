@@ -1486,6 +1486,12 @@ Re-exports [setLogger](../react/Internal/functions/setLogger.md)
 
 ***
 
+### setMemoryVisibilityOp
+
+Re-exports [setMemoryVisibilityOp](../react/Internal/functions/setMemoryVisibilityOp.md)
+
+***
+
 ### SHORT\_TTL\_MS
 
 Re-exports [SHORT\_TTL\_MS](../react/Internal/variables/SHORT_TTL_MS.md)
@@ -1801,6 +1807,12 @@ Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFold
 ### VaultMemoryOperationsContext
 
 Re-exports [VaultMemoryOperationsContext](../react/Internal/interfaces/VaultMemoryOperationsContext.md)
+
+***
+
+### VaultMemoryVisibility
+
+Re-exports [VaultMemoryVisibility](../react/Internal/type-aliases/VaultMemoryVisibility.md)
 
 ***
 

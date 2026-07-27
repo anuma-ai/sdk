@@ -45,30 +45,37 @@ import { TOPIC_CASES, CANON_CASES, CANON_VOCAB } from "./dataset.js";
 const DEFAULT_BASELINE_PATH = "test/memory/src/topic/baseline.json";
 
 /**
- * Gated metrics. Tolerance floors are sized above ONE corpus item's worth of the
- * metric, so an inherent single-item flip on a near-ceiling metric can't red the
- * gate — a real regression moves more than one item. The corpus is small (34 gold
- * entities, 7 junk traps, 8 canon cases), so those floors are necessarily coarse:
- * this gate catches a collapse, not a 1% drift. Values below are sized to the
- * widest spread actually observed across 10 baseline runs of the live model.
+ * Gated metrics.
+ *
+ * Floors are sized to the MEAN of the 5 gated runs, not to a single run. One
+ * flipped item moves a 5-run mean by 1/(items x 5) — e.g. 1/170 = 0.6pt for the
+ * 34 gold entities, 1/35 = 2.9pt for the 7 junk traps — so each floor below sits
+ * a few flips above that.
+ *
+ * They were previously 0.06–0.30, sized to the spread of a SINGLE run. Applied to
+ * a 5-run mean that made the gate ~sqrt(5) too loose (#772 review): the same
+ * mistake that let a consolidation case fail on every pass unnoticed. `gate.ts`
+ * now derives the working tolerance from the standard error of the mean
+ * difference, so these floors only stop a freakishly stable capture from setting
+ * a hair-trigger.
  */
 const GATE_METRICS: GateMetricSpec[] = [
   // Observed 100% across all 10 baseline runs. Floor = 2 of 34 gold entities.
-  { key: "recall", direction: "higher-better", minTolerance: 0.06 },
+  { key: "recall", direction: "higher-better", minTolerance: 0.02 },
   // Observed 89.5–100% (one run produced 4 false positives). Floor covers that.
-  { key: "precision", direction: "higher-better", minTolerance: 0.11 },
-  { key: "f1", direction: "higher-better", minTolerance: 0.06 },
+  { key: "precision", direction: "higher-better", minTolerance: 0.03 },
+  { key: "f1", direction: "higher-better", minTolerance: 0.02 },
   // Observed 91.2–100%: a 3-of-34 kind flip is inherent noise, not a regression.
-  { key: "kindAccuracy", direction: "higher-better", minTolerance: 0.09, label: "kind accuracy" },
+  { key: "kindAccuracy", direction: "higher-better", minTolerance: 0.03, label: "kind accuracy" },
   // Only 7 traps, and one run came in at 57.1% (3 traps over-extracted), so a
   // single flip is 14.3% and the honest noise floor is ~2 flips. That makes this
   // a collapse detector, not a drift detector — it fires when over-extraction is
   // SYSTEMATIC across the repeats. Growing the trap corpus is what would tighten
   // it; until then a loose-but-honest floor beats a flaky one.
-  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.3, label: "junk-clean" },
+  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.06, label: "junk-clean" },
   // 8 cases → one flip is 12.5%. Only the WITH-vocab rate is gated; the no-vocab
   // rate is the control arm and is reported, not gated.
-  { key: "canonWithVocab", direction: "higher-better", minTolerance: 0.15, label: "canon (vocab)" },
+  { key: "canonWithVocab", direction: "higher-better", minTolerance: 0.05, label: "canon (vocab)" },
   // Sub-1 on purpose. `dropped` is compared as a MEAN over the repeats against a
   // baseline of 0, so a floor of 1.0 would let a SYSTEMATIC one-memory drop
   // (mean exactly 1) through — the shape of the id-echo bug in #757. At 0.5 a

@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v40**
+Current version: **v41**
 
 ```mermaid
 graph LR
@@ -126,6 +126,10 @@ graph LR
 | `fact_type` | string | ✓ | ✓ |
 | `archived_at` | number | ✓ | ✓ |
 | `trust_tier` | string | ✓ | ✓ |
+| `visibility` | string | ✓ | ✓ |
+| `twin_opt_in` | boolean |  | ✓ |
+| `published_at` | number |  | ✓ |
+| `geohash` | string |  | ✓ |
 
 ## entity
 
@@ -227,6 +231,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v41 | Added `visibility`, `twin_opt_in`, `published_at`, `geohash` to `memory_vault` |
 | v40 | Added `fact_type`, `archived_at`, `trust_tier` to `memory_vault` |
 | v39 | Added `last_observed_at` to `memory_vault` |
 | v38 | Added `topics_extracted_version` to `memory_vault` |
