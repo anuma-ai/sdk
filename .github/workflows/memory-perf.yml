@@ -38,9 +38,14 @@ on:
       - "src/lib/memory/**"
       - "src/lib/memoryVault/**"
       - "src/lib/memoryEngine/**"
-      - "src/lib/db/memoryVault/**"
-      - "src/lib/db/chat/operations.ts"
-      - "src/lib/db/entities/operations.ts"
+      # The whole db tree, not the individual operations files it was scoped to
+      # first. The fixture builds a real WatermelonDB and imports models, types
+      # and operations from chat/, entities/ and memoryVault/ — a change to any
+      # of them can move the counters or break the fixture outright, and naming
+      # files one at a time meant the list silently drifted out of date as the
+      # fixture grew. A few extra runs cost 43s each; a gate that quietly stops
+      # running costs the whole benchmark.
+      - "src/lib/db/**"
 
 jobs:
   perf:

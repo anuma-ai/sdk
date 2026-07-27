@@ -786,11 +786,48 @@ describe("regression gate", () => {
 
     const regressions = compareToGateBaseline([run], baseline, GATE_METRICS);
     if (regressions.length > 0) {
-      console.error("\n  MORE WORK THAN THE BASELINE\n");
+      // No trailing newline on the header: the workflow lifts this block out of
+      // the log with `sed -n '/MORE WORK/,/^$/p'`, so a blank line here ends the
+      // range before the table and the step summary shows a header with nothing
+      // under it. The blank line belongs after the table, not before it.
+      console.error("\n  MORE WORK THAN THE BASELINE");
       console.error(formatGateRegressions(regressions));
       console.error("");
     }
     expect(regressions.map((r) => r.label)).toEqual([]);
+
+    // The other direction. A lower-better gate only fails upward, so an
+    // optimization that lands without regenerating the baseline leaves the old,
+    // higher number in place as the ceiling — and every subsequent increase back
+    // up to it passes. Concretely: once #756 takes compositeHigh tokenization
+    // from 3760 to 940, a later change could quadruple it back to 3760 and this
+    // gate would stay green.
+    //
+    // So a material improvement is treated as "the baseline is stale", not as a
+    // pass. It fails the PR that earned the win, which is the right place to pay
+    // it — that author has the numbers in hand and the regeneration is one
+    // command — and it keeps the ceiling ratcheting down on its own instead of
+    // depending on someone remembering.
+    const stale = GATE_METRICS.flatMap((spec) => {
+      const band = baseline.metrics[spec.key];
+      const current = run[spec.key];
+      if (band === undefined || current === undefined) return [];
+      return current < band.mean - spec.minTolerance
+        ? [`${spec.label ?? spec.key}: ${band.mean} → ${current}`]
+        : [];
+    });
+    if (stale.length > 0) {
+      console.error("\n  LESS WORK THAN THE BASELINE — the committed baseline is stale");
+      console.error(stale.map((line) => `    ${line}`).join("\n"));
+      console.error("");
+    }
+    expect(
+      stale.length === 0
+        ? null
+        : `${stale.length} metric(s) now do less work than the committed baseline, ` +
+            `which leaves headroom a later regression could hide in. Regenerate with ` +
+            `PERF_SAVE_BASELINE=1 pnpm perf:memory and commit the result.`
+    ).toBeNull();
   });
 });
 
