@@ -14,6 +14,11 @@ name: Vault Search Eval
 # lanes, and embedding model, so the baseline records its config and the
 # benchmark refuses to compare across a mismatch.
 on:
+  # Runs in the merge queue with NO paths filter, so the status below is always
+  # produced there and can therefore be a REQUIRED check. The paths-scoped
+  # pull_request trigger stays for early signal during review; a required check
+  # that never reports on an unrelated PR would block it forever.
+  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -200,3 +205,21 @@ jobs:
           name: vault-search-eval-results
           path: results.json
           if-no-files-found: ignore
+
+  # Aggregator whose context is stable whatever the gate above did — the shape
+  # `e2e-tools-status` uses, and the only one safe to add to main's ruleset.
+  # Passes when the gate is skipped (paths didn't match), fails only when it
+  # actually failed. NOTE: adding `vault-search-eval-status` to ruleset 9764137 needs
+  # repo admin; until then this reports but cannot block.
+  vault-search-eval-status:
+    if: always()
+    needs: [vault-search-eval]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check vault search gate result
+        run: |
+          if [[ "${{ needs.vault-search-eval.result }}" == "failure" ]]; then
+            echo "Vault search eval gate failed"
+            exit 1
+          fi
+          echo "Vault search eval gate passed (or was skipped)"

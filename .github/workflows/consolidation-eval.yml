@@ -10,6 +10,11 @@ name: Consolidation Eval
 # a 5-pass mean swings between 82.9% and 100% on an unchanged model, which
 # would make a tighter gate flaky rather than useful.
 on:
+  # Runs in the merge queue with NO paths filter, so the status below is always
+  # produced there and can therefore be a REQUIRED check. The paths-scoped
+  # pull_request trigger stays for early signal during review; a required check
+  # that never reports on an unrelated PR would block it forever.
+  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -127,3 +132,21 @@ jobs:
           name: consolidation-eval-results
           path: results.json
           if-no-files-found: ignore
+
+  # Aggregator whose context is stable whatever the gate above did — the shape
+  # `e2e-tools-status` uses, and the only one safe to add to main's ruleset.
+  # Passes when the gate is skipped (paths didn't match), fails only when it
+  # actually failed. NOTE: adding `consolidation-eval-status` to ruleset 9764137 needs
+  # repo admin; until then this reports but cannot block.
+  consolidation-eval-status:
+    if: always()
+    needs: [consolidation-eval]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check consolidation gate result
+        run: |
+          if [[ "${{ needs.consolidation-eval.result }}" == "failure" ]]; then
+            echo "Consolidation eval gate failed"
+            exit 1
+          fi
+          echo "Consolidation eval gate passed (or was skipped)"

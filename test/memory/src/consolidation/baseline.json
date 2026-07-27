@@ -7,16 +7,18 @@
   "runs": 15,
   "metrics": {
     "overallAccuracy": {
-      "mean": 0.9809523809523809,
+      "mean": 0.9523809523809523,
       "min": 0.8571428571428571,
       "max": 1,
-      "tolerance": 0.1428571428571429
+      "stdDev": 0.0697071480677524,
+      "tolerance": 0.05090690322141418
     },
     "fallbackRate": {
       "mean": 0,
       "min": 0,
       "max": 0,
-      "tolerance": 0.12
+      "stdDev": 0,
+      "tolerance": 0.03
     }
   }
 }

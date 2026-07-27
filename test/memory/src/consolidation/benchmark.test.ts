@@ -67,21 +67,30 @@ const DEFAULT_BASELINE_PATH = "test/memory/src/consolidation/baseline.json";
  * consecutive 5-run passes of the live model scored 94.3% / 100% / 82.9%, and a
  * baseline generated from the lucky 100% pass would red the gate on the healthy
  * 82.9% one. The committed baseline is therefore generated at `--runs 15`, where
- * the mean is representative and the tolerance comes from the spread the model
- * actually exhibits (mostly the one flaky `noop` case) rather than from a floor
- * picked by hand. The workflow gates at the same run count — the benchmark
- * REFUSES to compare across a different one.
+ * the mean is representative. The workflow gates at the same run count — the
+ * benchmark REFUSES to compare across a different one.
+ *
+ * The FLOOR below is sized to the MEAN, not to a single pass. 15 passes over 7
+ * cases is 105 decisions, so one flipped decision moves the gated mean by
+ * 1/105 = 0.95pt, and 0.03 sits above three flips.
+ *
+ * It was previously 0.12–0.18, sized for a single pass (1/7 = 14.3pt). Applied to
+ * a 15-pass mean that made the gate ~sqrt(15) too loose: a case failing on EVERY
+ * pass moves the mean 12.4pt and was reported as "no regressions" — it took 3+
+ * simultaneously broken cases to fire at all (#772 review). `gate.ts` now derives
+ * the working tolerance from the standard error of the mean difference; this floor
+ * only stops a freakishly stable capture from setting a hair-trigger.
  */
 const GATE_METRICS: GateMetricSpec[] = [
   {
     key: "overallAccuracy",
     direction: "higher-better",
-    minTolerance: 0.12,
+    minTolerance: 0.03,
     label: "accuracy",
   },
   // Fallbacks are the silent failure mode: a create-fallback leaves the stale
   // contradiction consolidation exists to retire. Higher is worse.
-  { key: "fallbackRate", direction: "lower-better", minTolerance: 0.12, label: "fallback rate" },
+  { key: "fallbackRate", direction: "lower-better", minTolerance: 0.03, label: "fallback rate" },
 ];
 
 const { values: args } = parseArgs({

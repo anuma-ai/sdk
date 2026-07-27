@@ -13,18 +13,20 @@
     "recallEmit": "",
     "recallLaneMode": ""
   },
-  "runs": 1,
+  "runs": 3,
   "metrics": {
     "retrievalRecall": {
-      "mean": 0.955,
-      "min": 0.955,
-      "max": 0.955,
+      "mean": 0.935,
+      "min": 0.935,
+      "max": 0.935,
+      "stdDev": 0,
       "tolerance": 0.08
     },
     "retrievalPrecision": {
-      "mean": 0.96,
-      "min": 0.96,
-      "max": 0.96,
+      "mean": 0.94,
+      "min": 0.94,
+      "max": 0.94,
+      "stdDev": 0,
       "tolerance": 0.08
     }
   }

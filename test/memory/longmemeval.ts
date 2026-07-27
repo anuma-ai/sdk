@@ -120,6 +120,15 @@ const { values: args } = parseArgs({
     // Deliberately gates RETRIEVAL only; see RECALL_GATE_METRICS.
     baseline: { type: "string" },
     "save-baseline": { type: "boolean", default: false },
+    /**
+     * Repeats for `--save-baseline`. Retrieval here is NOT deterministic (the
+     * vault is built by LLM extraction), and a single capture lands anywhere in
+     * the model's natural range — which moves the gate's fire threshold by as
+     * much as the spread itself. Capturing over several runs makes the mean
+     * representative and lets the tolerance come from measured spread instead of
+     * the floor alone. Ignored outside --save-baseline.
+     */
+    "baseline-repeat": { type: "string" },
   },
 });
 
@@ -142,12 +151,15 @@ const DEFAULT_RECALL_BASELINE_PATH = "test/memory/src/longmemeval/recall-baselin
  * decomposition, retain-time consolidation) and the native cross-encoder.
  *
  * Retrieval still is NOT deterministic, because building the vault runs LLM
- * extraction per session: two back-to-back 50-question oracle runs of unchanged
- * code measured recall 91.5% then 95.5% (precision 92.0% / 96.0%) — a ~4pp
- * swing. The floor is set to 8pp so that measured noise has ~2x margin, since a
- * real ranking collapse moves far more than that. The committed baseline is a
- * SINGLE run (the harness has no repeat mode), so this floor — not an observed
- * spread — is what governs the gate.
+ * extraction per session: back-to-back 50-question oracle runs of unchanged code
+ * measured recall 91.5% / 95.5% / 92.0% — a ~4pp swing.
+ *
+ * The floor stays at SINGLE-RUN scale (8pp) on purpose, unlike the topic and
+ * consolidation gates which were retuned down to mean-scale. This gate compares
+ * ONE live run against a multi-run baseline, so the relevant uncertainty is a
+ * single run's, not a mean's — `gate.ts` accounts for that asymmetry via the
+ * standard error of the difference, sqrt(1/n_base + 1/1), and correctly WIDENS
+ * here where it tightens elsewhere.
  */
 const RECALL_GATE_METRICS: GateMetricSpec[] = [
   { key: "retrievalRecall", direction: "higher-better", minTolerance: 0.08, label: "recall" },
@@ -320,6 +332,22 @@ async function main(): Promise<void> {
     strategy = "both";
   }
 
+  // Fail FAST and LOUD on a gate request the comparison shape can't satisfy.
+  // The gate only runs in the single-strategy branch below, so on the default
+  // `both` shape `--baseline` used to be ignored while the process still exited
+  // 0 — a requested gate silently becoming a vacuous pass, and a requested
+  // `--save-baseline` silently writing nothing. That is precisely the failure
+  // mode `assertRetrievalHappened` exists to prevent, so it can't be tolerated
+  // here. Checked before the eval runs so nobody burns a run to learn it.
+  if ((args.baseline !== undefined || args["save-baseline"]) && strategy === "both") {
+    console.error(
+      `\n  --baseline / --save-baseline need a single strategy: the comparison shape ` +
+        `produces two summaries and no one set of numbers to gate.\n` +
+        `  Re-run with --strategy recall (or engine / vault / ensemble).\n`
+    );
+    process.exit(1);
+  }
+
   const options: LongMemEvalOptions = {
     variant: variant === "oracle" ? "s" : variant,
     strategy,
@@ -399,22 +427,9 @@ async function main(): Promise<void> {
     const dataset = await loadLongMemEvalDataset(variant);
     console.log(`Loaded ${dataset.length} entries`);
 
-    // Baseline flags only work with single-strategy runs; the comparison shape
-    // has two summaries and no single set of numbers to gate.
-    if ((args.baseline || args["save-baseline"]) && strategy === "both") {
-      console.error(
-        "Error: --baseline and --save-baseline require a single strategy.\n" +
-          "Use --strategy recall (or engine/vault/ensemble) to specify which strategy to gate.\n"
-      );
-      process.exit(1);
-    }
-
     const llmModel = args.llm || "cerebras/qwen-3-235b-a22b-instruct-2507";
-    const result = await runLongMemEval(dataset, options, {
-      apiKey,
-      baseUrl,
-      llmModel,
-    });
+    const runSuite = () => runLongMemEval(dataset, options, { apiKey, baseUrl, llmModel });
+    const result = await runSuite();
 
     // Fetch model pricing and attach cost estimates
     const pricing = await fetchModelPricing(baseUrl, apiKey);
@@ -460,7 +475,16 @@ async function main(): Promise<void> {
       // the comparison shape has two summaries and no single set of numbers to
       // gate, so it's excluded above.
       if (args["save-baseline"]) {
-        await saveRecallBaseline(result, args.baseline ?? DEFAULT_RECALL_BASELINE_PATH);
+        // Extra captures for a representative mean — see `--baseline-repeat`.
+        const repeats = Math.max(1, parseInt(args["baseline-repeat"] ?? "1", 10) || 1);
+        const runs = [result];
+        for (let i = 1; i < repeats; i++) {
+          console.error(`\n  baseline capture ${i + 1}/${repeats}...`);
+          const next = await runSuite();
+          if (isComparison(next)) break; // unreachable: guarded at arg-parse time
+          runs.push(next);
+        }
+        await saveRecallBaseline(runs, args.baseline ?? DEFAULT_RECALL_BASELINE_PATH);
       } else if (args.baseline) {
         await gateRecallAgainstBaseline(result, args.baseline);
       }
@@ -499,9 +523,9 @@ function recallGateConfig(): Record<string, string | number | boolean> {
     // it recorded, swapping only `--extract-llm` would sail past the config
     // check and compare two materially different vaults.
     extractLlm: args["extract-llm"] ?? "",
-    // Every gated retrieval score is computed over embeddings, so the embedding
-    // model must be recorded to refuse apples-to-oranges comparisons across
-    // different embedding spaces.
+    // Every gated score is a cosine over these vectors, so a model swap changes
+    // the embedding space itself — the most total way to invalidate a
+    // comparison. The sibling vault-search gate records it for the same reason.
     embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
     decompose: args.decompose ?? "",
     consolidate: args.consolidate ?? "",
@@ -537,20 +561,29 @@ function assertRetrievalHappened(result: {
 }
 
 async function saveRecallBaseline(
-  result: { retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number },
+  runs: Array<{ retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number }>,
   path: string
 ): Promise<void> {
-  assertRetrievalHappened(result);
+  runs.forEach(assertRetrievalHappened);
   const baseline = buildGateBaseline(
-    [recallMetrics(result)],
+    runs.map(recallMetrics),
     RECALL_GATE_METRICS,
     recallGateConfig()
   );
   await writeFile(path, JSON.stringify(baseline, null, 2) + "\n");
+  const band = baseline.metrics.retrievalRecall!;
   console.error(
-    `\nRecall baseline written to ${path}. ` +
-      `Accuracy at capture was ${(result.accuracy * 100).toFixed(1)}% — recorded for reference ` +
-      `only; the gate does not read it.`
+    `\nRecall baseline written to ${path} from ${runs.length} run${runs.length === 1 ? "" : "s"}.\n` +
+      `  recall mean ${(band.mean * 100).toFixed(1)}% ` +
+      `[${(band.min * 100).toFixed(1)}–${(band.max * 100).toFixed(1)}], ` +
+      `tolerance ${(band.tolerance * 100).toFixed(1)}pt ` +
+      `→ the gate fires below ${((band.mean - band.tolerance) * 100).toFixed(1)}%.` +
+      (runs.length === 1
+        ? `\n  NOTE: a single capture lands wherever this run did, so the fire threshold ` +
+          `moves with it. Pass --baseline-repeat 3+ for a representative mean.`
+        : "") +
+      `\n  Accuracy at capture: ${runs.map((r) => `${(r.accuracy * 100).toFixed(1)}%`).join(", ")} ` +
+      `— recorded for reference only; the gate does not read it.`
   );
 }
 
