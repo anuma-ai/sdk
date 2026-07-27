@@ -74,6 +74,7 @@ import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embedding
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool";
 
+import { NODE_BUDGET } from "./graphTraversal";
 import { recall } from "./recall";
 import { createRecallTool, RECALL_MAX_LIMIT, RECALL_MAX_MEMORIES_PER_TURN } from "./recallTool";
 import { RerankerUnavailableError, rerankPairs } from "./reranker";
@@ -550,7 +551,11 @@ describe("recall — entity (W5) lane", () => {
 
     const result = await recall(ENTITY_QUERY, makeCtx({ entityCtx }));
 
-    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "sara",
+      "traveling",
+      "sara traveling",
+    ]);
     // m3 has zero cosine vs the query — only the graph lane can admit it.
     expect(result.memories.map((m) => m.id)).toContain("m3");
   });
@@ -565,10 +570,10 @@ describe("recall — entity (W5) lane", () => {
     expect(getMemoriesByEntityNamesOp).not.toHaveBeenCalled();
   });
 
-  it("recovers the lane for an all-lowercase query via the fallback (D4)", async () => {
+  it("recovers the lane for an all-lowercase query via the lexical pass (D4)", async () => {
     // Pre-fix, an all-lowercase query extracted no entities and the W5 lane was
-    // silently dead. The lowercase fallback now emits n-gram candidates; the op
-    // is called with them, and a stored-entity match surfaces the graph-only
+    // silently dead. The lexical pass now emits n-gram candidates; the op is
+    // called with them, and a stored-entity match surfaces the graph-only
     // fixture m3 (zero cosine vs the query — only the graph lane can admit it).
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(
       new Map([["m3", new Set(["san francisco"])]])
@@ -585,10 +590,10 @@ describe("recall — entity (W5) lane", () => {
   });
 
   it("a lowercase query matching no stored entity adds no garbage (empty lane)", async () => {
-    // The fallback candidates ARE looked up, but none match a stored canonical →
+    // The lexical candidates ARE looked up, but none match a stored canonical →
     // empty Map → the lane yields []. The op was called (lane engaged) yet m3
     // never surfaces: no cosine hit, no graph hit, no garbage. This is the
-    // precision guarantee that lets the fallback over-emit safely.
+    // precision guarantee that lets the lexical pass over-emit safely.
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
 
     const result = await recall("is there anyone in san francisco", makeCtx({ entityCtx }));
@@ -606,7 +611,11 @@ describe("recall — entity (W5) lane", () => {
       entityCtx,
     } as VaultMemoryOperationsContext;
     await recall(ENTITY_QUERY, makeCtx({ vaultCtx: vaultCtxWithEntities }));
-    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "sara",
+      "traveling",
+      "sara traveling",
+    ]);
   });
 
   // PR4 — multi-hop traversal gating. The reverse-edge op
@@ -657,6 +666,67 @@ describe("recall — entity (W5) lane", () => {
     vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
     await recall(ENTITY_QUERY, makeCtx({ entityCtx }), { budget: "low" });
     expect(countActiveVaultMemoriesOp).not.toHaveBeenCalled();
+  });
+
+  // The single-hop path is what low/mid budgets run, and it used to emit the
+  // ENTIRE resolved set. One dense entity name ("work", "2024") could put
+  // hundreds of ids into RRF and into the reranker's input, on the default path.
+  describe("single-hop node cap", () => {
+    const denseMatch = (n: number): Map<string, Set<string>> =>
+      new Map(Array.from({ length: n }, (_, i) => [`g${i}`, new Set(["sara"])]));
+
+    it("truncates a dense ranking to NODE_BUDGET", async () => {
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+
+    it("sends at most NODE_BUDGET * 2 ids through the active-id filter", async () => {
+      // The filter read is indexed and decrypt-free, but it is still an
+      // `IN`-clause whose width the query text should not be able to choose.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }));
+
+      expect(vi.mocked(getActiveVaultMemoryIdsOp).mock.calls[0][1]).toHaveLength(NODE_BUDGET * 2);
+    });
+
+    it("probes past archived rows rather than letting them starve the lane", async () => {
+      // Filtering AFTER the cap would let a run of archived ids at the top of
+      // the ranking eat the whole budget. The 2x probe is what stops that.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+      vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
+        async (_ctx, ids: string[]) => new Set(ids.slice(NODE_BUDGET))
+      );
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+
+    it("caps even without a vaultCtx to filter against", async () => {
+      // No vault context means no active-id filter to piggyback the cap onto,
+      // so the cap has to be applied on its own branch.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(
+        ENTITY_QUERY,
+        { embeddingOptions: { apiKey: "test-key" }, entityCtx },
+        { types: ["chunk"], onDiagnostics: (d) => seen.push(d) }
+      );
+
+      expect(getActiveVaultMemoryIdsOp).not.toHaveBeenCalled();
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
   });
 });
 

@@ -341,6 +341,14 @@ const baseline: Baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
 const MAX_CANDIDATES_CEILING = 16;
 /** Absolute ceiling on memories the lane may inject on a hard negative. */
 const MAX_HARD_NEGATIVE_MEMORIES = 8;
+/**
+ * Absolute casing-invariance bound, independent of the baseline. The extractor
+ * is case-blind by construction now, so the honest bound is zero and these are
+ * slack for a future tokenizer that is merely case-INSENSITIVE. Kept as hard
+ * numbers so regenerating the baseline cannot quietly reintroduce a casing gap.
+ */
+const MAX_CASING_SPREAD_MRR = 0.01;
+const MAX_CASING_SPREAD_ACTIVATION = 1;
 /** Absolute ceiling on extraction cost. Worst measured at the 4096-char clamp
  *  is ~107µs, so this is generous by design — it catches an accidental O(n²),
  *  not a few percent of drift on a noisy CI box. */
@@ -387,7 +395,12 @@ describe.each(Object.keys(TIERS))("entity lane — %s tier", (tier) => {
     });
 
     it("stays within the candidate cost gate", () => {
+      // The MEAN gets 25% of slack because it moves with tokenizer changes that
+      // are not width changes. The MAX is ratcheted exactly: it is the width of
+      // the widest `IN`-clause the lane will issue, and this corpus contains
+      // queries long enough to reach the cap, so a raised cap shows up here.
       expect(metrics.meanCandidates).toBeLessThanOrEqual(before.meanCandidates * 1.25 + EPS);
+      expect(metrics.maxCandidates).toBeLessThanOrEqual(before.maxCandidates);
       expect(metrics.maxCandidates).toBeLessThanOrEqual(MAX_CANDIDATES_CEILING);
     });
 
@@ -401,6 +414,10 @@ describe.each(Object.keys(TIERS))("entity lane — %s tier", (tier) => {
       );
       expect(now.casingSpread[variant].activation).toBeLessThanOrEqual(
         was.casingSpread[variant].activation
+      );
+      expect(now.casingSpread[variant].mrr).toBeLessThanOrEqual(MAX_CASING_SPREAD_MRR);
+      expect(now.casingSpread[variant].activation).toBeLessThanOrEqual(
+        MAX_CASING_SPREAD_ACTIVATION
       );
     });
   });

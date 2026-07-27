@@ -166,10 +166,22 @@ export function capHopsForDensity(maxHops: number, vaultSize?: number): number {
   return maxHops;
 }
 
-/** Order a memoryId → matched-entity-name map by shared-entity count
+/**
+ * Order a memoryId → matched-entity-name map by shared-entity count
  * (descending). Ties keep map-insertion order — RRF rank-quantization makes
- * fine ties moot. This is the EXACT ordering the single-hop lane produces. */
-function rankMemoriesByOverlap(map: Map<string, Set<string>>): string[] {
+ * fine ties moot.
+ *
+ * Shared with the single-hop lane in `recall.ts`, which used to carry an
+ * inline copy: two identical sorts in two files is a drift waiting to happen,
+ * and the two paths producing different orderings would be invisible in every
+ * test that only checks membership.
+ *
+ * Deliberately NOT idf-weighted. Down-weighting common entity names is the
+ * obvious refinement and it measures WORSE here: 242 of 266 stored names on the
+ * benchmark corpus appear in exactly one memory and the maximum is four, so idf
+ * is near-constant and the little variation it has is noise.
+ */
+export function rankMemoriesByOverlap(map: Map<string, Set<string>>): string[] {
   return [...map.entries()].sort((a, b) => b[1].size - a[1].size).map(([memoryId]) => memoryId);
 }
 

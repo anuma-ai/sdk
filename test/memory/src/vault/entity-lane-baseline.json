@@ -1,25 +1,24 @@
 {
-  "note": "Committed ceiling/floor for the W5 entity lane. Regenerate with UPDATE_ENTITY_LANE_BASELINE=1 npx vitest run test/memory/src/vault/entityLane.test.ts and explain every moved number in the PR — several of these are deliberate trades.",
-  "generatedFrom": "",
+  "note": "Committed floor/ceiling for the W5 entity lane. Regenerate with UPDATE_ENTITY_LANE_BASELINE=1 npx vitest run test/memory/src/vault/entityLane.test.ts. Every moved number needs an explanation in the PR — some of these are deliberate trades and the diff is the only place that distinction is visible.",
   "tiers": {
     "heuristic": {
       "variants": {
         "as-written": {
-          "activation": 20,
-          "expectedRecall": 0.15178571428571427,
-          "mrr": 0.13793103448275865,
-          "rrfSum": 0.27556557062274933,
-          "meanCandidates": 4.804597701149425,
+          "activation": 22,
+          "expectedRecall": 0.16071428571428573,
+          "mrr": 0.14942528735632185,
+          "rrfSum": 0.29195901324570017,
+          "meanCandidates": 5.011494252873563,
           "maxCandidates": 12,
-          "meanReturned": 0.39080459770114945,
+          "meanReturned": 0.4482758620689655,
           "maxReturned": 4,
-          "lanePrecision": 0.5,
-          "semanticHeadroom": 95,
+          "lanePrecision": 0.46153846153846156,
+          "semanticHeadroom": 94,
           "perQueryRR": {
             "What is the user's name?": 0,
             "What pet does the user have?": 0,
             "What database does the team use?": 0,
-            "What is the API latency target?": 0,
+            "What is the API latency target?": 1,
             "What monitoring tools are used?": 0,
             "What is the user's chess rating?": 1,
             "What keyboard does the user use?": 0,
@@ -106,15 +105,15 @@
           }
         },
         "lower": {
-          "activation": 21,
+          "activation": 22,
           "expectedRecall": 0.16071428571428573,
           "mrr": 0.14942528735632185,
           "rrfSum": 0.29195901324570017,
-          "meanCandidates": 5.436781609195402,
+          "meanCandidates": 4.942528735632184,
           "maxCandidates": 12,
-          "meanReturned": 0.4367816091954023,
+          "meanReturned": 0.4482758620689655,
           "maxReturned": 4,
-          "lanePrecision": 0.47368421052631576,
+          "lanePrecision": 0.46153846153846156,
           "semanticHeadroom": 94,
           "perQueryRR": {
             "What is the user's name?": 0,
@@ -207,15 +206,15 @@
           }
         },
         "sentence": {
-          "activation": 21,
+          "activation": 22,
           "expectedRecall": 0.16071428571428573,
           "mrr": 0.14942528735632185,
           "rrfSum": 0.29195901324570017,
-          "meanCandidates": 5.183908045977011,
+          "meanCandidates": 4.988505747126437,
           "maxCandidates": 12,
-          "meanReturned": 0.4367816091954023,
+          "meanReturned": 0.4482758620689655,
           "maxReturned": 4,
-          "lanePrecision": 0.47368421052631576,
+          "lanePrecision": 0.46153846153846156,
           "semanticHeadroom": 94,
           "perQueryRR": {
             "What is the user's name?": 0,
@@ -308,21 +307,21 @@
           }
         },
         "upper": {
-          "activation": 13,
-          "expectedRecall": 0.044642857142857144,
-          "mrr": 0.05747126436781609,
-          "rrfSum": 0.0819672131147541,
-          "meanCandidates": 6.988505747126437,
+          "activation": 23,
+          "expectedRecall": 0.16071428571428573,
+          "mrr": 0.14942528735632185,
+          "rrfSum": 0.29195901324570017,
+          "meanCandidates": 8.413793103448276,
           "maxCandidates": 12,
-          "meanReturned": 0.1724137931034483,
-          "maxReturned": 2,
-          "lanePrecision": 0.3333333333333333,
-          "semanticHeadroom": 107,
+          "meanReturned": 0.47126436781609193,
+          "maxReturned": 4,
+          "lanePrecision": 0.43902439024390244,
+          "semanticHeadroom": 94,
           "perQueryRR": {
             "What is the user's name?": 0,
             "What pet does the user have?": 0,
             "What database does the team use?": 0,
-            "What is the API latency target?": 0,
+            "What is the API latency target?": 1,
             "What monitoring tools are used?": 0,
             "What is the user's chess rating?": 1,
             "What keyboard does the user use?": 0,
@@ -330,7 +329,7 @@
             "What ORM does the team use?": 1,
             "What CI/CD platform is used?": 0,
             "What languages does the user speak?": 0,
-            "What project management tool does the team use?": 0,
+            "What project management tool does the team use?": 1,
             "What car does the user drive?": 0,
             "Where did the user go to college?": 0,
             "What is the user's current job title?": 0,
@@ -368,26 +367,26 @@
             "What text editor keybindings does the user prefer?": 0,
             "What open source projects does the user maintain?": 0,
             "What is the user's food allergy, not intolerance?": 0,
-            "What database connection pooling does the team use?": 0,
-            "What is the user's side project?": 0,
+            "What database connection pooling does the team use?": 1,
+            "What is the user's side project?": 1,
             "What queue system handles async jobs?": 0,
             "What tracing solution is the team evaluating?": 0,
             "Where does the user currently live?": 0,
             "What city is the user based in now?": 0,
-            "What state management library does the frontend use?": 0,
-            "What is the current frontend state management approach?": 0,
+            "What state management library does the frontend use?": 0.5,
+            "What is the current frontend state management approach?": 0.5,
             "What E2E testing tool does the team use?": 0,
             "How does the team run browser tests?": 0,
             "How often does the team deploy?": 0,
             "What is the deployment cadence?": 0,
             "Did the user recently move?": 0,
             "What testing changes happened in 2025?": 0,
-            "What was the old state management before the migration?": 0,
+            "What was the old state management before the migration?": 1,
             "When did the team switch to continuous deployment?": 1,
             "What does the user drink in the morning?": 0,
             "What beverage does the user prefer now?": 0,
-            "What is the data pipeline built with?": 0,
-            "What language is the data pipeline written in?": 0,
+            "What is the data pipeline built with?": 0.3333333333333333,
+            "What language is the data pipeline written in?": 0.3333333333333333,
             "What is the user's current salary?": 0,
             "What is Alex's compensation?": 0,
             "Give me an overview of the user's development environment setup": 0,
@@ -400,10 +399,10 @@
             "How does the team handle security?": 0,
             "What does the user's workspace look like?": 0,
             "Tell me about the user as a person": 0,
-            "What distributed systems knowledge does the user have?": 0,
+            "What distributed systems knowledge does the user have?": 1,
             "Describe the team's development workflow": 0,
             "What health-related things should I know about the user?": 0,
-            "What does the user's data pipeline look like?": 0,
+            "What does the user's data pipeline look like?": 0.3333333333333333,
             "What is the user's educational and career background?": 0,
             "What side projects and open source work does the user do?": 0
           }
@@ -411,13 +410,13 @@
       },
       "hardNegatives": {
         "activation": 4,
-        "meanMemories": 0.38461538461538464,
-        "maxMemories": 2
+        "meanMemories": 0.46153846153846156,
+        "maxMemories": 3
       },
       "casingSpread": {
         "as-written": {
-          "mrr": 0.011494252873563204,
-          "activation": 1
+          "mrr": 0,
+          "activation": 0
         },
         "lower": {
           "mrr": 0,
@@ -428,8 +427,8 @@
           "activation": 0
         },
         "upper": {
-          "mrr": 0.09195402298850576,
-          "activation": 8
+          "mrr": 0,
+          "activation": 1
         }
       }
     }

@@ -28,6 +28,8 @@ import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
+  NODE_BUDGET,
+  rankMemoriesByOverlap,
   traverseGraphLane,
 } from "./graphTraversal.js";
 import { classifyObservationTrend } from "./observationTrend.js";
@@ -500,10 +502,9 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
  *
  * Returns an empty array (not just empty ranking) when:
  *  - `ctx.entityCtx` is not provided
- *  - The query yields no entities — the strict capitalized pass is empty AND
- *    the lowercase fallback produced no candidates (a stopword-only query).
- *    Lowercase/dictated queries now DO reach this lane via that fallback;
- *    only a genuinely entity-free query short-circuits here.
+ *  - The query yields no candidate entity names at all — both extractor passes
+ *    came back empty (a stopword-only query). Casing is no longer a reason:
+ *    lowercase and dictated queries reach this lane like any other.
  *  - No stored memories share any of the query's entities
  *
  * The ranking is by raw shared-count, not the tanh score — we hand off
@@ -517,6 +518,11 @@ function toFactMemory(r: VaultSearchResult, now?: number): RankedMemory {
  * (capped back to seed-only above the density threshold). When `traverse` is
  * false the single-hop path below runs — low/mid budgets never pay the
  * vault-size count and never expand past the seed.
+ *
+ * Node cap (both paths): the emitted ranking is capped at {@link NODE_BUDGET}.
+ * The multi-hop path has always bounded its accumulated pool; the single-hop
+ * path — the one low/mid budgets use — did not, so one dense entity name could
+ * emit an arbitrarily long ranking into RRF and into the reranker's input.
  *
  * Active filter (both paths): archived / quarantined ("forgotten") memory ids
  * are dropped before they enter the returned ranking — the multi-hop path
@@ -572,11 +578,14 @@ async function buildGraphLaneRanking(
   }
   const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, seedNames);
   if (memoryToEntities.size === 0) return [];
-  // Sort by shared-entity count descending. Ties broken arbitrarily by
-  // map insertion order — RRF rank-quantization makes fine ties moot.
-  const ranked = [...memoryToEntities.entries()]
-    .sort((a, b) => b[1].size - a[1].size)
-    .map(([memoryId]) => memoryId);
+  const ranked = rankMemoriesByOverlap(memoryToEntities);
+  // Cap the lane at NODE_BUDGET. This was the only unbounded fan-out left on
+  // the DEFAULT path — the multi-hop branch has always capped, but low/mid go
+  // through here, and a single dense entity ("work", "2024") can resolve to
+  // hundreds of memories that then all occupy RRF rank slots and all enter the
+  // reranker's input. Capping it is also what pays for widening the extractor:
+  // more candidate names must not mean an unbounded candidate pool.
+  //
   // Drop archived / quarantined ("forgotten") ids BEFORE they enter
   // entityRanking — mirroring the multi-hop branch's per-hop active filter
   // above. They never load for display (the downstream itemById gate drops
@@ -585,10 +594,14 @@ async function buildGraphLaneRanking(
   // same indexed active-id read the high-budget path already pays. Only wired
   // when a vaultCtx is present (the same context the final recall gate filters
   // against); without it the lane keeps its pre-fix behavior.
+  //
+  // Probe 2x the budget before that filter so a run of archived rows at the top
+  // of the ranking cannot starve the emitted set down to nothing.
   const vaultCtx = ctx.vaultCtx;
-  if (!vaultCtx) return ranked;
-  const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, ranked);
-  return ranked.filter((id) => activeIds.has(id));
+  if (!vaultCtx) return ranked.slice(0, NODE_BUDGET);
+  const probe = ranked.slice(0, NODE_BUDGET * 2);
+  const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, probe);
+  return probe.filter((id) => activeIds.has(id)).slice(0, NODE_BUDGET);
 }
 
 /**
