@@ -1,8 +1,8 @@
 # getVaultMemoriesByIdsOp
 
-> **getVaultMemoriesByIdsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `ids`: `string`\[]): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
+> **getVaultMemoriesByIdsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `ids`: `string`\[], `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:812](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#812)
+Defined in: [src/lib/db/memoryVault/operations.ts:855](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#855)
 
 Bulk-decrypt a KNOWN set of memories by ID — the "decrypt last" half of
 on-demand recall (#5017) for lanes whose size is NOT bounded to the top-N
@@ -23,6 +23,7 @@ only its own live rows come back.
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -37,6 +38,11 @@ only its own live rows come back.
 [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -47,6 +53,45 @@ only its own live rows come back.
 <td>
 
 `string`\[]
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+`object`
+
+</td>
+<td>
+
+See [getVaultEmbeddingsByIdsOp](getVaultEmbeddingsByIdsOp.md) — must match what admitted these ids.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.includeArchived?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>

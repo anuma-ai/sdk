@@ -1,4 +1,4 @@
-import { Database } from "@nozbe/watermelondb";
+import { Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
@@ -2127,5 +2127,121 @@ describe("baseVaultConditions — real read semantics (in-memory LokiJS)", () =>
       (m) => m.uniqueId
     );
     expect(withQuarantined).toContain(quarantined.uniqueId);
+  });
+});
+
+/**
+ * #779 — the decrypt-last search path routes its filters through
+ * `getVaultCandidateKeysOp`, which originally accepted only `scopes`/`folderId`.
+ * `factTypes` and `includeArchived` were therefore honored on the legacy
+ * whole-vault path and silently dropped here, so the same query returned
+ * different candidate sets depending on which path was active.
+ */
+describe("getVaultCandidateKeysOp — filter parity with the legacy path (#779)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  /** Drive the projected-SQL path and return the [sql, args] it built. */
+  async function captureSql(
+    options?: Parameters<typeof getVaultCandidateKeysOp>[1]
+  ): Promise<{ sql: string; args: unknown[] }> {
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getVaultCandidateKeysOp(ctx, options);
+    const call = spy.mock.calls[0]!;
+    return { sql: call[0] as string, args: (call[1] ?? []) as unknown[] };
+  }
+
+  it("filters by fact_type when factTypes is passed", async () => {
+    const { sql, args } = await captureSql({ factTypes: ["preference", "identity"] });
+    expect(sql).toContain('"fact_type" in (?,?)');
+    expect(args).toEqual(expect.arrayContaining(["preference", "identity"]));
+  });
+
+  it("omits the fact_type clause when factTypes is absent or empty", async () => {
+    expect((await captureSql()).sql).not.toContain("fact_type");
+    expect((await captureSql({ factTypes: [] })).sql).not.toContain("fact_type");
+  });
+
+  it("excludes archived rows by default", async () => {
+    expect((await captureSql()).sql).toContain('"archived_at" is null');
+  });
+
+  // The bug's sharpest edge: `baseVaultSql` hardcoded this clause, so
+  // includeArchived could not be satisfied on this path even in principle.
+  it("drops the archived filter when includeArchived is set", async () => {
+    const { sql } = await captureSql({ includeArchived: true });
+    expect(sql).not.toContain("archived_at");
+    // The other safety filters must survive — only archiving is opted out of.
+    expect(sql).toContain('"is_deleted" = 0');
+    expect(sql).toContain('"superseded_by" is null');
+  });
+
+  /** Drive the LokiJS fallback (first call throws) and count its Q conditions. */
+  async function lokiConditionCount(
+    options?: Parameters<typeof getVaultCandidateKeysOp>[1]
+  ): Promise<number> {
+    let calls = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      return { unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getVaultCandidateKeysOp(ctx, options);
+    return queryFn.mock.calls[1]!.length;
+  }
+
+  // Each case is chosen so the COUNT differs between fixed and unfixed code —
+  // asserting a count that happens to match on both (e.g. swapping archived_at
+  // for fact_type) would pass for the wrong reason.
+  it("applies both filters on the LokiJS fallback too", async () => {
+    // Baseline: is_deleted + archived_at + trust_tier + superseded_by.
+    // (no user_id — makeCtx sets none; no scope/folder_id — not requested.)
+    expect(await lokiConditionCount()).toBe(4);
+    // + fact_type ⇒ 5. Unfixed code drops it and stays at 4.
+    expect(await lokiConditionCount({ factTypes: ["preference"] })).toBe(5);
+    // − archived_at ⇒ 3. Unfixed code keeps it and stays at 4.
+    expect(await lokiConditionCount({ includeArchived: true })).toBe(3);
+  });
+});
+
+/**
+ * #779, second half. Fixing only the key scan was not enough: the decrypt-last
+ * path admits candidates via `getVaultCandidateKeysOp`, then hydrates them by id
+ * through these two ops. Both re-applied the default archived exclusion, so
+ * archived rows passed the scan and were silently dropped at hydration — while
+ * still consuming admission slots on the way.
+ */
+describe("by-id hydration ops honor includeArchived (#779)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("getVaultEmbeddingsByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+    expect(spy.mock.calls[0]![0] as string).toContain('"archived_at" is null');
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"], { includeArchived: true });
+    const withArchived = spy.mock.calls[1]![0] as string;
+    expect(withArchived).not.toContain("archived_at");
+    // The id restriction and the other safety filters must survive.
+    expect(withArchived).toContain('"id" in (?)');
+    expect(withArchived).toContain('"is_deleted" = 0');
+  });
+
+  it("getVaultMemoriesByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    // is_deleted + archived_at + trust_tier + superseded_by + id oneOf = 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"]);
+    expect(queryFn.mock.calls[0]!.length).toBe(5);
+
+    // − archived_at ⇒ 4. Unfixed code stays at 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"], { includeArchived: true });
+    expect(queryFn.mock.calls[1]!.length).toBe(4);
   });
 });
