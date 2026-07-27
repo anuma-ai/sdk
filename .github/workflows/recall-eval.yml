@@ -31,6 +31,11 @@ on:
         type: choice
         default: "gate"
         options: ["gate", "save-baseline"]
+      baseline_repeat:
+        description: "save-baseline only: captures to average. 1 writes a luck-dependent baseline — the harness warns about it."
+        required: false
+        type: string
+        default: "3"
   # PORTAL_API_KEY reaches PR-authored code here, same as extraction-eval.yml and
   # the other eval gates. That's the accepted posture for this repo, not an
   # oversight: fork PRs receive no secrets (so an outside contributor's code can
@@ -122,6 +127,10 @@ jobs:
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       INPUT_MODE: ${{ inputs.mode || 'gate' }}
+      # Free-form input via env so the shell tokenizes after substitution.
+      # Without this the save-baseline path wrote a ONE-run baseline, quietly
+      # undoing the multi-run mean the gate is designed around.
+      INPUT_BASELINE_REPEAT: ${{ inputs.baseline_repeat || '3' }}
       NODE_OPTIONS: "--max-old-space-size=6144"
     steps:
       - uses: actions/checkout@v4
@@ -180,7 +189,8 @@ jobs:
             --strategy recall --variant oracle --max 50 \
             --llm gpt-oss/gpt-oss-120b --extract-llm gpt-oss/gpt-oss-120b \
             --concurrency 10 --decompose=off --consolidate=false --rerank=false \
-            --output results.json --save-baseline
+            --output results.json --save-baseline \
+            --baseline-repeat "${INPUT_BASELINE_REPEAT:-3}"
           echo "### Generated recall baseline" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat test/memory/src/longmemeval/recall-baseline.json >> "$GITHUB_STEP_SUMMARY"
