@@ -37,7 +37,7 @@ on:
       - "test/memory/src/gate.ts"
 
 jobs:
-  eval:
+  consolidation-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

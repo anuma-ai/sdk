@@ -113,7 +113,7 @@ on:
       - "test/memory/src/gate.ts"
 
 jobs:
-  eval:
+  recall-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

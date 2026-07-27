@@ -106,7 +106,7 @@ on:
       - "test/memory/src/gate.ts"
 
 jobs:
-  eval:
+  vault-search-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
