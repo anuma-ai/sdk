@@ -57,14 +57,16 @@ export interface RecallToolOptions {
    * against wall-clock today, which is wrong for any historical dataset. */
   now?: number;
   /**
-   * Kill switch for the W5 lane's vocabulary-grounded entity resolution.
-   * `"off"` falls back to the heuristic extractor and issues no entity-table
-   * read at all. Default `"auto"`.
+   * Switch for the W5 lane's vocabulary-grounded entity resolution.
+   * **Defaults to `"off"` — this is opt-in.** Pass `"auto"` to turn it on;
+   * `"off"` runs the heuristic extractor and issues no entity-table read.
    *
    * Exposed here because this is the SDK's primary recall entry point — it is
-   * what `useChatStorage` wires — so a host that wants to back the tier out
-   * has no other lever short of forking. It matters more than most options
-   * because the tier trades lane precision for activation.
+   * what `useChatStorage` wires — so this is the lever a host reaches for in
+   * both directions: to turn the tier on at all, and to back it out again per
+   * surface without forking. It matters more than most options because the
+   * tier trades lane precision for activation. See
+   * {@link RecallOptions.entityVocabulary} for the measured trade.
    */
   entityVocabulary?: "auto" | "off";
 }

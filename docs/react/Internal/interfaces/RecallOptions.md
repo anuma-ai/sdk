@@ -98,17 +98,24 @@ Max neighbor entities expanded per hop. Default: 8.
 
 > `optional` **entityVocabulary**: `"auto"` | `"off"`
 
-Defined in: [src/lib/memory/types.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#231)
+Defined in: [src/lib/memory/types.ts:238](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#238)
 
-W5 vocabulary-grounded query resolution. `"auto"` (the default) resolves
-query tokens against the vault's stored entity names when the entity table
-is readable and the context is single-user; `"off"` forces the
+W5 vocabulary-grounded query resolution. **Defaults to `"off"` — this is
+opt-in.** Pass `"auto"` to turn it on; until you do, recall runs the
 deterministic heuristic extractor and issues no vocabulary read at all.
 
-The kill switch for the tier. Grounding roughly triples how often the graph
-lane finds something, and correspondingly lowers its precision — it fires on
-queries where it used to stay quiet. Turn it off per call if that trade is
-wrong for a given surface.
+`"auto"` resolves query tokens against the vault's stored entity names,
+when the entity table is readable and `entityCtx.singleTenant` is declared.
+It roughly triples how often the graph lane finds something (lane
+activation 25% to 74% on the benchmark corpus, 2.33x the lane's RRF
+contribution) and correspondingly lowers its precision, 46% to 24%, because
+it fires on queries where the lane used to stay quiet — including ones it
+should have.
+
+It is off by default because every one of those numbers measures the lane
+in isolation. None of them measure what a user receives after the lane is
+RRF-fused with the cosine/BM25 head and reranked. Opt in per surface where
+more recall is worth more noise in context; leave it off where it is not.
 
 ***
 
