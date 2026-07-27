@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
 import {
   archiveVaultMemoryOp,
+  getActiveVaultMemoryIdsOp,
   createVaultMemoryOp,
   createVaultMemoriesBatchOp,
   getVaultMemoryOp,
@@ -2127,5 +2128,67 @@ describe("baseVaultConditions — real read semantics (in-memory LokiJS)", () =>
       (m) => m.uniqueId
     );
     expect(withQuarantined).toContain(quarantined.uniqueId);
+  });
+});
+
+describe("getActiveVaultMemoryIdsOp — IN-clause chunking", () => {
+  // `Q.oneOf` becomes one bound variable per id and SQLite's default
+  // SQLITE_MAX_VARIABLE_NUMBER is 999, so a single unchunked read throws once the
+  // caller list gets long. It got long: the graph lane hands its whole discovered
+  // set through here at every hop, and once query entities resolve against the
+  // stored vocabulary instead of being guessed, that set routinely has real rows
+  // in it. The throw is swallowed by the lane's fail-soft wrapper, so the lane
+  // just returns empty on exactly the dense recalls it is most useful for.
+  //
+  // LokiJS has no variable cap, so this asserts the structural property that
+  // prevents the throw — the read is split — rather than the throw itself, which
+  // no adapter in the test suite can produce.
+  function makeChunkSpyCtx(activeIds: Set<string>) {
+    const seenBatches: string[][] = [];
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: vi.fn((...conditions: any[]) => {
+          const ids: string[] = conditions.flatMap((c) => c?.comparison?.right?.values ?? []) ?? [];
+          seenBatches.push(ids);
+          return {
+            unsafeFetchRaw: vi.fn(async () =>
+              ids.filter((id) => activeIds.has(id)).map((id) => ({ id }))
+            ),
+          };
+        }),
+      } as any,
+    });
+    return { ctx, seenBatches };
+  }
+
+  it("splits a long id list into bounded batches", async () => {
+    const ids = Array.from({ length: 1200 }, (_, i) => `m${i}`);
+    const { ctx, seenBatches } = makeChunkSpyCtx(new Set(ids));
+
+    await getActiveVaultMemoryIdsOp(ctx, ids);
+
+    expect(seenBatches.length).toBeGreaterThan(1);
+    for (const batch of seenBatches) expect(batch.length).toBeLessThan(999);
+  });
+
+  it("returns the same set the unchunked read would have", async () => {
+    // Splitting the query must not split the answer: every active id across
+    // every batch comes back, and inactive ones stay out.
+    const ids = Array.from({ length: 1200 }, (_, i) => `m${i}`);
+    const active = new Set(ids.filter((_, i) => i % 3 === 0));
+    const { ctx } = makeChunkSpyCtx(active);
+
+    const out = await getActiveVaultMemoryIdsOp(ctx, ids);
+
+    expect(out.size).toBe(active.size);
+    expect(out.has("m0")).toBe(true);
+    expect(out.has("m999")).toBe(true);
+    expect(out.has("m1")).toBe(false);
+  });
+
+  it("issues no query at all for an empty list", async () => {
+    const { ctx, seenBatches } = makeChunkSpyCtx(new Set());
+    expect(await getActiveVaultMemoryIdsOp(ctx, [])).toEqual(new Set());
+    expect(seenBatches).toHaveLength(0);
   });
 });

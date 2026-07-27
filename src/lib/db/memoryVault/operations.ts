@@ -881,10 +881,28 @@ export async function getActiveVaultMemoryIdsOp(
   ids: string[]
 ): Promise<Set<string>> {
   if (ids.length === 0) return new Set<string>();
-  const rows = (await ctx.vaultMemoryCollection
-    .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids)))
-    .unsafeFetchRaw()) as Record<string, unknown>[];
-  return new Set(rows.map((r) => r.id as string));
+
+  // Chunked because `Q.oneOf` becomes one bound variable per id and SQLite's
+  // default SQLITE_MAX_VARIABLE_NUMBER is 999. Same CHUNK as the other
+  // oneOf-over-a-caller-supplied-id-list reads in this file.
+  //
+  // The caller list is no longer small. The graph lane's traversal hands its
+  // whole discovered set through here at every hop, and once query entities
+  // resolve against the stored vocabulary rather than being guessed, that set
+  // routinely has real rows in it — up to MAX_VOCABULARY_CANDIDATES x
+  // MAX_LINKS_PER_ENTITY ids on a dense vault. Unchunked, the query throws, and
+  // the throw is swallowed by the lane's fail-soft wrapper: the graph lane just
+  // returns empty on exactly the dense high-budget recalls it is most useful
+  // for. Silent, and invisible to every test with a small fixture.
+  const CHUNK = 500;
+  const active = new Set<string>();
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const rows = (await ctx.vaultMemoryCollection
+      .query(...baseVaultConditions(ctx), Q.where("id", Q.oneOf(ids.slice(i, i + CHUNK))))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    for (const row of rows) active.add(row.id as string);
+  }
+  return active;
 }
 
 export async function updateVaultMemoryOp(
