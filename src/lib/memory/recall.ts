@@ -57,10 +57,16 @@ const DEFAULT_FACT_MIN_SCORE = 0.1;
  *
  * `"auto"` means any host that passes an `entityCtx` gets the vocabulary tier
  * without changing a line — a behaviour change on the default path, made
- * deliberately because the tier is $0, network-free, measured at 2.28x the
+ * deliberately because the tier is $0, network-free, measured at 2.33x the
  * lane's RRF contribution with zero regressing queries, and degrades to the
- * heuristic on every failure. It also measurably lowers LANE precision (47% to
- * 25% on the benchmark corpus) because it activates on far more queries.
+ * heuristic on every failure.
+ *
+ * It also measurably lowers LANE precision, 46% to 24% on the benchmark corpus,
+ * because it activates on far more queries. Concretely, on the 13 hard-negative
+ * queries the lane activates on 9 rather than 4, and the mean memories it
+ * injects for one goes 0.46 to 1.62 (max 3 to 6). All four numbers are asserted
+ * against the committed baseline in `test/memory/src/vault/entityLane.test.ts`,
+ * so they cannot drift out of this comment silently.
  *
  * Flipping the whole SDK to the heuristic is this one token; a single caller
  * opts out with `entityVocabulary: "off"`.

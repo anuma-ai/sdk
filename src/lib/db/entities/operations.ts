@@ -118,6 +118,17 @@ export function getEntityWriteGeneration(): number {
  * MAX_VOCABULARY_CANDIDATES (16) x this, the same ceiling the single global cap
  * had. The cost is one indexed read per seed instead of one combined read;
  * they are issued concurrently and each is an index hit on `entity_id`.
+ *
+ * KNOWN RESIDUAL, deliberately left. Each per-seed read is itself unordered, so
+ * for a seed with more than this many links the 250 rows returned are arbitrary.
+ * Cross-seed starvation is gone, but a memory that matches BOTH a rare seed and
+ * a dense hub can still lose its hub credit if that particular link falls
+ * outside the hub's 250 — undercounted overlap rather than a missing memory, so
+ * it can reorder within the lane but cannot drop a match entirely. Left as-is at
+ * NODE_BUDGET=64 because there is no relevance order to sort link rows by: any
+ * ORDER BY here would be arbitrary too, just deterministically arbitrary. Worth
+ * revisiting if `graphCount` / `graphSeedCount` diagnostics show dense hubs
+ * saturating this in production.
  */
 const MAX_LINKS_PER_ENTITY = 250;
 
