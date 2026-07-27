@@ -1,0 +1,125 @@
+name: Memory Perf
+
+# Work-cost regression gate for memory recall + retain. Counts the work the
+# pipeline does against a fixed synthetic corpus — vault rows loaded, rows
+# decrypted, stored vectors parsed, documents BM25 re-tokenizes, cross-encoder
+# pairs, full-vault scans per retained fact — and fails when any of them exceeds
+# the committed baseline.
+#
+# Unlike the other memory evals this one needs NO secrets: the embedder, the
+# query decomposer and the cross-encoder are all deterministic stand-ins, so it
+# runs on every PR that touches the measured paths (including forks) and gives an
+# identical answer every time. Wall-clock is printed but never gated.
+#
+# Two ways in:
+#   - pull_request touching a memory read/write path: run the gate.
+#   - workflow_dispatch: run the gate, or regenerate the baseline and download it
+#     as an artifact (CI never pushes to the branch — a human commits it).
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "gate = fail on more work than the committed baseline; save-baseline = regenerate it as a downloadable artifact"
+        required: false
+        type: choice
+        default: "gate"
+        options: ["gate", "save-baseline"]
+  # Default activity types (opened / synchronize / reopened). Same stacked-PR
+  # caveat as the other eval workflows: retargeting a PR's base only fires
+  # `edited`, which we deliberately don't subscribe to, so a retargeted PR needs
+  # one more push before this runs.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/memory-perf.yml"
+      - "vitest.perf-memory.config.mts"
+      - "test/memory/src/perf/**"
+      - "test/memory/src/gate.ts"
+      - "src/lib/memory/**"
+      - "src/lib/memoryVault/**"
+      - "src/lib/memoryEngine/**"
+      - "src/lib/db/memoryVault/**"
+      - "src/lib/db/chat/operations.ts"
+      - "src/lib/db/entities/operations.ts"
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Dispatch input via env (never inlined into `run:`) so the shell tokenizes
+      # after substitution. pull_request has no inputs and always gates.
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Run harness (regression gate)
+        if: env.INPUT_MODE == 'gate'
+        run: |
+          # pipefail so a failed gate isn't masked by tee's exit code.
+          set -o pipefail
+          pnpm perf:memory 2>&1 | tee perf-memory.log
+
+      - name: Run harness (regenerate baseline)
+        if: env.INPUT_MODE == 'save-baseline'
+        env:
+          PERF_SAVE_BASELINE: "1"
+        run: |
+          set -o pipefail
+          pnpm perf:memory 2>&1 | tee perf-memory.log
+
+      - name: Summarize
+        if: always()
+        run: |
+          # The harness prints a per-scenario counter table between these two
+          # markers; everything else in the log is vitest/LokiJS chatter.
+          # `sed -n` exits 0 when its address range matches nothing, so the empty
+          # case has to be tested for explicitly — `|| echo` would never fire and
+          # a report-less log would render as a blank code block.
+          report=$(sed -n '/Memory work-cost report/,/gated metrics/p' perf-memory.log 2>/dev/null || true)
+          # Present only when the gate fired.
+          regressions=$(sed -n '/MORE WORK THAN THE BASELINE/,/^$/p' perf-memory.log 2>/dev/null || true)
+          {
+            echo "## Memory work-cost report"
+            if [ -n "$report" ] || [ -n "$regressions" ]; then
+              echo '```'
+              [ -n "$report" ] && printf '%s\n' "$report"
+              [ -n "$regressions" ] && printf '%s\n' "$regressions"
+              echo '```'
+            else
+              echo "_The harness failed before producing a report — see the uploaded log._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Deliberately NOT `always()`. The implicit `success() &&` is load-bearing:
+      # the harness writes baseline.json before its structural assertions are
+      # judged, so a run that regenerated the file but failed an invariant would
+      # otherwise publish a baseline that bakes the broken behavior in as the new
+      # normal. A committed baseline.json also always exists, so an `always()`
+      # upload after an early crash would hand someone the OLD file labelled as a
+      # regeneration. If this step is skipped, fix the harness first.
+      - name: Upload regenerated baseline
+        if: env.INPUT_MODE == 'save-baseline'
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-perf-baseline
+          path: test/memory/src/perf/baseline.json
+          if-no-files-found: error
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-perf-log
+          path: perf-memory.log
+          if-no-files-found: ignore

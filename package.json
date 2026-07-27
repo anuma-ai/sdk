@@ -123,6 +123,7 @@
     "e2e:tools": "vitest run --config vitest.e2e.config.mts",
     "e2e:compare": "tsx scripts/compare-app-gen-runs.ts",
     "perf:slides": "vitest run --config vitest.perf.config.mts",
+    "perf:memory": "vitest run --config vitest.perf-memory.config.mts",
     "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
     "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",

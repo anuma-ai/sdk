@@ -1,0 +1,772 @@
+{
+  "config": {
+    "seed": 20260726,
+    "vaultFacts": 1000,
+    "deletedFacts": 60,
+    "entityLinkedFacts": 120,
+    "temporalFactsInWindow": 12,
+    "temporalFactsOutOfWindow": 180,
+    "chunkMessages": 300,
+    "chunksPerMessage": 3,
+    "embedDim": 1024
+  },
+  "runs": 1,
+  "metrics": {
+    "factLegacyCold.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.vaultDecrypts": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.vaultCacheAdds": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.vaultVectorWrites": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.bm25Passes": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.bm25Prepares": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.bm25DocsTokenized": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.vaultDecrypts": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.vaultCacheAdds": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.bm25Passes": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.bm25Prepares": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.bm25DocsTokenized": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultFullLoads": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultKeyScans": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultKeyRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultVectorLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultVectorRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultRowLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultRowRows": {
+      "mean": 30,
+      "min": 30,
+      "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.vaultDecrypts": {
+      "mean": 30,
+      "min": 30,
+      "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.bm25Passes": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.bm25Prepares": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.bm25DocsTokenized": {
+      "mean": 30,
+      "min": 30,
+      "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.vaultFullLoads": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.vaultKeyScans": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.vaultKeyRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.vaultVectorRows": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.vaultRowLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.vaultRowRows": {
+      "mean": 30,
+      "min": 30,
+      "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.vaultDecrypts": {
+      "mean": 30,
+      "min": 30,
+      "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.bm25Passes": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.bm25Prepares": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.bm25DocsTokenized": {
+      "mean": 30,
+      "min": 30,
+      "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.vaultCacheAdds": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.bm25Passes": {
+      "mean": 4,
+      "min": 4,
+      "max": 4,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.bm25Prepares": {
+      "mean": 4,
+      "min": 4,
+      "max": 4,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.bm25DocsTokenized": {
+      "mean": 3760,
+      "min": 3760,
+      "max": 3760,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.rerankCalls": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.rerankPairs": {
+      "mean": 30,
+      "min": 30,
+      "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.embedTexts": {
+      "mean": 4,
+      "min": 4,
+      "max": 4,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.vaultDecrypts": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.vaultCounts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.vaultCacheAdds": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.temporalScans": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.vaultActiveIdScans": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.vaultDecrypts": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.bm25Passes": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.bm25Prepares": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.bm25DocsTokenized": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.vaultCacheAdds": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.chunkSearches": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.chunkCacheAdds": {
+      "mean": 300,
+      "min": 300,
+      "max": 300,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.embedTexts": {
+      "mean": 2,
+      "min": 2,
+      "max": 2,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.vaultDecrypts": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.bm25Passes": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.bm25Prepares": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.bm25DocsTokenized": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.vaultCacheAdds": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.chunkSearches": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.chunkCacheAdds": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.vaultDecrypts": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.entityLookups": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.bm25Passes": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.bm25Prepares": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.bm25DocsTokenized": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.embedTexts": {
+      "mean": 2,
+      "min": 2,
+      "max": 2,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainCreate.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainCreate.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainCreate.vaultDecrypts": {
+      "mean": 941,
+      "min": 941,
+      "max": 941,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainCreate.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainCreate.vaultCreates": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainMerge.vaultFullLoads": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainMerge.vaultFullRows": {
+      "mean": 940,
+      "min": 940,
+      "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainMerge.vaultDecrypts": {
+      "mean": 942,
+      "min": 942,
+      "max": 942,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainMerge.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainMerge.vaultUpdates": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainTombstone.vaultFullLoads": {
+      "mean": 2,
+      "min": 2,
+      "max": 2,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainTombstone.vaultFullRows": {
+      "mean": 1940,
+      "min": 1940,
+      "max": 1940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainTombstone.vaultDecrypts": {
+      "mean": 1940,
+      "min": 1940,
+      "max": 1940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainTombstone.embedTexts": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainBatch10.vaultFullLoads": {
+      "mean": 10,
+      "min": 10,
+      "max": 10,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainBatch10.vaultFullRows": {
+      "mean": 9445,
+      "min": 9445,
+      "max": 9445,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainBatch10.vaultDecrypts": {
+      "mean": 9455,
+      "min": 9455,
+      "max": 9455,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainBatch10.embedTexts": {
+      "mean": 10,
+      "min": 10,
+      "max": 10,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainBatch10.vaultCreates": {
+      "mean": 10,
+      "min": 10,
+      "max": 10,
+      "stdDev": 0,
+      "tolerance": 0
+    }
+  }
+}
