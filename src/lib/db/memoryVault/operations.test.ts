@@ -1,4 +1,4 @@
-import { Database } from "@nozbe/watermelondb";
+import { Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
@@ -7,7 +7,11 @@ import {
   createVaultMemoryOp,
   createVaultMemoriesBatchOp,
   getVaultMemoryOp,
+  getVaultMemoriesByIdsOp,
   getAllVaultMemoriesOp,
+  getVaultRankingProjectionsOp,
+  getVaultCandidateKeysOp,
+  getVaultEmbeddingsByIdsOp,
   getAllVaultMemoryContentsOp,
   updateVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
@@ -1515,6 +1519,417 @@ describe("stampTopicsExtractedAtOp", () => {
   });
 });
 
+describe("getVaultRankingProjectionsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns content-free projections (no decrypted content field)", async () => {
+    const ctx = makeCtx();
+    const results = await getVaultRankingProjectionsOp(ctx);
+
+    expect(results).toHaveLength(2);
+    // The whole point of #5017: the ranking projection must never carry content.
+    expect(results[0]).not.toHaveProperty("content");
+    expect(results[0]).toHaveProperty("uniqueId");
+    expect(results[0]).toHaveProperty("embedding");
+    expect(results[0]).toHaveProperty("folderId");
+    // Never decrypt on this path.
+    const { decryptVaultMemoryFields } = await import("./encryption");
+    expect(decryptVaultMemoryFields).not.toHaveBeenCalled();
+  });
+
+  it("carries the plaintext embedding through untouched", async () => {
+    const embedded = mockRecord({ id: "mem_vec" });
+    embedded._raw.embedding = "[0.1,0.2,0.3]";
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: vi.fn(async () => [embedded]),
+      unsafeFetchRaw: vi.fn(async () => [embedded._raw]),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const results = await getVaultRankingProjectionsOp(ctx, { scopes: ["private"] });
+
+    expect(results[0].embedding).toBe("[0.1,0.2,0.3]");
+    expect(results[0].uniqueId).toBe("mem_vec");
+  });
+
+  it("reuses baseVaultConditions — excludes deleted + superseded like the recall read", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultRankingProjectionsOp(ctx, { scopes: ["private"] });
+
+    // is_deleted + archived_at + trust_tier + superseded_by + scope + sortBy —
+    // identical shape to getAllVaultMemoriesOp so the candidate set matches, minus
+    // the decrypt.
+    expect(queryFn.mock.calls[0].length).toBe(6);
+  });
+
+  it("does NOT add a scope condition when scopes is empty", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: fetchFn,
+      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultRankingProjectionsOp(ctx, { scopes: [] });
+
+    // is_deleted + archived_at + trust_tier + superseded_by + sortBy — no scope clause.
+    expect(queryFn.mock.calls[0].length).toBe(5);
+  });
+});
+
+describe("getVaultMemoriesByIdsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns [] without querying for an empty id list", async () => {
+    const ctx = makeCtx();
+    const results = await getVaultMemoriesByIdsOp(ctx, []);
+
+    expect(results).toEqual([]);
+    expect(ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("bulk-decrypts the requested rows via unsafeFetchRaw (no per-row find)", async () => {
+    const rows = [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })];
+    const unsafeFetchRaw = vi.fn(async () => rows.map((r) => r._raw));
+    const findFn = vi.fn();
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: vi.fn(), unsafeFetchRaw }));
+    const ctx = makeCtx({
+      walletAddress: "0xabc",
+      signMessage: vi.fn(async () => "0xsig") as any,
+      vaultMemoryCollection: { query: queryFn, find: findFn } as any,
+    });
+
+    const results = await getVaultMemoriesByIdsOp(ctx, ["mem_1", "mem_2"]);
+
+    expect(results.map((r) => r.uniqueId)).toEqual(["mem_1", "mem_2"]);
+    expect(unsafeFetchRaw).toHaveBeenCalledTimes(1);
+    // Must NOT use the Model-pinning .find() path.
+    expect(findFn).not.toHaveBeenCalled();
+  });
+
+  it("reuses baseVaultConditions (is_deleted + superseded) plus the id oneOf", async () => {
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      fetch: vi.fn(),
+      unsafeFetchRaw: vi.fn(async () => []),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultMemoriesByIdsOp(ctx, ["mem_1"]);
+
+    // is_deleted + archived_at + trust_tier + superseded_by + id oneOf
+    // (no user_id — makeCtx sets none).
+    expect(queryFn.mock.calls[0].length).toBe(5);
+  });
+});
+
+describe("getVaultCandidateKeysOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("maps projected candidate keys and excludes deleted/superseded via conditions", async () => {
+    const raws = [
+      {
+        id: "a",
+        scope: "private",
+        folder_id: null,
+        embedding_model: "m",
+        updated_at: new Date("2026-05-01").getTime(),
+      },
+    ];
+    // Loki path: unsafeSqlQuery throws → falls back to Q query + unsafeFetchRaw.
+    // The mock must actually throw on the first (SQL) call to drive that fallback —
+    // a bare object mock never throws on its own, so simulate the real Loki adapter
+    // behavior (Q.unsafeSqlQuery unsupported) explicitly.
+    let calls = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      return {
+        unsafeFetchRaw: vi.fn(async () => raws),
+        fetch: vi.fn(),
+      };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const keys = await getVaultCandidateKeysOp(ctx, { scopes: ["private"] });
+
+    expect(keys).toEqual([
+      {
+        uniqueId: "a",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date("2026-05-01"),
+      },
+    ]);
+    // conditions include is_deleted + archived_at + trust_tier + superseded_by + scope
+    // (baseVaultConditions parity). calls[0] is the try-path SQL call (throws);
+    // calls[1] is the Loki fallback's Q query with the spread condition list:
+    // is_deleted, archived_at, trust_tier, superseded_by, scope (no user_id —
+    // makeCtx sets none; no folder_id — not requested here).
+    expect(queryFn.mock.calls[1].length).toBe(5);
+  });
+
+  it("falls back to the Loki path when the projected SQL query throws", async () => {
+    const raws = [
+      {
+        id: "b",
+        scope: "shared",
+        folder_id: "f1",
+        embedding_model: null,
+        updated_at: new Date("2026-06-01").getTime(),
+      },
+    ];
+    let callCount = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      callCount += 1;
+      if (callCount === 1) {
+        // Simulate the OPFS-SQLite projected SELECT path throwing (e.g. Q.unsafeSqlQuery
+        // unsupported on this adapter) so the catch block's Loki fallback runs.
+        throw new Error("unsafeSqlQuery not supported");
+      }
+      return {
+        unsafeFetchRaw: vi.fn(async () => raws),
+        fetch: vi.fn(),
+      };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const keys = await getVaultCandidateKeysOp(ctx, { folderId: "f1" });
+
+    expect(keys).toEqual([
+      {
+        uniqueId: "b",
+        folderId: "f1",
+        scope: "shared",
+        embeddingModel: null,
+        updatedAt: new Date("2026-06-01"),
+      },
+    ]);
+    // First call = try path (throws), second call = fallback Q query.
+    expect(queryFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the projected SQL SELECT on the OPFS-SQLite path when unsafeSqlQuery does not throw", async () => {
+    const raws = [
+      {
+        id: "a",
+        scope: "private",
+        folder_id: null,
+        embedding_model: "m",
+        updated_at: new Date("2026-05-01").getTime(),
+      },
+    ];
+    // Non-throwing queryFn — mirrors the real OPFS-SQLite adapter, where
+    // Q.unsafeSqlQuery is supported and the try-branch completes without
+    // ever falling back to the Loki path.
+    const queryFn = vi.fn((..._c: any[]) => ({
+      unsafeFetchRaw: vi.fn(async () => raws),
+      fetch: vi.fn(),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const keys = await getVaultCandidateKeysOp(ctx, { scopes: ["private", "shared"] });
+
+    expect(keys).toEqual([
+      {
+        uniqueId: "a",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: new Date("2026-05-01"),
+      },
+    ]);
+
+    // Only one call — the try-path succeeds, so there's no Loki fallback call.
+    expect(queryFn).toHaveBeenCalledTimes(1);
+
+    const sqlQueryArg = queryFn.mock.calls[0][0] as {
+      type: string;
+      sql: string;
+      values: unknown[];
+    };
+    expect(sqlQueryArg.type).toBe("sqlQuery");
+    // Strict column projection — id/scope/folder_id/embedding_model/updated_at
+    // ONLY, no content and no embedding blob.
+    expect(sqlQueryArg.sql).toMatch(
+      /^select "id", "scope", "folder_id", "embedding_model", "updated_at" from "memory_vault" where /
+    );
+    expect(sqlQueryArg.sql).toContain('"is_deleted" = 0');
+    expect(sqlQueryArg.sql).toContain('"superseded_by" is null');
+    // Lockstep with baseVaultConditions: archived + quarantined rows are excluded
+    // from search candidates on the SQL path too (null-safe IS NOT keeps NULL tiers).
+    expect(sqlQueryArg.sql).toContain('"archived_at" is null');
+    expect(sqlQueryArg.sql).toContain(`"trust_tier" is not 'quarantined'`);
+    expect(sqlQueryArg.sql).toContain('"scope" in (?,?)');
+    expect(sqlQueryArg.values).toEqual(["private", "shared"]);
+  });
+
+  it("enforces user_id scoping on both the SQL path and the Loki fallback path", async () => {
+    const rows = [
+      {
+        id: "a",
+        scope: "private",
+        folder_id: null,
+        embedding_model: null,
+        updated_at: new Date("2026-05-01").getTime(),
+      },
+    ];
+
+    // --- SQL path: user_id lands in the WHERE clause AND the bound args. ---
+    const sqlQueryFn = vi.fn((..._c: any[]) => ({
+      unsafeFetchRaw: vi.fn(async () => rows),
+      fetch: vi.fn(),
+    }));
+    const sqlCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: sqlQueryFn } as any });
+
+    const sqlKeys = await getVaultCandidateKeysOp(sqlCtx);
+    expect(sqlKeys).toHaveLength(1);
+
+    const sqlQueryArg = sqlQueryFn.mock.calls[0][0] as { sql: string; values: unknown[] };
+    expect(sqlQueryArg.sql).toContain('"user_id" = ?');
+    expect(sqlQueryArg.values).toEqual(["u1"]);
+
+    // --- Loki fallback path: user_id comes through baseVaultConditions. ---
+    let calls = 0;
+    const lokiQueryFn = vi.fn((...conditions: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      // Fallback Q query conditions: is_deleted + archived_at + trust_tier +
+      // superseded_by + user_id = 5 (no scopes/folderId requested here).
+      expect(conditions.length).toBe(5);
+      return {
+        unsafeFetchRaw: vi.fn(async () => rows),
+        fetch: vi.fn(),
+      };
+    });
+    const lokiCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: lokiQueryFn } as any });
+
+    const lokiKeys = await getVaultCandidateKeysOp(lokiCtx);
+    expect(lokiKeys).toHaveLength(1);
+    expect(lokiQueryFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("getVaultEmbeddingsByIdsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns [] for empty ids without querying", async () => {
+    const ctx = makeCtx();
+    expect(await getVaultEmbeddingsByIdsOp(ctx, [])).toEqual([]);
+    expect(ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("projects id+embedding for the requested ids", async () => {
+    const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => raws), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const out = await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+    expect(out).toEqual([{ uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" }]);
+  });
+
+  it("uses the projected SQL SELECT on the OPFS-SQLite path when unsafeSqlQuery does not throw", async () => {
+    const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
+    // Non-throwing queryFn — mirrors the real OPFS-SQLite adapter, where
+    // Q.unsafeSqlQuery is supported and the try-branch completes without
+    // ever falling back to the Loki path.
+    const queryFn = vi.fn((..._c: any[]) => ({
+      unsafeFetchRaw: vi.fn(async () => raws),
+      fetch: vi.fn(),
+    }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const out = await getVaultEmbeddingsByIdsOp(ctx, ["a", "b"]);
+
+    expect(out).toEqual([{ uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" }]);
+    // Only one call — the try-path succeeds, so there's no Loki fallback call.
+    expect(queryFn).toHaveBeenCalledTimes(1);
+
+    const sqlQueryArg = queryFn.mock.calls[0][0] as {
+      type: string;
+      sql: string;
+      values: unknown[];
+    };
+    expect(sqlQueryArg.type).toBe("sqlQuery");
+    // Strict column projection — id/embedding/embedding_model ONLY, no content.
+    expect(sqlQueryArg.sql).toMatch(
+      /^select "id", "embedding", "embedding_model" from "memory_vault" where /
+    );
+    expect(sqlQueryArg.sql).toContain('"is_deleted" = 0');
+    expect(sqlQueryArg.sql).toContain('"superseded_by" is null');
+    // Lockstep with baseVaultConditions: archived + quarantined rows excluded here too.
+    expect(sqlQueryArg.sql).toContain('"archived_at" is null');
+    expect(sqlQueryArg.sql).toContain(`"trust_tier" is not 'quarantined'`);
+    expect(sqlQueryArg.sql).toContain('"id" in (?,?)');
+    expect(sqlQueryArg.values).toEqual(["a", "b"]);
+  });
+
+  it("falls back to the Loki path when the projected SQL query throws", async () => {
+    const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
+    let calls = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      return {
+        unsafeFetchRaw: vi.fn(async () => raws),
+        fetch: vi.fn(),
+      };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    const out = await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+
+    expect(out).toEqual([{ uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" }]);
+    // First call = try path (throws), second call = Loki fallback's Q query
+    // (baseVaultConditions + id oneOf = 5 conditions with no user_id set:
+    // is_deleted + archived_at + trust_tier + superseded_by + id oneOf).
+    expect(queryFn).toHaveBeenCalledTimes(2);
+    expect(queryFn.mock.calls[1].length).toBe(5);
+  });
+
+  it("enforces user_id scoping on both the SQL path and the Loki fallback path", async () => {
+    const rows = [{ id: "a", embedding: "[1,0]", embedding_model: null }];
+
+    // --- SQL path: user_id lands in the WHERE clause AND the bound args. ---
+    const sqlQueryFn = vi.fn((..._c: any[]) => ({
+      unsafeFetchRaw: vi.fn(async () => rows),
+      fetch: vi.fn(),
+    }));
+    const sqlCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: sqlQueryFn } as any });
+
+    const sqlOut = await getVaultEmbeddingsByIdsOp(sqlCtx, ["a"]);
+    expect(sqlOut).toHaveLength(1);
+
+    const sqlQueryArg = sqlQueryFn.mock.calls[0][0] as { sql: string; values: unknown[] };
+    expect(sqlQueryArg.sql).toContain('"user_id" = ?');
+    expect(sqlQueryArg.values).toEqual(["u1", "a"]);
+
+    // --- Loki fallback path: user_id comes through baseVaultConditions. ---
+    let calls = 0;
+    const lokiQueryFn = vi.fn((...conditions: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      // Fallback Q query conditions: is_deleted + archived_at + trust_tier +
+      // superseded_by + user_id + id-oneOf = 6.
+      expect(conditions.length).toBe(6);
+      return {
+        unsafeFetchRaw: vi.fn(async () => rows),
+        fetch: vi.fn(),
+      };
+    });
+    const lokiCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: lokiQueryFn } as any });
+
+    const lokiOut = await getVaultEmbeddingsByIdsOp(lokiCtx, ["a"]);
+    expect(lokiOut).toHaveLength(1);
+    expect(lokiQueryFn).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("typed memory (PR1)", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -1712,5 +2127,121 @@ describe("baseVaultConditions — real read semantics (in-memory LokiJS)", () =>
       (m) => m.uniqueId
     );
     expect(withQuarantined).toContain(quarantined.uniqueId);
+  });
+});
+
+/**
+ * #779 — the decrypt-last search path routes its filters through
+ * `getVaultCandidateKeysOp`, which originally accepted only `scopes`/`folderId`.
+ * `factTypes` and `includeArchived` were therefore honored on the legacy
+ * whole-vault path and silently dropped here, so the same query returned
+ * different candidate sets depending on which path was active.
+ */
+describe("getVaultCandidateKeysOp — filter parity with the legacy path (#779)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  /** Drive the projected-SQL path and return the [sql, args] it built. */
+  async function captureSql(
+    options?: Parameters<typeof getVaultCandidateKeysOp>[1]
+  ): Promise<{ sql: string; args: unknown[] }> {
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getVaultCandidateKeysOp(ctx, options);
+    const call = spy.mock.calls[0]!;
+    return { sql: call[0] as string, args: (call[1] ?? []) as unknown[] };
+  }
+
+  it("filters by fact_type when factTypes is passed", async () => {
+    const { sql, args } = await captureSql({ factTypes: ["preference", "identity"] });
+    expect(sql).toContain('"fact_type" in (?,?)');
+    expect(args).toEqual(expect.arrayContaining(["preference", "identity"]));
+  });
+
+  it("omits the fact_type clause when factTypes is absent or empty", async () => {
+    expect((await captureSql()).sql).not.toContain("fact_type");
+    expect((await captureSql({ factTypes: [] })).sql).not.toContain("fact_type");
+  });
+
+  it("excludes archived rows by default", async () => {
+    expect((await captureSql()).sql).toContain('"archived_at" is null');
+  });
+
+  // The bug's sharpest edge: `baseVaultSql` hardcoded this clause, so
+  // includeArchived could not be satisfied on this path even in principle.
+  it("drops the archived filter when includeArchived is set", async () => {
+    const { sql } = await captureSql({ includeArchived: true });
+    expect(sql).not.toContain("archived_at");
+    // The other safety filters must survive — only archiving is opted out of.
+    expect(sql).toContain('"is_deleted" = 0');
+    expect(sql).toContain('"superseded_by" is null');
+  });
+
+  /** Drive the LokiJS fallback (first call throws) and count its Q conditions. */
+  async function lokiConditionCount(
+    options?: Parameters<typeof getVaultCandidateKeysOp>[1]
+  ): Promise<number> {
+    let calls = 0;
+    const queryFn = vi.fn((..._c: any[]) => {
+      calls += 1;
+      if (calls === 1) throw new Error("unsafeSqlQuery not supported");
+      return { unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() };
+    });
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    await getVaultCandidateKeysOp(ctx, options);
+    return queryFn.mock.calls[1]!.length;
+  }
+
+  // Each case is chosen so the COUNT differs between fixed and unfixed code —
+  // asserting a count that happens to match on both (e.g. swapping archived_at
+  // for fact_type) would pass for the wrong reason.
+  it("applies both filters on the LokiJS fallback too", async () => {
+    // Baseline: is_deleted + archived_at + trust_tier + superseded_by.
+    // (no user_id — makeCtx sets none; no scope/folder_id — not requested.)
+    expect(await lokiConditionCount()).toBe(4);
+    // + fact_type ⇒ 5. Unfixed code drops it and stays at 4.
+    expect(await lokiConditionCount({ factTypes: ["preference"] })).toBe(5);
+    // − archived_at ⇒ 3. Unfixed code keeps it and stays at 4.
+    expect(await lokiConditionCount({ includeArchived: true })).toBe(3);
+  });
+});
+
+/**
+ * #779, second half. Fixing only the key scan was not enough: the decrypt-last
+ * path admits candidates via `getVaultCandidateKeysOp`, then hydrates them by id
+ * through these two ops. Both re-applied the default archived exclusion, so
+ * archived rows passed the scan and were silently dropped at hydration — while
+ * still consuming admission slots on the way.
+ */
+describe("by-id hydration ops honor includeArchived (#779)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("getVaultEmbeddingsByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const spy = vi.spyOn(Q, "unsafeSqlQuery");
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
+    expect(spy.mock.calls[0]![0] as string).toContain('"archived_at" is null');
+
+    await getVaultEmbeddingsByIdsOp(ctx, ["a"], { includeArchived: true });
+    const withArchived = spy.mock.calls[1]![0] as string;
+    expect(withArchived).not.toContain("archived_at");
+    // The id restriction and the other safety filters must survive.
+    expect(withArchived).toContain('"id" in (?)');
+    expect(withArchived).toContain('"is_deleted" = 0');
+  });
+
+  it("getVaultMemoriesByIdsOp keeps the archived filter by default and drops it on request", async () => {
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
+    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+
+    // is_deleted + archived_at + trust_tier + superseded_by + id oneOf = 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"]);
+    expect(queryFn.mock.calls[0]!.length).toBe(5);
+
+    // − archived_at ⇒ 4. Unfixed code stays at 5.
+    await getVaultMemoriesByIdsOp(ctx, ["a"], { includeArchived: true });
+    expect(queryFn.mock.calls[1]!.length).toBe(4);
   });
 });

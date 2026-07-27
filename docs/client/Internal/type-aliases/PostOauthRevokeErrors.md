@@ -2,7 +2,7 @@
 
 > **PostOauthRevokeErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10890](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10890)
+Defined in: [src/client/types.gen.ts:10926](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10926)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10890](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`HandlersOauthTokenError`](HandlersOauthTokenError.md)
 
-Defined in: [src/client/types.gen.ts:10894](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10894)
+Defined in: [src/client/types.gen.ts:10930](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10930)
 
 Unauthorized

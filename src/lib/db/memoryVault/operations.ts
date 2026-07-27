@@ -1,6 +1,7 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { getLogger } from "../../logger";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils";
 import {
   type EntityInput,
@@ -13,6 +14,7 @@ import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryptio
 import type { VaultMemory } from "./models";
 import type {
   CreateVaultMemoryOptions,
+  RankableVaultMemory,
   StoredVaultMemory,
   UpdateVaultMemoryOptions,
 } from "./types";
@@ -591,6 +593,278 @@ export async function getAllVaultMemoriesOp(
   ];
   // unsafeFetchRaw (NOT fetch): a whole-vault load must not build a Model per row into the
   // never-evicted RecordCache (web Pile-2). Same SQL (incl. sortBy/take); raws decrypted directly.
+  const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+  return mapInBatches(results, (raw) =>
+    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
+}
+
+/**
+ * Map a raw `memory_vault` row (snake_case `_raw`) to the content-free
+ * {@link RankableVaultMemory} projection. No decrypt, no `content` — see the
+ * type doc for why ciphertext must never ride along as plaintext content.
+ */
+function vaultMemoryRawToRankable(raw: Record<string, unknown>): RankableVaultMemory {
+  return {
+    uniqueId: raw.id as string,
+    // @text coerces NULL→"" on the Model path; unsafeFetchRaw returns raw NULL, so guard.
+    scope: (raw.scope as string) ?? "",
+    folderId: (raw.folder_id as string | null) ?? null,
+    embedding: (raw.embedding as string | null) ?? null,
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
+    createdAt: new Date(raw.created_at as number),
+    updatedAt: new Date(raw.updated_at as number),
+  };
+}
+
+/**
+ * Return content-free {@link RankableVaultMemory} projections for recall
+ * ranking — the "rank first, decrypt last" half of on-demand recall (#5017).
+ *
+ * Mirrors {@link getAllVaultMemoriesOp}'s query EXACTLY (same
+ * `baseVaultConditions` — `is_deleted=false` + `user_id` scoping — plus the
+ * same scope/folder filters and ordering) so the candidate SET is identical to
+ * the whole-vault read; the ONLY difference is that `content` is never
+ * decrypted (and never returned). Callers rank on `embedding`, then decrypt the
+ * top-N winners on demand via {@link getVaultMemoryOp}.
+ *
+ * Because it reuses `baseVaultConditions`, deleted and cross-user rows are
+ * excluded here just as they are from every other read path — a no-decrypt op
+ * that skipped these would leak embeddings for rows the caller can't see.
+ */
+export async function getVaultRankingProjectionsOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
+): Promise<RankableVaultMemory[]> {
+  const conditions = [
+    ...baseVaultConditions(ctx, options),
+    ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+    ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+    Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
+    ...(options?.limit !== null && options?.limit !== undefined && options.limit > 0
+      ? [Q.take(options.limit)]
+      : []),
+  ];
+  // unsafeFetchRaw (NOT fetch): mirror getAllVaultMemoriesOp — a whole-vault scan must not pin a
+  // Model per row into the never-evicted RecordCache (web Pile-2). No decrypt: content stays sealed.
+  const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+    string,
+    unknown
+  >[];
+  return results.map(vaultMemoryRawToRankable);
+}
+
+export interface VaultCandidateKey {
+  uniqueId: string;
+  folderId: string | null;
+  scope: string;
+  embeddingModel: string | null;
+  updatedAt: Date;
+}
+
+/**
+ * SQL WHERE fragment mirroring baseVaultConditions (is_deleted, archived_at,
+ * trust_tier, superseded_by, user_id) for the projected-read path. Kept
+ * adjacent to baseVaultConditions — they MUST stay in lockstep.
+ *
+ * `trust_tier` uses SQLite's null-safe `IS NOT 'quarantined'` (not `!=`) so
+ * legacy NULL-tier rows SURVIVE the filter, exactly like WatermelonDB's
+ * null-inclusive `Q.notEq("quarantined")` on the Loki fallback path. Both
+ * "quarantined" and the archived-at sentinel are hardcoded constants, so they
+ * are inlined as SQL literals (no bound args) to keep the projection paths'
+ * bound-arg lists identical to the pre-decay behavior.
+ */
+function baseVaultSql(
+  ctx: VaultMemoryOperationsContext,
+  options?: { includeArchived?: boolean }
+): {
+  sql: string;
+  args: Array<string | number | boolean | null>;
+} {
+  const clauses = [
+    '"is_deleted" = 0',
+    // Mirrors `baseVaultConditions`' `includeArchived` branch. Defaults to
+    // excluding archived rows, so every existing caller is unchanged.
+    ...(options?.includeArchived ? [] : ['"archived_at" is null']),
+    `"trust_tier" is not 'quarantined'`,
+    '"superseded_by" is null',
+  ];
+  const args: Array<string | number | boolean | null> = [];
+  if (ctx.userId !== undefined) {
+    clauses.push('"user_id" = ?');
+    args.push(ctx.userId);
+  }
+  return { sql: clauses.join(" and "), args };
+}
+
+/**
+ * Column-projected candidate keys — id + rank-metadata, NO content/embedding
+ * blobs. On OPFS-SQLite this is a projected SELECT (skips the blobs on disk);
+ * on LokiJS (Q.unsafeSqlQuery throws) it falls back to the standard Q query +
+ * unsafeFetchRaw (blobs are already resident there, so the read is free).
+ */
+export async function getVaultCandidateKeysOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: {
+    scopes?: string[];
+    folderId?: string | null;
+    /**
+     * Typed memory (PR1) — restrict to these fact types. Omit for no filter.
+     * MUST stay in step with `getAllVaultMemoriesOp`: this op backs the
+     * decrypt-last search path, and the two paths are meant to return the same
+     * candidate set for the same query. Dropping it here made typed recall
+     * silently path-dependent (#779).
+     */
+    factTypes?: string[];
+    /** Include archived (decayed) memories. Default `false`, as elsewhere. */
+    includeArchived?: boolean;
+  }
+): Promise<VaultCandidateKey[]> {
+  const mapRaw = (raw: Record<string, unknown>): VaultCandidateKey => ({
+    uniqueId: raw.id as string,
+    folderId: (raw.folder_id as string | null) ?? null,
+    scope: (raw.scope as string) ?? "",
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
+    updatedAt: new Date(raw.updated_at as number),
+  });
+
+  // OPFS-SQLite: projected SELECT (skips content/embedding blobs).
+  try {
+    const base = baseVaultSql(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    });
+    const clauses = [base.sql];
+    const args = [...base.args];
+    if (options?.scopes?.length) {
+      clauses.push(`"scope" in (${options.scopes.map(() => "?").join(",")})`);
+      args.push(...options.scopes);
+    }
+    if (options?.folderId !== undefined) {
+      clauses.push(options.folderId === null ? '"folder_id" is null' : '"folder_id" = ?');
+      if (options.folderId !== null) args.push(options.folderId);
+    }
+    if (options?.factTypes?.length) {
+      clauses.push(`"fact_type" in (${options.factTypes.map(() => "?").join(",")})`);
+      args.push(...options.factTypes);
+    }
+    const sql =
+      `select "id", "scope", "folder_id", "embedding_model", "updated_at" ` +
+      `from "memory_vault" where ${clauses.join(" and ")}`;
+    const rows = (await ctx.vaultMemoryCollection
+      .query(Q.unsafeSqlQuery(sql, args))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return rows.map(mapRaw);
+  } catch (err) {
+    // LokiJS fallback (Q.unsafeSqlQuery unsupported): standard Q query, full raw
+    // rows (blobs resident, no extra I/O), projected in-memory. Logged so a
+    // production regression (SQLite path failing → full-blob loads) is visible
+    // rather than a silent perf cliff.
+    getLogger().debug(
+      "memoryVault: getVaultCandidateKeysOp projected SQL unavailable, using full-load fallback: " +
+        (err instanceof Error ? err.message : String(err))
+    );
+    const conditions = [
+      ...baseVaultConditions(ctx, {
+        ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+      }),
+      ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+      ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
+      ...(options?.factTypes?.length ? [Q.where("fact_type", Q.oneOf(options.factTypes))] : []),
+    ];
+    const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
+      string,
+      unknown
+    >[];
+    return rows.map(mapRaw);
+  }
+}
+
+/**
+ * Column-projected embedding lookup for a KNOWN set of ids — id + embedding +
+ * embedding_model, NO content. Used to backfill cache-miss vectors during
+ * ranking without paying the content-decrypt cost. Mirrors
+ * {@link getVaultCandidateKeysOp}'s dual-path shape: a projected SELECT on
+ * OPFS-SQLite, falling back to the standard Q query + unsafeFetchRaw on
+ * LokiJS (Q.unsafeSqlQuery throws there).
+ */
+export async function getVaultEmbeddingsByIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  ids: string[],
+  /**
+   * Must match whatever admitted these ids. The caller has already filtered the
+   * candidate set; re-applying a DEFAULT-ON exclusion here silently deletes rows
+   * it deliberately admitted — which is how archived rows passed the key scan
+   * and then vanished at hydration (#779).
+   */
+  options?: { includeArchived?: boolean }
+): Promise<Array<{ uniqueId: string; embedding: string | null; embeddingModel: string | null }>> {
+  if (ids.length === 0) return [];
+  const mapRaw = (raw: Record<string, unknown>) => ({
+    uniqueId: raw.id as string,
+    embedding: (raw.embedding as string | null) ?? null,
+    embeddingModel: (raw.embedding_model as string | null) ?? null,
+  });
+  try {
+    const base = baseVaultSql(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    });
+    const sql =
+      `select "id", "embedding", "embedding_model" from "memory_vault" ` +
+      `where ${base.sql} and "id" in (${ids.map(() => "?").join(",")})`;
+    const rows = (await ctx.vaultMemoryCollection
+      .query(Q.unsafeSqlQuery(sql, [...base.args, ...ids]))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return rows.map(mapRaw);
+  } catch (err) {
+    // LokiJS fallback (see getVaultCandidateKeysOp) — logged so a silent
+    // degrade to full-blob loads is observable.
+    getLogger().debug(
+      "memoryVault: getVaultEmbeddingsByIdsOp projected SQL unavailable, using full-load fallback: " +
+        (err instanceof Error ? err.message : String(err))
+    );
+    const rows = (await ctx.vaultMemoryCollection
+      .query(
+        ...baseVaultConditions(ctx, {
+          ...(options?.includeArchived !== undefined && {
+            includeArchived: options.includeArchived,
+          }),
+        }),
+        Q.where("id", Q.oneOf(ids))
+      )
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+    return rows.map(mapRaw);
+  }
+}
+
+/**
+ * Bulk-decrypt a KNOWN set of memories by ID — the "decrypt last" half of
+ * on-demand recall (#5017) for lanes whose size is NOT bounded to the top-N
+ * (e.g. the keyword lane over un-embedded rows). Uses `unsafeFetchRaw` + a
+ * single `id oneOf` query so it does NOT pin a WatermelonDB Model per row into
+ * the never-evicted RecordCache — unlike calling {@link getVaultMemoryOp} N
+ * times, which `.find()`s each row and is only appropriate for the bounded
+ * top-N winners (web Pile-2 tab-memory).
+ *
+ * Reuses `baseVaultConditions`, so deleted / superseded / cross-user rows are
+ * excluded exactly as they are from recall — a caller can pass any id list and
+ * only its own live rows come back.
+ */
+export async function getVaultMemoriesByIdsOp(
+  ctx: VaultMemoryOperationsContext,
+  ids: string[],
+  /** See {@link getVaultEmbeddingsByIdsOp} — must match what admitted these ids. */
+  options?: { includeArchived?: boolean }
+): Promise<StoredVaultMemory[]> {
+  if (ids.length === 0) return [];
+  const conditions = [
+    ...baseVaultConditions(ctx, {
+      ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+    }),
+    Q.where("id", Q.oneOf(ids)),
+  ];
   const results = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
     string,
     unknown

@@ -1,0 +1,283 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  buildGateBaseline,
+  compareToGateBaseline,
+  describeConfigMismatch,
+  formatGateRegressions,
+  type GateMetricSpec,
+  type GateRun,
+  isValidGateBaseline,
+  meanDiffTolerance,
+  TOLERANCE_SIGMAS,
+} from "./gate.js";
+
+const SPECS: GateMetricSpec[] = [
+  { key: "recall", direction: "higher-better", minTolerance: 0.05 },
+  { key: "dropped", direction: "lower-better", minTolerance: 1, format: "count", label: "dropped" },
+];
+
+const CONFIG = { model: "gpt-oss/gpt-oss-120b", repeat: 5 };
+
+function run(partial: Partial<Record<string, number>> = {}): GateRun {
+  return { recall: 0.9, dropped: 0, ...partial };
+}
+
+describe("buildGateBaseline", () => {
+  it("computes per-metric mean and floors the tolerance for a stable metric", () => {
+    const baseline = buildGateBaseline([run(), run(), run()], SPECS, CONFIG);
+
+    expect(baseline.runs).toBe(3);
+    expect(baseline.config).toEqual(CONFIG);
+    expect(baseline.metrics.recall.mean).toBeCloseTo(0.9, 5);
+    // Identical runs → stdDev 0 → the floor governs, never 0 (which would make
+    // the gate fire on floating-point noise).
+    expect(baseline.metrics.recall.stdDev).toBe(0);
+    expect(baseline.metrics.recall.tolerance).toBe(0.05);
+  });
+
+  it("widens tolerance to the observed spread when it exceeds the floor", () => {
+    const baseline = buildGateBaseline(
+      [run({ recall: 0.8 }), run({ recall: 0.95 })],
+      SPECS,
+      CONFIG
+    );
+    // stdDev of {0.8, 0.95} = 0.10607; the recorded tolerance is the same-shape
+    // width 2*sd*sqrt(1/2+1/2) = 0.2121.
+    expect(baseline.metrics.recall.stdDev).toBeCloseTo(0.10607, 4);
+    expect(baseline.metrics.recall.tolerance).toBeCloseTo(0.21213, 4);
+    expect(baseline.metrics.recall.mean).toBeCloseTo(0.875, 5);
+    expect(baseline.metrics.recall.min).toBeCloseTo(0.8, 5);
+    expect(baseline.metrics.recall.max).toBeCloseTo(0.95, 5);
+  });
+
+  it("throws on an empty run set rather than emitting NaN/Infinity bands", () => {
+    expect(() => buildGateBaseline([], SPECS, CONFIG)).toThrow(/at least one run/);
+  });
+
+  it("throws when a declared metric is missing from a run", () => {
+    // A silent undefined becomes NaN, and every NaN comparison is false — the
+    // gate would then report "no regressions" for a metric never produced.
+    expect(() => buildGateBaseline([{ recall: 0.9 }], SPECS, CONFIG)).toThrow(
+      /"dropped" is missing or non-finite in run 1/
+    );
+  });
+});
+
+describe("compareToGateBaseline", () => {
+  const baseline = buildGateBaseline([run(), run(), run()], SPECS, CONFIG);
+
+  it("passes an unchanged run", () => {
+    expect(compareToGateBaseline([run()], baseline, SPECS)).toEqual([]);
+  });
+
+  it("passes a drop inside tolerance and a rise for a higher-better metric", () => {
+    expect(compareToGateBaseline([run({ recall: 0.86 })], baseline, SPECS)).toEqual([]);
+    expect(compareToGateBaseline([run({ recall: 0.99 })], baseline, SPECS)).toEqual([]);
+  });
+
+  it("flags a higher-better metric dropping past tolerance", () => {
+    const [regression, ...rest] = compareToGateBaseline([run({ recall: 0.7 })], baseline, SPECS);
+    expect(rest).toEqual([]);
+    expect(regression).toMatchObject({
+      metric: "recall",
+      direction: "higher-better",
+      tolerance: 0.05,
+    });
+    expect(regression.current).toBeCloseTo(0.7, 5);
+    expect(regression.baseline).toBeCloseTo(0.9, 5);
+  });
+
+  it("flags a lower-better metric RISING past tolerance, and ignores it falling", () => {
+    // `dropped` (memories in a failed extraction batch) getting worse means going
+    // UP — the direction that a higher-better-only gate would have missed (#757).
+    const worse = compareToGateBaseline([run({ dropped: 4 })], baseline, SPECS);
+    expect(worse).toHaveLength(1);
+    expect(worse[0]).toMatchObject({ metric: "dropped", direction: "lower-better" });
+
+    expect(compareToGateBaseline([run({ dropped: 1 })], baseline, SPECS)).toEqual([]);
+  });
+
+  it("compares the MEAN of the current runs, not the worst run", () => {
+    // One unlucky run inside a noisy set must not red the gate on its own. The
+    // mean here (0.85) lands EXACTLY on the tolerance boundary, which also pins
+    // the float-slack behaviour: 0.9 - 0.85 === 0.050000000000000044 in IEEE754.
+    expect(
+      compareToGateBaseline([run({ recall: 0.7 }), run({ recall: 1 })], baseline, SPECS)
+    ).toEqual([]);
+    // One notch past the boundary does fire.
+    expect(
+      compareToGateBaseline([run({ recall: 0.7 }), run({ recall: 0.98 })], baseline, SPECS)
+    ).toHaveLength(1);
+  });
+
+  it("skips a metric the baseline predates instead of reporting a regression", () => {
+    const older = { ...baseline, metrics: { recall: baseline.metrics.recall } };
+    expect(compareToGateBaseline([run({ dropped: 99 })], older, SPECS)).toEqual([]);
+  });
+
+  // A MISSING band is forward-compat (skip); a PRESENT but malformed one is a
+  // corrupt baseline. Without this the NaN arithmetic silently disables that
+  // metric's gate while every other metric still validates the file.
+  it("throws on a present-but-malformed band rather than silently skipping it", () => {
+    for (const bad of [
+      { mean: "0.9", stdDev: 0.05 },
+      { mean: 0.9, stdDev: null },
+      { mean: Number.NaN, stdDev: 0.05 },
+      { mean: 0.9 },
+    ]) {
+      const corrupt = {
+        ...baseline,
+        metrics: { ...baseline.metrics, dropped: bad },
+      } as unknown as typeof baseline;
+      // The file still validates — `recall` is well-formed — so the guard has
+      // to live in the comparison, not only in the shape check.
+      expect(isValidGateBaseline(corrupt, SPECS)).toBe(true);
+      expect(() => compareToGateBaseline([run()], corrupt, SPECS)).toThrow(/malformed/);
+    }
+  });
+});
+
+describe("isValidGateBaseline", () => {
+  it("accepts a real baseline, including one missing a newer metric", () => {
+    const baseline = buildGateBaseline([run()], SPECS, CONFIG);
+    expect(isValidGateBaseline(baseline, SPECS)).toBe(true);
+    expect(
+      isValidGateBaseline({ ...baseline, metrics: { recall: baseline.metrics.recall } }, SPECS)
+    ).toBe(true);
+  });
+
+  it("rejects wrong-shaped files that would otherwise pass vacuously", () => {
+    expect(isValidGateBaseline(null, SPECS)).toBe(false);
+    expect(isValidGateBaseline({ config: CONFIG, runs: 3, metrics: {} }, SPECS)).toBe(false);
+    expect(isValidGateBaseline({ metrics: { recall: { mean: 1, stdDev: 0.05 } } }, SPECS)).toBe(
+      false
+    );
+    // A pre-2026-07-27 baseline stored a fixed `tolerance` and no `stdDev`.
+    // Gating against it would silently reuse the too-loose width, so it must be
+    // rejected outright rather than accepted.
+    expect(
+      isValidGateBaseline(
+        { config: CONFIG, runs: 15, metrics: { recall: { mean: 1, tolerance: 0.14 } } },
+        SPECS
+      )
+    ).toBe(false);
+    // Missing `runs` — the compare-time tolerance can't be derived without it.
+    expect(
+      isValidGateBaseline({ config: CONFIG, metrics: { recall: { mean: 1, stdDev: 0.01 } } }, SPECS)
+    ).toBe(false);
+    // A benchmark's own --json output has `overall`, not `metrics`.
+    expect(isValidGateBaseline({ config: CONFIG, runs: 3, overall: { recall: 0.9 } }, SPECS)).toBe(
+      false
+    );
+    // A band without the numbers the gate reads.
+    expect(
+      isValidGateBaseline({ config: CONFIG, runs: 3, metrics: { recall: { min: 1 } } }, SPECS)
+    ).toBe(false);
+  });
+});
+
+describe("describeConfigMismatch", () => {
+  const baseline = buildGateBaseline([run()], SPECS, CONFIG);
+
+  it("returns null when the config matches", () => {
+    expect(describeConfigMismatch(baseline, { ...CONFIG })).toBeNull();
+  });
+
+  it("describes a differing or unset recorded key", () => {
+    expect(describeConfigMismatch(baseline, { ...CONFIG, model: "openai/gpt-5-mini" })).toMatch(
+      /model is openai\/gpt-5-mini, but the baseline was generated with gpt-oss\/gpt-oss-120b/
+    );
+    expect(describeConfigMismatch(baseline, { repeat: 5 })).toMatch(/model is \(unset\)/);
+  });
+
+  it("tolerates float representation drift on numeric knobs", () => {
+    const numeric = buildGateBaseline([run()], SPECS, { matchThreshold: 0.62 });
+    expect(describeConfigMismatch(numeric, { matchThreshold: 0.62 + 1e-12 })).toBeNull();
+    expect(describeConfigMismatch(numeric, { matchThreshold: 0.6 })).toMatch(/matchThreshold/);
+  });
+
+  it("ignores knobs the baseline never recorded (forward compatible)", () => {
+    expect(describeConfigMismatch(baseline, { ...CONFIG, newKnob: true })).toBeNull();
+  });
+});
+
+describe("formatGateRegressions", () => {
+  it("renders rates as percentages and counts as numbers", () => {
+    const baseline = buildGateBaseline([run(), run()], SPECS, CONFIG);
+    const table = formatGateRegressions(
+      compareToGateBaseline([run({ recall: 0.5, dropped: 6 })], baseline, SPECS)
+    );
+    expect(table).toContain("recall");
+    expect(table).toContain("90.0%");
+    expect(table).toContain("50.0%");
+    expect(table).toContain("dropped");
+    expect(table).toContain("6.0");
+  });
+});
+
+/**
+ * Regression test for the tolerance-scale bug (ws4charlie on #772).
+ *
+ * The gate compares MEANS, but the tolerance used to be the spread of a single
+ * run. On the consolidation suite — 15 passes over 7 cases — that spread was
+ * 1/7, so a case failing on EVERY pass moved the mean by only 0.124 and was
+ * reported as "no regressions"; it took 3+ simultaneously broken cases to fire.
+ */
+describe("mean-difference tolerance scaling (#772 review)", () => {
+  const ACC: GateMetricSpec[] = [
+    { key: "overallAccuracy", direction: "higher-better", minTolerance: 0.03 },
+  ];
+  /** 15 passes over 7 cases; 2 of 105 decisions wrong, as measured. */
+  const HEALTHY = [
+    ...Array.from({ length: 13 }, () => ({ overallAccuracy: 1 })),
+    ...Array.from({ length: 2 }, () => ({ overallAccuracy: 6 / 7 })),
+  ];
+
+  it("fires when ONE case breaks on every pass — the case the old scale missed", () => {
+    const baseline = buildGateBaseline(HEALTHY, ACC, { runs: 15 });
+    expect(baseline.metrics.overallAccuracy.mean).toBeCloseTo(103 / 105, 6);
+
+    // Every pass loses exactly one of seven cases.
+    const broken = Array.from({ length: 15 }, () => ({ overallAccuracy: 6 / 7 }));
+    const regressions = compareToGateBaseline(broken, baseline, ACC);
+
+    expect(regressions).toHaveLength(1);
+    // The old spread-derived tolerance was 1/7 = 0.1429 and the drop is 0.1238,
+    // so this exact input used to pass. Pin that it no longer can.
+    expect(regressions[0].current).toBeCloseTo(6 / 7, 6);
+    expect(0.1428571429).toBeGreaterThan(103 / 105 - 6 / 7); // the old miss, arithmetically
+    expect(regressions[0].tolerance).toBeLessThan(103 / 105 - 6 / 7);
+  });
+
+  it("still passes an unchanged run of the same shape", () => {
+    const baseline = buildGateBaseline(HEALTHY, ACC, { runs: 15 });
+    expect(compareToGateBaseline(HEALTHY, baseline, ACC)).toEqual([]);
+  });
+
+  it("widens, not narrows, when the current side is a single run", () => {
+    // The recall gate compares ONE live run against a 3-run baseline. Averaging
+    // fewer runs means more uncertainty, so the tolerance must grow — the naive
+    // "divide by sqrt(runs)" fix would have wrongly tightened it.
+    const spec = ACC[0];
+    const sameShape = meanDiffTolerance(spec, 0.05, 3, 3);
+    const singleCurrent = meanDiffTolerance(spec, 0.05, 3, 1);
+    expect(singleCurrent).toBeGreaterThan(sameShape);
+  });
+
+  it("derives tolerance from the standard error of the mean difference", () => {
+    const spec: GateMetricSpec = { key: "m", direction: "higher-better", minTolerance: 0 };
+    // 2 * sd * sqrt(1/n_base + 1/n_cur)
+    expect(meanDiffTolerance(spec, 0.1, 4, 4)).toBeCloseTo(
+      TOLERANCE_SIGMAS * 0.1 * Math.SQRT1_2,
+      6
+    );
+    // More runs on both sides ⇒ tighter gate, which is the entire point.
+    expect(meanDiffTolerance(spec, 0.1, 16, 16)).toBeLessThan(meanDiffTolerance(spec, 0.1, 4, 4));
+  });
+
+  it("never goes below the per-suite floor", () => {
+    const spec: GateMetricSpec = { key: "m", direction: "higher-better", minTolerance: 0.03 };
+    expect(meanDiffTolerance(spec, 0, 15, 15)).toBe(0.03);
+  });
+});

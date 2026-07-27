@@ -43,6 +43,17 @@ vi.mock("../memoryVault/decomposeQuery", () => ({
   decomposeQuery: vi.fn(),
 }));
 
+// Wrap (not replace) so the real ranking pipeline still runs — this test
+// file pins actual orchestration — while letting us assert on the
+// `searchOptions` argument recall() forwards through.
+vi.mock("../memoryVault/searchTool", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../memoryVault/searchTool")>();
+  return {
+    ...actual,
+    searchVaultMemoriesWithSize: vi.fn(actual.searchVaultMemoriesWithSize),
+  };
+});
+
 import { searchChunksOp, type StorageOperationsContext } from "../db/chat/operations";
 import type { ChunkSearchResult } from "../db/chat/types";
 import {
@@ -61,6 +72,7 @@ import {
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { decomposeQuery } from "../memoryVault/decomposeQuery";
+import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool";
 
 import { recall } from "./recall";
 import { createRecallTool, RECALL_MAX_LIMIT, RECALL_MAX_MEMORIES_PER_TURN } from "./recallTool";
@@ -483,6 +495,35 @@ describe("recall — filters and pass-through", () => {
     });
   });
 
+  it("forwards decryptLast through to searchVaultMemoriesWithSize", async () => {
+    // decryptLast:true flips searchVaultMemoriesWithSize onto the
+    // projected-corpus path (Task 1-5, exercised by searchTool.test.ts),
+    // which needs ops this file doesn't mock — irrelevant to what's under
+    // test here (option pass-through), so swallow it and assert on the
+    // recorded call args instead.
+    await recall(QUERY, makeCtx(), { decryptLast: true }).catch(() => {});
+
+    expect(searchVaultMemoriesWithSize).toHaveBeenCalledWith(
+      QUERY,
+      vaultCtx,
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ decryptLast: true })
+    );
+  });
+
+  it("omits decryptLast from searchVaultMemoriesWithSize options when unset", async () => {
+    await recall(QUERY, makeCtx());
+
+    expect(searchVaultMemoriesWithSize).toHaveBeenCalledWith(
+      QUERY,
+      vaultCtx,
+      expect.anything(),
+      expect.anything(),
+      expect.not.objectContaining({ decryptLast: expect.anything() })
+    );
+  });
+
   it("applies the default limit of 8", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(
       Array.from({ length: 12 }, (_, i) => {
@@ -522,6 +563,42 @@ describe("recall — entity (W5) lane", () => {
   it("does not run when the query has no extractable entities", async () => {
     await recall("where is everyone going", makeCtx({ entityCtx }));
     expect(getMemoriesByEntityNamesOp).not.toHaveBeenCalled();
+  });
+
+  it("recovers the lane for an all-lowercase query via the fallback (D4)", async () => {
+    // Pre-fix, an all-lowercase query extracted no entities and the W5 lane was
+    // silently dead. The lowercase fallback now emits n-gram candidates; the op
+    // is called with them, and a stored-entity match surfaces the graph-only
+    // fixture m3 (zero cosine vs the query — only the graph lane can admit it).
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(
+      new Map([["m3", new Set(["san francisco"])]])
+    );
+
+    const result = await recall("is there anyone in san francisco", makeCtx({ entityCtx }));
+
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "san",
+      "francisco",
+      "san francisco",
+    ]);
+    expect(result.memories.map((m) => m.id)).toContain("m3");
+  });
+
+  it("a lowercase query matching no stored entity adds no garbage (empty lane)", async () => {
+    // The fallback candidates ARE looked up, but none match a stored canonical →
+    // empty Map → the lane yields []. The op was called (lane engaged) yet m3
+    // never surfaces: no cosine hit, no graph hit, no garbage. This is the
+    // precision guarantee that lets the fallback over-emit safely.
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
+
+    const result = await recall("is there anyone in san francisco", makeCtx({ entityCtx }));
+
+    expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, [
+      "san",
+      "francisco",
+      "san francisco",
+    ]);
+    expect(result.memories.map((m) => m.id)).not.toContain("m3");
   });
 
   it("falls back to vaultCtx.entityCtx when ctx.entityCtx is absent", async () => {
