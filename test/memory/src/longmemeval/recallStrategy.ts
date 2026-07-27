@@ -15,7 +15,9 @@ import {
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
+import { answerFailureReason, evaluateAnswer } from "./judge.js";
 import {
+  ANSWER_MAX_COMPLETION_TOKENS,
   buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
@@ -23,7 +25,6 @@ import {
   createEntityContext,
   createStorageContext,
   createVaultContext,
-  evaluateAnswer,
   extractMemoriesFromSession,
   formatHaystackDateAsObservation,
   logProgress,
@@ -455,11 +456,12 @@ When a fact in the memory has a different version mentioned at a later session d
     };
 
     let generatedAnswer = "";
+    let thrownWhileAnswering: unknown;
     try {
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools: [toolDef],
         toolChoice: "required",
-        maxTokens: 500,
+        maxTokens: ANSWER_MAX_COMPLETION_TOKENS,
       });
       addUsage(firstResponse.usage);
       transcript.firstResponse = firstResponse;
@@ -495,7 +497,7 @@ When a fact in the memory has a different version mentioned at a later session d
               { role: "system", content: secondSystemPrompt },
               { role: "user", content: entry.question },
             ],
-            { maxTokens: 500 }
+            { maxTokens: ANSWER_MAX_COMPLETION_TOKENS }
           );
           addUsage(secondResponse.usage);
           transcript.secondResponse = secondResponse;
@@ -508,9 +510,14 @@ When a fact in the memory has a different version mentioned at a later session d
       console.error("memory-recall answering failed:", error);
       transcript.error = String(error);
       generatedAnswer = "";
+      thrownWhileAnswering = error;
     }
 
     transcript.finalAnswer = generatedAnswer;
+    // Empty also covers the case where the model returned tool calls but none
+    // of them was recall(), so the loop above never assigned an answer.
+    const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
+    if (answerError) transcript.answerError = answerError;
 
     const retrievedSessionIds = new Set<string>();
     for (const vId of retrievedVaultIds) {
@@ -537,10 +544,19 @@ When a fact in the memory has a different version mentioned at a later session d
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
-    addUsage(evalResult.usage);
-    const isCorrect = evalResult.isCorrect;
+    // Nothing to judge when the answer step produced nothing — sending an
+    // empty string to the judge just launders a broken call into a confident
+    // "wrong answer".
+    let isCorrect = false;
+    let judgeError: string | undefined;
+    if (!answerError) {
+      const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+      addUsage(evalResult.usage);
+      isCorrect = evalResult.verdict === "correct";
+      judgeError = evalResult.verdict === "unjudgeable" ? evalResult.reason : undefined;
+    }
     transcript.isCorrect = isCorrect;
+    if (judgeError) transcript.judgeError = judgeError;
     await saveTranscript(`${entry.question_id}_recall`, transcript, verbose);
 
     const elapsed = performance.now() - startTime;
@@ -560,6 +576,8 @@ When a fact in the memory has a different version mentioned at a later session d
       expectedAnswer: entry.answer,
       generatedAnswer,
       isCorrect,
+      ...(judgeError && { judgeError }),
+      ...(answerError && { answerError }),
       retrievedSessionIds: [...retrievedSessionIds],
       expectedSessionIds: entry.answer_session_ids,
       retrievalPrecision,
@@ -602,28 +620,46 @@ async function answerFromChunksOnly(
   const context = result.memories
     .map((m, i) => `[${i + 1}] ${m.content.slice(0, 4000)}`)
     .join("\n\n");
-  const genAnswer = await callChatCompletion(
-    api,
-    [
-      {
-        role: "system",
-        content: `Today is ${entry.question_date}.\nUse the following excerpts to answer.\n\n${context}`,
-      },
-      { role: "user", content: entry.question },
-    ],
-    { maxTokens: 500 }
-  );
-  const generatedAnswer = genAnswer.content || "";
-  if (genAnswer.usage) {
-    tokenUsage.promptTokens += genAnswer.usage.prompt_tokens;
-    tokenUsage.completionTokens += genAnswer.usage.completion_tokens;
-    tokenUsage.totalTokens += genAnswer.usage.total_tokens;
+  // Unlike the main path this one had no error handling at all: a throw here
+  // reached the suite's per-entry catch, which files a zero-scored result with
+  // retrieval zeroed too. Catching it locally keeps the failure labelled.
+  let generatedAnswer = "";
+  let thrownWhileAnswering: unknown;
+  try {
+    const genAnswer = await callChatCompletion(
+      api,
+      [
+        {
+          role: "system",
+          content: `Today is ${entry.question_date}.\nUse the following excerpts to answer.\n\n${context}`,
+        },
+        { role: "user", content: entry.question },
+      ],
+      { maxTokens: ANSWER_MAX_COMPLETION_TOKENS }
+    );
+    generatedAnswer = genAnswer.content || "";
+    if (genAnswer.usage) {
+      tokenUsage.promptTokens += genAnswer.usage.prompt_tokens;
+      tokenUsage.completionTokens += genAnswer.usage.completion_tokens;
+      tokenUsage.totalTokens += genAnswer.usage.total_tokens;
+    }
+  } catch (error) {
+    console.error("memory-recall chunk-only answering failed:", error);
+    thrownWhileAnswering = error;
   }
-  const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
-  if (evalResult.usage) {
-    tokenUsage.promptTokens += evalResult.usage.prompt_tokens;
-    tokenUsage.completionTokens += evalResult.usage.completion_tokens;
-    tokenUsage.totalTokens += evalResult.usage.total_tokens;
+
+  const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
+  let isCorrect = false;
+  let judgeError: string | undefined;
+  if (!answerError) {
+    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+    if (evalResult.usage) {
+      tokenUsage.promptTokens += evalResult.usage.prompt_tokens;
+      tokenUsage.completionTokens += evalResult.usage.completion_tokens;
+      tokenUsage.totalTokens += evalResult.usage.total_tokens;
+    }
+    isCorrect = evalResult.verdict === "correct";
+    judgeError = evalResult.verdict === "unjudgeable" ? evalResult.reason : undefined;
   }
   tokenUsage.totalTokens += tokenUsage.embeddingTokens;
   return {
@@ -632,7 +668,9 @@ async function answerFromChunksOnly(
     question: entry.question,
     expectedAnswer: entry.answer,
     generatedAnswer,
-    isCorrect: evalResult.isCorrect,
+    isCorrect,
+    ...(judgeError && { judgeError }),
+    ...(answerError && { answerError }),
     retrievedSessionIds: [],
     expectedSessionIds: entry.answer_session_ids,
     retrievalPrecision: 0,

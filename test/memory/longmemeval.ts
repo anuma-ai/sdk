@@ -82,6 +82,7 @@ const { values: args } = parseArgs({
     strategy: { type: "string" },
     llm: { type: "string" },
     "extract-llm": { type: "string" },
+    "judge-llm": { type: "string" },
     "skip-existing": { type: "boolean", default: false },
     "question-id": { type: "string" },
     max: { type: "string", short: "m" },
@@ -214,6 +215,8 @@ Options:
                               Use a JSON-reliable model when the answer model
                               is reasoning-heavy (extraction results are cached
                               per model)
+  --judge-llm <model>         Override the answer-judging model (default: --llm,
+                              i.e. the model under evaluation grades itself)
   --skip-existing             Skip entries with existing transcript for same model
   --question-id <id>          Run only the specified question id
   -m, --max <n>               Maximum number of questions to evaluate
@@ -428,7 +431,15 @@ async function main(): Promise<void> {
     console.log(`Loaded ${dataset.length} entries`);
 
     const llmModel = args.llm || "cerebras/qwen-3-235b-a22b-instruct-2507";
-    const runSuite = () => runLongMemEval(dataset, options, { apiKey, baseUrl, llmModel });
+    // judgeModel lives inside the closure so every `--baseline-repeat` capture
+    // is judged by the same model as the first one.
+    const runSuite = () =>
+      runLongMemEval(dataset, options, {
+        apiKey,
+        baseUrl,
+        llmModel,
+        ...(args["judge-llm"] && { judgeModel: args["judge-llm"] }),
+      });
     const result = await runSuite();
 
     // Fetch model pricing and attach cost estimates
@@ -488,6 +499,29 @@ async function main(): Promise<void> {
       } else if (args.baseline) {
         await gateRecallAgainstBaseline(result, args.baseline);
       }
+    }
+
+    // A run that couldn't be scored is not a run that scored badly. Exiting
+    // non-zero makes longmemeval.yml fail, and because the benchmarks-branch
+    // publish step is `if: success()`, an incomplete summary can no longer be
+    // committed next to healthy ones as if it were a real result.
+    //
+    // Keep this the last gate before the success exit. Any other gate added
+    // above it (a baseline comparison, say) must not exit 0 on its own, or a
+    // partially-scored run publishes through that path instead.
+    const unscored = isComparison(result)
+      ? result.engine.judgeFailures +
+        result.engine.answerFailures +
+        result.vault.judgeFailures +
+        result.vault.answerFailures
+      : result.judgeFailures + result.answerFailures;
+    if (unscored > 0) {
+      console.error(
+        `\n${unscored} question(s) could not be scored (see the judge/no-answer counts above). ` +
+          `Accuracy covers only the questions that were actually scored — this run is ` +
+          `incomplete, not a low score.`
+      );
+      process.exit(1);
     }
 
     process.exit(0);
