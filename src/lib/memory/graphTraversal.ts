@@ -24,7 +24,8 @@
  * expand; it falls back to the deterministic order on any error.
  *
  * Hop numbering: hop 1 is the seed lookup. `maxHops = 1` therefore means "seed
- * only" — byte-for-byte identical to the single-hop lane (the regression guard).
+ * only" — the same ordering and the same NODE_BUDGET bound as the single-hop
+ * lane (the regression guard).
  * `MAX_HOPS = 2` (the PR5 default) performs one expansion beyond the seed.
  *
  * Neighbor selection at each expansion hop is deterministic co-occurrence
@@ -203,9 +204,12 @@ export function rankMemoriesByOverlap(map: Map<string, Set<string>>): string[] {
  * downstream changes. The caller passes it through as `entityRanking` for RRF
  * fusion with the cosine/BM25 head.
  *
- * With `maxHops <= 1` this returns the seed ordering verbatim, making it a
- * drop-in equivalent of the single-hop lane (the regression guard). The PR5
- * default is 2 (one expansion beyond the seed).
+ * With `maxHops <= 1` this returns the seed ordering, bounded at `nodeBudget`
+ * exactly as the single-hop lane bounds it — a drop-in equivalent (the
+ * regression guard). Note {@link capHopsForDensity} forces this branch on vaults
+ * above {@link VAULT_SIZE_HOP_CAP}, so it is the path a large high-budget recall
+ * takes, not a rarely-exercised shortcut. The PR5 default is 2 (one expansion
+ * beyond the seed).
  *
  * Returns an empty array when the query has no extractable entities or no stored
  * memory shares a seed entity.
@@ -241,9 +245,16 @@ export async function traverseGraphLane(
   if (hop1.size === 0) return [];
   const hop1Ranking = rankMemoriesByOverlap(hop1);
 
-  // Seed-only: return verbatim so this is byte-for-byte identical to the
-  // single-hop lane (no RRF round-trip that could perturb order).
-  if (maxHops <= 1) return hop1Ranking;
+  // Seed-only: same ORDER as the single-hop lane (no RRF round-trip that could
+  // perturb it), and the same BOUND. The bound is not optional here even though
+  // this branch looks like the cheap one — `capHopsForDensity` forces seed-only
+  // precisely on vaults ABOVE VAULT_SIZE_HOP_CAP, so this is the path a large
+  // high-budget vault actually takes, and a large vault is exactly where a seed
+  // entity fans out to hundreds of memories. Returning the ranking unsliced
+  // here would emit all of them into `entityRanking` regardless of nodeBudget —
+  // the same failure the multi-hop branch below slices to avoid, on the path
+  // most likely to hit it.
+  if (maxHops <= 1) return hop1Ranking.slice(0, nodeBudget);
 
   // Multi-hop: bound the EMITTED candidate pool at NODE_BUDGET across ALL hops
   // (not just the next frontier). A dense seed entity can itself return far more

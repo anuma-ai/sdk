@@ -85,6 +85,7 @@ import {
   MAX_HOPS,
   type NeighborRefiner,
   traverseGraphLane,
+  VAULT_SIZE_HOP_CAP,
 } from "./graphTraversal";
 import { recall } from "./recall";
 import type { RecallContext } from "./types";
@@ -252,6 +253,31 @@ describe("traverseGraphLane — caps", () => {
     expect(await traverseGraphLane(QUERY, ctx, { maxHops: 1 })).toEqual(expected);
     // X (shares both) must lead.
     expect(expected[0]).toBe("X");
+  });
+
+  it("bounds the SEED-ONLY return at nodeBudget, not just the multi-hop return", async () => {
+    // The branch that looks cheapest is the one a large vault actually takes:
+    // capHopsForDensity forces maxHops=1 above VAULT_SIZE_HOP_CAP, so a
+    // high-budget recall on a big vault lands here — and a big vault is exactly
+    // where one seed entity fans out to hundreds of memories. Leaving this
+    // branch unsliced emitted all of them into entityRanking regardless of the
+    // budget, which is the failure the multi-hop branch already slices to avoid.
+    const ctx = makeEntityCtx();
+    for (let i = 0; i < 40; i++) await link(ctx, `m${i}`, ["Alpha"]);
+
+    const seedOnly = await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 1,
+      nodeBudget: 10,
+    });
+    expect(seedOnly).toHaveLength(10);
+
+    // And via the density cap, which is how production reaches this branch.
+    const densityCapped = await traverseGraphLane("What about Alpha", ctx, {
+      maxHops: 2,
+      vaultSize: VAULT_SIZE_HOP_CAP + 1,
+      nodeBudget: 10,
+    });
+    expect(densityCapped).toHaveLength(10);
   });
 
   it("PR5: MAX_HOPS default is 2 (one expansion beyond the seed)", async () => {

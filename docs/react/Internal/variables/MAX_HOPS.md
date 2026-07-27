@@ -2,7 +2,7 @@
 
 > `const` **MAX\_HOPS**: `2` = `2`
 
-Defined in: [src/lib/memory/graphTraversal.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#56)
+Defined in: [src/lib/memory/graphTraversal.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#57)
 
 Total hops the traversal performs, counting the seed lookup as hop 1.
 `1` = seed only (identical to the single-hop lane). PR5 default is `2` (one

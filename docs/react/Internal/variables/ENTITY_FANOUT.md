@@ -2,7 +2,7 @@
 
 > `const` **ENTITY\_FANOUT**: `8` = `8`
 
-Defined in: [src/lib/memory/graphTraversal.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#64)
+Defined in: [src/lib/memory/graphTraversal.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/graphTraversal.ts#65)
 
 Max neighbor entities expanded per hop. Caps fan-out so a densely-linked
 frontier can't explode the candidate pool. Neighbors are ranked by
