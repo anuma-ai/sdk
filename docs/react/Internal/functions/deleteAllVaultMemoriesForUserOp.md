@@ -2,7 +2,7 @@
 
 > **deleteAllVaultMemoriesForUserOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `userId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1492](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1492)
+Defined in: [src/lib/db/memoryVault/operations.ts:1625](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1625)
 
 ## Parameters
 

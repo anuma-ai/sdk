@@ -146,6 +146,7 @@ export {
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
   restoreVaultMemoryOp,
+  setMemoryVisibilityOp,
   stampTopicsExtractedAtOp,
   type StoredVaultMemory,
   supersedeVaultMemoryOp,
@@ -155,6 +156,7 @@ export {
   type UpdateVaultMemoryOptions,
   VaultMemory,
   type VaultMemoryOperationsContext,
+  type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
 
 // ── Vault Folders ──

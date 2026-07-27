@@ -321,6 +321,7 @@ export {
   type RankableVaultMemory,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
+  setMemoryVisibilityOp,
   stampTopicsExtractedAtOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
@@ -331,6 +332,7 @@ export {
   type UpdateVaultMemoryOptions,
   type VaultCandidateKey,
   type VaultMemoryOperationsContext,
+  type VaultMemoryVisibility,
 } from "../lib/db/memoryVault";
 // Vault folders
 export {
