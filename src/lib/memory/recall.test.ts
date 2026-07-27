@@ -1027,4 +1027,66 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(seen[0].candidateCount).toBe(0);
     expect(seen[0].factCount).toBe(0);
   });
+
+  // graphSeedCount + graphCount exist to separate two failures that look
+  // identical from outside: "the extractor produced nothing" and "the extractor
+  // worked, the vault had nothing". Conflating them is how a dead lane stayed
+  // invisible, so each of the four combinations gets its own pin.
+  describe("W5 lane counters", () => {
+    it("reports both the seed count and the contributed id count when the lane hits", async () => {
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(
+        new Map([
+          ["m3", new Set(["sara"])],
+          ["m2", new Set(["sara"])],
+        ])
+      );
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("Where is Sara traveling", makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphSeedCount).toBe(
+        vi.mocked(getMemoriesByEntityNamesOp).mock.calls[0][1].length
+      );
+      expect(seen[0].graphCount).toBe(2);
+    });
+
+    it("distinguishes 'extraction worked, the vault had nothing' from a dead extractor", async () => {
+      // Candidates WERE emitted and looked up; nothing matched. A lane that
+      // stayed quiet for this reason is behaving correctly.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map());
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("Where is Sara traveling", makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphSeedCount).toBeGreaterThan(0);
+      expect(seen[0].graphCount).toBe(0);
+    });
+
+    it("reports zero seeds for a query the extractor cannot resolve", async () => {
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("is there anyone who can help me", makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(getMemoriesByEntityNamesOp).not.toHaveBeenCalled();
+      expect(seen[0].graphSeedCount).toBe(0);
+      expect(seen[0].graphCount).toBe(0);
+    });
+
+    it("reports zeros when the lane never ran (no entityCtx)", async () => {
+      const seen: RecallDiagnostics[] = [];
+
+      await recall("Where is Sara traveling", makeCtx(), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphSeedCount).toBe(0);
+      expect(seen[0].graphCount).toBe(0);
+    });
+  });
 });

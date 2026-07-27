@@ -281,6 +281,24 @@ export interface RecallDiagnostics {
   factCount: number;
   /** Chunks the chunk lane returned (post-dedupe, pre-fusion). */
   chunkCount: number;
+  /**
+   * Memory ids the W5 graph lane contributed this call, after the active-id
+   * filter and the node cap. `0` means the lane returned nothing — it never ran
+   * (no `entityCtx`), the extractor emitted no candidates, or no stored memory
+   * shared one. Read with {@link graphSeedCount} to tell those apart.
+   */
+  graphCount: number;
+  /**
+   * Candidate entity names the query extractor emitted for the W5 lane.
+   *
+   * The pair is the point: `0` seeds with `0` ids means extraction produced
+   * nothing, while non-zero seeds with `0` ids means extraction worked and the
+   * vault had nothing to match. That is exactly the distinction between "the
+   * lane is silently dead" and "the lane correctly stayed quiet", and without
+   * both numbers it is unmeasurable in production — which is how a dead lane
+   * survived to become an epic item.
+   */
+  graphSeedCount: number;
   /** Wall-clock phase timings (ms). */
   timings: {
     /** Whole `recall()` call. */

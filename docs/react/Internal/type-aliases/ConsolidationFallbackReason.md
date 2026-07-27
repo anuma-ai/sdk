@@ -2,6 +2,6 @@
 
 > **ConsolidationFallbackReason** = `"llm_error"` | `"invalid_response"`
 
-Defined in: [src/lib/memory/types.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#309)
+Defined in: [src/lib/memory/types.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#327)
 
 Why the consolidator fell back to "create" instead of a real decision.

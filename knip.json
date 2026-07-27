@@ -8,7 +8,8 @@
     "test/memory/src/extraction/benchmark.test.ts",
     "test/memory/src/topic/benchmark.ts",
     "test/memory/src/consolidation/benchmark.test.ts",
-    "test/memory/src/vault/benchmark.test.ts"
+    "test/memory/src/vault/benchmark.test.ts",
+    "test/memory/src/vault/entityLane.test.ts"
   ],
   "ignore": ["src/client/**"],
   "ignoreDependencies": [

@@ -149,6 +149,12 @@ export async function recall(
   // Used to distinguish "CE skipped on empty head (lane-only hits)" from
   // "CE failed on a non-empty head (actual outage)".
   let hadV2Head = false;
+  // W5 lane observability. `graphSeedCount` is reported by the lane builder
+  // (the only code that knows how many candidates the extractor emitted);
+  // `graphCount` is read off the returned ranking. Both are captured here so
+  // every emitDiagnostics return path sees them.
+  let graphSeedCount = 0;
+  let graphCount = 0;
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
@@ -171,6 +177,8 @@ export async function recall(
       ...(vaultSize !== undefined && { vaultSize }),
       factCount: factResults.length,
       chunkCount: chunkResults.length,
+      graphCount,
+      graphSeedCount,
       timings: {
         total: nowMs() - t0,
         prep: prepMs,
@@ -224,19 +232,28 @@ export async function recall(
     // PRIMARY cosine/BM25 recall down with it — degrade the failing lane to an
     // empty ranking instead (mirrors safeCountVault's fail-soft posture).
     safeLane("graph", () =>
-      buildGraphLaneRanking(query, ctx, flags.traverse, {
-        ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
-        ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
-        ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
-        ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
-        ...(graphRefiner && { refineNeighbors: graphRefiner }),
-      })
+      buildGraphLaneRanking(
+        query,
+        ctx,
+        flags.traverse,
+        {
+          ...(options.maxHops !== undefined && { maxHops: options.maxHops }),
+          ...(options.entityFanout !== undefined && { entityFanout: options.entityFanout }),
+          ...(options.nodeBudget !== undefined && { nodeBudget: options.nodeBudget }),
+          ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
+          ...(graphRefiner && { refineNeighbors: graphRefiner }),
+        },
+        (count) => {
+          graphSeedCount = count;
+        }
+      )
     ),
     wantsTemporal
       ? safeLane("temporal", () => buildTemporalLaneRanking(query, ctx.vaultCtx!, options.now))
       : Promise.resolve([] as string[]),
   ]);
   prepMs = nowMs() - prepStart;
+  graphCount = entityRanking.length;
 
   if (types.includes("fact") && ctx.vaultCtx && ctx.vaultCache) {
     const factStart = nowMs();
@@ -520,12 +537,20 @@ async function buildGraphLaneRanking(
     nodeBudget?: number;
     rrfK?: number;
     refineNeighbors?: NeighborRefiner;
-  } = {}
+  } = {},
+  onSeeds?: (seedCount: number) => void
 ): Promise<string[]> {
   // Fall back to vaultCtx.entityCtx so callers don't have to thread the
   // graph-lane context twice (it's also where cascade-delete wiring lives).
   const entityCtx = ctx.entityCtx ?? ctx.vaultCtx?.entityCtx;
   if (!entityCtx) return [];
+  // Extract once, up front, on BOTH branches — the seed count is the other half
+  // of the graphCount diagnostic and only this function can see it. A callback
+  // rather than a richer return type keeps safeLane's `() => Promise<string[]>`
+  // contract intact.
+  const seedNames = extractQueryEntities(query);
+  onSeeds?.(seedNames.length);
+  if (seedNames.length === 0) return [];
   if (traverse) {
     // Multi-hop path. PR5: with the default MAX_HOPS=2 the density guard matters,
     // so thread a vault-size hint (a cheap indexed COUNT — no decrypt, no Model)
@@ -545,9 +570,7 @@ async function buildGraphLaneRanking(
       }),
     });
   }
-  const queryEntities = extractQueryEntities(query);
-  if (queryEntities.length === 0) return [];
-  const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, queryEntities);
+  const memoryToEntities = await getMemoriesByEntityNamesOp(entityCtx, seedNames);
   if (memoryToEntities.size === 0) return [];
   // Sort by shared-entity count descending. Ties broken arbitrarily by
   // map insertion order — RRF rank-quantization makes fine ties moot.
