@@ -2,7 +2,7 @@
 
 > **PostOauthTokenResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:10933](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10933)
+Defined in: [src/client/types.gen.ts:10969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10969)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:10933](https://github.com/anuma-ai/sdk/blob
 
 > **200**: [`HandlersOAuthTokenResponse`](HandlersOAuthTokenResponse.md)
 
-Defined in: [src/client/types.gen.ts:10937](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10937)
+Defined in: [src/client/types.gen.ts:10973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10973)
 
 OK

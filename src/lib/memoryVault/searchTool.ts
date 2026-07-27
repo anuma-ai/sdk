@@ -1367,7 +1367,19 @@ export async function buildProjectedCorpus(
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
-  queryOpts: { scopes?: string[]; folderId?: string | null },
+  /**
+   * Candidate-set filters, forwarded verbatim to `getVaultCandidateKeysOp`.
+   * Must stay a superset-compatible mirror of what the legacy
+   * `getAllVaultMemoriesOp` path accepts — this signature previously listed only
+   * `scopes`/`folderId`, which is how `factTypes` and `includeArchived` came to
+   * be silently dropped on the decrypt-last path (#779).
+   */
+  queryOpts: {
+    scopes?: string[];
+    folderId?: string | null;
+    factTypes?: string[];
+    includeArchived?: boolean;
+  },
   opts: {
     limit: number;
     admitFactor: number;
@@ -1391,6 +1403,17 @@ export async function buildProjectedCorpus(
     vaultCtx,
     Object.keys(queryOpts).length > 0 ? queryOpts : undefined
   );
+  /**
+   * Filters the by-id hydration steps must repeat so they don't re-exclude rows
+   * the key scan above deliberately admitted.
+   *
+   * Only `includeArchived` needs carrying: it is the one DEFAULT-ON exclusion
+   * that `queryOpts` can switch off. The others (deleted / quarantined /
+   * superseded) are excluded by both stages identically, and `factTypes` is
+   * already enforced by the key scan — hydration is by explicit id, so the ids
+   * are constrained before they get here.
+   */
+  const hydrateOpts = queryOpts.includeArchived ? { includeArchived: true } : undefined;
   const vaultSize = keys.length;
   // Empty vault: nothing to rank. Return before embedding the query so an
   // empty vault costs zero embedding calls.
@@ -1417,7 +1440,7 @@ export async function buildProjectedCorpus(
 
   // Load embedding column ONLY for cache misses that claim a compatible vector.
   if (missIds.length > 0) {
-    const rows = await getVaultEmbeddingsByIdsOp(vaultCtx, missIds);
+    const rows = await getVaultEmbeddingsByIdsOp(vaultCtx, missIds, hydrateOpts);
     const gotVector = new Set<string>();
     for (const r of rows) {
       if (!r.embedding) continue;
@@ -1445,7 +1468,7 @@ export async function buildProjectedCorpus(
         `memoryVault: projected search un-embedded lane capped at ${laneIds.length}/${noVectorIds.length}`
       );
     }
-    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds)).filter(
+    const laneRows = (await getVaultMemoriesByIdsOp(vaultCtx, laneIds, hydrateOpts)).filter(
       (m) => !isEncrypted(m.content)
     );
     if (laneRows.length > 0) {
@@ -1479,7 +1502,7 @@ export async function buildProjectedCorpus(
       if (keyById.has(id)) admissionSet.add(id);
     }
   }
-  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet]);
+  const admittedRows = await getVaultMemoriesByIdsOp(vaultCtx, [...admissionSet], hydrateOpts);
   const memories = admittedRows.filter((m) => !isEncrypted(m.content));
   // Parity with the legacy path's key-unavailable diagnostic: warn when an
   // admitted row's content is still encrypted (decryption degraded) so the

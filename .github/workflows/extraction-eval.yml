@@ -100,13 +100,17 @@ jobs:
           # Persist as a newline-safe single string for later steps.
           printf 'EVAL_ARGS=%s\n' "${args[*]}" >> "$GITHUB_ENV"
 
+      # `pnpm --silent` throughout: without it pnpm's lifecycle banner
+      # ("> @anuma/sdk@... eval:extraction") is printed to STDOUT ahead of the
+      # JSON, so every `jq` summary step below silently took its parse-error
+      # fallback and the gate reported "(could not parse after.json)" every run.
       - name: Run eval (this branch = AFTER)
         if: env.INPUT_MODE == 'ab'
         run: |
           # pipefail so a failed eval isn't masked by tee's exit code.
           set -o pipefail
           echo "::group::after (branch prompt + 8-kind taxonomy)"
-          pnpm eval:extraction $EVAL_ARGS | tee after.json
+          pnpm --silent eval:extraction $EVAL_ARGS | tee after.json
           echo "::endgroup::"
 
       - name: Run eval (main = BEFORE baseline)
@@ -120,7 +124,7 @@ jobs:
           set -o pipefail
           git checkout origin/main -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
           echo "::group::before (main prompt + 5-kind taxonomy)"
-          pnpm eval:extraction $EVAL_ARGS | tee before.json
+          pnpm --silent eval:extraction $EVAL_ARGS | tee before.json
           echo "::endgroup::"
           git checkout HEAD -- src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts
 
@@ -131,7 +135,7 @@ jobs:
           # back, so it's uploaded as an artifact for a human to download+commit.
           set -o pipefail
           echo "::group::save-baseline"
-          pnpm eval:extraction $EVAL_ARGS --save-baseline | tee after.json
+          pnpm --silent eval:extraction $EVAL_ARGS --save-baseline | tee after.json
           echo "::endgroup::"
           echo "### Generated baseline" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
@@ -154,7 +158,7 @@ jobs:
           # already be committed (generate it once via mode=save-baseline).
           # pipefail so the gate's non-zero exit isn't swallowed by tee.
           set -o pipefail
-          pnpm eval:extraction $EVAL_ARGS --baseline test/memory/src/extraction/baseline.json | tee after.json
+          pnpm --silent eval:extraction $EVAL_ARGS --baseline test/memory/src/extraction/baseline.json | tee after.json
 
       - name: Summarize gate result
         if: always() && env.INPUT_MODE == 'gate'
