@@ -48,7 +48,9 @@ import type { ConsolidationFallbackReason } from "./types.js";
 // on the benchmark cases. Unlike gpt-oss, ling ACCEPTS `response_format:
 // json_object` (verified), so portalLlm.ts sends it — the reliability numbers
 // above were measured with response_format on, matching production.
-const DEFAULT_MODEL = "inclusionai/ling-2.6-flash";
+/** Exported so the consolidation eval gates the model production actually runs,
+ * rather than a copy of this string that can drift out of sync. */
+export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
 
 // Retry budget for TRANSIENT consolidation failures. A transient blip
 // (network/timeout/5xx/429/empty completion) that degrades straight to create
@@ -210,7 +212,7 @@ export async function consolidateMemory(
       ...(options.apiKey !== undefined && { apiKey: options.apiKey }),
       ...(options.getToken !== undefined && { getToken: options.getToken }),
       ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
-      model: options.model ?? DEFAULT_MODEL,
+      model: options.model ?? DEFAULT_CONSOLIDATION_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
       tag: "memory/consolidate",

@@ -1,0 +1,225 @@
+name: Vault Search Eval
+
+# Retrieval-quality gate for the vault ranking stack (recall@k / precision@k /
+# MRR / NDCG / ranking-violation rate over a 108-memory, 100-query corpus).
+#
+# Unlike the extraction/topic/consolidation gates, this one is DETERMINISTIC:
+# the frozen embedding cache means the same code scores identically every run,
+# which is why a flat 1% regression threshold is safe here instead of the
+# spread-derived tolerances those LLM-driven suites need. The only API calls are
+# embeddings, and only on a cache miss — no answer LLM, so this is the cheapest
+# retrieval gate available.
+#
+# Determinism holds only against a baseline generated with the SAME ranker,
+# lanes, and embedding model, so the baseline records its config and the
+# benchmark refuses to compare across a mismatch.
+on:
+  # Runs in the merge queue with NO paths filter, so the status below is always
+  # produced there and can therefore be a REQUIRED check. The paths-scoped
+  # pull_request trigger stays for early signal during review; a required check
+  # that never reports on an unrelated PR would block it forever.
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "gate = fail on regression vs committed baseline; save-baseline = write a new baseline artifact"
+        required: false
+        type: choice
+        default: "gate"
+        options: ["gate", "save-baseline"]
+      refresh_embeddings:
+        description: "Re-embed from scratch instead of reusing the frozen cache (use after an embedding-model change)"
+        required: false
+        type: choice
+        default: "false"
+        options: ["false", "true"]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/vault-search-eval.yml"
+      # The ranking stack itself.
+      - "src/lib/memoryVault/**"
+      # The candidate-set filtering itself. searchTool calls
+      # getVaultCandidateKeysOp / getAllVaultMemoriesOp on every search, so the
+      # scope/folder/factTypes/includeArchived logic that decides WHICH rows are
+      # even eligible lives here. Without this glob a change confined to the DB
+      # layer skips the gate entirely — #780 is exactly such a change and only
+      # tripped these gates because it happened to also touch searchTool.ts.
+      - "src/lib/db/memoryVault/**"
+      - "src/lib/memory/recall.ts"
+      - "src/lib/memory/recallConstants.ts"
+      - "src/lib/memory/rrf.ts"
+      - "src/lib/memory/mmr.ts"
+      - "src/lib/memory/recency.ts"
+      - "src/lib/memory/queryEntities.ts"
+      - "src/lib/memory/graphTraversal.ts"
+      - "src/lib/memory/reranker.ts"
+      # Every score is a cosine over embeddings, so the whole engine is in
+      # scope. embeddings.ts builds on `chunking` (chunk size / split logic),
+      # `generate` (the embed HTTP client), `constants` (the model id) and
+      # `vector`/`quantization` — listing only two files let edits to the others
+      # move gated retrieval without running this gate. A directory glob can
+      # only over-trigger, which is the safe direction for a gate.
+      - "src/lib/memoryEngine/**"
+      # The corpus, scorer, and shared gate helper.
+      - "test/memory/src/vault/**"
+      - "test/memory/src/metrics.ts"
+      - "test/memory/src/gate.ts"
+
+  # Also run when a qualifying change LANDS on main. Two reasons, both
+  # load-bearing:
+  #  1. Actions scopes a cache to the ref that created it, so caches born
+  #     in a PR live only under refs/pull/N/merge. Without a main-branch
+  #     run nothing ever seeds the frozen embedding vectors
+  #     for other PRs to restore, and every PR cold-starts — which is the
+  #     HuggingFace 429 exposure (and, for the vault gate, the re-embed
+  #     that breaks the frozen-vector premise the flat threshold rests on).
+  #  2. It gives a main-line signal: a regression that slipped review is
+  #     at least recorded against main rather than silently absorbed.
+  # Same paths as the PR trigger, so this stays off ordinary merges.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/vault-search-eval.yml"
+      # The ranking stack itself.
+      - "src/lib/memoryVault/**"
+      # The candidate-set filtering itself. searchTool calls
+      # getVaultCandidateKeysOp / getAllVaultMemoriesOp on every search, so the
+      # scope/folder/factTypes/includeArchived logic that decides WHICH rows are
+      # even eligible lives here. Without this glob a change confined to the DB
+      # layer skips the gate entirely — #780 is exactly such a change and only
+      # tripped these gates because it happened to also touch searchTool.ts.
+      - "src/lib/db/memoryVault/**"
+      - "src/lib/memory/recall.ts"
+      - "src/lib/memory/recallConstants.ts"
+      - "src/lib/memory/rrf.ts"
+      - "src/lib/memory/mmr.ts"
+      - "src/lib/memory/recency.ts"
+      - "src/lib/memory/queryEntities.ts"
+      - "src/lib/memory/graphTraversal.ts"
+      - "src/lib/memory/reranker.ts"
+      # Every score is a cosine over embeddings, so the whole engine is in
+      # scope. embeddings.ts builds on `chunking` (chunk size / split logic),
+      # `generate` (the embed HTTP client), `constants` (the model id) and
+      # `vector`/`quantization` — listing only two files let edits to the others
+      # move gated retrieval without running this gate. A directory glob can
+      # only over-trigger, which is the safe direction for a gate.
+      - "src/lib/memoryEngine/**"
+      # The corpus, scorer, and shared gate helper.
+      - "test/memory/src/vault/**"
+      - "test/memory/src/metrics.ts"
+      - "test/memory/src/gate.ts"
+
+jobs:
+  vault-search-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+      INPUT_REFRESH: ${{ inputs.refresh_embeddings || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      # The frozen vectors are gitignored (a few MB of float arrays), so cache
+      # them across runs — otherwise every PR re-embeds 208 texts. Keyed on the
+      # corpus AND the embedding-model constant, so either changing produces a
+      # fresh key rather than silently reusing stale vectors. (The benchmark
+      # also self-invalidates: the cache file records its model.)
+      - name: Restore frozen embedding cache
+        uses: actions/cache@v4
+        with:
+          path: test/memory/src/vault/embeddings-cache.json
+          key: vault-embeddings-v1-${{ hashFiles('test/memory/src/vault/dataset.ts', 'src/lib/memoryEngine/constants.ts') }}
+
+      - name: Run eval (regression gate)
+        if: env.INPUT_MODE == 'gate'
+        run: |
+          # `--output` rather than `| tee`: the benchmark writes the result
+          # document to the file itself and logs only to stderr, so the summary
+          # below gets clean JSON. Piping stdout also can't work on the path that
+          # matters — the gate exits non-zero on a regression, and the file must
+          # already exist by then (it's written before the comparison runs).
+          args=(--json --output results.json --baseline test/memory/src/vault/baseline.json)
+          [ "$INPUT_REFRESH" = "true" ] && args+=(--refresh-embeddings)
+          pnpm --silent eval:vault-search "${args[@]}"
+
+      - name: Run eval (save baseline)
+        if: env.INPUT_MODE == 'save-baseline'
+        run: |
+          set -o pipefail
+          args=(--save-baseline)
+          [ "$INPUT_REFRESH" = "true" ] && args+=(--refresh-embeddings)
+          pnpm --silent eval:vault-search "${args[@]}"
+          echo "### Generated baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat test/memory/src/vault/baseline.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated baseline
+        if: env.INPUT_MODE == 'save-baseline'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vault-search-baseline
+          path: test/memory/src/vault/baseline.json
+          if-no-files-found: error
+
+      - name: Summarize
+        if: always() && env.INPUT_MODE == 'gate'
+        run: |
+          {
+            echo "## Vault search eval — retrieval quality vs committed baseline"
+            if [ -f results.json ]; then
+              echo '```'
+              jq -r '
+                .overall as $o |
+                "  recall@k   : \(($o.recallAtK*1000|round/10))%",
+                "  precision@k: \(($o.precisionAtK*1000|round/10))%",
+                "  MRR        : \(($o.mrr*1000|round/10))%",
+                "  NDCG       : \(($o.ndcg*1000|round/10))%",
+                "  ranking violations: \(($o.rankingViolationRate*1000|round/10))%",
+                "",
+                "  by category:",
+                (.byCategory[] | "    \(.category | . + (" " * (16 - length)))recall \((.recallAtK*1000|round/10))%  ndcg \((.ndcg*1000|round/10))%")
+              ' results.json 2>/dev/null || echo "  (could not parse results.json)"
+              echo '```'
+            else
+              echo "_Gate did not produce a result (eval step failed before writing results.json)._"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vault-search-eval-results
+          path: results.json
+          if-no-files-found: ignore
+
+  # Aggregator whose context is stable whatever the gate above did — the shape
+  # `e2e-tools-status` uses, and the only one safe to add to main's ruleset.
+  # Passes when the gate is skipped (paths didn't match), fails only when it
+  # actually failed. NOTE: adding `vault-search-eval-status` to ruleset 9764137 needs
+  # repo admin; until then this reports but cannot block.
+  vault-search-eval-status:
+    if: always()
+    needs: [vault-search-eval]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check vault search gate result
+        run: |
+          if [[ "${{ needs.vault-search-eval.result }}" == "failure" ]]; then
+            echo "Vault search eval gate failed"
+            exit 1
+          fi
+          echo "Vault search eval gate passed (or was skipped)"

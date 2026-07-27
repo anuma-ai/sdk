@@ -43,6 +43,43 @@ export interface GateMetricSpec {
   label?: string;
 }
 
+/**
+ * Multiplier on the standard error of the mean difference. ~2 ≈ a 95% interval
+ * for a roughly normal statistic, so a healthy run clears the gate ~19 times out
+ * of 20 while a real shift of several standard errors fires.
+ */
+export const TOLERANCE_SIGMAS = 2;
+
+/**
+ * Tolerance for comparing a mean of `currentRuns` against a baseline mean of
+ * `baselineRuns`, given the per-run standard deviation.
+ *
+ * This is the whole reason bands store `stdDev` rather than a fixed tolerance.
+ * The gate compares MEANS, and the uncertainty of a mean shrinks as √n — so
+ * using a single run's spread as the tolerance makes the gate ~√n too loose.
+ * Concretely, on the consolidation suite (15 passes over 7 cases) the old
+ * spread-derived tolerance was 1/7: a case failing on EVERY pass moved the mean
+ * by 0.124 and was reported as "no regressions". Only 3+ simultaneously broken
+ * cases could ever fire.
+ *
+ * `√(1/n_base + 1/n_cur)` is the standard error of the DIFFERENCE of two means,
+ * which is what's actually being tested. It also does the right thing when the
+ * two sides differ: the recall gate compares a single live run against a 3-run
+ * baseline, so its tolerance stays near single-run width instead of being
+ * wrongly tightened.
+ */
+export function meanDiffTolerance(
+  spec: GateMetricSpec,
+  stdDev: number,
+  baselineRuns: number,
+  currentRuns: number
+): number {
+  const nBase = Math.max(1, baselineRuns);
+  const nCur = Math.max(1, currentRuns);
+  const standardError = stdDev * Math.sqrt(1 / nBase + 1 / nCur);
+  return Math.max(spec.minTolerance, TOLERANCE_SIGMAS * standardError);
+}
+
 /** One run's metrics. Extra keys are ignored, so a run summary can be passed whole. */
 export type GateRun = Readonly<Record<string, number>>;
 
@@ -56,6 +93,14 @@ export interface GateMetricBand {
   mean: number;
   min: number;
   max: number;
+  /**
+   * Sample standard deviation of the PER-RUN values. The gate derives its
+   * tolerance from this at compare time ({@link meanDiffTolerance}) rather than
+   * storing a fixed one, because the right tolerance depends on how many runs
+   * each side averages — which the baseline can't know.
+   */
+  stdDev: number;
+  /** Informational: the tolerance a same-shape comparison would use. */
   tolerance: number;
 }
 
@@ -77,6 +122,14 @@ export interface GateRegression {
 
 function meanOf(xs: readonly number[]): number {
   return xs.reduce((a, b) => a + b, 0) / xs.length;
+}
+
+/** Sample (n-1) standard deviation; 0 for a single run. */
+function sampleStdDev(xs: readonly number[]): number {
+  if (xs.length < 2) return 0;
+  const mu = meanOf(xs);
+  const variance = xs.reduce((acc, x) => acc + (x - mu) ** 2, 0) / (xs.length - 1);
+  return Math.sqrt(variance);
 }
 
 /**
@@ -109,13 +162,16 @@ export function buildGateBaseline(
   const metrics: Record<string, GateMetricBand> = {};
   for (const spec of specs) {
     const xs = series(runs, spec.key);
-    const min = Math.min(...xs);
-    const max = Math.max(...xs);
+    const stdDev = sampleStdDev(xs);
     metrics[spec.key] = {
       mean: meanOf(xs),
-      min,
-      max,
-      tolerance: Math.max(spec.minTolerance, max - min),
+      min: Math.min(...xs),
+      max: Math.max(...xs),
+      stdDev,
+      // Recorded so a human reading the file sees the effective gate width for a
+      // same-shape run; `compareToGateBaseline` recomputes it for the actual run
+      // counts rather than trusting this number.
+      tolerance: meanDiffTolerance(spec, stdDev, runs.length, runs.length),
     };
   }
   return { config, runs: runs.length, metrics };
@@ -146,25 +202,28 @@ export function compareToGateBaseline(
     // otherwise reach here and silently disable that metric: the arithmetic
     // yields NaN, every NaN comparison is false, and the gate reports "no
     // regression" for a metric it never actually checked.
-    if (!Number.isFinite(base.mean) || !Number.isFinite(base.tolerance)) {
+    if (!Number.isFinite(base.mean) || !Number.isFinite(base.stdDev)) {
       throw new Error(
         `Baseline band for "${spec.key}" is malformed (mean=${String(base.mean)}, ` +
-          `tolerance=${String(base.tolerance)}); regenerate the baseline.`
+          `stdDev=${String(base.stdDev)}); regenerate the baseline.`
       );
     }
+    // Tolerance is computed HERE, from both run counts, not read from the file —
+    // see meanDiffTolerance for why a stored spread is the wrong scale.
+    const tolerance = meanDiffTolerance(spec, base.stdDev, baseline.runs, runs.length);
     const current = meanOf(series(runs, spec.key));
     const drop = spec.direction === "higher-better" ? base.mean - current : current - base.mean;
     // Strictly MORE than the tolerance, with float slack: a drop landing exactly
     // on the tolerance is within the baseline's own noise, and without the
     // epsilon a mean like 0.85 vs 0.9 reds the gate on representation error
     // alone (0.9 - 0.85 === 0.050000000000000044 > 0.05).
-    if (drop - base.tolerance > 1e-9) {
+    if (drop - tolerance > 1e-9) {
       regressions.push({
         metric: spec.key,
         label: spec.label ?? spec.key,
         baseline: base.mean,
         current,
-        tolerance: base.tolerance,
+        tolerance,
         direction: spec.direction,
         format: spec.format ?? "rate",
       });
@@ -190,11 +249,18 @@ export function isValidGateBaseline(
   if (!b.config || typeof b.config !== "object") return false;
   const metrics = b.metrics;
   if (!metrics || typeof metrics !== "object") return false;
+  // `runs` is required: the compare-time tolerance is derived from it, and a
+  // baseline without it can't be gated against at all.
+  if (typeof b.runs !== "number" || !Number.isFinite(b.runs) || b.runs < 1) return false;
   return specs.some((spec) => {
     const band = (metrics as Record<string, unknown>)[spec.key];
     if (!band || typeof band !== "object") return false;
-    const { mean, tolerance } = band as Record<string, unknown>;
-    return typeof mean === "number" && typeof tolerance === "number";
+    const { mean, stdDev } = band as Record<string, unknown>;
+    // `stdDev` (not `tolerance`) is the load-bearing field. This also rejects
+    // pre-2026-07-27 baselines, which stored only a fixed spread-derived
+    // tolerance — gating against those would silently reuse the ~sqrt(n)-too-loose
+    // width this shape exists to fix, so they must be regenerated, not tolerated.
+    return typeof mean === "number" && typeof stdDev === "number";
   });
 }
 
