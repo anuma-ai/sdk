@@ -149,7 +149,15 @@ function makeChunk(id: string, conversationId: string, similarity: number): Chun
 
 const vaultCtx = {} as VaultMemoryOperationsContext;
 const storageCtx = {} as StorageOperationsContext;
-const entityCtx = {} as EntityOperationsContext;
+// Mirrors the shape react/useChatStorage builds: user-scoped legacy rows on a
+// database that is nevertheless one tenant's, declared as such. `singleTenant`
+// is what the vocabulary tier gates on; a bare `{}` fixture would pass the gate
+// for a reason production never supplies.
+const entityCtx = {
+  entityCollection: {},
+  userId: "0xwallet",
+  singleTenant: true,
+} as unknown as EntityOperationsContext;
 
 function makeCtx(overrides: Partial<RecallContext> = {}): RecallContext {
   return {

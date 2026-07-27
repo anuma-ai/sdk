@@ -139,6 +139,28 @@ describe("createRecallTool executor — extraction resistance", () => {
     expect(out).toContain("truncated");
   });
 
+  it("forwards the entity-vocabulary kill switch to recall()", async () => {
+    // This is the SDK's primary recall entry point — it is what useChatStorage
+    // wires — so an option that exists on RecallOptions but not here is an
+    // option no first-party host can reach. It matters more than most: the
+    // vocabulary tier trades lane precision for activation, and DEFAULT is on.
+    vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "a")]));
+    const tool = createRecallTool(ctx, { types: ["fact"], entityVocabulary: "off" });
+
+    await tool.executor!({ query: "engineering side projects" });
+
+    expect(vi.mocked(recall).mock.calls[0][2]?.entityVocabulary).toBe("off");
+  });
+
+  it("leaves entityVocabulary unset when the host does not ask for it", async () => {
+    vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "a")]));
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+
+    await tool.executor!({ query: "engineering side projects" });
+
+    expect(vi.mocked(recall).mock.calls[0][2]).not.toHaveProperty("entityVocabulary");
+  });
+
   it("trips the per-turn invocation cap after N calls", async () => {
     const tool = createRecallTool(ctx, { types: ["fact"] });
 

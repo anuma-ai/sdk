@@ -1,6 +1,6 @@
 # EntityVocabularyCache
 
-Defined in: src/lib/memory/entityVocabulary.ts:75
+Defined in: [src/lib/memory/entityVocabulary.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/entityVocabulary.ts#93)
 
 Single-slot cache for a built [EntityVocabulary](EntityVocabulary.md). Deliberately NOT an
 LRU and deliberately NOT time-based: there is exactly one vocabulary per
@@ -9,8 +9,12 @@ stamp) rather than by a clock. A TTL would be both slower to notice a real
 change and impossible to test without wall-clock dependence.
 
 Build with [createEntityVocabularyCache](../functions/createEntityVocabularyCache.md) and hold it for the session.
-Clear it whenever the underlying identity changes — entity names are derived
-from decrypted user content and must not survive a user switch.
+Sharing one across two different entity tables is SAFE — the version stamp
+carries a per-context identity, so the second vault misses the cache and
+rebuilds rather than being served the first vault's names. Clearing it on a
+user switch is still worth doing (entity names are derived from decrypted
+user content and there is no reason to keep them resident), but correctness
+no longer depends on the caller remembering to.
 
 ## Methods
 
@@ -18,7 +22,7 @@ from decrypted user content and must not survive a user switch.
 
 > **clear**(): `void`
 
-Defined in: src/lib/memory/entityVocabulary.ts:78
+Defined in: [src/lib/memory/entityVocabulary.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/entityVocabulary.ts#96)
 
 **Returns**
 
@@ -30,7 +34,7 @@ Defined in: src/lib/memory/entityVocabulary.ts:78
 
 > **get**(): [`EntityVocabulary`](EntityVocabulary.md) | `undefined`
 
-Defined in: src/lib/memory/entityVocabulary.ts:76
+Defined in: [src/lib/memory/entityVocabulary.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/entityVocabulary.ts#94)
 
 **Returns**
 
@@ -42,7 +46,7 @@ Defined in: src/lib/memory/entityVocabulary.ts:76
 
 > **set**(`vocabulary`: [`EntityVocabulary`](EntityVocabulary.md)): `void`
 
-Defined in: src/lib/memory/entityVocabulary.ts:77
+Defined in: [src/lib/memory/entityVocabulary.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/entityVocabulary.ts#95)
 
 **Parameters**
 

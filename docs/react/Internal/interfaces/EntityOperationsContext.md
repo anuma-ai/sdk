@@ -43,6 +43,30 @@ Defined in: [src/lib/db/entities/operations.ts:21](https://github.com/anuma-ai/s
 
 ***
 
+### singleTenant?
+
+> `optional` **singleTenant**: `boolean`
+
+Defined in: [src/lib/db/entities/operations.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#54)
+
+Declares that this process holds exactly ONE tenant's entity table — a
+per-wallet client database, not a shared multi-user server.
+
+Read by `loadEntityVocabulary`, which enumerates the whole `entity` table
+to build its recall-time index. That table is global vocabulary with no
+owner (listEntityNamesOp), so enumerating it is only acceptable
+when there is nobody else in it.
+
+This is deliberately NOT inferred from [userId](#userid). `userId` answers "is
+this read user-scoped" — the React client sets it to the connected wallet
+to scope legacy `memory_entity` rows on a database that is nevertheless
+physically single-tenant — so inferring tenancy from it is wrong in both
+directions. Mirrors `VaultMemoryOperationsContext.singleTenant`, which
+exists so the decay sweep's scope guard stops inferring safety from
+`walletAddress`. Default (absent) is the safe answer: no enumeration.
+
+***
+
 ### userId?
 
 > `optional` **userId**: `string`

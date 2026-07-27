@@ -10,7 +10,7 @@
  *     the row count identical, because the entity table's orphan prune does
  *     exactly that.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/entities/operations", () => ({
   countEntitiesOp: vi.fn(),
@@ -30,8 +30,20 @@ import {
   createEntityVocabularyCache,
   loadEntityVocabulary,
 } from "./entityVocabulary";
+import { noopLogger, setLogger } from "../logger";
 
-const entityCtx = {} as EntityOperationsContext;
+/**
+ * The shape a real client builds. `singleTenant` is the opt-in the vocabulary
+ * tier gates on, and `userId` is present alongside it on purpose: the React
+ * client sets both — the wallet scopes legacy `memory_entity` rows on a
+ * database that is nevertheless one tenant's. A fixture without `userId` would
+ * not exercise the distinction that matters.
+ */
+const entityCtx = {
+  entityCollection: {},
+  userId: "0xwallet",
+  singleTenant: true,
+} as unknown as EntityOperationsContext;
 
 /** Names indexed under `token`, in index order. */
 const namesFor = (names: string[], token: string): readonly string[] =>
@@ -128,12 +140,14 @@ describe("loadEntityVocabulary — availability", () => {
     const vocabulary = await loadEntityVocabulary(entityCtx);
 
     expect(vocabulary?.size).toBe(2);
-    expect(vocabulary?.version).toBe("2:0");
+    // `<contextId>:<rowCount>:<writeGeneration>`. The context id is assigned per
+    // process, so only its shape is pinned.
+    expect(vocabulary?.version).toEqual(expect.stringMatching(/^\d+:2:0$/));
     expect(listEntityNamesOp).toHaveBeenCalledWith(entityCtx, { limit: 50_000 });
   });
 
-  it("stays off for a multi-user context WITHOUT reading anything", async () => {
-    const scoped = { userId: "u1" } as EntityOperationsContext;
+  it("stays off for a context that has NOT declared itself single-tenant, reading nothing", async () => {
+    const scoped = { entityCollection: {}, userId: "u1" } as unknown as EntityOperationsContext;
 
     const vocabulary = await loadEntityVocabulary(scoped);
 
@@ -175,7 +189,11 @@ describe("loadEntityVocabulary — availability", () => {
     const onFailed = vi.fn();
 
     await loadEntityVocabulary(entityCtx, undefined, onFailed);
-    await loadEntityVocabulary({ userId: "u1" } as EntityOperationsContext, undefined, onFailed);
+    await loadEntityVocabulary(
+      { entityCollection: {}, userId: "u1" } as unknown as EntityOperationsContext,
+      undefined,
+      onFailed
+    );
 
     // A degradation signal that fires for every new user and every server is a
     // config readout, not an alert.
@@ -253,5 +271,170 @@ describe("loadEntityVocabulary — cache invalidation", () => {
     // Entity names are PII derived from decrypted content; an identity switch
     // clears this cache and must actually force a rebuild.
     expect(listEntityNamesOp).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("loadEntityVocabulary — tenancy gate", () => {
+  beforeEach(() => {
+    vi.mocked(countEntitiesOp).mockResolvedValue(3);
+    vi.mocked(listEntityNamesOp).mockResolvedValue(["sara park", "kyoto", "san francisco"]);
+    vi.mocked(getEntityWriteGeneration).mockReturnValue(0);
+  });
+
+  it("is ON for a wallet-scoped single-tenant client — the only host the SDK ships", async () => {
+    // The gate that matters. `userId` is set for every wallet-connected session
+    // (it is required for encryption and the queue), so a gate keyed on
+    // `userId !== undefined` reads as multi-tenant for every logged-in user and
+    // turns this tier off for the entire first-party client — the measured lift
+    // reaching nobody, silently and by design, with no degradation signal.
+    const client = {
+      entityCollection: {},
+      userId: "0xabc",
+      allowUnscopedRows: true,
+      singleTenant: true,
+    } as unknown as EntityOperationsContext;
+
+    const vocabulary = await loadEntityVocabulary(client);
+
+    expect(vocabulary?.size).toBe(3);
+  });
+
+  it("is OFF, and reads nothing, when tenancy was never declared", async () => {
+    // Fail closed. A multi-tenant host that sets `userId` on its VAULT context
+    // and forgets it here must not accidentally enumerate the global table.
+    const undeclared = { entityCollection: {} } as unknown as EntityOperationsContext;
+
+    expect(await loadEntityVocabulary(undeclared)).toBeUndefined();
+    expect(countEntitiesOp).not.toHaveBeenCalled();
+    expect(listEntityNamesOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("loadEntityVocabulary — cache identity", () => {
+  it("does not serve one entity table's index to another with the same row count", async () => {
+    // Row count and write generation are both process-global, so two vaults
+    // holding the same number of rows stamp identically. Without a context
+    // identity in the stamp the second vault is a cache HIT on the first
+    // vault's names, and every one of its own entities becomes unrecallable for
+    // the life of the cache.
+    const cache = createEntityVocabularyCache();
+    vi.mocked(getEntityWriteGeneration).mockReturnValue(0);
+    vi.mocked(countEntitiesOp).mockResolvedValue(2);
+
+    const vaultA = {
+      entityCollection: {},
+      singleTenant: true,
+    } as unknown as EntityOperationsContext;
+    const vaultB = {
+      entityCollection: {},
+      singleTenant: true,
+    } as unknown as EntityOperationsContext;
+
+    vi.mocked(listEntityNamesOp).mockResolvedValue(["sara park", "kyoto"]);
+    const a = await loadEntityVocabulary(vaultA, cache);
+    vi.mocked(listEntityNamesOp).mockResolvedValue(["hiroshi tanaka", "osaka"]);
+    const b = await loadEntityVocabulary(vaultB, cache);
+
+    expect(a?.index.has("kyoto")).toBe(true);
+    expect(b?.index.has("osaka")).toBe(true);
+    expect(b?.index.has("kyoto")).toBe(false);
+  });
+
+  it("still hits the cache for the same context when nothing moved", async () => {
+    const cache = createEntityVocabularyCache();
+    vi.mocked(getEntityWriteGeneration).mockReturnValue(0);
+    vi.mocked(countEntitiesOp).mockResolvedValue(2);
+    vi.mocked(listEntityNamesOp).mockResolvedValue(["sara park", "kyoto"]);
+    const ctx = { entityCollection: {}, singleTenant: true } as unknown as EntityOperationsContext;
+
+    await loadEntityVocabulary(ctx, cache);
+    await loadEntityVocabulary(ctx, cache);
+
+    expect(listEntityNamesOp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("buildEntityVocabulary — cost ceiling", () => {
+  /**
+   * MAX_VOCABULARY_ENTITIES exists to bound a synchronous build on the recall
+   * hot path, so the bound has to hold for the vocabulary shape that costs the
+   * most, not just the flat one the benchmark corpus happens to have. With an
+   * array-scan dedupe this is O(bucket²) and 16k names sharing one hub token
+   * took ~1.5s — three orders of magnitude past the documented ceiling, on the
+   * JS thread, re-paid on every entity write.
+   *
+   * Generous absolute numbers: this catches a complexity class, not drift on a
+   * loaded CI box.
+   */
+  const BUILD_CEILING_MS = 600;
+
+  it("builds 16k names with distinct tokens well inside the ceiling", () => {
+    const names = Array.from({ length: 16_000 }, (_, i) => `alpha${i} beta${i}`);
+    const start = performance.now();
+    buildEntityVocabulary(names, "v");
+    expect(performance.now() - start).toBeLessThan(BUILD_CEILING_MS);
+  });
+
+  it("builds 16k names sharing ONE hub token inside the same ceiling", () => {
+    const names = Array.from({ length: 16_000 }, (_, i) => `project ${i}alpha`);
+    const start = performance.now();
+    const vocabulary = buildEntityVocabulary(names, "v");
+    expect(performance.now() - start).toBeLessThan(BUILD_CEILING_MS);
+    expect(vocabulary.index.get("project")?.length).toBe(16_000);
+  });
+});
+
+describe("buildEntityVocabulary — whitespace in stored names", () => {
+  // `normalizeEntityName` is trim+lowercase; it does not normalize interior
+  // whitespace. A name pasted from a web page can hold a NBSP, a newline or a
+  // tab, and the query tokenizer splits on all of them. Indexing on a literal
+  // space would treat the whole name as ONE token, leave it reachable only by a
+  // query token that can never be produced, and break the completeness
+  // guarantee that licenses not unioning the heuristic underneath this tier.
+  it.each([
+    ["nbsp", " "],
+    ["newline", "\n"],
+    ["tab", "\t"],
+    ["double space", "  "],
+  ])("indexes a name separated by a %s under its tokens", (_label, separator) => {
+    const stored = `sara${separator}park`;
+    const vocabulary = buildEntityVocabulary([stored], "v");
+
+    expect(vocabulary.index.get("sara")).toContain(stored);
+    expect(vocabulary.index.get("park")).toContain(stored);
+  });
+});
+
+describe("loadEntityVocabulary — warn dedupe", () => {
+  afterEach(() => {
+    setLogger(noopLogger);
+  });
+
+  it("warns once per REASON even though the message interpolates a moving count", async () => {
+    // Keying the dedupe on the rendered message looks equivalent and is not:
+    // past the ceiling, every entity insert changes the count and mints a
+    // message the set has never seen. "Warn once" then degrades into
+    // warn-per-insert, retaining a string per insert for the life of the
+    // process — on exactly the degraded state an operator is reading the log to
+    // understand.
+    const warn = vi.fn();
+    const ctx = { entityCollection: {}, singleTenant: true } as unknown as EntityOperationsContext;
+
+    // The dedupe set is module-global and earlier cases in this file have
+    // already spent the "over-ceiling" reason, so take a fresh module graph —
+    // including a fresh logger, which is what the fresh module will read.
+    vi.resetModules();
+    const ops = await import("../db/entities/operations");
+    const logger = await import("../logger");
+    const fresh = await import("./entityVocabulary");
+    logger.setLogger({ debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() });
+    vi.mocked(ops.getEntityWriteGeneration).mockReturnValue(0);
+
+    for (const count of [50_001, 50_002, 50_003]) {
+      vi.mocked(ops.countEntitiesOp).mockResolvedValue(count);
+      await fresh.loadEntityVocabulary(ctx);
+    }
+
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 });

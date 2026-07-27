@@ -43,9 +43,11 @@
  *    silent-dead-lane bug, reintroduced on exactly the phrasing meant to catch it.
  *  - PARTIAL CASING. "did Sara mention kyoto" — the strict pass found a GENUINE
  *    entity. It is still wrong to stop: "kyoto" is lowercase and is lost.
- *  - POSSESSIVES. "Sara's flight to kyoto" — the strict pass emits "sara's",
- *    which is never a stored canonical, so it is simultaneously a real hit and
- *    a useless one.
+ *  - POSSESSIVES. "Sara's flight to kyoto" — the strict pass emits "sara's" and
+ *    a gate then stops, losing "kyoto". (Note "sara's" itself is NOT
+ *    necessarily useless: the write side stores what it extracted, so a
+ *    possessive CAN be a stored canonical. Both the surface and its stem are
+ *    emitted — see {@link stripPossessive}.)
  * A predicate can be taught about function words. It cannot distinguish the
  * last two from a successful extraction, because they ARE successful
  * extractions that are also incomplete. So the gate is deleted rather than
@@ -87,7 +89,11 @@
  */
 
 import { normalizeEntityName } from "../db/entities/types.js";
-import { type EntityVocabulary, MAX_VOCABULARY_CANDIDATES } from "./entityVocabulary.js";
+import {
+  type EntityVocabulary,
+  MAX_VOCABULARY_CANDIDATES,
+  nameTokens,
+} from "./entityVocabulary.js";
 
 const STOPWORDS = new Set(
   [
@@ -247,11 +253,22 @@ const MAX_FALLBACK_TOKENS = 3;
 /**
  * Strip a trailing possessive: "sara's" → "sara", "boss'" → "boss".
  *
- * REPLACES the token rather than emitting both forms. A possessive is never a
- * stored canonical name — the write side normalizes the noun, not the inflected
- * surface — so keeping it only spends an IN-clause slot on a candidate that
- * cannot match. This is also what folds contractions ("what's" → "what") back
- * within reach of the stopword sets.
+ * ADDITIVE — every caller emits the stem ALONGSIDE the original surface, never
+ * instead of it. Substituting looks obviously right and is wrong: a possessive
+ * form absolutely can be a stored canonical name. `normalizeEntityName` is
+ * `trim().toLowerCase()` (db/entities/types.ts) — it does not strip
+ * inflection — so whatever the write-side extractor emitted is stored verbatim,
+ * and possessive-form proper nouns are an ordinary and large class of them
+ * ("McDonald's", "Lowe's", "Trader Joe's", "Levi's", "Dunkin'"). Replacing the
+ * token makes every one of those unreachable in BOTH tiers: the heuristic emits
+ * "mcdonald", and the grounded tier probes "mcdonald" against an index whose
+ * key is "mcdonald's" (a single-token name is indexed under itself verbatim,
+ * and depluralize/pluralize produce "mcdonalds", never the apostrophe form).
+ * The eval corpus cannot see this — none of its 353 stored canonicals contains
+ * an apostrophe — so it is checked directly in the test suite instead.
+ *
+ * Emitting the stem as WELL is what folds contractions ("what's" → "what") back
+ * within reach of the stopword sets, which is the job it was added for.
  *
  * The `>= 2` stem guard keeps "o'brien" whole: the lazy group would otherwise
  * happily cut it to "o". Multi-word candidates that don't END in an apostrophe
@@ -260,6 +277,23 @@ const MAX_FALLBACK_TOKENS = 3;
 function stripPossessive(token: string): string {
   const match = /^(.*?)['’](?:s)?$/u.exec(token);
   return match && match[1].length >= 2 ? match[1] : token;
+}
+
+/**
+ * Fold U+2019 onto U+0027 for the retained possessive SURFACE only.
+ *
+ * The surface is emitted so it can match a stored possessive canonical, and a
+ * stored one is written by the extraction LLM, which types a straight
+ * apostrophe. Phone keyboards type a curly one. Without this fold the two
+ * spellings are different candidates and "McDonald’s" as typed never matches
+ * "mcdonald's" as stored — which would make the retained surface useless in
+ * exactly the case it exists for.
+ *
+ * Applied ONLY to that extra candidate, never to the tokens the n-grams are
+ * built from, so no existing candidate changes shape.
+ */
+function foldApostrophe(token: string): string {
+  return token.includes("’") ? token.replace(/’/gu, "'") : token;
 }
 
 /**
@@ -295,6 +329,14 @@ function pluralize(token: string): string | undefined {
  * `entityVocabulary.ts` is what turns that measurement into a guarantee, and
  * the property test in this file's test suite is what keeps it honest.
  *
+ * NO query-side stopwording, deliberately. The heuristic needs
+ * {@link FALLBACK_STOPWORDS} because it invents candidates and a common word
+ * would invent a useless one; here a common word can only resolve to a name the
+ * vault actually stores. The cost is that a generic token fans out to every
+ * stored name containing it, which is real and is part of the lane-precision
+ * trade this tier makes — bounded by {@link MAX_VOCABULARY_CANDIDATES}, and
+ * measured on both sides in `entityLane.test.ts`, not argued away.
+ *
  * Uses the SAME {@link TOKEN_REGEX} and {@link stripPossessive} as the lexical
  * pass. That is not stylistic: the guarantee above holds only while the two
  * tiers agree on what a token is.
@@ -309,13 +351,18 @@ function extractGroundedCandidates(query: string, vocabulary: EntityVocabulary):
   const clamped = query.length > MAX_QUERY_CHARS ? query.slice(0, MAX_QUERY_CHARS) : query;
   const queryTokens = new Set<string>();
   for (const raw of clamped.match(TOKEN_REGEX) ?? []) {
-    const token = stripPossessive(normalizeEntityName(raw));
-    if (token.length < 2) continue;
-    queryTokens.add(token);
-    const singular = depluralize(token);
-    if (singular) queryTokens.add(singular);
-    const plural = pluralize(token);
-    if (plural) queryTokens.add(plural);
+    const surface = normalizeEntityName(raw);
+    // Probe the possessive surface as well as its stem: a stored canonical can
+    // BE a possessive ("mcdonald's"), in which case the stem matches no index
+    // key at all. See {@link stripPossessive}.
+    for (const token of new Set([foldApostrophe(surface), stripPossessive(surface)])) {
+      if (token.length < 2) continue;
+      queryTokens.add(token);
+      const singular = depluralize(token);
+      if (singular) queryTokens.add(singular);
+      const plural = pluralize(token);
+      if (plural) queryTokens.add(plural);
+    }
   }
 
   const matchedTokens = new Map<string, number>();
@@ -326,7 +373,7 @@ function extractGroundedCandidates(query: string, vocabulary: EntityVocabulary):
   }
 
   return [...matchedTokens.entries()]
-    .map(([name, matched]) => [name, matched / name.split(" ").length] as const)
+    .map(([name, matched]) => [name, matched / nameTokens(name).length] as const)
     .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length || (a[0] < b[0] ? -1 : 1))
     .slice(0, MAX_VOCABULARY_CANDIDATES)
     .map(([name]) => name);
@@ -351,9 +398,18 @@ function extractGroundedCandidates(query: string, vocabulary: EntityVocabulary):
  * pass alone would have produced.
  *
  * An empty/whitespace query, or one whose every token is a stopword, returns an
- * empty array — and an empty array makes the W5 graph lane a no-op (zero DB
- * lookups in {@link buildGraphLaneRanking} / {@link traverseGraphLane}), so a
- * stopword-only query stays free.
+ * empty array, and an empty array makes the rest of the W5 graph lane a no-op —
+ * no `getMemoriesByEntityNamesOp`, no traversal.
+ *
+ * That is not the same as free on the default path, and the difference is worth
+ * being precise about. `buildGraphLaneRanking` resolves the vocabulary BEFORE
+ * calling this function, because the grounded tier can resolve names the
+ * heuristic cannot and so extraction cannot run first. So a recall carrying an
+ * `entityCtx` pays one indexed COUNT — plus, on the first call of a session or
+ * any call after an entity write moved the version stamp, a raw enumeration and
+ * an index build — before discovering the query yields no seeds. Only the
+ * lane's own lookups are avoided. `entityVocabulary: "off"` skips the read
+ * entirely.
  *
  * Pure, synchronous, total on both paths: it cannot throw and cannot block,
  * which is why the lane can call it before deciding whether to issue a lookup.
@@ -384,20 +440,37 @@ export function extractQueryEntities(query: string, vocabulary?: EntityVocabular
     // for every variant recovers parity at modest cost.
     const candidates = surface.includes(" ") ? [surface, ...surface.split(/\s+/)] : [surface];
     for (const raw of candidates) {
-      const candidate = stripPossessive(raw);
-      if (!candidate) continue;
-      if (STOPWORDS.has(candidate)) continue;
-      if (candidate.split(/\s+/).every((w) => STOPWORDS.has(w))) continue;
-      if (!push(candidate)) return out;
+      // Stopwording is decided on the STEM, and it drops both forms. That is
+      // what keeps a contraction of a function word out: "what's" stems to
+      // "what", which is a strict stopword, so neither spelling is emitted.
+      // Testing the surface instead would let every "What's"/"Who's"/"Where's"
+      // through, since `normalizeEntityName` keeps the apostrophe and the
+      // narrow STOPWORDS set lists only the bare word.
+      const stem = stripPossessive(raw);
+      if (!stem) continue;
+      if (STOPWORDS.has(stem)) continue;
+      if (stem.split(/\s+/).every((w) => STOPWORDS.has(w))) continue;
+      // Surface first, then stem. Order is observable under the cap, and the
+      // surface is the literal text — the form that matches a stored possessive
+      // canonical — so it keeps the higher-precision slot.
+      for (const candidate of new Set([foldApostrophe(raw), stem])) {
+        if (!candidate) continue;
+        if (!push(candidate)) return out;
+      }
     }
   }
 
   // ── Lexical pass: case-blind n-grams. ALWAYS runs ─────────────────────────
   // Normalized exactly like the write side ({@link normalizeEntityName},
   // types.ts) so lookup parity holds byte for byte.
-  const tokens = (clamped.match(TOKEN_REGEX) ?? []).map((t) =>
-    stripPossessive(normalizeEntityName(t))
-  );
+  // Grams are formed over the POSSESSIVE-STEMMED tokens, so "what's" folds onto
+  // "what" and is caught by the stopword sets. The un-stemmed surfaces are kept
+  // alongside because a stored canonical can itself be a possessive
+  // ("mcdonald's") — see {@link stripPossessive} — and are emitted as unigrams
+  // only, since a stored MULTI-word name is normalized from its own text and
+  // the stemmed gram already covers it.
+  const rawTokens = (clamped.match(TOKEN_REGEX) ?? []).map((t) => normalizeEntityName(t));
+  const tokens = rawTokens.map(stripPossessive);
   // Tier-major (n outer, position inner): the whole query is covered at n=1
   // before any bigram is formed, so a binding cap truncates the least-valuable
   // TIER rather than the tail of the SENTENCE. The obvious alternative —
@@ -415,6 +488,12 @@ export function extractQueryEntities(query: string, vocabulary?: EntityVocabular
       // already stopworded, and the DB validates the rest.
       if (gram.some((t) => t.length < 2 || FALLBACK_STOPWORDS.has(t))) continue;
       if (!push(gram.join(" "))) return out;
+      // Only reached when the STEM already cleared stopwording above, so a
+      // function-word contraction ("what's" -> "what") never gets here.
+      if (n === 1) {
+        const surface = foldApostrophe(rawTokens[start]);
+        if (surface !== gram[0] && surface.length >= 2 && !push(surface)) return out;
+      }
     }
   }
   return out;

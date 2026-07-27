@@ -4,6 +4,7 @@ import {
   countEntitiesOp,
   type EntityOperationsContext,
   getEntityWriteGeneration,
+  getMemoriesByEntityNamesOp,
   linkMemoryEntitiesOp,
   listEntityNamesOp,
   replaceMemoryEntitiesGuardedOp,
@@ -657,5 +658,65 @@ describe("entity write generation", () => {
 
     // Advancing here would invalidate a cache that is still perfectly correct.
     expect(getEntityWriteGeneration()).toBe(before);
+  });
+});
+
+describe("getMemoriesByEntityNamesOp — the lane's fan-out read", () => {
+  /**
+   * The link read is the graph lane's fan-out, and the only thing that ever
+   * bounded it was the extractor guessing wrong. The vocabulary tier removes
+   * that accident — every candidate it emits is a name that exists — so this
+   * read goes from "usually zero rows" to "always rows, for every candidate",
+   * and a dense entity carries hundreds of links.
+   *
+   * `.fetch()` here THROWS, exactly as in the `listEntityNamesOp` fixture
+   * above: a test that only checked the returned map would pass whether or not
+   * a WatermelonDB Model was instantiated per link row into the never-evicted
+   * RecordCache, which is the thing being asserted.
+   */
+  function makeLinkCtx(linkRows: Array<Record<string, unknown>>) {
+    const entityQuery = vi.fn(() => ({
+      fetch: vi.fn(async () => [
+        { id: "ent1", canonicalName: "kyoto" },
+        { id: "ent2", canonicalName: "sara park" },
+      ]),
+    }));
+    const linkQuery = vi.fn(() => ({
+      fetch: vi.fn(async () => {
+        throw new Error("Model instantiation on the hot path");
+      }),
+      unsafeFetchRaw: vi.fn(async () => linkRows),
+    }));
+    const ctx = {
+      entityCollection: { query: entityQuery } as never,
+      memoryEntityCollection: { query: linkQuery } as never,
+      database: {} as never,
+    } as EntityOperationsContext;
+    return { ctx, linkQuery };
+  }
+
+  it("reads link rows raw rather than materialising a Model per row", async () => {
+    const { ctx } = makeLinkCtx([
+      { memory_id: "m1", entity_id: "ent1" },
+      { memory_id: "m1", entity_id: "ent2" },
+      { memory_id: "m2", entity_id: "ent1" },
+    ]);
+
+    const out = await getMemoriesByEntityNamesOp(ctx, ["kyoto", "sara park"]);
+
+    expect(out.get("m1")).toEqual(new Set(["kyoto", "sara park"]));
+    expect(out.get("m2")).toEqual(new Set(["kyoto"]));
+  });
+
+  it("bounds the link read with a take clause", async () => {
+    // So that "how many rows can one lane lookup materialise" has an answer
+    // that is not "all of them". The cap sits far above NODE_BUDGET, so it
+    // cannot change a result the caller keeps.
+    const { ctx, linkQuery } = makeLinkCtx([{ memory_id: "m1", entity_id: "ent1" }]);
+
+    await getMemoriesByEntityNamesOp(ctx, ["kyoto"]);
+
+    const clauses = JSON.stringify(linkQuery.mock.calls[0]);
+    expect(clauses).toContain("take");
   });
 });

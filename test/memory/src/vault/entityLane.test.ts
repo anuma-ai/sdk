@@ -15,12 +15,18 @@
  * remembers to run an eval is how that happened. So the numbers below are
  * committed to `entity-lane-baseline.json` and asserted as a ratchet.
  *
- * FOUR casing variants, not one. The extractor's failure modes are casing
+ * FIVE casing variants, not one. The extractor's failure modes are casing
  * failure modes, and each variant exercises a different one — see
  * {@link VARIANT_FN}. A lift number measured only on "everything cased" and
  * "everything lowercased" is not evidence the lane works, which is exactly how
  * a question-initial query ("Are there any designers in san francisco") could
  * kill the lane while every eval stayed green.
+ *
+ * The `question-initial` arm is the one that catches that class, and it is
+ * there because sentence-casing does NOT: on this corpus a sentence-cased query
+ * almost always starts with a strict stopword, so a strict-pass gate never
+ * engages and the arm reports identical numbers with the gate present or
+ * absent. Verified by mutation, not by inspection — see that variant's comment.
  *
  * What this file does NOT establish: it scores the LANE against gold entity
  * links. It does not run fused end-to-end recall, so it says nothing about
@@ -110,9 +116,15 @@ function rankLane(candidates: readonly string[]): string[] {
   return [...byMemory.entries()].sort((a, b) => b[1].size - a[1].size).map(([id]) => id);
 }
 
-type Variant = "as-written" | "lower" | "sentence" | "upper";
+type Variant = "as-written" | "lower" | "sentence" | "upper" | "question-initial";
 
-const VARIANTS: readonly Variant[] = ["as-written", "lower", "sentence", "upper"];
+const VARIANTS: readonly Variant[] = [
+  "as-written",
+  "lower",
+  "sentence",
+  "upper",
+  "question-initial",
+];
 
 const VARIANT_FN: Record<Variant, (q: string) => string> = {
   /**
@@ -124,12 +136,19 @@ const VARIANT_FN: Record<Variant, (q: string) => string> = {
   /** Dictation / autocaps off. No strict hits anywhere in the sentence. */
   lower: (q) => q.toLowerCase(),
   /**
-   * The shape neither arm of the design bakeoff contained: a leading
-   * capitalized FUNCTION word over an otherwise-lowercase body ("Are there any
-   * designers in san francisco"). It is simultaneously the People-Nearby
-   * phrasing this lane exists for and the exact shape a strict-pass gate
-   * mistakes for a successful extraction, so a whole class of lane death is
-   * invisible without it.
+   * Autocaps on: a capitalized first word over an otherwise-lowercase body.
+   * The realistic mobile distribution.
+   *
+   * NOTE what this does NOT cover, because the obvious reading is wrong and
+   * this file used to state it. Sentence-casing only capitalizes whatever word
+   * the query already starts with, and on this corpus that word is almost
+   * always "What"/"When"/"Where"/"How" — all in the strict STOPWORDS set, so no
+   * strict candidate is produced and a strict-pass gate never engages. Of the
+   * 87 positive queries only 13 begin with a word that survives strict
+   * stopwording ("Does", "Can", "Tell"...), and not one of those 13 has a
+   * non-empty lane to lose. Measured: reintroducing the naive pre-#763 gate
+   * leaves every metric in this arm bit-identical. It is a real casing arm; it
+   * is not a gate arm. {@link VARIANT_FN["question-initial"]} is the gate arm.
    */
   sentence: (q) => {
     const lower = q.toLowerCase();
@@ -142,6 +161,26 @@ const VARIANT_FN: Record<Variant, (q: string) => string> = {
    * is visible rather than theoretical.
    */
   upper: (q) => q.toUpperCase(),
+  /**
+   * The shape that killed the lane, and the shape neither arm of the design
+   * bakeoff contained: a leading capitalized FUNCTION word over an
+   * otherwise-lowercase body — "Are there any designers in san francisco".
+   *
+   * "Are" satisfies the strict regex (any capitalized 3+ char token) and is NOT
+   * in the narrow strict STOPWORDS set, so it lands as a candidate. A gate that
+   * reads "the strict pass found something" as "extraction worked" then
+   * suppresses the lexical pass entirely, the lane looks up "are", matches no
+   * stored canonical, and returns nothing — on precisely the People-Nearby
+   * phrasing this lane exists to serve.
+   *
+   * The prefix is three function words, all of them in FALLBACK_STOPWORDS, so
+   * every n-gram it could form is rejected and the lexical candidate set is
+   * identical to the `lower` arm's. That is the point: this arm's metrics equal
+   * `lower`'s while the extractor is healthy, and collapse the moment a
+   * strict-pass gate comes back. Grammar is not the goal; exercising the code
+   * path is.
+   */
+  "question-initial": (q) => `Are there any ${q.toLowerCase()}`,
 };
 
 interface LaneMetrics {
@@ -378,6 +417,13 @@ describe.each(Object.keys(TIERS))("entity lane — %s tier", (tier) => {
     const metrics = now.variants[variant];
     const before = was?.variants?.[variant];
 
+    it("has a committed baseline for this variant", () => {
+      // Per-VARIANT, not just per-tier. Adding an arm without regenerating
+      // leaves it with no floor at all, which is the same failure this file
+      // exists to prevent — a metric nobody is holding to anything.
+      expect(before, `no baseline for "${tier}"/"${variant}" — regenerate it`).toBeDefined();
+    });
+
     it("activates on at least as many queries as the baseline", () => {
       expect(metrics.activation).toBeGreaterThanOrEqual(before.activation);
     });
@@ -445,6 +491,25 @@ describe.each(Object.keys(TIERS))("entity lane — %s tier", (tier) => {
 
   it("extracts well inside the per-query time budget", () => {
     expect(measureMicros(TIERS[tier])).toBeLessThan(MAX_MICROS_PER_QUERY);
+  });
+
+  it("reaches every stored canonical the heuristic tier can reach", () => {
+    // The no-union decision — the grounded tier REPLACES the heuristic rather
+    // than unioning with it — rests on every stored name being reachable from
+    // its own text. `queryEntities.test.ts` mechanizes that over a hand-built
+    // adversarial list, which is the right place for the awkward shapes but is
+    // 16 names chosen to be awkward. This runs it over the REAL corpus, where
+    // an index-rule change (raising MIN_INDEX_TOKEN, narrowing the tokenizer)
+    // would break multi-token names that no adversarial entry happens to have.
+    //
+    // Asserted only for the names the HEURISTIC reaches, because those are the
+    // ones the fallback would have caught: a name neither tier reaches is a
+    // known limit, not a regression introduced by dropping the union.
+    const stored = [...entityToMemories.keys()];
+    const missed = stored.filter(
+      (name) => extractQueryEntities(name).includes(name) && !TIERS[tier](name).includes(name)
+    );
+    expect(missed).toEqual([]);
   });
 
   it("reports the semantic headroom left on the table", () => {

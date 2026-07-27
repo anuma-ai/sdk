@@ -164,7 +164,15 @@ describe("extractQueryEntities — lexical pass (case-blind recall net)", () => 
     // token class it splits "sara’s" into "sara" + a dropped 1-char token, and
     // the bigram "sara flight" is silently never formed.
     expect(extractQueryEntities("sara’s flight")).toEqual(extractQueryEntities("sara's flight"));
-    expect(extractQueryEntities("sara’s flight")).toEqual(["sara", "flight", "sara flight"]);
+    // Both spellings converge on the STRAIGHT apostrophe for the retained
+    // possessive surface — the write side is an LLM, which types U+0027, so a
+    // curly surface emitted verbatim could never match a stored canonical.
+    expect(extractQueryEntities("sara’s flight")).toEqual([
+      "sara",
+      "sara's",
+      "flight",
+      "sara flight",
+    ]);
   });
 });
 
@@ -215,14 +223,72 @@ describe("extractQueryEntities — the three shapes a strict-pass gate gets wron
     expect(out).toEqual(["sara", "tokyo"]);
   });
 
-  it("POSSESSIVE: 'Sara's' resolves to the stored canonical, not the inflection", () => {
-    // "sara's" is a genuine strict hit AND can never match a stored canonical,
-    // because the write side stores the noun. Both facts at once is what makes
+  it("POSSESSIVE: 'Sara's' emits the stem AND keeps the inflected surface", () => {
+    // "sara's" is a genuine strict hit that is ALSO incomplete — "kyoto" is
+    // lowercase and would be lost by a gate. Both facts at once is what makes
     // the gate unfixable.
     const out = extractQueryEntities("Sara's flight to kyoto");
     expect(out).toContain("sara");
     expect(out).toContain("kyoto");
-    expect(out).not.toContain("sara's");
+    // The surface is kept, not replaced. `normalizeEntityName` is trim+lowercase
+    // and does not strip inflection, so a possessive CAN be a stored canonical
+    // and dropping the surface would make it unreachable — see the dedicated
+    // possessive-canonical cases below.
+    expect(out).toContain("sara's");
+  });
+});
+
+describe("extractQueryEntities — possessive-form stored canonicals", () => {
+  // A whole class of ordinary proper nouns ends in "'s", and the write side
+  // stores whatever the extraction LLM emitted: `normalizeEntityName` is
+  // `trim().toLowerCase()` and does not strip inflection. So "mcdonald's" is a
+  // perfectly normal stored canonical, and an extractor that REPLACES the
+  // possessive surface with its stem cannot reach it from either tier — the
+  // heuristic emits "mcdonald", and the grounded tier probes "mcdonald" against
+  // an index keyed "mcdonald's" (a single-token name is indexed under itself
+  // verbatim; depluralize/pluralize produce "mcdonalds", never the apostrophe).
+  //
+  // The eval corpus is structurally blind to this: not one of its 353 stored
+  // canonicals contains an apostrophe. So it is checked here, directly.
+  const POSSESSIVE_CANONICALS = ["mcdonald's", "lowe's", "trader joe's", "dunkin'"];
+  const vocabulary = buildEntityVocabulary(POSSESSIVE_CANONICALS, "test");
+
+  it.each([
+    ["Where is the nearest McDonald's", "mcdonald's"],
+    ["what did i buy at Lowe's", "lowe's"],
+    ["anything about Trader Joe's", "trader joe's"],
+    ["coffee at Dunkin' this morning", "dunkin'"],
+  ])("heuristic tier reaches the stored canonical in %j", (query, stored) => {
+    expect(extractQueryEntities(query)).toContain(stored);
+  });
+
+  it.each([
+    ["Where is the nearest McDonald's", "mcdonald's"],
+    ["what did i buy at Lowe's", "lowe's"],
+    ["anything about Trader Joe's", "trader joe's"],
+    ["coffee at Dunkin' this morning", "dunkin'"],
+  ])("grounded tier resolves the stored canonical in %j", (query, stored) => {
+    expect(extractQueryEntities(query, vocabulary)).toContain(stored);
+  });
+
+  it("reaches it from an all-lowercase query too, where the strict pass is blind", () => {
+    expect(extractQueryEntities("where is the nearest mcdonald's")).toContain("mcdonald's");
+    expect(extractQueryEntities("where is the nearest mcdonald's", vocabulary)).toContain(
+      "mcdonald's"
+    );
+  });
+
+  it("reaches it from a curly apostrophe, which is what a phone keyboard types", () => {
+    expect(extractQueryEntities("where is the nearest mcdonald’s")).toContain("mcdonald's");
+    expect(extractQueryEntities("where is the nearest mcdonald’s", vocabulary)).toContain(
+      "mcdonald's"
+    );
+  });
+
+  it("still emits the stem, so a vault storing the bare noun keeps matching", () => {
+    // The surface is ADDITIVE. Whichever form the write side happened to store,
+    // one of the two candidates reaches it.
+    expect(extractQueryEntities("Where is the nearest McDonald's")).toContain("mcdonald");
   });
 });
 

@@ -36,6 +36,23 @@ tokens) — at least one required.
 
 ***
 
+### entityVocabulary?
+
+> `optional` **entityVocabulary**: `"auto"` | `"off"`
+
+Defined in: [src/lib/memory/recallTool.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#69)
+
+Kill switch for the W5 lane's vocabulary-grounded entity resolution.
+`"off"` falls back to the heuristic extractor and issues no entity-table
+read at all. Default `"auto"`.
+
+Exposed here because this is the SDK's primary recall entry point — it is
+what `useChatStorage` wires — so a host that wants to back the tier out
+has no other lever short of forking. It matters more than most options
+because the tier trades lane precision for activation.
+
+***
+
 ### excludeConversationId?
 
 > `optional` **excludeConversationId**: `string`

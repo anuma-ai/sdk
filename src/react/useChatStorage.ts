@@ -1296,6 +1296,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // legacy unscoped rows until `backfillMemoryEntityUserIdsOp` runs.
       ...(walletAddress !== undefined && { userId: walletAddress }),
       allowUnscopedRows: true,
+      // Same declaration, same reason as vaultCtx above: this is a per-wallet,
+      // physically single-tenant client DB. It has to be stated rather than
+      // inferred from the `userId` on the line above — that field scopes legacy
+      // rows and says nothing about tenancy, and the recall-time vocabulary
+      // index is only allowed to enumerate the global `entity` table when there
+      // is genuinely one tenant in it.
+      singleTenant: true,
     }),
     [database, entityCollection, memoryEntityCollection, walletAddress]
   );

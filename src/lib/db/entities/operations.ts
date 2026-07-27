@@ -34,6 +34,24 @@ export interface EntityOperationsContext {
    * (server / SQLite, where the migration backfill is authoritative).
    */
   allowUnscopedRows?: boolean;
+  /**
+   * Declares that this process holds exactly ONE tenant's entity table — a
+   * per-wallet client database, not a shared multi-user server.
+   *
+   * Read by `loadEntityVocabulary`, which enumerates the whole `entity` table
+   * to build its recall-time index. That table is global vocabulary with no
+   * owner ({@link listEntityNamesOp}), so enumerating it is only acceptable
+   * when there is nobody else in it.
+   *
+   * This is deliberately NOT inferred from {@link userId}. `userId` answers "is
+   * this read user-scoped" — the React client sets it to the connected wallet
+   * to scope legacy `memory_entity` rows on a database that is nevertheless
+   * physically single-tenant — so inferring tenancy from it is wrong in both
+   * directions. Mirrors `VaultMemoryOperationsContext.singleTenant`, which
+   * exists so the decay sweep's scope guard stops inferring safety from
+   * `walletAddress`. Default (absent) is the safe answer: no enumeration.
+   */
+  singleTenant?: boolean;
 }
 
 /**
@@ -50,10 +68,26 @@ export interface EntityOperationsContext {
  *
  * Process-local is sufficient today: `entity` rows are written from this module
  * and nowhere else (`grep entityCollection src/lib` reaches only schema.ts and
- * models.ts outside this file), and there is no sync engine. A second
- * `Database` in one process would only ever OVER-invalidate — a ~5ms rebuild —
- * never under-invalidate. A sync engine writing `entity` rows behind this
- * module's back would under-invalidate, and would need the stamp widened.
+ * models.ts outside this file), and there is no sync engine.
+ *
+ * BUMPED AFTER THE WRITER RESOLVES, and that ordering has a known residual. A
+ * recall whose `countEntitiesOp` resolves against the post-commit table while
+ * this counter is still pre-bump computes a stamp for a state that no longer
+ * exists and can serve one stale index. It is one call wide and self-heals on
+ * the next recall. The alternative — bumping before or inside the writer — is
+ * worse in the direction that matters: a writer that throws would advance the
+ * stamp for a commit that never happened, and a rebuild cached under that stamp
+ * is wrong until something else moves it. Over-invalidating costs a rebuild;
+ * under-invalidating costs a wrong answer, so the cheap failure is the one to
+ * keep.
+ *
+ * A second `Database` in one process makes this counter shared, so a write to
+ * one table invalidates the other's cached vocabulary — an over-invalidation,
+ * costing a rebuild. It cannot cause the converse (one vault's names served for
+ * another's queries) because the vocabulary's version stamp also carries a
+ * per-context identity; this counter is not load-bearing for that. A sync
+ * engine writing `entity` rows behind this module's back WOULD under-invalidate
+ * and would need the stamp widened.
  */
 let entityWriteGeneration = 0;
 
@@ -64,6 +98,15 @@ let entityWriteGeneration = 0;
 export function getEntityWriteGeneration(): number {
   return entityWriteGeneration;
 }
+
+/**
+ * Hard cap on `memory_entity` rows {@link getMemoriesByEntityNamesOp} will
+ * materialise for one lookup. 4000 rows is 250 links each for a full
+ * 16-candidate `IN`-clause, against a lane that emits at most NODE_BUDGET (64)
+ * memories — so this bounds the read without being reachable by any result the
+ * caller keeps.
+ */
+const MAX_ENTITY_LINK_ROWS = 4000;
 
 function entityToStored(e: Entity): StoredEntity {
   return {
@@ -535,13 +578,31 @@ export async function getMemoriesByEntityNamesOp(
       linkConditions.push(Q.where("user_id", ctx.userId));
     }
   }
-  const links = await ctx.memoryEntityCollection.query(...linkConditions).fetch();
+  // `unsafeFetchRaw` + a hard cap, NOT `.fetch()`. This is the graph lane's
+  // fan-out read and the only thing that ever bounded it was the extractor
+  // guessing wrong: a candidate that matched no stored name returned no rows.
+  // The vocabulary tier removes exactly that accident — every candidate it
+  // emits is a name that exists — so this read goes from "usually zero rows" to
+  // "always rows, for up to MAX_VOCABULARY_CANDIDATES real entities", and a
+  // dense entity ("2025", "work") can carry hundreds of links each. `.fetch()`
+  // would instantiate a WatermelonDB Model per link row into the never-evicted
+  // RecordCache; the two columns read here are raw. Same precedent as
+  // `listEntityNamesOp` and `getActiveVaultMemoryIdsOp`.
+  //
+  // The cap is far above anything the caller can use — `buildGraphLaneRanking`
+  // and `traverseGraphLane` both cut to NODE_BUDGET (64) memories downstream —
+  // so it cannot change a result that a client could observe. It exists so
+  // "how many rows can this materialise" has an answer that is not "all of
+  // them".
+  const linkRows = (await ctx.memoryEntityCollection
+    .query(...linkConditions, Q.take(MAX_ENTITY_LINK_ROWS))
+    .unsafeFetchRaw()) as Array<Record<string, unknown>>;
 
   // memoryId → Set<entity name> the memory matched.
   const out = new Map<string, Set<string>>();
-  for (const link of links) {
-    const memoryId = String(link.memoryId);
-    const entityName = entityIdToName.get(String(link.entityId));
+  for (const link of linkRows) {
+    const memoryId = String(link.memory_id);
+    const entityName = entityIdToName.get(String(link.entity_id));
     if (!entityName) continue;
     let bucket = out.get(memoryId);
     if (!bucket) {
