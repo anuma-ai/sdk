@@ -724,7 +724,7 @@ describe("recall — entity (W5) lane", () => {
 
     it("probes past archived rows rather than letting them starve the lane", async () => {
       // Filtering AFTER the cap would let a run of archived ids at the top of
-      // the ranking eat the whole budget. The 2x probe is what stops that.
+      // the ranking eat the whole budget. Probing outward is what stops that.
       vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(200));
       vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
         async (_ctx, ids: string[]) => new Set(ids.slice(NODE_BUDGET))
@@ -736,6 +736,42 @@ describe("recall — entity (W5) lane", () => {
       });
 
       expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+
+    it("probes past an archived run LONGER than one round", async () => {
+      // A single fixed probe only makes starvation less likely; it does not
+      // prevent it. With every id in the first round archived, a one-shot probe
+      // filters to nothing and the lane emits zero despite hundreds of
+      // reachable active memories behind the run. Archived ids cluster — a bulk
+      // forget, a dismissed import — so "longer than the probe" is a real shape,
+      // not a contrived one.
+      const ROUND = NODE_BUDGET * 2;
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(600));
+      vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(
+        async (_ctx, ids: string[]) =>
+          // Ids are `g<i>`; everything before the first round boundary + 22 is
+          // archived, so round 1 comes back completely empty.
+          new Set(ids.filter((id) => Number(id.slice(1)) >= ROUND + 22))
+      );
+      const seen: RecallDiagnostics[] = [];
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }), {
+        onDiagnostics: (d) => seen.push(d),
+      });
+
+      expect(seen[0].graphCount).toBe(NODE_BUDGET);
+    });
+
+    it("gives up after a bounded number of probe rounds", async () => {
+      // The converse guard: a vault whose graph lane is almost entirely
+      // archived must not turn one recall into an unbounded walk of the
+      // ranking. It emits what it found and stops.
+      vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(denseMatch(4000));
+      vi.mocked(getActiveVaultMemoryIdsOp).mockImplementation(async () => new Set<string>());
+
+      await recall(ENTITY_QUERY, makeCtx({ entityCtx }));
+
+      expect(vi.mocked(getActiveVaultMemoryIdsOp).mock.calls.length).toBeLessThanOrEqual(8);
     });
 
     it("caps even without a vaultCtx to filter against", async () => {

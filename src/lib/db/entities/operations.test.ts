@@ -708,15 +708,89 @@ describe("getMemoriesByEntityNamesOp — the lane's fan-out read", () => {
     expect(out.get("m2")).toEqual(new Set(["kyoto"]));
   });
 
-  it("bounds the link read with a take clause", async () => {
+  it("bounds the link read PER SEED, not across the combined result", async () => {
     // So that "how many rows can one lane lookup materialise" has an answer
-    // that is not "all of them". The cap sits far above NODE_BUDGET, so it
-    // cannot change a result the caller keeps.
+    // that is not "all of them" — but bounded per seed, because a single global
+    // cap is applied by the database across the combined result with no
+    // ordering guarantee, and one dense entity can then consume the whole
+    // budget. See the starvation test below for what that costs.
     const { ctx, linkQuery } = makeLinkCtx([{ memory_id: "m1", entity_id: "ent1" }]);
 
-    await getMemoriesByEntityNamesOp(ctx, ["kyoto"]);
+    await getMemoriesByEntityNamesOp(ctx, ["kyoto", "sara park"]);
 
-    const clauses = JSON.stringify(linkQuery.mock.calls[0]);
-    expect(clauses).toContain("take");
+    // One capped read per resolved entity, each scoped to that entity.
+    expect(linkQuery.mock.calls).toHaveLength(2);
+    for (const call of linkQuery.mock.calls) {
+      const clauses = JSON.stringify(call);
+      expect(clauses).toContain('"type":"take"');
+      expect(clauses).toContain('"left":"entity_id"');
+    }
+  });
+
+  /**
+   * Serves link rows from a per-entity table, honouring whatever `entity_id`
+   * equality and `take` the op asks for — i.e. it models what the DATABASE does
+   * rather than replaying a fixed array. That distinction is the test: a mock
+   * that ignores the clauses cannot tell a global cap from a per-seed one.
+   */
+  function makeTableLinkCtx(table: Record<string, string[]>) {
+    const entityQuery = vi.fn(() => ({
+      fetch: vi.fn(async () =>
+        Object.keys(table).map((name) => ({ id: `ent_${name}`, canonicalName: name }))
+      ),
+    }));
+    const linkQuery = vi.fn((...clauses: unknown[]) => {
+      const json = clauses.map((c) => JSON.stringify(c));
+      const idClause = json.find((c) => c.includes('"left":"entity_id"')) ?? "";
+      const entityId = /"value":"([^"]+)"/.exec(idClause)?.[1];
+      const take = Number(/"type":"take","count":(\d+)/.exec(json.join(""))?.[1] ?? Infinity);
+      const rows = Object.entries(table)
+        .filter(([name]) => entityId === undefined || `ent_${name}` === entityId)
+        .flatMap(([name, memoryIds]) =>
+          memoryIds.map((memoryId) => ({ memory_id: memoryId, entity_id: `ent_${name}` }))
+        );
+      return {
+        fetch: vi.fn(async () => {
+          throw new Error("Model instantiation on the hot path");
+        }),
+        unsafeFetchRaw: vi.fn(async () => rows.slice(0, take)),
+      };
+    });
+    return {
+      ctx: {
+        entityCollection: { query: entityQuery } as never,
+        memoryEntityCollection: { query: linkQuery } as never,
+        database: {} as never,
+      } as EntityOperationsContext,
+    };
+  }
+
+  it("does not let a dense entity starve a sparse one out of the overlap map", async () => {
+    // The failure this prevents: a global cap is applied across the combined
+    // result, so "work" — linked to more memories than the whole budget — fills
+    // it alone and "kyoto"'s single link is dropped before the op ever sees it.
+    // rankMemoriesByOverlap then ranks by how many seeds a memory matched, from
+    // a set that is missing matches, and the downstream NODE_BUDGET cut cannot
+    // repair it because that cut happens AFTER the ranking.
+    const { ctx } = makeTableLinkCtx({
+      work: Array.from({ length: 5000 }, (_, i) => `m_dense_${i}`),
+      kyoto: ["m_rare"],
+    });
+
+    const out = await getMemoriesByEntityNamesOp(ctx, ["work", "kyoto"]);
+
+    expect(out.get("m_rare")).toEqual(new Set(["kyoto"]));
+  });
+
+  it("caps the dense entity itself rather than reading every one of its links", async () => {
+    const { ctx } = makeTableLinkCtx({
+      work: Array.from({ length: 5000 }, (_, i) => `m_dense_${i}`),
+    });
+
+    const out = await getMemoriesByEntityNamesOp(ctx, ["work"]);
+
+    // Bounded, and bounded well below the 5000 rows the entity actually has.
+    expect(out.size).toBeGreaterThan(0);
+    expect(out.size).toBeLessThanOrEqual(250);
   });
 });

@@ -67,6 +67,19 @@ const DEFAULT_FACT_MIN_SCORE = 0.1;
  */
 const DEFAULT_ENTITY_VOCABULARY: "auto" | "off" = "auto";
 
+/**
+ * How many rounds the graph lane will probe outward looking for active memories
+ * before giving up and emitting what it found. Each round is 2x NODE_BUDGET
+ * (128) ids and costs one indexed, decrypt-free read.
+ *
+ * A bound rather than "walk the whole ranking" because the ranking can be
+ * thousands of memories on a dense vault and a lane that is mostly archived is
+ * a lane with little left to contribute — 8 rounds walks past 1024 archived
+ * rows, which is far beyond any realistic bulk-forget run, without turning a
+ * degenerate vault into an unbounded read.
+ */
+const MAX_ACTIVE_PROBE_ROUNDS = 8;
+
 /** Monotonic wall clock in ms; `performance.now()` where available (browser /
  * RN / Node), else `Date.now()`. Used only for best-effort recall timings. */
 const nowMs = (): number =>
@@ -637,13 +650,37 @@ async function buildGraphLaneRanking(
   // when a vaultCtx is present (the same context the final recall gate filters
   // against); without it the lane keeps its pre-fix behavior.
   //
-  // Probe 2x the budget before that filter so a run of archived rows at the top
-  // of the ranking cannot starve the emitted set down to nothing.
+  // Probe OUTWARD IN ROUNDS rather than taking one fixed slice and filtering it.
+  // A single 2x probe only makes starvation less likely, it does not prevent it:
+  // a run of archived rows longer than the probe still empties the lane
+  // completely, and archived rows cluster (a bulk forget, an imported thread the
+  // user dismissed) rather than scattering uniformly. Rounds walk past the run
+  // instead of stopping at it.
+  //
+  // Sized so the common case is byte-identical to the single-probe version — one
+  // round of 2x the budget, one indexed read. Extra rounds are paid only when a
+  // round actually failed to fill the budget, i.e. exactly the case that used to
+  // silently return short.
   const vaultCtx = ctx.vaultCtx;
   if (!vaultCtx) return ranked.slice(0, NODE_BUDGET);
-  const probe = ranked.slice(0, NODE_BUDGET * 2);
-  const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, probe);
-  return probe.filter((id) => activeIds.has(id)).slice(0, NODE_BUDGET);
+  const roundSize = NODE_BUDGET * 2;
+  const active: string[] = [];
+  for (
+    let start = 0;
+    start < ranked.length &&
+    active.length < NODE_BUDGET &&
+    start < roundSize * MAX_ACTIVE_PROBE_ROUNDS;
+    start += roundSize
+  ) {
+    const round = ranked.slice(start, start + roundSize);
+    const activeIds = await getActiveVaultMemoryIdsOp(vaultCtx, round);
+    for (const id of round) {
+      if (!activeIds.has(id)) continue;
+      active.push(id);
+      if (active.length === NODE_BUDGET) break;
+    }
+  }
+  return active;
 }
 
 /**

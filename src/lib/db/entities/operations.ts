@@ -101,12 +101,25 @@ export function getEntityWriteGeneration(): number {
 
 /**
  * Hard cap on `memory_entity` rows {@link getMemoriesByEntityNamesOp} will
- * materialise for one lookup. 4000 rows is 250 links each for a full
- * 16-candidate `IN`-clause, against a lane that emits at most NODE_BUDGET (64)
- * memories — so this bounds the read without being reachable by any result the
- * caller keeps.
+ * materialise PER SEED ENTITY.
+ *
+ * Per-entity, not per-lookup, and that distinction is the whole point. A single
+ * global cap is applied by the database across the combined result with no
+ * ordering guarantee, so one dense entity ("work", "2025") can fill the entire
+ * budget and the rows for every other seed are dropped before this function
+ * ever sees them. The overlap map is then built from an incomplete set, and
+ * `rankMemoriesByOverlap` — which ranks precisely by how many seeds a memory
+ * matched — undercounts or omits exactly the high-overlap memories the lane
+ * exists to surface. Capping downstream at NODE_BUDGET does not save it: that
+ * cut happens AFTER the ranking, so a truncated read picks the wrong 64.
+ *
+ * Bounding each seed separately makes starvation impossible by construction —
+ * every seed gets its own budget, and the total is still bounded at
+ * MAX_VOCABULARY_CANDIDATES (16) x this, the same ceiling the single global cap
+ * had. The cost is one indexed read per seed instead of one combined read;
+ * they are issued concurrently and each is an index hit on `entity_id`.
  */
-const MAX_ENTITY_LINK_ROWS = 4000;
+const MAX_LINKS_PER_ENTITY = 250;
 
 function entityToStored(e: Entity): StoredEntity {
   return {
@@ -566,7 +579,7 @@ export async function getMemoriesByEntityNamesOp(
   if (entityRows.length === 0) return new Map();
 
   const entityIdToName = new Map(entityRows.map((e) => [e.id, e.canonicalName]));
-  const linkConditions: Q.Clause[] = [Q.where("entity_id", Q.oneOf(entityRows.map((e) => e.id)))];
+  const linkConditions: Q.Clause[] = [];
   if (ctx.userId !== undefined) {
     if (ctx.allowUnscopedRows) {
       // LokiJS path: the v31 SQL backfill is a no-op, so pre-v31 rows
@@ -578,25 +591,28 @@ export async function getMemoriesByEntityNamesOp(
       linkConditions.push(Q.where("user_id", ctx.userId));
     }
   }
-  // `unsafeFetchRaw` + a hard cap, NOT `.fetch()`. This is the graph lane's
-  // fan-out read and the only thing that ever bounded it was the extractor
-  // guessing wrong: a candidate that matched no stored name returned no rows.
-  // The vocabulary tier removes exactly that accident — every candidate it
-  // emits is a name that exists — so this read goes from "usually zero rows" to
-  // "always rows, for up to MAX_VOCABULARY_CANDIDATES real entities", and a
-  // dense entity ("2025", "work") can carry hundreds of links each. `.fetch()`
-  // would instantiate a WatermelonDB Model per link row into the never-evicted
-  // RecordCache; the two columns read here are raw. Same precedent as
-  // `listEntityNamesOp` and `getActiveVaultMemoryIdsOp`.
+  // `unsafeFetchRaw`, NOT `.fetch()`. This is the graph lane's fan-out read and
+  // the only thing that ever bounded it was the extractor guessing wrong: a
+  // candidate that matched no stored name returned no rows. The vocabulary tier
+  // removes exactly that accident — every candidate it emits is a name that
+  // exists — so this read goes from "usually zero rows" to "always rows, for up
+  // to MAX_VOCABULARY_CANDIDATES real entities", and a dense entity ("2025",
+  // "work") can carry hundreds of links each. `.fetch()` would instantiate a
+  // WatermelonDB Model per link row into the never-evicted RecordCache; the two
+  // columns read here are raw. Same precedent as `listEntityNamesOp` and
+  // `getActiveVaultMemoryIdsOp`.
   //
-  // The cap is far above anything the caller can use — `buildGraphLaneRanking`
-  // and `traverseGraphLane` both cut to NODE_BUDGET (64) memories downstream —
-  // so it cannot change a result that a client could observe. It exists so
-  // "how many rows can this materialise" has an answer that is not "all of
-  // them".
-  const linkRows = (await ctx.memoryEntityCollection
-    .query(...linkConditions, Q.take(MAX_ENTITY_LINK_ROWS))
-    .unsafeFetchRaw()) as Array<Record<string, unknown>>;
+  // One capped read PER SEED, concurrently, rather than one combined read with a
+  // global cap — see {@link MAX_LINKS_PER_ENTITY} for why a global cap silently
+  // corrupts the overlap ranking it feeds.
+  const perEntityRows = await Promise.all(
+    entityRows.map((entity) =>
+      ctx.memoryEntityCollection
+        .query(Q.where("entity_id", entity.id), ...linkConditions, Q.take(MAX_LINKS_PER_ENTITY))
+        .unsafeFetchRaw()
+    )
+  );
+  const linkRows = perEntityRows.flat() as Array<Record<string, unknown>>;
 
   // memoryId → Set<entity name> the memory matched.
   const out = new Map<string, Set<string>>();
