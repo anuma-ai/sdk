@@ -1564,26 +1564,74 @@ export interface VaultSearchResult {
 /**
  * Internal search that also returns the vault size, avoiding a second vault load.
  */
-export async function searchVaultMemoriesWithSize(
+
+/**
+ * The candidate set a vault search ranks over — the output of
+ * {@link prepareVaultCandidates} and the input to
+ * {@link rankPreparedVaultCandidates}.
+ *
+ * These are exactly the four locals both corpus-build paths (projected
+ * decrypt-last and legacy whole-vault) converge on. Splitting them out lets a
+ * caller that runs SEVERAL ranking passes over the same query+scope pay the
+ * expensive part — the row load, the content decrypt, and the query embed —
+ * only once. `retain()` is the motivating caller: its consolidation and
+ * strict-merge stages search an identical universe and differ only in
+ * rank-time parameters.
+ *
+ * Not part of the public SDK surface: no entry point re-exports these, so they
+ * are an internal seam for `retain()` and `searchVaultMemoriesWithSize`.
+ */
+export interface PreparedVaultCandidates {
+  /** Searchable rows (still-encrypted content already excluded). */
+  memories: StoredVaultMemory[];
+  /** Ranker input, one entry per searchable row. */
+  embeddedItems: EmbeddedItem[];
+  /** The query vector. Empty array when the vault had nothing to rank. */
+  queryEmbedding: number[];
+  /**
+   * Rows that EXIST in scope, not rows that were searchable — callers treat
+   * `vaultSize === 0` as "nothing saved yet", which must stay distinguishable
+   * from "saved but temporarily undecryptable".
+   */
+  vaultSize: number;
+}
+
+/**
+ * Build the candidate set for a vault search: load in-scope rows, drop
+ * still-encrypted content, embed the query, and resolve every row's vector
+ * (cache → stored column → re-embed). This is the expensive half of
+ * {@link searchVaultMemoriesWithSize}; the ranking half is
+ * {@link rankPreparedVaultCandidates}.
+ *
+ * Returns `vaultSize: 0` for an empty scope and `memories: []` when rows exist
+ * but none were decryptable — the caller must distinguish those (see
+ * {@link PreparedVaultCandidates.vaultSize}).
+ *
+ * **Sharing one prepared set across several ranking passes:** sound only when
+ * every pass uses the same query, scope, folder, factTypes and includeArchived
+ * — and, under `decryptLast`, only when `limit` here is the WIDEST limit any
+ * pass will use. The projected path's decrypted admission window is
+ * `max(limit * admitFactor, admitFloor)`, so a set prepared for a narrow limit
+ * holds fewer candidates than a wider pass would have seen on its own. Preparing
+ * wide and ranking narrow is safe (a superset); the reverse silently truncates.
+ */
+export async function prepareVaultCandidates(
   query: string,
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
-): Promise<{
-  results: VaultSearchResult[];
-  vaultSize: number;
-  reranked: boolean;
-  hadV2Head: boolean;
-}> {
-  const limit = searchOptions?.limit ?? 5;
-  const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
-  const scopes = searchOptions?.scopes;
-
+): Promise<PreparedVaultCandidates> {
+  // Guard here too, not only in searchVaultMemoriesWithSize: this is a public
+  // entry point now, so a direct caller (retain) must get the same no-storage-read
+  // short-circuit on a degenerate query.
   if (!query || typeof query !== "string") {
-    return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
+    return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
   }
-
+  // `limit` is read here only to size the projected decrypt-last admission
+  // window; the ranking depth is applied later, in rankPreparedVaultCandidates.
+  const limit = searchOptions?.limit ?? 5;
+  const scopes = searchOptions?.scopes;
   const folderId = searchOptions?.folderId;
 
   const queryOpts: {
@@ -1625,7 +1673,7 @@ export async function searchVaultMemoriesWithSize(
       ...(forceIncludeIds.length > 0 && { forceIncludeIds }),
     });
     if (corpus.vaultSize === 0) {
-      return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
+      return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
     // Keys exist but nothing decrypted (e.g. every admitted row still
@@ -1633,7 +1681,7 @@ export async function searchVaultMemoriesWithSize(
     // don't fall through into decompose/LLM ranking on an empty head. Report
     // the real vaultSize so callers don't mistake this for an empty vault.
     if (memories.length === 0) {
-      return { results: [], vaultSize, reranked: false, hadV2Head: false };
+      return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize };
     }
   } else {
     const loaded = await getAllVaultMemoriesOp(
@@ -1658,7 +1706,7 @@ export async function searchVaultMemoriesWithSize(
     // nothing saved yet" and say so to the LLM, which would invite
     // duplicate saves while decryption is temporarily unavailable.
     if (memories.length === 0) {
-      return { results: [], vaultSize: loaded.length, reranked: false, hadV2Head: false };
+      return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: loaded.length };
     }
 
     // Embed the query
@@ -1747,6 +1795,35 @@ export async function searchVaultMemoriesWithSize(
       factType: m.factType,
     }));
   }
+
+  return { memories, embeddedItems, queryEmbedding, vaultSize };
+}
+
+/**
+ * Rank an already-prepared candidate set. Pure with respect to storage — it
+ * touches neither the database nor the embedding cache, so it is safe to call
+ * repeatedly over one {@link prepareVaultCandidates} result.
+ *
+ * `limit` and `minSimilarity` are read from `searchOptions` here, so two calls
+ * over the same prepared set can rank at different depths and thresholds.
+ * Note that the ranking is NOT monotonic in `limit`: `rankVaultMemories` sizes
+ * its supersession window as `min(limit * 3, supersessionWindow)`, so a
+ * narrower pass is not the wider pass's output filtered — it must be re-ranked.
+ */
+export async function rankPreparedVaultCandidates(
+  query: string,
+  prepared: PreparedVaultCandidates,
+  embeddingOptions: EmbeddingOptions,
+  searchOptions?: MemoryVaultSearchOptions
+): Promise<{
+  results: VaultSearchResult[];
+  vaultSize: number;
+  reranked: boolean;
+  hadV2Head: boolean;
+}> {
+  const limit = searchOptions?.limit ?? 5;
+  const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
+  const { memories, embeddedItems, queryEmbedding, vaultSize } = prepared;
 
   // Dimension net. The load loop above re-embeds stale-model and wrong-dim
   // vectors, so this should normally be empty; it still fires if a re-embed
@@ -1927,6 +2004,45 @@ export async function searchVaultMemoriesWithSize(
 
   // Cosine-only path doesn't rerank, so hadV2Head is true if any results exist.
   return stampTimestamps({ results, vaultSize, hadV2Head: results.length > 0 });
+}
+/**
+ * Search + rank in one call. Thin wrapper over {@link prepareVaultCandidates} +
+ * {@link rankPreparedVaultCandidates}; behavior is unchanged.
+ */
+export async function searchVaultMemoriesWithSize(
+  query: string,
+  vaultCtx: VaultMemoryOperationsContext,
+  embeddingOptions: EmbeddingOptions,
+  cache: VaultEmbeddingCache,
+  searchOptions?: MemoryVaultSearchOptions
+): Promise<{
+  results: VaultSearchResult[];
+  vaultSize: number;
+  reranked: boolean;
+  hadV2Head: boolean;
+}> {
+  // Invalid query short-circuits BEFORE any storage read (the pre-split
+  // behavior — a test pins that `getAllVaultMemoriesOp` is never called).
+  if (!query || typeof query !== "string") {
+    return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
+  }
+  const prepared = await prepareVaultCandidates(
+    query,
+    vaultCtx,
+    embeddingOptions,
+    cache,
+    searchOptions
+  );
+  // Preserve the pre-split early returns exactly: an empty scope reports
+  // vaultSize 0, and rows-present-but-none-decryptable reports the real
+  // vaultSize so callers do not mistake it for an empty vault.
+  if (prepared.vaultSize === 0) {
+    return { results: [], vaultSize: 0, reranked: false, hadV2Head: false };
+  }
+  if (prepared.memories.length === 0) {
+    return { results: [], vaultSize: prepared.vaultSize, reranked: false, hadV2Head: false };
+  }
+  return rankPreparedVaultCandidates(query, prepared, embeddingOptions, searchOptions);
 }
 
 /**
