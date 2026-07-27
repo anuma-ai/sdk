@@ -33,16 +33,18 @@ on:
         required: false
         type: string
         default: ""
+  # NO paths filter, deliberately. `consolidation-eval-status` is a REQUIRED check on
+  # main, and a required context that never reports on an unrelated PR blocks it
+  # forever. Triggering on every PR (and skipping the expensive job below) is how
+  # e2e-tools.yml keeps `e2e-tools-status` satisfiable; the paths filter this
+  # replaced is what left `consolidation-eval-status` absent on PR #784.
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/consolidation-eval.yml"
-      - "src/lib/memory/consolidate.ts"
-      - "test/memory/src/consolidation/**"
-      - "test/memory/src/gate.ts"
-
 jobs:
   consolidation-eval:
+    # Skipped on pull_request: the eval costs live LLM calls and the merge queue
+    # is where this gate actually blocks. Run it on a PR via workflow_dispatch.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

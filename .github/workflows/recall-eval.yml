@@ -43,50 +43,13 @@ on:
   # pushed by people who already hold repo write access — they can read the
   # secret directly, so the workflow grants them nothing new. Revisit only if
   # this repo starts accepting fork PRs.
+  # NO paths filter, deliberately. `recall-eval-status` is a REQUIRED check on
+  # main, and a required context that never reports on an unrelated PR blocks it
+  # forever. Triggering on every PR (and skipping the expensive job below) is how
+  # e2e-tools.yml keeps `e2e-tools-status` satisfiable; the paths filter this
+  # replaced is what left `recall-eval-status` absent on PR #784.
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/recall-eval.yml"
-      # The recall/ranking stack — same surface the vault-search gate watches.
-      # Both fire on a ranking PR by design: vault-search is the cheap
-      # deterministic signal, this one is the end-to-end retrieval check.
-      - "src/lib/memory/recall.ts"
-      - "src/lib/memory/recallConstants.ts"
-      - "src/lib/memory/recallTool.ts"
-      - "src/lib/memory/rrf.ts"
-      - "src/lib/memory/mmr.ts"
-      - "src/lib/memory/recency.ts"
-      - "src/lib/memory/queryEntities.ts"
-      - "src/lib/memory/queryTemporal.ts"
-      - "src/lib/memory/graphTraversal.ts"
-      - "src/lib/memory/retain.ts"
-      - "src/lib/memoryVault/**"
-      # The candidate-set filtering itself. searchTool calls
-      # getVaultCandidateKeysOp / getAllVaultMemoriesOp on every search, so the
-      # scope/folder/factTypes/includeArchived logic that decides WHICH rows are
-      # even eligible lives here. Without this glob a change confined to the DB
-      # layer skips the gate entirely — #780 is exactly such a change and only
-      # tripped these gates because it happened to also touch searchTool.ts.
-      - "src/lib/db/memoryVault/**"
-      # Every score here is computed over embeddings, so an embedding-model or
-      # chunking change moves retrieval without touching a ranking file.
-      - "src/lib/memoryEngine/**"
-      # The harness + shared gate helper.
-      - "test/memory/longmemeval.ts"
-      - "test/memory/src/longmemeval/**"
-      - "test/memory/src/gate.ts"
-
-  # Also run when a qualifying change LANDS on main. Two reasons, both
-  # load-bearing:
-  #  1. Actions scopes a cache to the ref that created it, so caches born
-  #     in a PR live only under refs/pull/N/merge. Without a main-branch
-  #     run nothing ever seeds the oracle dataset + embedding cache
-  #     for other PRs to restore, and every PR cold-starts — which is the
-  #     HuggingFace 429 exposure (and, for the vault gate, the re-embed
-  #     that breaks the frozen-vector premise the flat threshold rests on).
-  #  2. It gives a main-line signal: a regression that slipped review is
-  #     at least recorded against main rather than silently absorbed.
-  # Same paths as the PR trigger, so this stays off ordinary merges.
   push:
     branches: [main]
     paths:
@@ -122,6 +85,9 @@ on:
 
 jobs:
   recall-eval:
+    # Skipped on pull_request: the eval costs live LLM calls and the merge queue
+    # is where this gate actually blocks. Run it on a PR via workflow_dispatch.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
