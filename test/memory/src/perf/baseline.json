@@ -349,16 +349,16 @@
       "tolerance": 0
     },
     "compositeHigh.bm25Prepares": {
-      "mean": 4,
-      "min": 4,
-      "max": 4,
+      "mean": 1,
+      "min": 1,
+      "max": 1,
       "stdDev": 0,
       "tolerance": 0
     },
     "compositeHigh.bm25DocsTokenized": {
-      "mean": 3760,
-      "min": 3760,
-      "max": 3760,
+      "mean": 940,
+      "min": 940,
+      "max": 940,
       "stdDev": 0,
       "tolerance": 0
     },

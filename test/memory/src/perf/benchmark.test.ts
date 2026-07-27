@@ -84,7 +84,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   buildGateBaseline,
@@ -319,6 +319,28 @@ import {
 
 const BASELINE_PATH = join(dirname(fileURLToPath(import.meta.url)), "baseline.json");
 const SAVE_BASELINE = process.env.PERF_SAVE_BASELINE === "1";
+
+/**
+ * Tests that failed before the gate test reached its save path.
+ *
+ * The scenarios record their counters and THEN assert on them, and vitest does
+ * not bail on failure — so a scenario that measured something broken (a lane
+ * that returned nothing, a sensitivity probe that stopped discriminating) still
+ * leaves its numbers in `results`, and a `PERF_SAVE_BASELINE=1` regen would
+ * happily commit them as the new normal. That is the worst possible baseline:
+ * it bakes the broken behaviour in as the ceiling, and every later run agrees
+ * with it.
+ *
+ * CI is not the reason this is safe today — its artifact upload is gated on
+ * `success()`, so it never publishes such a file, but the WRITE still happens
+ * and a human running the regen locally has nothing stopping them from staging
+ * it. So the write itself refuses.
+ */
+let failuresBeforeSave = 0;
+
+afterEach((ctx) => {
+  if (ctx.task.result?.state === "fail") failuresBeforeSave++;
+});
 
 /**
  * Queries. All but the temporal one are lowercase and built from a single
@@ -751,6 +773,17 @@ describe("regression gate", () => {
     printReport(run);
 
     if (SAVE_BASELINE) {
+      // Refuse rather than warn. A warning scrolls past in a regen that prints
+      // a hundred lines of counters, and the cost of missing it is a committed
+      // baseline that certifies broken behaviour as correct.
+      expect(
+        failuresBeforeSave === 0
+          ? null
+          : `${failuresBeforeSave} earlier test(s) failed, so the counters this run measured ` +
+              `cannot be trusted as a baseline. Fix the failures, then re-run ` +
+              `PERF_SAVE_BASELINE=1 pnpm perf:memory. Nothing was written.`
+      ).toBeNull();
+
       const baseline = buildGateBaseline([run], GATE_METRICS, gateConfig());
       writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2) + "\n");
       console.error(`\n  Baseline written to ${BASELINE_PATH}.\n`);
