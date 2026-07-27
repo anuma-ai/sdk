@@ -785,16 +785,6 @@ describe("regression gate", () => {
     ).toBeNull();
 
     const regressions = compareToGateBaseline([run], baseline, GATE_METRICS);
-    if (regressions.length > 0) {
-      // No trailing newline on the header: the workflow lifts this block out of
-      // the log with `sed -n '/MORE WORK/,/^$/p'`, so a blank line here ends the
-      // range before the table and the step summary shows a header with nothing
-      // under it. The blank line belongs after the table, not before it.
-      console.error("\n  MORE WORK THAN THE BASELINE");
-      console.error(formatGateRegressions(regressions));
-      console.error("");
-    }
-    expect(regressions.map((r) => r.label)).toEqual([]);
 
     // The other direction. A lower-better gate only fails upward, so an
     // optimization that lands without regenerating the baseline leaves the old,
@@ -816,11 +806,30 @@ describe("regression gate", () => {
         ? [`${spec.label ?? spec.key}: ${band.mean} → ${current}`]
         : [];
     });
+
+    // BOTH directions are computed and printed before EITHER is asserted. A
+    // change can move some counters up and others down — splitting one lane's
+    // work across two ops does exactly that — and asserting on regressions first
+    // would throw before the stale block ever printed, hiding half the picture
+    // and the regenerate instruction with it. The reader needs the whole story
+    // in one run, not the half that happened to fail first.
+    //
+    // No trailing newline on either header: the workflow lifts these blocks out
+    // of the log with `sed -n '/MORE WORK/,/^$/p'` and its LESS WORK twin, so a
+    // blank line there would end the range before the body. The blank line
+    // belongs after each block, not before it.
+    if (regressions.length > 0) {
+      console.error("\n  MORE WORK THAN THE BASELINE");
+      console.error(formatGateRegressions(regressions));
+      console.error("");
+    }
     if (stale.length > 0) {
       console.error("\n  LESS WORK THAN THE BASELINE — the committed baseline is stale");
       console.error(stale.map((line) => `    ${line}`).join("\n"));
       console.error("");
     }
+
+    expect(regressions.map((r) => r.label)).toEqual([]);
     expect(
       stale.length === 0
         ? null
