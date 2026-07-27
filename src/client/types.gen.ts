@@ -10670,6 +10670,42 @@ export type GetInternalAccountsByDidByDidResponses = {
 
 export type GetInternalAccountsByDidByDidResponse = GetInternalAccountsByDidByDidResponses[keyof GetInternalAccountsByDidByDidResponses];
 
+export type PostInternalCompleteData = {
+    /**
+     * Chat completion request (model is ignored and pinned server-side)
+     */
+    body: LlmapiChatCompletionRequest;
+    path?: never;
+    query?: never;
+    url: '/internal/complete';
+};
+
+export type PostInternalCompleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostInternalCompleteError = PostInternalCompleteErrors[keyof PostInternalCompleteErrors];
+
+export type PostInternalCompleteResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiChatCompletionResponse;
+};
+
+export type PostInternalCompleteResponse = PostInternalCompleteResponses[keyof PostInternalCompleteResponses];
+
 export type PostInternalEmbeddingsData = {
     /**
      * Embedding request
