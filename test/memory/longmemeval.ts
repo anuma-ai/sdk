@@ -512,9 +512,11 @@ async function main(): Promise<void> {
     const unscored = isComparison(result)
       ? result.engine.judgeFailures +
         result.engine.answerFailures +
+        result.engine.harnessFailures +
         result.vault.judgeFailures +
-        result.vault.answerFailures
-      : result.judgeFailures + result.answerFailures;
+        result.vault.answerFailures +
+        result.vault.harnessFailures
+      : result.judgeFailures + result.answerFailures + result.harnessFailures;
     if (unscored > 0) {
       console.error(
         `\n${unscored} question(s) could not be scored (see the judge/no-answer counts above). ` +

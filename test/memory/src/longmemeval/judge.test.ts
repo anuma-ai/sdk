@@ -183,6 +183,11 @@ describe("evaluateAnswer verdicts", () => {
       // match — a negated reply scoring as a pass again, by a different route.
       "I don't think that's correct.",
       "No, it's not what I'd call correct.",
+      // "cannot" hides NOT mid-word, so a leading \b on the alternation never
+      // matched it and the negation was skipped entirely — independent of the
+      // gap tokenizer, and the same silent pass by a third route.
+      "The answer cannot be considered correct.",
+      "This cannot be correct.",
     ]) {
       stubFetch(completion(prose), completion("INCORRECT"));
 
@@ -449,6 +454,7 @@ describe("summarizeJudgment", () => {
       correct: 2,
       judgeFailures: 2,
       answerFailures: 0,
+      harnessFailures: 0,
       accuracy: 2 / 3,
     });
   });
@@ -463,6 +469,7 @@ describe("summarizeJudgment", () => {
       correct: 1,
       judgeFailures: 1,
       answerFailures: 1,
+      harnessFailures: 0,
       accuracy: 0.5,
     });
   });
@@ -479,6 +486,7 @@ describe("summarizeJudgment", () => {
       correct: 1,
       judgeFailures: 0,
       answerFailures: 1,
+      harnessFailures: 0,
       accuracy: 1,
     });
   });
@@ -493,6 +501,7 @@ describe("summarizeJudgment", () => {
       correct: 0,
       judgeFailures: 3,
       answerFailures: 0,
+      harnessFailures: 0,
       accuracy: 0,
     });
   });
@@ -507,6 +516,7 @@ describe("summarizeJudgment", () => {
       correct: 2,
       judgeFailures: 0,
       answerFailures: 0,
+      harnessFailures: 0,
       accuracy: 0.5,
     });
   });
@@ -518,7 +528,50 @@ describe("summarizeJudgment", () => {
       correct: 0,
       judgeFailures: 0,
       answerFailures: 0,
+      harnessFailures: 0,
       accuracy: 0,
+    });
+  });
+
+  it("keeps a crashed entry out of the denominator instead of scoring it a miss", () => {
+    // The suite's per-entry catch fabricates a placeholder with isCorrect false
+    // and no judge or answer error. Without its own bucket that placeholder is
+    // indistinguishable from a scored miss, so a run full of crashes publishes a
+    // deflated accuracy while reporting zero failures — #776's shape via a
+    // different route, and the reason this bucket exists rather than folding
+    // into answerFailures.
+    const crashed = { isCorrect: false, harnessError: "LokiJSAdapter: db closed" };
+
+    expect(summarizeJudgment([correct, wrong, crashed, crashed])).toEqual({
+      total: 4,
+      judged: 2,
+      correct: 1,
+      judgeFailures: 0,
+      answerFailures: 0,
+      harnessFailures: 2,
+      accuracy: 0.5,
+    });
+  });
+
+  it("counts a crashed entry once even when other error keys are also set", () => {
+    // Precedence is harness > answer > judge, so the buckets stay disjoint and
+    // `judged = total - harness - answer - judge` holds for any input a caller
+    // constructs.
+    const messy = {
+      isCorrect: false,
+      harnessError: "crashed",
+      answerError: "empty",
+      judgeError: "unjudgeable",
+    };
+
+    expect(summarizeJudgment([correct, messy])).toEqual({
+      total: 2,
+      judged: 1,
+      correct: 1,
+      judgeFailures: 0,
+      answerFailures: 0,
+      harnessFailures: 1,
+      accuracy: 1,
     });
   });
 });

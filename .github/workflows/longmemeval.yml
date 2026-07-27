@@ -314,6 +314,7 @@ jobs:
             # these is nonzero.
             judgeFailures,
             answerFailures,
+            harnessFailures,
             accuracy,
             byQuestionType,
             retrieval,

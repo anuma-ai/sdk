@@ -56,7 +56,8 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   console.log("─".repeat(70));
   const judgeFailures = summary.judgeFailures;
   const answerFailures = summary.answerFailures;
-  const unscored = judgeFailures + answerFailures;
+  const harnessFailures = summary.harnessFailures;
+  const unscored = judgeFailures + answerFailures + harnessFailures;
   const judged = summary.totalQuestions - unscored;
   if (judged === 0) {
     // Every question came back unscored, so there is no accuracy to report.
@@ -86,6 +87,17 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
       console.log(
         `  No answer:`.padEnd(20) +
           color(`${answerFailures}/${summary.totalQuestions}`, COLORS.bold, COLORS.red)
+      );
+    }
+    if (harnessFailures > 0) {
+      // Called out separately because it is the only one that also corrupts the
+      // retrieval block above: a crashed entry's placeholder reports precision
+      // and recall as 0, so those averages are dragged down by questions that
+      // were never actually measured.
+      console.log(
+        `  Harness errors:`.padEnd(20) +
+          color(`${harnessFailures}/${summary.totalQuestions}`, COLORS.bold, COLORS.red) +
+          color("  (retrieval figures above are understated too)", COLORS.red)
       );
     }
     console.log(
@@ -118,7 +130,7 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
     const label = QUESTION_TYPE_LABELS[type];
     const typeAccColor = stats.accuracy >= 0.5 ? COLORS.green : COLORS.red;
     const isUnsupported = type === "temporal-reasoning" || type === "knowledge-update";
-    const typeUnscored = stats.judgeFailures + stats.answerFailures;
+    const typeUnscored = stats.judgeFailures + stats.answerFailures + stats.harnessFailures;
     const typeJudged = stats.total - typeUnscored;
 
     console.log(

@@ -868,6 +868,7 @@ function aggregateSummary(
         correct: tally.correct,
         judgeFailures: tally.judgeFailures,
         answerFailures: tally.answerFailures,
+        harnessFailures: tally.harnessFailures,
         accuracy: tally.accuracy,
       };
     }
@@ -898,6 +899,7 @@ function aggregateSummary(
     correctAnswers: overall.correct,
     judgeFailures: overall.judgeFailures,
     answerFailures: overall.answerFailures,
+    harnessFailures: overall.harnessFailures,
     accuracy: overall.accuracy,
     byQuestionType,
     retrieval: {
@@ -1100,13 +1102,15 @@ export async function runLongMemEval(
         // 50 ✗ marks reads as "the memory system is broken", which is the
         // wrong conclusion when it was the judge that never ruled or the
         // answer call that never answered.
-        const marker = result.answerError
-          ? "⚠ no-answer"
-          : result.judgeError
-            ? "⚠ judge-failed"
-            : result.isCorrect
-              ? "✓"
-              : "✗";
+        const marker = result.harnessError
+          ? "⚠ harness-error"
+          : result.answerError
+            ? "⚠ no-answer"
+            : result.judgeError
+              ? "⚠ judge-failed"
+              : result.isCorrect
+                ? "✓"
+                : "✗";
         console.log(
           `[${completed}/${entries.length}] ${entry.question_id} ${marker} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
         );
@@ -1117,7 +1121,15 @@ export async function runLongMemEval(
           question: entry.question,
           expectedAnswer: entry.answer,
           generatedAnswer: "",
+          // Everything below the error is fabricated, not measured. `isCorrect`
+          // false is not a verdict and the zeroed retrieval numbers are not a
+          // reading — `harnessError` is what tells the tally to exclude all of
+          // it. Without that key this placeholder counts as a scored miss, and
+          // a run full of crashes publishes a deflated accuracy while reporting
+          // no failures at all, which is the exact shape of #776 through a
+          // different door.
           isCorrect: false,
+          harnessError: String(error),
           retrievedSessionIds: [],
           expectedSessionIds: entry.answer_session_ids,
           retrievalPrecision: 0,
@@ -1128,7 +1140,10 @@ export async function runLongMemEval(
           details: { error: String(error) },
         };
         completed++;
-        console.error(`[${completed}/${entries.length}] ${entry.question_id} ✗ Error:`, error);
+        console.error(
+          `[${completed}/${entries.length}] ${entry.question_id} ⚠ harness-error:`,
+          error
+        );
       }
     }
 

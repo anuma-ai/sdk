@@ -67,6 +67,12 @@ export interface LongMemEvalResult {
    *  but meaningless, and the question is excluded from the denominator rather
    *  than counted as a miss. The judge is not called at all in this case. */
   answerError?: string;
+  /** Set when the entry crashed outside the answer and judge steps and the
+   *  suite's per-entry catch fabricated a placeholder. That placeholder also
+   *  zeroes the retrieval numbers, so it is tracked apart from the other two
+   *  rather than folded in — but like them it is excluded from the accuracy
+   *  denominator, because a crashed entry is not a wrong answer either. */
+  harnessError?: string;
   retrievedSessionIds: string[];
   expectedSessionIds: string[];
   retrievalPrecision: number;
@@ -92,8 +98,12 @@ export interface LongMemEvalSummary {
    *  model or its completion budget rather than the grader — but excluded from
    *  the accuracy denominator for the same reason. */
   answerFailures: number;
+  /** Questions that crashed before either step could report. Their placeholder
+   *  result also carries zeroed retrieval numbers, so a nonzero count here means
+   *  the retrieval figures are understated too — not just the accuracy. */
+  harnessFailures: number;
   /** Correct answers over the questions that were actually SCORED
-   *  (`totalQuestions - judgeFailures - answerFailures`), not over all
+   *  (`totalQuestions - judgeFailures - answerFailures - harnessFailures`), not over all
    *  questions. Neither failure is a wrong answer, and counting them as such
    *  is what made a broken evaluation step indistinguishable from a memory
    *  system that answered nothing right. 0 when nothing was scored. */
@@ -105,6 +115,7 @@ export interface LongMemEvalSummary {
       correct: number;
       judgeFailures: number;
       answerFailures: number;
+      harnessFailures: number;
       accuracy: number;
     }
   >;

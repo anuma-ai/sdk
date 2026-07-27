@@ -100,9 +100,15 @@ function isRetryableStatus(status: number): boolean {
  * silently inflates the benchmark. The asymmetry is the whole reason this regex
  * exists, so it errs toward refusing to rule.
  *
- * The contraction alternative carries no leading `\b` on purpose — in "isn't"
- * the N sits mid-word, so a word boundary there never matches. Both apostrophe
- * characters are accepted because models emit either.
+ * Neither `NOT` nor the contraction carries a leading `\b`. In "isn't" the N
+ * sits mid-word so a boundary never matches, and in "cannot" the same is true
+ * of NOT — "the answer cannot be considered correct" would otherwise slip the
+ * guard and parse as a pass. The required trailing `\s+` is what keeps this
+ * honest: "NOTE correct" and "ANOTHER correct" both fail on it, because the
+ * character after NOT is a letter rather than whitespace. A word that merely
+ * ends in "not" ("the knot is correct") costs a false unjudgeable, which is the
+ * safe direction. Both apostrophe characters are accepted because models emit
+ * either.
  *
  * The gap matches `\S+` rather than `\w+` because `\w` excludes apostrophes, so
  * a single contraction anywhere in the window ("I don't think that's correct")
@@ -110,7 +116,7 @@ function isRetryableStatus(status: number): boolean {
  * negation guard exists to prevent, reintroduced by the tokenizer. Anything
  * non-whitespace counts as one gap token now.
  */
-const NEGATED_VERDICT = /(?:\bNOT|N['’]T|\bNEVER)\s+(?:\S+\s+){0,6}(?:IN)?CORRECT\b/;
+const NEGATED_VERDICT = /(?:NOT|N['’]T|\bNEVER)\s+(?:\S+\s+){0,6}(?:IN)?CORRECT\b/;
 
 /**
  * Read a verdict out of the judge's response.
@@ -282,6 +288,19 @@ export interface JudgedOutcome {
   isCorrect: boolean;
   judgeError?: string;
   answerError?: string;
+  /**
+   * The entry crashed somewhere other than the answer or judge step, so the
+   * suite's per-entry catch fabricated a zero-scored placeholder.
+   *
+   * Kept as its own bucket rather than folded into `answerError`: that catch
+   * also zeroes retrievalPrecision and retrievalRecall, so its result corrupts
+   * the retrieval numbers as well as the accuracy ones. Conflating the two
+   * would let a run that fabricated retrieval data be read as a plain
+   * no-answer. What it must NOT do is count as judged — without a bucket of its
+   * own, a crashed entry is indistinguishable from a scored miss, and a run
+   * full of them publishes a deflated accuracy while reporting zero failures.
+   */
+  harnessError?: string;
 }
 
 export interface JudgmentTally {
@@ -291,6 +310,7 @@ export interface JudgmentTally {
   correct: number;
   judgeFailures: number;
   answerFailures: number;
+  harnessFailures: number;
   /** Share of the JUDGED questions that were correct. Unscored questions are
    *  excluded from the denominator rather than counted as misses — folding
    *  them in is what turned a dead judge into a plausible-looking 0.0%. Zero
@@ -299,16 +319,21 @@ export interface JudgmentTally {
 }
 
 export function summarizeJudgment(results: readonly JudgedOutcome[]): JudgmentTally {
-  // The two buckets are disjoint by construction — a question whose answer
-  // step failed is never sent to the judge — but deriving judgeFailures with
-  // the exclusion anyway keeps `judged = total - judgeFailures -
-  // answerFailures` true no matter what a caller does, and the reporter
-  // subtracts exactly that.
-  const answerFailures = results.filter((r) => r.answerError !== undefined).length;
-  const judgeFailures = results.filter(
-    (r) => r.answerError === undefined && r.judgeError !== undefined
+  // The three buckets are disjoint by construction — a crashed entry never
+  // reaches the answer step, and a question whose answer step failed is never
+  // sent to the judge — but deriving each one with the earlier buckets excluded
+  // keeps `judged = total - harnessFailures - answerFailures - judgeFailures`
+  // true no matter what a caller does, and the reporter subtracts exactly that.
+  //
+  // Precedence is harness > answer > judge, following how far the entry got.
+  const harnessFailures = results.filter((r) => r.harnessError !== undefined).length;
+  const answerFailures = results.filter(
+    (r) => r.harnessError === undefined && r.answerError !== undefined
   ).length;
-  const judged = results.length - answerFailures - judgeFailures;
+  const judgeFailures = results.filter(
+    (r) => r.harnessError === undefined && r.answerError === undefined && r.judgeError !== undefined
+  ).length;
+  const judged = results.length - harnessFailures - answerFailures - judgeFailures;
   const correct = results.filter((r) => r.isCorrect).length;
   return {
     total: results.length,
@@ -316,6 +341,7 @@ export function summarizeJudgment(results: readonly JudgedOutcome[]): JudgmentTa
     correct,
     judgeFailures,
     answerFailures,
+    harnessFailures,
     accuracy: judged > 0 ? correct / judged : 0,
   };
 }
