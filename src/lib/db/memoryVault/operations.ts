@@ -1258,8 +1258,6 @@ export async function setMemoryVisibilityOp(
   if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
   let stale = false;
-  const originalUpdatedAt = record.updatedAt.getTime();
-  const originalPublishedAt = record.publishedAt ?? null;
   await ctx.database.write(async () => {
     // Re-check inside the serialized writer (see updateVaultMemoryOp): a
     // delete that committed after the probe must win.
@@ -1267,19 +1265,27 @@ export async function setMemoryVisibilityOp(
       stale = true;
       return;
     }
+    // Read BOTH timestamps inside the serialized writer, not at probe time. A
+    // revoke that committed in between would leave a stale non-null
+    // published_at snapshot here, so the publish branch would skip the stamp
+    // and commit `visibility: public` with a NULL published_at — precisely the
+    // invariant this op exists to hold, and one the reconciler reads as "must
+    // not exist in the server index".
+    const currentUpdatedAt = record.updatedAt.getTime();
+    const currentPublishedAt = record.publishedAt ?? null;
     await record.update((r) => {
       r._setRaw("visibility", opts.visibility);
       if (opts.visibility === "private") {
         // Revoke: clear the publish stamp — the reconciler treats a private
         // memory with no published_at as "must not exist in the server index".
         r._setRaw("published_at", null);
-      } else if (originalPublishedAt === null) {
+      } else if (currentPublishedAt === null) {
         r._setRaw("published_at", Date.now());
       }
       if (opts.twinOptIn !== undefined) {
         r._setRaw("twin_opt_in", opts.twinOptIn);
       }
-      r._setRaw("updated_at", originalUpdatedAt);
+      r._setRaw("updated_at", currentUpdatedAt);
     });
   });
   if (stale) return null;

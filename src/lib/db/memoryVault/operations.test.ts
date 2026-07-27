@@ -2345,6 +2345,33 @@ describe("setMemoryVisibilityOp", () => {
     expect(record.publishedAt).toBe(1750000000000);
   });
 
+  it("re-stamps published_at when a revoke commits between probe and write", async () => {
+    // The invariant (published_at non-null iff visibility non-private) must
+    // survive a concurrent revoke. Emulate the interleaving WatermelonDB's
+    // serialized writer allows: the row is public with a stamp when we probe
+    // it, but a revoke commits first and clears both before our writer runs.
+    const record = mockRecord({ id: "mem_1" });
+    record._setRaw("visibility", "public");
+    record._setRaw("published_at", 1750000000000);
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => {
+          record._setRaw("visibility", "private");
+          record._setRaw("published_at", null);
+          return cb();
+        }),
+      } as any,
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const before = Date.now();
+    await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
+
+    expect(record.visibility).toBe("public");
+    // Must be freshly stamped, NOT left null from the revoke that won the race.
+    expect(record.publishedAt).toBeGreaterThanOrEqual(before);
+  });
+
   it("revokes: visibility 'private' clears published_at", async () => {
     const record = mockRecord({ id: "mem_1" });
     record._setRaw("visibility", "public");
