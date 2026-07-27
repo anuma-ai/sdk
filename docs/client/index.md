@@ -1062,6 +1062,11 @@
 | [PostAuthOauthByProviderRevokeErrors](Internal/type-aliases/PostAuthOauthByProviderRevokeErrors.md) | - |
 | [PostAuthOauthByProviderRevokeResponse](Internal/type-aliases/PostAuthOauthByProviderRevokeResponse.md) | - |
 | [PostAuthOauthByProviderRevokeResponses](Internal/type-aliases/PostAuthOauthByProviderRevokeResponses.md) | - |
+| [PostInternalCompleteData](Internal/type-aliases/PostInternalCompleteData.md) | - |
+| [PostInternalCompleteError](Internal/type-aliases/PostInternalCompleteError.md) | - |
+| [PostInternalCompleteErrors](Internal/type-aliases/PostInternalCompleteErrors.md) | - |
+| [PostInternalCompleteResponse](Internal/type-aliases/PostInternalCompleteResponse.md) | - |
+| [PostInternalCompleteResponses](Internal/type-aliases/PostInternalCompleteResponses.md) | - |
 | [PostInternalEmbeddingsData](Internal/type-aliases/PostInternalEmbeddingsData.md) | - |
 | [PostInternalEmbeddingsError](Internal/type-aliases/PostInternalEmbeddingsError.md) | - |
 | [PostInternalEmbeddingsErrors](Internal/type-aliases/PostInternalEmbeddingsErrors.md) | - |
@@ -1302,6 +1307,7 @@
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
+| [postInternalComplete](Internal/functions/postInternalComplete.md) | Create a chat completion (internal) |
 | [postInternalEmbeddings](Internal/functions/postInternalEmbeddings.md) | Create embeddings (internal) |
 | [postInternalModerate](Internal/functions/postInternalModerate.md) | Moderate content (internal) |
 | [postOauthConsent](Internal/functions/postOauthConsent.md) | Process OAuth consent |
