@@ -7,6 +7,33 @@
  * `choices[0].message.content` as JSON, validate, return null on any failure.
  * This helper owns the fetch+timeout+parse+log boilerplate so each caller
  * stays focused on its prompt and validator.
+ *
+ * PROMPT CACHING. The portal inserts explicit prompt-cache breakpoints only for
+ * `anthropic/` models. Its request schema does carry OpenAI's
+ * `prompt_cache_key`, but that is a routing hint for OpenAI's own implicit
+ * cache rather than a switch that enables caching, and we deliberately don't
+ * send it: the memory pipeline runs open-weights models by default (gpt-oss for
+ * extraction/topics, ling for consolidation), and this module already has one
+ * hard lesson about OpenAI-standard fields a non-OpenAI provider hard-400s on
+ * (`response_format`, below). Revisit only with a verified per-provider gate.
+ *
+ * So on the models this pipeline actually uses, the only cache that can hit is
+ * the provider's own implicit prefix cache — which makes prefix stability the
+ * one lever a caller controls. Messages are assembled system-first (below), so
+ * every caller must pass a CONSTANT `systemPrompt` and keep all per-call
+ * material in `userMessage`: a single interpolated timestamp, id, or count in a
+ * system prompt shifts every byte after it and misses the cache on every
+ * request thereafter. The memory callers are regression-gated on that property
+ * in `promptPrefixStability.test.ts`.
+ *
+ * Whether those implicit caches hit is observable: each successful response
+ * logs the portal's reported token counts at debug level, including
+ * `portal.cached_tokens` (the prompt tokens the provider served from cache —
+ * the portal omits the field when there was no hit). See {@link logPortalUsage}.
+ *
+ * There is no batch/async-bulk route on the portal, so a backfill or reindex
+ * has no discounted-throughput path either; its only levers are the same stable
+ * prefix and caller-side batching (e.g. topicExtract's 10-memories-per-call).
  */
 
 import { BASE_URL } from "../../clientConfig.js";
@@ -390,6 +417,11 @@ async function attemptPortalJson(req: PortalLlmRequest, endpoint: string): Promi
   }
   clearTimeout(timer);
 
+  // Log before the content check: an empty completion still burned prompt
+  // tokens, and that's exactly the case where knowing whether the prefix was
+  // cached is worth something.
+  logPortalUsage(body, req.tag);
+
   const rawContent = extractCompletionContent(body);
   if (!rawContent) {
     // Empty completion — reasoning-class models do this intermittently.
@@ -477,6 +509,65 @@ export function extractJsonCandidate(raw: string): string {
     }
   }
   return body;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function asCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * Emit one debug line with the token counts the portal reported for this call.
+ *
+ * Why: the memory pipeline's cost is dominated by a large STATIC system prompt
+ * resent on every chat turn, and on the open-weights models it runs by default
+ * the only thing that can amortize it is the provider's implicit prefix cache
+ * (see this module's header). `portal.cached_tokens` is the portal's report of
+ * how many prompt tokens the provider served from cache — it is the only signal
+ * that says whether those caches hit, and the SDK previously discarded the
+ * whole `usage` object, so the question was unanswerable from here. We also
+ * read the OpenAI-standard `usage.prompt_tokens_details.cached_tokens`: the
+ * portal populates its own field today, but the standard one is in the response
+ * schema and costs nothing to accept if a provider passthrough ever fills it.
+ *
+ * `cached=0` is reported rather than omitted whenever we have any usage at all
+ * — the portal drops the field when nothing was cached, and a silent absence
+ * would be indistinguishable from "we never looked".
+ *
+ * PER CALL, deliberately. Every other `debug` site in the SDK is a degrade or
+ * setup path that fires rarely; this one fires on every memory LLM call, and
+ * the default logger routes `debug` to `console.log`, so an app that never
+ * calls `setLogger` will see a line per extraction. That is the trade we want:
+ * a sampled or once-per-session line cannot answer "did the prefix hit", which
+ * is the only reason this exists, and any app that cares silences it with
+ * `setLogger` (the `Logger` docs' own example stubs `debug` out first).
+ *
+ * COUNTS ONLY, never content: callers on this path deliberately PII-redact what
+ * they send, so this channel must not become a way for a custom logger to see
+ * it come back. Every field is read defensively — a malformed or absent `usage`
+ * logs nothing and must never turn a successful completion into a failure.
+ */
+function logPortalUsage(body: unknown, tag: string): void {
+  const root = asRecord(body);
+  if (!root) return;
+  const usage = asRecord(root.usage);
+  const promptTokens = asCount(usage?.prompt_tokens);
+  const completionTokens = asCount(usage?.completion_tokens);
+  if (promptTokens === undefined && completionTokens === undefined) return;
+  const cachedTokens =
+    asCount(asRecord(root.portal)?.cached_tokens) ??
+    asCount(asRecord(usage?.prompt_tokens_details)?.cached_tokens) ??
+    0;
+  const parts: string[] = [];
+  if (promptTokens !== undefined) parts.push(`prompt=${promptTokens}`);
+  if (completionTokens !== undefined) parts.push(`completion=${completionTokens}`);
+  parts.push(`cached=${cachedTokens}`);
+  getLogger().debug(`[${tag}] usage ${parts.join(" ")}`);
 }
 
 function extractCompletionContent(body: unknown): string | null {

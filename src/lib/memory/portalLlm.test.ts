@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { noopLogger, setLogger } from "../logger.js";
 
 import { callPortalJsonCompletion } from "./portalLlm.js";
 
@@ -497,5 +499,123 @@ describe("callPortalJsonCompletion — endpointOverride", () => {
       })
     ).rejects.toThrow(/not a protocol-relative or absolute URL/);
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("callPortalJsonCompletion — reported token usage", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "gpt-oss/gpt-oss-120b",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "memory/extract",
+  } as const;
+
+  const debug = vi.fn();
+  afterEach(() => {
+    debug.mockReset();
+    setLogger(noopLogger); // restore a silent logger for other tests
+  });
+
+  function withSpyLogger() {
+    setLogger({ debug, info: vi.fn(), warn: vi.fn(), error: vi.fn() });
+  }
+
+  /** A portal response body with arbitrary extra top-level fields. */
+  function bodyResponse(body: Record<string, unknown>): Response {
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("reports prompt, completion and portal-reported cached tokens", async () => {
+    withSpyLogger();
+    const fetchFn = vi.fn().mockResolvedValue(
+      bodyResponse({
+        choices: [{ message: { content: '{"a":1}' } }],
+        usage: { prompt_tokens: 1500, completion_tokens: 40, total_tokens: 1540 },
+        portal: { cached_tokens: 1328 },
+      })
+    );
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ a: 1 });
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug.mock.calls[0][0]).toBe(
+      "[memory/extract] usage prompt=1500 completion=40 cached=1328"
+    );
+  });
+
+  it("reports cached=0 when the portal omits the field — that IS the no-cache-hit signal", async () => {
+    withSpyLogger();
+    const fetchFn = vi.fn().mockResolvedValue(
+      bodyResponse({
+        choices: [{ message: { content: '{"a":1}' } }],
+        usage: { prompt_tokens: 1500, completion_tokens: 40 },
+      })
+    );
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(debug.mock.calls[0][0]).toBe(
+      "[memory/extract] usage prompt=1500 completion=40 cached=0"
+    );
+  });
+
+  it("falls back to the OpenAI-standard prompt_tokens_details.cached_tokens", async () => {
+    withSpyLogger();
+    const fetchFn = vi.fn().mockResolvedValue(
+      bodyResponse({
+        choices: [{ message: { content: '{"a":1}' } }],
+        usage: {
+          prompt_tokens: 1500,
+          completion_tokens: 40,
+          prompt_tokens_details: { cached_tokens: 1024 },
+        },
+      })
+    );
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(debug.mock.calls[0][0]).toBe(
+      "[memory/extract] usage prompt=1500 completion=40 cached=1024"
+    );
+  });
+
+  it("logs nothing when the response carries no usage at all", async () => {
+    withSpyLogger();
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse('{"a":1}'));
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ a: 1 });
+    expect(debug).not.toHaveBeenCalled();
+  });
+
+  it("survives a malformed usage object without failing the call", async () => {
+    withSpyLogger();
+    const fetchFn = vi.fn().mockResolvedValue(
+      bodyResponse({
+        choices: [{ message: { content: '{"a":1}' } }],
+        usage: "not-an-object",
+        portal: 12,
+      })
+    );
+    const result = await callPortalJsonCompletion({ ...baseArgs, fetchFn });
+    expect(result).toEqual({ a: 1 });
+    expect(debug).not.toHaveBeenCalled();
+  });
+
+  it("still reports usage when the completion came back empty", async () => {
+    // An empty completion is retried, but the prompt tokens were spent either
+    // way — this is exactly the case where knowing whether the prefix was
+    // cached is worth something.
+    withSpyLogger();
+    const fetchFn = vi.fn().mockResolvedValue(
+      bodyResponse({
+        choices: [{ message: { content: "" } }],
+        usage: { prompt_tokens: 1500, completion_tokens: 0 },
+        portal: { cached_tokens: 1328 },
+      })
+    );
+    const result = await callPortalJsonCompletion({ ...baseArgs, maxAttempts: 1, fetchFn });
+    expect(result).toBeNull();
+    expect(debug.mock.calls[0][0]).toBe(
+      "[memory/extract] usage prompt=1500 completion=0 cached=1328"
+    );
   });
 });

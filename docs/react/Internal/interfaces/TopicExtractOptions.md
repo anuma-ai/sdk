@@ -15,7 +15,7 @@ pattern — one of `apiKey` / `getToken` is required (see [PortalLlmAuth](Portal
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memory/portalLlm.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#85)
+Defined in: [src/lib/memory/portalLlm.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#112)
 
 Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both are provided.
 
@@ -207,7 +207,7 @@ Override the global fetch implementation (useful for tests).
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/portalLlm.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#87)
+Defined in: [src/lib/memory/portalLlm.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#114)
 
 Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as `Authorization: Bearer`.
 
