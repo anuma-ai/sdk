@@ -75,7 +75,14 @@ jobs:
       # pull_request (no inputs) runs the regression gate at repeat 5, which is
       # what baseline.json records — the benchmark REFUSES to gate on a repeat
       # mismatch, so these two numbers must stay in sync.
-      INPUT_MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'gate') || 'ab' }}
+      # `inputs.X || <default>` rather than an event-name special-case: on
+      # workflow_dispatch `inputs` is populated (the choice input supplies its own
+      # default), and on BOTH pull_request and merge_group it is empty, so the
+      # gate defaults fall through. The previous
+      # `(github.event_name == 'pull_request' && ...)` form silently degraded the
+      # merge queue to `ab` mode — running the eval but never comparing against
+      # the baseline, so the required status passed whatever the numbers were.
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
       INPUT_REPEAT: ${{ inputs.repeat || '5' }}
       INPUT_MODELS: ${{ inputs.models }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}

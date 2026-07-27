@@ -73,8 +73,15 @@ jobs:
       # after substitution — blocks command injection from the dispatch UI.
       # pull_request (no inputs) runs the regression gate at repeat 5 (matches
       # how baseline.json was generated); dispatch defaults to the A/B mode.
-      INPUT_MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'gate') || 'ab' }}
-      INPUT_REPEAT: ${{ inputs.repeat || (github.event_name == 'pull_request' && '5') || '3' }}
+      # `inputs.X || <default>` rather than an event-name special-case: on
+      # workflow_dispatch `inputs` is populated (the choice input supplies its own
+      # default), and on BOTH pull_request and merge_group it is empty, so the
+      # gate defaults fall through. The previous
+      # `(github.event_name == 'pull_request' && ...)` form silently degraded the
+      # merge queue to `ab` mode — running the eval but never comparing against
+      # the baseline, so the required status passed whatever the numbers were.
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+      INPUT_REPEAT: ${{ inputs.repeat || '5' }}
       INPUT_MODEL: ${{ inputs.model }}
       INPUT_MATCH_THRESHOLD: ${{ inputs.match_threshold }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
