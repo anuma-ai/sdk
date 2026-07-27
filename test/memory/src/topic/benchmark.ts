@@ -325,9 +325,20 @@ const band = (xs: number[]) =>
   `${pct(meanOf(xs))} [${pct(Math.min(...xs))}-${pct(Math.max(...xs))}]`;
 const seriesOf = (runs: TopicRun[], key: keyof TopicRunMetrics) => runs.map((r) => r.metrics[key]);
 
-/** The knobs the numbers depend on, recorded in the baseline and refused on mismatch. */
-function gateConfig(model: string): { model: string; repeat: number } {
-  return { model, repeat: REPEAT };
+/**
+ * The knobs the numbers depend on, recorded in the baseline and refused on
+ * mismatch.
+ *
+ * `repeat` is deliberately NOT recorded. It affects the UNCERTAINTY of the mean,
+ * not what the mean means, and `meanDiffTolerance` already accounts for both run
+ * counts via sqrt(1/n_base + 1/n_cur) — so a 5-run gate against a 10-run
+ * baseline is statistically sound and no longer needs to be refused. Pinning it
+ * forced CI to burn the baseline's full capture count on every gated PR (and, on
+ * #784, refused outright when the two drifted). The recall gate has always
+ * relied on this asymmetry: one live run against a 3-run baseline.
+ */
+function gateConfig(model: string): { model: string } {
+  return { model };
 }
 
 /** Write the baseline file and report where it landed (stderr — never stdout). */

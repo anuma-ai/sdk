@@ -20,10 +20,10 @@ on:
         default: "ab"
         options: ["ab", "save-baseline", "gate"]
       repeat:
-        description: "Runs per config. 10 matches the committed baseline — a gate run at any other value is REFUSED. Lower values are for ab/save-baseline only."
+        description: "Runs per config. Need not match the baseline — the gate folds both run counts into its tolerance. 10+ recommended for --save-baseline."
         required: false
         type: string
-        default: "10"
+        default: "5"
       models:
         description: "Comma-separated models. Blank = the live default (gpt-oss-120b) for gate/save-baseline, or the 3-model candidate sweep for a plain ab run. gate/save-baseline require exactly one."
         required: false
@@ -80,9 +80,6 @@ jobs:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       # Free-form inputs via env (not ${{ }} inline) so the shell tokenizes
       # after substitution — blocks command injection from the dispatch UI.
-      # pull_request (no inputs) runs the regression gate at repeat 5, which is
-      # what baseline.json records — the benchmark REFUSES to gate on a repeat
-      # mismatch, so these two numbers must stay in sync.
       # `inputs.X || <default>` rather than an event-name special-case: `inputs`
       # is populated only on workflow_dispatch (the choice inputs carry their own
       # defaults) and empty on pull_request, so the gate defaults fall through.
@@ -91,14 +88,11 @@ jobs:
       # NEW trigger to `ab` mode — running the eval but never comparing against
       # the baseline. That is the trap waiting if merge_group is added back.
       INPUT_MODE: ${{ inputs.mode || 'gate' }}
-      # MUST match the committed baseline's recorded repeat (10) — the harness
-      # refuses a mismatch rather than comparing a 5-run mean to a 10-run
-      # baseline. Pinned to 10 because the baseline was pooled over 10 captures
-      # for a better noise estimate (#784 review); the alternative is to stop
-      # recording `repeat` in the gate config at all, now that gate.ts derives
-      # tolerance from sqrt(1/n_base + 1/n_cur) and handles asymmetric counts —
-      # which is what the recall gate already does (1-run gate, 3-run baseline).
-      INPUT_REPEAT: ${{ inputs.repeat || '10' }}
+      # 5, against a baseline captured over 10. That asymmetry is fine and cheap:
+      # the gate no longer pins `repeat`, and for every topic metric the floor
+      # dominates the spread term, so gating at 5 yields a tolerance IDENTICAL to
+      # gating at 10 — half the LLM cost for the same sensitivity.
+      INPUT_REPEAT: ${{ inputs.repeat || '5' }}
       INPUT_MODELS: ${{ inputs.models }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
       INPUT_VERBOSE: ${{ inputs.verbose || 'false' }}
