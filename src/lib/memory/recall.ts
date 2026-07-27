@@ -55,23 +55,38 @@ const DEFAULT_FACT_MIN_SCORE = 0.1;
 /**
  * Default for {@link RecallOptions.entityVocabulary}.
  *
- * `"auto"` means any host that passes an `entityCtx` gets the vocabulary tier
- * without changing a line — a behaviour change on the default path, made
- * deliberately because the tier is $0, network-free, measured at 2.33x the
- * lane's RRF contribution with zero regressing queries, and degrades to the
- * heuristic on every failure.
+ * `"off"` — OPT-IN. A host turns the vocabulary tier on with
+ * `entityVocabulary: "auto"`; until it does, recall runs the deterministic
+ * heuristic extractor exactly as it did before this change.
  *
+ * This is a deliberate decision, not an omission, so it is written down here
+ * rather than left to be inferred from a constant.
+ *
+ * The tier is a large measured win on the lane: 2.33x the RRF contribution the
+ * W5 lane makes to fusion, expected-id recall 16.1% to 37.5%, zero regressing
+ * queries, $0 and network-free, degrading to the heuristic on every failure.
  * It also measurably lowers LANE precision, 46% to 24% on the benchmark corpus,
- * because it activates on far more queries. Concretely, on the 13 hard-negative
- * queries the lane activates on 9 rather than 4, and the mean memories it
- * injects for one goes 0.46 to 1.62 (max 3 to 6). All four numbers are asserted
- * against the committed baseline in `test/memory/src/vault/entityLane.test.ts`,
- * so they cannot drift out of this comment silently.
+ * because it activates on far more queries — on the 13 hard-negative queries the
+ * lane fires on 9 rather than 4, and the mean memories injected for one goes
+ * 0.46 to 1.62 (max 3 to 6). All of those are asserted against the committed
+ * baseline in `test/memory/src/vault/entityLane.test.ts`, so they cannot drift
+ * out of this comment silently.
  *
- * Flipping the whole SDK to the heuristic is this one token; a single caller
- * opts out with `entityVocabulary: "off"`.
+ * WHY OFF DESPITE THE WIN. Every number above measures the LANE IN ISOLATION —
+ * whether the lane's own ranking is better. None of them measure what a user
+ * actually receives, because recall RRF-fuses this lane with the cosine/BM25
+ * head and then reranks. That gap is not theoretical here: at `budget: "low"`
+ * there is no `rerankTopN` slice and `boostFor` multiplies back into the fused
+ * score (`searchTool.ts:601-618`), so a lane-only item at a deep head rank can
+ * be promoted into the final answer. A better lane ranking does not
+ * automatically mean a better final answer.
+ *
+ * The asymmetry decides it. Default-on with bad fused behaviour degrades every
+ * host's context quality silently, and we have no measurement that would catch
+ * it. Default-off with good fused behaviour costs one line in a host. Flip this
+ * token once a fused end-to-end A/B says the win survives fusion.
  */
-const DEFAULT_ENTITY_VOCABULARY: "auto" | "off" = "auto";
+const DEFAULT_ENTITY_VOCABULARY: "auto" | "off" = "off";
 
 /**
  * How many rounds the graph lane will probe outward looking for active memories

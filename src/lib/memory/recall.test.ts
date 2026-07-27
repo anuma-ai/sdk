@@ -792,19 +792,40 @@ describe("recall — entity (W5) lane", () => {
   });
 
   // The vocabulary tier resolves query tokens against the names the vault
-  // actually holds instead of guessing at them. It is on by default whenever an
-  // entityCtx is present, so the tests that matter are about when it does NOT
-  // run and what happens when it cannot.
+  // actually holds instead of guessing at them. It is OPT-IN, so every test
+  // below that exercises the tier passes `entityVocabulary: "auto"` explicitly
+  // rather than relying on the default.
+  //
+  // That is not ceremony. With the tier off by default, a test asserting "the
+  // vocabulary was never read" passes for the wrong reason — it would pass
+  // against a build where the tier is entirely broken. Opting in explicitly is
+  // what keeps the negative assertions meaningful.
   describe("vocabulary tier", () => {
+    const ON = { entityVocabulary: "auto" } as const;
     const stockVault = (names: string[]): void => {
       vi.mocked(countEntitiesOp).mockResolvedValue(names.length);
       vi.mocked(listEntityNamesOp).mockResolvedValue(names);
     };
 
+    it("is OFF unless a host asks for it", async () => {
+      // The shipped default, pinned. Turning this on for everyone is a product
+      // decision (lane precision 46% -> 24%), and it was taken deliberately: the
+      // measured win is lane-only and nothing yet measures it through RRF
+      // fusion. A test so the default cannot drift back silently.
+      stockVault(["sara park"]);
+
+      await recall("where is sara", makeCtx({ entityCtx }));
+
+      expect(countEntitiesOp).not.toHaveBeenCalled();
+      expect(listEntityNamesOp).not.toHaveBeenCalled();
+      // Heuristic output: "sara", a name the vault does not actually hold.
+      expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara"]);
+    });
+
     it("resolves the query against stored names instead of guessing", async () => {
       stockVault(["sara park", "kyoto", "san francisco"]);
 
-      await recall("where is sara", makeCtx({ entityCtx }));
+      await recall("where is sara", makeCtx({ entityCtx }), ON);
 
       // The heuristic would have emitted ["sara"] — a name the vault does not
       // hold. Grounded, the token resolves to the canonical it belongs to.
@@ -832,6 +853,7 @@ describe("recall — entity (W5) lane", () => {
       const seen: RecallDiagnostics[] = [];
 
       await recall("where is sara", makeCtx({ entityCtx: scopedEntityCtx }), {
+        ...ON,
         onDiagnostics: (d) => seen.push(d),
       });
 
@@ -847,6 +869,7 @@ describe("recall — entity (W5) lane", () => {
       const seen: RecallDiagnostics[] = [];
 
       const result = await recall("where is sara", makeCtx({ entityCtx }), {
+        ...ON,
         onDiagnostics: (d) => seen.push(d),
       });
 
@@ -861,6 +884,7 @@ describe("recall — entity (W5) lane", () => {
       const seen: RecallDiagnostics[] = [];
 
       await recall("where is sara", makeCtx({ entityCtx }), {
+        ...ON,
         onDiagnostics: (d) => seen.push(d),
       });
 
@@ -873,8 +897,8 @@ describe("recall — entity (W5) lane", () => {
       const entityVocabularyCache = createEntityVocabularyCache();
       const ctx = makeCtx({ entityCtx, entityVocabularyCache });
 
-      await recall("where is sara", ctx);
-      await recall("where is sara", ctx);
+      await recall("where is sara", ctx, ON);
+      await recall("where is sara", ctx, ON);
 
       // The version stamp is re-read every call (cheap, indexed COUNT); the
       // enumeration + index build is what the cache saves.
@@ -891,11 +915,11 @@ describe("recall — entity (W5) lane", () => {
       const entityVocabularyCache = createEntityVocabularyCache();
       const ctx = makeCtx({ entityCtx, entityVocabularyCache });
 
-      await recall("where is sara", ctx);
+      await recall("where is sara", ctx, ON);
 
       vi.mocked(getEntityWriteGeneration).mockReturnValue(1);
       vi.mocked(listEntityNamesOp).mockResolvedValue(["kyoto"]);
-      await recall("anything about kyoto", ctx);
+      await recall("anything about kyoto", ctx, ON);
 
       expect(listEntityNamesOp).toHaveBeenCalledTimes(2);
       expect(getMemoriesByEntityNamesOp).toHaveBeenLastCalledWith(entityCtx, ["kyoto"]);
@@ -908,7 +932,7 @@ describe("recall — entity (W5) lane", () => {
       stockVault(["sara park"]);
       vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["x"])]]));
 
-      await recall("where is sara", makeCtx({ entityCtx }), { budget: "high" });
+      await recall("where is sara", makeCtx({ entityCtx }), { ...ON, budget: "high" });
 
       expect(getMemoriesByEntityNamesOp).toHaveBeenCalledWith(entityCtx, ["sara park"]);
     });
