@@ -1858,3 +1858,120 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     expect(out.hadV2Head).toBe(false);
   });
 });
+
+/**
+ * The composite fall-through guards a throw and an empty batch, but the batch's
+ * outer length can't see a degenerate response: `[[], []]` for two facets has
+ * length 2. Fusing those runs the multi-facet ranker over all-zero cosine lanes.
+ */
+describe("composite sub-query embeds — degenerate responses fall through", () => {
+  let warnings: string[];
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    warnings = [];
+    setLogger({ ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) });
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "composite",
+      subQueries: ["allergies", "food"],
+    } as any);
+  });
+  afterEach(() => setLogger(noopLogger));
+
+  const search = () =>
+    searchVaultMemoriesWithSize("shellfish", mockVaultCtx, mockEmbeddingOptions, seededCache(), {
+      limit: 5,
+      useFusion: true,
+      decompose: "llm",
+      decomposeOptions: { apiKey: "k" } as any,
+    });
+
+  // Both rows are pre-seeded so the row-(re)embed batch has nothing to do and the
+  // mocked `generateEmbeddings` below answers only the sub-query call.
+  // m2 is reachable ONLY through the second facet: cosine 0 against the query
+  // vector and no lexical overlap with "shellfish".
+  function seededCache() {
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0]));
+    cache.set("m2", new Float32Array([0, 1, 0]));
+    return cache;
+  }
+
+  beforeEach(() => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+      makeMemory("m2", "prefers window seats"),
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+  });
+
+  it("falls through when every facet vector comes back empty", async () => {
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[], []]);
+
+    const out = await search();
+
+    expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(true);
+    // The original query vector is still good, so this is NOT an outage — the
+    // single-query path runs a real cosine lane.
+    expect(out.embeddingsUnavailable).toBe(false);
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("falls through when the response is short of the sub-query count", async () => {
+    // Would otherwise index past the end and hand rankComposite `undefined`.
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[1, 0, 0]]);
+
+    const out = await search();
+
+    expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(true);
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("falls through when a facet vector comes back at the wrong dimension", async () => {
+    // Non-empty and complete, so count-and-emptiness alone reads it as healthy —
+    // but cosineSimilarity bails on the length mismatch and returns 0, which is
+    // the same dead facet lane. Real trigger: the embedding cache keys on text,
+    // not model, so vectors written under a previous model survive a model change
+    // at the old dimension.
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([
+      [1, 0, 0],
+      [0, 1],
+    ]);
+
+    const out = await search();
+
+    expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(true);
+    expect(out.embeddingsUnavailable).toBe(false);
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("falls through on a zero-facet decomposition instead of returning nothing", async () => {
+    // Unreachable through decomposeQuery today (validate() rejects an empty
+    // subQueries), but the count check alone reads it as usable — `0 === 0` and
+    // `[].every()` is true — and rankComposite returns [] on an empty facet list.
+    // That flips this guard's failure mode from degrade to total recall miss, so
+    // the `subQueries.length > 0` clause is load-bearing, not defensive noise.
+    vi.mocked(decomposeQuery).mockResolvedValue({ mode: "composite", subQueries: [] } as any);
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([]);
+
+    const out = await search();
+
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("still runs composite on a healthy response", async () => {
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([
+      [1, 0, 0],
+      [0, 1, 0],
+    ]);
+
+    const out = await search();
+
+    expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(false);
+    // Pin that the facet lanes actually ran. "No warning fired" alone also holds
+    // if composite stopped running entirely — the one regression an over-strict
+    // guard would cause — so assert the facet-only row got ranked: m2 can only
+    // reach the results through the second facet's vector.
+    expect(out.results.map((r) => r.uniqueId)).toContain("m2");
+  });
+});
