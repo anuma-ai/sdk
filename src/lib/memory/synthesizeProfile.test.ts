@@ -820,7 +820,35 @@ describe("synthesizeProfile", () => {
     expect(mockReflect).not.toHaveBeenCalled();
   });
 
-  it("does not gate when reviewedMemoryIds is empty", async () => {
+  // An empty reviewedMemoryIds array means "nothing is approved for publication", so it must gate
+  // everything OUT — not disable the gate. Previously this failed open, which was backwards in
+  // exactly the case the gate exists for: a caller passing its published-memory set for a user who
+  // has published nothing handed over [] and got synthesis across the whole private vault.
+  it("gates everything out when reviewedMemoryIds is empty (fails closed)", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a"), ranked("b")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 2,
+    });
+
+    const doc = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      reviewedMemoryIds: [],
+    });
+
+    expect(doc.sections[0].text).toBe("");
+    expect(doc.sections[0].sourceMemoryIds).toEqual([]);
+    // Legitimate empty, not a failure — must not be marked stale (which would force a retry).
+    expect(doc.sections[0].stale).toBeUndefined();
+    // And it costs nothing: no LLM call, and not even a recall.
+    expect(mockReflect).not.toHaveBeenCalled();
+    expect(mockRecall).not.toHaveBeenCalled();
+  });
+
+  it("still runs ungated when reviewedMemoryIds is omitted entirely", async () => {
     mockGetAll.mockResolvedValue([mem("a")]);
     mockRecall.mockResolvedValue({
       memories: [ranked("a"), ranked("b")],
@@ -830,16 +858,38 @@ describe("synthesizeProfile", () => {
     });
     mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["a", "b"]));
 
-    await synthesizeProfile(ctx, {
-      apiKey: "k",
-      facets: [FACETS[0]],
-      reviewedMemoryIds: [],
-    });
+    // Omitted (not []) is the only way to ask for no gate.
+    await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
 
     expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual([
       "a",
       "b",
     ]);
+  });
+
+  it("does not reuse an ungated prior doc once the empty gate is active", async () => {
+    // A doc synthesized with no gate must not satisfy a later gated-empty request: the config
+    // fingerprint has to distinguish "no gate" from "gate active, nothing approved", or previously
+    // private-derived content would be served verbatim under the stricter policy.
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["a"]));
+
+    const ungated = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
+    expect(ungated.sections[0].text).toBe("Bio");
+
+    const gated = await synthesizeProfile(ctx, {
+      apiKey: "k",
+      facets: [FACETS[0]],
+      previous: ungated,
+      reviewedMemoryIds: [],
+    });
+    expect(gated.sections[0].text).toBe("");
   });
 
   it("invalidates delta reuse when reviewedMemoryIds changes (vault unchanged)", async () => {
