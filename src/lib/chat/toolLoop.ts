@@ -655,6 +655,18 @@ export type RunToolLoopResult =
       detached?: true;
       /** Non-null only when `resumable` was true AND an inference id was captured before detach. */
       resume?: StreamResumeHandle | null;
+      /**
+       * Terminal state of the final model response, when the failure is one the
+       * loop diagnosed FROM that response — today, the truncated-to-nothing
+       * error. See {@link RunTerminalState}.
+       *
+       * Absent on failures that never got a terminal response to read (transport
+       * errors, detach, an SSE failure mid-stream), which is why it stays
+       * optional here. Present on the truncation error specifically because that
+       * is where it is most diagnostic: a caller can branch on
+       * `finishReason === "length"` instead of matching the error string.
+       */
+      terminalState?: RunTerminalState;
     };
 
 /** Capability header: tells the portal this client can resume a detached stream. Pinned with zeta-chain/ai-portal#1139. */
@@ -2167,6 +2179,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           data: buildResponseFinal(currentAccumulator),
           error: TRUNCATION_ERROR,
           toolsChecksum: currentAccumulator.toolsChecksum,
+          terminalState: terminalStateOf(currentAccumulator),
         };
       }
       const finalResponse = buildResponseFinal(currentAccumulator);
@@ -2192,6 +2205,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         data: response,
         error: TRUNCATION_ERROR,
         toolsChecksum: accumulator.toolsChecksum,
+        terminalState: terminalStateOf(accumulator),
       };
     }
 

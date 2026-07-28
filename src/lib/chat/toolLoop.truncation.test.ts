@@ -283,4 +283,35 @@ describe("runToolLoop terminalState", () => {
     expect(result.terminalState).toBeDefined();
     expect(result.terminalState?.finalToolCallCount).toBe(0);
   });
+
+  // Review point on #808: the field was set on the two success returns but not on
+  // the truncation ERROR return — the one turn where it is most diagnostic. A
+  // harness reading `terminalState` (rather than string-matching the error) got
+  // `undefined` on exactly the case the field exists to describe.
+  it.each(["response.incomplete", "response.completed"] as const)(
+    "is reported on the truncation error itself, not only on success (%s)",
+    async (eventType) => {
+      mockCreateSseClient
+        .mockReturnValueOnce({ stream: toolCallStream("c1", "plan_deck", "{}") } as never)
+        .mockReturnValueOnce({ stream: truncatedStream(undefined, eventType) } as never);
+
+      const result = await run();
+
+      expect(result.error).toContain("truncated at the output-token limit");
+      // Branchable without parsing the error string.
+      expect(result.terminalState?.finishReason).toBe("length");
+      expect(result.terminalState?.finalToolCallCount).toBe(0);
+    }
+  );
+
+  it("is reported when the FIRST response is truncated to nothing", async () => {
+    // The single-round error path, which returns from a different site.
+    mockCreateSseClient.mockReturnValueOnce({ stream: truncatedStream() } as never);
+
+    const result = await run();
+
+    expect(result.error).toContain("truncated at the output-token limit");
+    expect(result.terminalState?.finishReason).toBe("length");
+    expect(result.terminalState?.finalToolCallCount).toBe(0);
+  });
 });
