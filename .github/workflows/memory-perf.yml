@@ -24,6 +24,13 @@ on:
         type: choice
         default: "gate"
         options: ["gate", "save-baseline"]
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `perf` must not be added
+  # to main's required checks in this shape. Until it is, this gate reports
+  # red/green but does not block a merge — a regression it catches still needs a
+  # human to look at the check.
+  #
   # Default activity types (opened / synchronize / reopened). Same stacked-PR
   # caveat as the other eval workflows: retargeting a PR's base only fires
   # `edited`, which we deliberately don't subscribe to, so a retargeted PR needs
@@ -120,15 +127,22 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Deliberately NOT `always()`. The implicit `success() &&` is load-bearing:
-      # the harness writes baseline.json before its structural assertions are
-      # judged, so a run that regenerated the file but failed an invariant would
-      # otherwise publish a baseline that bakes the broken behavior in as the new
-      # normal. A committed baseline.json also always exists, so an `always()`
-      # upload after an early crash would hand someone the OLD file labelled as a
-      # regeneration. If this step is skipped, fix the harness first.
+      # `success() &&` is load-bearing, and spelled out rather than left implicit.
+      # Actions applies a default `success()` to any `if:` that names no status
+      # function, so `env.INPUT_MODE == 'save-baseline'` alone already carried it
+      # — but a reader has to know that rule to see the guarantee, and a reviewer
+      # reading it as unconditional filed it as a bug. Writing it out costs one
+      # expression and makes the step say what it does.
+      #
+      # Why it matters: the harness writes baseline.json before its structural
+      # assertions are judged, so a run that regenerated the file but failed an
+      # invariant would otherwise publish a baseline that bakes the broken
+      # behavior in as the new normal. A committed baseline.json also always
+      # exists, so an `always()` upload after an early crash would hand someone
+      # the OLD file labelled as a regeneration. If this step is skipped, fix the
+      # harness first.
       - name: Upload regenerated baseline
-        if: env.INPUT_MODE == 'save-baseline'
+        if: success() && env.INPUT_MODE == 'save-baseline'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: memory-perf-baseline
