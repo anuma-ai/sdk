@@ -2,7 +2,7 @@
 
 > **PostOauthRevokeData** = `object`
 
-Defined in: [src/client/types.gen.ts:10918](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10918)
+Defined in: [src/client/types.gen.ts:11013](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11013)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10918](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `string`
 
-Defined in: [src/client/types.gen.ts:10922](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10922)
+Defined in: [src/client/types.gen.ts:11017](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11017)
 
 Client secret (if not using HTTP Basic auth)
 
@@ -20,7 +20,7 @@ Client secret (if not using HTTP Basic auth)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10923](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10923)
+Defined in: [src/client/types.gen.ts:11018](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11018)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:10923](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10924)
+Defined in: [src/client/types.gen.ts:11019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11019)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:10924](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/oauth/revoke"`
 
-Defined in: [src/client/types.gen.ts:10925](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10925)
+Defined in: [src/client/types.gen.ts:11020](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#11020)

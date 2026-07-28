@@ -2,7 +2,7 @@
 
 > **HandlersPaginationResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:2286](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2286)
+Defined in: [src/client/types.gen.ts:2299](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2299)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2286](https://github.com/anuma-ai/sdk/blob/
 
 > **limit**: `number`
 
-Defined in: [src/client/types.gen.ts:2287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2287)
+Defined in: [src/client/types.gen.ts:2300](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2300)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2287](https://github.com/anuma-ai/sdk/blob/
 
 > **offset**: `number`
 
-Defined in: [src/client/types.gen.ts:2288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2288)
+Defined in: [src/client/types.gen.ts:2301](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2301)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:2288](https://github.com/anuma-ai/sdk/blob/
 
 > **total**: `number`
 
-Defined in: [src/client/types.gen.ts:2289](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2289)
+Defined in: [src/client/types.gen.ts:2302](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2302)

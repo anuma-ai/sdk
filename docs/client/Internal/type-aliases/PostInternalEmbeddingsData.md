@@ -2,7 +2,7 @@
 
 > **PostInternalEmbeddingsData** = `object`
 
-Defined in: [src/client/types.gen.ts:10711](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10711)
+Defined in: [src/client/types.gen.ts:10806](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10806)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10711](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`LlmapiEmbeddingRequest`](LlmapiEmbeddingRequest.md)
 
-Defined in: [src/client/types.gen.ts:10715](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10715)
+Defined in: [src/client/types.gen.ts:10810](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10810)
 
 Embedding request
 
@@ -20,7 +20,7 @@ Embedding request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:10716](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10716)
+Defined in: [src/client/types.gen.ts:10811](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10811)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:10716](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:10717](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10717)
+Defined in: [src/client/types.gen.ts:10812](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10812)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:10717](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/internal/embeddings"`
 
-Defined in: [src/client/types.gen.ts:10718](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10718)
+Defined in: [src/client/types.gen.ts:10813](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10813)

@@ -2,7 +2,7 @@
 
 > **PostApiV1AuthMfaTotpEnrollVerifyData** = `object`
 
-Defined in: [src/client/types.gen.ts:6658](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6658)
+Defined in: [src/client/types.gen.ts:6680](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6680)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:6658](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersTotpVerifyRequest`](HandlersTotpVerifyRequest.md)
 
-Defined in: [src/client/types.gen.ts:6662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6662)
+Defined in: [src/client/types.gen.ts:6684](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6684)
 
 code
 
@@ -20,7 +20,7 @@ code
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:6663](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6663)
+Defined in: [src/client/types.gen.ts:6685](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6685)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:6663](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:6664](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6664)
+Defined in: [src/client/types.gen.ts:6686](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6686)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:6664](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/auth/mfa/totp/enroll/verify"`
 
-Defined in: [src/client/types.gen.ts:6665](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6665)
+Defined in: [src/client/types.gen.ts:6687](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6687)

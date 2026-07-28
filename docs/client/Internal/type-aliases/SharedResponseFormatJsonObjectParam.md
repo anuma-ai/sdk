@@ -2,7 +2,7 @@
 
 > **SharedResponseFormatJsonObjectParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4265](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4265)
+Defined in: [src/client/types.gen.ts:4287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4287)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4265](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4266](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4266)
+Defined in: [src/client/types.gen.ts:4288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4288)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/client/types.gen.ts:4266](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:4270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4270)
+Defined in: [src/client/types.gen.ts:4292](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4292)
 
 The type of response format being defined. Always `json_object`.
