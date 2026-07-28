@@ -606,6 +606,33 @@ export type RunToolLoopOptions = {
   hooks?: RunHooks | RunHooks[];
 };
 
+/**
+ * Terminal state of the LAST model response in the turn, normalized to the
+ * completions vocabulary (`"stop"` | `"length"` | `"tool_calls"` | provider-
+ * specific values). `undefined` when the stream carried no finish reason at all.
+ *
+ * Exposed because neither response shape reliably carries it out to a caller.
+ * The Responses API shape has no field for it — `LlmapiResponseResponse` declares
+ * neither `status` nor `incomplete_details` — so `buildFinalResponse` cannot
+ * surface truncation there even though the loop detected it (`responses.ts`
+ * normalizes it onto the accumulator). Completions does expose
+ * `choices[0].finish_reason`, but omits `tool_calls` entirely when there are
+ * none, so a caller sniffing the response cannot tell "no tool calls" from
+ * "field absent".
+ *
+ * The loop already knows both, unambiguously and identically for either API.
+ * Reporting them here means callers and test harnesses stop reverse-engineering
+ * them from a response shape that cannot answer. See anuma-ai/sdk#805.
+ */
+export type RunTerminalState = {
+  /** Normalized finish reason of the final response. `"length"` means the output
+   *  ceiling cut it off; anything else means the model stopped on its own. */
+  finishReason?: string;
+  /** Tool calls the final response carried. `0` is meaningful — combined with
+   *  empty content it identifies a turn that ended having produced nothing. */
+  finalToolCallCount: number;
+};
+
 export type RunToolLoopResult =
   | {
       data: ApiResponse;
@@ -614,6 +641,8 @@ export type RunToolLoopResult =
       toolsChecksum?: string;
       /** Results from tools that were auto-executed by the SDK */
       autoExecutedToolResults?: AutoExecutedToolResult[];
+      /** Terminal state of the final model response. See {@link RunTerminalState}. */
+      terminalState?: RunTerminalState;
     }
   | {
       data: ApiResponse | null;
@@ -2116,6 +2145,20 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       "any usable content or tool call. Retry with a higher `maxOutputTokens`, or " +
       "prompt for fewer/smaller tool calls per turn.";
 
+    /**
+     * Report the accumulator's terminal state on the result. Reads the same two
+     * fields `truncatedToNothing` above does, so what a caller sees is exactly
+     * what the guard decided on — rather than a re-derivation from the response
+     * shape, which cannot answer for either API (see {@link RunTerminalState}).
+     */
+    const terminalStateOf = (acc: {
+      finishReason?: string;
+      toolCalls: Map<string, unknown>;
+    }): RunTerminalState => ({
+      ...(acc.finishReason !== undefined && { finishReason: acc.finishReason }),
+      finalToolCallCount: acc.toolCalls.size,
+    });
+
     // Build final response from the last accumulator
     if (toolIteration > 0) {
       if (truncatedToNothing(currentAccumulator)) {
@@ -2137,6 +2180,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
         autoExecutedToolResults: accumulatedToolResults,
+        terminalState: terminalStateOf(currentAccumulator),
       };
     }
 
@@ -2160,6 +2204,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       data: response,
       error: null,
       toolsChecksum: accumulator.toolsChecksum,
+      terminalState: terminalStateOf(accumulator),
     };
   } catch (err) {
     if (isAbortError(err)) {

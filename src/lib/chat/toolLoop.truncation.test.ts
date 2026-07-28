@@ -207,3 +207,80 @@ describe("runToolLoop truncation guard", () => {
     expect(result.error).toBeNull();
   });
 });
+
+/**
+ * `terminalState` reports what the guard above decided on, out to the caller.
+ *
+ * It exists because neither response shape can answer the question. The Responses
+ * API has no field for a finish reason — `LlmapiResponseResponse` declares neither
+ * `status` nor `incomplete_details` — so a truncation the loop DID detect is
+ * invisible in `buildFinalResponse`'s output. Completions does carry
+ * `choices[0].finish_reason`, but omits `tool_calls` when there are none, so a
+ * caller counting them cannot separate "zero calls" from "field absent".
+ *
+ * Both gaps were found by an e2e recorder that tried to re-derive these from
+ * `result.data` and got `null` on the very runs it was added to explain (#805).
+ */
+describe("runToolLoop terminalState", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGenerateEmbedding.mockResolvedValue([0.1]);
+  });
+
+  it("reports the truncation the Responses shape cannot carry", async () => {
+    // The turn is truncated but keeps partial text, so it is NOT an error — which
+    // is exactly the case where a caller needs to be told, and previously had no
+    // way to find out.
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: toolCallStream("c1", "plan_deck", "{}") } as never)
+      .mockReturnValueOnce({ stream: truncatedStream("Here is the deck so f") } as never);
+
+    const result = await run();
+
+    expect(result.error).toBeNull();
+    expect(result.terminalState?.finishReason).toBe("length");
+    // And nothing in the response body says so:
+    expect(result.data).not.toHaveProperty("status");
+    expect(result.data).not.toHaveProperty("incomplete_details");
+  });
+
+  it("reports finalToolCallCount 0 on a turn that ended having produced nothing", async () => {
+    // The #805 signature: a tool round ran, then the model stopped emitting
+    // neither text nor another call, with no truncation to explain it. Not an
+    // error by design — but `finishReason` absent + 0 calls + empty text is the
+    // fingerprint, and all three are now visible.
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: toolCallStream("c1", "plan_deck", "{}") } as never)
+      .mockReturnValueOnce({ stream: cleanTextStream("") } as never);
+
+    const result = await run();
+
+    expect(result.error).toBeNull();
+    expect(result.terminalState?.finalToolCallCount).toBe(0);
+    expect(result.terminalState?.finishReason).toBeUndefined();
+  });
+
+  it("counts the calls on a single-round turn that ended in a tool call", async () => {
+    mockCreateSseClient.mockReturnValueOnce({
+      stream: toolCallStream("c1", "plan_deck", "{}"),
+    } as never);
+    // Second round: the executor ran, model wraps up with text.
+    mockCreateSseClient.mockReturnValueOnce({ stream: cleanTextStream("Done.") } as never);
+
+    const result = await run();
+
+    expect(result.error).toBeNull();
+    // The FINAL response is the text one, so no calls are outstanding.
+    expect(result.terminalState?.finalToolCallCount).toBe(0);
+  });
+
+  it("is present on a clean single-round text turn", async () => {
+    mockCreateSseClient.mockReturnValueOnce({ stream: cleanTextStream("Hello.") } as never);
+
+    const result = await run();
+
+    expect(result.error).toBeNull();
+    expect(result.terminalState).toBeDefined();
+    expect(result.terminalState?.finalToolCallCount).toBe(0);
+  });
+});
