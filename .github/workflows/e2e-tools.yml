@@ -70,7 +70,7 @@ jobs:
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
