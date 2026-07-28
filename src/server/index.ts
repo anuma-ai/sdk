@@ -160,22 +160,14 @@ export {
 } from "../lib/db/memoryVault";
 
 // ── Vault Folders ──
-
-export {
-  createVaultFolderOp,
-  type CreateVaultFolderOptions,
-  deleteVaultFolderOp,
-  ensureDefaultFoldersOp,
-  getAllVaultFoldersOp,
-  getVaultFolderMemoryCountOp,
-  moveMemoriesToFolderOp,
-  type StoredVaultFolder,
-  updateVaultFolderContextOp,
-  updateVaultFolderOp,
-  type UpdateVaultFolderOptions,
-  VaultFolder,
-  type VaultFolderOperationsContext,
-} from "../lib/db/vaultFolders";
+//
+// Deliberately NOT exported here. Folders are being retired in favour of topics
+// (`memory_entity` links), and the ops carry no user scoping, so on a shared
+// server database they read and write across tenants — `moveMemoriesToFolderOp`
+// would even rewrite another tenant's memory `scope` (#626). No server consumer
+// ever used them. The table itself stays in `sdkModelClasses` while
+// `memory_vault.folder_id` exists; client (single-tenant) apps keep reaching the
+// ops through `@anuma/sdk/react` and `@anuma/sdk/expo`.
 
 // ── Projects ──
 
