@@ -1117,6 +1117,41 @@ describe("retain — a dropped consolidation decision is reported (#630)", () =>
     expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
   });
 
+  it("reports target_vanished when the supersede primary loses the race INSIDE the write", async () => {
+    // The one race the applier cannot see: the target was live when it validated,
+    // and `createSupersedingMemoryOp`'s own re-check is what lost. It returns
+    // `{ created: null, retired: false }` and retain() falls through to a plain
+    // create — the supersession the consolidator ruled on never happened.
+    stages([{ uniqueId: "old", content: "Lives in Portland", similarity: 0.7 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "supersede",
+      targetId: "old",
+      content: "Lives in San Francisco",
+    });
+    // Live at validation time...
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "old",
+      content: "Lives in Portland",
+    } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    // ...but the atomic write's re-check finds it already retired.
+    vi.mocked(createSupersedingMemoryOp).mockResolvedValue({
+      created: null as never,
+      retired: false,
+    });
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "plain-new" } as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("Lives in San Francisco", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    // The fact is still stored, just not as a supersession.
+    expect(result).toMatchObject({ action: "create", memoryId: "plain-new" });
+    expect(vi.mocked(createSupersedingMemoryOp)).toHaveBeenCalled();
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
   it("stays silent when a supersede only PARTIALLY races — the decision still applied", async () => {
     // One of two targets is already retired. The supersession still happens over
     // the survivor, so nothing was dropped and nothing should be reported.

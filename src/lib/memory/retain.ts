@@ -399,6 +399,18 @@ export async function retain(
     // concurrent winner. Fall through to the plain create/merge path below; the
     // rare leftover duplicate self-reconciles at the next consolidation (same
     // fall-through the single-target A2 path uses).
+    //
+    // Same dropped-decision report as the applier's five race paths, and it has
+    // to be here rather than there: this is the one race the applier cannot see,
+    // because the target was still live when it validated and only lost inside
+    // `createSupersedingMemoryOp`'s own re-check. The consolidator ruled this a
+    // value change and the supersession did not happen — that is exactly the
+    // event `onFallback` exists to surface.
+    notifyConsolidationFallback(
+      "target_vanished",
+      options.consolidateOptions?.onFallback,
+      `supersede: primary target ${primaryTargetId} retired or deleted inside the atomic write`
+    );
   }
 
   const created = await createVaultMemoryOp(ctx.vaultCtx, createOpts);

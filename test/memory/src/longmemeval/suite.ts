@@ -789,24 +789,31 @@ export function createConsolidationFallbackTracker(): {
   onFallback: (reason: ConsolidationFallbackReason) => void;
   report: (questionId: string) => void;
 } {
+  // Every reason gets a bucket, and the aggregate below is derived from the
+  // bucket VALUES rather than a hand-written sum of two of them. The previous
+  // shape named `llm_error` and `invalid_response` in three separate places, so
+  // adding `target_vanished` left it silently under-reporting on two of them —
+  // and `tsc --noEmit` does not catch the omission here because `tsconfig.json`
+  // only includes `src/**/*`, so nothing typechecks this directory in CI.
   const counts: Record<ConsolidationFallbackReason, number> = {
     llm_error: 0,
     invalid_response: 0,
+    target_vanished: 0,
   };
+  const reasons = Object.keys(counts) as ConsolidationFallbackReason[];
   return {
     onFallback: (reason) => {
       counts[reason]++;
     },
     report: (questionId) => {
-      const total = counts.llm_error + counts.invalid_response;
+      const total = reasons.reduce((sum, r) => sum + counts[r], 0);
       if (total === 0) return;
+      const breakdown = reasons.map((r) => `${r}: ${counts[r]}`).join(", ");
       console.warn(
-        `  ⚠ consolidation degraded to create ${total}x on ${questionId} ` +
-          `(llm_error: ${counts.llm_error}, invalid_response: ${counts.invalid_response})`
+        `  ⚠ consolidation degraded to create ${total}x on ${questionId} (${breakdown})`
       );
       // Reset so a reused tracker reports per-call deltas, not a running total.
-      counts.llm_error = 0;
-      counts.invalid_response = 0;
+      for (const r of reasons) counts[r] = 0;
     },
   };
 }
