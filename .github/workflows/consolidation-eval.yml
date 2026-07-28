@@ -10,11 +10,6 @@ name: Consolidation Eval
 # a 5-pass mean swings between 82.9% and 100% on an unchanged model, which
 # would make a tighter gate flaky rather than useful.
 on:
-  # Runs in the merge queue with NO paths filter, so the status below is always
-  # produced there and can therefore be a REQUIRED check. The paths-scoped
-  # pull_request trigger stays for early signal during review; a required check
-  # that never reports on an unrelated PR would block it forever.
-  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -33,6 +28,10 @@ on:
         required: false
         type: string
         default: ""
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `consolidation-eval-status` must not
+  # be added to main's required checks in this shape.
   pull_request:
     branches: [main]
     paths:
@@ -40,7 +39,6 @@ on:
       - "src/lib/memory/consolidate.ts"
       - "test/memory/src/consolidation/**"
       - "test/memory/src/gate.ts"
-
 jobs:
   consolidation-eval:
     runs-on: ubuntu-latest
@@ -133,11 +131,8 @@ jobs:
           path: results.json
           if-no-files-found: ignore
 
-  # Aggregator whose context is stable whatever the gate above did — the shape
-  # `e2e-tools-status` uses, and the only one safe to add to main's ruleset.
-  # Passes when the gate is skipped (paths didn't match), fails only when it
-  # actually failed. NOTE: adding `consolidation-eval-status` to ruleset 9764137 needs
-  # repo admin; until then this reports but cannot block.
+  # Reports this gate's outcome as one stable line. See the advisory note on
+  # the pull_request trigger for why it is not a required check today.
   consolidation-eval-status:
     if: always()
     needs: [consolidation-eval]
@@ -145,8 +140,11 @@ jobs:
     steps:
       - name: Check consolidation gate result
         run: |
-          if [[ "${{ needs.consolidation-eval.result }}" == "failure" ]]; then
-            echo "Consolidation eval gate failed"
+          # Allowlist, not a failure check: a timed-out job concludes
+          # `cancelled` and would otherwise post green. See EVAL_GATES.md.
+          result="${{ needs.consolidation-eval.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Consolidation eval gate did not pass (result: $result)"
             exit 1
           fi
-          echo "Consolidation eval gate passed (or was skipped)"
+          echo "Consolidation eval gate passed"
