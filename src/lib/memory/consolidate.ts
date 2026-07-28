@@ -33,8 +33,8 @@
  * silently swallow a write.
  */
 
-import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
@@ -267,23 +267,7 @@ function degrade(
   options: ConsolidateOptions,
   detail?: unknown
 ): ConsolidationResult {
-  // Warn by default so a persistently-failing consolidator (which silently
-  // accumulates duplicate memories) is observable without the caller having
-  // wired onFallback. This is the single log point for all degrade paths —
-  // previously only the thrown-error path logged, so parsed===null and
-  // invalid_response fallbacks were invisible.
-  if (detail !== undefined) {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`, detail);
-  } else {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`);
-  }
-  try {
-    options.onFallback?.(reason);
-  } catch {
-    // Observability callback must not break the write path — a throwing
-    // metrics hook would otherwise propagate up through retain() and
-    // fail the very write the fallback is trying to preserve.
-  }
+  notifyConsolidationFallback(reason, options.onFallback, detail);
   return { ...fallback, fallbackReason: reason };
 }
 
