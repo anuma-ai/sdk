@@ -2090,8 +2090,42 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       currentAccumulator.content += tip;
     }
 
+    // A completion the provider cut off at the output-token ceiling arrives
+    // here as an accumulator with no tool calls and no content: the partial
+    // tool call could not be parsed, so nothing survived. The loop's exit
+    // condition (`toolCalls.size > 0`) cannot tell that apart from a model
+    // that finished cleanly, so without this check the turn returns
+    // `error: null` and an empty response — the caller sees success and no
+    // output. Observed against deepinfra/moonshotai/Kimi-K2.6, whose 4096
+    // default ceiling truncates a multi-slide `add_slide` round mid-argument.
+    //
+    // Only fires when nothing usable came back. A truncated *text* answer is
+    // still worth returning, so partial content is left alone.
+    // Checked on whichever accumulator is about to be returned, so the
+    // single-round path below is covered too: a *first* response truncated
+    // before it produced anything leaves toolIteration at 0 and is just as
+    // silent as a truncated continuation.
+    const truncatedToNothing = (acc: {
+      finishReason?: string;
+      toolCalls: Map<string, unknown>;
+      content: string;
+    }): boolean =>
+      acc.finishReason === "length" && acc.toolCalls.size === 0 && acc.content.trim() === "";
+    const TRUNCATION_ERROR =
+      "Model response was truncated at the output-token limit before it produced " +
+      "any usable content or tool call. Retry with a higher `maxOutputTokens`, or " +
+      "prompt for fewer/smaller tool calls per turn.";
+
     // Build final response from the last accumulator
     if (toolIteration > 0) {
+      if (truncatedToNothing(currentAccumulator)) {
+        await fireRunError({ error: TRUNCATION_ERROR, stage: "model" });
+        return {
+          data: buildResponseFinal(currentAccumulator),
+          error: TRUNCATION_ERROR,
+          toolsChecksum: currentAccumulator.toolsChecksum,
+        };
+      }
       const finalResponse = buildResponseFinal(currentAccumulator);
       if (onFinish) onFinish(finalResponse);
       await fireRunEnd({
@@ -2103,6 +2137,17 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
         autoExecutedToolResults: accumulatedToolResults,
+      };
+    }
+
+    // Single-round turn: no tool call was ever executed. If the one response
+    // we got was truncated to nothing, this is the same silent dead-end.
+    if (truncatedToNothing(accumulator)) {
+      await fireRunError({ error: TRUNCATION_ERROR, stage: "model" });
+      return {
+        data: response,
+        error: TRUNCATION_ERROR,
+        toolsChecksum: accumulator.toolsChecksum,
       };
     }
 

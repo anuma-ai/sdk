@@ -1013,6 +1013,30 @@ export function createAppGenerationTools({
           return { error: "files array is required and must not be empty" };
         }
 
+        // Per-entry shape check. patch_file/read_file/delete_file each guard
+        // their scalar `path` this way; create_file took the array on trust
+        // and reached normalizePath(undefined), which threw
+        // "Cannot read properties of undefined (reading 'replace')" — caught
+        // below and handed to the model as an opaque failure it could not act
+        // on. The JSON schema marks both fields required, but models do omit
+        // them, so the schema is a hint and not an enforcement point.
+        const malformed = filesArg
+          .map((f, i) => {
+            if (!f || typeof f !== "object") return `files[${i}] is not an object`;
+            if (typeof f.path !== "string" || f.path.trim() === "")
+              return `files[${i}] is missing a non-empty "path"`;
+            if (typeof f.content !== "string")
+              return `files[${i}] ("${f.path}") is missing a string "content"`;
+            return null;
+          })
+          .filter((m): m is string => m !== null);
+        if (malformed.length > 0) {
+          return {
+            error: `Malformed files array — nothing was written. Every item needs both "path" and "content" as strings: ${malformed.join("; ")}`,
+            malformed,
+          };
+        }
+
         // Read-before-Write contract (mirrors Claude Code's Write tool):
         // create_file can overwrite existing files, but only when the
         // model has read them in this conversation. Drift across
