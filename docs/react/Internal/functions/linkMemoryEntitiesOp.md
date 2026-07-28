@@ -2,7 +2,7 @@
 
 > **linkMemoryEntitiesOp**(`ctx`: [`EntityOperationsContext`](../interfaces/EntityOperationsContext.md), `memoryId`: `string`, `entityInputs`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[], `options?`: `object`): `Promise`<[`StoredEntity`](../interfaces/StoredEntity.md)\[]>
 
-Defined in: [src/lib/db/entities/operations.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#136)
+Defined in: [src/lib/db/entities/operations.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/operations.ts#295)
 
 Link a memory to one or more entities. Accepts bare names (back-compat)
 or `{ name, kind }` objects. Names are normalized; missing entities are
@@ -21,6 +21,11 @@ row read fails CLOSED (skip links) so a transient fault never attaches
 topics to a memory we couldn't verify. Entity upserts and link creation
 run in ONE writer to prevent orphan-prune races; returns \[] when links
 were skipped.
+
+`options.topicsSource` (default `auto`) is the provenance recorded in
+`memory_vault.topics`, which this rewrites from the memory's FULL resulting
+link set — see prepareTopicsUpdate. Add semantics mean that set is
+old ∪ new, so already-linked entities are resolved for their names too.
 
 ## Parameters
 
@@ -77,6 +82,18 @@ readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]
 <td>
 
 `object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.topicsSource?`
+
+</td>
+<td>
+
+[`TopicSource`](../type-aliases/TopicSource.md)
 
 </td>
 </tr>

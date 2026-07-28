@@ -1,6 +1,7 @@
 export { VaultMemory } from "./models";
 export {
   archiveVaultMemoryOp,
+  backfillMemoryTopicsOp,
   clearMemoryTopicsOverrideOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
@@ -19,6 +20,7 @@ export {
   getVaultRankingProjectionsOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
+  relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   setMemoryVisibilityOp,

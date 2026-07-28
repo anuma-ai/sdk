@@ -2,14 +2,15 @@
 
 > **setMemoryEntitiesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryId`: `string`, `entities`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1135](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1135)
+Defined in: [src/lib/db/memoryVault/operations.ts:1143](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1143)
 
 Replace a memory's topic (entity) links with a user-chosen set and mark the
 memory `topics_user_managed` so auto-extraction stops touching its links.
 Replace semantics: the given `entities` become the memory's complete topic
 set (pass `[]` to clear all topics — the memory stays user-managed and
 unclustered). Requires `ctx.entityCtx`. Preserves `updated_at` so a topic
-edit doesn't inflate the recency multiplier.
+edit doesn't inflate the recency multiplier — `topics_updated_at` is what
+carries the edit to the user's other devices.
 
 ## Parameters
 
