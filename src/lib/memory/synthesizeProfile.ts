@@ -248,10 +248,20 @@ export interface SynthesizeProfileOptions extends PortalLlmAuth {
    */
   proofCountAlpha?: number;
   /**
-   * When non-empty, intersect each facet's recalled evidence with this id set
-   * before the LLM runs (publish-review gate). Empty intersection → empty
-   * section (legitimate no-evidence), not a stale fallback. Omit / empty →
-   * no gate.
+   * Publish-review gate: when SUPPLIED, each facet's recalled evidence is
+   * intersected with this id set before the LLM runs, so synthesis can only draw
+   * on memories the user approved for publication. Empty intersection → empty
+   * section (legitimate no-evidence), not a stale fallback.
+   *
+   * Pass the user's published set (e.g. `getAllVaultMemoriesOp(ctx, { visibility:
+   * ["public"] })`) to keep a published profile derivable only from published
+   * memories — People Nearby's two-tier model treats `private` memories as never
+   * leaving the device, and a summary derived from them is a derivative that does.
+   *
+   * `[]` means "nothing approved" and gates everything OUT (no recall, no LLM
+   * call, empty sections). **Omitting the field is the only way to run ungated**
+   * — that asymmetry is deliberate, so a caller computing a published set can
+   * never accidentally disable the gate by finding it empty.
    */
   reviewedMemoryIds?: readonly string[];
 }
@@ -430,7 +440,13 @@ function configMatches(
 
 /** Order-independent digest of the publish-review id set. Empty / omitted → "". */
 function reviewedMemoryIdsSignature(ids: readonly string[] | undefined): string {
-  if (ids === undefined || ids.length === 0) return "";
+  // `undefined` (no gate) and `[]` (gate active, nothing approved) are DIFFERENT configs and must
+  // produce different signatures: collapsing both to "" would let a doc synthesized ungated be
+  // reused verbatim once the caller starts passing an empty published set, silently serving
+  // private-derived content the gate now forbids. The sentinel can't collide with a real id list
+  // because ids never contain NUL.
+  if (ids === undefined) return "";
+  if (ids.length === 0) return "\u0000gated-empty";
   return [...new Set(ids)].sort().join("\n");
 }
 
@@ -660,7 +676,28 @@ async function synthesizeFacet(
   const proofCountAlpha = options.proofCountAlpha ?? DEFAULT_PROFILE_PROOF_ALPHA;
 
   const reviewed = options.reviewedMemoryIds;
-  const hasReviewGate = reviewed !== undefined && reviewed.length > 0;
+  // The gate is ACTIVE whenever the caller supplied the field at all — an empty array means
+  // "nothing is approved for publication", which must produce nothing.
+  //
+  // This deliberately reverses the previous `length > 0` condition, under which an empty array
+  // disabled the gate entirely. That failed OPEN in exactly the case the gate exists for: a caller
+  // passing its published-memory set for a user who has published nothing handed over an empty
+  // array and got synthesis across the whole private vault — and via anuma-ai/sdk#816 those private
+  // facts become public `occupation`/`interests` matching keys. People Nearby's two-tier model
+  // (private = never leaves the device) makes "omitted" the only way to ask for no gate.
+  const hasReviewGate = reviewed !== undefined;
+  if (hasReviewGate && reviewed.length === 0) {
+    // Nothing approved: return the legitimate-empty section without recalling or calling the LLM.
+    // Same shape as an empty intersection below (NOT a stale fallback — there is no failure here),
+    // and it skips all spend for what is the common state before a user publishes anything.
+    return {
+      key: facet.key,
+      label: facet.label,
+      text: "",
+      sourceMemoryIds: [],
+      generatedAt: Date.now(),
+    };
+  }
 
   // When gating, fetch up to RECALL_MAX_LIMIT before intersecting — `undefined`
   // is NOT unbounded (`recall` defaults to 8), which would shrink the pool
