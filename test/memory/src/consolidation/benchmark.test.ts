@@ -9,7 +9,8 @@
  *
  * This harness runs a FIXED set of hand-labelled cases through
  * `consolidateMemory` across several candidate models and reports, per model:
- *   - accuracy (right action AND right target ids), overall + by category
+ *   - accuracy (right action AND right target ids) over the decisions that
+ *     COMPLETED, overall + by category
  *   - fallback rate (LLM error / schema violation → degraded to create)
  *   - median latency per decision
  *
@@ -287,6 +288,13 @@ const CASES: Case[] = [
  * and failed 8 of 26 subsequent runs (31%) with no code change. `itemsPerRun`
  * floors the spread at what the mean actually implies; see `binomialRunStdDev`.
  *
+ * `itemsPerRun` is `CASES.length`, which is an upper bound rather than an exact
+ * count: `metricsFor` scores accuracy over the decisions that COMPLETED, so a run
+ * with fallbacks had fewer effective items and is slightly noisier than the floor
+ * assumes. The error is second-order at the single-digit fallback rates seen in
+ * practice, and it errs toward a tighter gate — if `fallbackRate` is high enough
+ * for it to matter, that metric's own band fires first and names the cause.
+ *
  * WHY THE CORPUS IS 11 AND WHY GROWING IT IS NOT FREE. Two bounds squeeze it from
  * both sides, and the second one is counter-intuitive:
  *
@@ -425,8 +433,24 @@ type ConsolidationRunMetrics = {
 
 function metricsFor(results: readonly RunResult[]): ConsolidationRunMetrics {
   const total = results.length || 1;
+  // Accuracy is over the decisions that actually HAPPENED. A fallback is not a
+  // wrong decision, it's an absent one — the provider 429'd or returned
+  // unparseable JSON, so the model never got to be right or wrong. Dividing by
+  // every attempt made accuracy a second provider-health metric, which is what
+  // `fallbackRate` already is, and it corrupted baselines: a capture taken during
+  // an OpenRouter wobble recorded 88.4% where the same decisions scored 96.8%
+  // over the ones that completed. That is the exact unrepresentative-capture
+  // failure this gate's calibration exists to prevent, arriving through the
+  // metric instead of the tolerance. It also matches what the report legend has
+  // claimed all along ("excluding fallbacks").
+  const scored = results.filter((r) => !r.fallback);
   return {
-    overallAccuracy: results.filter((r) => r.correct).length / total,
+    // Every decision fell back: no accuracy signal exists, so report the floor
+    // rather than NaN (which compares false against any tolerance and would read
+    // as "no regression"). `fallbackRate` hits 1.0 in the same run and names the
+    // real cause, so the two together are unambiguous.
+    overallAccuracy:
+      scored.length === 0 ? 0 : scored.filter((r) => r.correct).length / scored.length,
     fallbackRate: results.filter((r) => r.fallback).length / total,
   };
 }
