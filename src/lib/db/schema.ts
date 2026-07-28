@@ -89,8 +89,12 @@ import { VaultFolder } from "./vaultFolders/models";
  *   is TWO-tier (`private | public`); null — and any unrecognised value —
  *   reads as 'private', so nothing pre-existing is ever published without an
  *   explicit visibility write
+ * - v42: Added user_id column to vault_folders for multi-user server-side
+ *   scoping, mirroring memory_vault.user_id (v19). Nullable, no backfill —
+ *   null = the single-tenant client DBs, where every row has one implicit
+ *   owner and folder ops run unscoped
  */
-export const SDK_SCHEMA_VERSION = 41;
+export const SDK_SCHEMA_VERSION = 42;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -324,6 +328,9 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "is_system", type: "boolean", isOptional: true },
         { name: "context", type: "string", isOptional: true },
+        // Owner in multi-user server deployments. Null on the single-tenant
+        // client DBs (one wallet per DB), where folder ops run unscoped.
+        { name: "user_id", type: "string", isOptional: true, isIndexed: true },
       ],
     }),
     // Conversation summary cache for progressive history summarization
@@ -457,6 +464,7 @@ export const sdkSchema = appSchema({
  * - v38 → v39: Added `last_observed_at` column to memory_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated_at)
  * - v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  * - v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
+ * - v41 → v42: Added `user_id` column to vault_folders for multi-user server-side scoping (no backfill — null = the single-tenant client DBs, exact memory_vault v19 precedent)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1025,6 +1033,23 @@ export const sdkMigrations = schemaMigrations({
             { name: "published_at", type: "number", isOptional: true },
             { name: "geohash", type: "string", isOptional: true },
           ],
+        }),
+      ],
+    },
+    // v41 -> v42: user_id on vault_folders so folder reads/writes are scoped
+    // per user in multi-user server deployments, closing the asymmetry with
+    // memory_vault (scoped since v19). No backfill: existing rows keep NULL,
+    // which is exactly right for the single-tenant client DBs (one owner per
+    // DB, ops run with no ctx.userId so the scope filter is inert). A server
+    // adopting this must write folders through a userId-carrying context —
+    // pre-existing NULL folders are invisible to every scoped query, the
+    // fail-closed direction.
+    {
+      toVersion: 42,
+      steps: [
+        addColumns({
+          table: "vault_folders",
+          columns: [{ name: "user_id", type: "string", isOptional: true, isIndexed: true }],
         }),
       ],
     },

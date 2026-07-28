@@ -1,6 +1,6 @@
 # UpdateVaultFolderOptions
 
-Defined in: [src/lib/db/vaultFolders/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#25)
+Defined in: [src/lib/db/vaultFolders/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#27)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/vaultFolders/types.ts:25](https://github.com/anuma-ai/sd
 
 > `optional` **name**: `string`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#26)
+Defined in: [src/lib/db/vaultFolders/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#28)
 
 ***
 
@@ -16,6 +16,6 @@ Defined in: [src/lib/db/vaultFolders/types.ts:26](https://github.com/anuma-ai/sd
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#28)
+Defined in: [src/lib/db/vaultFolders/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#30)
 
 If provided, updates the folder's scope and cascades to all contained memories.

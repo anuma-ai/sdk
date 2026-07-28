@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `41` = `41`
+> `const` **SDK\_SCHEMA\_VERSION**: `42` = `42`
 
-Defined in: [src/lib/db/schema.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#93)
+Defined in: [src/lib/db/schema.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#97)
 
 Current combined schema version for all SDK storage modules.
 
@@ -73,3 +73,7 @@ Version history:
   is TWO-tier (`private | public`); null — and any unrecognised value —
   reads as 'private', so nothing pre-existing is ever published without an
   explicit visibility write
+* v42: Added user\_id column to vault\_folders for multi-user server-side
+  scoping, mirroring memory\_vault.user\_id (v19). Nullable, no backfill —
+  null = the single-tenant client DBs, where every row has one implicit
+  owner and folder ops run unscoped

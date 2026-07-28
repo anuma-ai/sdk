@@ -6,6 +6,8 @@ export class VaultFolder extends Model {
 
   @text("name") name!: string;
   @text("scope") scope!: string;
+  /** Owner in multi-user server deployments; null on single-tenant client DBs. */
+  @field("user_id") userId!: string | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

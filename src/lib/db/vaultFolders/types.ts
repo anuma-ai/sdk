@@ -5,6 +5,8 @@ export interface StoredVaultFolder {
   name: string;
   /** Scope for partitioning ("private" | "shared") */
   scope: string;
+  /** Owner in multi-user server deployments; null on single-tenant client DBs. */
+  userId: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;

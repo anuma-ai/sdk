@@ -2,7 +2,7 @@
 
 > **updateVaultFolderOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md), `id`: `string`, `opts`: [`UpdateVaultFolderOptions`](../interfaces/UpdateVaultFolderOptions.md)): `Promise`<[`StoredVaultFolder`](../interfaces/StoredVaultFolder.md) | `null`>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#67)
+Defined in: [src/lib/db/vaultFolders/operations.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#106)
 
 Update a vault folder's name and/or scope.
 When scope changes, cascades to all contained memories atomically.

@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v41**
+Current version: **v42**
 
 ```mermaid
 graph LR
@@ -160,6 +160,7 @@ graph LR
 | `is_deleted` | boolean | ✓ |  |
 | `is_system` | boolean |  | ✓ |
 | `context` | string |  | ✓ |
+| `user_id` | string | ✓ | ✓ |
 
 ## conversation_summaries
 
@@ -231,6 +232,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v42 | Added `user_id` to `vault_folders` |
 | v41 | Added `visibility`, `twin_opt_in`, `published_at`, `geohash` to `memory_vault` |
 | v40 | Added `fact_type`, `archived_at`, `trust_tier` to `memory_vault` |
 | v39 | Added `last_observed_at` to `memory_vault` |

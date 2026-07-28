@@ -1,6 +1,6 @@
 # CreateVaultFolderOptions
 
-Defined in: [src/lib/db/vaultFolders/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#17)
+Defined in: [src/lib/db/vaultFolders/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#19)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/vaultFolders/types.ts:17](https://github.com/anuma-ai/sd
 
 > `optional` **isSystem**: `boolean`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#22)
+Defined in: [src/lib/db/vaultFolders/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#24)
 
 Whether this is a system-created default folder
 
@@ -18,7 +18,7 @@ Whether this is a system-created default folder
 
 > **name**: `string`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#18)
+Defined in: [src/lib/db/vaultFolders/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#20)
 
 ***
 
@@ -26,6 +26,6 @@ Defined in: [src/lib/db/vaultFolders/types.ts:18](https://github.com/anuma-ai/sd
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#20)
+Defined in: [src/lib/db/vaultFolders/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#22)
 
 Defaults to "private" if omitted.

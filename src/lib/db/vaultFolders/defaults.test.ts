@@ -276,4 +276,99 @@ describe("ensureDefaultFoldersOp — concurrency lock", () => {
     // not 6 (3 per concurrent call)
     expect(createFn).toHaveBeenCalledTimes(3);
   });
+
+  it("does NOT share the lock across users on the same database (#626)", async () => {
+    // A per-database-only lock would hand user B the in-flight promise built
+    // for user A, so B would receive A's folder IDs — a cross-tenant leak on
+    // a shared multi-user DB.
+    const createdFor: string[] = [];
+    let counter = 0;
+    const createFn = vi.fn(
+      async (builder: (r: { _setRaw: (k: string, v: unknown) => void }) => void) => {
+        counter += 1;
+        let name = "";
+        let userId: unknown = null;
+        builder({
+          _setRaw: (k: string, v: unknown) => {
+            if (k === "name") name = v as string;
+            if (k === "user_id") userId = v;
+          },
+        });
+        createdFor.push(`${userId as string}:${name}`);
+        return {
+          id: `id_${counter}`,
+          name,
+          scope: "private",
+          userId,
+          isDeleted: false,
+          isSystem: true,
+          context: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+    );
+
+    const database = {
+      write: vi.fn(async (cb: () => unknown) => cb()),
+      batch: vi.fn(async () => {}),
+    } as unknown as VaultFolderOperationsContext["database"];
+
+    const collections = {
+      vaultFolderCollection: {
+        create: createFn,
+        find: vi.fn(),
+        query: vi.fn(() => ({ fetch: vi.fn(async () => []) })),
+      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
+      vaultMemoryCollection: {
+        query: vi.fn(() => ({ fetch: vi.fn(async () => []) })),
+      } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
+    };
+
+    const [mapA, mapB] = await Promise.all([
+      ensureDefaultFoldersOp({ database, ...collections, userId: "user_a" }),
+      ensureDefaultFoldersOp({ database, ...collections, userId: "user_b" }),
+    ]);
+
+    expect(mapA.size).toBe(3);
+    expect(mapB.size).toBe(3);
+    // Each user gets their OWN three folders — 6 creates, not 3.
+    expect(createFn).toHaveBeenCalledTimes(6);
+    expect(createdFor.filter((s) => s.startsWith("user_a:"))).toHaveLength(3);
+    expect(createdFor.filter((s) => s.startsWith("user_b:"))).toHaveLength(3);
+    // ...and the two users' folder IDs must not overlap.
+    const idsA = new Set(mapA.values());
+    expect([...mapB.values()].some((id) => idsA.has(id))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ensureDefaultFoldersOp — per-user default folders (#626)
+// ---------------------------------------------------------------------------
+
+describe("ensureDefaultFoldersOp — user scoping", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stamps created system folders with the context user", async () => {
+    const ctx = makeCtx([], { userId: "user_a" });
+    await ensureDefaultFoldersOp(ctx);
+
+    const createFn = ctx.vaultFolderCollection.create as ReturnType<typeof vi.fn>;
+    expect(createFn).toHaveBeenCalledTimes(3);
+    for (const [builder] of createFn.mock.calls) {
+      const setRawSpy = vi.fn();
+      builder({ _setRaw: setRawSpy });
+      expect(setRawSpy).toHaveBeenCalledWith("user_id", "user_a");
+    }
+  });
+
+  it("scopes the existing-folder lookup to the context user", async () => {
+    // Another tenant's "Personal" must NOT satisfy this user's default set —
+    // the lookup runs through getAllVaultFoldersOp, which filters by user_id.
+    const ctx = makeCtx([], { userId: "user_a" });
+    await ensureDefaultFoldersOp(ctx);
+
+    const queryFn = ctx.vaultFolderCollection.query as ReturnType<typeof vi.fn>;
+    expect(JSON.stringify(queryFn.mock.calls[0])).toContain('"user_id"');
+  });
 });

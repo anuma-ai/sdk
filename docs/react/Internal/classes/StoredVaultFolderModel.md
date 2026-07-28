@@ -137,7 +137,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **context**: `string` | `null`
 
-Defined in: [src/lib/db/vaultFolders/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#13)
+Defined in: [src/lib/db/vaultFolders/models.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#15)
 
 ***
 
@@ -145,7 +145,7 @@ Defined in: [src/lib/db/vaultFolders/models.ts:13](https://github.com/anuma-ai/s
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/vaultFolders/models.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#9)
+Defined in: [src/lib/db/vaultFolders/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#11)
 
 ***
 
@@ -153,7 +153,7 @@ Defined in: [src/lib/db/vaultFolders/models.ts:9](https://github.com/anuma-ai/sd
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/vaultFolders/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#11)
+Defined in: [src/lib/db/vaultFolders/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#13)
 
 ***
 
@@ -161,7 +161,7 @@ Defined in: [src/lib/db/vaultFolders/models.ts:11](https://github.com/anuma-ai/s
 
 > **isSystem**: `boolean`
 
-Defined in: [src/lib/db/vaultFolders/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#12)
+Defined in: [src/lib/db/vaultFolders/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#14)
 
 ***
 
@@ -185,7 +185,17 @@ Defined in: [src/lib/db/vaultFolders/models.ts:8](https://github.com/anuma-ai/sd
 
 > **updatedAt**: `Date`
 
+Defined in: [src/lib/db/vaultFolders/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#12)
+
+***
+
+### userId
+
+> **userId**: `string` | `null`
+
 Defined in: [src/lib/db/vaultFolders/models.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#10)
+
+Owner in multi-user server deployments; null on single-tenant client DBs.
 
 ***
 

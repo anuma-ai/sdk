@@ -1,6 +1,7 @@
 import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { getLogger } from "../../logger";
 import type { VaultMemory } from "../memoryVault/models";
 import type { VaultFolder } from "./models";
 import type {
@@ -13,6 +14,37 @@ export interface VaultFolderOperationsContext {
   database: Database;
   vaultFolderCollection: Collection<VaultFolder>;
   vaultMemoryCollection: Collection<VaultMemory>;
+  /**
+   * When set, every folder read/write scopes to this user (server-side
+   * multi-user), mirroring `VaultMemoryOperationsContext.userId`. Leaving it
+   * `undefined` disables scoping entirely and is correct ONLY for the
+   * physically single-tenant client DBs (one wallet per DB, rows written with
+   * `user_id = null`). A shared multi-tenant DB MUST set it — without it
+   * `getAllVaultFoldersOp` returns every tenant's folders and the mutating ops
+   * accept any tenant's folder/memory id.
+   */
+  userId?: string;
+}
+
+/**
+ * Returns true if the record belongs to the context user (or if no user
+ * scoping is active). Accepts both folders and memories — the ownership rule
+ * is the same column on both tables.
+ */
+function isOwnedByCtxUser(
+  ctx: VaultFolderOperationsContext,
+  record: { userId: string | null }
+): boolean {
+  return ctx.userId === undefined || record.userId === ctx.userId;
+}
+
+/**
+ * The `user_id` clause every folder/memory query in this module inherits.
+ * Empty when scoping is off, so single-user clients keep their existing
+ * unfiltered behavior.
+ */
+function userScopeConditions(ctx: VaultFolderOperationsContext) {
+  return ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : [];
 }
 
 function folderToStored(folder: VaultFolder): StoredVaultFolder {
@@ -20,6 +52,7 @@ function folderToStored(folder: VaultFolder): StoredVaultFolder {
     uniqueId: folder.id,
     name: folder.name,
     scope: folder.scope,
+    userId: folder.userId ?? null,
     createdAt: folder.createdAt,
     updatedAt: folder.updatedAt,
     isDeleted: folder.isDeleted,
@@ -39,6 +72,7 @@ export async function createVaultFolderOp(
     return ctx.vaultFolderCollection.create((record) => {
       record._setRaw("name", opts.name);
       record._setRaw("scope", opts.scope ?? "private");
+      record._setRaw("user_id", ctx.userId ?? null);
       record._setRaw("is_system", opts.isSystem ?? false);
       record._setRaw("is_deleted", false);
     });
@@ -48,13 +82,18 @@ export async function createVaultFolderOp(
 }
 
 /**
- * Get all non-deleted vault folders, sorted by creation date (newest first).
+ * Get all non-deleted vault folders belonging to the context user, sorted by
+ * creation date (newest first).
  */
 export async function getAllVaultFoldersOp(
   ctx: VaultFolderOperationsContext
 ): Promise<StoredVaultFolder[]> {
   const results = await ctx.vaultFolderCollection
-    .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
+    .query(
+      Q.where("is_deleted", false),
+      ...userScopeConditions(ctx),
+      Q.sortBy("created_at", Q.desc)
+    )
     .fetch();
 
   return results.map(folderToStored);
@@ -71,7 +110,7 @@ export async function updateVaultFolderOp(
 ): Promise<StoredVaultFolder | null> {
   try {
     const record = await ctx.vaultFolderCollection.find(id);
-    if (record.isDeleted) return null;
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
     const scopeChanged = opts.scope !== undefined && opts.scope !== record.scope;
 
@@ -80,9 +119,16 @@ export async function updateVaultFolderOp(
       // batch must happen within the same tick (an interleaved `await` lets
       // WatermelonDB's dev "wasn't sent to batch() synchronously" diagnostic
       // fire, RedBoxing Debug builds).
+      // The user filter also bounds the blast radius: a scope change must
+      // never rewrite another tenant's memory, even if a stale `folder_id`
+      // points here.
       const memories = scopeChanged
         ? await ctx.vaultMemoryCollection
-            .query(Q.where("folder_id", id), Q.where("is_deleted", false))
+            .query(
+              Q.where("folder_id", id),
+              Q.where("is_deleted", false),
+              ...userScopeConditions(ctx)
+            )
             .fetch()
         : [];
 
@@ -109,8 +155,10 @@ export async function updateVaultFolderOp(
     });
 
     return folderToStored(updated);
-  } catch {
-    // Update failed (record not found or write error) – return null to caller
+  } catch (err) {
+    // Update failed (record not found or write error) – return null to caller.
+    // Logged so a transient DB fault is distinguishable from "not found".
+    getLogger().warn("[vaultFolders] updateVaultFolderOp failed", { id, err });
     return null;
   }
 }
@@ -124,11 +172,11 @@ export async function deleteVaultFolderOp(
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultFolderCollection.find(id);
-    if (record.isDeleted) return false;
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
 
     await ctx.database.write(async () => {
       const memories = await ctx.vaultMemoryCollection
-        .query(Q.where("folder_id", id), Q.where("is_deleted", false))
+        .query(Q.where("folder_id", id), Q.where("is_deleted", false), ...userScopeConditions(ctx))
         .fetch();
 
       const preparedMemories = memories.map((memory) =>
@@ -146,8 +194,10 @@ export async function deleteVaultFolderOp(
     });
 
     return true;
-  } catch {
-    // Delete failed (record not found or write error) – return false to caller
+  } catch (err) {
+    // Delete failed (record not found or write error) – return false to caller.
+    // Logged so a transient DB fault is distinguishable from "not found".
+    getLogger().warn("[vaultFolders] deleteVaultFolderOp failed", { id, err });
     return false;
   }
 }
@@ -167,7 +217,7 @@ export async function moveMemoriesToFolderOp(
     let targetScope: string = "private";
     if (folderId) {
       const folder = await ctx.vaultFolderCollection.find(folderId);
-      if (folder.isDeleted) return false;
+      if (folder.isDeleted || !isOwnedByCtxUser(ctx, folder)) return false;
       targetScope = folder.scope;
     }
 
@@ -178,7 +228,11 @@ export async function moveMemoriesToFolderOp(
       for (const id of memoryIds) {
         try {
           const m = await ctx.vaultMemoryCollection.find(id);
-          if (!m.isDeleted) memories.push(m);
+          // Ownership is load-bearing here, not just a read guard: the move
+          // overwrites each memory's `scope` with the folder's, so an
+          // unchecked cross-user id would silently flip another tenant's
+          // private memory to the target folder's scope.
+          if (!m.isDeleted && isOwnedByCtxUser(ctx, m)) memories.push(m);
         } catch {
           // skip invalid/missing IDs
         }
@@ -198,8 +252,10 @@ export async function moveMemoriesToFolderOp(
     });
 
     return movedCount > 0;
-  } catch {
-    // Move failed (record not found or write error) – return false to caller
+  } catch (err) {
+    // Move failed (record not found or write error) – return false to caller.
+    // Logged so a transient DB fault is distinguishable from "not found".
+    getLogger().warn("[vaultFolders] moveMemoriesToFolderOp failed", { folderId, err });
     return false;
   }
 }
@@ -214,7 +270,7 @@ export async function updateVaultFolderContextOp(
 ): Promise<StoredVaultFolder | null> {
   try {
     const record = await ctx.vaultFolderCollection.find(id);
-    if (record.isDeleted) return null;
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
     const updated = await ctx.database.write(async () => {
       await ctx.database.batch(
@@ -226,19 +282,35 @@ export async function updateVaultFolderContextOp(
     });
 
     return folderToStored(updated);
-  } catch {
+  } catch (err) {
+    // Logged so a transient DB fault is distinguishable from "not found".
+    getLogger().warn("[vaultFolders] updateVaultFolderContextOp failed", { id, err });
     return null;
   }
 }
 
 /**
- * Get the count of non-deleted memories in a folder.
+ * Get the count of the context user's non-deleted memories in a folder.
+ * Returns 0 for a folder the context user doesn't own.
  */
 export async function getVaultFolderMemoryCountOp(
   ctx: VaultFolderOperationsContext,
   folderId: string
 ): Promise<number> {
+  if (ctx.userId !== undefined) {
+    try {
+      const folder = await ctx.vaultFolderCollection.find(folderId);
+      if (!isOwnedByCtxUser(ctx, folder)) return 0;
+    } catch {
+      return 0;
+    }
+  }
+
   return await ctx.vaultMemoryCollection
-    .query(Q.where("folder_id", folderId), Q.where("is_deleted", false))
+    .query(
+      Q.where("folder_id", folderId),
+      Q.where("is_deleted", false),
+      ...userScopeConditions(ctx)
+    )
     .fetchCount();
 }

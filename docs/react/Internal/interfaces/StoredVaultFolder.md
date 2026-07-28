@@ -8,7 +8,7 @@ Defined in: [src/lib/db/vaultFolders/types.ts:1](https://github.com/anuma-ai/sdk
 
 > **context**: `string` | `null`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#14)
+Defined in: [src/lib/db/vaultFolders/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#16)
 
 LLM-generated context summary for the folder
 
@@ -18,7 +18,7 @@ LLM-generated context summary for the folder
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#8)
+Defined in: [src/lib/db/vaultFolders/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#10)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/vaultFolders/types.ts:8](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#10)
+Defined in: [src/lib/db/vaultFolders/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#12)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/db/vaultFolders/types.ts:10](https://github.com/anuma-ai/sd
 
 > **isSystem**: `boolean`
 
-Defined in: [src/lib/db/vaultFolders/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#12)
+Defined in: [src/lib/db/vaultFolders/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#14)
 
 Whether this is a system-created default folder
 
@@ -74,4 +74,14 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
+Defined in: [src/lib/db/vaultFolders/types.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#11)
+
+***
+
+### userId
+
+> **userId**: `string` | `null`
+
 Defined in: [src/lib/db/vaultFolders/types.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#9)
+
+Owner in multi-user server deployments; null on single-tenant client DBs.
