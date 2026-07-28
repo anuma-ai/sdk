@@ -2,7 +2,7 @@
 
 > **moveMemoriesToFolderOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md), `memoryIds`: `string`\[], `folderId`: `string` | `null`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#208)
+Defined in: [src/lib/db/vaultFolders/operations.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#242)
 
 Move memories to a folder (or unfile them by passing null).
 

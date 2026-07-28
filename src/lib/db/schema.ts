@@ -1038,12 +1038,24 @@ export const sdkMigrations = schemaMigrations({
     },
     // v41 -> v42: user_id on vault_folders so folder reads/writes are scoped
     // per user in multi-user server deployments, closing the asymmetry with
-    // memory_vault (scoped since v19). No backfill: existing rows keep NULL,
-    // which is exactly right for the single-tenant client DBs (one owner per
-    // DB, ops run with no ctx.userId so the scope filter is inert). A server
-    // adopting this must write folders through a userId-carrying context —
-    // pre-existing NULL folders are invisible to every scoped query, the
-    // fail-closed direction.
+    // memory_vault (scoped since v19).
+    //
+    // No backfill — and unlike v31 (memory_entity, which DID backfill from the
+    // parent memory_vault row) there is no correct value to backfill: pre-v42
+    // folders were global, so a shared folder may hold several tenants' rows
+    // and an empty one resolves to no owner at all. Deriving an owner in SQL
+    // would be guessing.
+    //
+    // Consequences, which differ by deployment:
+    //  - Single-tenant client DBs (one wallet per DB): nothing to do. Ops run
+    //    with no ctx.userId, so the scope filter is inert and NULL is correct.
+    //  - Pre-existing MULTI-TENANT servers: OPERATOR ACTION REQUIRED. Every
+    //    NULL-owner folder becomes invisible to scoped reads — users see a
+    //    fresh default folder set, and their old folders can no longer be
+    //    listed, renamed, or deleted through a scoped context, while their
+    //    memories keep pointing at them. This fails closed against leaks but
+    //    open against data loss; claim each folder for a user (e.g. from the
+    //    owner of the memories filed under it) before switching contexts over.
     {
       toVersion: 42,
       steps: [

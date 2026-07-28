@@ -38,16 +38,15 @@ export async function ensureDefaultFoldersOp(
     ensureDefaultFoldersLocks.set(ctx.database, byUser);
   }
 
-  const key = ctx.userId;
-  const existing = byUser.get(key);
+  const existing = byUser.get(ctx.userId);
   if (existing) return existing;
 
   const promise = _ensureDefaultFoldersImpl(ctx);
-  byUser.set(key, promise);
+  byUser.set(ctx.userId, promise);
   try {
     return await promise;
   } finally {
-    byUser.delete(key);
+    byUser.delete(ctx.userId);
   }
 }
 

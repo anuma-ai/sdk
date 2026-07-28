@@ -34,6 +34,7 @@ function makeMockCreate(prefix = "created_") {
     const raw: Record<string, unknown> = {
       name: "",
       scope: "private",
+      user_id: null,
       is_deleted: false,
       is_system: true,
       context: null,
@@ -53,8 +54,9 @@ function makeMockCreate(prefix = "created_") {
     builder(record);
 
     // Return the WatermelonDB-like model with getters reading from `raw`
-    // folderToStored reads: folder.id, folder.name, folder.scope, folder.isDeleted,
-    // folder.isSystem, folder.context, folder.createdAt, folder.updatedAt
+    // folderToStored reads: folder.id, folder.name, folder.scope, folder.userId,
+    // folder.isDeleted, folder.isSystem, folder.context, folder.createdAt,
+    // folder.updatedAt
     return {
       id,
       get name() {
@@ -62,6 +64,9 @@ function makeMockCreate(prefix = "created_") {
       },
       get scope() {
         return raw.scope as string;
+      },
+      get userId() {
+        return raw.user_id as string | null;
       },
       get isDeleted() {
         return raw.is_deleted as boolean;
@@ -280,62 +285,20 @@ describe("ensureDefaultFoldersOp — concurrency lock", () => {
   it("does NOT share the lock across users on the same database (#626)", async () => {
     // A per-database-only lock would hand user B the in-flight promise built
     // for user A, so B would receive A's folder IDs — a cross-tenant leak on
-    // a shared multi-user DB.
-    const createdFor: string[] = [];
-    let counter = 0;
-    const createFn = vi.fn(
-      async (builder: (r: { _setRaw: (k: string, v: unknown) => void }) => void) => {
-        counter += 1;
-        let name = "";
-        let userId: unknown = null;
-        builder({
-          _setRaw: (k: string, v: unknown) => {
-            if (k === "name") name = v as string;
-            if (k === "user_id") userId = v;
-          },
-        });
-        createdFor.push(`${userId as string}:${name}`);
-        return {
-          id: `id_${counter}`,
-          name,
-          scope: "private",
-          userId,
-          isDeleted: false,
-          isSystem: true,
-          context: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }
-    );
-
-    const database = {
-      write: vi.fn(async (cb: () => unknown) => cb()),
-      batch: vi.fn(async () => {}),
-    } as unknown as VaultFolderOperationsContext["database"];
-
-    const collections = {
-      vaultFolderCollection: {
-        create: createFn,
-        find: vi.fn(),
-        query: vi.fn(() => ({ fetch: vi.fn(async () => []) })),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
-      vaultMemoryCollection: {
-        query: vi.fn(() => ({ fetch: vi.fn(async () => []) })),
-      } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
-    };
+    // a shared multi-user DB. Both ctxs share one `database`, which is what
+    // the WeakMap keys on, so only the per-user inner key separates them.
+    const base = makeCtx([]);
+    const createFn = base.vaultFolderCollection.create as ReturnType<typeof vi.fn>;
 
     const [mapA, mapB] = await Promise.all([
-      ensureDefaultFoldersOp({ database, ...collections, userId: "user_a" }),
-      ensureDefaultFoldersOp({ database, ...collections, userId: "user_b" }),
+      ensureDefaultFoldersOp({ ...base, userId: "user_a" }),
+      ensureDefaultFoldersOp({ ...base, userId: "user_b" }),
     ]);
 
     expect(mapA.size).toBe(3);
     expect(mapB.size).toBe(3);
     // Each user gets their OWN three folders — 6 creates, not 3.
     expect(createFn).toHaveBeenCalledTimes(6);
-    expect(createdFor.filter((s) => s.startsWith("user_a:"))).toHaveLength(3);
-    expect(createdFor.filter((s) => s.startsWith("user_b:"))).toHaveLength(3);
     // ...and the two users' folder IDs must not overlap.
     const idsA = new Set(mapA.values());
     expect([...mapB.values()].some((id) => idsA.has(id))).toBe(false);

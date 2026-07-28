@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, vi, afterAll, beforeEach } from "vitest";
 
 import { getLogger, noopLogger, setLogger } from "../../logger";
 import type { VaultFolderOperationsContext } from "./operations";
@@ -11,6 +11,15 @@ import {
   updateVaultFolderContextOp,
   updateVaultFolderOp,
 } from "./operations";
+
+// The ops log swallowed write errors, and many tests here deliberately trigger
+// those paths. Silence the SDK logger before every test so the intentional
+// failures don't dump stack traces into the test output — besides the noise,
+// each console write is an RPC back to the vitest host. Tests that assert on
+// logging install their own spy, which the next `beforeEach` resets.
+const originalLogger = getLogger();
+beforeEach(() => setLogger(noopLogger));
+afterAll(() => setLogger(originalLogger));
 
 // ---------------------------------------------------------------------------
 // Shared mock helpers
@@ -116,6 +125,24 @@ function makeCtx(
     } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
     ...overrides,
   };
+}
+
+/**
+ * A ctx whose `vaultFolderCollection.find` always resolves to `folder` — the
+ * shape every ownership test needs, minus the repeated cast.
+ */
+function ctxWithFolder(
+  folder: ReturnType<typeof mockFolderRecord>,
+  overrides: Partial<VaultFolderOperationsContext> = {}
+): VaultFolderOperationsContext {
+  return makeCtx({
+    vaultFolderCollection: {
+      find: vi.fn(async () => folder),
+      create: vi.fn(),
+      query: vi.fn(() => ({ fetch: vi.fn(async () => [folder]) })),
+    } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
+    ...overrides,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -259,11 +286,7 @@ describe("updateVaultFolderContextOp", () => {
 
   it("returns null when the folder is soft-deleted", async () => {
     const deletedRecord = mockFolderRecord({ isDeleted: true });
-    const ctx = makeCtx({
-      vaultFolderCollection: {
-        find: vi.fn(async () => deletedRecord),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
-    });
+    const ctx = ctxWithFolder(deletedRecord);
 
     const result = await updateVaultFolderContextOp(ctx, "folder_1", "some context");
     expect(result).toBeNull();
@@ -468,12 +491,7 @@ describe("vault folder ops — user scoping", () => {
 
   it("updateVaultFolderOp refuses another user's folder without writing", async () => {
     const foreign = mockFolderRecord({ id: "folder_b", userId: "user_b" });
-    const ctx = makeCtx({
-      userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => foreign),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
-    });
+    const ctx = ctxWithFolder(foreign, { userId: "user_a" });
 
     const result = await updateVaultFolderOp(ctx, "folder_b", { name: "pwned" });
 
@@ -484,11 +502,7 @@ describe("vault folder ops — user scoping", () => {
 
   it("updateVaultFolderOp still updates a foreign-owned folder on an unscoped ctx (client behavior preserved)", async () => {
     const record = mockFolderRecord({ id: "folder_b", userId: "user_b" });
-    const ctx = makeCtx({
-      vaultFolderCollection: {
-        find: vi.fn(async () => record),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
-    });
+    const ctx = ctxWithFolder(record);
 
     const result = await updateVaultFolderOp(ctx, "folder_b", { name: "renamed" });
 
@@ -498,12 +512,7 @@ describe("vault folder ops — user scoping", () => {
 
   it("deleteVaultFolderOp refuses another user's folder", async () => {
     const foreign = mockFolderRecord({ id: "folder_b", userId: "user_b" });
-    const ctx = makeCtx({
-      userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => foreign),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
-    });
+    const ctx = ctxWithFolder(foreign, { userId: "user_a" });
 
     expect(await deleteVaultFolderOp(ctx, "folder_b")).toBe(false);
     expect(ctx.database.write).not.toHaveBeenCalled();
@@ -511,12 +520,7 @@ describe("vault folder ops — user scoping", () => {
 
   it("updateVaultFolderContextOp refuses another user's folder", async () => {
     const foreign = mockFolderRecord({ id: "folder_b", userId: "user_b" });
-    const ctx = makeCtx({
-      userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => foreign),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
-    });
+    const ctx = ctxWithFolder(foreign, { userId: "user_a" });
 
     expect(await updateVaultFolderContextOp(ctx, "folder_b", "leaked")).toBeNull();
     expect(foreign.context).toBeNull();
@@ -525,11 +529,8 @@ describe("vault folder ops — user scoping", () => {
   it("updateVaultFolderOp scope cascade only queries the ctx user's memories", async () => {
     const record = mockFolderRecord({ id: "folder_a", userId: "user_a", scope: "private" });
     const memQuery = vi.fn(() => ({ fetch: vi.fn(async () => []) }));
-    const ctx = makeCtx({
+    const ctx = ctxWithFolder(record, {
       userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => record),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
       vaultMemoryCollection: {
         query: memQuery,
       } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
@@ -543,12 +544,7 @@ describe("vault folder ops — user scoping", () => {
 
   it("moveMemoriesToFolderOp refuses a target folder owned by another user", async () => {
     const foreign = mockFolderRecord({ id: "folder_b", userId: "user_b", scope: "shared" });
-    const ctx = makeCtx({
-      userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => foreign),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
-    });
+    const ctx = ctxWithFolder(foreign, { userId: "user_a" });
 
     expect(await moveMemoriesToFolderOp(ctx, ["mem_1"], "folder_b")).toBe(false);
     expect(ctx.database.write).not.toHaveBeenCalled();
@@ -563,11 +559,8 @@ describe("vault folder ops — user scoping", () => {
     const theirs = mockMemoryRecord("mem_b", "user_b", "private");
     const byId: Record<string, typeof mine> = { mem_a: mine, mem_b: theirs };
 
-    const ctx = makeCtx({
+    const ctx = ctxWithFolder(folder, {
       userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => folder),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
       vaultMemoryCollection: {
         find: vi.fn(async (id: string) => byId[id]),
         query: vi.fn(() => ({ fetch: vi.fn(async () => []) })),
@@ -589,11 +582,8 @@ describe("vault folder ops — user scoping", () => {
     const folder = mockFolderRecord({ id: "folder_a", userId: "user_a", scope: "shared" });
     const theirs = mockMemoryRecord("mem_b", "user_b", "private");
 
-    const ctx = makeCtx({
+    const ctx = ctxWithFolder(folder, {
       userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => folder),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
       vaultMemoryCollection: {
         find: vi.fn(async () => theirs),
         query: vi.fn(() => ({ fetch: vi.fn(async () => []) })),
@@ -604,31 +594,30 @@ describe("vault folder ops — user scoping", () => {
     expect(theirs.scope).toBe("private");
   });
 
-  it("getVaultFolderMemoryCountOp returns 0 for another user's folder", async () => {
-    const foreign = mockFolderRecord({ id: "folder_b", userId: "user_b" });
-    const fetchCount = vi.fn(async () => 42);
+  it("getVaultFolderMemoryCountOp counts only the ctx user's rows, so a foreign folder id yields 0", async () => {
+    // No ownership pre-read: the user filter sits on the memory rows, so a
+    // folder belonging to user_b simply matches none of user_a's memories.
+    const rowsByUser: Record<string, number> = { user_a: 0, user_b: 42 };
     const ctx = makeCtx({
       userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => foreign),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
       vaultMemoryCollection: {
-        query: vi.fn(() => ({ fetchCount })),
+        query: vi.fn((...conditions: unknown[]) => ({
+          fetchCount: vi.fn(async () =>
+            JSON.stringify(conditions).includes("user_a") ? rowsByUser.user_a : rowsByUser.user_b
+          ),
+        })),
       } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
     });
 
     expect(await getVaultFolderMemoryCountOp(ctx, "folder_b")).toBe(0);
-    expect(fetchCount).not.toHaveBeenCalled();
+    // ...and it does so without a second round trip to resolve the folder.
+    expect(ctx.vaultFolderCollection.find).not.toHaveBeenCalled();
   });
 
   it("getVaultFolderMemoryCountOp scopes the count query to the ctx user", async () => {
-    const own = mockFolderRecord({ id: "folder_a", userId: "user_a" });
     const memQuery = vi.fn(() => ({ fetchCount: vi.fn(async () => 3) }));
     const ctx = makeCtx({
       userId: "user_a",
-      vaultFolderCollection: {
-        find: vi.fn(async () => own),
-      } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
       vaultMemoryCollection: {
         query: memQuery,
       } as unknown as VaultFolderOperationsContext["vaultMemoryCollection"],
@@ -658,19 +647,18 @@ describe("vault folder ops — user scoping", () => {
 // ---------------------------------------------------------------------------
 
 describe("vault folder ops — swallowed errors are logged", () => {
-  const original = getLogger();
   beforeEach(() => vi.clearAllMocks());
-  afterEach(() => setLogger(original));
 
+  /** Swap in a warn-capturing logger; the file-level beforeEach resets it. */
   function spyLogger() {
     const warn = vi.fn();
     setLogger({ ...noopLogger, warn });
     return warn;
   }
 
-  it("updateVaultFolderOp logs when the write throws", async () => {
-    const warn = spyLogger();
-    const ctx = makeCtx({
+  /** A ctx whose every write rejects, to drive each op into its catch arm. */
+  function ctxWithFailingWrite(): VaultFolderOperationsContext {
+    return makeCtx({
       database: {
         write: vi.fn(async () => {
           throw new Error("disk full");
@@ -678,53 +666,33 @@ describe("vault folder ops — swallowed errors are logged", () => {
         batch: vi.fn(async () => {}),
       } as unknown as VaultFolderOperationsContext["database"],
     });
+  }
 
-    expect(await updateVaultFolderOp(ctx, "folder_1", { name: "x" })).toBeNull();
-    expect(warn).toHaveBeenCalledOnce();
-  });
-
-  it("deleteVaultFolderOp logs when the write throws", async () => {
+  it.each([
+    [
+      "updateVaultFolderOp",
+      (ctx: VaultFolderOperationsContext) => updateVaultFolderOp(ctx, "folder_1", { name: "x" }),
+      null,
+    ],
+    [
+      "deleteVaultFolderOp",
+      (ctx: VaultFolderOperationsContext) => deleteVaultFolderOp(ctx, "f"),
+      false,
+    ],
+    [
+      "moveMemoriesToFolderOp",
+      (ctx: VaultFolderOperationsContext) => moveMemoriesToFolderOp(ctx, ["mem_1"], null),
+      false,
+    ],
+    [
+      "updateVaultFolderContextOp",
+      (ctx: VaultFolderOperationsContext) => updateVaultFolderContextOp(ctx, "folder_1", "ctx"),
+      null,
+    ],
+  ] as const)("%s logs when the write throws", async (_name, run, expected) => {
     const warn = spyLogger();
-    const ctx = makeCtx({
-      database: {
-        write: vi.fn(async () => {
-          throw new Error("disk full");
-        }),
-        batch: vi.fn(async () => {}),
-      } as unknown as VaultFolderOperationsContext["database"],
-    });
 
-    expect(await deleteVaultFolderOp(ctx, "folder_1")).toBe(false);
-    expect(warn).toHaveBeenCalledOnce();
-  });
-
-  it("moveMemoriesToFolderOp logs when the write throws", async () => {
-    const warn = spyLogger();
-    const ctx = makeCtx({
-      database: {
-        write: vi.fn(async () => {
-          throw new Error("disk full");
-        }),
-        batch: vi.fn(async () => {}),
-      } as unknown as VaultFolderOperationsContext["database"],
-    });
-
-    expect(await moveMemoriesToFolderOp(ctx, ["mem_1"], null)).toBe(false);
-    expect(warn).toHaveBeenCalledOnce();
-  });
-
-  it("updateVaultFolderContextOp logs when the write throws", async () => {
-    const warn = spyLogger();
-    const ctx = makeCtx({
-      database: {
-        write: vi.fn(async () => {
-          throw new Error("disk full");
-        }),
-        batch: vi.fn(async () => {}),
-      } as unknown as VaultFolderOperationsContext["database"],
-    });
-
-    expect(await updateVaultFolderContextOp(ctx, "folder_1", "ctx")).toBeNull();
+    expect(await run(ctxWithFailingWrite())).toBe(expected);
     expect(warn).toHaveBeenCalledOnce();
   });
 });
