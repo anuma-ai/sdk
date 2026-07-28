@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `40` = `40`
+> `const` **SDK\_SCHEMA\_VERSION**: `41` = `41`
 
-Defined in: [src/lib/db/schema.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#88)
+Defined in: [src/lib/db/schema.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#93)
 
 Current combined schema version for all SDK storage modules.
 
@@ -68,3 +68,8 @@ Version history:
   backfill (null = legacy/untyped, active, un-screened — content is
   encrypted so in-migration classification is impossible; NULL = zero-risk,
   exact embedding\_model precedent)
+* v41: Added visibility, twin\_opt\_in, published\_at, geohash columns to
+  memory\_vault for the People Nearby cross-user visibility axis. Visibility
+  is TWO-tier (`private | public`); null — and any unrecognised value —
+  reads as 'private', so nothing pre-existing is ever published without an
+  explicit visibility write

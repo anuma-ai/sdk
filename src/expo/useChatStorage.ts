@@ -1118,7 +1118,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [vaultCtx]
   );
 
-  /** Shared embedding cache for vault memories on the recall path. */
+  /**
+   * Shared embedding cache for vault memories on the recall path.
+   *
+   * Deliberately NOT warmed with `preEmbedVaultMemories` the way
+   * `react/useChatStorage.ts` warms its own: this cache is per-hook, and the
+   * Expo client mounts one `useChatStorage` per active conversation (a stream
+   * driver each, several resident at once) on top of its recall-owning
+   * instance. An unconditional warm would multiply a full-vault read plus a
+   * per-row decrypt by the number of drivers — and drivers never read this
+   * cache. Warming needs a cache shared per (database, wallet, model) first;
+   * until then the first recall pays the cold cost (anuma-ai/sdk#768 C3).
+   */
   const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
 
   /**

@@ -67,8 +67,14 @@ import {
   type ExtractOutcome,
   type QuarantinedMemoryInfo,
 } from "./autoExtract.js";
+import type { InjectionClassifierOptions } from "./injectionClassifier.js";
 import type { RetainContext } from "./retain.js";
-import type { ConsolidationFallbackReason, RetainOptions, RetainResult } from "./types.js";
+import type {
+  ConsolidationFallbackReason,
+  PortalLlmAuth,
+  RetainOptions,
+  RetainResult,
+} from "./types.js";
 
 /** @public */
 export interface MemoryExtractedEvent {
@@ -248,6 +254,21 @@ export interface CreateAutoExtractorOptions {
      * `RetainOptions.consolidateOptions.onFallback`.
      */
     onFallback?: (reason: ConsolidationFallbackReason) => void;
+  };
+  /**
+   * Tier-0 security (PR5) — enable the optional SECOND-layer LLM injection
+   * classifier over the candidates the deterministic screen passed as clean.
+   * Presence is the switch, so `injectionClassifier: {}` is how a client turns
+   * it on. Auth is NOT configured here — like `consolidate`, the call reuses
+   * the `extract` credentials and defaults to its `baseUrl`. See
+   * `injectionClassifier.ts` for the safety posture and the defaults.
+   */
+  injectionClassifier?: {
+    /** Portal base URL for classifier calls. Default: the `extract` options' `baseUrl`. */
+    baseUrl?: string;
+    model?: string;
+    maxCandidates?: number;
+    totalTimeoutMs?: number;
   };
   /** Per-fact event — fires once per memory written. */
   onMemoryExtracted?: (event: MemoryExtractedEvent) => void;
@@ -498,24 +519,32 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
     }
   };
 
-  // Resolve once — options are fixed for the extractor's lifetime. The
-  // consolidation pass reuses the extract credentials (it hits the same
-  // portal as extraction), so a browser client wired with `getToken`
-  // gains consolidation with zero extra auth plumbing.
-  const consolidateBaseUrl = options.consolidate?.baseUrl ?? options.extract.baseUrl;
+  // Every LLM sub-pass (consolidation, injection classifier) hits the same
+  // portal as extraction, so all of them inherit the extract credentials and
+  // default to its baseUrl — a client wired with `getToken` gains each one with
+  // zero extra auth plumbing. One place, so the sub-passes can't drift apart.
+  // PII redaction is NOT copied here: it's inherited from `extract.piiRedaction`
+  // inside extractAndRetain, so direct callers are covered too.
+  const subPassAuth = (baseUrlOverride?: string): PortalLlmAuth & { baseUrl?: string } => {
+    const baseUrl = baseUrlOverride ?? options.extract.baseUrl;
+    return {
+      ...(options.extract.apiKey !== undefined && { apiKey: options.extract.apiKey }),
+      ...(options.extract.getToken !== undefined && { getToken: options.extract.getToken }),
+      ...(baseUrl !== undefined && { baseUrl }),
+    };
+  };
+
+  // Resolve once — options are fixed for the extractor's lifetime. The caller's
+  // own fields pass through; `subPassAuth` goes last so the resolved baseUrl
+  // wins over the raw override it was handed.
   const consolidateOptions: RetainOptions["consolidateOptions"] = options.consolidate
-    ? {
-        ...(options.extract.apiKey !== undefined && { apiKey: options.extract.apiKey }),
-        ...(options.extract.getToken !== undefined && { getToken: options.extract.getToken }),
-        ...(consolidateBaseUrl !== undefined && { baseUrl: consolidateBaseUrl }),
-        ...(options.consolidate.model !== undefined && { model: options.consolidate.model }),
-        ...(options.consolidate.onFallback !== undefined && {
-          onFallback: options.consolidate.onFallback,
-        }),
-        // PII redaction is inherited from `extract.piiRedaction` inside
-        // extractAndRetain (so direct callers are covered too), not copied here.
-      }
+    ? { ...options.consolidate, ...subPassAuth(options.consolidate.baseUrl) }
     : undefined;
+
+  const injectionClassifierOptions: InjectionClassifierOptions | undefined =
+    options.injectionClassifier
+      ? { ...options.injectionClassifier, ...subPassAuth(options.injectionClassifier.baseUrl) }
+      : undefined;
 
   // Warn once if the caller wired a vault context with cascade-delete
   // entityCtx but didn't pass an entityCtx to the extractor. The W5
@@ -608,6 +637,9 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
             ...(options.scope !== undefined && { scope: options.scope }),
             ...(options.folderId !== undefined && { folderId: options.folderId }),
             ...(consolidateOptions !== undefined && { consolidateOptions }),
+            ...(injectionClassifierOptions !== undefined && {
+              injectionClassifier: injectionClassifierOptions,
+            }),
             ...(options.onCandidateFailed && {
               onCandidateFailed: (candidate, error) =>
                 options.onCandidateFailed?.({ candidate, error, conversationId }),

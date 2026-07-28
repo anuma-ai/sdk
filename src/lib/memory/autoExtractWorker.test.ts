@@ -456,7 +456,7 @@ describe("createAutoExtractor", () => {
     expect(callOptions.consolidateOptions).not.toHaveProperty("apiKey");
   });
 
-  it("calls extractAndRetain WITHOUT consolidateOptions when consolidate is omitted", async () => {
+  it("calls extractAndRetain WITHOUT the optional sub-pass options when neither is set", async () => {
     vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
     const extractor = createAutoExtractor(baseOptions);
     extractor.processTurn(messages, "c1");
@@ -464,6 +464,55 @@ describe("createAutoExtractor", () => {
 
     const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
     expect(callOptions).not.toHaveProperty("consolidateOptions");
+    // Absent, not `undefined`: presence is what switches the classifier on.
+    expect(callOptions).not.toHaveProperty("injectionClassifier");
+  });
+
+  // Tier-0 PR5 (C2) — the classifier used to be reachable only from a direct
+  // extractAndRetain call, and createAutoExtractor is the only path either
+  // client uses, so the second security layer could not be enabled at all.
+  it("wires injectionClassifier (reusing the extract auth) when the option is set", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      extract: { apiKey: "k", baseUrl: "https://portal.example" },
+      injectionClassifier: {},
+    });
+    extractor.processTurn(messages, "c1");
+    await flush();
+
+    const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
+    expect(callOptions.injectionClassifier).toEqual({
+      apiKey: "k",
+      baseUrl: "https://portal.example",
+    });
+  });
+
+  it("lets injectionClassifier fields override the inherited extract auth/baseUrl", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const getToken = vi.fn().mockResolvedValue("tok");
+    const extractor = createAutoExtractor({
+      ...baseOptions,
+      extract: { getToken, baseUrl: "https://extract.example" },
+      injectionClassifier: {
+        baseUrl: "https://classifier.example",
+        model: "m",
+        maxCandidates: 5,
+        totalTimeoutMs: 30_000,
+      },
+    });
+    extractor.processTurn(messages, "c1");
+    await flush();
+
+    const callOptions = vi.mocked(extractAndRetain).mock.calls[0][2];
+    expect(callOptions.injectionClassifier).toEqual({
+      getToken,
+      baseUrl: "https://classifier.example",
+      model: "m",
+      maxCandidates: 5,
+      totalTimeoutMs: 30_000,
+    });
+    expect(callOptions.injectionClassifier).not.toHaveProperty("apiKey");
   });
 
   it("forwards the extractAndRetain outcome on onTurnComplete (H3)", async () => {

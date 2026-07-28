@@ -21,13 +21,14 @@ import type {
   RetrievalTuningKnobs,
   TokenUsage,
 } from "./types.js";
+import { answerFailureReason, evaluateAnswer } from "./judge.js";
 import {
+  ANSWER_MAX_COMPLETION_TOKENS,
   buildRetrievalTuningOptions,
   callChatCompletion,
   clearProgress,
   createConsolidationFallbackTracker,
   createVaultContext,
-  evaluateAnswer,
   extractMemoriesFromSession,
   formatHaystackDateAsObservation,
   logProgress,
@@ -143,36 +144,52 @@ export async function processEntryMemoryVault(
     if (allMemories.length === 0) {
       // No memories extracted — try to answer without context
       logProgress("Generating answer (no memories)...");
-      const genAnswer = await callChatCompletion(
-        api,
-        [
-          { role: "system", content: "Answer the question directly. If you don't know, say so." },
-          { role: "user", content: entry.question },
-        ],
-        { maxTokens: 500 }
-      );
-      clearProgress();
-
-      const generatedAnswer = genAnswer.content || "";
       const earlyUsage: TokenUsage = {
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,
         embeddingTokens: 0,
       };
-      if (genAnswer.usage) {
-        earlyUsage.promptTokens += genAnswer.usage.prompt_tokens;
-        earlyUsage.completionTokens += genAnswer.usage.completion_tokens;
-        earlyUsage.totalTokens += genAnswer.usage.total_tokens;
+      // Same reason as the chunk-only path in recallStrategy: an uncaught
+      // throw here lands in the suite's per-entry catch and becomes a
+      // zero-scored result with no explanation attached.
+      let generatedAnswer = "";
+      let thrownWhileAnswering: unknown;
+      try {
+        const genAnswer = await callChatCompletion(
+          api,
+          [
+            { role: "system", content: "Answer the question directly. If you don't know, say so." },
+            { role: "user", content: entry.question },
+          ],
+          { maxTokens: ANSWER_MAX_COMPLETION_TOKENS }
+        );
+        generatedAnswer = genAnswer.content || "";
+        if (genAnswer.usage) {
+          earlyUsage.promptTokens += genAnswer.usage.prompt_tokens;
+          earlyUsage.completionTokens += genAnswer.usage.completion_tokens;
+          earlyUsage.totalTokens += genAnswer.usage.total_tokens;
+        }
+      } catch (error) {
+        console.error("memory-vault no-memory answering failed:", error);
+        thrownWhileAnswering = error;
       }
-
-      logProgress("Evaluating answer...");
-      const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
       clearProgress();
-      if (evalResult.usage) {
-        earlyUsage.promptTokens += evalResult.usage.prompt_tokens;
-        earlyUsage.completionTokens += evalResult.usage.completion_tokens;
-        earlyUsage.totalTokens += evalResult.usage.total_tokens;
+
+      const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
+      let isCorrect = false;
+      let judgeError: string | undefined;
+      if (!answerError) {
+        logProgress("Evaluating answer...");
+        const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+        clearProgress();
+        if (evalResult.usage) {
+          earlyUsage.promptTokens += evalResult.usage.prompt_tokens;
+          earlyUsage.completionTokens += evalResult.usage.completion_tokens;
+          earlyUsage.totalTokens += evalResult.usage.total_tokens;
+        }
+        isCorrect = evalResult.verdict === "correct";
+        judgeError = evalResult.verdict === "unjudgeable" ? evalResult.reason : undefined;
       }
 
       const elapsed = performance.now() - startTime;
@@ -182,7 +199,9 @@ export async function processEntryMemoryVault(
         question: entry.question,
         expectedAnswer: entry.answer,
         generatedAnswer,
-        isCorrect: evalResult.isCorrect,
+        isCorrect,
+        ...(judgeError && { judgeError }),
+        ...(answerError && { answerError }),
         retrievedSessionIds: [],
         expectedSessionIds: entry.answer_session_ids,
         retrievalPrecision: 0,
@@ -377,6 +396,7 @@ You are a personal assistant with access to the user's past conversation history
       tokenUsage.totalTokens += u.total_tokens;
     }
 
+    let thrownWhileAnswering: unknown;
     try {
       // Force tool use — in a real conversation the LLM would naturally call
       // the tool, but this eval sends a bare question with no prior context.
@@ -384,7 +404,7 @@ You are a personal assistant with access to the user's past conversation history
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools: [toolDef],
         toolChoice: "required",
-        maxTokens: 500,
+        maxTokens: ANSWER_MAX_COMPLETION_TOKENS,
       });
       clearProgress();
       addUsage(firstResponse.usage);
@@ -441,7 +461,7 @@ You are a personal assistant with access to the user's past conversation history
               { role: "system", content: secondSystemPrompt },
               { role: "user", content: entry.question },
             ],
-            { maxTokens: 500 }
+            { maxTokens: ANSWER_MAX_COMPLETION_TOKENS }
           );
           clearProgress();
           addUsage(secondResponse.usage);
@@ -456,9 +476,12 @@ You are a personal assistant with access to the user's past conversation history
       console.error("Memory vault answering failed:", error);
       generatedAnswer = "";
       transcript.error = String(error);
+      thrownWhileAnswering = error;
     }
 
     transcript.finalAnswer = generatedAnswer;
+    const answerError = answerFailureReason(generatedAnswer, thrownWhileAnswering);
+    if (answerError) transcript.answerError = answerError;
 
     // Compute retrieval metrics
     const retrievedSessionIds = new Set<string>();
@@ -487,14 +510,21 @@ You are a personal assistant with access to the user's past conversation history
       expectedSessionIds: entry.answer_session_ids,
     };
 
-    // Evaluate answer
-    logProgress("Evaluating answer...");
-    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
-    clearProgress();
-    addUsage(evalResult.usage);
-    const isCorrect = evalResult.isCorrect;
+    // Evaluate answer — unless there is no answer to evaluate, in which case
+    // grading the empty string would just relabel a broken call as a miss.
+    let isCorrect = false;
+    let judgeError: string | undefined;
+    if (!answerError) {
+      logProgress("Evaluating answer...");
+      const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+      clearProgress();
+      addUsage(evalResult.usage);
+      isCorrect = evalResult.verdict === "correct";
+      judgeError = evalResult.verdict === "unjudgeable" ? evalResult.reason : undefined;
+    }
 
     transcript.isCorrect = isCorrect;
+    if (judgeError) transcript.judgeError = judgeError;
     await saveTranscript(`${entry.question_id}_vault`, transcript, verbose);
 
     const elapsed = performance.now() - startTime;
@@ -513,6 +543,8 @@ You are a personal assistant with access to the user's past conversation history
       expectedAnswer: entry.answer,
       generatedAnswer,
       isCorrect,
+      ...(judgeError && { judgeError }),
+      ...(answerError && { answerError }),
       retrievedSessionIds: [...retrievedSessionIds],
       expectedSessionIds: entry.answer_session_ids,
       retrievalPrecision,

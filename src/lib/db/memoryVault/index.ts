@@ -21,6 +21,7 @@ export {
   type MemoriesNeedingTopicExtraction,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
+  setMemoryVisibilityOp,
   stampTopicsExtractedAtOp,
   supersedeVaultMemoryOp,
   TOPICS_EXTRACTION_VERSION,
@@ -34,4 +35,5 @@ export {
   type RankableVaultMemory,
   type StoredVaultMemory,
   type UpdateVaultMemoryOptions,
+  type VaultMemoryVisibility,
 } from "./types";
