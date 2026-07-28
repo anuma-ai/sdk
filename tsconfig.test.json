@@ -1,0 +1,44 @@
+// Typecheck config for `test/` — the eval harness and the e2e tool suites.
+//
+// The root `tsconfig.json` is `include: ["src/**/*"]`, so until this existed
+// NOTHING under `test/` was typechecked by `pnpm typecheck` or by CI. That is the
+// entire LongMemEval / recall / extraction / consolidation harness: the code every
+// measurement in the memory epics is derived from, with no type gate.
+//
+// It was not theoretical. Widening the exported union `ConsolidationFallbackReason`
+// in #803 left `Record<ConsolidationFallbackReason, number>` in
+// `createConsolidationFallbackTracker` missing a key — a compile error that `tsc`
+// reported nothing about because the file is under `test/`. Only a review bot
+// caught it.
+//
+// Why a separate config rather than widening the root `include`: the root builds
+// to CommonJS (`module: "commonjs"`, emitting `dist/`), and `test/` is ESM — it
+// uses `import.meta.url` (see `test/memory/src/vault/embeddingCache.ts`), which TS
+// rejects under a CommonJS target. So the two trees genuinely need different
+// module settings, and `rootDir: "./src"` on the root config cannot cover `test/`
+// either.
+//
+// `moduleResolution: "bundler"` matches how this code actually runs: vitest
+// transforms it with esbuild, which resolves extensionless relative imports. Using
+// `nodenext` instead would demand explicit `.js` extensions and fail on files that
+// run fine today — checking them under rules they are never executed under would
+// report problems that do not exist.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Check only — `dist/` is built from `src/` by the root config.
+    "noEmit": true,
+    // Widen from the root's "./src" so test/ is in scope.
+    "rootDir": ".",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "types": ["node"]
+  },
+  // `src/` arrives transitively via the harness's imports and is checked as a
+  // side effect, which is intended: a `src` change that breaks a harness call
+  // site should fail here.
+  "include": ["test/**/*"],
+  // The root config excludes `**/*.test.ts`; test files are the point here.
+  "exclude": []
+}
