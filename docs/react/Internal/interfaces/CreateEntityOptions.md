@@ -1,6 +1,6 @@
 # CreateEntityOptions
 
-Defined in: [src/lib/db/entities/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#40)
+Defined in: [src/lib/db/entities/types.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#106)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/entities/types.ts:40](https://github.com/anuma-ai/sdk/bl
 
 > **canonicalName**: `string`
 
-Defined in: [src/lib/db/entities/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#41)
+Defined in: [src/lib/db/entities/types.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#107)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/lib/db/entities/types.ts:41](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **kind**: `string` & `object` | `"event"` | `"other"` | `"person"` | `"organization"` | `"place"` | `"product"` | `"thing"` | `"concept"`
 
-Defined in: [src/lib/db/entities/types.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#42)
+Defined in: [src/lib/db/entities/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/entities/types.ts#108)

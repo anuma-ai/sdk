@@ -89,8 +89,17 @@ import { VaultFolder } from "./vaultFolders/models";
  *   is TWO-tier (`private | public`); null — and any unrecognised value —
  *   reads as 'private', so nothing pre-existing is ever published without an
  *   explicit visibility write
+ * - v42: Added topics, topics_updated_at columns to memory_vault so a memory's
+ *   topics become the DURABLE record and `entity` / `memory_entity` become a
+ *   device-local index over it. Those two tables never sync (entity ids are
+ *   locally generated), so a restored device used to receive "curated" /
+ *   "already extracted" flags on memories with zero topic links and the graph
+ *   recall lane stayed dead. `topics` carries the names across devices;
+ *   `topics_updated_at` is a SECOND timestamp because every topic writer pins
+ *   `updated_at` on purpose (recall's recency multiplier) and both sync paths
+ *   key on `updated_at`, so a topic-only change would neither upload nor merge
  */
-export const SDK_SCHEMA_VERSION = 41;
+export const SDK_SCHEMA_VERSION = 42;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -234,9 +243,33 @@ export const sdkSchema = appSchema({
         // links). Auto-extraction then leaves its links alone — the user owns
         // them. Null/false = topics are auto-derived (default).
         { name: "topics_user_managed", type: "boolean", isOptional: true },
+        // The memory's topics as a DURABLE, SYNCED record: a JSON array of
+        // `{name, kind?, source}`, `name` in the caller's display casing (unlike
+        // `entity.canonical_name`, which is lowercased and has no display
+        // column). `entity` / `memory_entity` are a device-local INDEX over this
+        // — their ids are locally generated, so they can never sync — and a
+        // restored device rebuilds them from these names with no LLM call.
+        // Null = predates v42 (backfilled from the row's current links by the
+        // sweep's topicsBackfill bucket). See getMemoriesNeedingTopicExtractionOp.
+        { name: "topics", type: "string", isOptional: true },
+        // Unix ms of the last write to `topics`. A SECOND timestamp is required:
+        // every topic writer deliberately pins `updated_at` so a topic change
+        // doesn't inflate recall's recency multiplier, and both client sync
+        // paths key on `updated_at` — so without this a topic-only change would
+        // neither upload nor merge. Null = `topics` never written.
+        { name: "topics_updated_at", type: "number", isOptional: true },
         // Unix ms of the last LLM topic-extraction pass over this memory's
         // content. Null = never extracted standalone (legacy rows with entity
         // links are grandfathered — see getMemoriesNeedingTopicExtractionOp).
+        //
+        // DEPRECATED (v42) — `topics_updated_at` subsumes this and
+        // `topics_extracted_version` both: null there means never processed, and
+        // non-null with an empty `topics` means processed and found nothing
+        // (today's "answered empty" case), while a release-time
+        // EXTRACTOR_CHANGED_AT constant compared against `topics_updated_at`
+        // replaces the version check. Both columns are kept only to avoid a
+        // column-drop migration in an otherwise additive list; removing them is
+        // a follow-up once `topics` is proven in production.
         { name: "topics_extracted_at", type: "number", isOptional: true },
         // Write-time supersession (A2). When set, this fact was replaced by a
         // newer, incompatible-value fact (e.g. "Lives in Portland" superseded by
@@ -250,6 +283,9 @@ export const sdkSchema = appSchema({
         // The extraction-logic version this memory was last stamped under. Null
         // (pre-v38) is treated as version 0, so a bump of TOPICS_EXTRACTION_VERSION
         // re-extracts stale rows. See getMemoriesNeedingTopicExtractionOp.
+        //
+        // DEPRECATED (v42) alongside `topics_extracted_at` — same rationale and
+        // same removal follow-up; see that column's note above.
         { name: "topics_extracted_version", type: "number", isOptional: true },
         // Re-observation watermark (C3). Unix ms of the last time retain() merged
         // a duplicate observation into this fact (proof_count++). Distinct from
@@ -457,6 +493,7 @@ export const sdkSchema = appSchema({
  * - v38 → v39: Added `last_observed_at` column to memory_vault (C3 re-observation watermark; stamped on retain merge, distinct from updated_at)
  * - v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  * - v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
+ * - v41 → v42: Added `topics` + `topics_updated_at` columns to memory_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1024,6 +1061,23 @@ export const sdkMigrations = schemaMigrations({
             { name: "twin_opt_in", type: "boolean", isOptional: true },
             { name: "published_at", type: "number", isOptional: true },
             { name: "geohash", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v41 -> v42: topics + topics_updated_at on memory_vault — the durable,
+    // synced record of a memory's topics. Existing rows keep both NULL: the
+    // sweep's topicsBackfill bucket fills them from each row's current entity
+    // links (no LLM), capped under the worker's `limit` so the one-time
+    // re-upload it triggers drains across sweeps instead of spiking.
+    {
+      toVersion: 42,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "topics", type: "string", isOptional: true },
+            { name: "topics_updated_at", type: "number", isOptional: true },
           ],
         }),
       ],

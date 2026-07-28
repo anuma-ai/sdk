@@ -115,7 +115,11 @@ describe("chat-app-debug", () => {
       const store = createFileStore();
       const log: ToolCallLog[] = [];
       const tools = createTestAppTools(store).map((t) => wrapTool(t, log));
-      const toolNames = tools.map((t) => t.function?.name ?? "unknown");
+      // `ToolConfig.function` is `unknown` (LlmapiChatCompletionTool is an index
+      // signature), so it needs narrowing before reading `.name`.
+      const toolNames = tools.map(
+        (t) => (t.function as { name?: string } | undefined)?.name ?? "unknown"
+      );
       const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
       const steps: DebugTraceStep[] = [];
       const phases: PhaseRecord[] = [];
