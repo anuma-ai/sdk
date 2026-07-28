@@ -2,7 +2,7 @@
 
 > **GetApiV1ChatStreamsByInferenceIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:6845](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6845)
+Defined in: [src/client/types.gen.ts:6851](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6851)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:6845](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: `string`
 
-Defined in: [src/client/types.gen.ts:6849](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6849)
+Defined in: [src/client/types.gen.ts:6855](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#6855)
 
 SSE stream of replayed + live-tailed frames terminated by \[DONE]

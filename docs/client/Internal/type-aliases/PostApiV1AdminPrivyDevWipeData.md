@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminPrivyDevWipeData** = `object`
 
-Defined in: [src/client/types.gen.ts:5703](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5703)
+Defined in: [src/client/types.gen.ts:5709](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5709)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5703](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersWipePrivyDevUsersRequest`](HandlersWipePrivyDevUsersRequest.md)
 
-Defined in: [src/client/types.gen.ts:5707](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5707)
+Defined in: [src/client/types.gen.ts:5713](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5713)
 
 Wipe request
 
@@ -20,7 +20,7 @@ Wipe request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:5708](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5708)
+Defined in: [src/client/types.gen.ts:5714](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5714)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:5714](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5714)
+Defined in: [src/client/types.gen.ts:5720](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5720)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:5714](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5715](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5715)
+Defined in: [src/client/types.gen.ts:5721](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5721)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:5715](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/privy-dev/wipe"`
 
-Defined in: [src/client/types.gen.ts:5716](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5716)
+Defined in: [src/client/types.gen.ts:5722](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5722)

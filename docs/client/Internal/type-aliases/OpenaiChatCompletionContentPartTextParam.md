@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionContentPartTextParam** = `object`
 
-Defined in: [src/client/types.gen.ts:3539](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3539)
+Defined in: [src/client/types.gen.ts:3545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3545)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3539](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:3540](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3540)
+Defined in: [src/client/types.gen.ts:3546](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3546)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3540](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:3544](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3544)
+Defined in: [src/client/types.gen.ts:3550](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3550)
 
 The text content.
 
@@ -28,7 +28,7 @@ The text content.
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:3550](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3550)
+Defined in: [src/client/types.gen.ts:3556](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3556)
 
 The type of the content part.
 

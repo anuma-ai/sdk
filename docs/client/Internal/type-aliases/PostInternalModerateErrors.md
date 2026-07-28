@@ -2,7 +2,7 @@
 
 > **PostInternalModerateErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:10755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10755)
+Defined in: [src/client/types.gen.ts:10757](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10757)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:10755](https://github.com/anuma-ai/sdk/blob
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10759)
+Defined in: [src/client/types.gen.ts:10761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10761)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:10763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10763)
+Defined in: [src/client/types.gen.ts:10765](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#10765)
 
 Moderation backend error
