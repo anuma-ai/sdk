@@ -134,6 +134,20 @@ export type {
   RetainSource,
   ScoreBreakdown,
 } from "./types.js";
+// #707. Tagged @public because nothing inside the SDK calls these — the caller
+// is a publish flow in the client. Reaching them from `@anuma/sdk/react` also
+// needs a line in each entry barrel; that lands with the client wiring.
+/** @public */
+export {
+  createMessageSourceResolver,
+  type MemoryToVerify,
+  type MemoryVerification,
+  type UncheckedReason,
+  type UnverifiableReason,
+  type VerificationSources,
+  verifyMemoriesForPublish,
+  type VerifyMemoriesForPublishOptions,
+} from "./verifySupport.js";
 
 // W5 — the low-level entity-graph DB ops (getMemoriesByEntityNamesOp,
 // getEntitiesByMemoryIdsOp, link/unlink) live in db/entities/operations and
