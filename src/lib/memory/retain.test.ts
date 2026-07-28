@@ -1010,6 +1010,40 @@ describe("retain — shared candidate preparation", () => {
     expect(calls[1][3]).toMatchObject({ limit: 1, minSimilarity: 0.8 });
   });
 
+  /**
+   * Pins the three RESOLVED defaults, which nothing did before: the tests above
+   * pass `consolidateTopK` / `consolidateThreshold` / `autoMergeThreshold`
+   * explicitly, so they prove forwarding works and say nothing about the values
+   * used when a caller omits them.
+   *
+   * That gap is how the published docs came to disagree with the code. After
+   * #750 retuned the constants to 0.8 / 0.55 / 20, the JSDoc on `RetainOptions`
+   * still advertised 0.85 / 0.65 / 5 and no test noticed — a consumer reading the
+   * docs to pick a threshold was reading three wrong numbers.
+   *
+   * Numbers are written out rather than imported because the constants are
+   * module-private and exporting them purely for a test would widen the public
+   * surface. The literals are the point: change a constant and this fails, which
+   * is the prompt to update the doc sitting next to it.
+   */
+  it("resolves the documented defaults when the caller passes none (#768-G1)", async () => {
+    mockVaultMatches([]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create", content: "Foo" });
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "id" } as never);
+
+    // No threshold or topK options — everything below is a DEFAULT.
+    await retain("Foo", ctx, { consolidateOptions: { apiKey: "k" } });
+
+    const rankCalls = vi.mocked(rankPreparedVaultCandidates).mock.calls;
+    // Stage 1 — consolidation: DEFAULT_CONSOLIDATE_TOP_K / DEFAULT_CONSOLIDATE_THRESHOLD.
+    expect(rankCalls[0][3]).toMatchObject({ limit: 20, minSimilarity: 0.55 });
+    // Stage 2 — strict cosine merge: DEFAULT_AUTO_MERGE_THRESHOLD.
+    expect(rankCalls[1][3]).toMatchObject({ minSimilarity: 0.8 });
+    // And prepare is sized by the widest stage, i.e. the same topK default.
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[0][4]).toMatchObject({ limit: 20 });
+  });
+
   it("reuses the prepared query vector for the create write instead of re-embedding", async () => {
     mockVaultMatches([], [0.4, 0.5, 0.6]);
 

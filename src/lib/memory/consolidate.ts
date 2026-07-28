@@ -10,8 +10,9 @@
  *               and still need to pick up."
  *
  * These have cosine ~0.7–0.8 — high enough to be obviously the same fact, low
- * enough to slip past the 0.85 auto-merge floor. The result is an over-grown
- * vault that confuses the LLM at answer time.
+ * enough to slip past the auto-merge floor (0.8, `DEFAULT_AUTO_MERGE_THRESHOLD`
+ * in retain.ts). The result is an over-grown vault that confuses the LLM at
+ * answer time.
  *
  * Consolidation closes the gap: for each new fact, pull the top-K most
  * similar existing memories (looser threshold), pass to an LLM with explicit
@@ -55,7 +56,7 @@ export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
 // Retry budget for TRANSIENT consolidation failures. A transient blip
 // (network/timeout/5xx/429/empty completion) that degrades straight to create
 // is NOT low-cost: the paraphrased re-extractions consolidation exists to
-// catch sit at cosine ~0.7–0.8, below the 0.85 auto-merge floor, so a spurious
+// catch sit at cosine ~0.7–0.8, below the 0.8 auto-merge floor, so a spurious
 // create leaves a permanent near-duplicate that does NOT collapse at read time
 // or self-heal via proof_count (different wording → different embedding). 3
 // attempts = up to two cheap transient-only retries; the happy path still
