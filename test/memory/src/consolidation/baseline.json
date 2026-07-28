@@ -1,17 +1,16 @@
 {
   "config": {
     "model": "inclusionai/ling-2.6-flash",
-    "runs": 15,
     "cases": 7
   },
   "runs": 15,
   "metrics": {
     "overallAccuracy": {
-      "mean": 0.9523809523809523,
+      "mean": 0.980952380952381,
       "min": 0.8571428571428571,
       "max": 1,
-      "stdDev": 0.0697071480677524,
-      "tolerance": 0.05090690322141418
+      "stdDev": 0.050266539324928375,
+      "tolerance": 0.03670948996797836
     },
     "fallbackRate": {
       "mean": 0,

@@ -20,7 +20,7 @@ on:
         default: "ab"
         options: ["ab", "save-baseline", "gate"]
       repeat:
-        description: "Runs per config (topic extraction is non-deterministic; >=3 recommended, 5 matches the committed baseline)"
+        description: "Runs per config. Need not match the baseline — the gate folds both run counts into its tolerance. 10+ recommended for --save-baseline."
         required: false
         type: string
         default: "5"
@@ -46,6 +46,10 @@ on:
   # base change only fires `edited`, which we deliberately don't subscribe to
   # (it also fires on every title/description edit and would re-run this LLM
   # gate needlessly). A stacked PR retargeted to `main` needs one more push.
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `topic-eval-status` must not
+  # be added to main's required checks in this shape.
   pull_request:
     branches: [main]
     paths:
@@ -56,22 +60,35 @@ on:
       # autoExtract changes topic-extraction output even though topicExtract.ts
       # is untouched. Without this path the gate would miss exactly that edit.
       - "src/lib/memory/autoExtract.ts"
+      # `parseEntities` drops names via `isGenericEntityName` (entitySalience),
+      # so that file decides whether a junk trap breaks — the metric this gate
+      # exists for. `portalLlm` is the transport every gated pass goes through.
+      - "src/lib/memory/entitySalience.ts"
+      - "src/lib/memory/portalLlm.ts"
       - "src/lib/db/entities/types.ts"
       - "test/memory/src/topic/**"
       - "test/memory/src/gate.ts"
 
 jobs:
-  eval:
+  topic-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       # Free-form inputs via env (not ${{ }} inline) so the shell tokenizes
       # after substitution — blocks command injection from the dispatch UI.
-      # pull_request (no inputs) runs the regression gate at repeat 5, which is
-      # what baseline.json records — the benchmark REFUSES to gate on a repeat
-      # mismatch, so these two numbers must stay in sync.
-      INPUT_MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'gate') || 'ab' }}
+      # `inputs.X || <default>` rather than an event-name special-case: `inputs`
+      # is populated only on workflow_dispatch (the choice inputs carry their own
+      # defaults) and empty on pull_request, so the gate defaults fall through.
+      # Behaviour-identical to the old form today; kept because the previous
+      # `(github.event_name == 'pull_request' && ...)` shape silently degraded any
+      # NEW trigger to `ab` mode — running the eval but never comparing against
+      # the baseline. That is the trap waiting if merge_group is added back.
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+      # 5, against a baseline captured over 10. That asymmetry is fine and cheap:
+      # the gate no longer pins `repeat`, and for every topic metric the floor
+      # dominates the spread term, so gating at 5 yields a tolerance IDENTICAL to
+      # gating at 10 — half the LLM cost for the same sensitivity.
       INPUT_REPEAT: ${{ inputs.repeat || '5' }}
       INPUT_MODELS: ${{ inputs.models }}
       INPUT_BASELINE: ${{ inputs.baseline || 'true' }}
@@ -126,7 +143,7 @@ jobs:
           # "before" arm ran main's topic file against the BRANCH's guidelines —
           # so it was never actually main's prompt.
           set -o pipefail
-          SWAP_FILES="src/lib/memory/topicExtract.ts src/lib/memory/autoExtract.ts src/lib/db/entities/types.ts"
+          SWAP_FILES="src/lib/memory/topicExtract.ts src/lib/memory/autoExtract.ts src/lib/memory/entitySalience.ts src/lib/db/entities/types.ts"
           git checkout origin/main -- $SWAP_FILES
           echo "::group::before (main topic prompt + taxonomy)"
           pnpm --silent eval:topic $EVAL_ARGS | tee before.json
@@ -222,3 +239,22 @@ jobs:
             before.json
             after.json
           if-no-files-found: ignore
+
+  # Stable context whatever the gate above did — the `e2e-tools-status` shape,
+  # which is the only kind safe to add to main's ruleset. Passes when the gate
+  # was skipped, fails only when it actually failed.
+  topic-eval-status:
+    if: always()
+    needs: [topic-eval]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check topic gate result
+        run: |
+          # Allowlist, not a failure check: a timed-out job concludes
+          # `cancelled` and would otherwise post green. See EVAL_GATES.md.
+          result="${{ needs.topic-eval.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Topic eval gate did not pass (result: $result)"
+            exit 1
+          fi
+          echo "Topic eval gate passed"

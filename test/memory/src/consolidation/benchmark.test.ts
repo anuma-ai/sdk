@@ -67,8 +67,11 @@ const DEFAULT_BASELINE_PATH = "test/memory/src/consolidation/baseline.json";
  * consecutive 5-run passes of the live model scored 94.3% / 100% / 82.9%, and a
  * baseline generated from the lucky 100% pass would red the gate on the healthy
  * 82.9% one. The committed baseline is therefore generated at `--runs 15`, where
- * the mean is representative. The workflow gates at the same run count — the
- * benchmark REFUSES to compare across a different one.
+ * the mean is representative. The workflow gates at 15 too — not because the
+ * counts must match (they need not; `meanDiffTolerance` folds both into the
+ * tolerance) but because here the spread term DOMINATES the floor, so gating at
+ * fewer runs genuinely widens the gate. Contrast the topic gate, where every
+ * floor dominates and gating at 5 against a 10-run baseline costs nothing.
  *
  * The FLOOR below is sized to the MEAN, not to a single pass. 15 passes over 7
  * cases is 105 decisions, so one flipped decision moves the gated mean by
@@ -488,10 +491,17 @@ function mean(xs: number[]): number {
 }
 
 /** The knobs the numbers depend on, recorded in the baseline and refused on mismatch. */
-function gateConfig(model: string): { model: string; runs: number; cases: number } {
-  // `cases` is recorded too: growing the corpus changes what the accuracy means,
-  // so an old baseline must be regenerated rather than silently compared.
-  return { model, runs: RUNS, cases: CASES.length };
+function gateConfig(model: string): { model: string; cases: number } {
+  // `cases` IS recorded: growing the corpus changes what the accuracy means, so
+  // an old baseline must be regenerated rather than silently compared.
+  //
+  // `runs` is NOT, for the same reason as the topic gate: it moves the
+  // uncertainty of the mean, not its meaning, and `meanDiffTolerance` already
+  // folds both run counts into the tolerance. Note the practical difference from
+  // topic though — here the spread term dominates the floor, so gating at fewer
+  // runs genuinely widens the gate rather than being free. The workflow stays at
+  // 15 by choice, not by enforcement.
+  return { model, cases: CASES.length };
 }
 
 async function saveBaseline(
