@@ -37,11 +37,17 @@ jobs:
   e2e-tools:
     if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
     runs-on: ubuntu-latest
-    # Raised from 5: that budget was being hit repeatedly, and until the
-    # allowlist below it concluded `cancelled` and passed silently. With the
-    # detector corrected, leaving it at 5 would turn a known-tight timeout into
-    # a red required check rather than a real signal.
-    timeout-minutes: 15
+    # Derived, not guessed: must exceed the largest per-test budget the suite
+    # is allowed to use, plus checkout + `pnpm install`. The longest included
+    # test is test/tools/app-generation/kanban.test.ts at `timeout: 1_500_000`
+    # (25 min); photo-gallery.test.ts is at 900_000 (15 min). A job budget at
+    # or below those can kill a test that is still inside its own budget, and
+    # the allowlist below would then report that as a failure — which is the
+    # same class of bug this file is fixing, one level up.
+    #
+    # If you add a test with a larger `timeout:`, raise this with it. It was 5
+    # minutes, which every run hit; `cancelled` then read as pass.
+    timeout-minutes: 30
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -70,7 +76,11 @@ jobs:
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Same suite, same per-test budgets as `e2e-tools` above — so the same
+    # figure. At 10 this matrix could not finish, and once the allowlist below
+    # stops passing `cancelled`, a dispatch with model=all would fail every
+    # time on the timeout alone.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
