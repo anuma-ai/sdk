@@ -131,6 +131,7 @@ export {
 
 export {
   archiveVaultMemoryOp,
+  backfillMemoryTopicsOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
@@ -145,6 +146,7 @@ export {
   getVaultMemoryOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
+  relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryVisibilityOp,
   stampTopicsExtractedAtOp,

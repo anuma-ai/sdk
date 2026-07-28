@@ -8,9 +8,11 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:301](https://github.com/anuma-a
 
 > **dispose**(): `void`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#317)
+Defined in: [src/lib/memory/autoExtractWorker.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#321)
 
-Stop accepting new turns. In-flight work continues to completion.
+Stop accepting new turns. In-flight work continues to completion, and any
+turn already queued (coalesced while an extraction was in flight) is still
+flushed — never dropped — so a turn sent right before unmount isn't lost.
 
 **Returns**
 

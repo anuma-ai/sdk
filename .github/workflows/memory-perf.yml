@@ -1,0 +1,158 @@
+name: Memory Perf
+
+# Work-cost regression gate for memory recall + retain. Counts the work the
+# pipeline does against a fixed synthetic corpus — vault rows loaded, rows
+# decrypted, stored vectors parsed, documents BM25 re-tokenizes, cross-encoder
+# pairs, full-vault scans per retained fact — and fails when any of them exceeds
+# the committed baseline.
+#
+# Unlike the other memory evals this one needs NO secrets: the embedder, the
+# query decomposer and the cross-encoder are all deterministic stand-ins, so it
+# runs on every PR that touches the measured paths (including forks) and gives an
+# identical answer every time. Wall-clock is printed but never gated.
+#
+# Two ways in:
+#   - pull_request touching a memory read/write path: run the gate.
+#   - workflow_dispatch: run the gate, or regenerate the baseline and download it
+#     as an artifact (CI never pushes to the branch — a human commits it).
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "gate = fail on more work than the committed baseline; save-baseline = regenerate it as a downloadable artifact"
+        required: false
+        type: choice
+        default: "gate"
+        options: ["gate", "save-baseline"]
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `perf` must not be added
+  # to main's required checks in this shape. Until it is, this gate reports
+  # red/green but does not block a merge — a regression it catches still needs a
+  # human to look at the check.
+  #
+  # Default activity types (opened / synchronize / reopened). Same stacked-PR
+  # caveat as the other eval workflows: retargeting a PR's base only fires
+  # `edited`, which we deliberately don't subscribe to, so a retargeted PR needs
+  # one more push before this runs.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/memory-perf.yml"
+      - "vitest.perf-memory.config.mts"
+      - "test/memory/src/perf/**"
+      - "test/memory/src/gate.ts"
+      - "src/lib/memory/**"
+      - "src/lib/memoryVault/**"
+      - "src/lib/memoryEngine/**"
+      # The whole db tree, not the individual operations files it was scoped to
+      # first. The fixture builds a real WatermelonDB and imports models, types
+      # and operations from chat/, entities/ and memoryVault/ — a change to any
+      # of them can move the counters or break the fixture outright, and naming
+      # files one at a time meant the list silently drifted out of date as the
+      # fixture grew. A few extra runs cost 43s each; a gate that quietly stops
+      # running costs the whole benchmark.
+      - "src/lib/db/**"
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Dispatch input via env (never inlined into `run:`) so the shell tokenizes
+      # after substitution. pull_request has no inputs and always gates.
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Run harness (regression gate)
+        if: env.INPUT_MODE == 'gate'
+        run: |
+          # pipefail so a failed gate isn't masked by tee's exit code.
+          set -o pipefail
+          pnpm perf:memory 2>&1 | tee perf-memory.log
+
+      - name: Run harness (regenerate baseline)
+        if: env.INPUT_MODE == 'save-baseline'
+        env:
+          PERF_SAVE_BASELINE: "1"
+        run: |
+          set -o pipefail
+          pnpm perf:memory 2>&1 | tee perf-memory.log
+
+      - name: Summarize
+        if: always()
+        run: |
+          # The harness prints a per-scenario counter table between these two
+          # markers; everything else in the log is vitest/LokiJS chatter.
+          # `sed -n` exits 0 when its address range matches nothing, so the empty
+          # case has to be tested for explicitly — `|| echo` would never fire and
+          # a report-less log would render as a blank code block.
+          report=$(sed -n '/Memory work-cost report/,/gated metrics/p' perf-memory.log 2>/dev/null || true)
+          # Present only when the gate fired. BOTH directions have to be lifted:
+          # the gate is two-sided, and the stale-baseline failure is the one a
+          # reader is least likely to expect — an optimization PR that correctly
+          # trips the ratchet would otherwise show a counter table with no failure
+          # reason, leaving the regenerate instruction buried in the log artifact.
+          regressions=$(sed -n '/MORE WORK THAN THE BASELINE/,/^$/p' perf-memory.log 2>/dev/null || true)
+          stale=$(sed -n '/LESS WORK THAN THE BASELINE/,/^$/p' perf-memory.log 2>/dev/null || true)
+          {
+            echo "## Memory work-cost report"
+            if [ -n "$report" ] || [ -n "$regressions" ] || [ -n "$stale" ]; then
+              echo '```'
+              [ -n "$report" ] && printf '%s\n' "$report"
+              [ -n "$regressions" ] && printf '%s\n' "$regressions"
+              [ -n "$stale" ] && printf '%s\n' "$stale"
+              echo '```'
+              # Spelled out rather than `[ -n "$stale" ] && echo ...`: this is the
+              # last statement in the group, the group is the last statement in the
+              # step, and the step runs under `bash -e`. A trailing AND-list whose
+              # test is false exits 1, so the shorthand would fail the step on every
+              # run where the baseline is fresh — which is every healthy run.
+              if [ -n "$stale" ]; then
+                echo "> Counters dropped below the committed baseline. Regenerate with \`PERF_SAVE_BASELINE=1 pnpm perf:memory\` and commit the result."
+              fi
+            else
+              echo "_The harness failed before producing a report — see the uploaded log._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # `success() &&` is load-bearing, and spelled out rather than left implicit.
+      # Actions applies a default `success()` to any `if:` that names no status
+      # function, so `env.INPUT_MODE == 'save-baseline'` alone already carried it
+      # — but a reader has to know that rule to see the guarantee, and a reviewer
+      # reading it as unconditional filed it as a bug. Writing it out costs one
+      # expression and makes the step say what it does.
+      #
+      # Why it matters: the harness writes baseline.json before its structural
+      # assertions are judged, so a run that regenerated the file but failed an
+      # invariant would otherwise publish a baseline that bakes the broken
+      # behavior in as the new normal. A committed baseline.json also always
+      # exists, so an `always()` upload after an early crash would hand someone
+      # the OLD file labelled as a regeneration. If this step is skipped, fix the
+      # harness first.
+      - name: Upload regenerated baseline
+        if: success() && env.INPUT_MODE == 'save-baseline'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: memory-perf-baseline
+          path: test/memory/src/perf/baseline.json
+          if-no-files-found: error
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: memory-perf-log
+          path: perf-memory.log
+          if-no-files-found: ignore
