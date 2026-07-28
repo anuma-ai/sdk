@@ -10,7 +10,11 @@
 import type { ToolConfig } from "../chat/useChat/types.js";
 import { normalizeForScreen } from "./injectionScreen.js";
 import { recall } from "./recall.js";
-import { RECALL_MAX_LIMIT, RECALL_TOOL_NAME } from "./recallConstants.js";
+import {
+  EMBEDDINGS_DEGRADED_EMPTY,
+  RECALL_MAX_LIMIT,
+  RECALL_TOOL_NAME,
+} from "./recallConstants.js";
 import type {
   Budget,
   MemoryKind,
@@ -435,7 +439,14 @@ export function createRecallTool(
       let surfaced = 0;
 
       try {
+        // Read the degradation off the diagnostics seam rather than widening
+        // RecallResult — it is the channel that already exists for exactly this,
+        // and the vault search tool reads it the same way.
+        let recallDegraded: readonly string[] = [];
         const recallOpts: RecallOptions = {
+          onDiagnostics: (d) => {
+            recallDegraded = d.degraded;
+          },
           types: defaultTypes,
           limit: effectiveLimit,
           budget: defaultBudget,
@@ -476,6 +487,15 @@ export function createRecallTool(
         // Record what actually came back; `finally` releases the unused
         // portion of the reservation.
         surfaced = result.memories.length;
+
+        // An empty recall while the cosine lane was down is NOT evidence the
+        // memory doesn't exist, and "No relevant memories found." reads to the
+        // answer model as exactly that — it answers confidently in the negative.
+        // Handled here rather than inside `formatRecallResult` so that helper's
+        // exported contract (memories → fenced string) stays as-is.
+        if (result.memories.length === 0 && recallDegraded.includes("embeddings-unavailable")) {
+          return EMBEDDINGS_DEGRADED_EMPTY;
+        }
 
         const formatted = formatRecallResult(result.memories);
         // Append a truncation notice if the caller asked for more than the

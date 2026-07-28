@@ -132,6 +132,37 @@ export async function retain(
       }
     );
 
+    // An embedding failure is FATAL here, unlike on the read path.
+    //
+    // Search degrades to BM25 because partial recall beats none. A write cannot
+    // degrade the same way: both merge stages are cosine-only (`useFusion: false`,
+    // gated on `minSimilarity`), and BM25 has no say in either. A row left without
+    // a vector scores cosine 0, clears no threshold, and is indistinguishable from
+    // "no such memory exists" — so retain falls through to create and writes a
+    // PERMANENT duplicate of a fact it should have merged into. No later healthy
+    // pass undoes that; the duplicate is now in the vault.
+    //
+    // A partial failure is enough to cause it and is invisible to
+    // `embeddingsUnavailable` (which reports only a fully inert cosine lane), so
+    // the gate reads `embeddingFailure` — the merge target is exactly the kind of
+    // row a partial batch failure leaves unvectored. Both are checked because they
+    // are separately reachable.
+    //
+    // Throwing restores what happened before the read path was guarded, when an
+    // unguarded `generateEmbeddings` threw out of the search and the write simply
+    // never happened. Losing the write is recoverable — the caller can retry when
+    // embeddings recover; a duplicate is not.
+    //
+    // Only the auto-merge path is gated: `enableAutoMerge: false` is a caller that
+    // already decided to create, so there is no merge to lose.
+    if (prepared.embeddingFailure || prepared.embeddingsUnavailable) {
+      throw new Error(
+        "retain: embeddings unavailable — refusing to auto-merge against an inert cosine lane, " +
+          "which would create a duplicate instead of merging into the existing memory. Retry " +
+          "when embeddings recover, or pass enableAutoMerge: false to force a create."
+      );
+    }
+
     // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
     // Pulls top-K memories above the looser consolidation floor (default
     // 0.65) and asks an LLM to decide create/update/noop/supersede. Catches

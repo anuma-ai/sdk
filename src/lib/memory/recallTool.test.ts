@@ -321,3 +321,88 @@ describe("createRecallTool executor — per-conversation volume cap", () => {
     expect(over).toMatch(/budget/i);
   });
 });
+
+/**
+ * A3 — an empty recall during an embeddings outage must not read to the answer
+ * model as "the user never mentioned this". `recall()` degrades to BM25 instead
+ * of throwing now, so an outage arrives as a SUCCESSFUL empty result; the
+ * executor is the last place that can say so.
+ */
+describe("createRecallTool executor — embeddings outage on an empty result", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("names the degradation instead of claiming no such memory exists", async () => {
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) => {
+      opts?.onDiagnostics?.({
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 0,
+        factCount: 0,
+        chunkCount: 0,
+        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        degraded: ["embeddings-unavailable"],
+      });
+      return recallResult([]);
+    });
+
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "my shellfish allergy" });
+
+    expect(out).not.toBe("No relevant memories found.");
+    expect(out).toMatch(/temporarily unavailable/i);
+    expect(out).toMatch(/do not conclude/i);
+  });
+
+  it("still says no results on a healthy empty recall", async () => {
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) => {
+      opts?.onDiagnostics?.({
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 3,
+        factCount: 0,
+        chunkCount: 0,
+        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        degraded: [],
+      });
+      return recallResult([]);
+    });
+
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "my shellfish allergy" });
+
+    expect(out).toBe("No relevant memories found.");
+  });
+
+  it("does not swap the message when the outage flag rides on a NON-empty result", async () => {
+    // Hits exist — BM25 found them. The model needs the memories, not a caveat
+    // telling it the lookup was degraded.
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) => {
+      opts?.onDiagnostics?.({
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+        factCount: 1,
+        chunkCount: 0,
+        timings: { total: 1, prep: 0, factLane: 1, chunkLane: 0, fuse: 0 },
+        degraded: ["embeddings-unavailable"],
+      });
+      return recallResult([fact("m1", "Allergic to shellfish")]);
+    });
+
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const out = await tool.executor!({ query: "my shellfish allergy" });
+
+    expect(out).toContain("Allergic to shellfish");
+    expect(out).not.toMatch(/temporarily unavailable/i);
+  });
+
+  it("preserves the D4 guarantee: a genuine failure still throws", async () => {
+    vi.mocked(recall).mockRejectedValue(new Error("vault db read failed"));
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    await expect(tool.executor!({ query: "my shellfish allergy" })).rejects.toThrow(
+      /recall_memory: search failed/
+    );
+  });
+});
