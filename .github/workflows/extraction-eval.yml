@@ -18,10 +18,10 @@ on:
         default: "ab"
         options: ["ab", "save-baseline", "gate"]
       repeat:
-        description: "Runs per config (extraction is non-deterministic; ≥3 recommended)"
+        description: "Runs per config. 5 matches the committed baseline — this suite has no run-count refusal, so a lower value silently compares a smaller mean against the baseline's tolerance."
         required: false
         type: string
-        default: "3"
+        default: "5"
       model:
         description: "Extractor model (blank = default gpt-oss-120b)"
         required: false
@@ -51,18 +51,10 @@ on:
   # every title/description edit and would re-run this ~5-min LLM gate needlessly.
   # So a STACKED PR retargeted to `main` must get one more push (or reopen) to
   # run the gate; that's the standard stacked-PR flow and normally happens anyway.
-  # ADVISORY gate: paths-scoped, so it does not run on unrelated PRs and its
-  # status is simply absent there.
-  #
-  # ⚠ Do NOT add `extraction-eval-status` to main's required checks in this shape. A
-  # required context that never reports blocks the PR forever — that is exactly
-  # what happened on #784, where `consolidation-eval-status` was required while
-  # paths-scoped and no unrelated PR could enter the merge queue.
-  #
-  # To make this one blocking: add a `merge_group:` trigger, drop `paths:` from
-  # `pull_request`, and add `if: github.event_name != 'pull_request'` to the eval
-  # job — then the status always reports and the eval runs in the queue. The cost
-  # is a full LLM eval on EVERY queued merge, which is why all five are advisory.
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `extraction-eval-status` must not
+  # be added to main's required checks in this shape.
   pull_request:
     branches: [main]
     paths:
@@ -246,16 +238,11 @@ jobs:
     steps:
       - name: Check extraction gate result
         run: |
-          # Allowlist, NOT a failure-check. A job killed by `timeout-minutes`
-          # concludes `cancelled`, not `failure`, so an `== "failure"` test posts
-          # green for a gate that never finished comparing anything. That is live
-          # on this repo: run 30302039028 had e2e-tools conclude `cancelled` on
-          # its 5m timeout and e2e-tools-status go `success` 3s later — on a
-          # REQUIRED check. These evals are far more exposed (30-45m budgets,
-          # live LLM against a portal that can stall).
+          # Allowlist, not a failure check: a timed-out job concludes
+          # `cancelled` and would otherwise post green. See EVAL_GATES.md.
           result="${{ needs.extraction-eval.result }}"
           if [[ "$result" != "success" && "$result" != "skipped" ]]; then
             echo "Extraction eval gate did not pass (result: $result)"
             exit 1
           fi
-          echo "Extraction eval gate passed (or was skipped)"
+          echo "Extraction eval gate passed"

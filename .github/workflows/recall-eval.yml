@@ -29,8 +29,9 @@ on:
       baseline_repeat:
         description: "save-baseline only: captures to average. 1 writes a luck-dependent baseline — the harness warns about it."
         required: false
-        type: string
+        type: choice
         default: "3"
+        options: ["1", "3", "5", "10"]
   # PORTAL_API_KEY reaches PR-authored code here, same as extraction-eval.yml and
   # the other eval gates. That's the accepted posture for this repo, not an
   # oversight: fork PRs receive no secrets (so an outside contributor's code can
@@ -38,18 +39,10 @@ on:
   # pushed by people who already hold repo write access — they can read the
   # secret directly, so the workflow grants them nothing new. Revisit only if
   # this repo starts accepting fork PRs.
-  # ADVISORY gate: paths-scoped, so it does not run on unrelated PRs and its
-  # status is simply absent there.
-  #
-  # ⚠ Do NOT add `recall-eval-status` to main's required checks in this shape. A
-  # required context that never reports blocks the PR forever — that is exactly
-  # what happened on #784, where `consolidation-eval-status` was required while
-  # paths-scoped and no unrelated PR could enter the merge queue.
-  #
-  # To make this one blocking: add a `merge_group:` trigger, drop `paths:` from
-  # `pull_request`, and add `if: github.event_name != 'pull_request'` to the eval
-  # job — then the status always reports and the eval runs in the queue. The cost
-  # is a full LLM eval on EVERY queued merge, which is why all five are advisory.
+  # ADVISORY gate — see .github/workflows/EVAL_GATES.md for why, and for the
+  # three-step recipe to make it blocking. In short: paths-scoped means no run
+  # (and so NO status) on an unrelated PR, which is why `recall-eval-status` must not
+  # be added to main's required checks in this shape.
   pull_request:
     branches: [main]
     paths:
@@ -190,7 +183,7 @@ jobs:
             --llm gpt-oss/gpt-oss-120b --extract-llm gpt-oss/gpt-oss-120b \
             --concurrency 10 --decompose=off --consolidate=false --rerank=false \
             --output results.json --save-baseline \
-            --baseline-repeat "${INPUT_BASELINE_REPEAT:-3}"
+            --baseline-repeat "$INPUT_BASELINE_REPEAT"
           echo "### Generated recall baseline" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat test/memory/src/longmemeval/recall-baseline.json >> "$GITHUB_STEP_SUMMARY"
@@ -233,11 +226,8 @@ jobs:
           path: results.json
           if-no-files-found: ignore
 
-  # Aggregator whose context is stable whatever the gate above did — the shape
-  # `e2e-tools-status` uses, and the only one safe to add to main's ruleset.
-  # Passes when the gate is skipped (paths didn't match), fails only when it
-  # actually failed. NOTE: adding `recall-eval-status` to ruleset 9764137 needs
-  # repo admin; until then this reports but cannot block.
+  # Reports this gate's outcome as one stable line. See the advisory note on
+  # the pull_request trigger for why it is not a required check today.
   recall-eval-status:
     if: always()
     needs: [recall-eval]
@@ -245,16 +235,11 @@ jobs:
     steps:
       - name: Check recall gate result
         run: |
-          # Allowlist, NOT a failure-check. A job killed by `timeout-minutes`
-          # concludes `cancelled`, not `failure`, so an `== "failure"` test posts
-          # green for a gate that never finished comparing anything. That is live
-          # on this repo: run 30302039028 had e2e-tools conclude `cancelled` on
-          # its 5m timeout and e2e-tools-status go `success` 3s later — on a
-          # REQUIRED check. These evals are far more exposed (30-45m budgets,
-          # live LLM against a portal that can stall).
+          # Allowlist, not a failure check: a timed-out job concludes
+          # `cancelled` and would otherwise post green. See EVAL_GATES.md.
           result="${{ needs.recall-eval.result }}"
           if [[ "$result" != "success" && "$result" != "skipped" ]]; then
             echo "Recall eval gate did not pass (result: $result)"
             exit 1
           fi
-          echo "Recall eval gate passed (or was skipped)"
+          echo "Recall eval gate passed"

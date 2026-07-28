@@ -50,45 +50,50 @@ const DEFAULT_BASELINE_PATH = "test/memory/src/topic/baseline.json";
 /**
  * Gated metrics.
  *
- * Floors are sized to the MEAN of the 10 gated runs, not to a single run. One
- * flipped item moves a 10-run mean by 1/(items x 10) — e.g. 1/340 = 0.3pt for
- * the 34 gold entities — so most floors below sit well above that.
+ * The gate runs 5 repeats against a baseline captured over 10 — `gate.ts` folds
+ * both counts into the tolerance, so the two need not match. Floors are sized to
+ * the MEAN of the gated run, not to a single run: one flipped item moves a 5-run
+ * mean by 1/(items x 5), e.g. 1/170 = 0.6pt across the 34 gold entities.
  *
- * `junkCleanRate` is the exception and keeps a wide floor: see its comment. A
- * floor has to cover the noise the metric ACTUALLY exhibits, not just one item's
- * worth, and a capture with stdDev 0 leaves the floor doing all the work.
+ * For every metric here the FLOOR dominates the spread term, so these numbers —
+ * not the capture's variance — are what set the gate. That also means gating at
+ * 5 costs nothing versus gating at 10.
  *
- * They were previously 0.06–0.30, sized to the spread of a SINGLE run. Applied to
- * a 5-run mean that made the gate ~sqrt(5) too loose (#772 review): the same
- * mistake that let a consolidation case fail on every pass unnoticed. `gate.ts`
- * now derives the working tolerance from the standard error of the mean
- * difference, so these floors only stop a freakishly stable capture from setting
- * a hair-trigger.
+ * They were previously 0.06-0.30, sized to the spread of a SINGLE run. Applied to
+ * a mean that made the gate ~sqrt(n) too loose (#772 review) — the same mistake
+ * that let a consolidation case fail on every pass unnoticed.
  */
 const GATE_METRICS: GateMetricSpec[] = [
-  // Observed 100% across all 10 baseline runs. Floor = 2 of 34 gold entities.
+  // 100% across all 10 baseline runs. Floor = 2 of 34 gold entities.
   { key: "recall", direction: "higher-better", minTolerance: 0.02 },
-  // Observed 89.5–100% (one run produced 4 false positives). Floor covers that.
+  // 100% across the committed capture; floor covers ~1 spurious entity per run.
   { key: "precision", direction: "higher-better", minTolerance: 0.03 },
   { key: "f1", direction: "higher-better", minTolerance: 0.02 },
-  // Observed 91.2–100%: a 3-of-34 kind flip is inherent noise, not a regression.
+  // Committed capture ranges 94.1-97.1% (sd 1.42pt) — the only metric here with
+  // real spread. A 1-of-34 kind flip is inherent noise, not a regression.
   { key: "kindAccuracy", direction: "higher-better", minTolerance: 0.03, label: "kind accuracy" },
-  // Sized inside a hard ceiling: there are exactly 7 traps (EMPTY_CASES), so
-  // junkCleanRate moves in 1/7 = 14.29pt steps per trap per run, and with a
-  // zero-stdDev capture `meanDiffTolerance` returns this floor flat.
+  // Derived against the COMMITTED baseline (mean 1.0) and the gate's repeat of
+  // 5, in the unit that actually moves: a trap-check. 5 repeats x 7 traps = 35
+  // checks, so each failed check moves the gated mean by 1/35 = 2.86pt. Firing
+  // needs the mean below 1.0 - 0.09 = 91.0%.
   //
-  //   1 trap broken on EVERY run (systematic)  drop 14.29pt  <- must FIRE
-  //   one historically-normal 57.1% run of 5   drop  8.57pt  <- must PASS
-  //   two such runs                            drop 17.14pt  <- must FIRE
+  //   checks  scenario                            drop     @0.09
+  //     3     one 57.1% run  |  1 trap x 3 runs   8.57pt   pass
+  //     4     1 trap on 4 of 5 runs              11.43pt   FIRES
+  //     5     1 trap on EVERY run                14.29pt   FIRES
+  //     6     two 57.1% runs                     17.14pt   FIRES
   //
-  // 0.12 satisfies all three. 0.15 (an earlier revision of this PR) sat just
-  // ABOVE the systematic case, so a prompt edit that reliably over-extracts one
-  // trap every run went green — the exact shape #757/#765 shipped.
+  // 0.12 (an earlier revision) fired only at 5 checks, so a break reproducing on
+  // 4 of 5 runs read green. For a non-deterministic extractor that partial shape
+  // is the likelier real regression, which is why this sits at 0.09.
   //
-  // At n=7 the ambiguity is irreducible: "1 trap broken every run" and "5 traps
-  // broken in one run" are both 14.29pt on the mean, so any floor catching the
-  // first also reds the second. Growing the trap corpus is what separates them.
-  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.12, label: "junk-clean" },
+  // Row 3 is irreducibly ambiguous at n=7: "one bad run" (noise, must pass) and
+  // "1 trap failing on 3 of 5 runs" (a 60% regression) are the same 3 checks.
+  // Growing the trap corpus is the only thing that separates them.
+  //
+  // Units are trap-checks, not "runs of N", deliberately: the repeat count has
+  // already changed twice inside this PR and row labels in "of 5" did not survive.
+  { key: "junkCleanRate", direction: "higher-better", minTolerance: 0.09, label: "junk-clean" },
   // 8 cases → one flip is 12.5%. Only the WITH-vocab rate is gated; the no-vocab
   // rate is the control arm and is reported, not gated.
   { key: "canonWithVocab", direction: "higher-better", minTolerance: 0.05, label: "canon (vocab)" },

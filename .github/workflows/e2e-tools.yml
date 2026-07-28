@@ -37,7 +37,11 @@ jobs:
   e2e-tools:
     if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Raised from 5: that budget was being hit repeatedly, and until the
+    # allowlist below it concluded `cancelled` and passed silently. With the
+    # detector corrected, leaving it at 5 would turn a known-tight timeout into
+    # a red required check rather than a real signal.
+    timeout-minutes: 15
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
