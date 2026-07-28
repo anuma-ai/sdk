@@ -7,6 +7,7 @@ import {
   eagerEmbedContent,
   admitVaultProjections,
   buildProjectedCorpus,
+  prepareVaultCandidates,
 } from "./searchTool";
 import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
@@ -1122,7 +1123,13 @@ describe("buildProjectedCorpus", () => {
 
     // No candidate keys → nothing to search → skip the embedding call entirely.
     expect(genEmb).not.toHaveBeenCalled();
-    expect(out).toEqual({ memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 });
+    expect(out).toEqual({
+      memories: [],
+      embeddedItems: [],
+      queryEmbedding: [],
+      vaultSize: 0,
+      laneEmbedFailed: false,
+    });
   });
 
   it("forceIncludeIds: decrypts side-lane candidates outside the cosine admission window", async () => {
@@ -1480,6 +1487,101 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
     );
 
     expect(out.embeddingsUnavailable).toBe(true);
+  });
+});
+
+describe("prepareVaultCandidates — embeddingFailure", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("reports a PARTIAL row-batch failure that embeddingsUnavailable cannot see", async () => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+      makeMemory("m2", "prefers window seats"),
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+    vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
+
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0])); // m1 keeps a usable vector, m2 does not
+
+    const prepared = await prepareVaultCandidates(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      cache,
+      { limit: 5 }
+    );
+
+    // Cosine still ran for real on m1, so this is NOT an outage for a reader...
+    expect(prepared.embeddingsUnavailable).toBe(false);
+    // ...but m2 scores 0 only because its vector is missing, which a writer
+    // gating a merge on cosine has to know about. This is the flag retain reads.
+    expect(prepared.embeddingFailure).toBe(true);
+  });
+
+  it("reports a failed query embed on both flags", async () => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockRejectedValue(new Error("503"));
+
+    const prepared = await prepareVaultCandidates(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      createVaultEmbeddingCache(),
+      { limit: 5 }
+    );
+
+    expect(prepared.embeddingsUnavailable).toBe(true);
+    expect(prepared.embeddingFailure).toBe(true);
+  });
+
+  it("stays false on a healthy pass", async () => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[1, 0, 0]]);
+
+    const prepared = await prepareVaultCandidates(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      createVaultEmbeddingCache(),
+      { limit: 5 }
+    );
+
+    expect(prepared.embeddingsUnavailable).toBe(false);
+    expect(prepared.embeddingFailure).toBe(false);
+  });
+
+  it("reports the projected un-embedded lane's batch failure", async () => {
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      { uniqueId: "m1", updatedAt: new Date(), embeddingModel: null },
+    ] as any);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([
+      { uniqueId: "m1", embedding: null },
+    ] as any);
+    vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+    ] as any);
+    // Query embed lands; the lane batch for the un-embedded row is what fails.
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+    vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
+
+    const prepared = await prepareVaultCandidates(
+      "shellfish",
+      mockVaultCtx,
+      mockEmbeddingOptions,
+      createVaultEmbeddingCache(),
+      { limit: 5, decryptLast: true }
+    );
+
+    expect(prepared.embeddingFailure).toBe(true);
   });
 });
 

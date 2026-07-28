@@ -1463,6 +1463,13 @@ export async function buildProjectedCorpus(
   embeddedItems: EmbeddedItem[];
   queryEmbedding: number[];
   vaultSize: number;
+  /**
+   * True when the un-embedded lane's batch embed failed. Reported separately
+   * from `onEmbeddingDegraded` (which covers the query embed) because it leaves
+   * cosine PARTIALLY usable, not inert — see
+   * {@link PreparedVaultCandidates.embeddingFailure}.
+   */
+  laneEmbedFailed: boolean;
 }> {
   const keys = await getVaultCandidateKeysOp(
     vaultCtx,
@@ -1483,7 +1490,13 @@ export async function buildProjectedCorpus(
   // Empty vault: nothing to rank. Return before embedding the query so an
   // empty vault costs zero embedding calls.
   if (keys.length === 0) {
-    return { memories: [], embeddedItems: [], queryEmbedding: [], vaultSize: 0 };
+    return {
+      memories: [],
+      embeddedItems: [],
+      queryEmbedding: [],
+      vaultSize: 0,
+      laneEmbedFailed: false,
+    };
   }
   const queryEmbedding = await embedQueryOrDegrade(
     query,
@@ -1647,7 +1660,7 @@ export async function buildProjectedCorpus(
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
     factType: m.factType,
   }));
-  return { memories, embeddedItems, queryEmbedding, vaultSize };
+  return { memories, embeddedItems, queryEmbedding, vaultSize, laneEmbedFailed };
 }
 
 /**
@@ -1726,6 +1739,23 @@ export interface PreparedVaultCandidates {
    * matching ran" message, both of which would be false in that case.
    */
   embeddingsUnavailable: boolean;
+  /**
+   * True when ANY embedding request failed (or returned empty) while preparing
+   * this set — the query embed, the legacy row (re)embed batch, or the projected
+   * un-embedded lane. Deliberately BROADER than
+   * {@link PreparedVaultCandidates.embeddingsUnavailable}: it is also true for a
+   * partial failure that leaves a query vector and some row vectors intact.
+   *
+   * The two answer different questions and are not interchangeable.
+   * `embeddingsUnavailable` asks "is cosine inert?" — the right question for a
+   * READER deciding what to tell the model and whether to raise outage
+   * telemetry. This asks "could a row be scoring 0 only because its vector is
+   * missing?" — the right question for a WRITER whose correctness depends on
+   * cosine finding a match, since a partial failure is invisible to the other
+   * flag but still hides the row a write should have merged into. See the gate
+   * in `retain()`.
+   */
+  embeddingFailure: boolean;
 }
 
 /**
@@ -1764,6 +1794,7 @@ export async function prepareVaultCandidates(
       queryEmbedding: [],
       vaultSize: 0,
       embeddingsUnavailable: false,
+      embeddingFailure: false,
     };
   }
   // `limit` is read here only to size the projected decrypt-last admission
@@ -1797,8 +1828,14 @@ export async function prepareVaultCandidates(
   // Reported out so recall() can surface `embeddings-unavailable` rather than
   // letting a whole-provider outage look like a run of poor-quality results.
   let embeddingsUnavailable = false;
+  // Any embedding failure at all, partial ones included — see
+  // PreparedVaultCandidates.embeddingFailure for why this is tracked separately.
+  let embeddingFailure = false;
   const onEmbeddingDegraded = () => {
+    // A failed (or empty) query embed is both: cosine is inert AND an embedding
+    // call failed.
     embeddingsUnavailable = true;
+    embeddingFailure = true;
   };
 
   if (searchOptions?.decryptLast) {
@@ -1825,9 +1862,15 @@ export async function prepareVaultCandidates(
         queryEmbedding: [],
         vaultSize: 0,
         embeddingsUnavailable: false,
+        embeddingFailure: false,
       };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
+    // The lane batch is the projected path's counterpart of the legacy row
+    // (re)embed below: it leaves rows in the candidate set without the vector a
+    // healthy pass would have given them, which is a partial failure and so
+    // does NOT set `embeddingsUnavailable`.
+    if (corpus.laneEmbedFailed) embeddingFailure = true;
     // Keys exist but nothing decrypted (e.g. every admitted row still
     // encrypted). Mirror the legacy path's memories.length === 0 guard so we
     // don't fall through into decompose/LLM ranking on an empty head. Report
@@ -1839,6 +1882,7 @@ export async function prepareVaultCandidates(
         queryEmbedding: [],
         vaultSize,
         embeddingsUnavailable,
+        embeddingFailure,
       };
     }
   } else {
@@ -1870,6 +1914,7 @@ export async function prepareVaultCandidates(
         queryEmbedding: [],
         vaultSize: loaded.length,
         embeddingsUnavailable: false,
+        embeddingFailure: false,
       };
     }
 
@@ -1942,6 +1987,7 @@ export async function prepareVaultCandidates(
       try {
         newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
       } catch (err) {
+        embeddingFailure = true;
         getLogger().warn(
           `memoryVault: (re)embedding ${uncachedTexts.length} vault rows failed — they rank on ` +
             "BM25 alone for this search: " +
@@ -1992,7 +2038,14 @@ export async function prepareVaultCandidates(
     embeddingsUnavailable = true;
   }
 
-  return { memories, embeddedItems, queryEmbedding, vaultSize, embeddingsUnavailable };
+  return {
+    memories,
+    embeddedItems,
+    queryEmbedding,
+    vaultSize,
+    embeddingsUnavailable,
+    embeddingFailure,
+  };
 }
 
 /**

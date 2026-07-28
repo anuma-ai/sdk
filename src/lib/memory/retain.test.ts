@@ -1051,3 +1051,85 @@ describe("retain — shared candidate preparation", () => {
     expect(vi.mocked(generateEmbedding)).toHaveBeenCalled();
   });
 });
+
+/**
+ * The read path degrades to BM25 on an embeddings outage because partial recall
+ * beats none. The WRITE path cannot: both merge stages are cosine-only, so a
+ * candidate left without a vector scores 0, clears no threshold, and reads as
+ * "no such memory" — retain would create a permanent duplicate of a fact it
+ * should have merged into. These pin the gate that keeps that from happening.
+ */
+describe("retain — embeddings outage must not silently duplicate", () => {
+  it("throws instead of creating when a PARTIAL row-batch failure hid the merge target", async () => {
+    // The dangerous shape: the query embed landed, so nothing downstream throws
+    // on its own, and cosine is not fully inert — `embeddingsUnavailable` is
+    // false. Only `embeddingFailure` catches this.
+    vi.mocked(prepareVaultCandidates).mockResolvedValue({
+      ...PREPARED,
+      embeddingsUnavailable: false,
+      embeddingFailure: true,
+    } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+
+    await expect(retain("Allergic to shellfish", ctx)).rejects.toThrow(/embeddings unavailable/i);
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("throws instead of creating when the cosine lane is fully inert", async () => {
+    vi.mocked(prepareVaultCandidates).mockResolvedValue({
+      ...PREPARED,
+      queryEmbedding: [],
+      embeddingsUnavailable: true,
+      embeddingFailure: true,
+    } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+
+    await expect(retain("Allergic to shellfish", ctx)).rejects.toThrow(/embeddings unavailable/i);
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("does not run the consolidator LLM call before failing", async () => {
+    // Fail fast: the gate sits before Stage 1 so an outage doesn't buy a wasted
+    // (and billed) consolidation round-trip per retained fact.
+    vi.mocked(prepareVaultCandidates).mockResolvedValue({
+      ...PREPARED,
+      embeddingsUnavailable: false,
+      embeddingFailure: true,
+    } as never);
+
+    await expect(
+      retain("Allergic to shellfish", ctx, { consolidateOptions: { apiKey: "k" } })
+    ).rejects.toThrow(/embeddings unavailable/i);
+    expect(vi.mocked(consolidateMemory)).not.toHaveBeenCalled();
+  });
+
+  it("still force-creates under enableAutoMerge: false", async () => {
+    // No merge to lose — the caller already decided to create, so an outage must
+    // not block the write.
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "forced" } as never);
+
+    const result = await retain("Allergic to shellfish", ctx, { enableAutoMerge: false });
+
+    expect(result.action).toBe("create");
+    expect(vi.mocked(createVaultMemoryOp)).toHaveBeenCalled();
+  });
+
+  it("creates as usual when embeddings are healthy", async () => {
+    vi.mocked(prepareVaultCandidates).mockResolvedValue({
+      ...PREPARED,
+      embeddingsUnavailable: false,
+      embeddingFailure: false,
+    } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "healthy" } as never);
+
+    const result = await retain("Allergic to shellfish", ctx);
+
+    expect(result.action).toBe("create");
+    expect(result.memoryId).toBe("healthy");
+  });
+});
