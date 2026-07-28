@@ -15,6 +15,7 @@
  * ```
  */
 
+export { getVaultEmbeddingCache } from "./embeddingCacheRegistry";
 export type {
   MemoryVaultSearchOptions,
   VaultEmbeddingCache,

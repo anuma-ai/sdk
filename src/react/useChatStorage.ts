@@ -121,8 +121,8 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   createMemoryVaultTool as createMemoryVaultToolBase,
-  createVaultEmbeddingCache,
   eagerEmbedContent,
+  getVaultEmbeddingCache,
   type MemoryVaultSearchOptions,
   type MemoryVaultToolOptions,
   preEmbedVaultMemories,
@@ -891,6 +891,13 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   /**
    * The shared vault embedding cache. Use this to eagerly embed content
    * when saving vault memories (via eagerEmbedContent).
+   *
+   * Shared per `(database, walletAddress, embeddingModel)` rather than owned by
+   * this hook instance: every `useChatStorage` on the same three gets this exact
+   * object, and it outlives their unmounts. Writes and evictions are therefore
+   * visible to all of them — which is the point (a memory deleted through one
+   * hook stops being served by the others) but does mean `clear()` clears for
+   * everyone.
    */
   vaultEmbeddingCache: VaultEmbeddingCache;
 
@@ -1274,6 +1281,26 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
 
+  /**
+   * Shared embedding cache for vault memories. Pre-populated on mount (below)
+   * so search only needs to embed the query.
+   *
+   * Resolved from the process-wide registry rather than allocated per hook, so
+   * every `useChatStorage` on this database/wallet/model shares one warm store
+   * and one id-keyed invalidation set — an app that mounts more than one hook
+   * used to pay the full warm per instance and evict deleted memories from only
+   * the instance that did the deleting. See `embeddingCacheRegistry` for why the
+   * key is exactly those three and how session teardown is handled.
+   *
+   * Declared here, above its first reader, because a `useCallback` dependency
+   * array is evaluated during render — unlike the ref this replaced, it can't
+   * be declared after the callbacks that close over it.
+   */
+  const vaultEmbeddingCache = useMemo(
+    () => getVaultEmbeddingCache(database, walletAddress, embeddingModel),
+    [database, walletAddress, embeddingModel]
+  );
+
   // W5 graph lane — entity + memory_entity collections feed `recall()`'s
   // graph lane (query entities → shared-entity memories → RRF fusion)
   // and `linkMemoryEntitiesOp` on the write path so retain() can persist
@@ -1597,10 +1624,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         vaultCtx,
         options,
         embOpts,
-        embOpts ? vaultEmbeddingCacheRef.current : undefined
+        embOpts ? vaultEmbeddingCache : undefined
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
   );
 
   /**
@@ -1623,7 +1650,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         eagerEmbedContent(
           content,
           vaultEmbeddingOptions,
-          vaultEmbeddingCacheRef.current,
+          vaultEmbeddingCache,
           vaultCtx,
           result.uniqueId
         ).catch((err) => {
@@ -1632,7 +1659,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
   );
 
   /**
@@ -1646,21 +1673,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (existing) {
           // Cache is keyed by memory id; evict the stale vector before the
           // async re-embed overwrites it under the same id.
-          vaultEmbeddingCacheRef.current.delete(id);
+          vaultEmbeddingCache.delete(id);
         }
-        eagerEmbedContent(
-          content,
-          vaultEmbeddingOptions,
-          vaultEmbeddingCacheRef.current,
-          vaultCtx,
-          id
-        ).catch((err) => {
-          getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
-        });
+        eagerEmbedContent(content, vaultEmbeddingOptions, vaultEmbeddingCache, vaultCtx, id).catch(
+          (err) => {
+            getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
+          }
+        );
       }
       return result;
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
   );
 
   /**
@@ -1672,18 +1695,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const result = await deleteVaultMemoryOp(vaultCtx, id);
       if (result && existing) {
         // Cache is keyed by memory id, not content.
-        vaultEmbeddingCacheRef.current.delete(id);
+        vaultEmbeddingCache.delete(id);
       }
       return result;
     },
-    [vaultCtx]
+    [vaultCtx, vaultEmbeddingCache]
   );
-
-  /**
-   * Shared embedding cache for vault memories.
-   * Pre-populated on init so that search only needs to embed the query.
-   */
-  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
 
   /**
    * Decrypted chunk-vector cache for the recall chunk lane. Skips the
@@ -1704,30 +1721,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     if (!getToken) return;
     void (async () => {
       try {
-        await preEmbedVaultMemories(
-          vaultCtx,
-          vaultEmbeddingOptions,
-          vaultEmbeddingCacheRef.current
-        );
+        await preEmbedVaultMemories(vaultCtx, vaultEmbeddingOptions, vaultEmbeddingCache);
       } catch {
         // Non-critical: embeddings will be generated on first search
       }
     })();
-  }, [vaultCtx, getToken, vaultEmbeddingOptions]);
+  }, [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]);
 
   /**
-   * Drop the vault embedding cache when all encryption state is cleared
-   * (logout / wallet switch). The cache is keyed by *decrypted* memory
-   * content, so leaving it populated would keep plaintext from the previous
-   * identity resident in memory — and would serve stale vectors to the next
-   * identity. Mirrors lazyDecrypt's title-cache clear on the same signal.
+   * Drop the recall caches when all encryption state is cleared (logout /
+   * wallet switch). Their vectors are derived from *decrypted* memory content,
+   * so leaving them populated would keep data from the previous identity
+   * resident in memory. Mirrors lazyDecrypt's title-cache clear on the signal.
+   *
+   * This only reaches the instances a mounted hook still holds. The registry
+   * covers the other half — it swaps itself out on the same signal, so a cache
+   * every hook has already unmounted away from becomes unreachable rather than
+   * lingering warm for whoever mounts next.
    */
   useEffect(() => {
     return onClearAllEncryptionState(() => {
-      vaultEmbeddingCacheRef.current.clear();
+      vaultEmbeddingCache.clear();
       chunkVectorCacheRef.current.clear();
     });
-  }, []);
+  }, [vaultEmbeddingCache]);
 
   /**
    * Create a vault search tool pre-configured with hook's context, auth, and cache
@@ -1740,11 +1757,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       return createMemoryVaultSearchToolBase(
         vaultCtx,
         vaultEmbeddingOptions,
-        vaultEmbeddingCacheRef.current,
+        vaultEmbeddingCache,
         searchOptions
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
   );
 
   /**
@@ -1771,7 +1788,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultCtx,
           storageCtx,
           embeddingOptions: vaultEmbeddingOptions,
-          vaultCache: vaultEmbeddingCacheRef.current,
+          vaultCache: vaultEmbeddingCache,
           chunkCache: chunkVectorCacheRef.current,
           // Graph lane fires when entityCtx is present and the query
           // contains extractable entities. Empty memory_entity (e.g.
@@ -1783,7 +1800,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         callbacks
       );
     },
-    [vaultCtx, storageCtx, entityCtx, getToken, vaultEmbeddingOptions, currentConversationId]
+    [
+      vaultCtx,
+      storageCtx,
+      entityCtx,
+      getToken,
+      vaultEmbeddingOptions,
+      vaultEmbeddingCache,
+      currentConversationId,
+    ]
   );
 
   /**
@@ -1801,11 +1826,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         query,
         vaultCtx,
         vaultEmbeddingOptions,
-        vaultEmbeddingCacheRef.current,
+        vaultEmbeddingCache,
         searchOptions
       );
     },
-    [vaultCtx, getToken, vaultEmbeddingOptions]
+    [vaultCtx, getToken, vaultEmbeddingOptions, vaultEmbeddingCache]
   );
 
   /**
@@ -1843,7 +1868,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // createRecallTool / searchVaultMemoriesFn. Without this, recall()
           // would embed the raw query (often containing the user's PII).
           embeddingOptions: vaultEmbeddingOptions,
-          vaultCache: vaultEmbeddingCacheRef.current,
+          vaultCache: vaultEmbeddingCache,
           chunkCache: chunkVectorCacheRef.current,
           // Graph lane fires only when entityCtx is present and the query
           // has extractable entities; empty memory_entity is a graceful
@@ -1853,7 +1878,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         resolvedOptions
       );
     },
-    [vaultCtx, storageCtx, entityCtx, getToken, currentConversationId, vaultEmbeddingOptions]
+    [
+      vaultCtx,
+      storageCtx,
+      entityCtx,
+      getToken,
+      currentConversationId,
+      vaultEmbeddingOptions,
+      vaultEmbeddingCache,
+    ]
   );
 
   // Use the underlying useChat hook
@@ -3408,7 +3441,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createRecallTool,
     recall: recallFn,
     searchVaultMemories: searchVaultMemoriesFn,
-    vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
+    vaultEmbeddingCache,
     getVaultMemories,
     createVaultMemory,
     updateVaultMemory,
