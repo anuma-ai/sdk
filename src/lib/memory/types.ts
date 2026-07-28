@@ -336,7 +336,8 @@ export interface RetainOptions {
    * Returns `action: 'suppressed'` with the matched `tombstoneId`.
    */
   respectTombstones?: boolean;
-  /** Cosine similarity threshold for auto-merge. Default: 0.85. */
+  /** Cosine similarity threshold for auto-merge. Default: 0.8
+   *  (`DEFAULT_AUTO_MERGE_THRESHOLD` in retain.ts — the source of truth). */
   autoMergeThreshold?: number;
   /**
    * When provided, runs an LLM-based consolidation pass against the top-K
@@ -364,9 +365,13 @@ export interface RetainOptions {
      */
     piiRedaction?: boolean | PiiRedactor;
   };
-  /** Cosine similarity floor for the consolidator candidate set. Default: 0.65. */
+  /** Cosine similarity floor for the consolidator candidate set. Default: 0.55
+   *  (`DEFAULT_CONSOLIDATE_THRESHOLD` in retain.ts — the source of truth). */
   consolidateThreshold?: number;
-  /** Top-K consolidation candidates to feed the LLM. Default: 5. */
+  /** Top-K consolidation candidates to feed the LLM. Default: 20
+   *  (`DEFAULT_CONSOLIDATE_TOP_K` in retain.ts — the source of truth). Widened
+   *  from 5 so a value change can find and retire ALL stale duplicates of the
+   *  old value in one pass, not just the nearest few. */
   consolidateTopK?: number;
   /**
    * W6 temporal lane — when the event in this fact occurred. Persisted to

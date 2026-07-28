@@ -8,9 +8,10 @@ Defined in: [src/lib/memory/types.ts:324](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **autoMergeThreshold**: `number`
 
-Defined in: [src/lib/memory/types.ts:340](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#340)
+Defined in: [src/lib/memory/types.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#341)
 
-Cosine similarity threshold for auto-merge. Default: 0.85.
+Cosine similarity threshold for auto-merge. Default: 0.8
+(`DEFAULT_AUTO_MERGE_THRESHOLD` in retain.ts — the source of truth).
 
 ***
 
@@ -18,7 +19,7 @@ Cosine similarity threshold for auto-merge. Default: 0.85.
 
 > `optional` **consolidateOptions**: [`PortalLlmAuth`](PortalLlmAuth.md) & `object`
 
-Defined in: [src/lib/memory/types.ts:348](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#348)
+Defined in: [src/lib/memory/types.ts:349](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#349)
 
 When provided, runs an LLM-based consolidation pass against the top-K
 existing memories above `consolidateThreshold` (looser than auto-merge).
@@ -90,9 +91,10 @@ persistence. Auto-extraction inherits this from its `extract` options.
 
 > `optional` **consolidateThreshold**: `number`
 
-Defined in: [src/lib/memory/types.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#368)
+Defined in: [src/lib/memory/types.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#370)
 
-Cosine similarity floor for the consolidator candidate set. Default: 0.65.
+Cosine similarity floor for the consolidator candidate set. Default: 0.55
+(`DEFAULT_CONSOLIDATE_THRESHOLD` in retain.ts — the source of truth).
 
 ***
 
@@ -100,9 +102,12 @@ Cosine similarity floor for the consolidator candidate set. Default: 0.65.
 
 > `optional` **consolidateTopK**: `number`
 
-Defined in: [src/lib/memory/types.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#370)
+Defined in: [src/lib/memory/types.ts:375](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#375)
 
-Top-K consolidation candidates to feed the LLM. Default: 5.
+Top-K consolidation candidates to feed the LLM. Default: 20
+(`DEFAULT_CONSOLIDATE_TOP_K` in retain.ts — the source of truth). Widened
+from 5 so a value change can find and retire ALL stale duplicates of the
+old value in one pass, not just the nearest few.
 
 ***
 
@@ -120,7 +125,7 @@ When provided, applies merge-on-write logic instead of plain insert.
 
 > `optional` **eventTime**: { `end`: `number` | `null`; `kind`: `"point"` | `"range"` | `"ongoing"`; `start`: `number`; } | `null`
 
-Defined in: [src/lib/memory/types.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#377)
+Defined in: [src/lib/memory/types.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#382)
 
 W6 temporal lane — when the event in this fact occurred. Persisted to
 memory\_vault.event\_time\_\* columns; recall's temporal lane filters
@@ -133,7 +138,7 @@ Auto-extraction emits this; manual writes can omit it.
 
 > `optional` **factType**: `"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`
 
-Defined in: [src/lib/memory/types.ts:388](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#388)
+Defined in: [src/lib/memory/types.ts:393](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#393)
 
 Typed memory (PR1) — the extractor's classification for this fact.
 Persisted on create; on merge/consolidate it lazily backfills the target
@@ -192,7 +197,7 @@ Defined in: [src/lib/memory/types.ts:326](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **trustTier**: `string`
 
-Defined in: [src/lib/memory/types.ts:397](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#397)
+Defined in: [src/lib/memory/types.ts:402](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#402)
 
 Tier-0 security (PR3) — trust tier for this fact. The write-time
 injection screen threads `"quarantined"` here for flagged candidates;

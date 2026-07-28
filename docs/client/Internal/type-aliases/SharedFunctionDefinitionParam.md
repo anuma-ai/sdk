@@ -2,7 +2,7 @@
 
 > **SharedFunctionDefinitionParam** = `object`
 
-Defined in: [src/client/types.gen.ts:4210](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4210)
+Defined in: [src/client/types.gen.ts:4216](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4216)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4210](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **any**: `unknown`
 
-Defined in: [src/client/types.gen.ts:4211](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4211)
+Defined in: [src/client/types.gen.ts:4217](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4217)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4211](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **description**: [`ParamOptString`](ParamOptString.md)
 
-Defined in: [src/client/types.gen.ts:4212](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4212)
+Defined in: [src/client/types.gen.ts:4218](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4218)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:4212](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:4217](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4217)
+Defined in: [src/client/types.gen.ts:4223](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4223)
 
 The name of the function to be called. Must be a-z, A-Z, 0-9, or contain
 underscores and dashes, with a maximum length of 64.
@@ -37,7 +37,7 @@ underscores and dashes, with a maximum length of 64.
 
 > `optional` **parameters**: [`SharedFunctionParameters`](SharedFunctionParameters.md)
 
-Defined in: [src/client/types.gen.ts:4218](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4218)
+Defined in: [src/client/types.gen.ts:4224](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4224)
 
 ***
 
@@ -45,4 +45,4 @@ Defined in: [src/client/types.gen.ts:4218](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **strict**: [`ParamOptBool`](ParamOptBool.md)
 
-Defined in: [src/client/types.gen.ts:4219](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4219)
+Defined in: [src/client/types.gen.ts:4225](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4225)
