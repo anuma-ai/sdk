@@ -34,6 +34,41 @@ function makeEntityRecord(canonicalName: string, kind: string | null = null, id?
   };
 }
 
+/**
+ * Mock a `memory_vault` row as the link ops see it: the guard reads
+ * `isDeleted` / `topicsUserManaged`, and the topics writer needs `updatedAt`
+ * plus `prepareUpdate` (whose writes land in `topicsWrite` for assertions).
+ */
+function makeVaultRow(overrides: Record<string, unknown> = {}) {
+  const raw: Record<string, unknown> = {
+    isDeleted: false,
+    topicsUserManaged: null,
+    ...overrides,
+  };
+  const written: Record<string, unknown> = {};
+  return {
+    ...raw,
+    updatedAt: new Date("2025-01-01"),
+    topicsWrite: written,
+    prepareUpdate: vi.fn((updater: (r: { _setRaw: (k: string, v: unknown) => void }) => void) => {
+      updater({ _setRaw: (k, v) => void (written[k] = v) });
+      return { _op: "vault-topics" };
+    }),
+  };
+}
+
+/** Install a `memory_vault` lookup on the mocked database. */
+function installVaultRow(ctx: EntityOperationsContext, row: unknown, opts?: { throws?: boolean }) {
+  (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
+    query: vi.fn(() => ({
+      fetch: vi.fn(async () => {
+        if (opts?.throws) throw new Error("adapter fault");
+        return row ? [row] : [];
+      }),
+    })),
+  }));
+}
+
 let created: Array<{ id: string; canonicalName: string; kind: string | null }>;
 
 /** Build a context whose entity collection returns `existing` on lookup and
@@ -77,7 +112,11 @@ function makeCtx(existing: ReturnType<typeof makeEntityRecord>[] = []) {
     entityCollection: entityCollection as never,
     memoryEntityCollection: memoryEntityCollection as never,
   };
-  return { ctx, entityCollection, memoryEntityCollection };
+  // Every link path now reads the vault row (to write `topics` in the same
+  // batch), so a live one is the default; tests override it via installVaultRow.
+  const vaultRow = makeVaultRow();
+  installVaultRow(ctx, vaultRow);
+  return { ctx, entityCollection, memoryEntityCollection, vaultRow };
 }
 
 describe("linkMemoryEntitiesOp — entity kinds", () => {
@@ -149,14 +188,7 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
     row: { topicsUserManaged: boolean | null } | undefined,
     opts?: { throws?: boolean }
   ) {
-    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
-      query: vi.fn(() => ({
-        fetch: vi.fn(async () => {
-          if (opts?.throws) throw new Error("adapter fault");
-          return row ? [row] : [];
-        }),
-      })),
-    }));
+    installVaultRow(ctx, row ? makeVaultRow(row) : undefined, opts);
   }
 
   it("skips link creation and returns [] when the memory is user-managed", async () => {
@@ -213,15 +245,15 @@ describe("linkMemoryEntitiesOp — unlessTopicsUserManaged guard", () => {
     expect(memoryEntityCollection.prepareCreate).not.toHaveBeenCalled();
   });
 
-  it("does not read the flag at all when the option is absent (default path)", async () => {
+  it("does not CONSULT the flag when the option is absent (default path)", async () => {
+    // The row is still read — every link path writes `topics` from the same
+    // writer — but a user-managed row no longer blocks an unguarded caller.
     const { ctx, memoryEntityCollection } = makeCtx();
-    const getSpy = vi.fn();
-    (ctx.database as unknown as { get: unknown }).get = getSpy;
+    withVaultRow(ctx, { topicsUserManaged: true });
 
     const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"]);
 
     expect(result.length).toBe(1);
-    expect(getSpy).not.toHaveBeenCalled();
     expect(memoryEntityCollection.prepareCreate).toHaveBeenCalledTimes(1);
   });
 });
@@ -230,9 +262,7 @@ describe("linkMemoryEntitiesOp — guard also covers deleted rows and raw SQLite
   beforeEach(() => vi.clearAllMocks());
 
   function withVaultRow2(ctx: EntityOperationsContext, row: Record<string, unknown> | undefined) {
-    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
-      query: vi.fn(() => ({ fetch: vi.fn(async () => (row ? [row] : [])) })),
-    }));
+    installVaultRow(ctx, row ? makeVaultRow(row) : undefined);
   }
 
   it("skips linking when the memory was soft-deleted mid-call", async () => {
@@ -281,10 +311,9 @@ describe("replaceMemoryEntitiesGuardedOp", () => {
     (memoryEntityCollection.query as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       fetch: vi.fn(async () => existingLinks),
     }));
-    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
-      query: vi.fn(() => ({ fetch: vi.fn(async () => (vaultRow ? [vaultRow] : [])) })),
-    }));
-    return { ctx, memoryEntityCollection };
+    const row = vaultRow ? makeVaultRow(vaultRow) : undefined;
+    installVaultRow(ctx, row);
+    return { ctx, memoryEntityCollection, vaultRow: row };
   }
 
   const liveRow = { isDeleted: false, topicsUserManaged: null };
@@ -371,11 +400,7 @@ describe("replaceMemoryEntitiesGuardedOp — orphan entity prune", () => {
       call += 1;
       return { fetch: vi.fn(async () => rows) };
     });
-    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
-      query: vi.fn(() => ({
-        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: null }]),
-      })),
-    }));
+    installVaultRow(ctx, makeVaultRow());
     return { ctx, entityCollection };
   }
 
@@ -472,19 +497,15 @@ describe("entity upsert + link atomicity", () => {
 
     await linkMemoryEntitiesOp(ctx, "mem_1", ["Sara"]);
 
-    // One batch carrying both, not an entity batch followed by a link batch.
+    // One batch carrying entity create + link create + the `topics` write, not
+    // three sequential batches.
     const batch = (ctx.database as unknown as { batch: ReturnType<typeof vi.fn> }).batch;
     expect(batch).toHaveBeenCalledTimes(1);
-    expect(batch.mock.calls[0]!.length).toBe(2);
+    expect(batch.mock.calls[0]!.length).toBe(3);
   });
 
   it("replaceMemoryEntitiesGuardedOp also opens exactly ONE writer", async () => {
     const { ctx } = makeCtx();
-    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
-      query: vi.fn(() => ({
-        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: null }]),
-      })),
-    }));
 
     await replaceMemoryEntitiesGuardedOp(ctx, "mem_1", ["zetachain"]);
 
@@ -497,11 +518,7 @@ describe("entity upsert + link atomicity", () => {
     // LINKS but not the upsert — asserted here because the atomicity refactor
     // moved the upsert inside the writer, next to the guard.
     const { ctx } = makeCtx();
-    (ctx.database as unknown as { get: unknown }).get = vi.fn(() => ({
-      query: vi.fn(() => ({
-        fetch: vi.fn(async () => [{ isDeleted: false, topicsUserManaged: true }]),
-      })),
-    }));
+    installVaultRow(ctx, makeVaultRow({ topicsUserManaged: true }));
 
     const result = await linkMemoryEntitiesOp(ctx, "mem_1", ["zetachain"], {
       unlessTopicsUserManaged: true,

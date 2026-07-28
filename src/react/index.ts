@@ -299,6 +299,7 @@ export { useProjects } from "./useProjects";
 // Memory vault
 export {
   archiveVaultMemoryOp,
+  backfillMemoryTopicsOp,
   clearMemoryTopicsOverrideOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
@@ -319,6 +320,7 @@ export {
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
   type RankableVaultMemory,
+  relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   setMemoryVisibilityOp,
@@ -513,7 +515,13 @@ export {
   linkMemoryEntitiesOp,
   replaceMemoryEntitiesGuardedOp,
 } from "../lib/db/entities/operations";
-export type { CreateEntityOptions, EntityKind, StoredEntity } from "../lib/db/entities/types";
+export type {
+  CreateEntityOptions,
+  EntityKind,
+  StoredEntity,
+  StoredTopic,
+  TopicSource,
+} from "../lib/db/entities/types";
 export { ENTITY_KINDS } from "../lib/db/entities/types";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";

@@ -1,4 +1,5 @@
 import type { FactType } from "../../memory/autoExtract.js";
+import type { StoredTopic } from "../entities/types.js";
 
 /**
  * People Nearby cross-user visibility. ORTHOGONAL to `scope` (model access):
@@ -46,9 +47,17 @@ export interface StoredVaultMemory {
   /** When true, the user has manually set this memory's topics (entity links);
    * auto-extraction leaves them alone. False on legacy/auto rows. */
   topicsUserManaged: boolean;
+  /** The memory's topics as the DURABLE, synced record — `entity` /
+   * `memory_entity` are a device-local index over it. Null = pre-v42, no record
+   * yet; `[]` = a record of "no topics". */
+  topics: StoredTopic[] | null;
+  /** Unix ms of the last `topics` write, or null if never written. Separate from
+   * `updatedAt`, which topic writes deliberately pin (recall recency). */
+  topicsUpdatedAt: number | null;
   /** Unix ms of the last LLM topic-extraction pass over this memory's content.
    * Null = never extracted standalone; rows that already carry entity links
-   * are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp). */
+   * are grandfathered as extracted (see getMemoriesNeedingTopicExtractionOp).
+   * DEPRECATED (v42) — subsumed by `topicsUpdatedAt`; see the schema note. */
   topicsExtractedAt: number | null;
   /** Write-time supersession (A2): id of the newer memory that replaced this
    * one (incompatible-value update, e.g. "Lives in Portland" → "Lives in SF").
@@ -58,7 +67,8 @@ export interface StoredVaultMemory {
   /** Unix ms when this memory was superseded. Null when live. */
   supersededAt: number | null;
   /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
-   * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+   * reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows.
+   * DEPRECATED (v42) — subsumed by `topicsUpdatedAt`; see the schema note. */
   topicsExtractedVersion: number | null;
   /** C3 re-observation watermark: Unix ms of the last retain() merge into this
    * fact. Distinct from `updatedAt` (which merges preserve). Null = never

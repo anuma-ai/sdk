@@ -2,7 +2,7 @@
 
 > **setMemoryVisibilityOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`, `opts`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1243](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1243)
+Defined in: [src/lib/db/memoryVault/operations.ts:1273](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1273)
 
 Set a memory's People Nearby visibility (and optionally its twin opt-in).
 

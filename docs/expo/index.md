@@ -118,6 +118,12 @@ Re-exports [AutoExtractor](../react/Internal/interfaces/AutoExtractor.md)
 
 ***
 
+### backfillMemoryTopicsOp
+
+Re-exports [backfillMemoryTopicsOp](../react/Internal/functions/backfillMemoryTopicsOp.md)
+
+***
+
 ### Budget
 
 Re-exports [Budget](../react/Internal/type-aliases/Budget.md)
@@ -1321,6 +1327,12 @@ Re-exports [ReflectOptions](../react/Internal/interfaces/ReflectOptions.md)
 ### ReflectResult
 
 Re-exports [ReflectResult](../react/Internal/interfaces/ReflectResult.md)
+
+***
+
+### relinkMemoryTopicsOp
+
+Re-exports [relinkMemoryTopicsOp](../react/Internal/functions/relinkMemoryTopicsOp.md)
 
 ***
 

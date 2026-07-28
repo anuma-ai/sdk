@@ -23,14 +23,23 @@ export class VaultMemory extends Model {
   /** When true, the user has manually set this memory's topics; auto-extraction
    *  leaves its entity links alone. Null on legacy rows (treated as false). */
   @field("topics_user_managed") topicsUserManaged!: boolean | null;
+  /** The durable, synced record of this memory's topics — JSON `StoredTopic[]`.
+   *  `entity` / `memory_entity` are a device-local index over it. Null = pre-v42
+   *  (backfilled from the row's current links by the sweep). */
+  @field("topics") topics!: string | null;
+  /** Unix ms of the last `topics` write. Separate from `updated_at`, which every
+   *  topic writer pins on purpose (recall recency) — see the schema note. */
+  @field("topics_updated_at") topicsUpdatedAt!: number | null;
   /** Unix ms of the last LLM topic-extraction pass. Null = never extracted
-   *  standalone (linked legacy rows are grandfathered as extracted). */
+   *  standalone (linked legacy rows are grandfathered as extracted).
+   *  DEPRECATED (v42) — subsumed by `topics_updated_at`; see the schema note. */
   @field("topics_extracted_at") topicsExtractedAt!: number | null;
   /** A2 supersession: newer memory id that replaced this one, or null if live. */
   @field("superseded_by") supersededBy!: string | null;
   @field("superseded_at") supersededAt!: number | null;
   /** Extraction-logic version this memory was last stamped under. Null (pre-v38)
-   *  reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows. */
+   *  reads as 0, so a TOPICS_EXTRACTION_VERSION bump re-extracts stale rows.
+   *  DEPRECATED (v42) — subsumed by `topics_updated_at`; see the schema note. */
   @field("topics_extracted_version") topicsExtractedVersion!: number | null;
   /** C3 re-observation watermark: Unix ms of the last retain() merge, or null. */
   @field("last_observed_at") lastObservedAt!: number | null;
