@@ -2004,6 +2004,76 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // (fixes turn-1 placeholder orphaning + honors a per-request override).
       const { callRedactor, callPiiRedaction, maskForCall } = resolvePiiForCall(convId);
 
+      // Determine effective API type for this request (pure — hoisted so the
+      // defer-loading gate below can be evaluated before the storage writes).
+      const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
+
+      // Check if serverTools is a function (dynamic filtering)
+      const isServerToolsFunction = typeof serverToolsFilter === "function";
+
+      // ─── Tool-selection network work, started here and awaited far below ───
+      // The user-message embedding and the server-tool catalog are two network
+      // round-trips that nothing between here and their await sites depends on.
+      // Starting them now overlaps them with the storage work in between (the
+      // history read, summarization and the user-message write) instead of
+      // paying for them serially afterwards. Masking is safe this early —
+      // maskText is stateless (unnumbered, non-reversible tokens), so running it
+      // before maybeSummarizeHistory's stateful redactText cannot shift
+      // placeholder numbering.
+      //
+      // Both helpers resolve to a settled result and never reject. That is
+      // load-bearing: the send can early-return before either await (a failed
+      // createMessage below), and a floating rejected promise with no handler is
+      // an unhandled rejection — fatal on React Native, and a failed run under
+      // Node. The consumption sites re-raise the captured error where the serial
+      // version would have thrown, so the logging and fallbacks are unchanged.
+      const fetchServerToolsSettled = async (
+        token: () => Promise<string | null>
+      ): Promise<{ tools: ServerTool[] } | { error: unknown }> => {
+        try {
+          return {
+            tools: await getServerTools({
+              baseUrl,
+              cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+              getToken: token,
+              cache: serverToolsConfig?.cache,
+            }),
+          };
+        } catch (error) {
+          return { error };
+        }
+      };
+      const embedForToolsSettled = async (
+        token: () => Promise<string | null>
+      ): Promise<{ embedding: number[] | number[][] } | { error: unknown }> => {
+        try {
+          return { embedding: await embedToolText(contentForStorage, maskForCall, token) };
+        } catch (error) {
+          return { error };
+        }
+      };
+
+      // Skip server tools fetch if serverTools is explicitly empty array
+      const serverToolsPromise =
+        getTokenRef.current && !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
+          ? fetchServerToolsSettled(getTokenRef.current)
+          : null;
+
+      // Embed only when a filter below would actually ask for it. The server
+      // filter needs it unless defer-loading is emitting the full catalog (in
+      // which case nothing is filtered), and the client block needs it whenever
+      // there are client tools. Without the defer clause a deferred send with a
+      // function filter and no client tools would embed here for nothing, and
+      // then embedMessageAsync would embed the same text again for storage.
+      const userMessageEmbeddingPromise =
+        getTokenRef.current &&
+        contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS &&
+        ((isServerToolsFunction &&
+          !(serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses")) ||
+          !!clientTools?.length)
+          ? embedForToolsSettled(getTokenRef.current)
+          : null;
+
       // Build the messages array
       let messagesToSend: LlmapiMessage[];
 
@@ -2102,21 +2172,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Track response timing
       const startTime = Date.now();
 
-      // Determine effective API type for this request
-      const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
-
       // Fetch and merge server-side tools with client tools
       let mergedTools = clientTools;
 
       // Track embeddings for function-based tool filtering (to reuse for message storage)
       let userMessageEmbedding: number[] | number[][] | undefined;
       let userMessageEmbeddingFailed = false;
+      // Set when the server filter below consumed a FAILED embedding attempt, so
+      // the client block knows to make a fresh one rather than await the same
+      // settled rejection (see the retry comment there).
+      let serverFilterEmbeddingFailed = false;
       // Server tools resolved for this send — hoisted so the client-tool filter
       // below can re-merge them after semantic narrowing.
       let filteredServerTools: ServerTool[] = [];
-
-      // Check if serverTools is a function (dynamic filtering)
-      const isServerToolsFunction = typeof serverToolsFilter === "function";
 
       // Skip server tools fetch if serverTools is explicitly empty array
       if (
@@ -2124,30 +2192,42 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
       ) {
         try {
-          const allServerTools = await getServerTools({
-            baseUrl,
-            cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
-            getToken: getTokenRef.current,
-            cache: serverToolsConfig?.cache,
-          });
+          // Collect the catalog fetch started at the top of the send. The
+          // fallback covers a token getter that only became available after that
+          // point — this gate used to be the first read of the ref, and it must
+          // keep deciding whether the fetch happens at all.
+          const settledTools = await (serverToolsPromise ??
+            fetchServerToolsSettled(getTokenRef.current));
+          // Re-raise into the catch below, where a fetch failure has always
+          // landed: log, no server tools, mergedTools left as the client tools.
+          if ("error" in settledTools) throw settledTools.error;
+          const allServerTools = settledTools.tools;
 
           if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
             // Defer-loading (responses only): emit the FULL catalog — mergeTools
             // orders + flags it and prepends tool-search — so do NOT filter here.
             filteredServerTools = allServerTools;
           } else if (isServerToolsFunction) {
-            // Function-based filtering: embed with the CURRENT token getter (the
-            // embedding is reused by the client filter + message storage below)
-            // and call the filter. Tool-selection floor MIN_CONTENT_LENGTH_FOR_TOOLS
-            // (5), NOT the storage floor `minContentLength` (10). Too short to
-            // embed → send NO server tools (leave []); an explicit semantic filter
-            // must never degrade to the full catalog. Parity with react.
+            // Function-based filtering: collect the embedding started at the top
+            // of the send (the embedding is reused by the client filter + message
+            // storage below) and call the filter. Tool-selection floor
+            // MIN_CONTENT_LENGTH_FOR_TOOLS (5), NOT the storage floor
+            // `minContentLength` (10). Too short to embed → send NO server tools
+            // (leave []); an explicit semantic filter must never degrade to the
+            // full catalog. Parity with react.
             if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-              userMessageEmbedding = await embedToolText(
-                contentForStorage,
-                maskForCall,
-                getTokenRef.current
-              );
+              // Same late-token fallback as the catalog fetch above.
+              const settledEmbedding = await (userMessageEmbeddingPromise ??
+                embedForToolsSettled(getTokenRef.current));
+              if ("error" in settledEmbedding) {
+                serverFilterEmbeddingFailed = true;
+                // Re-raise: the embedding used to run inside this try, so a
+                // failure logged "Failed to fetch server tools", discarded the
+                // catalog we just fetched and left userMessageEmbeddingFailed
+                // unset — the client block then retried the embedding.
+                throw settledEmbedding.error;
+              }
+              userMessageEmbedding = settledEmbedding.embedding;
               const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
             }
@@ -2195,14 +2275,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             getTokenRef.current &&
             contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS
           ) {
-            try {
-              userMessageEmbedding = await embedToolText(
-                contentForStorage,
-                maskForCall,
-                getTokenRef.current
-              );
-            } catch {
+            // A FRESH attempt in exactly the two cases that used to issue their
+            // own embedToolText call here: the hoisted one was never started
+            // (the token getter arrived after the hoist point), or the server
+            // filter above already consumed a failed attempt. That second case is
+            // the pre-hoist retry — an embeddings blip that fails the server
+            // filter can still be retried here and narrow the client tools.
+            // Otherwise reuse the hoisted result, including its failure.
+            const settledEmbedding =
+              !userMessageEmbeddingPromise || serverFilterEmbeddingFailed
+                ? await embedForToolsSettled(getTokenRef.current)
+                : await userMessageEmbeddingPromise;
+            if ("error" in settledEmbedding) {
               userMessageEmbeddingFailed = true;
+            } else {
+              userMessageEmbedding = settledEmbedding.embedding;
             }
           }
           if (typeof clientToolsFilter === "function") {

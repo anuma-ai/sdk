@@ -2510,6 +2510,89 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // stay stable and turn-1 placeholders echoed back later still de-anonymize.
       const { callRedactor, callPiiRedaction, maskForCall } = resolvePiiForCall(convId);
 
+      // ─── Tool-selection network work, started here and awaited far below ───
+      // The user-message embedding and the server-tool catalog are two network
+      // round-trips that nothing between here and their await sites depends on.
+      // Starting them now overlaps them with the storage work in between (the
+      // history read + decrypt, summarization, the OPFS file store and the
+      // user-message write) instead of paying for them serially afterwards.
+      // Everything they need already exists: contentForStorage, the per-call
+      // masker, and the tool options. Masking is safe this early — maskText is
+      // stateless (unnumbered, non-reversible tokens), so running it before
+      // maybeSummarizeHistory's stateful redactText cannot shift placeholder
+      // numbering.
+      //
+      // Both promises are created WITH their failure handling attached in the
+      // same expression, so neither can ever reject. That is load-bearing in two
+      // ways: the send can early-return before either await (a failed
+      // createMessage below), and a floating rejected promise with no handler is
+      // an unhandled rejection — fatal on React Native, and a failed run under
+      // Node. It also keeps error semantics identical to the serial version,
+      // which already swallowed every rejection at both call sites.
+
+      // Check if serverTools is a function (dynamic filtering)
+      const isServerToolsFunction = typeof serverToolsFilter === "function";
+      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
+
+      // Generate embeddings once for both server and client tool filtering.
+      // `failed` must survive the hoist: downstream, a genuine embeddings outage
+      // and the short-prompt gate degrade differently (an explicit client filter
+      // is skipped on failure, and autoFilterClientTools reports "error" vs
+      // "short-prompt"), so collapsing failure to "no embeddings" would change
+      // which tools a turn ships.
+      const embeddingsPromise: Promise<{
+        embeddings?: number[] | number[][];
+        failed: boolean;
+      }> | null =
+        needsEmbeddings && getToken
+          ? (async () => {
+              try {
+                const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+                if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
+                  const textChunks = chunkText(contentForStorage);
+                  const chunkTexts = textChunks.map((c) => maskForCall(c.text));
+                  return {
+                    embeddings: await generateEmbeddings(chunkTexts, embeddingOptions),
+                    failed: false,
+                  };
+                }
+                if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+                  return {
+                    embeddings: await generateEmbedding(
+                      maskForCall(contentForStorage),
+                      embeddingOptions
+                    ),
+                    failed: false,
+                  };
+                }
+                // Too short to embed — not a failure.
+                return { failed: false };
+              } catch {
+                // Embedding generation failed — continue without semantic filtering
+                // (full client catalog rather than no tools; see autoFilterClientTools).
+                return { failed: true };
+              }
+            })()
+          : null;
+
+      // Skip server tools fetch if serverTools is explicitly empty array
+      const serverToolsPromise: Promise<ServerTool[] | null> | null =
+        getToken && !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
+          ? (async () => {
+              try {
+                return await getServerTools({
+                  baseUrl,
+                  cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+                  getToken,
+                  cache: serverToolsConfig?.cache,
+                });
+              } catch {
+                // Server tools are optional - continue without them
+                return null;
+              }
+            })()
+          : null;
+
       // Build the messages array
       let messagesToSend: LlmapiMessage[];
 
@@ -2760,61 +2843,43 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let userMessageEmbeddings: number[] | number[][] | undefined;
       let userMessageEmbeddingsFailed = false;
 
-      // Check if serverTools is a function (dynamic filtering)
-      const isServerToolsFunction = typeof serverToolsFilter === "function";
-      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
-
-      // Generate embeddings once for both server and client tool filtering
-      if (needsEmbeddings && getToken) {
-        try {
-          const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
-          if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
-            const textChunks = chunkText(contentForStorage);
-            const chunkTexts = textChunks.map((c) => maskForCall(c.text));
-            userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
-          } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-            userMessageEmbeddings = await generateEmbedding(
-              maskForCall(contentForStorage),
-              embeddingOptions
-            );
-          }
-        } catch {
-          // Embedding generation failed — continue without semantic filtering
-          // (full client catalog rather than no tools; see autoFilterClientTools).
-          userMessageEmbeddingsFailed = true;
-        }
+      // Collect the embeddings started at the top of the send. Awaited before the
+      // server-tool block, exactly as the serial version ordered them.
+      if (embeddingsPromise) {
+        const embeddingsResult = await embeddingsPromise;
+        userMessageEmbeddings = embeddingsResult.embeddings;
+        userMessageEmbeddingsFailed = embeddingsResult.failed;
       }
 
-      // Skip server tools fetch if serverTools is explicitly empty array
-      if (getToken && !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)) {
-        try {
-          const allServerTools = await getServerTools({
-            baseUrl,
-            cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
-            getToken,
-            cache: serverToolsConfig?.cache,
-          });
-
-          if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
-            // Defer-loading (RESPONSES-ONLY): emit the FULL catalog every turn (byte-stable prefix). Do
-            // NOT semantically filter — mergeTools orders + flags it and prepends tool-search to load
-            // deferred tools on demand. On completions (the responses-breaker fallback) defer can't work
-            // (toolsToApiFormat mangles the flat tool-search type), so fall through to today's filtering.
-            filteredServerTools = allServerTools;
-          } else if (isServerToolsFunction) {
-            // Call the filter function with embeddings and all tools
-            if (userMessageEmbeddings) {
-              const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
-              filteredServerTools = filterServerTools(allServerTools, toolNames);
+      // Collect the server-tool catalog started at the top of the send (null when
+      // the fetch failed — server tools are optional). The try still wraps the
+      // filtering below: a caller-supplied serverToolsFilter can throw, and that
+      // has always been swallowed here too.
+      if (serverToolsPromise) {
+        const allServerTools = await serverToolsPromise;
+        if (allServerTools) {
+          try {
+            if (serverToolsConfig?.deferLoading?.enabled && effectiveApiType === "responses") {
+              // Defer-loading (RESPONSES-ONLY): emit the FULL catalog every turn (byte-stable prefix). Do
+              // NOT semantically filter — mergeTools orders + flags it and prepends tool-search to load
+              // deferred tools on demand. On completions (the responses-breaker fallback) defer can't work
+              // (toolsToApiFormat mangles the flat tool-search type), so fall through to today's filtering.
+              filteredServerTools = allServerTools;
+            } else if (isServerToolsFunction) {
+              // Call the filter function with embeddings and all tools
+              if (userMessageEmbeddings) {
+                const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
+                filteredServerTools = filterServerTools(allServerTools, toolNames);
+              }
+              // If message is too short for embeddings, don't include any server tools
+              // (user explicitly provided a filter, so sending all tools defeats the purpose)
+            } else {
+              // Static filtering: use string array directly
+              filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
             }
-            // If message is too short for embeddings, don't include any server tools
-            // (user explicitly provided a filter, so sending all tools defeats the purpose)
-          } else {
-            // Static filtering: use string array directly
-            filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
+          } catch {
+            // Server tools are optional - continue without them
           }
-        } catch {
-          // Server tools are optional - continue without them
         }
       }
 
