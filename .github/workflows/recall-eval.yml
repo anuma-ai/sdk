@@ -128,15 +128,23 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # pnpm BEFORE setup-node: `cache: "pnpm"` resolves the store by running
+      # `pnpm store path`, so pnpm has to be on PATH by then. Corepack-enabling
+      # afterwards (what this workflow used to do) left setup-node with no pnpm and
+      # no cache, which is why these runs re-downloaded all ~1610 packages every
+      # time. Matches test.yml, which has always had it in this order.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-
-      - name: Enable Corepack
-        run: corepack enable
+          cache: "pnpm"
 
       - name: Install Dependencies
-        run: pnpm install
+        # --frozen-lockfile so a lockfile that drifted from package.json fails here
+        # instead of being silently re-resolved, which also means the restored store
+        # is always the one the lockfile describes.
+        run: pnpm install --frozen-lockfile
 
       # HuggingFace rate-limits the dataset endpoint and 429s on repeat pulls,
       # so persist the oracle dataset + embedding cache across runs.
