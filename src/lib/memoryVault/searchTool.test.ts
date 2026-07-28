@@ -447,6 +447,28 @@ describe("createMemoryVaultSearchTool", () => {
     expect(result).toContain("temporarily unavailable");
   });
 
+  // useFusion:false ranks through rankVaultMemories, which is cosine-ONLY (it
+  // doesn't even read the query text). Telling the model to "retry with different
+  // keywords" there invites retries the path cannot honor.
+  it("does not claim keyword matching ran on the cosine-only (useFusion:false) path", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("API rate limit"));
+
+    const cache = createVaultEmbeddingCache();
+    const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
+      useFusion: false,
+    });
+    const result = await tool.executor!({ query: "shellfish" });
+
+    // Must not claim a keyword pass ran, and must not send the model back for a
+    // keyword retry that this path has no lane to serve.
+    expect(result).not.toContain("only keyword matching ran");
+    expect(result).not.toContain("retry with different keywords");
+    // ...but still must not read as "the user has no such memory".
+    expect(result).not.toBe("No relevant memories found in the vault.");
+    expect(result).toContain("temporarily unavailable");
+  });
+
   it("still reports a genuinely empty result normally when embeddings work", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "prefers window seats")]);
     vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);

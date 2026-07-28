@@ -156,6 +156,12 @@ export async function recall(
   // leaves cosine running: this drives an outage alarm and a model-facing "only
   // keyword matching ran" message, and both would be false in that case.
   let embeddingsUnavailable = false;
+  // The chunk lane's own query embed failed (threw, or returned an empty vector).
+  // Resolved into `embeddingsUnavailable` only once the fact lane's outcome is
+  // known — see the reconciliation after the fact lane below.
+  let chunkEmbedFailed = false;
+  // Whether the fact lane actually ranked on a live cosine lane this call.
+  let factLaneRankedOnCosine = false;
 
   const emitDiagnostics = (candidateCount: number): void => {
     const cb = options.onDiagnostics;
@@ -229,15 +235,29 @@ export async function recall(
     // lane, not reject this shared Promise.all and take the primary fact lane
     // (which BM25 can still serve) down with it. Mirrors safeLane's posture.
     needsChunkEmbedding
-      ? generateEmbedding(query, ctx.embeddingOptions).catch((err) => {
-          getLogger().warn(
-            `[memory/recall] chunk-lane query embedding failed; skipping the chunk lane: ${
-              err instanceof Error ? err.message : String(err)
-            }`
-          );
-          embeddingsUnavailable = true;
-          return undefined;
-        })
+      ? generateEmbedding(query, ctx.embeddingOptions)
+          .then((vec) => {
+            // An empty vector is as dead as a throw here: `searchChunksOp` would
+            // run a cosine pass that can only score 0. Empty arrays are truthy,
+            // so this must be normalized to undefined or the lane still runs.
+            if (vec.length === 0) {
+              getLogger().warn(
+                "[memory/recall] chunk-lane query embedding came back empty; skipping the chunk lane"
+              );
+              chunkEmbedFailed = true;
+              return undefined;
+            }
+            return vec;
+          })
+          .catch((err) => {
+            getLogger().warn(
+              `[memory/recall] chunk-lane query embedding failed; skipping the chunk lane: ${
+                err instanceof Error ? err.message : String(err)
+              }`
+            );
+            chunkEmbedFailed = true;
+            return undefined;
+          })
       : Promise.resolve(undefined),
     // The graph + temporal lanes are AUXILIARY (RRF side-signals). A transient
     // WatermelonDB throw in either must NOT reject this Promise.all and take
@@ -324,8 +344,18 @@ export async function recall(
     didRerank = reranked;
     hadV2Head = v2Head;
     if (factEmbeddingsUnavailable) embeddingsUnavailable = true;
+    factLaneRankedOnCosine = !factEmbeddingsUnavailable;
     factLaneMs = nowMs() - factStart;
   }
+
+  // Reconcile the chunk lane's embed failure against what the fact lane actually
+  // did. Losing the chunk lane drops results outright (it is cosine-only, with no
+  // lexical equivalent), but that is a WHOLE-provider outage only when the fact
+  // lane didn't rank on cosine either — on a chunk-only recall there is no fact
+  // lane to save it, and when both degraded it is a genuine outage. If the fact
+  // lane ran a live cosine pass, reporting one would be the same false signal this
+  // PR removed from the composite fall-through: semantic ranking did run.
+  if (chunkEmbedFailed && !factLaneRankedOnCosine) embeddingsUnavailable = true;
 
   if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
     const chunkStart = nowMs();

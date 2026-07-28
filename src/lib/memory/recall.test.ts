@@ -1074,4 +1074,44 @@ describe("recall — embeddings outage degrades instead of throwing", () => {
     await recall(QUERY, makeCtx(), { onDiagnostics: (d) => seen.push(d) });
     expect(seen[0].degraded).not.toContain("embeddings-unavailable");
   });
+
+  // Empty arrays are truthy, so a successful-but-empty response slipped past the
+  // `queryEmbedding` guard and ran a cosine pass that could only score 0.
+  it("skips the chunk lane on an empty (not thrown) query embedding", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([]);
+
+    const seen: RecallDiagnostics[] = [];
+    await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled();
+    expect(seen[0].chunkCount).toBe(0);
+    expect(seen[0].degraded).toContain("embeddings-unavailable");
+  });
+
+  // The other direction: a chunk-lane embed failure alone is NOT a whole-provider
+  // outage when the fact lane went on to rank on a live cosine pass. Reporting one
+  // would be the same false signal the composite fall-through used to emit.
+  it("does not report an outage when the chunk embed fails but facts rank on cosine", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    // Call 1 is the chunk lane (inside the shared Promise.all); the fact lane
+    // embeds afterwards and succeeds.
+    vi.mocked(generateEmbedding)
+      .mockRejectedValueOnce(new Error("transient blip"))
+      .mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
+
+    const seen: RecallDiagnostics[] = [];
+    const result = await recall("shellfish", makeCtx(), {
+      types: ["fact", "chunk"],
+      onDiagnostics: (d) => seen.push(d),
+    });
+
+    expect(vi.mocked(searchChunksOp)).not.toHaveBeenCalled(); // lane still skipped
+    expect(result.memories.map((m) => m.content)).toContain("allergic to shellfish");
+    expect(seen[0].degraded).not.toContain("embeddings-unavailable");
+  });
 });

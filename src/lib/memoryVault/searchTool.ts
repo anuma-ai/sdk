@@ -2326,6 +2326,20 @@ const EMBEDDINGS_DEGRADED_EMPTY =
   "and it found no matches. Do not conclude the user has no such memory — say the " +
   "memory lookup was degraded, or retry with different keywords.";
 
+/**
+ * The `useFusion: false` variant. That path ranks through `rankVaultMemories`,
+ * which is cosine-ONLY — it doesn't even read the query text — so an embeddings
+ * outage leaves no lane running at all.
+ *
+ * Telling the model to "retry with different keywords" there would be worse than
+ * unhelpful: it invites retries this path cannot honor, and each one comes back
+ * equally empty for a reason the model can't see.
+ */
+const EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL =
+  "Memory search is temporarily unavailable — the semantic lookup failed and this " +
+  "search mode has no keyword fallback, so no memory search ran at all. Do not " +
+  "conclude the user has no such memory; say the memory lookup was unavailable.";
+
 /** Numbered "[N] (id: …, similarity: …)\n<content>" rendering shared by the
  * chat-tool's recall-delegated and useFusion:false branches. */
 function formatVaultHits(hits: Array<{ id: string; content: string; score: number }>): string {
@@ -2458,7 +2472,7 @@ export function createMemoryVaultSearchTool(
           );
           if (legacy.length === 0) {
             return embeddingsUnavailable
-              ? EMBEDDINGS_DEGRADED_EMPTY
+              ? EMBEDDINGS_DEGRADED_EMPTY_NO_LEXICAL
               : "No relevant memories found in the vault.";
           }
           return formatVaultHits(
