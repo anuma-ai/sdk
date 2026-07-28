@@ -492,6 +492,62 @@ describe("getMemoriesNeedingTopicExtractionOp — the curated gate survived the 
   });
 });
 
+describe("getMemoriesNeedingTopicExtractionOp — links that resolve to nothing", () => {
+  /** A memory whose `memory_entity` rows point at `entity` rows that are gone.
+   * The join rows outlive a lost or partially-rebuilt entity table, so the row
+   * still LOOKS linked while carrying no usable topic at all. */
+  async function seedDanglingLinks(content: string, names: string[]): Promise<string> {
+    const id = await seedMemory(content);
+    await replaceMemoryEntitiesGuardedOp(entityCtx, id, names);
+    const links = await entityCtx.memoryEntityCollection.query(Q.where("memory_id", id)).fetch();
+    await db.write(async () => {
+      for (const link of links) {
+        const entity = await entityCtx.entityCollection.find(link.entityId);
+        await entity.destroyPermanently();
+      }
+    });
+    // Pre-v42 shape, unstamped: the sweep has to classify it on its links alone.
+    await markAsRestored(id, {
+      topics: null,
+      topics_updated_at: null,
+      topics_extracted_at: null,
+      topics_extracted_version: null,
+    });
+    return id;
+  }
+
+  async function linkCountOf(memoryId: string): Promise<number> {
+    return entityCtx.memoryEntityCollection.query(Q.where("memory_id", memoryId)).fetchCount();
+  }
+
+  it("sends the row to the LLM instead of grandfather-stamping it", async () => {
+    const id = await seedDanglingLinks("works at Acme", ["Acme"]);
+    // Still linked as far as the join table knows — that's the trap.
+    expect(await linkCountOf(id)).toBe(1);
+
+    const sweep = await getMemoriesNeedingTopicExtractionOp(ctx);
+
+    // Grandfathering it would stamp "extracted" over zero topics, and the stamp
+    // hides the row from every later sweep until its content changes — exactly
+    // the permanent recall loss this path exists to prevent.
+    expect(sweep.linkedUnstamped).toEqual([]);
+    expect(sweep.pending.map((m) => m.uniqueId)).toEqual([id]);
+    expect(sweep.topicsToRelink).toEqual([]);
+  });
+
+  it("keeps the row out of a backfill that could never fill it", async () => {
+    const id = await seedDanglingLinks("works at Acme", ["Acme"]);
+
+    expect((await getMemoriesNeedingTopicExtractionOp(ctx)).topicsBackfill).toEqual([]);
+
+    // Why it has to stay out: backfill derives the record from the entity rows,
+    // and there are none — so it writes nothing, and an offered row comes back
+    // every sweep forever, holding a slot under `limit`.
+    expect(await backfillMemoryTopicsOp(ctx, [id])).toEqual([]);
+    expect(await topicsOf(id)).toBeNull();
+  });
+});
+
 describe("getMemoriesNeedingTopicExtractionOp — topicsToRelink", () => {
   /** A memory as it lands on a freshly restored device: the synced `topics`
    * record and its extraction stamp arrived, the device-local links did not. */
@@ -770,5 +826,21 @@ describe("topics backfill", () => {
     }
     expect(drained).toBe(7);
     for (const id of ids) expect(await topicsOf(id)).not.toBeNull();
+  });
+
+  it("reports only the rows it actually wrote", async () => {
+    const id = await seedLegacy("works at Acme", ["Acme"]);
+    // Stubbed because the skip is unreachable today: every earlier guard leaves
+    // `topics` null with entity rows present, and a null record never compares
+    // equal to a computed one, so the writer always has something to write. The
+    // contract ("returns the ids filled") still has to hold if that changes —
+    // callers log this list as the migration's progress.
+    const prepareSpy = vi.spyOn(entityOps, "prepareMemoryTopicsUpdate").mockResolvedValue(null);
+    try {
+      expect(await backfillMemoryTopicsOp(ctx, [id])).toEqual([]);
+    } finally {
+      prepareSpy.mockRestore();
+    }
+    expect(await topicsOf(id)).toBeNull();
   });
 });

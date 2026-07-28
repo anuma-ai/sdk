@@ -1503,8 +1503,11 @@ export interface MemoriesNeedingTopicExtraction {
 }
 
 /** memoryId → the canonical names its `memory_entity` rows currently point at.
- * A memory with no links is absent from the map, which is distinct from one
- * mapped to an empty set (that can't happen — a link row implies a name). */
+ * A memory with no USABLE links is absent from the map — no link rows at all, or
+ * only rows pointing at `entity` rows that no longer exist. Never mapped to an
+ * empty set: callers read presence as "has links", so a memory whose whole link
+ * set failed to resolve has to read as unlinked or it gets grandfather-stamped
+ * with zero topics (and offered for a backfill that can find nothing to write). */
 async function linkedEntityNamesByMemory(
   entityCtx: EntityOperationsContext,
   memoryIds: readonly string[]
@@ -1552,7 +1555,7 @@ async function linkedEntityNamesByMemory(
       const name = nameById.get(id);
       if (name !== undefined) names.add(name);
     }
-    out.set(memoryId, names);
+    if (names.size > 0) out.set(memoryId, names);
   }
   return out;
 }
@@ -1887,9 +1890,10 @@ export async function backfillMemoryTopicsOp(
       // Names come from `entity.canonical_name`, so there's no display casing to
       // pass — a pre-v42 row never recorded one. Hence the empty `inputs`.
       const topicsOp = await prepareMemoryTopicsUpdate(entityCtx, id, entities, [], source);
-      if (topicsOp) await ctx.database.batch(topicsOp);
+      if (!topicsOp) return;
+      await ctx.database.batch(topicsOp);
+      filled.push(id);
     });
-    filled.push(id);
   }
   return filled;
 }

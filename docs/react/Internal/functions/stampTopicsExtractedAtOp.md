@@ -2,7 +2,7 @@
 
 > **stampTopicsExtractedAtOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryIds`: readonly `string`\[], `extractedAt`: `number`, `version`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1724](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1724)
+Defined in: [src/lib/db/memoryVault/operations.ts:1727](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1727)
 
 Stamp `topics_extracted_at` (and `topics_extracted_version`) on the given
 memories — both DEPRECATED (v42), subsumed by `topics_updated_at`; see the
