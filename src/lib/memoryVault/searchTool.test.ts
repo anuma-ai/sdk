@@ -1301,6 +1301,77 @@ describe("buildProjectedCorpus", () => {
     // No point loading embedding columns nothing can dim-match against.
     expect(embByIds).not.toHaveBeenCalled();
   });
+
+  // The partial version of the same failure: the query embed works and a couple
+  // of warm cache entries survive, but the lane batch that would have vectored
+  // the REST fails. Admission is then sized by the handful that happened to be
+  // cached, so BM25 ranks a window far short of k.
+  it("tops the admission window up to k when the un-embedded lane batch fails", async () => {
+    const t = (iso: string) => new Date(iso);
+    vi.spyOn(ops, "getVaultCandidateKeysOp").mockResolvedValue([
+      {
+        uniqueId: "warm",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: t("2026-01-01T00:00:00Z"),
+      },
+      {
+        uniqueId: "cold1",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: t("2026-06-01T00:00:00Z"),
+      },
+      {
+        uniqueId: "cold2",
+        folderId: null,
+        scope: "private",
+        embeddingModel: "m",
+        updatedAt: t("2026-05-01T00:00:00Z"),
+      },
+    ] as any);
+    vi.spyOn(ops, "getVaultEmbeddingsByIdsOp").mockResolvedValue([] as any); // no stored vectors
+    const byIds = vi.spyOn(ops, "getVaultMemoriesByIdsOp").mockImplementation(
+      async (_ctx: any, ids: string[]) =>
+        ids.map((id) => ({
+          uniqueId: id,
+          content: id,
+          embedding: null,
+          embeddingModel: "m",
+          scope: "private",
+          folderId: null,
+          userId: null,
+          isDeleted: false,
+          proofCount: 1,
+          sourceChunkIds: null,
+          eventTimeStart: null,
+          eventTimeEnd: null,
+          eventTimeKind: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })) as any
+    );
+    // Query embed fine; the lane batch that would vector cold1/cold2 is what fails.
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0]);
+    vi.spyOn(embed, "generateEmbeddings").mockRejectedValue(new Error("429 rate limited"));
+
+    const cache = new Map([["warm", Float32Array.from([1, 0])]]);
+    const out = await buildProjectedCorpus(
+      "q",
+      {} as any,
+      embOpts,
+      cache,
+      {},
+      { limit: 3, admitFactor: 1, admitFloor: 3, unembeddedCap: 100 }
+    );
+
+    // Without the top-up only "warm" is vectored, so only "warm" gets decrypted
+    // and a lexical hit in cold1/cold2 is unreachable. k=3, so all three admit.
+    const finalDecrypt = byIds.mock.calls[byIds.mock.calls.length - 1][1] as string[];
+    expect(finalDecrypt).toEqual(expect.arrayContaining(["warm", "cold1", "cold2"]));
+    expect(out.memories.map((m) => m.uniqueId).sort()).toEqual(["cold1", "cold2", "warm"]);
+  });
 });
 
 // A3 follow-up: the query embed was the only guarded embedding call, but it is

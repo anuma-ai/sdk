@@ -1537,6 +1537,9 @@ export async function buildProjectedCorpus(
     for (const id of missIds) if (!gotVector.has(id)) noVectorIds.push(id);
   }
 
+  // Set when the un-embedded lane's batch embed failed, leaving rows in the
+  // candidate set that a healthy pass would have given vectors to.
+  let laneEmbedFailed = false;
   // Un-embedded lane: bounded decrypt+embed so those rows can still rank.
   if (noVectorIds.length > 0) {
     const laneIds = noVectorIds.slice(0, opts.unembeddedCap);
@@ -1560,6 +1563,7 @@ export async function buildProjectedCorpus(
           embeddingOptions
         );
       } catch (err) {
+        laneEmbedFailed = true;
         getLogger().warn(
           `memoryVault: un-embedded lane embedding failed for ${laneRows.length} rows — they ` +
             "rank on BM25 alone for this search: " +
@@ -1584,24 +1588,30 @@ export async function buildProjectedCorpus(
   }
 
   const k = Math.max(opts.limit * opts.admitFactor, opts.admitFloor);
-  // Cosine can only choose what to decrypt when there is a query vector AND at
-  // least one row vector to score it against. With neither, `vectored` is empty
-  // and `admitVaultProjections` would admit NOTHING — BM25 would then rank an
-  // empty corpus and an embeddings outage would still cost all recall on this
-  // path, just silently. Admit the k most-recently-updated candidates instead and
-  // let BM25 rank those lexically.
+  const admittedIds = admitVaultProjections(queryEmbedding, vectored, k);
+  // Cosine picks WHICH ROWS GET DECRYPTED here, so a missing vector doesn't just
+  // cost ordering — it costs the row its place in the corpus BM25 ranks. When the
+  // embeds that fill `vectored` failed, admission is sized by however many vectors
+  // happened to survive: none (query embed down) admits nothing at all, and a
+  // handful of warm cache entries admits a window far short of k. Either way BM25
+  // ranks a shrunken corpus and the outage silently costs lexical recall.
   //
-  // A lexical hit older than that window is missed: decrypt-last fundamentally
-  // needs cosine to pick what to decrypt, and this trades the whole vault for its
-  // most recent k. But k is at least `admitFloor` rows, and the alternative is no
-  // recall at all.
-  const admittedIds =
-    vectored.length > 0
-      ? admitVaultProjections(queryEmbedding, vectored, k)
-      : [...keys]
-          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-          .slice(0, k)
-          .map((key) => key.uniqueId);
+  // Top the window up to k with the most-recently-updated candidates that cosine
+  // didn't already take. Only when an embed actually failed — a healthy pass gives
+  // every candidate a vector (up to `unembeddedCap`), so this must not change what
+  // a working search decrypts.
+  //
+  // A lexical hit older than the topped-up window is still missed: decrypt-last
+  // fundamentally needs cosine to choose what to decrypt, and this trades the
+  // whole vault for its most recent k. But k is at least `admitFloor`, and the
+  // alternative is ranking whatever handful of rows kept a cached vector.
+  if ((embeddingsDegraded || laneEmbedFailed) && admittedIds.length < k) {
+    const already = new Set(admittedIds);
+    for (const key of [...keys].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())) {
+      if (admittedIds.length >= k) break;
+      if (!already.has(key.uniqueId)) admittedIds.push(key.uniqueId);
+    }
+  }
   // Union in side-lane candidates whose cosine fell outside the window so the
   // graph/temporal lanes can still admit them. Intersect against keyById so
   // only real, in-scope rows are decrypted (drop ids from another scope/folder
