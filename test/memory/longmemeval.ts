@@ -584,12 +584,24 @@ function recallGateConfig(): Record<string, string | number | boolean> {
  * recall-strategy runs at 0–1.8% accuracy beside healthy ~80% ones.
  */
 function assertRetrievalHappened(result: {
-  retrieval: { avgRecall: number; avgPrecision: number };
+  retrieval: { avgRecall: number; avgPrecision: number; measuredQuestions: number };
 }): void {
-  const { avgRecall, avgPrecision } = result.retrieval;
+  const { avgRecall, avgPrecision, measuredQuestions } = result.retrieval;
+  // Nothing measured at all is now its OWN failure, distinct from "ranking
+  // returned nothing". The averages read 0/0 in both cases, but a run where
+  // every entry crashed needs the operator pointed at the crashes rather than
+  // at the retrieval stack — and once the averages exclude crashed entries, an
+  // empty denominator is the only thing left that can produce this shape.
+  if (measuredQuestions === 0) {
+    console.error(
+      `\n  Retrieval was never measured — every entry failed in the harness.\n` +
+        `  This is a FAILED RUN, not a 0% result. See the per-entry harness errors above.\n`
+    );
+    process.exit(1);
+  }
   if (avgRecall > 0 || avgPrecision > 0) return;
   console.error(
-    `\n  Retrieval was 0% on every question — treating this as a FAILED RUN, not a result.\n` +
+    `\n  Retrieval was 0% on all ${measuredQuestions} measured question(s) — treating this as a FAILED RUN, not a result.\n` +
       `  A baseline captured here could never fail, and a gate passing here would be vacuous.\n` +
       `  Check the portal (HTTP 500s / auth) and the dataset cache, then re-run.\n`
   );
@@ -597,7 +609,10 @@ function assertRetrievalHappened(result: {
 }
 
 async function saveRecallBaseline(
-  runs: Array<{ retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number }>,
+  runs: Array<{
+    retrieval: { avgRecall: number; avgPrecision: number; measuredQuestions: number };
+    accuracy: number;
+  }>,
   path: string
 ): Promise<void> {
   runs.forEach(assertRetrievalHappened);
@@ -624,7 +639,10 @@ async function saveRecallBaseline(
 }
 
 async function gateRecallAgainstBaseline(
-  result: { retrieval: { avgRecall: number; avgPrecision: number }; accuracy: number },
+  result: {
+    retrieval: { avgRecall: number; avgPrecision: number; measuredQuestions: number };
+    accuracy: number;
+  },
   path: string
 ): Promise<void> {
   // A wholly-failed run must fail the gate loudly rather than reporting a

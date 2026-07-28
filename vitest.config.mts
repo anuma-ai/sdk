@@ -30,6 +30,11 @@ export default defineConfig({
       // is wrong" again; that silence is what made a healthy run read 0.0%
       // accuracy beside 95% retrieval.
       "test/memory/src/longmemeval/judge.test.ts",
+      // Run-level aggregation: the rule that a harness crash contributes to
+      // counts but never to an average. Pure arithmetic, no PORTAL_API_KEY.
+      // This is what keeps a few infrastructure crashes from firing the recall
+      // gate as a ranking regression.
+      "test/memory/src/longmemeval/aggregate.test.ts",
     ],
     // Browser tests need Playwright's Chromium binary and ~3-5s per case.
     // Skipped by default so `vitest run` stays fast; run via

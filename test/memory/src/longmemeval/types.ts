@@ -99,8 +99,10 @@ export interface LongMemEvalSummary {
    *  the accuracy denominator for the same reason. */
   answerFailures: number;
   /** Questions that crashed before either step could report. Their placeholder
-   *  result also carries zeroed retrieval numbers, so a nonzero count here means
-   *  the retrieval figures are understated too — not just the accuracy. */
+   *  carries zeroed retrieval numbers and a zeroed latency, so these entries are
+   *  excluded from every AVERAGE in this summary (see `retrieval.measuredQuestions`)
+   *  and counted only here. A nonzero value therefore narrows the sample the
+   *  averages were taken over; it no longer biases their value. */
   harnessFailures: number;
   /** Correct answers over the questions that were actually SCORED
    *  (`totalQuestions - judgeFailures - answerFailures - harnessFailures`), not over all
@@ -120,8 +122,15 @@ export interface LongMemEvalSummary {
     }
   >;
   retrieval: {
+    /** Averaged over the questions retrieval was actually measured on, NOT over
+     *  every question. A harness crash fabricates a zero for both fields, so
+     *  including those entries reports a ranking regression for questions where
+     *  ranking never ran — see aggregateSummary. */
     avgPrecision: number;
     avgRecall: number;
+    /** Denominator of the two averages above: entries with no `harnessError`.
+     *  Equals `totalQuestions - harnessFailures`. */
+    measuredQuestions: number;
   };
   latency: {
     p50: number;
