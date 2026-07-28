@@ -190,6 +190,39 @@ export class ResponsesStrategy implements ApiStrategy {
       throw new Error("Upstream request failed (response.failed)");
     }
 
+    // Detect response.incomplete events — the Responses API terminal event for
+    // a stream cut off early (e.g. by max_output_tokens). Normalize the
+    // truncation signal onto the same field the completions strategy uses, so
+    // the tool loop has one thing to check.
+    if (typedChunk.type === "response.incomplete") {
+      const resp = typedChunk.response as
+        | { incomplete_details?: { reason?: string }; usage?: unknown }
+        | undefined;
+      if (resp?.incomplete_details?.reason === "max_output_tokens") {
+        accumulator.finishReason = "length";
+      }
+      // Extract usage if present
+      if (resp?.usage) {
+        const u = resp.usage as Record<string, number | undefined>;
+        const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
+        const completionTokens = u.output_tokens ?? u.completion_tokens ?? 0;
+        const creditsExhausted = (resp.usage as { credits_exhausted?: boolean } | undefined)
+          ?.credits_exhausted;
+        accumulator.usage = {
+          ...accumulator.usage,
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: u.total_tokens ?? promptTokens + completionTokens,
+          ...(u.cost_micro_usd !== null &&
+            u.cost_micro_usd !== undefined && { cost_micro_usd: u.cost_micro_usd }),
+          ...(u.credits_used !== null &&
+            u.credits_used !== undefined && { credits_used: u.credits_used }),
+          ...(creditsExhausted !== undefined && { credits_exhausted: creditsExhausted }),
+        };
+      }
+      return result;
+    }
+
     // Handle full "response" event — sent by the portal's chat/completions fallback
     // when it uses non-streaming internally and sends the entire result as one chunk.
     if (typedChunk.type === "response" && typedChunk.response) {
@@ -315,21 +348,6 @@ export class ResponsesStrategy implements ApiStrategy {
             u.credits_used !== undefined && { credits_used: u.credits_used }),
           ...(creditsExhausted !== undefined && { credits_exhausted: creditsExhausted }),
         };
-      }
-
-      // Normalize the Responses-API truncation signal onto the same field the
-      // completions strategy uses, so the tool loop has one thing to check.
-      // A response cut off at the ceiling arrives as
-      // `status: "incomplete"` with `incomplete_details.reason:
-      // "max_output_tokens"`; everything else is a clean finish.
-      const resp = typedChunk.response as
-        | { status?: string; incomplete_details?: { reason?: string } }
-        | undefined;
-      if (
-        resp?.status === "incomplete" &&
-        resp.incomplete_details?.reason === "max_output_tokens"
-      ) {
-        accumulator.finishReason = "length";
       }
 
       // Capture tools_checksum if present

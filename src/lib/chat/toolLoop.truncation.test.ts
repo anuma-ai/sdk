@@ -66,9 +66,8 @@ function truncatedStream(optionalText?: string) {
       yield { type: "response.output_text.delta", delta: { OfString: optionalText } };
     }
     yield {
-      type: "response.completed",
+      type: "response.incomplete",
       response: {
-        status: "incomplete",
         incomplete_details: { reason: "max_output_tokens" },
         usage: { input_tokens: 10, output_tokens: 4096 },
       },
