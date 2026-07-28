@@ -116,7 +116,7 @@ export const TOLERANCE_SIGMAS = 2;
  * This is the whole reason bands store `stdDev` rather than a fixed tolerance.
  * The gate compares MEANS, and the uncertainty of a mean shrinks as √n — so
  * using a single run's spread as the tolerance makes the gate ~√n too loose.
- * Concretely, when the consolidation suite was 15 passes over 7 cases (it is 14
+ * Concretely, when the consolidation suite was 15 passes over 7 cases (it is 11
  * now) the old spread-derived tolerance was 1/7: a case failing on EVERY pass
  * moved the mean by 0.124 and was reported as "no regressions". Only 3+
  * simultaneously broken cases could ever fire.

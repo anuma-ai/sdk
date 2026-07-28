@@ -220,7 +220,7 @@ const CASES: Case[] = [
     expect: { action: "create" },
   },
 
-  // ---- Second of each category (see GATE_METRICS below for why 14) --------
+  // ---- Second of each category (see GATE_METRICS below for why 11) --------
   // Every case below must have exactly ONE defensible answer. A case a competent
   // human would argue about adds variance instead of removing it, which is the
   // opposite of why the corpus grew.
@@ -288,12 +288,22 @@ const CASES: Case[] = [
  * and failed 8 of 26 subsequent runs (31%) with no code change. `itemsPerRun`
  * floors the spread at what the mean actually implies; see `binomialRunStdDev`.
  *
- * `itemsPerRun` is `CASES.length`, which is an upper bound rather than an exact
- * count: `metricsFor` scores accuracy over the decisions that COMPLETED, so a run
- * with fallbacks had fewer effective items and is slightly noisier than the floor
- * assumes. The error is second-order at the single-digit fallback rates seen in
- * practice, and it errs toward a tighter gate — if `fallbackRate` is high enough
- * for it to matter, that metric's own band fires first and names the cause.
+ * `itemsPerRun` is on accuracy only, set to `CASES.length` as an upper bound
+ * rather than an exact count: `metricsFor` scores accuracy over the decisions
+ * that COMPLETED, so a run with fallbacks had fewer effective items and is
+ * slightly noisier than the floor assumes. The error is second-order at the
+ * single-digit fallback rates seen in practice, and it errs toward a tighter
+ * gate — if `fallbackRate` is high enough for it to matter, that metric's own
+ * band fires first and names the cause.
+ *
+ * `fallbackRate` deliberately omits `itemsPerRun`. Accuracy divides by completed
+ * decisions, so a "stops producing parseable output" regression is invisible to
+ * it and `fallbackRate` is the only detector. Near zero the binomial floor is
+ * tiny, but a capture taken during a provider wobble records a non-zero mean and
+ * the floor then WIDENS the ceiling off that weather — baking the same
+ * unrepresentative-capture failure this PR exists to eliminate into the one
+ * metric that has to catch absent decisions. Empirical spread alone (plus
+ * `minTolerance`) is the right band here.
  *
  * WHY THE CORPUS IS 11 AND WHY GROWING IT IS NOT FREE. Two bounds squeeze it from
  * both sides, and the second one is counter-intuitive:
@@ -349,13 +359,13 @@ const GATE_METRICS: GateMetricSpec[] = [
     itemsPerRun: CASES.length,
   },
   // Fallbacks are the silent failure mode: a create-fallback leaves the stale
-  // contradiction consolidation exists to retire. Higher is worse.
+  // contradiction consolidation exists to retire. Higher is worse. No
+  // `itemsPerRun` — see GATE_METRICS doc above.
   {
     key: "fallbackRate",
     direction: "lower-better",
     minTolerance: 0.03,
     label: "fallback rate",
-    itemsPerRun: CASES.length,
   },
 ];
 
