@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v41**
+Current version: **v42**
 
 ```mermaid
 graph LR
@@ -118,6 +118,8 @@ graph LR
 | `event_time_end` | number |  | ✓ |
 | `event_time_kind` | string |  | ✓ |
 | `topics_user_managed` | boolean |  | ✓ |
+| `topics` | string |  | ✓ |
+| `topics_updated_at` | number |  | ✓ |
 | `topics_extracted_at` | number |  | ✓ |
 | `superseded_by` | string | ✓ | ✓ |
 | `superseded_at` | number |  | ✓ |
@@ -231,6 +233,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v42 | Added `topics`, `topics_updated_at` to `memory_vault` |
 | v41 | Added `visibility`, `twin_opt_in`, `published_at`, `geohash` to `memory_vault` |
 | v40 | Added `fact_type`, `archived_at`, `trust_tier` to `memory_vault` |
 | v39 | Added `last_observed_at` to `memory_vault` |

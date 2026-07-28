@@ -5,7 +5,15 @@ import { Q } from "@nozbe/watermelondb";
 // from this file), so this cannot create an import cycle.
 import type { VaultMemory } from "../memoryVault/models";
 import type { Entity, MemoryEntity } from "./models";
-import { type EntityKind, normalizeEntityName as normalizeName, type StoredEntity } from "./types";
+import {
+  type EntityKind,
+  normalizeEntityName as normalizeName,
+  parseTopics,
+  serializeTopics,
+  type StoredEntity,
+  type StoredTopic,
+  type TopicSource,
+} from "./types";
 
 /**
  * Accepted entity shape for {@link linkMemoryEntitiesOp}. A bare string is
@@ -115,6 +123,152 @@ async function upsertEntitiesInWrite(
 }
 
 /**
+ * Read a memory's vault row from inside the caller's writer. Returns null when
+ * the row is missing OR the read faulted — callers decide what that means (the
+ * link guard fails CLOSED on it; the topics writer simply writes nothing).
+ */
+async function findVaultRowInWrite(
+  ctx: EntityOperationsContext,
+  memoryId: string
+): Promise<VaultMemory | null> {
+  try {
+    const rows = await ctx.database
+      .get<VaultMemory>("memory_vault")
+      .query(Q.where("id", memoryId))
+      .fetch();
+    return rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * THE single writer for `memory_vault.topics` — every path that changes a
+ * memory's links must route its final link set through here, in the SAME batch
+ * as the link ops, so the durable record and the device-local index can't
+ * diverge. (`entity` / `memory_entity` never sync; `topics` is what a restored
+ * device rebuilds them from.) `entities.test.ts`'s drift test enforces the
+ * invariant against future link paths.
+ *
+ * Returns a prepared update to batch, or null when there's no row to write.
+ * MUST be called from inside the caller's `database.write()`, and — like every
+ * `prepareUpdate` — batched in the SAME tick: `row` is loaded by
+ * {@link findVaultRowInWrite} before the prepare/batch pair for that reason.
+ *
+ * `updated_at` is restored to its pre-`prepareUpdate` value: pinning it is the
+ * whole reason `topics_updated_at` exists (a topic change must not inflate
+ * recall's recency multiplier), so this mirrors `setMemoryEntitiesOp`,
+ * `stampTopicsExtractedAtOp` and `clearMemoryTopicsOverrideOp`.
+ */
+function prepareTopicsUpdate(row: VaultMemory, topics: readonly StoredTopic[], now: number): Model {
+  const originalUpdatedAt = row.updatedAt.getTime();
+  return row.prepareUpdate((r) => {
+    r._setRaw("topics", serializeTopics(topics));
+    r._setRaw("topics_updated_at", now);
+    r._setRaw("updated_at", originalUpdatedAt);
+  });
+}
+
+/**
+ * Normalized name → the caller's spelling, first occurrence winning. Lets
+ * {@link topicsForEntities} record display casing that `entity.canonical_name`
+ * has already lowercased away.
+ */
+function displayNamesOf(entities: ReadonlyArray<{ name: string }>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of entities) {
+    const name = e.name.trim();
+    const normalized = normalizeName(name);
+    if (normalized.length === 0 || out.has(normalized)) continue;
+    out.set(normalized, name);
+  }
+  return out;
+}
+
+/** The minimum an entity must expose to become a topic entry. Structural so
+ * both {@link StoredEntity} and a raw {@link Entity} Model satisfy it. */
+type NamedEntity = { canonicalName: string; kind: string | null };
+
+/** Order-insensitive comparison of a stored record against a computed one. A
+ * null record is never equal — a pre-v42 row must always get filled. */
+function topicsEqual(stored: StoredTopic[] | null, computed: readonly StoredTopic[]): boolean {
+  if (stored === null || stored.length !== computed.length) return false;
+  const key = (t: StoredTopic): string => JSON.stringify([t.name, t.kind ?? null, t.source]);
+  const storedKeys = stored.map(key).sort();
+  const computedKeys = computed.map(key).sort();
+  return storedKeys.every((k, i) => k === computedKeys[i]);
+}
+
+/**
+ * The topics write a link path needs, or null when there's nothing to write.
+ *
+ * Returns null when the record ALREADY says exactly this, which is what keeps a
+ * no-op link call — auto-extraction re-linking a memory to entities it's already
+ * linked to — from bumping `topics_updated_at` and re-uploading the row for no
+ * change. Resolves without PREPARING, so callers can do their remaining awaits
+ * and then prepare adjacent to their `batch` (see {@link prepareTopicsUpdate}).
+ */
+function resolveTopicsWrite(
+  row: VaultMemory | null,
+  linked: ReadonlyArray<NamedEntity>,
+  displayNames: Map<string, string>,
+  source: TopicSource | null
+): { row: VaultMemory; topics: StoredTopic[] } | null {
+  if (row === null || source === null) return null;
+  const topics = topicsForEntities(linked, displayNames, source);
+  if (topicsEqual(parseTopics(row.topics), topics)) return null;
+  return { row, topics };
+}
+
+/**
+ * The `topics` value for a memory whose final link set is `entities`. Names the
+ * caller supplied keep their casing; entities that were already linked (only the
+ * `add` path has any) fall back to the canonical lowercase name, which is the
+ * only spelling the DB retains for them.
+ */
+function topicsForEntities(
+  entities: ReadonlyArray<NamedEntity>,
+  displayNames: Map<string, string>,
+  source: TopicSource
+): StoredTopic[] {
+  return entities.map((e) => {
+    const name = displayNames.get(e.canonicalName) ?? e.canonicalName;
+    return { name, ...(e.kind ? { kind: e.kind } : {}), source };
+  });
+}
+
+/** Normalize the two accepted {@link EntityInput} shapes to the object form. */
+function toEntityObjects(
+  entityInputs: ReadonlyArray<EntityInput>
+): Array<{ name: string; kind?: string }> {
+  return entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
+}
+
+/**
+ * {@link prepareTopicsUpdate} for callers OUTSIDE this module that own a link
+ * write of their own — `setMemoryEntitiesOp`'s stale-link prune and the sweep's
+ * topics backfill. `linked` is the memory's FINAL link set; `inputs` supplies
+ * display casing for whichever of those names the caller spelled out (pass `[]`
+ * when the names come from the DB, which only has canonical lowercase).
+ *
+ * Awaits the row load and prepares in one call, so the caller's next statement
+ * can be its `batch` — see the same-tick requirement on
+ * {@link prepareTopicsUpdate}. Returns null when the row is gone or already
+ * records exactly this set (see {@link resolveTopicsWrite}).
+ */
+export async function prepareMemoryTopicsUpdate(
+  ctx: EntityOperationsContext,
+  memoryId: string,
+  linked: ReadonlyArray<NamedEntity>,
+  inputs: ReadonlyArray<EntityInput>,
+  source: TopicSource
+): Promise<Model | null> {
+  const row = await findVaultRowInWrite(ctx, memoryId);
+  const write = resolveTopicsWrite(row, linked, displayNamesOf(toEntityObjects(inputs)), source);
+  return write === null ? null : prepareTopicsUpdate(write.row, write.topics, Date.now());
+}
+
+/**
  * Link a memory to one or more entities. Accepts bare names (back-compat)
  * or `{ name, kind }` objects. Names are normalized; missing entities are
  * auto-created (with their kind), and an existing entity's null kind is
@@ -132,16 +286,21 @@ async function upsertEntitiesInWrite(
  * topics to a memory we couldn't verify. Entity upserts and link creation
  * run in ONE writer to prevent orphan-prune races; returns [] when links
  * were skipped.
+ *
+ * `options.topicsSource` (default `auto`) is the provenance recorded in
+ * `memory_vault.topics`, which this rewrites from the memory's FULL resulting
+ * link set — see {@link prepareTopicsUpdate}. Add semantics mean that set is
+ * old ∪ new, so already-linked entities are resolved for their names too.
  */
 export async function linkMemoryEntitiesOp(
   ctx: EntityOperationsContext,
   memoryId: string,
   entityInputs: ReadonlyArray<EntityInput>,
-  options?: { unlessTopicsUserManaged?: boolean }
+  options?: { unlessTopicsUserManaged?: boolean; topicsSource?: TopicSource }
 ): Promise<StoredEntity[]> {
   if (entityInputs.length === 0) return [];
 
-  const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
+  const normalized = toEntityObjects(entityInputs);
   const userId = ctx.userId;
   let skipped = false;
   let entities: StoredEntity[] = [];
@@ -153,7 +312,8 @@ export async function linkMemoryEntitiesOp(
     );
     entities = Array.from(byName.values());
 
-    if (options?.unlessTopicsUserManaged && (await autoLinkBlocked(ctx, memoryId))) {
+    const vaultRow = await findVaultRowInWrite(ctx, memoryId);
+    if (options?.unlessTopicsUserManaged && autoLinkBlocked(vaultRow)) {
       if (entityOps.length > 0) {
         await ctx.database.batch(...entityOps);
       }
@@ -168,7 +328,21 @@ export async function linkMemoryEntitiesOp(
       .fetch();
     const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
-    if (entityOps.length === 0 && toCreate.length === 0) return;
+
+    // Names of links this call didn't supply — the resulting set is old ∪ new,
+    // and `topics` records all of it.
+    const keptIds = entities.map((e) => e.uniqueId);
+    const carriedOver = await resolveEntitiesByIds(
+      ctx,
+      [...existingEntityIds].filter((id) => !keptIds.includes(id))
+    );
+    const topicsWrite = resolveTopicsWrite(
+      vaultRow,
+      [...carriedOver, ...entities],
+      displayNamesOf(normalized),
+      options?.topicsSource ?? "auto"
+    );
+    if (entityOps.length === 0 && toCreate.length === 0 && topicsWrite === null) return;
 
     const linkOps = toCreate.map((e) =>
       ctx.memoryEntityCollection.prepareCreate((record) => {
@@ -177,31 +351,43 @@ export async function linkMemoryEntitiesOp(
         if (userId !== undefined) record._setRaw("user_id", userId);
       })
     );
-    await ctx.database.batch(...entityOps, ...linkOps);
+    await ctx.database.batch(
+      ...entityOps,
+      ...linkOps,
+      ...(topicsWrite ? [prepareTopicsUpdate(topicsWrite.row, topicsWrite.topics, Date.now())] : [])
+    );
   });
 
   return skipped ? [] : entities;
 }
 
 /**
+ * Resolve `entity` rows by id, for link sets whose names this call didn't
+ * supply. Only ever a single memory's links (single digits), so no `Q.oneOf`
+ * chunking — same reasoning as {@link findOrphanedEntities}.
+ */
+async function resolveEntitiesByIds(
+  ctx: EntityOperationsContext,
+  entityIds: readonly string[]
+): Promise<StoredEntity[]> {
+  if (entityIds.length === 0) return [];
+  const rows = await ctx.entityCollection
+    .query(Q.where("id", Q.oneOf(Array.from(entityIds))))
+    .fetch();
+  return rows.map(entityToStored);
+}
+
+/**
  * In-write guard for auto link paths: true when auto-managed links must NOT
  * be written to this memory — the vault row is user-managed, soft-deleted, or
- * absent, or the read failed (fail CLOSED). Truthiness (not `=== true`) so an
- * unsanitized SQLite `1` can never fail open. MUST be called from inside a
- * `database.write()` block: writers are serialized, so a committed
- * `setMemoryEntitiesOp` (flag) or vault delete is always visible here.
+ * absent, or the read failed (fail CLOSED — {@link findVaultRowInWrite} returns
+ * null for both). Truthiness (not `=== true`) so an unsanitized SQLite `1` can
+ * never fail open. The row MUST be read from inside a `database.write()` block:
+ * writers are serialized, so a committed `setMemoryEntitiesOp` (flag) or vault
+ * delete is always visible there.
  */
-async function autoLinkBlocked(ctx: EntityOperationsContext, memoryId: string): Promise<boolean> {
-  try {
-    const rows = await ctx.database
-      .get<VaultMemory>("memory_vault")
-      .query(Q.where("id", memoryId))
-      .fetch();
-    const row = rows[0];
-    return !row || !!row.isDeleted || !!row.topicsUserManaged;
-  } catch {
-    return true;
-  }
+function autoLinkBlocked(row: VaultMemory | null): boolean {
+  return !row || !!row.isDeleted || !!row.topicsUserManaged;
 }
 
 /**
@@ -227,13 +413,60 @@ export async function replaceMemoryEntitiesGuardedOp(
   memoryId: string,
   entityInputs: ReadonlyArray<EntityInput>
 ): Promise<StoredEntity[] | null> {
-  const normalized = entityInputs.map((e) => (typeof e === "string" ? { name: e } : e));
+  return replaceMemoryEntities(ctx, memoryId, entityInputs, {
+    guarded: true,
+    topicsSource: "auto",
+  });
+}
+
+/**
+ * REBUILD a memory's entity links from `memory_vault.topics` — the restore
+ * primitive behind the sweep's `topicsToRelink` bucket. Same replace semantics
+ * as {@link replaceMemoryEntitiesGuardedOp}, with two deliberate differences:
+ *
+ * - UNGUARDED. A restored device receives `topics_user_managed` along with
+ *   `topics`, and a curated memory is exactly the case whose index needs
+ *   rebuilding — the guard would skip precisely the rows this exists for. The
+ *   flag itself is never touched, so auto-extraction still stays off the row.
+ * - Writes NO `memory_vault` columns, not even `topics`. `topics` is the input
+ *   here, so re-writing it would be a no-op that dirties the row — and a fresh
+ *   restore writes rows `_status: 'synced'`, so dirtying them would re-upload
+ *   the entire vault (embeddings included) after every device migration.
+ *
+ * Because the column is untouched, each topic's `source` survives verbatim —
+ * the rebuilt index carries the provenance the origin device recorded.
+ */
+export async function relinkMemoryEntitiesFromTopicsOp(
+  ctx: EntityOperationsContext,
+  memoryId: string,
+  topics: readonly StoredTopic[]
+): Promise<StoredEntity[] | null> {
+  return replaceMemoryEntities(ctx, memoryId, topics, {
+    guarded: false,
+    topicsSource: null,
+  });
+}
+
+/**
+ * Shared body of the two replace paths. `guarded` applies the
+ * {@link autoLinkBlocked} check; `topicsSource` is the provenance written to
+ * `memory_vault.topics`, or null to leave the vault row alone entirely (relink
+ * only — see {@link relinkMemoryEntitiesFromTopicsOp}).
+ */
+async function replaceMemoryEntities(
+  ctx: EntityOperationsContext,
+  memoryId: string,
+  entityInputs: ReadonlyArray<EntityInput>,
+  options: { guarded: boolean; topicsSource: TopicSource | null }
+): Promise<StoredEntity[] | null> {
+  const normalized = toEntityObjects(entityInputs);
   const userId = ctx.userId;
   let skipped = false;
   let entities: StoredEntity[] = [];
 
   await ctx.database.write(async () => {
-    if (await autoLinkBlocked(ctx, memoryId)) {
+    const vaultRow = await findVaultRowInWrite(ctx, memoryId);
+    if (options.guarded && autoLinkBlocked(vaultRow)) {
       skipped = true;
       return;
     }
@@ -251,7 +484,20 @@ export async function replaceMemoryEntitiesGuardedOp(
     const existingEntityIds = new Set(existingLinks.map((l) => String(l.entityId)));
     const toCreate = entities.filter((e) => !existingEntityIds.has(e.uniqueId));
     const toDestroy = existingLinks.filter((l) => !keep.has(String(l.entityId)));
-    if (entityOps.length === 0 && toCreate.length === 0 && toDestroy.length === 0) return;
+    const topicsWrite = resolveTopicsWrite(
+      vaultRow,
+      entities,
+      displayNamesOf(normalized),
+      options.topicsSource
+    );
+    if (
+      entityOps.length === 0 &&
+      toCreate.length === 0 &&
+      toDestroy.length === 0 &&
+      topicsWrite === null
+    ) {
+      return;
+    }
     const orphans = await findOrphanedEntities(ctx, memoryId, toDestroy);
     await ctx.database.batch(
       ...entityOps,
@@ -263,7 +509,8 @@ export async function replaceMemoryEntitiesGuardedOp(
         })
       ),
       ...toDestroy.map((l) => l.prepareDestroyPermanently()),
-      ...orphans.map((e) => e.prepareDestroyPermanently())
+      ...orphans.map((e) => e.prepareDestroyPermanently()),
+      ...(topicsWrite ? [prepareTopicsUpdate(topicsWrite.row, topicsWrite.topics, Date.now())] : [])
     );
   });
 
