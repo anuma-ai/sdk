@@ -2205,18 +2205,36 @@ export async function rankPreparedVaultCandidates(
       }
       // A successful-but-degenerate response is the same dead lane as a throw,
       // and `subEmbeddings.length` alone can't see it: `[[], [], []]` for three
-      // facets has length 3. Every facet must have a REAL vector — one short
-      // response would also index `subEmbeddings[i]` past the end and hand
-      // `rankComposite` an undefined embedding. Same reasoning as the empty-query
-      // guard in embedQueryOrDegrade, applied to the batch.
+      // facets has length 3. Every facet must have a REAL vector AT THE QUERY'S
+      // DIMENSION, because there are three ways to reach the same all-zero fusion:
+      //   - empty vector — cosineSimilarity's zero-magnitude branch returns 0;
+      //   - short response — `subEmbeddings[i]` indexes past the end and hands
+      //     `rankComposite` an undefined embedding;
+      //   - wrong dimension — cosineSimilarity bails at `a.length !== b.length`
+      //     and returns 0 (memoryEngine/vector.ts). Reachable via the embedding
+      //     cache, which `generateEmbeddings` keys on text alone, not on model:
+      //     vectors cached under a previous embedding model come back at the old
+      //     dimension while the query vector is current. The row-load path
+      //     dim-checks its cache hits for exactly this reason; facets get the
+      //     same check here.
+      // The `subQueries.length > 0` clause is not redundant: without it a
+      // zero-facet decomposition reads as usable (`0 === 0`, and `[].every()` is
+      // true), and `rankComposite` returns [] on an empty facet list — turning a
+      // degrade into a total recall miss. Unreachable today (decomposeQuery's
+      // validate() rejects an empty subQueries), but the old `length > 0` check
+      // made it safe by accident and this shape doesn't.
+      // Same reasoning as the empty-query guard in embedQueryOrDegrade, applied
+      // to the batch.
       const subEmbeddingsUsable =
+        decomp.subQueries.length > 0 &&
         subEmbeddings.length === decomp.subQueries.length &&
-        subEmbeddings.every((v) => v.length > 0);
+        subEmbeddings.every((v) => v.length > 0 && v.length === queryEmbedding.length);
       if (subEmbeddings.length > 0 && !subEmbeddingsUsable) {
         getLogger().warn(
-          `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors for ` +
-            `${decomp.subQueries.length} sub-queries (or empty ones) — falling back to ` +
-            "single-query ranking"
+          `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors ` +
+            `(dims ${subEmbeddings.map((v) => v.length).join(",")}) for ` +
+            `${decomp.subQueries.length} sub-queries against a ${queryEmbedding.length}-dim ` +
+            "query — falling back to single-query ranking"
         );
       }
       // On a sub-query embed failure, fall through to the single-query path below
