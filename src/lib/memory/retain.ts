@@ -165,7 +165,7 @@ export async function retain(
 
     // Stage 1 — semantic consolidation (Hindsight-pattern), if enabled.
     // Pulls top-K memories above the looser consolidation floor (default
-    // 0.65) and asks an LLM to decide create/update/noop/supersede. Catches
+    // 0.55) and asks an LLM to decide create/update/noop/supersede. Catches
     // paraphrased duplicates the strict cosine-merge below misses, and retires
     // stale values on a state change.
     if (options.consolidateOptions) {
