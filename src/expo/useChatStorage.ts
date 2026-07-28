@@ -111,9 +111,8 @@ import {
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
-  createVaultEmbeddingCache,
+  getVaultEmbeddingCache,
   type MemoryVaultToolOptions,
-  type VaultEmbeddingCache,
 } from "../lib/memoryVault";
 import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
@@ -1121,16 +1120,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   /**
    * Shared embedding cache for vault memories on the recall path.
    *
-   * Deliberately NOT warmed with `preEmbedVaultMemories` the way
-   * `react/useChatStorage.ts` warms its own: this cache is per-hook, and the
-   * Expo client mounts one `useChatStorage` per active conversation (a stream
-   * driver each, several resident at once) on top of its recall-owning
-   * instance. An unconditional warm would multiply a full-vault read plus a
-   * per-row decrypt by the number of drivers — and drivers never read this
-   * cache. Warming needs a cache shared per (database, wallet, model) first;
-   * until then the first recall pays the cold cost (anuma-ai/sdk#768 C3).
+   * Resolved from the process-wide registry, so the Expo client's several
+   * resident `useChatStorage` instances (a stream driver per active
+   * conversation, on top of the recall-owning one) all read and write one warm
+   * store instead of a cache each. See `embeddingCacheRegistry` for why the key
+   * is `(database, wallet, model)` and how session teardown is handled.
+   *
+   * Still deliberately NOT warmed with `preEmbedVaultMemories` the way
+   * `react/useChatStorage.ts` warms its own. Sharing removes the duplicated
+   * *storage*, not the duplicated *work*: `preEmbedVaultMemories` computes its
+   * miss list before it embeds, so N drivers mounting together on a device
+   * whose rows have no persisted vectors yet would still fire N batch embeds
+   * and N sets of per-row writes for the same rows. Mounting the warm here
+   * needs in-flight coalescing first (anuma-ai/sdk#768 C3).
    */
-  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
+  const vaultEmbeddingCache = useMemo(
+    () => getVaultEmbeddingCache(database, walletAddress, embeddingModel),
+    [database, walletAddress, embeddingModel]
+  );
 
   /**
    * Decrypted chunk-vector cache for the recall chunk lane. Skips the
@@ -1142,15 +1149,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   /**
    * Drop both recall caches when all encryption state is cleared (logout /
    * wallet switch). Vectors are derived from decrypted content, so leaving
-   * them populated would keep the previous identity's data resident and could
-   * serve stale vectors to the next identity. Mirrors the React hook.
+   * them populated would keep the previous identity's data resident. Mirrors
+   * the React hook — and like it, covers only the instance this hook still
+   * holds; the registry drops the ones no mounted hook references any more.
    */
   useEffect(() => {
     return onClearAllEncryptionState(() => {
-      vaultEmbeddingCacheRef.current.clear();
+      vaultEmbeddingCache.clear();
       chunkVectorCacheRef.current.clear();
     });
-  }, []);
+  }, [vaultEmbeddingCache]);
 
   /**
    * Create the unified recall tool — fact + chunk fused via RRF in one
@@ -1178,7 +1186,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             model: embeddingModel,
             maskInput: maskEmbeddingInput,
           },
-          vaultCache: vaultEmbeddingCacheRef.current,
+          vaultCache: vaultEmbeddingCache,
           chunkCache: chunkVectorCacheRef.current,
           // entityCtx is intentionally omitted on Expo for now — the
           // W5 graph lane is a no-op without it (recall falls through
@@ -1197,6 +1205,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       embeddingModel,
       currentConversationId,
       maskEmbeddingInput,
+      vaultEmbeddingCache,
     ]
   );
 
@@ -1236,7 +1245,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             model: embeddingModel,
             maskInput: maskEmbeddingInput,
           },
-          vaultCache: vaultEmbeddingCacheRef.current,
+          vaultCache: vaultEmbeddingCache,
           chunkCache: chunkVectorCacheRef.current,
         },
         resolvedOptions
@@ -1250,6 +1259,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       embeddingModel,
       currentConversationId,
       maskEmbeddingInput,
+      vaultEmbeddingCache,
     ]
   );
 
