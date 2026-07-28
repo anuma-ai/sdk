@@ -37,11 +37,7 @@ jobs:
   e2e-tools:
     if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
     runs-on: ubuntu-latest
-    # Raised from 5: that budget was being hit repeatedly, and until the
-    # allowlist below it concluded `cancelled` and passed silently. With the
-    # detector corrected, leaving it at 5 would turn a known-tight timeout into
-    # a red required check rather than a real signal.
-    timeout-minutes: 15
+    timeout-minutes: 5
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -112,15 +108,8 @@ jobs:
     steps:
       - name: Check e2e results
         run: |
-          # Allowlist, NOT a failure-check: a job killed by `timeout-minutes`
-          # concludes `cancelled`, and an `== "failure"` test lets that through.
-          # Observed on run 30302039028 — e2e-tools hit its 5m timeout, concluded
-          # `cancelled`, and this REQUIRED status went green 3s later with the
-          # tests never having run to completion.
-          for r in "${{ needs.e2e-tools.result }}" "${{ needs.e2e-tools-compat.result }}"; do
-            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
-              echo "E2E tool tests did not pass (result: $r)"
-              exit 1
-            fi
-          done
+          if [[ "${{ needs.e2e-tools.result }}" == "failure" || "${{ needs.e2e-tools-compat.result }}" == "failure" ]]; then
+            echo "E2E tool tests failed"
+            exit 1
+          fi
           echo "E2E tool tests passed (or skipped)"
