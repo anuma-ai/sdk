@@ -902,6 +902,17 @@ function activeVaultSize(): number {
  * the subject would have let that land without a single gated metric moving. Cost
  * that shows up in a lane the scenario isn't "about" is still cost that ships.
  *
+ * Embedding work is gated on all three of its axes — `embedQueries` (single
+ * calls), `embedBatches` (batch calls), `embedTexts` (texts across both) —
+ * because the total alone cannot see the SHAPE of the work. Trading one batched
+ * call for N single ones embeds exactly the same texts: `embedTexts` holds
+ * still while the number of round trips multiplies, and with only the total
+ * gated that regression is invisible. Call shape is the axis batching work
+ * moves on, so it needs a counter that reads it. `embedTexts` stays gated
+ * alongside them because it is the axis a redundant-embed fix moves — #774's
+ * query-embedding reuse halved `retainBatch10.embedTexts` — and neither number
+ * implies the other.
+ *
  * The one counter applied unevenly on purpose is the stored-vector parse, which
  * has a different proxy per read path: on the legacy path it is `vaultCacheAdds`
  * (the parse is inline in `searchTool.ts`, so the cache's growth is the only
@@ -921,6 +932,8 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "bm25Passes",
       "bm25Prepares",
       "bm25DocsTokenized",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
     ],
   ],
@@ -935,6 +948,8 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "bm25Passes",
       "bm25Prepares",
       "bm25DocsTokenized",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
     ],
   ],
@@ -953,6 +968,8 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "bm25Passes",
       "bm25Prepares",
       "bm25DocsTokenized",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
     ],
   ],
@@ -970,6 +987,8 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "bm25Passes",
       "bm25Prepares",
       "bm25DocsTokenized",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
     ],
   ],
@@ -984,6 +1003,8 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "bm25DocsTokenized",
       "rerankCalls",
       "rerankPairs",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
       "vaultDecrypts",
       "vaultCounts",
@@ -1003,6 +1024,8 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "bm25Passes",
       "bm25Prepares",
       "bm25DocsTokenized",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
     ],
   ],
@@ -1014,6 +1037,8 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "vaultCacheAdds",
       "chunkSearches",
       "chunkCacheAdds",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
       "vaultDecrypts",
       "entityLookups",
@@ -1035,21 +1060,57 @@ const GATED: ReadonlyArray<readonly [string, readonly (keyof ScenarioNumbers)[]]
       "bm25Passes",
       "bm25Prepares",
       "bm25DocsTokenized",
+      "embedQueries",
+      "embedBatches",
       "embedTexts",
     ],
   ],
   [
     "retainCreate",
-    ["vaultFullLoads", "vaultFullRows", "vaultDecrypts", "embedTexts", "vaultCreates"],
+    [
+      "vaultFullLoads",
+      "vaultFullRows",
+      "vaultDecrypts",
+      "embedQueries",
+      "embedBatches",
+      "embedTexts",
+      "vaultCreates",
+    ],
   ],
   [
     "retainMerge",
-    ["vaultFullLoads", "vaultFullRows", "vaultDecrypts", "embedTexts", "vaultUpdates"],
+    [
+      "vaultFullLoads",
+      "vaultFullRows",
+      "vaultDecrypts",
+      "embedQueries",
+      "embedBatches",
+      "embedTexts",
+      "vaultUpdates",
+    ],
   ],
-  ["retainTombstone", ["vaultFullLoads", "vaultFullRows", "vaultDecrypts", "embedTexts"]],
+  [
+    "retainTombstone",
+    [
+      "vaultFullLoads",
+      "vaultFullRows",
+      "vaultDecrypts",
+      "embedQueries",
+      "embedBatches",
+      "embedTexts",
+    ],
+  ],
   [
     "retainBatch10",
-    ["vaultFullLoads", "vaultFullRows", "vaultDecrypts", "embedTexts", "vaultCreates"],
+    [
+      "vaultFullLoads",
+      "vaultFullRows",
+      "vaultDecrypts",
+      "embedQueries",
+      "embedBatches",
+      "embedTexts",
+      "vaultCreates",
+    ],
   ],
 ];
 

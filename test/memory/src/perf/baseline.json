@@ -75,6 +75,20 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "factLegacyCold.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyCold.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "factLegacyCold.embedTexts": {
       "mean": 1,
       "min": 1,
@@ -135,6 +149,20 @@
       "mean": 940,
       "min": 940,
       "max": 940,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factLegacyWarm.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
       "stdDev": 0,
       "tolerance": 0
     },
@@ -229,6 +257,20 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "factProjectedCold.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedCold.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "factProjectedCold.embedTexts": {
       "mean": 1,
       "min": 1,
@@ -313,6 +355,20 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "factProjectedWarm.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "factProjectedWarm.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "factProjectedWarm.embedTexts": {
       "mean": 1,
       "min": 1,
@@ -373,6 +429,20 @@
       "mean": 30,
       "min": 30,
       "max": 30,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "compositeHigh.embedBatches": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
       "stdDev": 0,
       "tolerance": 0
     },
@@ -474,6 +544,20 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "graphTemporal.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "graphTemporal.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "graphTemporal.embedTexts": {
       "mean": 1,
       "min": 1,
@@ -513,6 +597,20 @@
       "mean": 300,
       "min": 300,
       "max": 300,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.embedQueries": {
+      "mean": 2,
+      "min": 2,
+      "max": 2,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneCold.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
       "stdDev": 0,
       "tolerance": 0
     },
@@ -628,6 +726,20 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "chunkLaneWarm.embedQueries": {
+      "mean": 2,
+      "min": 2,
+      "max": 2,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "chunkLaneWarm.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "chunkLaneWarm.embedTexts": {
       "mean": 2,
       "min": 2,
@@ -653,6 +765,20 @@
       "mean": 941,
       "min": 941,
       "max": 941,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainCreate.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainCreate.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
       "stdDev": 0,
       "tolerance": 0
     },
@@ -691,6 +817,20 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "retainMerge.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainMerge.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "retainMerge.embedTexts": {
       "mean": 1,
       "min": 1,
@@ -726,6 +866,20 @@
       "stdDev": 0,
       "tolerance": 0
     },
+    "retainTombstone.embedQueries": {
+      "mean": 1,
+      "min": 1,
+      "max": 1,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainTombstone.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdDev": 0,
+      "tolerance": 0
+    },
     "retainTombstone.embedTexts": {
       "mean": 1,
       "min": 1,
@@ -751,6 +905,20 @@
       "mean": 9455,
       "min": 9455,
       "max": 9455,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainBatch10.embedQueries": {
+      "mean": 10,
+      "min": 10,
+      "max": 10,
+      "stdDev": 0,
+      "tolerance": 0
+    },
+    "retainBatch10.embedBatches": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
       "stdDev": 0,
       "tolerance": 0
     },
