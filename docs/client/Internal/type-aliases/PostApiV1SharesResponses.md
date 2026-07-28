@@ -2,7 +2,7 @@
 
 > **PostApiV1SharesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9137)
+Defined in: [src/client/types.gen.ts:9139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9139)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9137](https://github.com/anuma-ai/sdk/blob/
 
 > **201**: [`HandlersShareResponse`](HandlersShareResponse.md)
 
-Defined in: [src/client/types.gen.ts:9141](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9141)
+Defined in: [src/client/types.gen.ts:9143](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9143)
 
 Created

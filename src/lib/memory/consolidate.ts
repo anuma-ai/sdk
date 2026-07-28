@@ -10,8 +10,9 @@
  *               and still need to pick up."
  *
  * These have cosine ~0.7–0.8 — high enough to be obviously the same fact, low
- * enough to slip past the 0.85 auto-merge floor. The result is an over-grown
- * vault that confuses the LLM at answer time.
+ * enough to slip past the auto-merge floor (0.8, `DEFAULT_AUTO_MERGE_THRESHOLD`
+ * in retain.ts). The result is an over-grown vault that confuses the LLM at
+ * answer time.
  *
  * Consolidation closes the gap: for each new fact, pull the top-K most
  * similar existing memories (looser threshold), pass to an LLM with explicit
@@ -32,8 +33,8 @@
  * silently swallow a write.
  */
 
-import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import { callPortalJsonCompletion, type PortalLlmAuth } from "./portalLlm.js";
 import type { ConsolidationFallbackReason } from "./types.js";
 
@@ -55,7 +56,7 @@ export const DEFAULT_CONSOLIDATION_MODEL = "inclusionai/ling-2.6-flash";
 // Retry budget for TRANSIENT consolidation failures. A transient blip
 // (network/timeout/5xx/429/empty completion) that degrades straight to create
 // is NOT low-cost: the paraphrased re-extractions consolidation exists to
-// catch sit at cosine ~0.7–0.8, below the 0.85 auto-merge floor, so a spurious
+// catch sit at cosine ~0.7–0.8, below the 0.8 auto-merge floor, so a spurious
 // create leaves a permanent near-duplicate that does NOT collapse at read time
 // or self-heal via proof_count (different wording → different embedding). 3
 // attempts = up to two cheap transient-only retries; the happy path still
@@ -266,23 +267,7 @@ function degrade(
   options: ConsolidateOptions,
   detail?: unknown
 ): ConsolidationResult {
-  // Warn by default so a persistently-failing consolidator (which silently
-  // accumulates duplicate memories) is observable without the caller having
-  // wired onFallback. This is the single log point for all degrade paths —
-  // previously only the thrown-error path logged, so parsed===null and
-  // invalid_response fallbacks were invisible.
-  if (detail !== undefined) {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`, detail);
-  } else {
-    getLogger().warn(`memory/consolidate: degraded to create (${reason})`);
-  }
-  try {
-    options.onFallback?.(reason);
-  } catch {
-    // Observability callback must not break the write path — a throwing
-    // metrics hook would otherwise propagate up through retain() and
-    // fail the very write the fallback is trying to preserve.
-  }
+  notifyConsolidationFallback(reason, options.onFallback, detail);
   return { ...fallback, fallbackReason: reason };
 }
 

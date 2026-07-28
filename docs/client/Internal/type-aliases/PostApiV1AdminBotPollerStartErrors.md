@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminBotPollerStartErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5096](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5096)
+Defined in: [src/client/types.gen.ts:5102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5102)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5096](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5100)
+Defined in: [src/client/types.gen.ts:5106](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5106)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **502**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5104)
+Defined in: [src/client/types.gen.ts:5110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5110)
 
 Bad Gateway

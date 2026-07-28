@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsScheduleDowngradeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:9471](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9471)
+Defined in: [src/client/types.gen.ts:9473](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9473)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:9471](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersScheduleDowngradeResponse`](HandlersScheduleDowngradeResponse.md)
 
-Defined in: [src/client/types.gen.ts:9475](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9475)
+Defined in: [src/client/types.gen.ts:9477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9477)
 
 OK
