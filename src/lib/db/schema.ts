@@ -98,8 +98,12 @@ import { VaultFolder } from "./vaultFolders/models";
  *   `topics_updated_at` is a SECOND timestamp because every topic writer pins
  *   `updated_at` on purpose (recall's recency multiplier) and both sync paths
  *   key on `updated_at`, so a topic-only change would neither upload nor merge
+ * - v43: Added a (is_deleted, created_at) index to conversations. Every
+ *   conversation list read filters is_deleted and orders by created_at DESC,
+ *   which previously meant a temp B-tree sort of the whole live set on every
+ *   read. Structural only — no column added, no data rewritten
  */
-export const SDK_SCHEMA_VERSION = 42;
+export const SDK_SCHEMA_VERSION = 43;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -169,7 +173,16 @@ export const sdkSchema = appSchema({
         { name: "conversation_id", type: "string", isIndexed: true },
         { name: "title", type: "string" },
         { name: "project_id", type: "string", isOptional: true, isIndexed: true },
-        { name: "created_at", type: "number" },
+        // Indexed to match every other list-sorted created_at in this schema.
+        // Note this single-column index is NOT what makes the conversation list
+        // reads fast on native SQLite — they all filter is_deleted as well, and
+        // SQLite will not combine the two indexes, so the composite created by
+        // the v42 migration is what its planner actually uses. This declaration
+        // still earns its keep on the other two adapters: LokiJS builds its
+        // binary indices from `isIndexed` (and ignores `sql` migration steps
+        // outright), and Postgres gathers statistics via autovacuum, so its
+        // planner can use a single-column index the SQLite planner skips.
+        { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "pinned_at", type: "number", isOptional: true },
@@ -494,6 +507,7 @@ export const sdkSchema = appSchema({
  * - v39 → v40: Added `fact_type`, `archived_at`, `trust_tier` columns to memory_vault for typed memory + decay + Tier-0 security (all nullable + plaintext, NULL backfill)
  * - v40 → v41: Added `visibility`, `twin_opt_in`, `published_at`, `geohash` columns to memory_vault for the People Nearby cross-user visibility axis (two-tier `private | public`; null/unknown grandfathered as 'private')
  * - v41 → v42: Added `topics` + `topics_updated_at` columns to memory_vault, making a memory's topics the durable synced record and `entity`/`memory_entity` a device-local index over it (null `topics` = pre-v42, backfilled from the row's current links by the sweep)
+ * - v42 → v43: Added a composite `(is_deleted, created_at)` index to conversations so the list reads stop temp-sorting (structural only, no data rewritten)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -1080,6 +1094,49 @@ export const sdkMigrations = schemaMigrations({
             { name: "topics_updated_at", type: "number", isOptional: true },
           ],
         }),
+      ],
+    },
+    // v42 -> v43: Give the conversation list reads an index they can actually
+    // sort on. All five of them (getConversationsOp, getConversationsLazyOp,
+    // getConversationsByProjectOp, getConversationsByProjectLazyOp and the
+    // keyset getConversationsPageOp) emit `where is_deleted is 0 ... order by
+    // created_at desc`, so before this they resolved is_deleted through its
+    // index and then built a temp B-tree over every live row just to return
+    // the newest page.
+    //
+    // The index is COMPOSITE, and that is the whole point — a bare index on
+    // created_at does not fix this. SQLite will not combine two single-column
+    // indexes here, so with `is_deleted` indexed and `created_at` indexed
+    // separately it still picks conversations_is_deleted and still temp-sorts.
+    // It only prefers a lone created_at index once ANALYZE has populated
+    // sqlite_stat1, and nothing ever runs ANALYZE: not WatermelonDB, not its
+    // native SQLite bindings, not this SDK. Every device is permanently in the
+    // no-statistics state, so the index has to satisfy the filter and the sort
+    // in one structure. `(is_deleted, created_at)` does: equality on the
+    // leading column, ordered scan on the second, and the keyset boundary
+    // becomes a range seek on the same index.
+    //
+    // unsafeExecuteSql, not addColumns: both columns already exist and
+    // WatermelonDB has no add-index migration step, so raw SQL is the only way
+    // to build one in place (same shape as the v19 -> v20 memory_vault
+    // migration). IF NOT EXISTS keeps the step idempotent.
+    //
+    // Two limits worth knowing before someone re-measures this and finds it
+    // missing. First, the LokiJS (web) adapter discards `sql` steps entirely,
+    // so existing browser databases gain nothing — web's only lever is the
+    // `isIndexed` flag on the column itself. Second, this index reaches
+    // MIGRATED databases only: WatermelonDB builds a fresh database purely from
+    // the encoded schema, and its schema format cannot express a composite
+    // index. The one hook that could (`unsafeSql` on the table) is a function,
+    // and the LokiJS adapter posts the schema to its worker, so attaching it
+    // makes the whole schema fail structuredClone and takes the database down
+    // at setup for anyone on `useWebWorker: true`. Not worth it for an index.
+    {
+      toVersion: 43,
+      steps: [
+        unsafeExecuteSql(
+          "CREATE INDEX IF NOT EXISTS conversations_is_deleted_created_at ON conversations (is_deleted, created_at);"
+        ),
       ],
     },
   ],
