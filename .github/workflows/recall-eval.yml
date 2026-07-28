@@ -208,6 +208,14 @@ jobs:
                 "  BLOCKING — retrieval:",
                 "    recall    : \((.retrieval.avgRecall*1000|round/10))%",
                 "    precision : \((.retrieval.avgPrecision*1000|round/10))%",
+                # The denominator, printed only when it is not the whole run.
+                # Both figures above average over the questions retrieval was
+                # actually measured on, so a crash narrows the sample instead of
+                # deflating the value — but a shrunken sample is noisier, and a
+                # reader comparing against the baseline should see that.
+                (if .retrieval.measuredQuestions < .totalQuestions then
+                  "    measured on : \(.retrieval.measuredQuestions)/\(.totalQuestions) questions (\(.harnessFailures) harness failure(s) excluded)"
+                 else empty end),
                 "",
                 "  reported only (never gates):",
                 "    accuracy  : \((.accuracy*1000|round/10))%  (\(.correctAnswers)/\(.totalQuestions))"
