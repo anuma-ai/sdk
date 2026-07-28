@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:1039](https://github.com/anuma-ai/sdk/blob/ma
 
 Register push-notification device
 
-Stores an Expo push token so the portal can later deliver push notifications to this device. Idempotent — re-posting the same token refreshes the row.
+Stores an Expo push token so the portal can later deliver push notifications to this device. Idempotent — re-posting the same token refreshes the row and bumps its last-seen timestamp. A token previously registered by a different account is reassigned to the caller (an Expo token identifies a physical device). Accounts keep at most 10 devices; the least recently seen are evicted.
 
 ## Type Parameters
 

@@ -2257,6 +2257,7 @@ export type HandlersNonceResponse = {
 export type HandlersNotificationDeviceResponse = {
     app_version?: string;
     id?: number;
+    locale?: string;
     platform?: string;
     token?: string;
 };
@@ -2446,6 +2447,11 @@ export type HandlersRefreshRequest = {
 
 export type HandlersRegisterDeviceRequest = {
     app_version?: string;
+    /**
+     * Locale is the optional BCP-47 language tag of the device (e.g.
+     * "en-US"); used for announcement-campaign locale segmentation.
+     */
+    locale?: string;
     platform?: string;
     token?: string;
 };
@@ -8652,10 +8658,6 @@ export type PostApiV1NotificationsDevicesErrors = {
      * Forbidden
      */
     403: ResponseErrorResponse;
-    /**
-     * Conflict
-     */
-    409: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
