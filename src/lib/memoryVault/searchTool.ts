@@ -2203,9 +2203,25 @@ export async function rankPreparedVaultCandidates(
         // without the multi-facet decomposition.
         subEmbeddings = [];
       }
+      // A successful-but-degenerate response is the same dead lane as a throw,
+      // and `subEmbeddings.length` alone can't see it: `[[], [], []]` for three
+      // facets has length 3. Every facet must have a REAL vector — one short
+      // response would also index `subEmbeddings[i]` past the end and hand
+      // `rankComposite` an undefined embedding. Same reasoning as the empty-query
+      // guard in embedQueryOrDegrade, applied to the batch.
+      const subEmbeddingsUsable =
+        subEmbeddings.length === decomp.subQueries.length &&
+        subEmbeddings.every((v) => v.length > 0);
+      if (subEmbeddings.length > 0 && !subEmbeddingsUsable) {
+        getLogger().warn(
+          `memoryVault: sub-query embedding returned ${subEmbeddings.length} vectors for ` +
+            `${decomp.subQueries.length} sub-queries (or empty ones) — falling back to ` +
+            "single-query ranking"
+        );
+      }
       // On a sub-query embed failure, fall through to the single-query path below
       // — the same path "specific" mode takes — rather than fusing all-zero lanes.
-      if (subEmbeddings.length > 0) {
+      if (subEmbeddingsUsable) {
         const subQueries = decomp.subQueries.map((sq, i) => ({
           query: sq,
           embedding: subEmbeddings[i],

@@ -1858,3 +1858,77 @@ describe("searchVaultMemoriesWithSize — decryptLast branch", () => {
     expect(out.hadV2Head).toBe(false);
   });
 });
+
+/**
+ * The composite fall-through guards a throw and an empty batch, but the batch's
+ * outer length can't see a degenerate response: `[[], []]` for two facets has
+ * length 2. Fusing those runs the multi-facet ranker over all-zero cosine lanes.
+ */
+describe("composite sub-query embeds — degenerate responses fall through", () => {
+  let warnings: string[];
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    warnings = [];
+    setLogger({ ...noopLogger, warn: (msg: string) => warnings.push(String(msg)) });
+    vi.mocked(decomposeQuery).mockResolvedValue({
+      mode: "composite",
+      subQueries: ["allergies", "food"],
+    } as any);
+  });
+  afterEach(() => setLogger(noopLogger));
+
+  const search = () =>
+    searchVaultMemoriesWithSize("shellfish", mockVaultCtx, mockEmbeddingOptions, cacheWithM1(), {
+      limit: 5,
+      useFusion: true,
+      decompose: "llm",
+      decomposeOptions: { apiKey: "k" } as any,
+    });
+
+  function cacheWithM1() {
+    const cache = createVaultEmbeddingCache();
+    cache.set("m1", new Float32Array([1, 0, 0]));
+    return cache;
+  }
+
+  beforeEach(() => {
+    vi.spyOn(ops, "getAllVaultMemoriesOp").mockResolvedValue([
+      makeMemory("m1", "allergic to shellfish"),
+    ] as any);
+    vi.spyOn(embed, "generateEmbedding").mockResolvedValue([1, 0, 0]);
+  });
+
+  it("falls through when every facet vector comes back empty", async () => {
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[], []]);
+
+    const out = await search();
+
+    expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(true);
+    // The original query vector is still good, so this is NOT an outage — the
+    // single-query path runs a real cosine lane.
+    expect(out.embeddingsUnavailable).toBe(false);
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("falls through when the response is short of the sub-query count", async () => {
+    // Would otherwise index past the end and hand rankComposite `undefined`.
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([[1, 0, 0]]);
+
+    const out = await search();
+
+    expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(true);
+    expect(out.results.map((r) => r.uniqueId)).toContain("m1");
+  });
+
+  it("still runs composite on a healthy response", async () => {
+    vi.spyOn(embed, "generateEmbeddings").mockResolvedValue([
+      [1, 0, 0],
+      [0, 1, 0],
+    ]);
+
+    await search();
+
+    expect(warnings.some((w) => /falling back to single-query ranking/.test(w))).toBe(false);
+  });
+});
