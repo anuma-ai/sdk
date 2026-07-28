@@ -58,6 +58,21 @@ export type RunRecord = {
   steps: RecordedStep[];
   finalText: string;
   error: string | null;
+  /**
+   * Terminal finish reason of the FINAL response, dug out of whichever response
+   * shape the resolved API produced (see `extractFinishReason`).
+   *
+   * Recorded because without it a zero-output run is undiagnosable from an
+   * artifact. `onStepFinish` only fires for rounds that executed tools, so the
+   * continuation that ends a turn by producing nothing leaves no step behind —
+   * exactly the runs we most need to explain. `"length"` means the output ceiling
+   * cut it off; anything else means the model stopped on its own and the ceiling
+   * is a red herring. See anuma-ai/sdk#805.
+   */
+  finishReason: string | null;
+  /** Tool calls the final response carried, if any. Distinguishes "stopped with
+   *  nothing" from "stopped with an unparseable/partial call". */
+  finalToolCallCount: number | null;
 };
 
 function serialize(entry: RunRecord): string {

@@ -90,14 +90,15 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
       );
     }
     if (harnessFailures > 0) {
-      // Called out separately because it is the only one that also corrupts the
-      // retrieval block above: a crashed entry's placeholder reports precision
-      // and recall as 0, so those averages are dragged down by questions that
-      // were never actually measured.
+      // Kept as its own line because a crash is an infrastructure failure and
+      // not a wrong answer, so it needs to be readable as one. It no longer
+      // carries the "retrieval is understated too" caveat: the retrieval and
+      // latency blocks now average over measured entries only, so a crash
+      // shrinks their denominator instead of biasing their value.
       console.log(
         `  Harness errors:`.padEnd(20) +
           color(`${harnessFailures}/${summary.totalQuestions}`, COLORS.bold, COLORS.red) +
-          color("  (retrieval figures above are understated too)", COLORS.red)
+          color("  (excluded from every average below)", COLORS.red)
       );
     }
     console.log(
@@ -150,6 +151,14 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   console.log("─".repeat(70));
   console.log(`  Avg Precision:`.padEnd(20) + formatPercent(summary.retrieval.avgPrecision));
   console.log(`  Avg Recall:`.padEnd(20) + formatPercent(summary.retrieval.avgRecall));
+  // Print the denominator whenever it is not the whole run, so a reader can see
+  // that these two numbers cover fewer questions than the accuracy block above.
+  if (summary.retrieval.measuredQuestions < summary.totalQuestions) {
+    console.log(
+      `  Measured on:`.padEnd(20) +
+        `${summary.retrieval.measuredQuestions}/${summary.totalQuestions} questions`
+    );
+  }
   console.log();
 
   // Token Usage & Cost

@@ -2,7 +2,7 @@
 
 > **OpenaiChatCompletionServiceTier** = `string`
 
-Defined in: [src/client/types.gen.ts:3952](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3952)
+Defined in: [src/client/types.gen.ts:3958](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3958)
 
 Specifies the processing type used for serving the request.
 

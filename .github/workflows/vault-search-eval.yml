@@ -112,9 +112,9 @@ jobs:
       INPUT_MODE: ${{ inputs.mode || 'gate' }}
       INPUT_REFRESH: ${{ inputs.refresh_embeddings || 'false' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
 
@@ -130,7 +130,7 @@ jobs:
       # fresh key rather than silently reusing stale vectors. (The benchmark
       # also self-invalidates: the cache file records its model.)
       - name: Restore frozen embedding cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: test/memory/src/vault/embeddings-cache.json
           key: vault-embeddings-v1-${{ hashFiles('test/memory/src/vault/dataset.ts', 'src/lib/memoryEngine/constants.ts') }}
@@ -161,7 +161,7 @@ jobs:
 
       - name: Upload generated baseline
         if: env.INPUT_MODE == 'save-baseline'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vault-search-baseline
           path: test/memory/src/vault/baseline.json
@@ -193,7 +193,7 @@ jobs:
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vault-search-eval-results
           path: results.json
