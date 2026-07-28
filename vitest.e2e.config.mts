@@ -7,6 +7,11 @@ export default defineConfig({
       "test/tools/setup.ts",
       "test/tools/index.ts",
       "test/tools/googleAuth.ts",
+      // Recording helper for runToolLoop — no tests of its own, so the
+      // `test/tools/*.ts` glob above makes vitest fail it with "No test suite
+      // found". Added in #528 (2026-06-05) and unnoticed since, because this
+      // suite has never run to completion under enforcement.
+      "test/tools/recorder.ts",
       "test/tools/**/setup.ts",
       "test/tools/**/tools.ts",
       // Pure unit test for dumpFiles — runs under the main vitest config.
