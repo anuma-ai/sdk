@@ -1064,14 +1064,43 @@ function coerceInterestList(value: unknown): string[] | undefined {
       const parsed: unknown = JSON.parse(trimmed);
       if (Array.isArray(parsed)) return parsed.filter((i): i is string => typeof i === "string");
     } catch {
-      // Bracketed but not valid JSON (unquoted entries, usually). Shed the
-      // brackets so the comma split below doesn't carry them into the column.
-      if (trimmed.endsWith("]")) return trimmed.slice(1, -1).split(",");
+      // Bracketed but not valid JSON (unquoted entries, or a stray trailing
+      // comma). Shed the brackets so the comma split below doesn't carry them
+      // into the column.
+      if (trimmed.endsWith("]")) return splitInterestFragments(trimmed.slice(1, -1));
     }
   }
   // An interest containing a comma would split, but they're short noun phrases
   // and this path is only reached on already-malformed output.
-  return trimmed.split(",");
+  return splitInterestFragments(trimmed);
+}
+
+/**
+ * Comma-split a non-JSON interests string, shedding the serialization
+ * punctuation the split leaves stuck to each fragment. Shedding the outer
+ * brackets isn't enough on its own: `["trail running", "film photography",]`
+ * doesn't parse (trailing comma) yet still splits into `"trail running"` WITH
+ * its quotes, and a response truncated mid-array keeps its opening bracket on
+ * the first fragment. Both are non-blank and well inside the length cap, so they
+ * clear every downstream check and reach a published column verbatim.
+ *
+ * Only a MATCHED pair of wrapping quotes comes off, and at most one bracket per
+ * side. A greedy strip would eat the leading apostrophe off a real entry like
+ * `'90s music`, which is a worse trade than leaving one unbalanced quote on
+ * output that was already malformed twice over.
+ */
+function splitInterestFragments(source: string): string[] {
+  return source.split(",").map((fragment) => {
+    let entry = fragment.trim();
+    if (entry.startsWith("[")) entry = entry.slice(1);
+    if (entry.endsWith("]")) entry = entry.slice(0, -1);
+    entry = entry.trim();
+    const quote = entry[0];
+    // A lone quote character collapses to empty here, which normalization then
+    // drops — the right outcome for a fragment that was pure punctuation.
+    if ((quote === '"' || quote === "'") && entry.endsWith(quote)) entry = entry.slice(1, -1);
+    return entry;
+  });
 }
 
 /**

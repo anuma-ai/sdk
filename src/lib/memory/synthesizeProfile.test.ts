@@ -1119,6 +1119,44 @@ describe("synthesizeProfile", () => {
     expect(unquoted.sections[0].interests).toEqual(["trail running", "film photography"]);
   });
 
+  // Shedding the outer brackets alone doesn't get the quotes off, and the
+  // truncated shape never reaches the bracket path at all. Each of these lands
+  // a fragment that is non-blank and under the length cap, so nothing
+  // downstream would have caught it.
+  it("sheds serialization punctuation from near-JSON interests strings", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    const shapes = [
+      // Valid-looking but unparseable: trailing comma inside the array.
+      '["trail running", "film photography",]',
+      // Python-style single quotes.
+      "['trail running', 'film photography']",
+      // Truncated mid-array — no closing bracket, so the bracket path is skipped
+      // and the opening bracket rides along on the first fragment.
+      '["trail running", "film photography"',
+      // Quoted entries with the brackets already missing.
+      '"trail running", "film photography"',
+    ];
+
+    for (const shape of shapes) {
+      mockReflect.mockResolvedValueOnce(reflectResult("prose", ["a"], true, { interests: shape }));
+      const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+      expect(doc.sections[0].interests).toEqual(["trail running", "film photography"]);
+    }
+  });
+
+  // The counterweight to the strip above: an entry whose leading apostrophe is
+  // part of the name has to survive, so only a matched pair of quotes comes off.
+  it("keeps an unmatched leading quote that belongs to the interest", async () => {
+    mockGetAll.mockResolvedValue([mem("a")]);
+    mockReflect.mockResolvedValueOnce(
+      reflectResult("prose", ["a"], true, { interests: "'90s music, trail running" })
+    );
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[1]] });
+
+    expect(doc.sections[0].interests).toEqual(["'90s music", "trail running"]);
+  });
+
   // Every extracted entry costs an NER inference before the item cap is applied,
   // and this field is unenforced model output — an answer that ignores the array
   // shape can split into hundreds of fragments. The extraction bound is what
